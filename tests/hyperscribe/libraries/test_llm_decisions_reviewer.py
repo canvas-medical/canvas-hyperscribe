@@ -125,46 +125,38 @@ def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_stor
     }
     exp_system_prompts = {
         "transcript1": [
-            "Your task is now to explain the rationale of each and every value you have provided, "
-            "citing any text or value you used.",
+            "Explain rationale for each and every value provided, citing text or values used.",
             "Mention specific parts of the transcript to support the rationale.",
-            "Present the reasoning behind each and every value you provided, your response should "
-            "be a JSON following this JSON Schema:",
+            "Present reasoning for each value as JSON following schema:",
             "```json",
             json.dumps(schema),
             "```",
             "",
         ],
         "transcript2": [
-            "Your task is now to explain the rationale of each and every value you have provided, "
-            "citing any text or value you used.",
+            "Explain rationale for each and every value provided, citing text or values used.",
             "Mention specific parts of the transcript to support the rationale.\n"
             "Report only the items with changed value between your last response and the ones you provided before.",
-            "Present the reasoning behind each and every value you provided, your response should "
-            "be a JSON following this JSON Schema:",
+            "Present reasoning for each value as JSON following schema:",
             "```json",
             json.dumps(schema),
             "```",
             "",
         ],
         "common": [
-            "Your task is now to explain the rationale of each and every value you have provided, "
-            "citing any text or value you used.",
+            "Explain rationale for each and every value provided, citing text or values used.",
             "",
-            "Present the reasoning behind each and every value you provided, your response should "
-            "be a JSON following this JSON Schema:",
+            "Present reasoning for each value as JSON following schema:",
             "```json",
             json.dumps(schema),
             "```",
             "",
         ],
         "questionnaire": [
-            "Your task is now to explain the rationale of each and every value you have provided, "
-            "citing any text or value you used.",
+            "Explain rationale for each and every value provided, citing text or values used.",
             "Report only the items with changed value and mention specific parts of the transcript "
             "to support the rationale.",
-            "Present the reasoning behind each and every value you provided, your response should "
-            "be a JSON following this JSON Schema:",
+            "Present reasoning for each value as JSON following schema:",
             "```json",
             json.dumps(schema),
             "```",

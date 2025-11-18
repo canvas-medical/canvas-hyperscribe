@@ -71,29 +71,23 @@ class ImagingOrder(Base):
         if concepts := CanvasScience.search_imagings(expressions):
             # ask the LLM to pick the most relevant imaging
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant imaging order for a patient out of a list of "
-                "imaging orders.",
+                "Medical context: select the single most relevant imaging order from the list.",
                 "",
             ]
             user_prompt = [
-                "Here is the comments provided by the healthcare provider in regards to the imaging to order "
-                "for a patient:",
+                "Provider data:",
                 "```text",
                 f"keywords: {instruction.parameters['imagingKeywords']}",
-                " -- ",
                 f"note: {instruction.parameters['comment']}",
-                " -- ",
-                f"note to the radiologist: {instruction.parameters['imagingKeywords']}",
+                f"note to radiologist: {instruction.parameters['noteToRadiologist']}",
                 "```",
-                "Sort the following imaging orders from most relevant to least, and return the first one:",
                 "",
+                "Imaging orders:",
                 "\n".join(f" * {concept.name} (conceptId: {concept.code})" for concept in concepts),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant imaging as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"conceptId": "the concept id, as string", "term": "the name of the imaging"}]),
+                json.dumps([{"conceptId": "string", "term": "imaging name"}]),
                 "```",
                 "",
             ]
@@ -127,25 +121,23 @@ class ImagingOrder(Base):
                     "properties": {
                         "imagingKeywords": {
                             "type": "string",
-                            "description": "Comma separated keywords of up to 5 synonyms of the imaging to order",
+                            "description": "Up to 5 comma-separated imaging synonyms",
                         },
                         "conditions": {
                             "type": "array",
                             "minItems": 0,
-                            "description": "List of conditions explicitly mentioned as related to the imaging order. "
-                            "The list has to be empty if no condition is provided in the transcript.",
+                            "description": "Conditions explicitly related to imaging order; "
+                            "empty if none in transcript",
                             "items": {
                                 "type": "object",
                                 "properties": {
                                     "conditionKeywords": {
                                         "type": "string",
-                                        "description": "Comma separated keywords of up to 5 synonyms "
-                                        "of each condition targeted by the imaging",
+                                        "description": "Up to 5 comma-separated condition synonyms",
                                     },
                                     "ICD10": {
                                         "type": "string",
-                                        "description": "Comma separated keywords of up to 5 ICD-10 "
-                                        "codes of each condition targeted by the imaging",
+                                        "description": "Up to 5 comma-separated ICD-10 codes for condition",
                                     },
                                 },
                                 "required": ["conditionKeywords", "ICD10"],
@@ -154,15 +146,15 @@ class ImagingOrder(Base):
                         },
                         "comment": {
                             "type": "string",
-                            "description": "Rationale of the imaging order, as free text",
+                            "description": "Imaging order rationale",
                         },
                         "noteToRadiologist": {
                             "type": "string",
-                            "description": "Information to be sent to the radiologist, as free text",
+                            "description": "Information for radiologist",
                         },
                         "priority": {
                             "type": "string",
-                            "description": "Priority level for the imaging order",
+                            "description": "Priority level",
                             "enum": priorities,
                         },
                     },

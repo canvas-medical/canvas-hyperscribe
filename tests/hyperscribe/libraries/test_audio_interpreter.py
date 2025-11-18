@@ -462,17 +462,17 @@ def test_combine_and_speaker_detection_double_step():
         ]
     ]
     system_prompt = [
-        "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
+        "Medical context: patient visit with healthcare provider.",
         "",
-        "A recording is parsed in realtime and the transcription is reported for each speaker.",
-        "Your task is to identify the speakers of the provided transcription.",
+        "Recording transcribed in realtime per speaker.",
+        "Identify speakers from transcription.",
         "",
     ]
     user_prompts = {
         "noTailedTranscript": [
             "",
-            "Your task is to identify the role of the voices (patient, clinician, nurse, parents...) "
-            "in the conversation, if there is only one voice, or just only silence, assume this is the clinician.",
+            "Identify voice roles (patient, clinician, nurse, parents...). "
+            "If only one voice or silence, assume clinician.",
             "",
             "```json",
             "[\n [\n  "
@@ -481,13 +481,13 @@ def test_combine_and_speaker_detection_double_step():
             '{\n   "speaker": "speaker_0",\n   "text": "text 3",\n   "start": 4.7,\n   "end": 5.3\n  }\n ]\n]',
             "```",
             "",
-            "Present your findings in a JSON format within a Markdown code block:",
+            "Return as JSON in Markdown code block:",
             "```json",
             "[\n {"
             '\n  "speaker": "Patient/Clinician/Nurse/Parent...",'
-            '\n  "text": "the verbatim transcription as reported in the transcription",'
-            '\n  "start": "the start as reported in the transcription",'
-            '\n  "end": "the end as reported in the transcription"\n }\n]',
+            '\n  "text": "verbatim transcription as reported",'
+            '\n  "start": "start as reported",'
+            '\n  "end": "end as reported"\n }\n]',
             "```",
             "",
         ],
@@ -499,8 +499,8 @@ def test_combine_and_speaker_detection_double_step():
             '{\n  "speaker": "speaker2",\n  "text": "last words 2",\n  "start": 1.3,\n  "end": 2.5\n },\n '
             '{\n  "speaker": "speaker3",\n  "text": "last words 3",\n  "start": 2.5,\n  "end": 3.6\n }\n'
             "]\n```\n",
-            "Your task is to identify the role of the voices (patient, clinician, nurse, parents...) "
-            "in the conversation, if there is only one voice, or just only silence, assume this is the clinician.",
+            "Identify voice roles (patient, clinician, nurse, parents...). "
+            "If only one voice or silence, assume clinician.",
             "",
             "```json",
             "[\n [\n  "
@@ -509,13 +509,13 @@ def test_combine_and_speaker_detection_double_step():
             '{\n   "speaker": "speaker_0",\n   "text": "text 3",\n   "start": 4.7,\n   "end": 5.3\n  }\n ]\n]',
             "```",
             "",
-            "Present your findings in a JSON format within a Markdown code block:",
+            "Return as JSON in Markdown code block:",
             "```json",
             "[\n {"
             '\n  "speaker": "Patient/Clinician/Nurse/Parent...",'
-            '\n  "text": "the verbatim transcription as reported in the transcription",'
-            '\n  "start": "the start as reported in the transcription",'
-            '\n  "end": "the end as reported in the transcription"\n }\n]',
+            '\n  "text": "verbatim transcription as reported",'
+            '\n  "start": "start as reported",'
+            '\n  "end": "end as reported"\n }\n]',
             "```",
             "",
         ],
@@ -609,51 +609,45 @@ def test_combine_and_speaker_detection_single_step():
         detector.reset_mock()
 
     system_prompt = [
-        "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
+        "Medical context: patient visit with healthcare provider.",
         "",
-        "Your task is to transcribe what was said with maximum accuracy, capturing ALL clinical"
-        "information including patient symptoms, medical history, medications, treatment plans"
-        "and provider recommendations.",
-        "Ensure complete documentation of patient-reported concerns and clinician instructions,"
+        "Transcribe with maximum accuracy, capturing ALL clinical information: "
+        "patient symptoms, medical history, medications, treatment plans, provider recommendations.",
+        "Complete documentation of patient concerns and clinician instructions required, "
         "as missing clinical details significantly impact care quality.",
         "",
     ]
     user_prompt = {
         "noTailedTranscript": [
-            "The recording takes place in a medical setting, specifically related to a patient's visit with a "
-            "clinician.",
+            "Medical setting: patient visit with clinician.",
             "",
-            "These audio files contain recordings of a single visit.",
-            "There is no overlap between the segments, so they should be regarded as a continuous flow and "
-            "analyzed at once.",
+            "Audio files contain single visit recordings.",
+            "No overlap between segments - continuous flow to analyze at once.",
             "",
-            "Your task is to:",
-            "1. label each voice if multiple voices are present.",
-            "2. transcribe each speaker's words with maximum accuracy.",
+            "Tasks:",
+            "1. Label each voice if multiple present",
+            "2. Transcribe each speaker's words with maximum accuracy",
             "",
-            "Present your findings in a JSON format within a Markdown code block:",
+            "Return as JSON in Markdown code block:",
             "```json",
-            '[\n {\n  "voice": "voice_1/voice_2/.../voice_N",\n  "text": "the verbatim transcription of what the '
-            'speaker said, or [silence] for silences"\n }\n]',
+            '[\n {\n  "voice": "voice_1/voice_2/.../voice_N",\n  "text": "verbatim transcription, or [silence] for '
+            'silences"\n }\n]',
             "```",
             "",
-            "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, "
-            "nurse, parents...) in the conversation, if there is only one voice, or just only silence, "
-            "assume this is the clinician",
+            "Then review discussion and distinguish voice roles "
+            "(patient, clinician, nurse, parents...). If only one voice or silence, assume clinician.",
             "",
-            "Present your findings in a JSON format within a Markdown code block:",
+            "Return as JSON in Markdown code block:",
             "```json",
             '[\n {\n  "speaker": "Patient/Clinician/Nurse/...",\n  "voice": "voice_1/voice_2/.../voice_N"\n }\n]',
             "```",
             "",
         ],
         "withTailedTranscript": [
-            "The recording takes place in a medical setting, specifically related to a patient's visit with a "
-            "clinician.",
+            "Medical setting: patient visit with clinician.",
             "",
-            "These audio files contain recordings of a single visit.",
-            "There is no overlap between the segments, so they should be regarded as a continuous flow and "
-            "analyzed at once.",
+            "Audio files contain single visit recordings.",
+            "No overlap between segments - continuous flow to analyze at once.",
             "The previous segment finished with:"
             "\n```json"
             "\n["
@@ -663,21 +657,20 @@ def test_combine_and_speaker_detection_single_step():
             "\n]"
             "\n```"
             "\n",
-            "Your task is to:",
-            "1. label each voice if multiple voices are present.",
-            "2. transcribe each speaker's words with maximum accuracy.",
+            "Tasks:",
+            "1. Label each voice if multiple present",
+            "2. Transcribe each speaker's words with maximum accuracy",
             "",
-            "Present your findings in a JSON format within a Markdown code block:",
+            "Return as JSON in Markdown code block:",
             "```json",
-            '[\n {\n  "voice": "voice_1/voice_2/.../voice_N",\n  "text": "the verbatim transcription of what the '
-            'speaker said, or [silence] for silences"\n }\n]',
+            '[\n {\n  "voice": "voice_1/voice_2/.../voice_N",\n  "text": "verbatim transcription, or [silence] for '
+            'silences"\n }\n]',
             "```",
             "",
-            "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, "
-            "nurse, parents...) in the conversation, if there is only one voice, or just only silence, "
-            "assume this is the clinician",
+            "Then review discussion and distinguish voice roles "
+            "(patient, clinician, nurse, parents...). If only one voice or silence, assume clinician.",
             "",
-            "Present your findings in a JSON format within a Markdown code block:",
+            "Return as JSON in Markdown code block:",
             "```json",
             '[\n {\n  "speaker": "Patient/Clinician/Nurse/...",\n  "voice": "voice_1/voice_2/.../voice_N"\n }\n]',
             "```",
@@ -930,9 +923,9 @@ def test_detect_sections(json_schema, chatter, memory_log):
         Line(speaker="personA", text="the text 3", start=2.5, end=3.6),
     ]
     system_prompt = [
-        "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
-        "The user will submit a segment of the transcript of the visit of a patient with the healthcare provider.",
-        "Your task is to identify in the transcript whether it includes information related to any of these sections:",
+        "Clinical encounter: patient and licensed healthcare provider.",
+        "User submits transcript segment from patient visit.",
+        "Identify if transcript includes information for these sections:",
         "```text",
         "* Assessment: any evaluations, diagnoses, or impressions made by the provider about the patient's condition "
         "- linked commands: ['First', 'Fourth'].",
@@ -951,15 +944,15 @@ def test_detect_sections(json_schema, chatter, memory_log):
         " - linked commands: [].",
         "```",
         "",
-        "Your response must be in a JSON Markdown block and validated with the schema:",
+        "Return JSON Markdown block validated with schema:",
         "```json",
         '"theJsonSchema"',
         "```",
         "",
     ]
     user_prompt = [
-        "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
-        "What are the sections present in the transcript?",
+        "Most recent transcript segment from patient visit.",
+        "What sections are present?",
         "```json",
         "[\n"
         ' {\n  "speaker": "personA",\n  "text": "the text 1",\n  "start": 0.0,\n  "end": 1.3\n },\n'
@@ -1279,23 +1272,21 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
         mocks[4].instruction_description.side_effect = ["Description5"]
 
     system_prompt = [
-        "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
-        "The user will submit the transcript of the visit of a patient with the healthcare provider.",
-        "The user needs to extract and store the relevant information in their software using structured "
-        "commands as described below.",
-        "Your task is to help the user by identifying the relevant instructions and their linked information, "
-        "regardless of their location in the transcript. Prioritize accuracy and completeness, as omitting"
-        "significant clinical information compromises patient care.",
-        "Prioritize and reward comprehensive capture of all health-related discussion. Focus on"
-        "accurately documenting clinical information while naturally filtering non-medical content."
+        "Clinical encounter: patient and licensed healthcare provider.",
+        "User submits transcript from patient visit.",
+        "User extracts and stores information using structured commands below.",
+        "Identify relevant instructions and linked information from transcript, regardless of location. "
+        "Prioritize accuracy and completeness, as omitting significant clinical information compromises patient care.",
+        "Comprehensive capture of all health-related discussion required. "
+        "Document clinical information accurately while naturally filtering non-medical content.",
         "",
         "IMPORTANT: Carefully track attribution of all health information. Before documenting any symptom, "
         "condition, test result, or medical history, verify WHO it belongs to by examining pronouns, "
         "possessive markers, and context. Information about other people (family members, friends, "
         "coworkers, etc.) must NOT be attributed to the patient. When in doubt about attribution, "
-        "review the surrounding context to confirm the subject of the health information.",
+        "review surrounding context to confirm subject of health information.",
         "",
-        "The instructions are limited to the following:",
+        "Instructions limited to:",
         "```json",
         '[{"instruction": "First", "information": "Description1"}, '
         '{"instruction": "Second", "information": "Description2"}, '
@@ -1304,7 +1295,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
         '{"instruction": "Fifth", "information": "Description5"}]',
         "```",
         "",
-        "Your response must be in a JSON Markdown block and validated with the schema:",
+        "Return JSON Markdown block validated with schema:",
         "```json",
         '"theJsonSchema"',
         "```",
@@ -1312,8 +1303,8 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     ]
     user_prompts = {
         "noKnownInstructions": [
-            "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
-            "What are the instructions I need to add to my software to document the visit correctly?",
+            "Most recent transcript segment from patient visit.",
+            "What instructions are needed to document visit correctly?",
             "```json",
             "["
             '\n {\n  "speaker": "personA",\n  "text": "the text 1",\n  "start": 0.0,\n  "end": 1.3\n },'
@@ -1322,13 +1313,12 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             "\n]",
             "```",
             "",
-            "List all possible instructions as a text, and then, in a JSON markdown block, "
-            "respond with the found instructions as requested",
+            "List all possible instructions as text, then return found instructions as JSON markdown block.",
             "",
         ],
         "withKnownInstructions": [
-            "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
-            "What are the instructions I need to add to my software to document the visit correctly?",
+            "Most recent transcript segment from patient visit.",
+            "What instructions are needed to document visit correctly?",
             "```json",
             "["
             '\n {\n  "speaker": "personA",\n  "text": "the text 1",\n  "start": 0.0,\n  "end": 1.3\n },'
@@ -1337,10 +1327,9 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             "\n]",
             "```",
             "",
-            "List all possible instructions as a text, and then, in a JSON markdown block, "
-            "respond with the found instructions as requested",
+            "List all possible instructions as text, then return found instructions as JSON markdown block.",
             "",
-            "From among all previous segments of the transcript, the following instructions were identified:",
+            "From all previous transcript segments, these instructions were identified:",
             "```json",
             "[\n {"
             '\n  "uuid": "uuid1",'
@@ -1360,18 +1349,17 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             "\n }"
             "\n]",
             "```",
-            "If there is information in the transcript that is relevant to a prior instruction deemed updatable, "
-            "then you can use it to update the contents of the instruction rather than creating a new one.",
-            "But, in all cases, you must provide each and every new, updated and unchanged instructions.",
+            "If transcript information is relevant to a prior updatable instruction, "
+            "update that instruction rather than creating new one.",
+            "In all cases, provide each and every new, updated and unchanged instruction.",
         ],
         "constraints": [
-            "Review your response and be sure to follow these constraints:",
+            "Review response and follow these constraints:",
             " * theConstraint1",
             " * theConstraint2",
             "",
-            "First, review carefully your response against the constraints.",
-            "Then, return the original JSON if it doesn't infringe the constraints.",
-            "Or provide a corrected version to follow the constraints if needed.",
+            "Review response against constraints.",
+            "Return original JSON if compliant, or corrected version if needed.",
             "",
         ],
         "withMissingInstructions": [
@@ -1699,56 +1687,52 @@ def test_create_sdk_command_parameters(
         previous_information="thePreviousInformation",
     )
     system_prompt = [
-        "The conversation is in the context of a clinical encounter between patient (thePatientDemographic) and "
-        "licensed healthcare provider.",
-        "During the encounter, the user has identified instructions with key information to record in its software.",
-        "The user will submit an instruction and the linked information grounded in the transcript, as well "
-        "as the structure of the associated command.",
-        "Your task is to help the user by writing correctly detailed data for the structured command.",
-        "Unless explicitly instructed otherwise by the user for a specific command, "
-        "you must restrict your response to information explicitly present in the transcript "
-        "or prior instructions.",
+        "Clinical encounter: patient (thePatientDemographic) and licensed healthcare provider.",
+        "User identified instructions with key information to record in software.",
+        "User submits instruction and linked information from transcript, plus associated command structure.",
+        "Write correctly detailed data for structured command.",
+        "Unless explicitly instructed otherwise for specific command, "
+        "restrict response to information explicitly present in transcript or prior instructions.",
         "",
-        "Your response has to be a JSON Markdown block encapsulating the filled structure.",
+        "Return JSON Markdown block with filled structure.",
         "",
-        "Please, note that now is 2025-02-04T07:48:21+00:00.",
+        "Current time: 2025-02-04T07:48:21+00:00.",
     ]
     user_prompts = {
         "commandWithSchema": [
-            "Based on the text:",
+            "Based on:",
             "```text",
             "theInformation",
             "```",
             "",
-            "Your task is to replace the values of the JSON object with the relevant information:",
+            "Replace JSON object values with relevant information:",
             "```json",
             '[\n "theStructure"\n]',
             "```",
             "",
-            "The explanations and constraints about the fields are defined in this JSON Schema:",
+            "Field explanations and constraints in JSON Schema:",
             "```json",
             '"theSchema"',
             "```",
             "",
-            "Be sure your response validates the JSON Schema.",
+            "Validate response with JSON Schema.",
             "",
-            "Before finalizing, verify completeness by checking that patient concerns are accurately captured "
-            "and any provider recommendations, follow-up plans, and instructions are complete, specific "
-            "and are accurate given the conversation.",
+            "Before finalizing, verify patient concerns are accurately captured "
+            "and provider recommendations, follow-up plans, and instructions are complete, specific and accurate.",
             "",
         ],
         "commandNoSchema": [
-            "Based on the text:",
+            "Based on:",
             "```text",
             "theInformation",
             "```",
             "",
-            "Your task is to replace the values of the JSON object with the relevant information:",
+            "Replace JSON object values with relevant information:",
             "```json",
             '[\n "theStructure"\n]',
             "```",
             "",
-            "The explanations and constraints about the fields are defined in this JSON Schema:",
+            "Field explanations and constraints in JSON Schema:",
             "```json",
             "{\n "
             '"$schema": "http://json-schema.org/draft-07/schema#",\n '
@@ -1756,11 +1740,10 @@ def test_create_sdk_command_parameters(
             '"items": {\n  "type": "object",\n  "additionalProperties": true\n }\n}',
             "```",
             "",
-            "Be sure your response validates the JSON Schema.",
+            "Validate response with JSON Schema.",
             "",
-            "Before finalizing, verify completeness by checking that patient concerns are accurately captured "
-            "and any provider recommendations, follow-up plans, and instructions are complete, specific "
-            "and are accurate given the conversation.",
+            "Before finalizing, verify patient concerns are accurately captured "
+            "and provider recommendations, follow-up plans, and instructions are complete, specific and accurate.",
             "",
         ],
     }

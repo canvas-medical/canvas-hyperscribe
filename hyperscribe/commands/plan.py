@@ -53,7 +53,7 @@ class Plan(Base):
                     "properties": {
                         "plan": {
                             "type": "string",
-                            "description": "Description of the plan, as free text",
+                            "description": "Plan description",
                         },
                     },
                     "required": ["plan"],

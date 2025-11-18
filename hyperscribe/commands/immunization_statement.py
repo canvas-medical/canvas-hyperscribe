@@ -55,32 +55,26 @@ class ImmunizationStatement(Base):
         if immunizations := CanvasScience.search_immunization(expressions):
             # retrieve the correct medication
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant immunization administrated to a patient "
-                "out of a list of immunizations.",
+                f"Medical context ({self.cache.demographic__str__(False)}): identify the single most "
+                "relevant immunization from the list.",
                 "",
             ]
             user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the immunization:",
+                "Provider data:",
                 "```text",
                 f"keywords: {instruction.parameters['keywords']}",
-                " -- ",
                 instruction.parameters["comments"],
                 "```",
                 "",
-                "Sort the following immunizations from most relevant to least, and return the first one:",
-                "",
+                "Immunizations:",
                 "\n".join(
                     f" * {immunization.label} (cptCode: {immunization.code_cpt}, cvxCode: {immunization.code_cvx})"
                     for immunization in immunizations
                 ),
                 "",
-                f"It may be important to take into account that {self.cache.demographic__str__(False)}.",
-                "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant immunization as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"cptCode": "the CPT code", "cvxCode": "the CVX code", "label": "the label"}]),
+                json.dumps([{"cptCode": "CPT code", "cvxCode": "CVX code", "label": "label"}]),
                 "```",
                 "",
             ]
@@ -113,19 +107,18 @@ class ImmunizationStatement(Base):
                     "properties": {
                         "keywords": {
                             "type": "string",
-                            "description": "Comma-separated keywords to find the specific immunization in a "
-                            "database (using OR criteria), it is better to provide "
-                            "more specific keywords rather than few broad ones.",
+                            "description": "Comma-separated keywords to find immunization (OR criteria); "
+                            "prefer specific over broad",
                         },
                         "onDate": {
                             "type": ["string", "null"],
-                            "description": "Approximate date of the immunization in YYYY-MM-DD.",
+                            "description": "Immunization date YYYY-MM-DD",
                             "format": "date",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         },
                         "comments": {
                             "type": "string",
-                            "description": "provided information related to the immunization, as free text",
+                            "description": "Information related to immunization",
                             "maxLength": 255,
                         },
                     },

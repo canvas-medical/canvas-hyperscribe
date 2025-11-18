@@ -39,29 +39,24 @@ class Medication(Base):
         if medications := CanvasScience.medication_details(expressions):
             # retrieve the correct medication
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant medication to prescribe to a patient "
-                "out of a list of medications.",
+                "Medical context: identify the single most relevant medication from the list.",
                 "",
             ]
             user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the prescription:",
+                "Provider data:",
                 "```text",
                 f"keywords: {instruction.parameters['keywords']}",
-                " -- ",
                 instruction.parameters["sig"],
                 "```",
                 "",
-                "Sort the following medications from most relevant to least, and return the first one:",
-                "",
+                "Medications:",
                 "\n".join(
                     f" * {medication.description} (fdbCode: {medication.fdb_code})" for medication in medications
                 ),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant medication as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"fdbCode": "the fdb code, as int", "description": "the description"}]),
+                json.dumps([{"fdbCode": "int", "description": "description"}]),
                 "```",
                 "",
             ]
@@ -90,11 +85,11 @@ class Medication(Base):
                     "properties": {
                         "keywords": {
                             "type": "string",
-                            "description": "Comma separated keywords of up to 5 synonyms of the taken medication",
+                            "description": "Up to 5 comma-separated medication synonyms",
                         },
                         "sig": {
                             "type": "string",
-                            "description": "Directions, as free text",
+                            "description": "Directions",
                         },
                     },
                     "required": ["keywords", "sig"],

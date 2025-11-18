@@ -66,7 +66,7 @@ class Goal(Base):
                     "properties": {
                         "goal": {
                             "type": "string",
-                            "description": "Title of the goal, as free text",
+                            "description": "Goal title",
                         },
                         "startDate": {
                             "type": ["string", "null"],
@@ -82,17 +82,17 @@ class Goal(Base):
                         },
                         "status": {
                             "type": "string",
-                            "description": "Achievement status of the goal",
+                            "description": "Goal achievement status",
                             "enum": statuses,
                         },
                         "priority": {
                             "type": "string",
-                            "description": "Priority level of the goal",
+                            "description": "Goal priority level",
                             "enum": priorities,
                         },
                         "progressAndBarriers": {
                             "type": "string",
-                            "description": "Progress and barriers, as free text",
+                            "description": "Progress and barriers",
                         },
                     },
                     "required": ["goal", "startDate", "dueDate", "status", "priority", "progressAndBarriers"],

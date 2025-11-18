@@ -46,25 +46,22 @@ class SurgeryHistory(Base):
         if concepts := CanvasScience.surgical_histories(expressions):
             # ask the LLM to pick the most relevant condition
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant surgery of a patient out of a list of surgeries.",
+                "Medical context: identify the single most relevant surgery from the list.",
                 "",
             ]
             user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the surgery of a patient:",
+                "Provider data:",
                 "```text",
                 f"keywords: {instruction.parameters['keywords']}",
-                " -- ",
                 instruction.parameters["comment"],
                 "```",
-                "Sort the following surgeries from most relevant to least, and return the first one:",
                 "",
+                "Surgeries:",
                 "\n".join(f" * {concept.term} (conceptId: '{str(concept.concept_id)}')" for concept in concepts),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant surgery as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"conceptId": "the concept id, as string", "term": "the expression"}]),
+                json.dumps([{"conceptId": "string", "term": "expression"}]),
                 "```",
                 "",
             ]
@@ -93,17 +90,17 @@ class SurgeryHistory(Base):
                     "properties": {
                         "keywords": {
                             "type": "string",
-                            "description": "Comma-separated keywords of up to 5 synonyms of the surgery.",
+                            "description": "Up to 5 comma-separated surgery synonyms",
                         },
                         "approximateDate": {
                             "type": ["string", "null"],
-                            "description": "Approximate date of the surgery in YYYY-MM-DD.",
+                            "description": "Surgery date YYYY-MM-DD",
                             "format": "date",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         },
                         "comment": {
                             "type": "string",
-                            "description": "Description of the surgery, as free text.",
+                            "description": "Surgery description",
                         },
                     },
                     "required": ["keywords", "approximateDate", "comment"],

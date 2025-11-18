@@ -44,29 +44,24 @@ class Task(Base):
             return None
 
         system_prompt = [
-            "The conversation is in the medical context.",
-            "",
-            "The goal is to identify the most relevant staff member, team or role to assign a specific task to.",
+            "Medical context: identify the single most relevant staff member, team or role for task assignment.",
             "",
         ]
         user_prompt = [
-            "Here is the comment provided by the healthcare provider in regards to the task:",
+            "Provider data:",
             "```text",
             f"assign to: {assigned_to}",
-            " -- ",
             f"comment: {comment}",
-            "",
             "```",
             "",
-            "Sort the following staff members, teams and roles from most relevant to least, and return the first one:",
-            "",
+            "Staff, teams and roles:",
             "\n".join(f" * {staff.label} (type: staff, id: {staff.uuid})" for staff in staffs),
             "\n".join(f" * {team.label} (type: team, id: {team.uuid})" for team in teams),
             "\n".join(f" * {role.label} (type: role, id: {role.uuid})" for role in roles),
             "",
-            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "Return the ONE most relevant assignee as JSON in Markdown code block:",
             "```json",
-            json.dumps([{"type": "staff, team or role", "id": "the id, as int", "name": "the entity"}]),
+            json.dumps([{"type": "staff/team/role", "id": "int", "name": "entity name"}]),
             "```",
             "",
         ]
@@ -91,27 +86,22 @@ class Task(Base):
             return None
 
         system_prompt = [
-            "The conversation is in the medical context.",
-            "",
-            "The goal is to identify the most relevant labels linked to a specific task.",
+            "Medical context: identify all relevant labels for the task.",
             "",
         ]
         user_prompt = [
-            "Here is the comment provided by the healthcare provider in regards to the task:",
+            "Provider data:",
             "```text",
             f"labels: {labels}",
-            " -- ",
             f"comment: {comment}",
-            "",
             "```",
             "",
-            "Among the following labels, identify all the most relevant to characterized the task:",
-            "",
+            "Available labels:",
             "\n".join(f" * {label.label} (labelId: {label.uuid})" for label in task_labels),
             "",
-            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "Return all relevant labels as JSON in Markdown code block:",
             "```json",
-            json.dumps([{"labelId": "the label id, as int", "name": "the name of the label"}]),
+            json.dumps([{"labelId": "int", "name": "label name"}]),
             "```",
             "",
         ]
@@ -170,25 +160,24 @@ class Task(Base):
                     "properties": {
                         "title": {
                             "type": "string",
-                            "description": "title of the task",
+                            "description": "Task title",
                         },
                         "dueDate": {
                             "type": "string",
                             "format": "date",
-                            "description": "due date in YYYY-MM-DD format",
+                            "description": "Due date YYYY-MM-DD",
                         },
                         "assignTo": {
                             "type": "string",
-                            "description": "information about the assignee for the task, "
-                            "either a person, a team or a role, or empty",
+                            "description": "Task assignee (person/team/role); empty if unassigned",
                         },
                         "labels": {
                             "type": "string",
-                            "description": "information about the labels to link to the task, or empty",
+                            "description": "Task labels; empty if none",
                         },
                         "comment": {
                             "type": "string",
-                            "description": "comment related to the task provided by the clinician",
+                            "description": "Clinician's task comment",
                         },
                     },
                     "required": ["title", "dueDate", "assignTo", "labels", "comment"],

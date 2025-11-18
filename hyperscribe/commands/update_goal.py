@@ -79,7 +79,7 @@ class UpdateGoal(Base):
                         },
                         "goalIndex": {
                             "type": "integer",
-                            "description": "Index of the Goal to update",
+                            "description": "Goal index to update",
                             "minimum": 0,
                             "maximum": len(goals) - 1,
                         },
@@ -91,17 +91,17 @@ class UpdateGoal(Base):
                         },
                         "status": {
                             "type": "string",
-                            "description": "Achievement status of the goal",
+                            "description": "Goal achievement status",
                             "enum": statuses,
                         },
                         "priority": {
                             "type": "string",
-                            "description": "Priority level of the goal",
+                            "description": "Goal priority level",
                             "enum": priorities,
                         },
                         "progressAndBarriers": {
                             "type": "string",
-                            "description": "Progress or barriers, as free text",
+                            "description": "Progress or barriers",
                         },
                     },
                     "required": ["goal", "goalIndex", "dueDate", "status", "priority", "progressAndBarriers"],

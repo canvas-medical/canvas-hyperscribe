@@ -97,26 +97,22 @@ def test_command_from_json(add_code2description, medication_details):
         chatter.reset_mock()
 
     system_prompt = [
-        "The conversation is in the medical context.",
-        "",
-        "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
+        "Medical context: identify the single most relevant medication from the list.",
         "",
     ]
     user_prompt = [
-        "Here is the comment provided by the healthcare provider in regards to the prescription:",
+        "Provider data:",
         "```text",
         "keywords: keyword1,keyword2,keyword3",
-        " -- ",
         "theSig",
         "```",
         "",
-        "Sort the following medications from most relevant to least, and return the first one:",
-        "",
+        "Medications:",
         " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
         "",
-        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "Return the ONE most relevant medication as JSON in Markdown code block:",
         "```json",
-        '[{"fdbCode": "the fdb code, as int", "description": "the description"}]',
+        '[{"fdbCode": "int", "description": "description"}]',
         "```",
         "",
     ]
@@ -221,7 +217,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "f93a9337b80f990ef0f4d19240e24f03"
+    expected_hash = "d7f952c7262ed85b5d72431570b37d9f"
     assert schema_hash == expected_hash
 
     tests = [

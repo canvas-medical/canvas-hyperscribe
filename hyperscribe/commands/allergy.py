@@ -51,31 +51,26 @@ class Allergy(Base):
         if allergies:
             # retrieve the correct allergy
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant allergy of a patient out of a list of allergies.",
+                "Medical context: identify the single most relevant allergy from the list.",
                 "",
             ]
             user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the allergy:",
+                "Provider data:",
                 "```text",
                 f"keywords: {instruction.parameters['keywords']}",
-                " -- ",
                 f"severity: {instruction.parameters['severity']}",
-                "",
                 instruction.parameters["reaction"],
                 "```",
                 "",
-                "Sort the following allergies from most relevant to least, and return the first one:",
-                "",
+                "Allergies:",
                 "\n".join(
                     f" * {allergy.concept_id_description} (conceptId: '{str(allergy.concept_id_value)}')"
                     for allergy in allergies
                 ),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant allergy as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"conceptId": "the concept id, as string", "term": "the description"}]),
+                json.dumps([{"conceptId": "string", "term": "description"}]),
                 "```",
                 "",
             ]
@@ -110,27 +105,26 @@ class Allergy(Base):
                     "properties": {
                         "keywords": {
                             "type": "string",
-                            "description": "Comma separated keywords of up to 5 distinct synonyms "
-                            "of the component related to the allergy or "
-                            "'NKA' for No Known Allergy or 'NKDA' for No Known Drug Allergy",
+                            "description": "Up to 5 comma-separated allergy component synonyms, "
+                            "or 'NKA' (No Known Allergy) or 'NKDA' (No Known Drug Allergy)",
                         },
                         "type": {
                             "type": "string",
-                            "description": "Type of allergen",
+                            "description": "Allergen type",
                             "enum": ["allergy group", "medication", "ingredient"],
                         },
                         "severity": {
                             "type": "string",
-                            "description": "Severity of the allergic reaction",
+                            "description": "Allergic reaction severity",
                             "enum": severity_values,
                         },
                         "reaction": {
                             "type": "string",
-                            "description": "Description of the reaction, as free text",
+                            "description": "Reaction description",
                         },
                         "approximateDateOfOnset": {
                             "type": ["string", "null"],
-                            "description": "Approximate date of onset in YYYY-MM-DD format",
+                            "description": "Onset date YYYY-MM-DD",
                             "format": "date",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         },

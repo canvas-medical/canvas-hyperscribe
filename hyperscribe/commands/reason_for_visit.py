@@ -81,8 +81,7 @@ class ReasonForVisit(Base):
                     | {
                         "comment": {
                             "type": "string",
-                            "description": "extremely concise description of the reason or "
-                            "impetus for the visit, as free text",
+                            "description": "Extremely concise reason or impetus for visit",
                         },
                     },
                     "required": list(fields.keys()) + ["comment"],

@@ -48,25 +48,22 @@ class MedicalHistory(Base):
         if concepts := CanvasScience.medical_histories(expressions):
             # ask the LLM to pick the most relevant condition
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant condition of a patient out of a list of conditions.",
+                "Medical context: identify the single most relevant medical history condition from the list.",
                 "",
             ]
             user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the condition of a patient:",
+                "Provider data:",
                 "```text",
                 f"keywords: {instruction.parameters['keywords']}",
-                " -- ",
                 instruction.parameters["comments"],
                 "```",
-                "Sort the following conditions from most relevant to least, and return the first one:",
                 "",
+                "Conditions:",
                 "\n".join(f" * {concept.label} (ICD10: {concept.code})" for concept in concepts),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant condition as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"ICD10": "the ICD-10 code", "label": "the label"}]),
+                json.dumps([{"ICD10": "ICD-10 code", "label": "label"}]),
                 "```",
                 "",
             ]
@@ -95,24 +92,23 @@ class MedicalHistory(Base):
                     "properties": {
                         "keywords": {
                             "type": "string",
-                            "description": "Comma-separated keywords of up to 5 synonyms of the condition.",
+                            "description": "Up to 5 comma-separated condition synonyms",
                         },
                         "approximateStartDate": {
                             "type": ["string", "null"],
-                            "description": "Approximate start date of the condition in YYYY-MM-DD.",
+                            "description": "Condition start date YYYY-MM-DD",
                             "format": "date",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         },
                         "approximateEndDate": {
                             "type": ["string", "null"],
-                            "description": "Approximate end date of the condition in YYYY-MM-DD.",
+                            "description": "Condition end date YYYY-MM-DD",
                             "format": "date",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         },
                         "comments": {
                             "type": "string",
-                            "description": "Provided description of the patient specific history with the condition, "
-                            "as free text.",
+                            "description": "Patient-specific history with condition",
                         },
                     },
                     "required": ["keywords", "approximateStartDate", "approximateEndDate", "comments"],

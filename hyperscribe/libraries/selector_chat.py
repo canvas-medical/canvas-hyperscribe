@@ -26,29 +26,24 @@ class SelectorChat:
         if conditions := CanvasScience.search_conditions(keywords + icd10s):
             # retrieve the correct condition
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant condition diagnosed for a patient out "
-                "of a list of conditions.",
+                "Medical context: identify most relevant condition diagnosed for patient from list.",
                 "",
             ]
             user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the diagnosis:",
+                "Provider diagnosis comment:",
                 "```text",
                 f"keywords: {', '.join(keywords)}",
-                " -- ",
                 comment,
                 "```",
                 "",
-                "Sort the following conditions from most relevant to least, and return the first one:",
-                "",
+                "Conditions:",
                 "\n".join(
                     f" * {condition.label} (ICD-10: {Helper.icd10_add_dot(condition.code)})" for condition in conditions
                 ),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant condition as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"ICD10": "the ICD-10 code", "label": "the label"}]),
+                json.dumps([{"ICD10": "ICD-10 code", "label": "label"}]),
                 "```",
                 "",
             ]
@@ -86,27 +81,22 @@ class SelectorChat:
                 prompt_condition = f"The lab test is intended to the patient's conditions: {', '.join(conditions)}."
             # ask the LLM to pick the most relevant test
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to select the most relevant lab test for a patient out of a list of lab tests.",
+                "Medical context: select most relevant lab test for patient from list.",
                 "",
             ]
             user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the lab test to be ordered "
-                "for the patient:",
+                "Provider lab test order comment:",
                 "```text",
                 f"keywords: {', '.join(expressions)}",
-                " -- ",
                 comment,
                 "```",
                 "",
                 prompt_condition,
                 "",
-                "Among the following lab tests, select the most relevant one:",
-                "",
+                "Lab tests:",
                 "\n".join(f" * {concept.label} (code: {concept.code})" for concept in lab_tests),
                 "",
-                "Your response must be a JSON Markdown block validated with the schema:",
+                "Return the ONE most relevant lab test as JSON in Markdown code block:",
                 "```json",
                 json.dumps(schemas, indent=1),
                 "```",
@@ -127,25 +117,21 @@ class SelectorChat:
         result = ServiceProvider(first_name="", last_name="", specialty="", practice_name="")
         if contacts := CanvasScience.search_contacts(free_text_information, zip_codes):
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant contact in regards of a search specialist out of "
-                "a list of contacts.",
+                "Medical context: identify most relevant contact for specialist search from list.",
                 "",
             ]
             user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the searched specialist:",
+                "Provider specialist search comment:",
                 "```text",
                 free_text_information,
                 "```",
                 "",
-                "Sort the following contacts from most relevant to least, and return the first one:",
-                "",
+                "Contacts:",
                 "\n".join(f" * {cls.summary_of(contact)} (index: {idx})" for idx, contact in enumerate(contacts)),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant contact as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"index": "the index, as integer", "contact": "the contact information"}]),
+                json.dumps([{"index": "index as integer", "contact": "contact information"}]),
                 "```",
                 "",
             ]

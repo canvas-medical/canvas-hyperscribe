@@ -41,28 +41,22 @@ class Perform(Base):
         if charges := self.cache.charge_descriptions():
             # ask the LLM to pick the most relevant charge
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to select the most relevant procedure performed on a patient "
-                "out of a list of procedures.",
+                "Medical context: select the single most relevant procedure from the list.",
                 "",
             ]
             user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the procedure performed "
-                "on the patient:",
+                "Provider data:",
                 "```text",
                 f"keywords: {instruction.parameters['procedureKeywords']}",
-                " -- ",
                 instruction.parameters["comment"],
                 "```",
                 "",
-                "Among the following procedures, select the most relevant one:",
-                "",
+                "Procedures:",
                 "\n".join(f" * {concept.short_name} (code: {concept.cpt_code})" for concept in charges),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant procedure as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"code": "the procedure code", "label": "the procedure label"}]),
+                json.dumps([{"code": "procedure code", "label": "procedure label"}]),
                 "```",
                 "",
             ]
@@ -92,12 +86,11 @@ class Perform(Base):
                     "properties": {
                         "procedureKeywords": {
                             "type": "string",
-                            "description": "Comma separated keywords of up to 5 synonyms of "
-                            "the procedure or action performed",
+                            "description": "Up to 5 comma-separated procedure/action synonyms",
                         },
                         "comment": {
                             "type": "string",
-                            "description": "Information related to the procedure or action performed, as free text",
+                            "description": "Information related to procedure/action performed",
                         },
                     },
                     "required": ["procedureKeywords", "comment"],

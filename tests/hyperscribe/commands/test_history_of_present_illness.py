@@ -116,7 +116,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "f74d047438c7bb480f347e81e8e479e5"
+    expected_hash = "36edc46c73c38eb6aa116e246f04dd88"
     assert schema_hash == expected_hash
 
     tests = [

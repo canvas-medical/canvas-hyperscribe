@@ -124,7 +124,7 @@ class Vitals(Base):
                             "properties": {
                                 "fahrenheit": {
                                     "type": ["integer", "null"],
-                                    "description": "Body temperature in fahrenheit",
+                                    "description": "Temperature °F",
                                 },
                             },
                             "required": ["fahrenheit"],

@@ -91,30 +91,30 @@ class Refill(Base):
                     "properties": {
                         "medication": {
                             "type": "string",
-                            "description": "The medication to refill",
+                            "description": "Medication to refill",
                             "enum": medications,
                         },
                         "medicationIndex": {
                             "type": "integer",
-                            "description": "Index of the medication to refill",
+                            "description": "Medication index",
                         },
                         "sig": {
                             "type": "string",
-                            "description": "Directions, as free text",
+                            "description": "Directions",
                         },
                         "suppliedDays": {
                             "type": "integer",
                             "exclusiveMinimum": 0,
-                            "description": "Duration of the treatment in days, at least 1",
+                            "description": "Treatment duration in days, at least 1",
                         },
                         "substitution": {
                             "type": "string",
-                            "description": "Substitution status for the refill",
+                            "description": "Substitution status",
                             "enum": substitutions,
                         },
                         "comment": {
                             "type": "string",
-                            "description": "Rationale of the prescription, as free text",
+                            "description": "Prescription rationale",
                         },
                     },
                     "required": ["medication", "medicationIndex", "sig", "suppliedDays", "substitution", "comment"],

@@ -67,27 +67,27 @@ class Assess(Base):
                     "properties": {
                         "condition": {
                             "type": ["string", "null"],  # could be null if the condition is not committed yet
-                            "description": "The condition to assess",
+                            "description": "Condition to assess",
                             "enum": conditions + [None],
                         },
                         "conditionIndex": {
                             "type": "integer",
-                            "description": "Index of the Condition to assess, or -1",
+                            "description": "Condition index, or -1 if uncommitted",
                             "minimum": -1,
                             "maximum": len(conditions) - 1,
                         },
                         "rationale": {
                             "type": "string",
-                            "description": "Rationale about the current assessment, as free text",
+                            "description": "Rationale for current assessment",
                         },
                         "status": {
                             "type": "string",
-                            "description": "Status of the condition",
+                            "description": "Condition status",
                             "enum": statuses,
                         },
                         "assessment": {
                             "type": "string",
-                            "description": "Today's assessment of the condition, as free text",
+                            "description": "Today's condition assessment",
                         },
                     },
                     "required": ["condition", "conditionIndex", "rationale", "status", "assessment"],

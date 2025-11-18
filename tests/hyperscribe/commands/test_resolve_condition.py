@@ -171,18 +171,18 @@ def test_command_parameters_schemas(current_conditions):
                 "additionalProperties": False,
                 "properties": {
                     "condition": {
-                        "description": "The condition to set as resolved",
+                        "description": "Condition to resolve",
                         "enum": ["display1a", "display2a", "display3a"],
                         "type": "string",
                     },
                     "conditionIndex": {
-                        "description": "Index of the Condition to set as resolved",
+                        "description": "Condition index",
                         "maximum": 2,
                         "minimum": 0,
                         "type": "integer",
                     },
                     "rationale": {
-                        "description": "Rationale to set the condition as resolved, as free text",
+                        "description": "Reason for resolution",
                         "type": "string",
                     },
                 },

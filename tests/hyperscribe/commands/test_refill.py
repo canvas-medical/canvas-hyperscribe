@@ -298,29 +298,29 @@ def test_command_parameters_schemas(current_medications):
                 "additionalProperties": False,
                 "properties": {
                     "comment": {
-                        "description": "Rationale of the prescription, as free text",
+                        "description": "Prescription rationale",
                         "type": "string",
                     },
                     "medication": {
-                        "description": "The medication to refill",
+                        "description": "Medication to refill",
                         "enum": ["display1", "display2", "display3"],
                         "type": "string",
                     },
                     "medicationIndex": {
-                        "description": "Index of the medication to refill",
+                        "description": "Medication index",
                         "type": "integer",
                     },
                     "sig": {
-                        "description": "Directions, as free text",
+                        "description": "Directions",
                         "type": "string",
                     },
                     "substitution": {
-                        "description": "Substitution status for the refill",
+                        "description": "Substitution status",
                         "enum": ["allowed", "not_allowed"],
                         "type": "string",
                     },
                     "suppliedDays": {
-                        "description": "Duration of the treatment in days, at least 1",
+                        "description": "Treatment duration in days, at least 1",
                         "exclusiveMinimum": 0,
                         "type": "integer",
                     },

@@ -132,12 +132,12 @@ class AdjustPrescription(BasePrescription):
                     "properties": {
                         "oldMedication": {
                             "type": "string",
-                            "description": "The current medication to be adjusted",
+                            "description": "Current medication to adjust",
                             "enum": medications,
                         },
                         "oldMedicationIndex": {
                             "type": "integer",
-                            "description": "Index of the medication to change",
+                            "description": "Medication index",
                             "minimum": 0,
                             "maximum": len(medications) - 1,
                         },
@@ -146,16 +146,15 @@ class AdjustPrescription(BasePrescription):
                             "properties": {
                                 "keywords": {
                                     "type": "string",
-                                    "description": "Comma separated keywords of up to 5 synonyms of "
-                                    "the new medication to prescribe",
+                                    "description": "Up to 5 comma-separated new medication synonyms",
                                 },
                                 "brandNames": {
                                     "type": "string",
-                                    "description": "Comma separated of known medication names related to the keywords",
+                                    "description": "Comma-separated medication names related to keywords",
                                 },
                                 "sameAsCurrent": {
                                     "type": "boolean",
-                                    "description": "Same medication as current one",
+                                    "description": "Same medication as current (even if different dose)",
                                 },
                             },
                             "required": ["keywords", "brandNames", "sameAsCurrent"],
@@ -163,23 +162,22 @@ class AdjustPrescription(BasePrescription):
                         },
                         "sig": {
                             "type": "string",
-                            "description": "Directions for the medication, as free text",
+                            "description": "Directions",
                         },
                         "suppliedDays": {
                             "type": "integer",
                             "exclusiveMinimum": 0,
-                            "description": "Duration of the treatment in days, at least 1",
+                            "description": "Treatment duration in days, at least 1",
                         },
                         "substitution": {
                             "type": "string",
-                            "description": "Substitution status for the prescription, "
-                            f"default is '{AdjustPrescriptionCommand.Substitutions.ALLOWED.value}'",
+                            "description": f"Substitution status "
+                            f"(default: {AdjustPrescriptionCommand.Substitutions.ALLOWED.value})",
                             "enum": substitutions,
                         },
                         "comment": {
                             "type": "string",
-                            "description": "Rationale of the change of prescription including all "
-                            "important words, as free text",
+                            "description": "Prescription change rationale with all important details",
                         },
                     },
                     "required": [

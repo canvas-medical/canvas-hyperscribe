@@ -171,31 +171,24 @@ def test_command_from_json(search_immunization, add_code2description):
         chatter.reset_mock()
 
     system_prompt = [
-        "The conversation is in the medical context.",
-        "",
-        "Your task is to identify the most relevant immunization administrated to a patient "
-        "out of a list of immunizations.",
+        "Medical context (theDemographic): identify the single most relevant immunization from the list.",
         "",
     ]
     user_prompt = [
-        "Here is the comment provided by the healthcare provider in regards to the immunization:",
+        "Provider data:",
         "```text",
         "keywords: keyword1,keyword2,keyword3",
-        " -- ",
         "theComments",
         "```",
         "",
-        "Sort the following immunizations from most relevant to least, and return the first one:",
-        "",
+        "Immunizations:",
         " * labelA (cptCode: theCptA, cvxCode: theCvxA)\n"
         " * labelB (cptCode: theCptB, cvxCode: theCvxB)\n"
         " * labelC (cptCode: theCptC, cvxCode: theCvxC)",
         "",
-        "It may be important to take into account that theDemographic.",
-        "",
-        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "Return the ONE most relevant immunization as JSON in Markdown code block:",
         "```json",
-        '[{"cptCode": "the CPT code", "cvxCode": "the CVX code", "label": "the label"}]',
+        '[{"cptCode": "CPT code", "cvxCode": "CVX code", "label": "label"}]',
         "```",
         "",
     ]
@@ -329,19 +322,18 @@ def test_command_parameters_schemas():
                 "properties": {
                     "keywords": {
                         "type": "string",
-                        "description": "Comma-separated keywords to find the specific immunization in a "
-                        "database (using OR criteria), it is better to provide "
-                        "more specific keywords rather than few broad ones.",
+                        "description": "Comma-separated keywords to find immunization (OR criteria); "
+                        "prefer specific over broad",
                     },
                     "onDate": {
                         "type": ["string", "null"],
-                        "description": "Approximate date of the immunization in YYYY-MM-DD.",
+                        "description": "Immunization date YYYY-MM-DD",
                         "format": "date",
                         "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                     },
                     "comments": {
                         "type": "string",
-                        "description": "provided information related to the immunization, as free text",
+                        "description": "Information related to immunization",
                         "maxLength": 255,
                     },
                 },

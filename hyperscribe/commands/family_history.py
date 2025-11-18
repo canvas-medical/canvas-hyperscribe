@@ -44,25 +44,22 @@ class FamilyHistory(Base):
         if concepts := CanvasScience.family_histories(expressions):
             # ask the LLM to pick the most relevant condition
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant condition of a patient out of a list of conditions.",
+                "Medical context: identify the single most relevant family history condition from the list.",
                 "",
             ]
             user_prompt = [
-                "Here is the note provided by the healthcare provider in regards to the condition of a patient:",
+                "Provider data:",
                 "```text",
                 f"keywords: {instruction.parameters['keywords']}",
-                " -- ",
                 instruction.parameters["note"],
                 "```",
-                "Sort the following conditions from most relevant to least, and return the first one:",
                 "",
+                "Conditions:",
                 "\n".join(f" * {concept.term} (conceptId: '{str(concept.concept_id)}')" for concept in concepts),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant condition as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"conceptId": "the concept id, as string", "term": "the expression"}]),
+                json.dumps([{"conceptId": "string", "term": "expression"}]),
                 "```",
                 "",
             ]
@@ -102,16 +99,16 @@ class FamilyHistory(Base):
                     "properties": {
                         "keywords": {
                             "type": "string",
-                            "description": "Comma separated keywords of up to 5 synonyms of the condition",
+                            "description": "Up to 5 comma-separated condition synonyms",
                         },
                         "relative": {
                             "type": "string",
-                            "description": "The family member with the condition",
+                            "description": "Family member with condition",
                             "enum": relatives,
                         },
                         "note": {
                             "type": "string",
-                            "description": "Description of the condition, as free text",
+                            "description": "Condition description",
                         },
                     },
                     "required": ["keywords", "relative", "note"],

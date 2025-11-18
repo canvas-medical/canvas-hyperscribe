@@ -173,17 +173,17 @@ def test_command_parameters_schemas(current_goals):
                         "type": "string",
                     },
                     "goalIndex": {
-                        "description": "Index of the Goal to close",
+                        "description": "Goal index to close",
                         "maximum": 2,
                         "minimum": 0,
                         "type": "integer",
                     },
                     "progressAndBarriers": {
-                        "description": "Progress and barriers, as free text",
+                        "description": "Progress and barriers",
                         "type": "string",
                     },
                     "status": {
-                        "description": "Achievement status of the goal",
+                        "description": "Goal achievement status",
                         "enum": [
                             "in-progress",
                             "improving",

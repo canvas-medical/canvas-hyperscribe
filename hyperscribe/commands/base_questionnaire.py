@@ -148,36 +148,29 @@ class BaseQuestionnaire(Base):
             # which questions of the questionnaire are relevant based on the transcript?
             result = []
             system_prompt = [
-                "The conversation is in the context of a clinical encounter between patient and licensed "
-                "healthcare provider.",
-                f"The healthcare provider is editing a questionnaire '{questionnaire.name}', potentially without "
-                f"notifying the patient to prevent biased answers.",
-                "The user will submit two JSON Markdown blocks:",
-                "- the questions of the questionnaire,",
-                "- a partial transcript of the visit of a patient with the healthcare provider.",
+                f"Clinical encounter: provider editing '{questionnaire.name}' questionnaire, "
+                f"potentially without patient notification to avoid biased answers.",
                 "",
-                "Your task is to identifying from the transcript which questions the healthcare provider is "
-                "referencing, if any.",
-                "Since this is only a part of the transcript, it may have no reference to the questionnaire at all.",
+                "Identify which questions the provider references in the partial transcript.",
+                "May have no questionnaire references.",
                 "",
-                "Your response must be the updated JSON Markdown block of the list of questions.",
+                "Return updated question list JSON.",
                 "",
             ]
             transcript = json.dumps([line.to_json() for line in discussion], indent=1)
 
             user_prompt = [
-                "Below is a part of the transcript between the patient and the healthcare provider:",
+                "Partial transcript:",
                 "```json",
                 transcript,
                 "```",
                 "",
-                f"The questionnaire '{questionnaire.name}' has the following questions:",
+                f"Questionnaire '{questionnaire.name}' questions:",
                 "```json",
                 json.dumps(questionnaire.used_questions()),
                 "```",
                 "",
-                "Return this JSON in a Markdown block after setting to 'true' the questions "
-                "referenced in the transcript.",
+                "Set 'usedInTranscript' to true for questions referenced in transcript.",
                 "",
             ]
             schemas = [cls.json_schema_question_list()]
@@ -204,43 +197,34 @@ class BaseQuestionnaire(Base):
             include_skipped = self.include_skipped()
             # what are the updates, if any?
             system_prompt = [
-                "The conversation is in the context of a clinical encounter between patient and licensed "
-                "healthcare provider.",
-                f"The healthcare provider is editing a questionnaire '{questionnaire.name}', potentially without "
-                f"notifying the patient to prevent biased answers.",
-                "The user will submit two JSON Markdown blocks:",
-                "- the current state of the questionnaire,",
-                "- a partial transcript of the visit of a patient with the healthcare provider.",
+                f"Clinical encounter: provider editing '{questionnaire.name}' questionnaire, "
+                f"potentially without patient notification to avoid biased answers.",
                 "",
-                "Your task is to identifying from the transcript which questions the healthcare provider is "
-                "referencing and what responses the patient is giving.",
-                "Since this is only a part of the transcript, it may have no reference to the questionnaire at all.",
+                "Identify questions referenced and patient responses from partial transcript.",
+                "May have no questionnaire references.",
                 "",
-                "Your response must be the JSON Markdown block of the questionnaire, with all the necessary "
-                "changes to reflect the transcript content.",
+                "Return updated questionnaire JSON with necessary changes.",
                 "",
             ]
             transcript = json.dumps([line.to_json() for line in discussion], indent=1)
 
             user_prompt = [
-                "Below is a part of the transcript between the patient and the healthcare provider:",
+                "Partial transcript:",
                 "```json",
                 transcript,
                 "```",
                 "",
-                f"The questionnaire '{questionnaire.name}' is currently as follow,:",
+                f"Current '{questionnaire.name}' questionnaire:",
                 "```json",
                 json.dumps(questionnaire.for_llm_limited_to(include_skipped, used_question_ids)),
                 "```",
                 "",
-                "Your task is to replace the values of the JSON object as necessary.",
-                "Since the current questionnaire's state is based on previous parts of the transcript, "
-                "the changes should be based on explicit information only.",
+                "Update JSON values based on explicit transcript information only.",
+                "Current state reflects previous transcript parts.",
             ]
             if include_skipped:
                 user_prompt.append(
-                    "This includes the values of 'skipped', change it to 'false' only if the question "
-                    "is obviously answered in the transcript, don't change it at all otherwise."
+                    "For 'skipped': set to false only if question obviously answered; otherwise don't change."
                 )
             user_prompt.append("")
             schemas = [self.json_schema_questionnaire(include_skipped)]

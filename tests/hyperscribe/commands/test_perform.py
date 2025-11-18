@@ -105,26 +105,22 @@ def test_command_from_json(add_code2description, charge_descriptions):
         "parameters": {"comment": "theComment", "procedureKeywords": "procedure1,procedure2,procedure3"},
     }
     system_prompt = [
-        "The conversation is in the medical context.",
-        "",
-        "Your task is to select the most relevant procedure performed on a patient out of a list of procedures.",
+        "Medical context: select the single most relevant procedure from the list.",
         "",
     ]
     user_prompt = [
-        "Here is the comment provided by the healthcare provider in regards to the procedure performed on the patient:",
+        "Provider data:",
         "```text",
         "keywords: procedure1,procedure2,procedure3",
-        " -- ",
         "theComment",
         "```",
         "",
-        "Among the following procedures, select the most relevant one:",
-        "",
+        "Procedures:",
         " * shortName1 (code: code1)\n * shortName2 (code: code2)\n * shortName3 (code: code3)",
         "",
-        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "Return the ONE most relevant procedure as JSON in Markdown code block:",
         "```json",
-        '[{"code": "the procedure code", "label": "the procedure label"}]',
+        '[{"code": "procedure code", "label": "procedure label"}]',
         "```",
         "",
     ]
@@ -224,7 +220,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "5be3b81a2d571231760daa1ecf666e0d"
+    expected_hash = "df16de1bcea481677c933c3418f1ab4a"
     assert schema_hash == expected_hash
 
     tests = [

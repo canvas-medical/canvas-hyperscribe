@@ -74,18 +74,18 @@ class CloseGoal(Base):
                         },
                         "goalIndex": {
                             "type": "integer",
-                            "description": "Index of the Goal to close",
+                            "description": "Goal index to close",
                             "minimum": 0,
                             "maximum": len(goals) - 1,
                         },
                         "status": {
                             "type": "string",
-                            "description": "Achievement status of the goal",
+                            "description": "Goal achievement status",
                             "enum": statuses,
                         },
                         "progressAndBarriers": {
                             "type": "string",
-                            "description": "Progress and barriers, as free text",
+                            "description": "Progress and barriers",
                         },
                     },
                     "required": ["goal", "goalIndex", "status", "progressAndBarriers"],

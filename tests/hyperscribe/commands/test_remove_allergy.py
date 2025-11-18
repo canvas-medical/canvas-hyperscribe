@@ -160,18 +160,18 @@ def test_command_parameters_schemas(current_allergies):
                 "additionalProperties": False,
                 "properties": {
                     "allergies": {
-                        "description": "The allergy to remove",
+                        "description": "Allergy to remove",
                         "enum": ["display1a", "display2a", "display3a"],
                         "type": "string",
                     },
                     "allergyIndex": {
-                        "description": "Index of the allergy to remove",
+                        "description": "Allergy index",
                         "type": "integer",
                         "minimum": 0,
                         "maximum": 2,
                     },
                     "narrative": {
-                        "description": "Explanation of why the allergy is removed, as free text",
+                        "description": "Reason for removal",
                         "type": "string",
                     },
                 },

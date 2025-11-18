@@ -232,11 +232,11 @@ def test_command_parameters_schemas():
                         "properties": {
                             "specialty": {
                                 "type": "string",
-                                "description": "the specialty of the referred provider, required",
+                                "description": "Referred provider specialty",
                             },
                             "names": {
                                 "type": "string",
-                                "description": "the names of the practice and/or of the referred provider, or empty",
+                                "description": "Practice or provider names; empty if unknown",
                             },
                         },
                         "required": ["specialty", "names"],
@@ -256,15 +256,12 @@ def test_command_parameters_schemas():
                     },
                     "notesToSpecialist": {
                         "type": "string",
-                        "description": "note or question to be sent to the referred specialist, "
-                        "concise, directly derived from the transcript content and required",
+                        "description": "Note or question for referred specialist; concise, from transcript",
                     },
                     "comment": {
                         "type": "string",
-                        "description": "Direct clinical reasoning statement, derived only from transcript "
-                        "content. Express the medical findings and purpose of the referral "
-                        "as a concise clinical note, without introducing phrases like "
-                        "'referral' or 'rationale'.",
+                        "description": "Clinical reasoning from transcript; express findings and purpose concisely "
+                        "without meta-phrases like 'referral' or 'rationale'",
                     },
                     "conditions": {
                         "type": "array",
@@ -273,13 +270,11 @@ def test_command_parameters_schemas():
                             "properties": {
                                 "conditionKeywords": {
                                     "type": "string",
-                                    "description": "Comma-separated keywords to find in a database "
-                                    "(using OR criteria) the condition related to the referral.",
+                                    "description": "Comma-separated keywords to find condition (OR criteria)",
                                 },
                                 "ICD10": {
                                     "type": "string",
-                                    "description": "Comma-separated ICD-10 codes (up to 5) for the condition "
-                                    "related to the referral.",
+                                    "description": "Up to 5 comma-separated ICD-10 codes",
                                 },
                             },
                             "required": ["conditionKeywords", "ICD10"],

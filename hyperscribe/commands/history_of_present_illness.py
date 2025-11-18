@@ -53,8 +53,7 @@ class HistoryOfPresentIllness(Base):
                     "properties": {
                         "narrative": {
                             "type": "string",
-                            "description": "Highlights of the patient's symptoms and "
-                            "surrounding events and observations, as free text",
+                            "description": "Patient symptom highlights with surrounding events and observations",
                         },
                     },
                     "required": ["narrative"],

@@ -68,22 +68,14 @@ class Base:
                 attributes[key] = value
 
         system_prompt = [
-            "The conversation is in the medical context.",
-            "The user will provide you with a JSON built for a medical software, including:",
-            "- `command` providing accurate and detailed values",
-            "- `previousInformation` a plain English description currently know by the software",
-            "- `information` a plain English description built on top of `previousInformation`.",
+            "Medical context: create clinical charting shorthand summary (SOAP style) from JSON.",
+            "JSON contains: command (detailed values), previousInformation (current), information (updated).",
             "",
-            "Your task is to produce a summary in clinical charting shorthand style (like SOAP notes) "
-            "out of this JSON.",
-            "",
-            "Use plain English with standard medical abbreviations (e.g., CC, f/u, Dx, Rx, DC, VS, FHx, labs).",
-            "Be telegraphic, concise, and formatted like real chart notes for a quick glance from a knowledgeable "
-            "person.",
-            "Only new information should be included, and 20 words should be the maximum.",
+            "Use medical abbreviations (CC, f/u, Dx, Rx, DC, VS, FHx, labs).",
+            "Telegraphic, concise, for quick glance by knowledgeable person. Only new information. Max 20 words.",
         ]
         user_prompt = [
-            "Here is a JSON intended to the medical software:",
+            "JSON:",
             "```json",
             json.dumps(
                 {
@@ -97,18 +89,9 @@ class Base:
             ),
             "```",
             "",
-            "Please, following the directions, present the summary of the new information only like "
-            "this Markdown code block:",
+            "Return summary as JSON in Markdown code block:",
             "```json",
-            json.dumps(
-                [
-                    {
-                        "summary": "clinical charting shorthand style summary, minimal and "
-                        "limited to the new information but useful for a quick glance from "
-                        "a knowledgeable person"
-                    }
-                ]
-            ),
+            json.dumps([{"summary": "shorthand summary"}]),
             "```",
             "",
         ]
@@ -131,37 +114,27 @@ class Base:
 
         schemas = JsonSchema.get(["command_custom_prompt"])
         system_prompt = [
-            "The conversation is in the context of a clinical encounter between "
-            f"patient ({self.cache.demographic__str__(False)}) and licensed healthcare provider.",
+            f"Clinical encounter context: patient ({self.cache.demographic__str__(False)}) and provider.",
+            f"Current time: {datetime.now().isoformat()}",
             "",
-            "The user will submit to you some data related to the conversation as well as how to modify it.",
-            "It is important to follow the requested changes without never make things up.",
-            "It is better to keep the data unchanged rather than create incorrect information.",
-            "",
-            f"Please, note that now is {datetime.now().isoformat()}.",
-            "",
+            "Apply requested changes to data. Follow instructions exactly.",
+            "IMPORTANT: Never add information not in original data. "
+            "Better to keep unchanged than create incorrect information.",
         ]
         user_prompt = [
-            "Here is the original data:",
+            "Original data:",
             "```text",
             data,
             "```",
             "",
-            "Apply the following changes:",
+            "Changes to apply:",
             "```text",
             prompt,
             "```",
             "",
-            "Do NOT add information which is not explicitly provided in the original data.",
-            "",
-            "Fill the JSON object with the relevant information:",
+            "Return modified data as JSON in Markdown code block:",
             "```json",
-            json.dumps([{"newData": ""}]),
-            "```",
-            "",
-            "Your response must be a JSON Markdown block validated with the schema:",
-            "```json",
-            json.dumps(schemas[0], indent=1),
+            json.dumps([{"newData": "modified data"}]),
             "```",
             "",
         ]

@@ -63,18 +63,18 @@ class ResolveCondition(Base):
                     "properties": {
                         "condition": {
                             "type": "string",
-                            "description": "The condition to set as resolved",
+                            "description": "Condition to resolve",
                             "enum": conditions,
                         },
                         "conditionIndex": {
                             "type": "integer",
-                            "description": "Index of the Condition to set as resolved",
+                            "description": "Condition index",
                             "minimum": 0,
                             "maximum": len(conditions) - 1,
                         },
                         "rationale": {
                             "type": "string",
-                            "description": "Rationale to set the condition as resolved, as free text",
+                            "description": "Reason for resolution",
                         },
                     },
                     "required": ["condition", "conditionIndex", "rationale"],

@@ -413,48 +413,40 @@ def test_command_parameters_schemas(current_conditions):
                 "additionalProperties": False,
                 "properties": {
                     "comment": {
-                        "description": "Rationale of the prescription including all mentioned "
-                        "details: medication name/brand, specific strength if "
-                        "stated (e.g. '2.5 mg', '10 mg'), route, and specific "
-                        "frequency if stated (e.g. 'once weekly', 'twice daily'), "
-                        "as free text",
+                        "description": "Prescription rationale with all details: medication name/brand, "
+                        "specific strength if stated (e.g. '2.5 mg'), route, specific frequency "
+                        "if stated (e.g. 'once weekly')",
                         "type": "string",
                     },
                     "condition": {
-                        "description": "The condition for which the medication is prescribed, or "
-                        "null if not related to any condition",
+                        "description": "Condition for which medication is prescribed, or null if unrelated",
                         "enum": ["display1a", "display2a", "display3a", None],
                         "type": ["string", "null"],
                     },
                     "conditionIndex": {
-                        "description": "Index of the condition for which the medication is "
-                        "prescribed, or -1 if the prescription is not related to "
-                        "any listed condition",
+                        "description": "Condition index for prescription, or -1 if unrelated to listed conditions",
                         "type": "integer",
                     },
                     "keywords": {
-                        "description": "Comma separated list of up to 5 relevant drugs to consider prescribing",
+                        "description": "Up to 5 comma-separated relevant drugs to consider prescribing",
                         "type": "string",
                     },
                     "medicationNames": {
-                        "description": "Comma separated list of known medication names, generics "
-                        "and brands, related to the keywords",
+                        "description": "Comma-separated medication names, generics and brands related to keywords",
                         "type": "string",
                     },
                     "sig": {
-                        "description": "Directions as stated; if specific frequency mentioned "
-                        "(e.g. 'once weekly', 'twice daily'), preserve it exactly, "
-                        "as free text",
+                        "description": "Directions as stated; "
+                        "preserve specific frequency exactly if mentioned (e.g. 'once weekly', 'twice daily')",
                         "type": "string",
                     },
                     "substitution": {
-                        "description": "Substitution status for the prescription, default is 'allowed'",
+                        "description": "Substitution status (default: allowed)",
                         "enum": ["allowed", "not_allowed"],
                         "type": "string",
                     },
                     "suppliedDays": {
-                        "description": "Duration of the treatment in days either as mentioned, or "
-                        "following the standard practices, at least 1",
+                        "description": "Treatment duration in days as mentioned or per standard practice, at least 1",
                         "exclusiveMinimum": 0,
                         "type": "integer",
                     },
@@ -492,36 +484,31 @@ def test_command_parameters_schemas(current_conditions):
                 "additionalProperties": False,
                 "properties": {
                     "comment": {
-                        "description": "Rationale of the prescription including all mentioned "
-                        "details: medication name/brand, specific strength if "
-                        "stated (e.g. '2.5 mg', '10 mg'), route, and specific "
-                        "frequency if stated (e.g. 'once weekly', 'twice daily'), "
-                        "as free text",
+                        "description": "Prescription rationale with all details: medication name/brand, "
+                        "specific strength if stated (e.g. '2.5 mg'), route, specific frequency "
+                        "if stated (e.g. 'once weekly')",
                         "type": "string",
                     },
                     "keywords": {
-                        "description": "Comma separated list of up to 5 relevant drugs to consider prescribing",
+                        "description": "Up to 5 comma-separated relevant drugs to consider prescribing",
                         "type": "string",
                     },
                     "medicationNames": {
-                        "description": "Comma separated list of known medication names, generics "
-                        "and brands, related to the keywords",
+                        "description": "Comma-separated medication names, generics and brands related to keywords",
                         "type": "string",
                     },
                     "sig": {
-                        "description": "Directions as stated; if specific frequency mentioned "
-                        "(e.g. 'once weekly', 'twice daily'), preserve it exactly, "
-                        "as free text",
+                        "description": "Directions as stated; "
+                        "preserve specific frequency exactly if mentioned (e.g. 'once weekly', 'twice daily')",
                         "type": "string",
                     },
                     "substitution": {
-                        "description": "Substitution status for the prescription, default is 'allowed'",
+                        "description": "Substitution status (default: allowed)",
                         "enum": ["allowed", "not_allowed"],
                         "type": "string",
                     },
                     "suppliedDays": {
-                        "description": "Duration of the treatment in days either as mentioned, or "
-                        "following the standard practices, at least 1",
+                        "description": "Treatment duration in days as mentioned or per standard practice, at least 1",
                         "exclusiveMinimum": 0,
                         "type": "integer",
                     },

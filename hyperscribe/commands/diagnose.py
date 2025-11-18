@@ -74,30 +74,28 @@ class Diagnose(Base):
                     "properties": {
                         "keywords": {
                             "type": "string",
-                            "description": "Comma-separated keywords to find the specific condition in a "
-                            "database (using OR criteria), it is better to provide "
-                            "more specific keywords rather than few broad ones.",
+                            "description": "Comma-separated keywords to find condition (OR criteria); "
+                            "prefer specific over broad",
                         },
                         "ICD10": {
                             "type": "string",
-                            "description": "Comma-separated ICD-10 codes (up to 5) for the condition",
+                            "description": "Up to 5 comma-separated ICD-10 codes",
                         },
                         "rationale": {
                             "type": "string",
-                            "description": "all reasoning leading to the diagnosis, it should be detailed but "
-                            "limited to what is explicitly mentioned in the instruction.",
+                            "description": "All reasoning leading to diagnosis; "
+                            "detailed but only what's explicitly mentioned",
                             "minLength": 1,
                         },
                         "onsetDate": {
                             "type": "string",
-                            "description": "Onset date in YYYY-MM-DD.",
+                            "description": "Onset date YYYY-MM-DD",
                             "format": "date",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         },
                         "assessment": {
                             "type": "string",
-                            "description": "Current assessment of the condition, as stated in the instruction, "
-                            "without the reasoning.",
+                            "description": "Current assessment; as stated, without reasoning",
                             "minLength": 1,
                         },
                     },

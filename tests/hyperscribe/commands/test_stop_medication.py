@@ -208,18 +208,18 @@ def test_command_parameters_schemas(current_medications):
                 "additionalProperties": False,
                 "properties": {
                     "medication": {
-                        "description": "The medication to stop",
+                        "description": "Medication to stop",
                         "enum": ["display1", "display2", "display3"],
                         "type": "string",
                     },
                     "medicationIndex": {
-                        "description": "Index of the medication to stop",
+                        "description": "Medication index",
                         "maximum": 2,
                         "minimum": 0,
                         "type": "integer",
                     },
                     "rationale": {
-                        "description": "Explanation of why the medication is stopped, as free text",
+                        "description": "Reason medication is stopped",
                         "type": "string",
                     },
                 },

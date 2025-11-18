@@ -43,40 +43,34 @@ class BasePrescription(Base):
 
             # retrieve the correct medication
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant medication to prescribe to a patient out "
-                "of a list of medications.",
-                "CRITICAL: If a specific medication name and/or dose is mentioned in the comment, "
-                "you MUST select the medication that exactly matches the name and dose.",
+                "Medical context: select the single most relevant medication from the list.",
+                "CRITICAL: If specific medication name and/or dose is mentioned, you MUST select exact match only.",
                 "",
             ]
             user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the prescription:",
+                "Provider data:",
                 "```text",
                 f"keywords: {', '.join(search.keywords)}",
-                " -- ",
                 search.comment,
                 "```",
                 "",
                 prompt_condition,
                 "",
-                "The choice of the medication has to also take into account that:",
-                f" - {self.cache.demographic__str__(False)},",
-                f" - {prompt_allergy}.",
+                "Consider:",
+                f" - {self.cache.demographic__str__(False)}",
+                f" - {prompt_allergy}",
                 "",
-                "Sort the following medications from most relevant to least, and return the first one:",
-                "",
+                "Medications:",
                 "\n".join(
                     f" * {medication.description} (fdbCode: {medication.fdb_code})" for medication in medications
                 ),
                 "",
-                "IMPORTANT: If a specific medication name and/or dose is mentioned in the comment, select the "
-                "medication that exactly matches the name and dose. Do not substitute a different name or dose.",
+                "IMPORTANT: If specific name and/or dose mentioned, select exact match. "
+                "Do not substitute different name or dose.",
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant medication as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"fdbCode": "the fdb code, as int", "description": "the description"}]),
+                json.dumps([{"fdbCode": "int", "description": "description"}]),
                 "```",
                 "",
             ]
@@ -109,33 +103,27 @@ class BasePrescription(Base):
 
         schemas = JsonSchema.get(["prescription_dosage"])
         system_prompt = [
-            "The conversation is in the medical context.",
-            "",
-            "Your task is to compute the quantity to dispense and the number of refills for a prescription.",
-            "CRITICAL: If a specific frequency is mentioned in the comment (e.g. 'once weekly', 'twice daily'), "
-            "you MUST preserve that exact frequency in the directions.",
+            "Medical context: compute quantity to dispense and refills for prescription.",
+            "CRITICAL: If specific frequency mentioned (e.g. 'once weekly', 'twice daily'), "
+            "you MUST preserve exact frequency in directions.",
             "",
         ]
         user_prompt = [
-            "Here is the comment provided by the healthcare provider in regards to the prescription of "
-            f"the medication {medication.description}:",
+            f"Provider prescription comment for {medication.description}:",
             "```text",
             comment,
             "```",
             "",
-            f"The medication is provided as {quantity.quantity}, {quantity.ncpdp_quantity_qualifier_description}.",
+            f"Medication form: {quantity.quantity}, {quantity.ncpdp_quantity_qualifier_description}.",
+            f"Supply days: {command.days_supply}",
+            f"Patient: {self.cache.demographic__str__(False)}",
             "",
-            "Based on this information, what are the quantity to dispense and the number of refills in order to "
-            f"fulfill the {command.days_supply} supply days?",
+            "Calculate quantity to dispense and refills for the supply days.",
             "",
-            "The exact quantities and refill have to also take into account that "
-            f"{self.cache.demographic__str__(False)}.",
+            "IMPORTANT: If specific frequency mentioned, preserve exact frequency in informationToPatient. "
+            "Calculate quantity based on stated frequency.",
             "",
-            "IMPORTANT: If a specific frequency is mentioned in the comment (e.g. 'once weekly', 'twice daily'), "
-            "preserve that exact frequency in the informationToPatient field. Calculate the quantity based on that "
-            "stated frequency.",
-            "",
-            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "Return as JSON in Markdown code block:",
             "```json",
             json.dumps(
                 [
@@ -150,7 +138,7 @@ class BasePrescription(Base):
             ),
             "```",
             "",
-            "Your response must be a JSON Markdown block validated with the schema:",
+            "Validate with schema:",
             "```json",
             json.dumps(schemas[0]),
             "```",

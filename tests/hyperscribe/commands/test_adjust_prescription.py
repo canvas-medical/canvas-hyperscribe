@@ -509,24 +509,22 @@ def test_command_parameters_schemas(current_medications):
                 "additionalProperties": False,
                 "properties": {
                     "comment": {
-                        "description": "Rationale of the change of prescription including all "
-                        "important words, as free text",
+                        "description": "Prescription change rationale with all important details",
                         "type": "string",
                     },
                     "newMedication": {
                         "additionalProperties": False,
                         "properties": {
                             "brandNames": {
-                                "description": "Comma separated of known medication names related to the keywords",
+                                "description": "Comma-separated medication names related to keywords",
                                 "type": "string",
                             },
                             "keywords": {
-                                "description": "Comma separated keywords of up to 5 synonyms of "
-                                "the new medication to prescribe",
+                                "description": "Up to 5 comma-separated new medication synonyms",
                                 "type": "string",
                             },
                             "sameAsCurrent": {
-                                "description": "Same medication as current one",
+                                "description": "Same medication as current (even if different dose)",
                                 "type": "boolean",
                             },
                         },
@@ -534,27 +532,27 @@ def test_command_parameters_schemas(current_medications):
                         "type": "object",
                     },
                     "oldMedication": {
-                        "description": "The current medication to be adjusted",
+                        "description": "Current medication to adjust",
                         "enum": ["display1", "display2", "display3"],
                         "type": "string",
                     },
                     "oldMedicationIndex": {
-                        "description": "Index of the medication to change",
+                        "description": "Medication index",
                         "maximum": 2,
                         "minimum": 0,
                         "type": "integer",
                     },
                     "sig": {
-                        "description": "Directions for the medication, as free text",
+                        "description": "Directions",
                         "type": "string",
                     },
                     "substitution": {
-                        "description": "Substitution status for the prescription, default is 'allowed'",
+                        "description": "Substitution status (default: allowed)",
                         "enum": ["allowed", "not_allowed"],
                         "type": "string",
                     },
                     "suppliedDays": {
-                        "description": "Duration of the treatment in days, at least 1",
+                        "description": "Treatment duration in days, at least 1",
                         "exclusiveMinimum": 0,
                         "type": "integer",
                     },

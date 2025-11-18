@@ -175,27 +175,23 @@ def test_command_from_json(condition_from, search_imagings, add_code2description
     ]
     keywords = ["keyword1", "keyword2", "keyword3"]
     system_prompt = [
-        "The conversation is in the medical context.",
-        "",
-        "Your task is to identify the most relevant imaging order for a patient out of a list of imaging orders.",
+        "Medical context: select the single most relevant imaging order from the list.",
         "",
     ]
     user_prompt = [
-        "Here is the comments provided by the healthcare provider in regards to the imaging to order for a patient:",
+        "Provider data:",
         "```text",
         "keywords: keyword1,keyword2,keyword3",
-        " -- ",
         "note: theComment",
-        " -- ",
-        "note to the radiologist: keyword1,keyword2,keyword3",
+        "note to radiologist: theNoteToTheRadiologist",
         "```",
-        "Sort the following imaging orders from most relevant to least, and return the first one:",
         "",
+        "Imaging orders:",
         " * name1 (conceptId: code1)\n * name2 (conceptId: code2)\n * name3 (conceptId: code3)",
         "",
-        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "Return the ONE most relevant imaging as JSON in Markdown code block:",
         "```json",
-        '[{"conceptId": "the concept id, as string", "term": "the name of the imaging"}]',
+        '[{"conceptId": "string", "term": "imaging name"}]',
         "```",
         "",
     ]
@@ -384,7 +380,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "f248a67eecc13ae7d4754b8ad608b93a"
+    expected_hash = "0ac94eefc6e4200d8461910a72022a4d"
     assert schema_hash == expected_hash
 
     tests = [

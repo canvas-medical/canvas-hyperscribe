@@ -181,26 +181,26 @@ def test_command_parameters_schemas(current_conditions):
                 "additionalProperties": False,
                 "properties": {
                     "assessment": {
-                        "description": "Today's assessment of the condition, as free text",
+                        "description": "Today's condition assessment",
                         "type": "string",
                     },
                     "condition": {
-                        "description": "The condition to assess",
+                        "description": "Condition to assess",
                         "enum": ["display1a", "display2a", "display3a", None],
                         "type": ["string", "null"],
                     },
                     "conditionIndex": {
-                        "description": "Index of the Condition to assess, or -1",
+                        "description": "Condition index, or -1 if uncommitted",
                         "maximum": 2,
                         "minimum": -1,
                         "type": "integer",
                     },
                     "rationale": {
-                        "description": "Rationale about the current assessment, as free text",
+                        "description": "Rationale for current assessment",
                         "type": "string",
                     },
                     "status": {
-                        "description": "Status of the condition",
+                        "description": "Condition status",
                         "enum": ["improved", "stable", "deteriorated"],
                         "type": "string",
                     },

@@ -97,11 +97,9 @@ class LlmDecisionsReviewer:
 
                 audit_schema = JsonSchema.get(["audit_with_value"])[0]
                 user_prompt = [
-                    "Your task is now to explain the rationale of each and every value you have provided, citing "
-                    "any text or value you used.",
+                    "Explain rationale for each and every value provided, citing text or values used.",
                     "\n".join(details),
-                    "Present the reasoning behind each and every value you provided, your response should be a JSON "
-                    "following this JSON Schema:",
+                    "Present reasoning for each value as JSON following schema:",
                     "```json",
                     json.dumps(audit_schema),
                     "```",

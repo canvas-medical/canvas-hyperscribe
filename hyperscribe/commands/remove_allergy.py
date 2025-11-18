@@ -63,18 +63,18 @@ class RemoveAllergy(Base):
                     "properties": {
                         "allergies": {
                             "type": "string",
-                            "description": "The allergy to remove",
+                            "description": "Allergy to remove",
                             "enum": allergies,
                         },
                         "allergyIndex": {
                             "type": "integer",
-                            "description": "Index of the allergy to remove",
+                            "description": "Allergy index",
                             "minimum": 0,
                             "maximum": len(allergies) - 1,
                         },
                         "narrative": {
                             "type": "string",
-                            "description": "Explanation of why the allergy is removed, as free text",
+                            "description": "Reason for removal",
                         },
                     },
                     "required": ["allergies", "allergyIndex", "narrative"],

@@ -53,31 +53,25 @@ class UpdateDiagnose(Base):
         if conditions := CanvasScience.search_conditions(expressions):
             # retrieve the correct condition
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant condition diagnosed for a patient "
-                "out of a list of conditions.",
+                "Medical context: identify the single most relevant diagnosed condition from the list.",
                 "",
             ]
             user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the diagnosis:",
+                "Provider data:",
                 "```text",
                 f"keywords: {instruction.parameters['keywords']}",
-                " -- ",
                 instruction.parameters["rationale"],
-                "",
                 instruction.parameters["assessment"],
                 "```",
                 "",
-                "Sort the following conditions from most relevant to least, and return the first one:",
-                "",
+                "Conditions:",
                 "\n".join(
                     f" * {condition.label} (ICD-10: {Helper.icd10_add_dot(condition.code)})" for condition in conditions
                 ),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant condition as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"ICD10": "the ICD-10 code", "label": "the label"}]),
+                json.dumps([{"ICD10": "ICD-10 code", "label": "label"}]),
                 "```",
                 "",
             ]
@@ -112,32 +106,30 @@ class UpdateDiagnose(Base):
                     "properties": {
                         "keywords": {
                             "type": "string",
-                            "description": "Comma separated keywords of up to 5 synonyms of "
-                            "the new diagnosed condition",
+                            "description": "Up to 5 comma-separated new condition synonyms",
                         },
                         "ICD10": {
                             "type": "string",
-                            "description": "Comma separated keywords of up to 5 ICD-10 codes of "
-                            "the new diagnosed condition",
+                            "description": "Up to 5 comma-separated ICD-10 codes for new condition",
                         },
                         "previousCondition": {
                             "type": "string",
-                            "description": "The previous condition to be updated",
+                            "description": "Previous condition to update",
                             "enum": conditions,
                         },
                         "previousConditionIndex": {
                             "type": "integer",
-                            "description": "Index of the previous Condition",
+                            "description": "Previous condition index",
                             "minimum": 0,
                             "maximum": len(conditions) - 1,
                         },
                         "rationale": {
                             "type": "string",
-                            "description": "Rationale about the current assessment, as free text",
+                            "description": "Rationale for current assessment",
                         },
                         "assessment": {
                             "type": "string",
-                            "description": "Today's assessment of the new condition, as free text",
+                            "description": "Today's assessment of new condition",
                         },
                     },
                     "required": [

@@ -107,36 +107,32 @@ class Prescription(BasePrescription):
         fields: dict = {
             "keywords": {
                 "type": "string",
-                "description": "Comma separated list of up to 5 relevant drugs to consider prescribing",
+                "description": "Up to 5 comma-separated relevant drugs to consider prescribing",
             },
             "medicationNames": {
                 "type": "string",
-                "description": "Comma separated list of known medication names, generics "
-                "and brands, related to the keywords",
+                "description": "Comma-separated medication names, generics and brands related to keywords",
             },
             "sig": {
                 "type": "string",
-                "description": "Directions as stated; if specific frequency mentioned "
-                "(e.g. 'once weekly', 'twice daily'), preserve it exactly, as free text",
+                "description": "Directions as stated; "
+                "preserve specific frequency exactly if mentioned (e.g. 'once weekly', 'twice daily')",
             },
             "suppliedDays": {
                 "type": "integer",
                 "exclusiveMinimum": 0,
-                "description": "Duration of the treatment in days either as mentioned, "
-                "or following the standard practices, at least 1",
+                "description": "Treatment duration in days as mentioned or per standard practice, at least 1",
             },
             "substitution": {
                 "type": "string",
-                "description": "Substitution status for the prescription, "
-                f"default is '{PrescribeCommand.Substitutions.ALLOWED.value}'",
+                "description": f"Substitution status (default: {PrescribeCommand.Substitutions.ALLOWED.value})",
                 "enum": substitutions,
             },
             "comment": {
                 "type": "string",
-                "description": "Rationale of the prescription including all mentioned details: "
-                "medication name/brand, specific strength if stated (e.g. '2.5 mg', '10 mg'), "
-                "route, and specific frequency if stated (e.g. 'once weekly', 'twice daily'), "
-                "as free text",
+                "description": "Prescription rationale with all details: medication name/brand, "
+                "specific strength if stated (e.g. '2.5 mg'), route, "
+                "specific frequency if stated (e.g. 'once weekly')",
             },
         }
         required_fields: list[str] = ["keywords", "medicationNames", "sig", "suppliedDays", "substitution", "comment"]
@@ -144,14 +140,12 @@ class Prescription(BasePrescription):
             fields |= {
                 "condition": {
                     "type": ["string", "null"],
-                    "description": "The condition for which the medication is prescribed, "
-                    "or null if not related to any condition",
+                    "description": "Condition for which medication is prescribed, or null if unrelated",
                     "enum": conditions + [None],
                 },
                 "conditionIndex": {
                     "type": "integer",
-                    "description": "Index of the condition for which the medication is prescribed, "
-                    "or -1 if the prescription is not related to any listed condition",
+                    "description": "Condition index for prescription, or -1 if unrelated to listed conditions",
                 },
             }
             required_fields.extend(["condition", "conditionIndex"])

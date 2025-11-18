@@ -327,22 +327,17 @@ def test_relevant_question_ids():
         mock_chatter.reset_mock()
 
     system_prompt = [
-        "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
-        "The healthcare provider is editing a questionnaire 'theQuestionnaire', potentially without notifying the "
-        "patient to prevent biased answers.",
-        "The user will submit two JSON Markdown blocks:",
-        "- the questions of the questionnaire,",
-        "- a partial transcript of the visit of a patient with the healthcare provider.",
+        "Clinical encounter: provider editing 'theQuestionnaire' questionnaire, "
+        "potentially without patient notification to avoid biased answers.",
         "",
-        "Your task is to identifying from the transcript which questions the healthcare provider is referencing, "
-        "if any.",
-        "Since this is only a part of the transcript, it may have no reference to the questionnaire at all.",
+        "Identify which questions the provider references in the partial transcript.",
+        "May have no questionnaire references.",
         "",
-        "Your response must be the updated JSON Markdown block of the list of questions.",
+        "Return updated question list JSON.",
         "",
     ]
     user_prompt = [
-        "Below is a part of the transcript between the patient and the healthcare provider:",
+        "Partial transcript:",
         "```json",
         "[\n "
         '{\n  "speaker": "speaker1",\n  "text": "line1",\n  "start": 0.0,\n  "end": 1.3\n },\n '
@@ -351,7 +346,7 @@ def test_relevant_question_ids():
         "]",
         "```",
         "",
-        "The questionnaire 'theQuestionnaire' has the following questions:",
+        "Questionnaire 'theQuestionnaire' questions:",
         "```json",
         '[{"questionId": 234, "question": "theQuestion1", "usedInTranscript": false}, '
         '{"questionId": 345, "question": "theQuestion2", "usedInTranscript": false}, '
@@ -359,7 +354,7 @@ def test_relevant_question_ids():
         '{"questionId": 371, "question": "theQuestion4", "usedInTranscript": false}]',
         "```",
         "",
-        "Return this JSON in a Markdown block after setting to 'true' the questions referenced in the transcript.",
+        "Set 'usedInTranscript' to true for questions referenced in transcript.",
         "",
     ]
     schema = {
@@ -573,25 +568,19 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
     )
 
     system_prompt = [
-        "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
-        "The healthcare provider is editing a questionnaire 'theQuestionnaire', potentially without notifying "
-        "the patient to prevent biased answers.",
-        "The user will submit two JSON Markdown blocks:",
-        "- the current state of the questionnaire,",
-        "- a partial transcript of the visit of a patient with the healthcare provider.",
+        "Clinical encounter: provider editing 'theQuestionnaire' questionnaire, "
+        "potentially without patient notification to avoid biased answers.",
         "",
-        "Your task is to identifying from the transcript which questions the healthcare provider is referencing "
-        "and what responses the patient is giving.",
-        "Since this is only a part of the transcript, it may have no reference to the questionnaire at all.",
+        "Identify questions referenced and patient responses from partial transcript.",
+        "May have no questionnaire references.",
         "",
-        "Your response must be the JSON Markdown block of the questionnaire, with all the necessary changes "
-        "to reflect the transcript content.",
+        "Return updated questionnaire JSON with necessary changes.",
         "",
     ]
 
     user_prompts = {
         "withSkipped": [
-            "Below is a part of the transcript between the patient and the healthcare provider:",
+            "Partial transcript:",
             "```json",
             "[\n "
             '{\n  "speaker": "spk1",\n  "text": "line1",\n  "start": 0.0,\n  "end": 1.3\n },\n '
@@ -600,7 +589,7 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
             '{\n  "speaker": "spk1",\n  "text": "line4",\n  "start": 3.6,\n  "end": 4.7\n }\n]',
             "```",
             "",
-            "The questionnaire 'theQuestionnaire' is currently as follow,:",
+            "Current 'theQuestionnaire' questionnaire:",
             "```json",
             "[{"
             '"questionId": 234, '
@@ -639,15 +628,13 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
             '"skipped": false}]',
             "```",
             "",
-            "Your task is to replace the values of the JSON object as necessary.",
-            "Since the current questionnaire's state is based on previous parts of the transcript, the changes "
-            "should be based on explicit information only.",
-            "This includes the values of 'skipped', change it to 'false' only if the question "
-            "is obviously answered in the transcript, don't change it at all otherwise.",
+            "Update JSON values based on explicit transcript information only.",
+            "Current state reflects previous transcript parts.",
+            "For 'skipped': set to false only if question obviously answered; otherwise don't change.",
             "",
         ],
         "noSkipped": [
-            "Below is a part of the transcript between the patient and the healthcare provider:",
+            "Partial transcript:",
             "```json",
             "[\n "
             '{\n  "speaker": "spk1",\n  "text": "line1",\n  "start": 0.0,\n  "end": 1.3\n },\n '
@@ -656,7 +643,7 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
             '{\n  "speaker": "spk1",\n  "text": "line4",\n  "start": 3.6,\n  "end": 4.7\n }\n]',
             "```",
             "",
-            "The questionnaire 'theQuestionnaire' is currently as follow,:",
+            "Current 'theQuestionnaire' questionnaire:",
             "```json",
             "[{"
             '"questionId": 234, '
@@ -692,9 +679,8 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
             '"description": "add in the comment key any relevant information expanding the answer"}]}]',
             "```",
             "",
-            "Your task is to replace the values of the JSON object as necessary.",
-            "Since the current questionnaire's state is based on previous parts of the transcript, the changes "
-            "should be based on explicit information only.",
+            "Update JSON values based on explicit transcript information only.",
+            "Current state reflects previous transcript parts.",
             "",
         ],
     }

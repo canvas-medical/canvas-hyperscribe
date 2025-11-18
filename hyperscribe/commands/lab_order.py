@@ -118,19 +118,18 @@ class LabOrder(Base):
                         "labOrders": {
                             "type": "array",
                             "minItems": 1,
-                            "description": "List of each requested lab order.",
+                            "description": "Requested lab orders",
                             "items": {
                                 "type": "object",
                                 "properties": {
                                     "labOrderName": {
                                         "type": "string",
-                                        "description": "the common name of the requested lab test.",
+                                        "description": "Lab test common name",
                                     },
                                     "labOrderKeywords": {
                                         "type": "string",
-                                        "description": "Comma-separated keywords to find the specific lab test in a "
-                                        "database (using OR criteria), it is better to provide "
-                                        "more specific keywords rather than few broad ones.",
+                                        "description": "Comma-separated keywords to find lab test (OR criteria); "
+                                        "prefer specific over broad",
                                     },
                                 },
                                 "required": ["labOrderName", "labOrderKeywords"],
@@ -140,23 +139,21 @@ class LabOrder(Base):
                         "conditions": {
                             "type": "array",
                             "minItems": 0,
-                            "description": "List of conditions explicitly mentioned as related to the lab orders."
-                            "The list has to be empty if no condition is provided in the transcript.",
+                            "description": "Conditions explicitly related to lab orders; empty if none in transcript",
                             "items": {
                                 "type": "object",
                                 "properties": {
                                     "conditionName": {
                                         "type": "string",
-                                        "description": "the common name of the condition targeted by the lab tests.",
+                                        "description": "Condition common name",
                                     },
                                     "conditionKeywords": {
                                         "type": "string",
-                                        "description": "Comma-separated keywords to find in a database "
-                                        "(using OR criteria) the condition targeted by the lab tests.",
+                                        "description": "Comma-separated keywords to find condition (OR criteria)",
                                     },
                                     "ICD10": {
                                         "type": "string",
-                                        "description": "Comma-separated ICD-10 codes (up to 5) for the condition",
+                                        "description": "Up to 5 comma-separated ICD-10 codes",
                                     },
                                 },
                                 "required": ["conditionKeywords", "ICD10"],
@@ -165,11 +162,11 @@ class LabOrder(Base):
                         },
                         "fastingRequired": {
                             "type": "boolean",
-                            "description": "Whether fasting is required prior to the lab test",
+                            "description": "Fasting required before lab test",
                         },
                         "comment": {
                             "type": "string",
-                            "description": "Rationale for the prescription as explicitly explained in the transcript",
+                            "description": "Lab order rationale from transcript",
                             "maxLength": 128,
                         },
                     },

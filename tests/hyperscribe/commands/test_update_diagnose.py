@@ -125,28 +125,23 @@ def test_command_from_json(add_code2description, current_conditions, search_cond
         chatter.reset_mock()
 
     system_prompt = [
-        "The conversation is in the medical context.",
-        "",
-        "Your task is to identify the most relevant condition diagnosed for a patient out of a list of conditions.",
+        "Medical context: identify the single most relevant diagnosed condition from the list.",
         "",
     ]
     user_prompt = [
-        "Here is the comment provided by the healthcare provider in regards to the diagnosis:",
+        "Provider data:",
         "```text",
         "keywords: keyword1,keyword2,keyword3",
-        " -- ",
         "theRationale",
-        "",
         "theAssessment",
         "```",
         "",
-        "Sort the following conditions from most relevant to least, and return the first one:",
-        "",
+        "Conditions:",
         " * labelA (ICD-10: code12.3)\n * labelB (ICD-10: code36.9)\n * labelC (ICD-10: code75.2)",
         "",
-        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "Return the ONE most relevant condition as JSON in Markdown code block:",
         "```json",
-        '[{"ICD10": "the ICD-10 code", "label": "the label"}]',
+        '[{"ICD10": "ICD-10 code", "label": "label"}]',
         "```",
         "",
     ]
@@ -305,31 +300,30 @@ def test_command_parameters_schemas(current_conditions):
                 "additionalProperties": False,
                 "properties": {
                     "ICD10": {
-                        "description": "Comma separated keywords of up to 5 ICD-10 codes of the "
-                        "new diagnosed condition",
+                        "description": "Up to 5 comma-separated ICD-10 codes for new condition",
                         "type": "string",
                     },
                     "assessment": {
-                        "description": "Today's assessment of the new condition, as free text",
+                        "description": "Today's assessment of new condition",
                         "type": "string",
                     },
                     "keywords": {
-                        "description": "Comma separated keywords of up to 5 synonyms of the new diagnosed condition",
+                        "description": "Up to 5 comma-separated new condition synonyms",
                         "type": "string",
                     },
                     "previousCondition": {
-                        "description": "The previous condition to be updated",
+                        "description": "Previous condition to update",
                         "enum": ["display1a", "display2a", "display3a"],
                         "type": "string",
                     },
                     "previousConditionIndex": {
-                        "description": "Index of the previous Condition",
+                        "description": "Previous condition index",
                         "maximum": 2,
                         "minimum": 0,
                         "type": "integer",
                     },
                     "rationale": {
-                        "description": "Rationale about the current assessment, as free text",
+                        "description": "Rationale for current assessment",
                         "type": "string",
                     },
                 },

@@ -89,23 +89,23 @@ class FollowUp(Base):
             },
             "visitTypeIndex": {
                 "type": "integer",
-                "description": "Index of the visitType",
+                "description": "Visit type index",
                 "minimum": 0,
                 "maximum": len(visits) - 1,
             },
             "date": {
                 "type": ["string", "null"],
-                "description": "Date of the follow up encounter in YYYY-MM-DD format",
+                "description": "Follow-up encounter date YYYY-MM-DD",
                 "format": "date",
                 "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
             },
             "reasonForVisit": {
                 "type": "string",
-                "description": "The main reason for the follow up encounter, as free text",
+                "description": "Main reason for follow-up encounter",
             },
             "comment": {
                 "type": "string",
-                "description": "Information related to the scheduling itself, as free text",
+                "description": "Scheduling information",
             },
         }
         required_fields: list[str] = ["visitType", "visitTypeIndex", "date", "reasonForVisit", "comment"]
@@ -114,12 +114,12 @@ class FollowUp(Base):
             fields |= {
                 "reasonForVisit": {
                     "type": "string",
-                    "description": "The main reason for the follow up encounter",
+                    "description": "Main reason for follow-up encounter",
                     "enum": options,
                 },
                 "reasonForVisitIndex": {
                     "type": "integer",
-                    "description": "The index of the reason for visit",
+                    "description": "Reason for visit index",
                     "minimum": 0,
                     "maximum": len(options) - 1,
                 },

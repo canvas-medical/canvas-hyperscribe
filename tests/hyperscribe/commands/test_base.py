@@ -186,20 +186,14 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
         command.reset_mock()
 
     system_prompt = [
-        "The conversation is in the medical context.",
-        "The user will provide you with a JSON built for a medical software, including:",
-        "- `command` providing accurate and detailed values",
-        "- `previousInformation` a plain English description currently know by the software",
-        "- `information` a plain English description built on top of `previousInformation`.",
+        "Medical context: create clinical charting shorthand summary (SOAP style) from JSON.",
+        "JSON contains: command (detailed values), previousInformation (current), information (updated).",
         "",
-        "Your task is to produce a summary in clinical charting shorthand style (like SOAP notes) out of this JSON.",
-        "",
-        "Use plain English with standard medical abbreviations (e.g., CC, f/u, Dx, Rx, DC, VS, FHx, labs).",
-        "Be telegraphic, concise, and formatted like real chart notes for a quick glance from a knowledgeable person.",
-        "Only new information should be included, and 20 words should be the maximum.",
+        "Use medical abbreviations (CC, f/u, Dx, Rx, DC, VS, FHx, labs).",
+        "Telegraphic, concise, for quick glance by knowledgeable person. Only new information. Max 20 words.",
     ]
     user_prompt = [
-        "Here is a JSON intended to the medical software:",
+        "JSON:",
         "```json",
         '{"previousInformation": "thePreviousInformation", '
         '"information": "theInformation", '
@@ -208,12 +202,9 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
         '"attributes": {"codeA": "descriptionA", "codeB": "descriptionB", "codeD": "valueD"}}}',
         "```",
         "",
-        "Please, following the directions, present the summary of the new information only like "
-        "this Markdown code block:",
+        "Return summary as JSON in Markdown code block:",
         "```json",
-        '[{"summary": "clinical charting shorthand style summary, '
-        "minimal and limited to the new information but useful for "
-        'a quick glance from a knowledgeable person"}]',
+        '[{"summary": "shorthand summary"}]',
         "```",
         "",
     ]
@@ -335,37 +326,27 @@ def test_command_from_json_custom_prompted(custom_prompt, json_schema, demograph
     date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
 
     system_prompt = [
-        "The conversation is in the context of a clinical encounter between "
-        "patient (theDemographic) and licensed healthcare provider.",
+        "Clinical encounter context: patient (theDemographic) and provider.",
+        "Current time: 2025-11-04T04:55:21.012346+00:00",
         "",
-        "The user will submit to you some data related to the conversation as well as how to modify it.",
-        "It is important to follow the requested changes without never make things up.",
-        "It is better to keep the data unchanged rather than create incorrect information.",
-        "",
-        "Please, note that now is 2025-11-04T04:55:21.012346+00:00.",
-        "",
+        "Apply requested changes to data. Follow instructions exactly.",
+        "IMPORTANT: Never add information not in original data. "
+        "Better to keep unchanged than create incorrect information.",
     ]
     user_prompt = [
-        "Here is the original data:",
+        "Original data:",
         "```text",
         "theData",
         "```",
         "",
-        "Apply the following changes:",
+        "Changes to apply:",
         "```text",
         "thePrompt",
         "```",
         "",
-        "Do NOT add information which is not explicitly provided in the original data.",
-        "",
-        "Fill the JSON object with the relevant information:",
+        "Return modified data as JSON in Markdown code block:",
         "```json",
-        '[{"newData": ""}]',
-        "```",
-        "",
-        "Your response must be a JSON Markdown block validated with the schema:",
-        "```json",
-        '{\n "the": "schema"\n}',
+        '[{"newData": "modified data"}]',
         "```",
         "",
     ]

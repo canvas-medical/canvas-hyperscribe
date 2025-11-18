@@ -59,18 +59,18 @@ class StopMedication(Base):
                     "properties": {
                         "medication": {
                             "type": "string",
-                            "description": "The medication to stop",
+                            "description": "Medication to stop",
                             "enum": medications,
                         },
                         "medicationIndex": {
                             "type": "integer",
-                            "description": "Index of the medication to stop",
+                            "description": "Medication index",
                             "minimum": 0,
                             "maximum": len(medications) - 1,
                         },
                         "rationale": {
                             "type": "string",
-                            "description": "Explanation of why the medication is stopped, as free text",
+                            "description": "Reason medication is stopped",
                         },
                     },
                     "required": ["medication", "medicationIndex", "rationale"],

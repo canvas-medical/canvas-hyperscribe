@@ -94,25 +94,22 @@ def test_command_from_json(family_histories):
         chatter.reset_mock()
 
     system_prompt = [
-        "The conversation is in the medical context.",
-        "",
-        "Your task is to identify the most relevant condition of a patient out of a list of conditions.",
+        "Medical context: identify the single most relevant family history condition from the list.",
         "",
     ]
     user_prompt = [
-        "Here is the note provided by the healthcare provider in regards to the condition of a patient:",
+        "Provider data:",
         "```text",
         "keywords: keyword1,keyword2,keyword3",
-        " -- ",
         "theNote",
         "```",
-        "Sort the following conditions from most relevant to least, and return the first one:",
         "",
+        "Conditions:",
         " * termA (conceptId: '123')\n * termB (conceptId: '369')\n * termC (conceptId: '752')",
         "",
-        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "Return the ONE most relevant condition as JSON in Markdown code block:",
         "```json",
-        '[{"conceptId": "the concept id, as string", "term": "the expression"}]',
+        '[{"conceptId": "string", "term": "expression"}]',
         "```",
         "",
     ]
@@ -258,7 +255,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "c1d479de900bc36cee8c956843371baa"
+    expected_hash = "7ce5063d0eb4f59e1da5cd9fabf05d13"
     assert schema_hash == expected_hash
 
     tests = [

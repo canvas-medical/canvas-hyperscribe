@@ -58,11 +58,11 @@ class Immunize(Base):
                     "properties": {
                         "immunize": {
                             "type": "string",
-                            "description": "Medical name of the immunization and its CPT code",
+                            "description": "Immunization medical name and CPT code",
                         },
                         "sig": {
                             "type": "string",
-                            "description": "Directions, as free text",
+                            "description": "Directions",
                         },
                     },
                     "required": ["immunize", "sig"],

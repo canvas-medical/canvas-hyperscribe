@@ -119,29 +119,24 @@ def test_select_assignee(add_code2description, existing_staff_members, existing_
         chatter.reset_mock()
 
     system_prompt = [
-        "The conversation is in the medical context.",
-        "",
-        "The goal is to identify the most relevant staff member, team or role to assign a specific task to.",
+        "Medical context: identify the single most relevant staff member, team or role for task assignment.",
         "",
     ]
     user_prompt = [
-        "Here is the comment provided by the healthcare provider in regards to the task:",
+        "Provider data:",
         "```text",
         "assign to: assignedTo",
-        " -- ",
         "comment: theComment",
-        "",
         "```",
         "",
-        "Sort the following staff members, teams and roles from most relevant to least, and return the first one:",
-        "",
+        "Staff, teams and roles:",
         " * Joe Smith (type: staff, id: 741)\n * Jane Doe (type: staff, id: 596)\n * Jim Boy (type: staff, id: 963)",
         " * Administrative (type: team, id: 741)\n * Medical (type: team, id: 752)",
         " * Health Coach (type: role, id: 854)\n * Physician (type: role, id: 863)",
         "",
-        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "Return the ONE most relevant assignee as JSON in Markdown code block:",
         "```json",
-        '[{"type": "staff, team or role", "id": "the id, as int", "name": "the entity"}]',
+        '[{"type": "staff/team/role", "id": "int", "name": "entity name"}]',
         "```",
         "",
     ]
@@ -267,27 +262,22 @@ def test_select_labels(existing_task_labels):
         existing_task_labels.reset_mock()
 
     system_prompt = [
-        "The conversation is in the medical context.",
-        "",
-        "The goal is to identify the most relevant labels linked to a specific task.",
+        "Medical context: identify all relevant labels for the task.",
         "",
     ]
     user_prompt = [
-        "Here is the comment provided by the healthcare provider in regards to the task:",
+        "Provider data:",
         "```text",
         "labels: theLabels",
-        " -- ",
         "comment: theComment",
-        "",
         "```",
         "",
-        "Among the following labels, identify all the most relevant to characterized the task:",
-        "",
+        "Available labels:",
         " * Label1 (labelId: 741)\n * Label2 (labelId: 596)\n * Label3 (labelId: 963)",
         "",
-        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "Return all relevant labels as JSON in Markdown code block:",
         "```json",
-        '[{"labelId": "the label id, as int", "name": "the name of the label"}]',
+        '[{"labelId": "int", "name": "label name"}]',
         "```",
         "",
     ]
@@ -507,7 +497,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "6e425ee25d3b96833096b7db64c8a37a"
+    expected_hash = "d6e756998179441932e1d37a23afb946"
     assert schema_hash == expected_hash
 
     tests = [

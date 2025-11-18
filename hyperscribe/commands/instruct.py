@@ -43,25 +43,22 @@ class Instruct(Base):
         if concepts := CanvasScience.instructions(expressions):
             # ask the LLM to pick the most relevant instruction
             system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to identify the most relevant direction.",
+                "Medical context: identify the single most relevant direction from the list.",
                 "",
             ]
             user_prompt = [
-                "Here is the description of a direction instructed by a healthcare provider to a patient:",
+                "Provider data:",
                 "```text",
                 f"keywords: {instruction.parameters['keywords']}",
-                " -- ",
                 instruction.parameters["comment"],
                 "```",
-                "Sort the following expressions from most relevant to least, and return the first one:",
                 "",
+                "Directions:",
                 "\n".join(f" * {concept.term} (conceptId: '{str(concept.concept_id)}')" for concept in concepts),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Return the ONE most relevant direction as JSON in Markdown code block:",
                 "```json",
-                json.dumps([{"conceptId": "the concept id, as string", "term": "the expression"}]),
+                json.dumps([{"conceptId": "string", "term": "expression"}]),
                 "```",
                 "",
             ]
@@ -94,12 +91,11 @@ class Instruct(Base):
                     "properties": {
                         "keywords": {
                             "type": "string",
-                            "description": "Comma separated single keywords of up to "
-                            "5 synonyms to the specific direction",
+                            "description": "Up to 5 comma-separated direction synonyms",
                         },
                         "comment": {
                             "type": "string",
-                            "description": "Directions from the provider, as free text",
+                            "description": "Directions from provider",
                         },
                     },
                     "required": ["keywords", "comment"],

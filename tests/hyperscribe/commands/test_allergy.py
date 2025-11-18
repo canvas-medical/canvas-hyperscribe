@@ -92,28 +92,23 @@ def test_command_from_json(add_code2description, search_allergy):
         chatter.reset_mock()
 
     system_prompt = [
-        "The conversation is in the medical context.",
-        "",
-        "Your task is to identify the most relevant allergy of a patient out of a list of allergies.",
+        "Medical context: identify the single most relevant allergy from the list.",
         "",
     ]
     user_prompt = [
-        "Here is the comment provided by the healthcare provider in regards to the allergy:",
+        "Provider data:",
         "```text",
         "keywords: keyword1,keyword2,keyword3",
-        " -- ",
         "severity: moderate",
-        "",
         "theReaction",
         "```",
         "",
-        "Sort the following allergies from most relevant to least, and return the first one:",
-        "",
+        "Allergies:",
         " * descriptionA (conceptId: '134')\n * descriptionB (conceptId: '167')\n * descriptionC (conceptId: '234')",
         "",
-        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "Return the ONE most relevant allergy as JSON in Markdown code block:",
         "```json",
-        '[{"conceptId": "the concept id, as string", "term": "the description"}]',
+        '[{"conceptId": "string", "term": "description"}]',
         "```",
         "",
     ]
@@ -280,7 +275,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "d50901bfa8bdc4165d5fb42783be80f6"
+    expected_hash = "93ec4105418d73248994e6da8ee6b038"
     assert schema_hash == expected_hash
 
     tests = [

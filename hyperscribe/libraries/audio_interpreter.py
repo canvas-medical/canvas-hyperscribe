@@ -101,11 +101,10 @@ class AudioInterpreter:
         # using the LLM text to identify the speakers
         detector.set_system_prompt(
             [
-                "The conversation is in the medical context, and related to a visit of a patient with a "
-                "healthcare provider.",
+                "Medical context: patient visit with healthcare provider.",
                 "",
-                "A recording is parsed in realtime and the transcription is reported for each speaker.",
-                "Your task is to identify the speakers of the provided transcription.",
+                "Recording transcribed in realtime per speaker.",
+                "Identify speakers from transcription.",
                 "",
             ],
         )
@@ -123,22 +122,22 @@ class AudioInterpreter:
         detector.set_user_prompt(
             [
                 previous_transcript,
-                "Your task is to identify the role of the voices (patient, clinician, nurse, parents...) "
-                "in the conversation, if there is only one voice, or just only silence, assume this is the clinician.",
+                "Identify voice roles (patient, clinician, nurse, parents...). "
+                "If only one voice or silence, assume clinician.",
                 "",
                 "```json",
                 json.dumps(response.content[0], indent=1),
                 "```",
                 "",
-                "Present your findings in a JSON format within a Markdown code block:",
+                "Return as JSON in Markdown code block:",
                 "```json",
                 json.dumps(
                     [
                         {
                             "speaker": "Patient/Clinician/Nurse/Parent...",
-                            "text": "the verbatim transcription as reported in the transcription",
-                            "start": "the start as reported in the transcription",
-                            "end": "the end as reported in the transcription",
+                            "text": "verbatim transcription as reported",
+                            "start": "start as reported",
+                            "end": "end as reported",
                         },
                     ],
                     indent=1,
@@ -156,13 +155,11 @@ class AudioInterpreter:
     def combine_and_speaker_detection_single_step(cls, detector: LlmBase, transcript_tail: list[Line]) -> JsonExtract:
         detector.set_system_prompt(
             [
-                "The conversation is in the medical context, and related to a visit of a patient with a "
-                "healthcare provider.",
+                "Medical context: patient visit with healthcare provider.",
                 "",
-                "Your task is to transcribe what was said with maximum accuracy, capturing ALL clinical"
-                "information including patient symptoms, medical history, medications, treatment plans"
-                "and provider recommendations.",
-                "Ensure complete documentation of patient-reported concerns and clinician instructions,"
+                "Transcribe with maximum accuracy, capturing ALL clinical information: "
+                "patient symptoms, medical history, medications, treatment plans, provider recommendations.",
+                "Complete documentation of patient concerns and clinician instructions required, "
                 "as missing clinical details significantly impact care quality.",
                 "",
             ],
@@ -180,35 +177,32 @@ class AudioInterpreter:
             )
         detector.set_user_prompt(
             [
-                "The recording takes place in a medical setting, specifically related to a patient's visit "
-                "with a clinician.",
+                "Medical setting: patient visit with clinician.",
                 "",
-                "These audio files contain recordings of a single visit.",
-                "There is no overlap between the segments, so they should be regarded as a continuous flow "
-                "and analyzed at once.",
+                "Audio files contain single visit recordings.",
+                "No overlap between segments - continuous flow to analyze at once.",
                 previous_transcript,
-                "Your task is to:",
-                "1. label each voice if multiple voices are present.",
-                "2. transcribe each speaker's words with maximum accuracy.",
+                "Tasks:",
+                "1. Label each voice if multiple present",
+                "2. Transcribe each speaker's words with maximum accuracy",
                 "",
-                "Present your findings in a JSON format within a Markdown code block:",
+                "Return as JSON in Markdown code block:",
                 "```json",
                 json.dumps(
                     [
                         {
                             "voice": "voice_1/voice_2/.../voice_N",
-                            "text": "the verbatim transcription of what the speaker said, or [silence] for silences",
+                            "text": "verbatim transcription, or [silence] for silences",
                         },
                     ],
                     indent=1,
                 ),
                 "```",
                 "",
-                "Then, review the discussion from the top and distinguish the role of the voices "
-                "(patient, clinician, nurse, parents...) in the conversation, if there is only one voice, "
-                "or just only silence, assume this is the clinician",
+                "Then review discussion and distinguish voice roles "
+                "(patient, clinician, nurse, parents...). If only one voice or silence, assume clinician.",
                 "",
-                "Present your findings in a JSON format within a Markdown code block:",
+                "Return as JSON in Markdown code block:",
                 "```json",
                 json.dumps(
                     [{"speaker": "Patient/Clinician/Nurse/...", "voice": "voice_1/voice_2/.../voice_N"}],
@@ -247,11 +241,9 @@ class AudioInterpreter:
             linked_command[instruction.note_section()].append(instruction.class_name())
 
         system_prompt = [
-            "The conversation is in the context of a clinical encounter between patient and licensed "
-            "healthcare provider.",
-            "The user will submit a segment of the transcript of the visit of a patient with the healthcare provider.",
-            "Your task is to identify in the transcript whether it includes information related to "
-            "any of these sections:",
+            "Clinical encounter: patient and licensed healthcare provider.",
+            "User submits transcript segment from patient visit.",
+            "Identify if transcript includes information for these sections:",
             "```text",
             f"* {Constants.NOTE_SECTION_ASSESSMENT}: any evaluations, diagnoses, or impressions made by "
             "the provider about the patient's condition - "
@@ -271,15 +263,15 @@ class AudioInterpreter:
             f"'experiencing pain' - linked commands: {linked_command[Constants.NOTE_SECTION_SUBJECTIVE]}.",
             "```",
             "",
-            "Your response must be in a JSON Markdown block and validated with the schema:",
+            "Return JSON Markdown block validated with schema:",
             "```json",
             json.dumps(schema),
             "```",
             "",
         ]
         user_prompt = [
-            "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
-            "What are the sections present in the transcript?",
+            "Most recent transcript segment from patient visit.",
+            "What sections are present?",
             "```json",
             json.dumps([speaker.to_json() for speaker in discussion], indent=1),
             "```",
@@ -367,29 +359,27 @@ class AudioInterpreter:
             for item in common_instructions
         ]
         system_prompt = [
-            "The conversation is in the context of a clinical encounter between patient and licensed "
-            "healthcare provider.",
-            "The user will submit the transcript of the visit of a patient with the healthcare provider.",
-            "The user needs to extract and store the relevant information in their software using structured "
-            "commands as described below.",
-            "Your task is to help the user by identifying the relevant instructions and their linked information, "
-            "regardless of their location in the transcript. Prioritize accuracy and completeness, as omitting"
-            "significant clinical information compromises patient care.",
-            "Prioritize and reward comprehensive capture of all health-related discussion. Focus on"
-            "accurately documenting clinical information while naturally filtering non-medical content."
+            "Clinical encounter: patient and licensed healthcare provider.",
+            "User submits transcript from patient visit.",
+            "User extracts and stores information using structured commands below.",
+            "Identify relevant instructions and linked information from transcript, regardless of location. "
+            "Prioritize accuracy and completeness, "
+            "as omitting significant clinical information compromises patient care.",
+            "Comprehensive capture of all health-related discussion required. "
+            "Document clinical information accurately while naturally filtering non-medical content.",
             "",
             "IMPORTANT: Carefully track attribution of all health information. Before documenting any symptom, "
             "condition, test result, or medical history, verify WHO it belongs to by examining pronouns, "
             "possessive markers, and context. Information about other people (family members, friends, "
             "coworkers, etc.) must NOT be attributed to the patient. When in doubt about attribution, "
-            "review the surrounding context to confirm the subject of the health information.",
+            "review surrounding context to confirm subject of health information.",
             "",
-            "The instructions are limited to the following:",
+            "Instructions limited to:",
             "```json",
             json.dumps(definitions),
             "```",
             "",
-            "Your response must be in a JSON Markdown block and validated with the schema:",
+            "Return JSON Markdown block validated with schema:",
             "```json",
             json.dumps(schema),
             "```",
@@ -397,35 +387,26 @@ class AudioInterpreter:
         ]
         transcript = json.dumps([speaker.to_json() for speaker in discussion], indent=1)
         user_prompt = [
-            "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
-            "What are the instructions I need to add to my software to document the visit correctly?",
+            "Most recent transcript segment from patient visit.",
+            "What instructions are needed to document visit correctly?",
             "```json",
             transcript,
             "```",
             "",
-            "List all possible instructions as a text, and then, in a JSON markdown block, "
-            "respond with the found instructions as requested",
+            "List all possible instructions as text, then return found instructions as JSON markdown block.",
             "",
         ]
         if known_instructions:
             content = [instruction.to_json(True) for instruction in known_instructions]
             user_prompt.extend(
                 [
-                    "From among all previous segments of the transcript, the following instructions were identified:",
+                    "From all previous transcript segments, these instructions were identified:",
                     "```json",
                     json.dumps(content, indent=1),
                     "```",
-                    # "You must always return the previous instructions, such that you return a cumulative
-                    # collection of instructions.",
-                    # "You must not omit them in your response. If there is information in the transcript
-                    # that is relevant to a prior "
-                    # "instruction, then you can use it to update the contents of the instruction, but you
-                    # must not omit any "
-                    # "prior instruction from your response.",
-                    "If there is information in the transcript that is relevant to a prior instruction "
-                    "deemed updatable, "
-                    "then you can use it to update the contents of the instruction rather than creating a new one.",
-                    "But, in all cases, you must provide each and every new, updated and unchanged instructions.",
+                    "If transcript information is relevant to a prior updatable instruction, "
+                    "update that instruction rather than creating new one.",
+                    "In all cases, provide each and every new, updated and unchanged instruction.",
                 ],
             )
         chatter = Helper.chatter(
@@ -449,13 +430,12 @@ class AudioInterpreter:
         ]
         if result and (constraints := self.instruction_constraints(instructions)):
             chatter.set_model_prompt(["```json", json.dumps(result), "```"])
-            user_prompt = ["Review your response and be sure to follow these constraints:"]
+            user_prompt = ["Review response and follow these constraints:"]
             for constraint in constraints:
                 user_prompt.append(f" * {constraint}")
             user_prompt.append("")
-            user_prompt.append("First, review carefully your response against the constraints.")
-            user_prompt.append("Then, return the original JSON if it doesn't infringe the constraints.")
-            user_prompt.append("Or provide a corrected version to follow the constraints if needed.")
+            user_prompt.append("Review response against constraints.")
+            user_prompt.append("Return original JSON if compliant, or corrected version if needed.")
             user_prompt.append("")
             result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
         return result
@@ -469,42 +449,37 @@ class AudioInterpreter:
             schemas = JsonSchema.get(["generic_parameters"])
 
         system_prompt = [
-            f"The conversation is in the context of a clinical encounter between "
-            f"patient ({self.cache.demographic__str__(False)}) and licensed healthcare provider.",
-            "During the encounter, the user has identified instructions with key information to record "
-            "in its software.",
-            "The user will submit an instruction and the linked information grounded in the transcript, as well "
-            "as the structure of the associated command.",
-            "Your task is to help the user by writing correctly detailed data for the structured command.",
-            "Unless explicitly instructed otherwise by the user for a specific command, "
-            "you must restrict your response to information explicitly present in the transcript "
-            "or prior instructions.",
+            f"Clinical encounter: patient ({self.cache.demographic__str__(False)}) and licensed healthcare provider.",
+            "User identified instructions with key information to record in software.",
+            "User submits instruction and linked information from transcript, plus associated command structure.",
+            "Write correctly detailed data for structured command.",
+            "Unless explicitly instructed otherwise for specific command, "
+            "restrict response to information explicitly present in transcript or prior instructions.",
             "",
-            "Your response has to be a JSON Markdown block encapsulating the filled structure.",
+            "Return JSON Markdown block with filled structure.",
             "",
-            f"Please, note that now is {datetime.now().isoformat()}.",
+            f"Current time: {datetime.now().isoformat()}.",
         ]
         user_prompt = [
-            "Based on the text:",
+            "Based on:",
             "```text",
             instruction.information,
             "```",
             "",
-            "Your task is to replace the values of the JSON object with the relevant information:",
+            "Replace JSON object values with relevant information:",
             "```json",
             json.dumps(structures, indent=1),
             "```",
             "",
-            "The explanations and constraints about the fields are defined in this JSON Schema:",
+            "Field explanations and constraints in JSON Schema:",
             "```json",
             json.dumps(schemas[0], indent=1),
             "```",
             "",
-            "Be sure your response validates the JSON Schema.",
+            "Validate response with JSON Schema.",
             "",
-            "Before finalizing, verify completeness by checking that patient concerns are accurately captured "
-            "and any provider recommendations, follow-up plans, and instructions are complete, specific "
-            "and are accurate given the conversation.",
+            "Before finalizing, verify patient concerns are accurately captured "
+            "and provider recommendations, follow-up plans, and instructions are complete, specific and accurate.",
             "",
         ]
         log_label = f"{instruction.instruction}_{instruction.uuid}_instruction2parameters"

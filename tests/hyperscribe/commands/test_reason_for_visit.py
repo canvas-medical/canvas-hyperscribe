@@ -201,8 +201,7 @@ def test_command_parameters_schemas(existing_reason_for_visits):
                 "additionalProperties": False,
                 "properties": {
                     "comment": {
-                        "description": "extremely concise description of the reason or impetus "
-                        "for the visit, as free text",
+                        "description": "Extremely concise reason or impetus for visit",
                         "type": "string",
                     },
                 },
@@ -230,8 +229,7 @@ def test_command_parameters_schemas(existing_reason_for_visits):
                 "additionalProperties": False,
                 "properties": {
                     "comment": {
-                        "description": "extremely concise description of the reason or impetus "
-                        "for the visit, as free text",
+                        "description": "Extremely concise reason or impetus for visit",
                         "type": "string",
                     },
                     "reasonForVisit": {
