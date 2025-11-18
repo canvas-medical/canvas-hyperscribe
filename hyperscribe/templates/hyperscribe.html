@@ -409,13 +409,13 @@
         <div id="debugMessage" class="debug-message"></div>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('activity', this)">Activity</button>
-            <button class="tab" onclick="switchTab('transcript', this)">Transcript</button>
+            <button class="tab active" onclick="switchTab('transcript', this)">Transcript</button>
+            <button class="tab" onclick="switchTab('activity', this)">Activity</button>
             <button class="tab" onclick="switchTab('logs', this)">Logs</button>
             <button class="tab" onclick="switchTab('feedback', this)">Feedback</button>
         </div>
 
-        <div id="activity-container" class="table-container active">
+        <div id="activity-container" class="table-container">
             <div class="filter-controls">
                 <span id="duration" class="duration-display"></span>
             </div>
@@ -444,7 +444,7 @@
             </table>
         </div>
 
-        <div id="transcript-container" class="table-container">
+        <div id="transcript-container" class="table-container active">
             <div id="transcript-legend" class="legend" style="display: none;">
                 <div id="legend-content"></div>
             </div>
@@ -509,7 +509,7 @@
                 pendingTurns: [],
                 processingTurns: false
             },
-            activeTab: 'activity'
+            activeTab: 'transcript'
         };
 
         // Audio Recording Class
