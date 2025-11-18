@@ -72,13 +72,10 @@ class LabOrder(Base):
 
         lab_partner = self.cache.preferred_lab_partner()
         if not lab_partner.uuid:
-            raise RuntimeError(
-                "Cannot process LabOrder without preferred lab for the staff "
-                "practice location. Fix practice location settings."
-            )
-
-        result.lab_partner = lab_partner.uuid
-        self.add_code2description(lab_partner.uuid, lab_partner.label)
+            result.lab_partner = None
+        else:
+            result.lab_partner = lab_partner.uuid
+            self.add_code2description(lab_partner.uuid, lab_partner.label)
 
         # retrieve the tests based on the keywords
         for lab_order in instruction.parameters["labOrders"]:
