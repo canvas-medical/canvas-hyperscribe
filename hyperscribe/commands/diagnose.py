@@ -90,7 +90,7 @@ class Diagnose(Base):
                         },
                         "onsetDate": {
                             "type": "string",
-                            "description": "Onset date in YYYY-MM-DD.",
+                            "description": "Approximate onset date in YYYY-MM-DD.",
                             "format": "date",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         },
@@ -107,11 +107,11 @@ class Diagnose(Base):
 
     def instruction_description(self) -> str:
         return (
-            "Medical condition identified by the provider; the necessary information to report includes: "
+            "Medical condition identified by a provider; the necessary information to report includes: "
             "- the medical condition itself, "
             "- all reasoning explicitly mentioned in the transcript, "
             "- current detailed assessment as mentioned in the transcript, and "
-            "- onset date, even for today. "
+            "- the approximate date of onset if mentioned in the transcript. "
             "There is one and only one condition per instruction with all necessary information, "
             "and no instruction in the lack of."
         )
