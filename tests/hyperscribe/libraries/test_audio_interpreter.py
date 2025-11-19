@@ -455,11 +455,9 @@ def test_combine_and_speaker_detection_double_step():
         Line(speaker="speaker3", text="last words 3", start=2.5, end=3.6),
     ]
     content = [
-        [
-            {"speaker": "speaker_0", "text": "text 0", "start": 0.0, "end": 3.6},
-            {"speaker": "speaker_1", "text": "text 1", "start": 3.6, "end": 4.7},
-            {"speaker": "speaker_0", "text": "text 3", "start": 4.7, "end": 5.3},
-        ]
+        {"speaker": "speaker_0", "text": "text 0", "start": 0.0, "end": 3.6},
+        {"speaker": "speaker_1", "text": "text 1", "start": 3.6, "end": 4.7},
+        {"speaker": "speaker_0", "text": "text 3", "start": 4.7, "end": 5.3},
     ]
     system_prompt = [
         "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
@@ -474,48 +472,42 @@ def test_combine_and_speaker_detection_double_step():
             "Your task is to identify the role of the voices (patient, clinician, nurse, parents...) "
             "in the conversation, if there is only one voice, or just only silence, assume this is the clinician.",
             "",
-            "```json",
-            "[\n [\n  "
-            '{\n   "speaker": "speaker_0",\n   "text": "text 0",\n   "start": 0.0,\n   "end": 3.6\n  },\n  '
-            '{\n   "speaker": "speaker_1",\n   "text": "text 1",\n   "start": 3.6,\n   "end": 4.7\n  },\n  '
-            '{\n   "speaker": "speaker_0",\n   "text": "text 3",\n   "start": 4.7,\n   "end": 5.3\n  }\n ]\n]',
+            "```csv",
+            "speaker,text,start,end\nspeaker_0,text 0,0.0,3.6\nspeaker_1,text 1,3.6,4.7\nspeaker_0,text 3,4.7,5.3",
             "```",
             "",
-            "Present your findings in a JSON format within a Markdown code block:",
-            "```json",
-            "[\n {"
-            '\n  "speaker": "Patient/Clinician/Nurse/Parent...",'
-            '\n  "text": "the verbatim transcription as reported in the transcription",'
-            '\n  "start": "the start as reported in the transcription",'
-            '\n  "end": "the end as reported in the transcription"\n }\n]',
+            "Present your findings in a CSV format within a Markdown code block:",
+            "```csv",
+            "speaker,text,start,end\n"
+            "Patient/Clinician/Nurse/Parent...,"
+            "the verbatim transcription as reported in the transcription,"
+            "the start as reported in the transcription,"
+            "the end as reported in the transcription",
             "```",
             "",
         ],
         "withTailedTranscript": [
             "The previous segment finished with:\n"
-            "```json\n"
-            "[\n "
-            '{\n  "speaker": "speaker1",\n  "text": "last words 1",\n  "start": 0.0,\n  "end": 1.3\n },\n '
-            '{\n  "speaker": "speaker2",\n  "text": "last words 2",\n  "start": 1.3,\n  "end": 2.5\n },\n '
-            '{\n  "speaker": "speaker3",\n  "text": "last words 3",\n  "start": 2.5,\n  "end": 3.6\n }\n'
-            "]\n```\n",
+            "```csv\n"
+            "speaker,text,start,end\n"
+            "speaker1,last words 1,0.0,1.3\n"
+            "speaker2,last words 2,1.3,2.5\n"
+            "speaker3,last words 3,2.5,3.6\n"
+            "```\n",
             "Your task is to identify the role of the voices (patient, clinician, nurse, parents...) "
             "in the conversation, if there is only one voice, or just only silence, assume this is the clinician.",
             "",
-            "```json",
-            "[\n [\n  "
-            '{\n   "speaker": "speaker_0",\n   "text": "text 0",\n   "start": 0.0,\n   "end": 3.6\n  },\n  '
-            '{\n   "speaker": "speaker_1",\n   "text": "text 1",\n   "start": 3.6,\n   "end": 4.7\n  },\n  '
-            '{\n   "speaker": "speaker_0",\n   "text": "text 3",\n   "start": 4.7,\n   "end": 5.3\n  }\n ]\n]',
+            "```csv",
+            "speaker,text,start,end\nspeaker_0,text 0,0.0,3.6\nspeaker_1,text 1,3.6,4.7\nspeaker_0,text 3,4.7,5.3",
             "```",
             "",
-            "Present your findings in a JSON format within a Markdown code block:",
-            "```json",
-            "[\n {"
-            '\n  "speaker": "Patient/Clinician/Nurse/Parent...",'
-            '\n  "text": "the verbatim transcription as reported in the transcription",'
-            '\n  "start": "the start as reported in the transcription",'
-            '\n  "end": "the end as reported in the transcription"\n }\n]',
+            "Present your findings in a CSV format within a Markdown code block:",
+            "```csv",
+            "speaker,text,start,end\n"
+            "Patient/Clinician/Nurse/Parent...,"
+            "the verbatim transcription as reported in the transcription,"
+            "the start as reported in the transcription,"
+            "the end as reported in the transcription",
             "```",
             "",
         ],
@@ -551,7 +543,7 @@ def test_combine_and_speaker_detection_double_step():
     calls = [
         call.set_system_prompt(system_prompt),
         call.set_user_prompt(user_prompts["noTailedTranscript"]),
-        call.chat([schema]),
+        call.chat(None),
     ]
     assert detector.mock_calls == calls
     reset_mocks()
@@ -567,7 +559,7 @@ def test_combine_and_speaker_detection_double_step():
     calls = [
         call.set_system_prompt(system_prompt),
         call.set_user_prompt(user_prompts["withTailedTranscript"]),
-        call.chat([schema]),
+        call.chat(None),
     ]
     assert detector.mock_calls == calls
     reset_mocks()
@@ -576,7 +568,7 @@ def test_combine_and_speaker_detection_double_step():
     transcriber.chat.side_effect = [JsonExtract(has_error=False, error="", content=[content])]
     detector.chat.side_effect = [JsonExtract(has_error=True, error="the error", content=[["theResult"]])]
     result = tested.combine_and_speaker_detection_double_step(transcriber, detector, lines)
-    expected = JsonExtract(has_error=True, error="the error", content=[["theResult"]])
+    expected = JsonExtract(has_error=True, error="the error", content=["theResult"])
     assert result == expected
 
     calls = [call.chat([])]
@@ -584,7 +576,7 @@ def test_combine_and_speaker_detection_double_step():
     calls = [
         call.set_system_prompt(system_prompt),
         call.set_user_prompt(user_prompts["withTailedTranscript"]),
-        call.chat([schema]),
+        call.chat(None),
     ]
     assert detector.mock_calls == calls
     reset_mocks()
@@ -960,11 +952,8 @@ def test_detect_sections(json_schema, chatter, memory_log):
     user_prompt = [
         "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
         "What are the sections present in the transcript?",
-        "```json",
-        "[\n"
-        ' {\n  "speaker": "personA",\n  "text": "the text 1",\n  "start": 0.0,\n  "end": 1.3\n },\n'
-        ' {\n  "speaker": "personB",\n  "text": "the text 2",\n  "start": 1.3,\n  "end": 2.5\n },\n'
-        ' {\n  "speaker": "personA",\n  "text": "the text 3",\n  "start": 2.5,\n  "end": 3.6\n }\n]',
+        "```csv",
+        "speaker,text,start,end\npersonA,the text 1,0.0,1.3\npersonB,the text 2,1.3,2.5\npersonA,the text 3,2.5,3.6",
         "```",
         "",
     ]
@@ -1109,32 +1098,35 @@ def test_detect_instructions_per_section(detect_sections, detect_instructions_fl
     ]
     detected = [
         [
-            {
-                "uuid": "uuidA",
-                "instruction": "First",
-                "information": "theInformation1",
-                "isNew": True,
-                "isUpdated": False,
-                "index": 0,
-            },
-            {
-                "uuid": "uuidB",
-                "instruction": "Second",
-                "information": "theInformation2",
-                "isNew": True,
-                "isUpdated": False,
-                "index": 1,
-            },
+            Instruction(
+                uuid="uuidA",
+                index=0,
+                instruction="First",
+                information="theInformation1",
+                is_new=True,
+                is_updated=False,
+                previous_information="",
+            ),
+            Instruction(
+                uuid="uuidB",
+                index=1,
+                instruction="Second",
+                information="theInformation2",
+                is_new=True,
+                is_updated=False,
+                previous_information="",
+            ),
         ],
         [
-            {
-                "uuid": "uuidA",
-                "instruction": "Third",
-                "information": "theInformation3",
-                "isNew": True,
-                "isUpdated": False,
-                "index": 0,
-            },
+            Instruction(
+                uuid="uuidA",
+                index=0,
+                instruction="Third",
+                information="theInformation3",
+                is_new=True,
+                is_updated=False,
+                previous_information="",
+            ),
         ],
     ]
 
@@ -1146,30 +1138,33 @@ def test_detect_instructions_per_section(detect_sections, detect_instructions_fl
 
     result = tested.detect_instructions_per_section(discussion, [], mocks)
     expected = [
-        {
-            "index": 0,
-            "instruction": "First",
-            "information": "theInformation1",
-            "isNew": True,
-            "isUpdated": False,
-            "uuid": "uuidA",
-        },
-        {
-            "index": 1,
-            "instruction": "Second",
-            "information": "theInformation2",
-            "isNew": True,
-            "isUpdated": False,
-            "uuid": "uuidB",
-        },
-        {
-            "index": 2,
-            "instruction": "Third",
-            "information": "theInformation3",
-            "isNew": True,
-            "isUpdated": False,
-            "uuid": "instruction-002",
-        },
+        Instruction(
+            uuid="uuidA",
+            index=0,
+            instruction="First",
+            information="theInformation1",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="uuidB",
+            index=1,
+            instruction="Second",
+            information="theInformation2",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="instruction-002",
+            index=2,
+            instruction="Third",
+            information="theInformation3",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
     ]
     assert result == expected
 
@@ -1198,38 +1193,42 @@ def test_detect_instructions_per_section(detect_sections, detect_instructions_fl
 
     result = tested.detect_instructions_per_section(discussion, known_instructions, mocks)
     expected = [
-        {
-            "index": 0,
-            "information": "theInformation5",
-            "instruction": "Fifth",
-            "isNew": False,
-            "isUpdated": False,
-            "uuid": "uuidA",
-        },
-        {
-            "index": 1,
-            "information": "theInformation1",
-            "instruction": "First",
-            "isNew": True,
-            "isUpdated": False,
-            "uuid": "instruction-001",
-        },
-        {
-            "index": 2,
-            "information": "theInformation2",
-            "instruction": "Second",
-            "isNew": True,
-            "isUpdated": False,
-            "uuid": "uuidB",
-        },
-        {
-            "index": 3,
-            "information": "theInformation3",
-            "instruction": "Third",
-            "isNew": True,
-            "isUpdated": False,
-            "uuid": "instruction-002",
-        },
+        Instruction(
+            uuid="uuidA",
+            index=0,
+            information="theInformation5",
+            instruction="Fifth",
+            is_new=False,
+            is_updated=False,
+            previous_information="thePreviousInformation5",
+        ),
+        Instruction(
+            uuid="instruction-001",
+            index=1,
+            information="theInformation1",
+            instruction="First",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="uuidB",
+            index=2,
+            information="theInformation2",
+            instruction="Second",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="instruction-002",
+            index=3,
+            information="theInformation3",
+            instruction="Third",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
     ]
     assert result == expected
 
@@ -1256,12 +1255,10 @@ def test_detect_instructions_per_section(detect_sections, detect_instructions_fl
 @patch.object(MemoryLog, "instance")
 @patch.object(Helper, "chatter")
 @patch.object(AudioInterpreter, "instruction_constraints")
-@patch.object(AudioInterpreter, "json_schema_instructions")
-def test_detect_instructions_flat(json_schema, instruction_constraints, chatter, memory_log):
+def test_detect_instructions_flat(instruction_constraints, chatter, memory_log):
     mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
-        json_schema.reset_mock()
         instruction_constraints.reset_mock()
         chatter.reset_mock()
         memory_log.reset_mock()
@@ -1296,17 +1293,20 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
         "review the surrounding context to confirm the subject of the health information.",
         "",
         "The instructions are limited to the following:",
-        "```json",
-        '[{"instruction": "First", "information": "Description1"}, '
-        '{"instruction": "Second", "information": "Description2"}, '
-        '{"instruction": "Third", "information": "Description3"}, '
-        '{"instruction": "Fourth", "information": "Description4"}, '
-        '{"instruction": "Fifth", "information": "Description5"}]',
+        "```csv",
+        "instruction,description",
+        "First,Description1\nSecond,Description2\nThird,Description3\nFourth,Description4\nFifth,Description5",
         "```",
         "",
-        "Your response must be in a JSON Markdown block and validated with the schema:",
-        "```json",
-        '"theJsonSchema"',
+        "Your response must be in a CSV Markdown block like:",
+        "```csv",
+        "uuid,index,instruction,information,is_new,is_updated\n"
+        "a unique identifier in this discussion,"
+        "the 0-based appearance order of the instruction in this discussion,"
+        "one of: 'First/Second/Third/Fourth/Fifth',"
+        "all relevant information extracted from the discussion explaining and/or defining the instruction,"
+        "the instruction is new to the discussion,"
+        "the instruction is an update of an instruction previously identified in the discussion",
         "```",
         "",
     ]
@@ -1314,51 +1314,35 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
         "noKnownInstructions": [
             "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
             "What are the instructions I need to add to my software to document the visit correctly?",
-            "```json",
-            "["
-            '\n {\n  "speaker": "personA",\n  "text": "the text 1",\n  "start": 0.0,\n  "end": 1.3\n },'
-            '\n {\n  "speaker": "personB",\n  "text": "the text 2",\n  "start": 1.3,\n  "end": 2.5\n },'
-            '\n {\n  "speaker": "personA",\n  "text": "the text 3",\n  "start": 2.5,\n  "end": 3.6\n }'
-            "\n]",
+            "```csv",
+            "speaker,text,start,end\n"
+            "personA,the text 1,0.0,1.3\n"
+            "personB,the text 2,1.3,2.5\n"
+            "personA,the text 3,2.5,3.6",
             "```",
             "",
-            "List all possible instructions as a text, and then, in a JSON markdown block, "
+            "List all possible instructions as a text, and then, in a CSV markdown block, "
             "respond with the found instructions as requested",
             "",
         ],
         "withKnownInstructions": [
             "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
             "What are the instructions I need to add to my software to document the visit correctly?",
-            "```json",
-            "["
-            '\n {\n  "speaker": "personA",\n  "text": "the text 1",\n  "start": 0.0,\n  "end": 1.3\n },'
-            '\n {\n  "speaker": "personB",\n  "text": "the text 2",\n  "start": 1.3,\n  "end": 2.5\n },'
-            '\n {\n  "speaker": "personA",\n  "text": "the text 3",\n  "start": 2.5,\n  "end": 3.6\n }'
-            "\n]",
+            "```csv",
+            "speaker,text,start,end\n"
+            "personA,the text 1,0.0,1.3\n"
+            "personB,the text 2,1.3,2.5\n"
+            "personA,the text 3,2.5,3.6",
             "```",
             "",
-            "List all possible instructions as a text, and then, in a JSON markdown block, "
+            "List all possible instructions as a text, and then, in a CSV markdown block, "
             "respond with the found instructions as requested",
             "",
             "From among all previous segments of the transcript, the following instructions were identified:",
-            "```json",
-            "[\n {"
-            '\n  "uuid": "uuid1",'
-            '\n  "index": 0,'
-            '\n  "instruction": "theInstruction1",'
-            '\n  "information": "the information 1",'
-            '\n  "isNew": false,'
-            '\n  "isUpdated": false'
-            "\n },"
-            "\n {"
-            '\n  "uuid": "uuid2",'
-            '\n  "index": 1,'
-            '\n  "instruction": "theInstruction2",'
-            '\n  "information": "the information 2",'
-            '\n  "isNew": false,'
-            '\n  "isUpdated": false'
-            "\n }"
-            "\n]",
+            "```csv",
+            "uuid,index,instruction,information,is_new,is_updated\n"
+            "theUuid1,0,theInstruction1,the information 1,True,False\n"
+            "theUuid2,1,theInstruction2,the information 2,False,True",
             "```",
             "If there is information in the transcript that is relevant to a prior instruction deemed updatable, "
             "then you can use it to update the contents of the instruction rather than creating a new one.",
@@ -1370,7 +1354,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             " * theConstraint2",
             "",
             "First, review carefully your response against the constraints.",
-            "Then, return the original JSON if it doesn't infringe the constraints.",
+            "Then, return the original CSV if it doesn't infringe the constraints.",
             "Or provide a corrected version to follow the constraints if needed.",
             "",
         ],
@@ -1387,7 +1371,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     ]
     known_instructions = [
         Instruction(
-            uuid="uuid1",
+            uuid="theUuid1",
             index=0,
             instruction="theInstruction1",
             information="the information 1",
@@ -1396,7 +1380,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             previous_information="thePreviousInformation1",
         ),
         Instruction(
-            uuid="uuid2",
+            uuid="theUuid2",
             index=1,
             instruction="theInstruction2",
             information="the information 2",
@@ -1405,43 +1389,111 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             previous_information="thePreviousInformation2",
         ),
     ]
+    instruction_constraints_calls = [
+        call(
+            [
+                Instruction(
+                    uuid="theUuid1",
+                    index=0,
+                    instruction="theInstruction1",
+                    information="theInformation1",
+                    is_new=True,
+                    is_updated=False,
+                    previous_information="",
+                ),
+                Instruction(
+                    uuid="theUuid2",
+                    index=1,
+                    instruction="theInstruction2",
+                    information="theInformation2",
+                    is_new=True,
+                    is_updated=False,
+                    previous_information="",
+                ),
+                Instruction(
+                    uuid="theUuid3",
+                    index=2,
+                    instruction="theInstruction3",
+                    information="theInformation3",
+                    is_new=True,
+                    is_updated=False,
+                    previous_information="",
+                ),
+            ]
+        ),
+    ]
     reset_mocks()
 
     tested, settings, aws_credentials, cache = helper_instance(mocks, False)
     # -- no known instruction
-    json_schema.side_effect = ["theJsonSchema"]
+    # -- -- no error
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
-    chatter.return_value.single_conversation.side_effect = [
-        [{"information": "response1"}],
-        [{"information": "response2"}],
+    chatter.return_value.chat.side_effect = [
+        JsonExtract(
+            has_error=False,
+            error="",
+            content=[
+                [
+                    "uuid,index,instruction,information,is_new,is_updated",
+                    "theUuid1,0,theInstruction1,theInformation1,true,false",
+                    "theUuid2,1,theInstruction2,theInformation2,true,false",
+                    "theUuid3,2,theInstruction3,theInformation3,true,false",
+                ]
+            ],
+        ),
+        JsonExtract(
+            has_error=False,
+            error="",
+            content=[
+                [
+                    "uuid,index,instruction,information,is_new,is_updated",
+                    "theUuid1,0,theInstruction1,theInformation1,true,false",
+                    "theUuid2,1,theInstruction2,theInformation4,true,false",
+                ]
+            ],
+        ),
     ]
     memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.detect_instructions_flat(discussion, [], mocks, "theSection")
-    expected = [{"information": "response2"}]
-    assert result == expected
-    calls = [call(["First", "Second", "Third", "Fourth", "Fifth"])]
-    assert json_schema.mock_calls == calls
-    calls = [
-        call(
-            [
-                Instruction(
-                    uuid="",
-                    index=0,
-                    instruction="",
-                    information="response1",
-                    is_new=True,
-                    is_updated=False,
-                    previous_information="",
-                )
-            ]
+    expected = [
+        Instruction(
+            uuid="theUuid1",
+            index=0,
+            instruction="theInstruction1",
+            information="theInformation1",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="theUuid2",
+            index=1,
+            instruction="theInstruction2",
+            information="theInformation4",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
         ),
     ]
-    assert instruction_constraints.mock_calls == calls
+    assert result == expected
+    assert instruction_constraints.mock_calls == instruction_constraints_calls
     calls = [
         call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
-        call().single_conversation(system_prompt, user_prompts["noKnownInstructions"], ["theJsonSchema"], None),
-        call().set_model_prompt(["```json", '[{"information": "response1"}]', "```"]),
-        call().single_conversation(system_prompt, user_prompts["constraints"], ["theJsonSchema"], None),
+        call().set_system_prompt(system_prompt),
+        call().set_user_prompt(user_prompts["noKnownInstructions"]),
+        call().chat(None),
+        call().set_model_prompt(
+            [
+                "```csv",
+                "uuid,index,instruction,information,is_new,is_updated\n"
+                "theUuid1,0,theInstruction1,theInformation1,True,False\n"
+                "theUuid2,1,theInstruction2,theInformation2,True,False\n"
+                "theUuid3,2,theInstruction3,theInformation3,True,False",
+                "```",
+            ]
+        ),
+        call().set_user_prompt(user_prompts["constraints"]),
+        call().chat(None),
     ]
     assert chatter.mock_calls == calls
     calls = [call(tested.identification, "transcript2instructions:theSection", aws_credentials)]
@@ -1454,116 +1506,326 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             call().is_available(),
         ]
         if idx != 2:
-            calls.extend(
-                [
-                    call().class_name(),
-                    call().class_name().__hash__(),
-                ]
-            )
-        calls.extend(
-            [
-                call.class_name(),
-                call.class_name(),
-                call.instruction_description(),
-            ]
-        )
+            calls.append(call().class_name())
+            calls.append(call().class_name().__hash__())
+
+        calls.append(call.class_name())
+        calls.append(call.instruction_description())
+        calls.append(call.class_name())
         assert mock.mock_calls == calls, f"---> {idx}"
     reset_mocks()
-
-    # -- no known instruction + no constraint
-    json_schema.side_effect = ["theJsonSchema"]
-    instruction_constraints.side_effect = [[]]
-    chatter.return_value.single_conversation.side_effect = [
-        [{"information": "response1"}],
-        [{"information": "response2"}],
+    # -- -- error on second call
+    instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
+    chatter.return_value.chat.side_effect = [
+        JsonExtract(
+            has_error=False,
+            error="",
+            content=[
+                [
+                    "uuid,index,instruction,information,is_new,is_updated",
+                    "theUuid1,0,theInstruction1,theInformation1,true,false",
+                    "theUuid2,1,theInstruction2,theInformation2,true,false",
+                    "theUuid3,2,theInstruction3,theInformation3,true,false",
+                ]
+            ],
+        ),
+        JsonExtract(has_error=True, error="Some Error", content=[]),
     ]
     memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.detect_instructions_flat(discussion, [], mocks, "theSection")
-    expected = [{"information": "response1"}]
+    expected = []
     assert result == expected
-    calls = [call(["First", "Second", "Third", "Fourth", "Fifth"])]
-    assert json_schema.mock_calls == calls
-    calls = [
-        call(
-            [
-                Instruction(
-                    uuid="",
-                    index=0,
-                    instruction="",
-                    information="response1",
-                    is_new=True,
-                    is_updated=False,
-                    previous_information="",
-                )
-            ]
-        ),
-    ]
-    assert instruction_constraints.mock_calls == calls
+    assert instruction_constraints.mock_calls == instruction_constraints_calls
     calls = [
         call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
-        call().single_conversation(system_prompt, user_prompts["noKnownInstructions"], ["theJsonSchema"], None),
+        call().set_system_prompt(system_prompt),
+        call().set_user_prompt(user_prompts["noKnownInstructions"]),
+        call().chat(None),
+        call().set_model_prompt(
+            [
+                "```csv",
+                "uuid,index,instruction,information,is_new,is_updated\n"
+                "theUuid1,0,theInstruction1,theInformation1,True,False\n"
+                "theUuid2,1,theInstruction2,theInformation2,True,False\n"
+                "theUuid3,2,theInstruction3,theInformation3,True,False",
+                "```",
+            ]
+        ),
+        call().set_user_prompt(user_prompts["constraints"]),
+        call().chat(None),
     ]
     assert chatter.mock_calls == calls
     calls = [call(tested.identification, "transcript2instructions:theSection", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
-        calls = [call.class_name(), call.class_name(), call.instruction_description()]
+        calls = [
+            call.class_name(),
+            call.instruction_description(),
+            call.class_name(),
+        ]
+        assert mock.mock_calls == calls, f"---> {idx}"
+    reset_mocks()
+    # -- -- error on first call
+    instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
+    chatter.return_value.chat.side_effect = [
+        JsonExtract(has_error=True, error="Some Error", content=[]),
+    ]
+    memory_log.side_effect = ["MemoryLogInstance"]
+    result = tested.detect_instructions_flat(discussion, [], mocks, "theSection")
+    expected = []
+    assert result == expected
+    assert instruction_constraints.mock_calls == []
+    calls = [
+        call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
+        call().set_system_prompt(system_prompt),
+        call().set_user_prompt(user_prompts["noKnownInstructions"]),
+        call().chat(None),
+    ]
+    assert chatter.mock_calls == calls
+    calls = [call(tested.identification, "transcript2instructions:theSection", aws_credentials)]
+    assert memory_log.mock_calls == calls
+    for idx, mock in enumerate(mocks):
+        calls = [
+            call.class_name(),
+            call.instruction_description(),
+            call.class_name(),
+        ]
+        assert mock.mock_calls == calls, f"---> {idx}"
+    reset_mocks()
+
+    # -- no known instruction + no constraint
+    instruction_constraints.side_effect = [[]]
+    chatter.return_value.chat.side_effect = [
+        JsonExtract(
+            has_error=False,
+            error="",
+            content=[
+                [
+                    "uuid,index,instruction,information,is_new,is_updated",
+                    "theUuid1,0,theInstruction1,theInformation1,true,false",
+                    "theUuid2,1,theInstruction2,theInformation2,true,false",
+                    "theUuid3,2,theInstruction3,theInformation3,true,false",
+                ]
+            ],
+        ),
+    ]
+    memory_log.side_effect = ["MemoryLogInstance"]
+    result = tested.detect_instructions_flat(discussion, [], mocks, "theSection")
+    expected = [
+        Instruction(
+            uuid="theUuid1",
+            index=0,
+            instruction="theInstruction1",
+            information="theInformation1",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="theUuid2",
+            index=1,
+            instruction="theInstruction2",
+            information="theInformation2",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="theUuid3",
+            index=2,
+            instruction="theInstruction3",
+            information="theInformation3",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+    ]
+    assert result == expected
+    assert instruction_constraints.mock_calls == instruction_constraints_calls
+    calls = [
+        call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
+        call().set_system_prompt(system_prompt),
+        call().set_user_prompt(user_prompts["noKnownInstructions"]),
+        call().chat(None),
+    ]
+    assert chatter.mock_calls == calls
+    calls = [call(tested.identification, "transcript2instructions:theSection", aws_credentials)]
+    assert memory_log.mock_calls == calls
+    for idx, mock in enumerate(mocks):
+        calls = [
+            call.class_name(),
+            call.instruction_description(),
+            call.class_name(),
+        ]
         assert mock.mock_calls == calls, f"---> {idx}"
     reset_mocks()
 
     # -- with known instructions
     # -- -- all instructions repeated
-    json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
-    chatter.return_value.single_conversation.side_effect = [
-        [
-            {"uuid": "uuid1", "instruction": "theInstruction1", "index": 0},
-            {"uuid": "uuid2", "instruction": "theInstruction2", "index": 1},
-            {"uuid": "uuid3", "instruction": "theInstruction3", "index": 2},
-        ],
-        [
-            {"uuid": "uuid1", "instruction": "theInstruction1", "index": 0},
-            {"uuid": "uuid2", "instruction": "theInstruction2", "index": 1},
-            {"uuid": "uuid3", "instruction": "changedInstruction3", "index": 2},
-        ],
+    chatter.return_value.chat.side_effect = [
+        JsonExtract(
+            has_error=False,
+            error="",
+            content=[
+                [
+                    "uuid,index,instruction,information,is_new,is_updated",
+                    "theUuid1,0,theInstruction1,theInformation1,true,false",
+                    "theUuid2,1,theInstruction2,theInformation2,true,false",
+                    "theUuid3,2,theInstruction3,theInformation3,true,false",
+                ]
+            ],
+        ),
+        JsonExtract(
+            has_error=False,
+            error="",
+            content=[
+                [
+                    "uuid,index,instruction,information,is_new,is_updated",
+                    "theUuid1,0,theInstruction1,theInformation1,false,false",
+                    "theUuid2,1,theInstruction2,theInformation2,false,false",
+                    "theUuid3,2,theInstruction3,changedInstruction3,false,true",
+                ]
+            ],
+        ),
     ]
     memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.detect_instructions_flat(discussion, known_instructions, mocks, "theSection")
     expected = [
-        {"instruction": "theInstruction1", "uuid": "uuid1", "index": 0},
-        {"instruction": "theInstruction2", "uuid": "uuid2", "index": 1},
-        {"instruction": "changedInstruction3", "uuid": "uuid3", "index": 2},
+        Instruction(
+            uuid="theUuid1",
+            index=0,
+            instruction="theInstruction1",
+            information="theInformation1",
+            is_new=False,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="theUuid2",
+            index=1,
+            instruction="theInstruction2",
+            information="theInformation2",
+            is_new=False,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="theUuid3",
+            index=2,
+            instruction="theInstruction3",
+            information="changedInstruction3",
+            is_new=False,
+            is_updated=True,
+            previous_information="",
+        ),
     ]
-
     assert result == expected
-    calls = [call(["First", "Second", "Third", "Fourth", "Fifth"])]
-    assert json_schema.mock_calls == calls
+    assert instruction_constraints.mock_calls == instruction_constraints_calls
+    calls = [
+        call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
+        call().set_system_prompt(system_prompt),
+        call().set_user_prompt(user_prompts["withKnownInstructions"]),
+        call().chat(None),
+        call().set_model_prompt(
+            [
+                "```csv",
+                "uuid,index,instruction,information,is_new,is_updated\n"
+                "theUuid1,0,theInstruction1,theInformation1,True,False\n"
+                "theUuid2,1,theInstruction2,theInformation2,True,False\n"
+                "theUuid3,2,theInstruction3,theInformation3,True,False",
+                "```",
+            ]
+        ),
+        call().set_user_prompt(user_prompts["constraints"]),
+        call().chat(None),
+    ]
+    assert chatter.mock_calls == calls
+    calls = [call(tested.identification, "transcript2instructions:theSection", aws_credentials)]
+    assert memory_log.mock_calls == calls
+    for idx, mock in enumerate(mocks):
+        calls = [
+            call.class_name(),
+            call.instruction_description(),
+            call.class_name(),
+        ]
+        assert mock.mock_calls == calls, f"---> {idx}"
+    reset_mocks()
+    # -- -- forgotten instructions (no constraints)
+    instruction_constraints.side_effect = [[]]
+    chatter.return_value.chat.side_effect = [
+        JsonExtract(
+            has_error=False,
+            error="",
+            content=[
+                [
+                    "uuid,index,instruction,information,is_new,is_updated",
+                    # "theUuid1,0,theInstruction1,theInformation1,true,false", <-- forgotten instruction
+                    "theUuid2,1,theInstruction2,theInformation2,false,false",  # <-- not new, nor updated
+                    "theUuid3,2,theInstruction3,theInformation3a,false,true",
+                    "theUuid4,3,theInstruction4,theInformation4,true,false",
+                ]
+            ],
+        ),
+    ]
+    memory_log.side_effect = ["MemoryLogInstance"]
+    result = tested.detect_instructions_flat(discussion, known_instructions, mocks, "theSection")
+    expected = [
+        Instruction(
+            uuid="theUuid2",
+            index=1,
+            instruction="theInstruction2",
+            information="theInformation2",
+            is_new=False,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="theUuid3",
+            index=2,
+            instruction="theInstruction3",
+            information="theInformation3a",
+            is_new=False,
+            is_updated=True,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="theUuid4",
+            index=3,
+            instruction="theInstruction4",
+            information="theInformation4",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="theUuid1",
+            index=0,
+            instruction="theInstruction1",
+            information="the information 1",
+            is_new=False,
+            is_updated=False,
+            previous_information="thePreviousInformation1",
+        ),
+    ]
+    assert result == expected
     calls = [
         call(
             [
                 Instruction(
-                    uuid="uuid1",
-                    index=0,
-                    instruction="theInstruction1",
-                    information="",
-                    is_new=True,
-                    is_updated=False,
-                    previous_information="",
-                ),
-                Instruction(
-                    uuid="uuid2",
-                    index=1,
-                    instruction="theInstruction2",
-                    information="",
-                    is_new=True,
-                    is_updated=False,
-                    previous_information="",
-                ),
-                Instruction(
-                    uuid="uuid3",
+                    uuid="theUuid3",
                     index=2,
                     instruction="theInstruction3",
-                    information="",
+                    information="theInformation3a",
+                    is_new=False,
+                    is_updated=True,
+                    previous_information="",
+                ),
+                Instruction(
+                    uuid="theUuid4",
+                    index=3,
+                    instruction="theInstruction4",
+                    information="theInformation4",
                     is_new=True,
                     is_updated=False,
                     previous_information="",
@@ -1574,97 +1836,21 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
-        call().single_conversation(system_prompt, user_prompts["withKnownInstructions"], ["theJsonSchema"], None),
-        call().set_model_prompt(
-            [
-                "```json",
-                '[{"uuid": "uuid1", "instruction": "theInstruction1", "index": 0}, '
-                '{"uuid": "uuid2", "instruction": "theInstruction2", "index": 1}, '
-                '{"uuid": "uuid3", "instruction": "theInstruction3", "index": 2}]',
-                "```",
-            ],
-        ),
-        call().single_conversation(system_prompt, user_prompts["constraints"], ["theJsonSchema"], None),
+        call().set_system_prompt(system_prompt),
+        call().set_user_prompt(user_prompts["withKnownInstructions"]),
+        call().chat(None),
     ]
     assert chatter.mock_calls == calls
     calls = [call(tested.identification, "transcript2instructions:theSection", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
-        calls = [call.class_name(), call.class_name(), call.instruction_description()]
+        calls = [
+            call.class_name(),
+            call.instruction_description(),
+            call.class_name(),
+        ]
         assert mock.mock_calls == calls, f"---> {idx}"
     reset_mocks()
-    # -- -- forgotten instructions (no constraints)
-    tests = [
-        (
-            [
-                # {"uuid": "uuid1", "instruction": "theInstruction1", "index": 0}, <-- forgotten instruction
-                {"uuid": "uuid2", "instruction": "theInstruction2", "index": 1, "isNew": False, "isUpdated": False},
-                {"uuid": "uuid3", "instruction": "theInstruction3a", "index": 2, "isNew": False, "isUpdated": True},
-                {"uuid": "uuid4", "instruction": "theInstruction4", "index": 3, "isNew": True, "isUpdated": False},
-            ],
-            '[{"uuid": "uuid2", "instruction": "theInstruction2", "index": 1}, '
-            '{"uuid": "uuid3", "instruction": "theInstruction3a", "index": 2}]',
-        ),
-    ]
-    for first_response, model_prompt in tests:
-        json_schema.side_effect = ["theJsonSchema"]
-        instruction_constraints.side_effect = [[]]
-        chatter.return_value.single_conversation.side_effect = [first_response]
-        memory_log.side_effect = ["MemoryLogInstance"]
-        result = tested.detect_instructions_flat(discussion, known_instructions, mocks, "theSection")
-        expected = [
-            {"instruction": "theInstruction2", "uuid": "uuid2", "index": 1, "isNew": False, "isUpdated": False},
-            {"instruction": "theInstruction3a", "uuid": "uuid3", "index": 2, "isNew": False, "isUpdated": True},
-            {"instruction": "theInstruction4", "uuid": "uuid4", "index": 3, "isNew": True, "isUpdated": False},
-            {
-                "information": "the information 1",
-                "instruction": "theInstruction1",
-                "uuid": "uuid1",
-                "index": 0,
-                "isNew": False,
-                "isUpdated": False,
-            },
-        ]
-
-        assert result == expected
-        calls = [call(["First", "Second", "Third", "Fourth", "Fifth"])]
-        assert json_schema.mock_calls == calls
-        calls = [
-            call(
-                [
-                    Instruction(
-                        uuid="uuid3",
-                        index=2,
-                        instruction="theInstruction3a",
-                        information="",
-                        is_new=False,
-                        is_updated=True,
-                        previous_information="",
-                    ),
-                    Instruction(
-                        uuid="uuid4",
-                        index=3,
-                        instruction="theInstruction4",
-                        information="",
-                        is_new=True,
-                        is_updated=False,
-                        previous_information="",
-                    ),
-                ],
-            ),
-        ]
-        assert instruction_constraints.mock_calls == calls
-        calls = [
-            call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
-            call().single_conversation(system_prompt, user_prompts["withKnownInstructions"], ["theJsonSchema"], None),
-        ]
-        assert chatter.mock_calls == calls
-        calls = [call(tested.identification, "transcript2instructions:theSection", aws_credentials)]
-        assert memory_log.mock_calls == calls
-        for idx, mock in enumerate(mocks):
-            calls = [call.class_name(), call.class_name(), call.instruction_description()]
-            assert mock.mock_calls == calls, f"---> {idx}"
-        reset_mocks()
 
 
 @patch("hyperscribe.libraries.audio_interpreter.datetime", wraps=datetime)

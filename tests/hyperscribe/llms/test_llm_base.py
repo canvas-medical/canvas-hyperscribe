@@ -196,14 +196,16 @@ def test_attempt_requests(request):
 
 
 @patch("hyperscribe.llms.llm_base.time", wraps=time)
+@patch.object(LlmBase, "extract_csv_from")
 @patch.object(LlmBase, "extract_json_from")
 @patch.object(LlmBase, "attempt_requests")
-def test_chat(attempt_requests, extract_json_from, mock_time):
+def test_chat(attempt_requests, extract_json_from, extract_csv_from, mock_time):
     memory_log = MagicMock()
 
     def reset_mocks():
         attempt_requests.reset_mock()
         extract_json_from.reset_mock()
+        extract_csv_from.reset_mock()
         mock_time.reset_mock()
         memory_log.reset_mock()
 
@@ -222,6 +224,7 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
         )
     ]
     extract_json_from.side_effect = []
+    extract_csv_from.side_effect = []
     result = tested.chat([])
     expected = JsonExtract(has_error=True, error="max attempts (3) exceeded", content=[])
     assert result == expected
@@ -233,15 +236,66 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
     calls = [call(3)]
     assert attempt_requests.mock_calls == calls
     assert extract_json_from.mock_calls == []
+    assert extract_csv_from.mock_calls == []
     calls = [
-        call.log("-- CHAT BEGINS --"),
-        call.log("--- CHAT ENDS - 1 attempts - 3229ms ---"),
+        call.log("-- CHAT BEGINS - json --"),
+        call.log("--- CHAT ENDS - json - 1 attempts - 3229ms ---"),
         call.store_so_far(),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
 
     # no http error
+    # -- one csv error
+    mock_time.side_effect = times[2:4]
+    attempt_requests.side_effect = [
+        HttpResponse(code=200, response="response1:\nline1\nline2", tokens=TokenCounts(prompt=71, generated=51)),
+        HttpResponse(code=200, response="response2:\nline3\nline4", tokens=TokenCounts(prompt=83, generated=47)),
+    ]
+    extract_json_from.side_effect = []
+    extract_csv_from.side_effect = [
+        JsonExtract(has_error=True, error="some error1", content=["error 1"]),
+        JsonExtract(has_error=False, error="no error", content=["line1", "line2"]),
+    ]
+    result = tested.chat(None)
+    expected = JsonExtract(has_error=False, error="no error", content=["line1", "line2"])
+    assert result == expected
+
+    exp_prompts = [
+        LlmTurn(role="model", text=["response1:", "line1", "line2"]),
+        LlmTurn(
+            role="user",
+            text=[
+                "Your previous response has the following errors:",
+                "```text",
+                "some error1",
+                "```",
+                "",
+                "Please, correct your answer following rigorously the initial request and the mandatory "
+                "response format.",
+            ],
+        ),
+    ]
+    assert tested.prompts == exp_prompts
+    tested.prompts = []
+
+    calls = [call(3), call(3)]
+    assert attempt_requests.mock_calls == calls
+    assert extract_json_from.mock_calls == []
+    calls = [call("response1:\nline1\nline2"), call("response2:\nline3\nline4")]
+    assert extract_csv_from.mock_calls == calls
+    calls = [
+        call.log("-- CHAT BEGINS - csv --"),
+        call.add_consumption(TokenCounts(prompt=71, generated=51)),
+        call.add_consumption(TokenCounts(prompt=83, generated=47)),
+        call.log("result->>"),
+        call.log('[\n  "line1",\n  "line2"\n]'),
+        call.log("<<-"),
+        call.log("--- CHAT ENDS - csv - 2 attempts - 5681ms ---"),
+        call.store_so_far(),
+    ]
+    assert memory_log.mock_calls == calls
+    reset_mocks()
     # -- one json error
     mock_time.side_effect = times[2:4]
     attempt_requests.side_effect = [
@@ -252,6 +306,7 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
         JsonExtract(has_error=True, error="some error1", content=["error 1"]),
         JsonExtract(has_error=False, error="no error", content=["line1", "line2"]),
     ]
+    extract_csv_from.side_effect = []
     result = tested.chat([])
     expected = JsonExtract(has_error=False, error="no error", content=["line1", "line2"])
     assert result == expected
@@ -278,14 +333,15 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
     assert attempt_requests.mock_calls == calls
     calls = [call("response1:\nline1\nline2", []), call("response2:\nline3\nline4", [])]
     assert extract_json_from.mock_calls == calls
+    assert extract_csv_from.mock_calls == []
     calls = [
-        call.log("-- CHAT BEGINS --"),
+        call.log("-- CHAT BEGINS - json --"),
         call.add_consumption(TokenCounts(prompt=71, generated=51)),
         call.add_consumption(TokenCounts(prompt=83, generated=47)),
         call.log("result->>"),
         call.log('[\n  "line1",\n  "line2"\n]'),
         call.log("<<-"),
-        call.log("--- CHAT ENDS - 2 attempts - 5681ms ---"),
+        call.log("--- CHAT ENDS - json - 2 attempts - 5681ms ---"),
         call.store_so_far(),
     ]
     assert memory_log.mock_calls == calls
@@ -303,6 +359,7 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
         JsonExtract(has_error=True, error="some error2", content=["error 2"]),
         JsonExtract(has_error=True, error="some error3", content=["error 3"]),
     ]
+    extract_csv_from.side_effect = []
     result = tested.chat([])
     expected = JsonExtract(has_error=True, error="JSON incorrect: max attempts (3) exceeded", content=[])
     assert result == expected
@@ -359,13 +416,14 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
         call("response3:\nline5\nline6", []),
     ]
     assert extract_json_from.mock_calls == calls
+    assert extract_csv_from.mock_calls == []
     calls = [
-        call.log("-- CHAT BEGINS --"),
+        call.log("-- CHAT BEGINS - json --"),
         call.add_consumption(TokenCounts(prompt=71, generated=41)),
         call.add_consumption(TokenCounts(prompt=72, generated=42)),
         call.add_consumption(TokenCounts(prompt=73, generated=43)),
         call.log("error: JSON incorrect: max attempts (3) exceeded"),
-        call.log("--- CHAT ENDS - 3 attempts - 14206ms ---"),
+        call.log("--- CHAT ENDS - json - 3 attempts - 14206ms ---"),
         call.store_so_far(),
     ]
     assert memory_log.mock_calls == calls
@@ -691,3 +749,66 @@ def test_extract_json_from(json_validator):
     calls = [call(["item1", "item2"], "schemaA"), call(["item3"], "schemaB")]
     assert json_validator.mock_calls == calls
     reset_mocks()
+
+
+def test_extract_csv_from():
+    tested = LlmBase
+    # no error
+    # -- multiple CSV
+    content = "\n".join(
+        [
+            "response:",
+            "```csv",
+            "line1\nline2\nline3",
+            "```",
+            "",
+            "```csv",
+            "line4\nline5\nline6",
+            "```",
+            "",
+            "```csv",
+            "line7\nline8",
+            "```",
+            "",
+            "end.",
+        ],
+    )
+    result = tested.extract_csv_from(content)
+    expected = JsonExtract(
+        error="",
+        has_error=False,
+        content=[
+            ["line1", "line2", "line3"],
+            ["line4", "line5", "line6"],
+            ["line7", "line8"],
+        ],
+    )
+    assert result == expected
+
+    # error
+    # -- no CSV
+    content = "\n".join(
+        [
+            "response:",
+            "```text",
+            "line1\nline2\nline3",
+            "```",
+            "",
+            "```",
+            "line4\nline5\nline6",
+            "```",
+            "",
+            "line7\nline8",
+            "",
+            "end.",
+        ],
+    )
+    result = tested.extract_csv_from(content)
+    expected = JsonExtract(
+        error="No CSV markdown found. "
+        "The response should be enclosed within a CSV Markdown block like: \n"
+        "```csv\nCSV OUTPUT HERE\n```",
+        has_error=True,
+        content=[],
+    )
+    assert result == expected

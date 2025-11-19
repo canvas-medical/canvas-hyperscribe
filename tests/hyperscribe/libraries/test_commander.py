@@ -377,9 +377,10 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     text = " ".join([f"word{i:02d}" for i in range(4)])
 
     transcript = [
-        {"speaker": "speaker1", "text": f"{text} textA.", "start": 0.0, "end": 1.3},
-        {"speaker": "speaker2", "text": f"{text} textB.", "start": 1.3, "end": 2.5},
-        {"speaker": "speaker1", "text": f"{text} textC.", "start": 2.5, "end": 3.6},
+        "speaker,text,start,end",
+        f"speaker1,{text} textA.,0.0,1.3",
+        f"speaker2,{text} textB.,1.3,2.5",
+        f"speaker1,{text} textC.,2.5,3.6",
     ]
     # all good
     transcript2commands.side_effect = [("instructions", "effects")]
@@ -871,54 +872,60 @@ def test_transcript2commands_common(time, memory_log, progress):
 
         mock_chatter.detect_instructions.side_effect = [
             [
-                {
-                    "uuid": "uuidA",
-                    "index": 1,
-                    "instruction": "theInstructionA",
-                    "information": "changedInformationA",
-                    "isNew": False,
-                    "isUpdated": True,
-                },
-                {
-                    "uuid": "uuidB",
-                    "index": 2,
-                    "instruction": "theInstructionB",
-                    "information": "theInformationB",
-                    "isNew": False,
-                    "isUpdated": False,
-                },
-                {
-                    "uuid": "uuidF",
-                    "index": 6,
-                    "instruction": "theInstructionA",
-                    "information": "changedInformationF",
-                    "isNew": False,
-                    "isUpdated": True,
-                },
-                {
-                    "uuid": "uuidC",
-                    "index": 3,
-                    "instruction": "theInstructionC",
-                    "information": "theInformationC",
-                    "isNew": True,
-                    "isUpdated": False,
-                },
-                {
-                    "uuid": "uuidD",
-                    "index": 4,
-                    "instruction": "theInstructionD",
-                    "information": "theInformationD",
-                    "isNew": True,
-                    "isUpdated": False,
-                },
-                {
-                    "uuid": "uuidE",
-                    "index": 5,
-                    "instruction": "theInstructionD",
-                    "information": "theInformationE",
-                    "isNew": True,
-                    "isUpdated": False,
-                },
+                Instruction(
+                    uuid="uuidA",
+                    index=1,
+                    instruction="theInstructionA",
+                    information="changedInformationA",
+                    is_new=False,
+                    is_updated=True,
+                    previous_information="",
+                ),
+                Instruction(
+                    uuid="uuidB",
+                    index=2,
+                    instruction="theInstructionB",
+                    information="theInformationB",
+                    is_new=False,
+                    is_updated=False,
+                    previous_information="",
+                ),
+                Instruction(
+                    uuid="uuidF",
+                    index=6,
+                    instruction="theInstructionA",
+                    information="changedInformationF",
+                    is_new=False,
+                    is_updated=True,
+                    previous_information="",
+                ),
+                Instruction(
+                    uuid="uuidC",
+                    index=3,
+                    instruction="theInstructionC",
+                    information="theInformationC",
+                    is_new=True,
+                    is_updated=False,
+                    previous_information="",
+                ),
+                Instruction(
+                    uuid="uuidD",
+                    index=4,
+                    instruction="theInstructionD",
+                    information="theInformationD",
+                    is_new=True,
+                    is_updated=False,
+                    previous_information="",
+                ),
+                Instruction(
+                    uuid="uuidE",
+                    index=5,
+                    instruction="theInstructionD",
+                    information="theInformationE",
+                    is_new=True,
+                    is_updated=False,
+                    previous_information="",
+                ),
             ],
         ]
         mock_chatter.create_sdk_command_parameters.side_effect = instructions_with_parameters
@@ -1060,30 +1067,33 @@ def test_transcript2commands_common(time, memory_log, progress):
 
     mock_chatter.detect_instructions.side_effect = [
         [
-            {
-                "uuid": "uuidA",
-                "index": 1,
-                "instruction": "theInstructionA",
-                "information": "theInformationA",
-                "isNew": False,
-                "isUpdated": False,
-            },
-            {
-                "uuid": "uuidB",
-                "index": 2,
-                "instruction": "theInstructionB",
-                "information": "theInformationB",
-                "isNew": False,
-                "isUpdated": False,
-            },
-            {
-                "uuid": "uuidF",
-                "index": 3,
-                "instruction": "theInstructionA",
-                "information": "theInformationF",
-                "isNew": False,
-                "isUpdated": False,
-            },
+            Instruction(
+                uuid="uuidA",
+                index=1,
+                instruction="theInstructionA",
+                information="theInformationA",
+                is_new=False,
+                is_updated=False,
+                previous_information="",
+            ),
+            Instruction(
+                uuid="uuidB",
+                index=2,
+                instruction="theInstructionB",
+                information="theInformationB",
+                is_new=False,
+                is_updated=False,
+                previous_information="",
+            ),
+            Instruction(
+                uuid="uuidF",
+                index=3,
+                instruction="theInstructionA",
+                information="theInformationF",
+                is_new=False,
+                is_updated=False,
+                previous_information="",
+            ),
         ],
     ]
     mock_chatter.create_sdk_command_parameters.side_effect = instructions_with_parameters

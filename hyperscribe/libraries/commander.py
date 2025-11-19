@@ -125,7 +125,7 @@ class Commander(BaseProtocol):
             memory_log.output(f"--> transcript encountered: {response.error}")
             return previous_instructions, [], []  # <--- let's continue even if we were not able to get a transcript
 
-        transcript = Line.load_from_json(response.content)
+        transcript = Line.load_from_csv(response.content)
         auditor.identified_transcript(audio_bytes, transcript)
         memory_log.output(f"--> transcript back and forth: {len(transcript)}")
         messages = [
@@ -187,8 +187,7 @@ class Commander(BaseProtocol):
 
         start = time()
         # detect the instructions based on the transcript and the existing commands
-        response = chatter.detect_instructions(transcript, instructions)
-        cumulated_instructions = Instruction.load_from_json(response)
+        cumulated_instructions = chatter.detect_instructions(transcript, instructions)
         auditor.found_instructions(transcript, instructions, cumulated_instructions)
         memory_log.output(f"--> instructions: {len(cumulated_instructions)}")
         past_uuids = {instruction.uuid: instruction for instruction in instructions}

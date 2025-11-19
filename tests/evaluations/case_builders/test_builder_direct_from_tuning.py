@@ -644,15 +644,17 @@ def test_create_transcripts():
             error="error",
             has_error=False,
             content=[
-                {"speaker": "theSpeaker1", "text": "theText1", "start": 0.0, "end": 2.1},
-                {"speaker": "theSpeaker2", "text": "theText2", "start": 2.1, "end": 3.7},
+                "speaker,text,start,end",
+                "theSpeaker1,theText1,0.0,2.1",
+                "theSpeaker2,theText2,2.1,3.7",
             ],
         ),
         JsonExtract(
             error="error",
             has_error=False,
             content=[
-                {"speaker": "theSpeaker3", "text": "theText3", "start": 0.0, "end": 4.8},
+                "speaker,text,start,end",
+                "theSpeaker3,theText3,0.0,4.8",
             ],
         ),
         JsonExtract(
@@ -664,9 +666,10 @@ def test_create_transcripts():
             error="error",
             has_error=False,
             content=[
-                {"speaker": "theSpeaker4", "text": "theText4", "start": 0.0, "end": 5.6},
-                {"speaker": "theSpeaker5", "text": "theText5", "start": 5.6, "end": 7.8},
-                {"speaker": "theSpeaker6", "text": "theText6", "start": 7.8, "end": 9.9},
+                "speaker,text,start,end",
+                "theSpeaker4,theText4,0.0,5.6",
+                "theSpeaker5,theText5,5.6,7.8",
+                "theSpeaker6,theText6,7.8,9.9",
             ],
         ),
     ]

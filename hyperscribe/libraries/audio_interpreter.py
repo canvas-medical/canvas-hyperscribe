@@ -7,6 +7,7 @@ from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.handlers.progress_display import ProgressDisplay
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
+from hyperscribe.libraries.helper_csv import HelperCsv
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.libraries.limited_cache import LimitedCache
@@ -114,8 +115,8 @@ class AudioInterpreter:
             previous_transcript = "\n".join(
                 [
                     "The previous segment finished with:",
-                    "```json",
-                    json.dumps([line.to_json() for line in transcript_tail], indent=1),
+                    "```csv",
+                    Line.list_to_csv(transcript_tail),
                     "```",
                     "",
                 ],
@@ -126,31 +127,19 @@ class AudioInterpreter:
                 "Your task is to identify the role of the voices (patient, clinician, nurse, parents...) "
                 "in the conversation, if there is only one voice, or just only silence, assume this is the clinician.",
                 "",
-                "```json",
-                json.dumps(response.content[0], indent=1),
+                "```csv",
+                Line.list_to_csv(Line.load_from_json(response.content[0])),
                 "```",
                 "",
-                "Present your findings in a JSON format within a Markdown code block:",
-                "```json",
-                json.dumps(
-                    [
-                        {
-                            "speaker": "Patient/Clinician/Nurse/Parent...",
-                            "text": "the verbatim transcription as reported in the transcription",
-                            "start": "the start as reported in the transcription",
-                            "end": "the end as reported in the transcription",
-                        },
-                    ],
-                    indent=1,
-                ),
+                "Present your findings in a CSV format within a Markdown code block:",
+                "```csv",
+                Line.to_csv_description(),
                 "```",
                 "",
             ],
         )
-        response = detector.chat(JsonSchema.get(["voice_turns"]))
-        if response.has_error:
-            return response
-        return JsonExtract(has_error=False, error="", content=response.content[0])
+        resp_csv = detector.chat(None)
+        return JsonExtract(has_error=resp_csv.has_error, error=resp_csv.error, content=resp_csv.content[0])
 
     @classmethod
     def combine_and_speaker_detection_single_step(cls, detector: LlmBase, transcript_tail: list[Line]) -> JsonExtract:
@@ -233,7 +222,7 @@ class AudioInterpreter:
             content=[{"speaker": speakers[text["voice"]], "text": text["text"]} for text in discussion],
         )
 
-    def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> list:
+    def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> list[Instruction]:
         common_instructions = self.common_instructions()
         if len(known_instructions) < self.settings.hierarchical_detection_threshold:
             return self.detect_instructions_flat(discussion, known_instructions, common_instructions, "allAtOnce")
@@ -280,8 +269,8 @@ class AudioInterpreter:
         user_prompt = [
             "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
             "What are the sections present in the transcript?",
-            "```json",
-            json.dumps([speaker.to_json() for speaker in discussion], indent=1),
+            "```csv",
+            Line.list_to_csv(discussion),
             "```",
             "",
         ]
@@ -301,8 +290,8 @@ class AudioInterpreter:
         discussion: list[Line],
         known_instructions: list[Instruction],
         common_instructions: list[Base],
-    ) -> list:
-        result: list = []
+    ) -> list[Instruction]:
+        result: list[Instruction] = []
         detected_sections = self.detect_sections(discussion, common_instructions)
 
         # keep the instructions which are not part of the detected sections
@@ -319,7 +308,10 @@ class AudioInterpreter:
             if instruction.instruction in no_section_instructions_names
         ]
         for idx, instruction in enumerate(no_section_known_instructions):
-            result.append(instruction.to_json(True) | {"index": idx})
+            instruction.is_new = False
+            instruction.is_updated = False
+            instruction.index = idx
+            result.append(instruction)
 
         # detect the instruction for each section
         for detected in detected_sections:
@@ -342,16 +334,12 @@ class AudioInterpreter:
             )
             # prevent uuid or index collisions
             count = len(result)
-            other_sections_uuids = [
-                instruction["uuid"]
-                for instruction in result
-                if instruction["instruction"] not in section_instructions_names
-            ]
+            other_sections_uuids = [item.uuid for item in result if item.instruction not in section_instructions_names]
             for idx, instruction in enumerate(found_instructions):
-                if instruction["uuid"] in other_sections_uuids:
-                    instruction["uuid"] = f"instruction-{count + idx:03d}"
-                result.append(instruction | {"index": count + idx})
-
+                instruction.index = count + idx
+                if instruction.uuid in other_sections_uuids:
+                    instruction.uuid = f"instruction-{count + idx:03d}"
+                result.append(instruction)
         return result
 
     def detect_instructions_flat(
@@ -360,12 +348,7 @@ class AudioInterpreter:
         known_instructions: list[Instruction],
         common_instructions: list[Base],
         section: str,
-    ) -> list:
-        schema = self.json_schema_instructions([item.class_name() for item in common_instructions])
-        definitions = [
-            {"instruction": item.class_name(), "information": item.instruction_description()}
-            for item in common_instructions
-        ]
+    ) -> list[Instruction]:
         system_prompt = [
             "The conversation is in the context of a clinical encounter between patient and licensed "
             "healthcare provider.",
@@ -385,35 +368,39 @@ class AudioInterpreter:
             "review the surrounding context to confirm the subject of the health information.",
             "",
             "The instructions are limited to the following:",
-            "```json",
-            json.dumps(definitions),
+            "```csv",
+            "instruction,description",
+            "\n".join(
+                [
+                    f"{HelperCsv.escape(item.class_name())},{HelperCsv.escape(item.instruction_description())}"
+                    for item in common_instructions
+                ]
+            ),
             "```",
             "",
-            "Your response must be in a JSON Markdown block and validated with the schema:",
-            "```json",
-            json.dumps(schema),
+            "Your response must be in a CSV Markdown block like:",
+            "```csv",
+            Instruction.to_csv_description([item.class_name() for item in common_instructions]),
             "```",
             "",
         ]
-        transcript = json.dumps([speaker.to_json() for speaker in discussion], indent=1)
         user_prompt = [
             "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
             "What are the instructions I need to add to my software to document the visit correctly?",
-            "```json",
-            transcript,
+            "```csv",
+            Line.list_to_csv(discussion),
             "```",
             "",
-            "List all possible instructions as a text, and then, in a JSON markdown block, "
+            "List all possible instructions as a text, and then, in a CSV markdown block, "
             "respond with the found instructions as requested",
             "",
         ]
         if known_instructions:
-            content = [instruction.to_json(True) for instruction in known_instructions]
             user_prompt.extend(
                 [
                     "From among all previous segments of the transcript, the following instructions were identified:",
-                    "```json",
-                    json.dumps(content, indent=1),
+                    "```csv",
+                    Instruction.list_to_csv(known_instructions),
                     "```",
                     # "You must always return the previous instructions, such that you return a cumulative
                     # collection of instructions.",
@@ -433,31 +420,38 @@ class AudioInterpreter:
             MemoryLog.instance(self.identification, f"transcript2instructions:{section}", self.s3_credentials),
             ModelSpec.COMPLEX,
         )
-        result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
+        chatter.set_system_prompt(system_prompt)
+        chatter.set_user_prompt(user_prompt)
 
+        response = chatter.chat(None)
+        if response.has_error:
+            return []
+        result = Instruction.load_from_csv(response.content[0])
         # add back the missing instructions
-        return_uuids = [instruction.uuid for instruction in Instruction.load_from_json(result)]
+        return_uuids = [instruction.uuid for instruction in result]
         for instruction in known_instructions:
             if instruction.uuid not in return_uuids:
-                result.append(instruction.to_json(True))
+                instruction.is_new = False
+                instruction.is_updated = False
+                result.append(instruction)
 
         # limit the constraints to the changed instructions only
-        instructions = [
-            instruction
-            for instruction in Instruction.load_from_json(result)
-            if instruction.is_new or instruction.is_updated
-        ]
+        instructions = [instruction for instruction in result if instruction.is_new or instruction.is_updated]
         if result and (constraints := self.instruction_constraints(instructions)):
-            chatter.set_model_prompt(["```json", json.dumps(result), "```"])
+            chatter.set_model_prompt(["```csv", Instruction.list_to_csv(result), "```"])
             user_prompt = ["Review your response and be sure to follow these constraints:"]
             for constraint in constraints:
                 user_prompt.append(f" * {constraint}")
             user_prompt.append("")
             user_prompt.append("First, review carefully your response against the constraints.")
-            user_prompt.append("Then, return the original JSON if it doesn't infringe the constraints.")
+            user_prompt.append("Then, return the original CSV if it doesn't infringe the constraints.")
             user_prompt.append("Or provide a corrected version to follow the constraints if needed.")
             user_prompt.append("")
-            result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
+            chatter.set_user_prompt(user_prompt)
+            response = chatter.chat(None)
+            if response.has_error:
+                return []
+            result = Instruction.load_from_csv(response.content[0])
         return result
 
     def create_sdk_command_parameters(self, instruction: Instruction) -> InstructionWithParameters | None:

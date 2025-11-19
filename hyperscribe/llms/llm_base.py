@@ -1,8 +1,9 @@
 from __future__ import annotations
-from time import time
+
 import json
 import re
 from http import HTTPStatus
+from time import time
 
 from canvas_sdk.questionnaires.utils import Draft7Validator
 from logger import log
@@ -78,8 +79,11 @@ class LlmBase:
             self.memory_log.log(f"error: {result.response}")
         return result
 
-    def chat(self, schemas: list) -> JsonExtract:
-        self.memory_log.log("-- CHAT BEGINS --")
+    def chat(self, schemas: list | None) -> JsonExtract:
+        block = "json"
+        if schemas is None:
+            block = "csv"
+        self.memory_log.log(f"-- CHAT BEGINS - {block} --")
         attempts = 0
         start = time()
         for _ in range(Constants.MAX_ATTEMPTS_LLM_JSON):
@@ -89,16 +93,18 @@ class LlmBase:
             if response.code != HTTPStatus.OK.value:
                 result = JsonExtract(has_error=True, error=response.response, content=[])
                 break
-
-            result = self.extract_json_from(response.response, schemas)
+            if schemas is None:
+                result = self.extract_csv_from(response.response)
+            else:
+                result = self.extract_json_from(response.response, schemas)
             self.memory_log.add_consumption(response.tokens)
-            if result.has_error is False:
+            if not result.has_error:
                 self.memory_log.log("result->>")
                 self.memory_log.log(json.dumps(result.content, indent=2))
                 self.memory_log.log("<<-")
                 break
 
-            # JSON error
+            # found error
             self.set_model_prompt(response.response.splitlines())
             self.set_user_prompt(
                 [
@@ -114,12 +120,12 @@ class LlmBase:
         else:
             result = JsonExtract(
                 has_error=True,
-                error=f"JSON incorrect: max attempts ({Constants.MAX_ATTEMPTS_LLM_JSON}) exceeded",
+                error=f"{block.upper()} incorrect: max attempts ({Constants.MAX_ATTEMPTS_LLM_JSON}) exceeded",
                 content=[],
             )
             self.memory_log.log(f"error: {result.error}")
 
-        self.memory_log.log(f"--- CHAT ENDS - {attempts} attempts - {int((time() - start) * 1000)}ms ---")
+        self.memory_log.log(f"--- CHAT ENDS - {block} - {attempts} attempts - {int((time() - start) * 1000)}ms ---")
         self.memory_log.store_so_far()
         return result
 
@@ -208,6 +214,25 @@ class LlmBase:
 
         if len(result) < len(schemas):
             return JsonExtract(error=f"{len(schemas)} JSON markdown blocks are expected", has_error=True, content=[])
+
+        # all good
+        return JsonExtract(error="", has_error=False, content=result)
+
+    @classmethod
+    def extract_csv_from(cls, content: str) -> JsonExtract:
+        result: list[list] = []
+        pattern_csv = re.compile(r"```csv\s*\n(.*?)\n\s*```", re.DOTALL | re.IGNORECASE)
+        for embedded in pattern_csv.finditer(content):
+            result.append(embedded.group(1).split("\n"))
+
+        if not result:
+            return JsonExtract(
+                error="No CSV markdown found. "
+                "The response should be enclosed within a CSV Markdown block like: \n"
+                "```csv\nCSV OUTPUT HERE\n```",
+                has_error=True,
+                content=[],
+            )
 
         # all good
         return JsonExtract(error="", has_error=False, content=result)

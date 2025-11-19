@@ -192,7 +192,7 @@ class BuilderDirectFromTuning:
                     audio_bytes = f.read()
 
                 response = interpreter.combine_and_speaker_detection(audio_bytes, last_exchange)
-                transcript = Line.load_from_json(response.content)
+                transcript = Line.load_from_csv(response.content)
                 with json_file.open("w") as f:
                     json.dump(
                         [
