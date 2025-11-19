@@ -89,7 +89,7 @@ class Diagnose(Base):
                         },
                         "onsetDate": {
                             "type": "string",
-                            "description": "Onset date YYYY-MM-DD",
+                            "description": "Approximate onset date in YYYY-MM-DD.",
                             "format": "date",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         },
@@ -109,7 +109,7 @@ class Diagnose(Base):
             "- the medical condition itself, "
             "- all reasoning explicitly mentioned in the transcript, "
             "- current detailed assessment as mentioned in the transcript, and "
-            "- onset date, even for today. "
+            "- the approximate date of onset if mentioned in the transcript. "
             "There is one and only one condition per instruction with all necessary information, "
             "and no instruction in the lack of."
         )

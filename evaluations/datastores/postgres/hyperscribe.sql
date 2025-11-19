@@ -5,14 +5,19 @@ DROP TABLE IF EXISTS public.experiment_model CASCADE;
 DROP TABLE IF EXISTS public.experiment_case CASCADE;
 DROP TABLE IF EXISTS public.experiment CASCADE;
 DROP TABLE IF EXISTS public.model CASCADE;
+DROP TABLE IF EXISTS public.script_run CASCADE;
+DROP TABLE IF EXISTS public.contributor_generated_note_rank CASCADE;
+DROP TABLE IF EXISTS public.contributor CASCADE;
 DROP TABLE IF EXISTS public.score CASCADE;
 DROP TABLE IF EXISTS public.rubric CASCADE;
 DROP TABLE IF EXISTS public.generated_note CASCADE;
+DROP TABLE IF EXISTS public.case_provenance CASCADE;
 DROP TABLE IF EXISTS public.synthetic_case CASCADE;
 DROP TABLE IF EXISTS public.real_world_case CASCADE;
 DROP TABLE IF EXISTS public.case CASCADE;
 
 -- Drop existing types
+DROP TYPE IF EXISTS case_provenance_type CASCADE;
 DROP TYPE IF EXISTS rubric_validation CASCADE;
 DROP TYPE IF EXISTS synthetic_case_turn_buckets CASCADE;
 DROP TYPE IF EXISTS synthetic_case_patient_style CASCADE;
@@ -34,8 +39,22 @@ CREATE TYPE synthetic_case_patient_style AS ENUM ('anxious and talkative', 'conf
         'assertive and informed', 'agreeable but vague');
 CREATE TYPE synthetic_case_turn_buckets AS ENUM ('short', 'medium', 'long');
 CREATE TYPE rubric_validation AS ENUM ('not_evaluated', 'refused', 'accepted');
+CREATE TYPE case_provenance_type AS ENUM ('real_world', 'synthetic');
 
 -- Create tables
+CREATE TABLE public.contributor
+(
+    id       serial    NOT NULL,
+    created  timestamp NOT NULL,
+    updated  timestamp NOT NULL,
+    email    text      NOT NULL,
+    ui_token text      NOT NULL,
+    active   bool      NOT NULL,
+    "admin"  bool      NOT NULL,
+    CONSTRAINT contributor_email_key UNIQUE (email),
+    CONSTRAINT contributor_pkey PRIMARY KEY (id)
+);
+
 CREATE TABLE public.case
 (
     id                serial PRIMARY KEY,
@@ -257,8 +276,50 @@ CREATE TABLE public.experiment_result_score
     CONSTRAINT fk_experiment_result_score_experiment_result FOREIGN KEY (experiment_result_id) REFERENCES public.experiment_result (id) ON DELETE CASCADE
 );
 
+CREATE TABLE public.script_run
+(
+    id          serial    NOT NULL,
+    created     timestamp NOT NULL,
+    updated     timestamp NOT NULL,
+    script      text      NOT NULL,
+    parameters  json      NOT NULL,
+    contributor text      NOT NULL,
+    case_id     serial    NOT NULL,
+    finished    bool      NOT NULL,
+    "output"    text      NOT NULL,
+    exit_status int4      NOT NULL,
+    CONSTRAINT script_run_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE public.contributor_generated_note_rank
+(
+    id                serial    NOT NULL,
+    created           timestamp NOT NULL,
+    updated           timestamp NOT NULL,
+    contributor       text      NOT NULL,
+    generated_note_id serial    NOT NULL,
+    "rank"            int4      NOT NULL,
+    CONSTRAINT contributor_generated_note_rank_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_contributor_generated_note_rank FOREIGN KEY (generated_note_id) REFERENCES public.generated_note (id) ON DELETE CASCADE
+);
+
+CREATE TABLE public.case_provenance
+(
+    id              serial    NOT NULL,
+    created         timestamp NOT NULL,
+    updated         timestamp NOT NULL,
+    author          text      NOT NULL,
+    case_id         serial    NOT NULL,
+    provenance_type case_provenance_type NOT NULL,
+    CONSTRAINT case_provenance_pkey PRIMARY KEY (id),
+    CONSTRAINT case_provenance_unique UNIQUE (author, case_id),
+    CONSTRAINT fk_case_provenance_contributor FOREIGN KEY (author) REFERENCES public.contributor (email) ON DELETE CASCADE,
+    CONSTRAINT fk_case_provenance_case FOREIGN KEY (case_id) REFERENCES public."case" (id) ON DELETE CASCADE
+);
+
 -- Create indexes
 CREATE INDEX idx_case_name ON public.case (name);
+CREATE INDEX idx_contributor_email ON public.contributor (email);
 CREATE INDEX idx_real_world_case_case_id ON public.real_world_case (case_id);
 CREATE INDEX idx_real_world_case_customer_patient ON public.real_world_case (customer_identifier, patient_note_hash);
 CREATE INDEX idx_synthetic_case_case_id ON public.synthetic_case (case_id);
@@ -266,3 +327,7 @@ CREATE INDEX idx_generated_note_case_id ON public.generated_note (case_id);
 CREATE INDEX idx_generated_note_failed ON public.generated_note (failed);
 CREATE INDEX idx_rubric_case_id ON public.rubric (case_id);
 CREATE INDEX idx_score_case_id_generated_note_id ON public.score (rubric_id, generated_note_id);
+CREATE INDEX idx_script_run_case_id ON public.script_run (case_id);
+CREATE INDEX idx_contributor_generated_note_rank_email ON public.contributor_generated_note_rank (contributor);
+CREATE INDEX idx_case_provenance_case_id ON public.case_provenance (case_id);
+CREATE INDEX idx_case_provenance_author ON public.case_provenance (author);

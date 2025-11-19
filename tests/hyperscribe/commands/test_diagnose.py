@@ -188,7 +188,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "3d3b4ea5fff54fc3b51804f95e93c100"
+    expected_hash = "05b0ba744080d77c0ac612019ef23a0b"
     assert schema_hash == expected_hash
 
     tests = [
@@ -366,7 +366,7 @@ def test_instruction_description():
         "- the medical condition itself, "
         "- all reasoning explicitly mentioned in the transcript, "
         "- current detailed assessment as mentioned in the transcript, and "
-        "- onset date, even for today. "
+        "- the approximate date of onset if mentioned in the transcript. "
         "There is one and only one condition per instruction with all necessary information, "
         "and no instruction in the lack of."
     )
