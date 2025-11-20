@@ -99,14 +99,14 @@ def test_trigger_render(authenticator, helper, requests_post):
     requests_post.side_effect = ["theResponse"]
 
     tested = helper_instance()
-    result = tested.trigger_render("thePatientId", "theNoteId")
+    result = tested.trigger_render("thePatientId", "theNoteId", "theUserId")
     expected = "theResponse"
     assert result == expected
 
     calls = [
         call.presigned_url(
             "signingKey",
-            "theHost/plugin-io/api/hyperscribe/render/thePatientId/theNoteId",
+            "theHost/plugin-io/api/hyperscribe/render/thePatientId/theNoteId/theUserId",
             {},
         )
     ]
@@ -267,19 +267,19 @@ def test_new_session_post(session_progress_log, audio_client):
 
     tested = helper_instance()
     tested.request = SimpleNamespace(
-        path_params={"patient_id": "p", "note_id": "n"},
-        headers={"canvas-logged-in-user-id": "u"},
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        headers={"canvas-logged-in-user-id": "theUserId"},
     )
     result = tested.new_session_post()
     assert result == []
 
-    calls = [call("p", "n", "started")]
+    calls = [call("thePatientId", "theNoteId", "started")]
     assert session_progress_log.mock_calls == calls
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),
-        call.for_operation().get_user_token("u"),
-        call.for_operation().create_session("theUserToken", {"note_id": "n", "patient_id": "p"}),
-        call.for_operation().add_session("p", "n", "theSessionId", "u", "theUserToken"),
+        call.for_operation().get_user_token("theUserId"),
+        call.for_operation().create_session("theUserToken", {"note_id": "theNoteId", "patient_id": "thePatientId"}),
+        call.for_operation().add_session("thePatientId", "theNoteId", "theSessionId", "theUserId", "theUserToken"),
     ]
     assert audio_client.mock_calls == calls
     reset_mocks()
@@ -299,9 +299,9 @@ def test_idle_session_post(session_progress_log, stop_and_go):
             "end",
             False,
             False,
-            [call("p", "n", "stopped")],
+            [call("thePatientId", "theNoteId", "stopped")],
             [
-                call.get("n"),
+                call.get("theNoteId"),
                 call.get().is_ended(),
                 call.get().set_ended(True),
                 call.get().set_ended().save(),
@@ -313,7 +313,7 @@ def test_idle_session_post(session_progress_log, stop_and_go):
             False,
             [],
             [
-                call.get("n"),
+                call.get("theNoteId"),
                 call.get().is_ended(),
                 call.get().is_paused(),
                 call.get().is_paused(),
@@ -325,7 +325,7 @@ def test_idle_session_post(session_progress_log, stop_and_go):
             True,
             [],
             [
-                call.get("n"),
+                call.get("theNoteId"),
                 call.get().is_ended(),
                 call.get().is_paused(),
                 call.get().is_paused(),
@@ -335,9 +335,9 @@ def test_idle_session_post(session_progress_log, stop_and_go):
             "pause",
             False,
             False,
-            [call("p", "n", "paused")],
+            [call("thePatientId", "theNoteId", "paused")],
             [
-                call.get("n"),
+                call.get("theNoteId"),
                 call.get().is_ended(),
                 call.get().is_paused(),
                 call.get().is_paused(),
@@ -349,9 +349,9 @@ def test_idle_session_post(session_progress_log, stop_and_go):
             "resume",
             False,
             True,
-            [call("p", "n", "resumed")],
+            [call("thePatientId", "theNoteId", "resumed")],
             [
-                call.get("n"),
+                call.get("theNoteId"),
                 call.get().is_ended(),
                 call.get().is_paused(),
                 call.get().set_paused(False),
@@ -364,7 +364,7 @@ def test_idle_session_post(session_progress_log, stop_and_go):
             False,
             [],
             [
-                call.get("n"),
+                call.get("theNoteId"),
                 call.get().is_ended(),
                 call.get().is_paused(),
                 call.get().is_paused(),
@@ -376,8 +376,8 @@ def test_idle_session_post(session_progress_log, stop_and_go):
         stop_and_go.get.return_value.is_paused.side_effect = [is_paused, is_paused]
 
         tested.request = SimpleNamespace(
-            path_params={"patient_id": "p", "note_id": "n", "action": action},
-            headers={"canvas-logged-in-user-id": "u"},
+            path_params={"patient_id": "thePatientId", "note_id": "theNoteId", "action": action},
+            headers={"canvas-logged-in-user-id": "theUserId"},
         )
         result = tested.idle_session_post()
         assert result == []
@@ -400,7 +400,10 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
 
     tested = helper_instance()
     # missing file part
-    tested.request = SimpleNamespace(path_params={"patient_id": "p", "note_id": "n"}, form_data=lambda: {})
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        form_data=lambda: {},
+    )
     result = tested.audio_chunk_post()
     assert isinstance(result, list)
     resp = result[0]
@@ -423,7 +426,8 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
             return False
 
     tested.request = SimpleNamespace(
-        path_params={"patient_id": "p", "note_id": "n"}, form_data=lambda: {"audio": Part()}
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        form_data=lambda: {"audio": Part()},
     )
     result = tested.audio_chunk_post()
     assert isinstance(result, list)
@@ -446,7 +450,11 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
             return True
 
     part = PartOK()
-    tested.request = SimpleNamespace(path_params={"patient_id": "p", "note_id": "n"}, form_data=lambda: {"audio": part})
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        headers={"canvas-logged-in-user-id": "theUserId"},
+        form_data=lambda: {"audio": part},
+    )
     result = tested.audio_chunk_post()
     assert isinstance(result, list)
     resp = result[0]
@@ -456,7 +464,7 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
     assert helper.mock_calls == []
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),
-        call.for_operation().save_audio_chunk("p", "n", part),
+        call.for_operation().save_audio_chunk("thePatientId", "theNoteId", part),
     ]
     assert audio_client.mock_calls == calls
     assert stop_and_go.mock_calls == []
@@ -471,17 +479,17 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
     resp = result[0]
     assert resp.status_code == 201 and resp.content == b"Audio chunk saved OK"
 
-    calls = [call.submit(helper.with_cleanup.return_value, "p", "n")]
+    calls = [call.submit(helper.with_cleanup.return_value, "thePatientId", "theNoteId", "theUserId")]
     assert executor.mock_calls == calls
     calls = [call.with_cleanup(tested.trigger_render)]
     assert helper.mock_calls == calls
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),  # -- valid name
-        call.for_operation().save_audio_chunk("p", "n", part),
+        call.for_operation().save_audio_chunk("thePatientId", "theNoteId", part),
     ]
     assert audio_client.mock_calls == calls
     calls = [
-        call.get("n"),
+        call.get("theNoteId"),
         call.get().add_waiting_cycle(123),
         call.get().add_waiting_cycle().save(),
     ]
@@ -500,7 +508,7 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
     assert helper.mock_calls == []
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),  # -- valid name
-        call.for_operation().save_audio_chunk("p", "n", part),
+        call.for_operation().save_audio_chunk("thePatientId", "theNoteId", part),
     ]
     assert audio_client.mock_calls == calls
     assert stop_and_go.mock_calls == []
@@ -548,7 +556,7 @@ def test_render_effect_post(stop_and_go, executor, helper, note_db):
                 call.get().reset_paused_effect().set_delay(),
                 call.get().reset_paused_effect().set_delay().save(),
             ],
-            [call.submit(helper.with_cleanup.return_value, "patientId", "noteId")],
+            [call.submit(helper.with_cleanup.return_value, "patientId", "noteId", "theUserId")],
             [call.with_cleanup(tested.trigger_render)],
             [],
         ),
@@ -583,7 +591,7 @@ def test_render_effect_post(stop_and_go, executor, helper, note_db):
                 call.get().consume_next_waiting_cycles(True),
                 call.get().cycle(),
             ],
-            [call.submit(helper.with_cleanup.return_value, identification, 7)],
+            [call.submit(helper.with_cleanup.return_value, identification, 7, "theUserId")],
             [call.with_cleanup(tested.run_commander)],
             [call.get(id="noteId")],
         ),
@@ -653,8 +661,8 @@ def test_render_effect_post(stop_and_go, executor, helper, note_db):
         stop_and_go.get.return_value.created.side_effect = [date_0]
 
         tested.request = SimpleNamespace(
-            path_params={"patient_id": "patientId", "note_id": "noteId"},
-            headers={"canvas-logged-in-user-id": "u"},
+            path_params={"patient_id": "patientId", "note_id": "noteId", "user_id": "theUserId"},
+            headers={"canvas-logged-in-user-id": "wrongUserId"},
         )
 
         result = tested.render_effect_post()
@@ -684,11 +692,11 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     aws_s3.return_value.is_ready.side_effect = []
     mock_datetime.now.side_effect = []
     tested.request = SimpleNamespace(
-        path_params={"patient_id": "p", "note_id": "n"},
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
         form_data=lambda: {},
     )
     result = tested.feedback_post()
-    expected = [Response(content=b"Feedback cannot be empty", status_code=400)]
+    expected = [Response(content=b"Feedback cannot be empty", status_code=HTTPStatus.BAD_REQUEST)]
     assert result == expected
 
     assert aws_s3.mock_calls == []
@@ -699,11 +707,11 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     aws_s3.return_value.is_ready.side_effect = []
     mock_datetime.now.side_effect = []
     tested.request = SimpleNamespace(
-        path_params={"patient_id": "p", "note_id": "n"},
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
         form_data=lambda: {"feedback": StringFormPart(name="feedback", value="")},
     )
     result = tested.feedback_post()
-    expected = [Response(content=b"Feedback cannot be empty", status_code=400)]
+    expected = [Response(content=b"Feedback cannot be empty", status_code=HTTPStatus.BAD_REQUEST)]
     assert result == expected
 
     assert aws_s3.mock_calls == []
@@ -714,11 +722,11 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     aws_s3.return_value.is_ready.side_effect = [False]
     mock_datetime.now.side_effect = []
     tested.request = SimpleNamespace(
-        path_params={"patient_id": "p", "note_id": "n"},
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
         form_data=lambda: {"feedback": StringFormPart(name="feedback", value="theFeedback")},
     )
     result = tested.feedback_post()
-    expected = [Response(content=b"Storage is not made available", status_code=500)]
+    expected = [Response(content=b"Storage is not made available", status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
     assert result == expected
 
     calls = [
@@ -743,11 +751,11 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     requests_post.side_effect = [mock_response]
 
     tested.request = SimpleNamespace(
-        path_params={"patient_id": "p", "note_id": "n"},
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
         form_data=lambda: {"feedback": StringFormPart(name="feedback", value="theFeedback")},
     )
     result = tested.feedback_post()
-    expected = [Response(content=b"Feedback saved OK", status_code=201)]
+    expected = [Response(content=b"Feedback saved OK", status_code=HTTPStatus.CREATED)]
     assert result == expected
 
     calls = [
@@ -760,13 +768,19 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
             )
         ),
         call().is_ready(),
-        call().upload_text_to_s3("hyperscribe-customerIdentifier/feedback/n/20250829-101457", "theFeedback"),
+        call().upload_text_to_s3(
+            "hyperscribe-customerIdentifier/feedback/theNoteId/20250829-101457",
+            "theFeedback",
+        ),
     ]
     assert aws_s3.mock_calls == calls
     calls = [call.now(timezone.utc)]
     assert mock_datetime.mock_calls == calls
     expected_data = NotionFeedbackRecord(
-        instance="customerIdentifier", note_uuid="n", date_time=date_0.strftime("%Y%m%d-%H%M%S"), feedback="theFeedback"
+        instance="customerIdentifier",
+        note_uuid="theNoteId",
+        date_time=date_0.strftime("%Y%m%d-%H%M%S"),
+        feedback="theFeedback",
     ).to_json("theNotionFeedbackDatabaseId")
     calls = [
         call(
@@ -789,13 +803,14 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     requests_post.side_effect = [mock_response]
 
     tested.request = SimpleNamespace(
-        path_params={"patient_id": "p", "note_id": "n"},
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
         form_data=lambda: {"feedback": StringFormPart(name="feedback", value="theFeedback")},
     )
 
     # Expect RuntimeError to be raised
     with pytest.raises(
-        RuntimeError, match="Feedback failed to save via Notion API, status 500, text: Internal Server Error"
+        RuntimeError,
+        match="Feedback failed to save via Notion API, status 500, text: Internal Server Error",
     ):
         tested.feedback_post()
     reset_mocks()
@@ -838,11 +853,16 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
         trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
-    credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketLogs")
+    credentials = AwsS3Credentials(
+        aws_key="theKey",
+        aws_secret="theSecret",
+        region="theRegion",
+        bucket="theBucketLogs",
+    )
 
     tested = helper_instance()
     # no LLM audit
-    tested.secrets["AuditLLMDecisions"] = "n"
+    tested.secrets["AuditLLMDecisions"] = "theNoteId"
     tested.run_reviewer(identification, date_0, 7)
 
     assert log.mock_calls == []
@@ -1033,9 +1053,9 @@ def test_run_commander(
             }
         ]
 
-        tested.run_commander(identification, 7)
+        tested.run_commander(identification, 7, "theUserId")
 
-        calls = [call("patientId", "noteId")]
+        calls = [call("patientId", "noteId", "theUserId")]
         assert trigger_render.mock_calls == calls
         calls = []
         if exp_log_msg:
@@ -1077,7 +1097,7 @@ def test_run_commander(
         assert commander.mock_calls == calls
         calls = [call.end_session("noteId")]
         assert llm_turns_store.mock_calls == calls
-        calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier")]
+        calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier", "theUserId")]
         assert customization.mock_calls == calls
         reset_mocks()
 
@@ -1087,9 +1107,9 @@ def test_run_commander(
         {"CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1","active":true}]'}
     ]
 
-    tested.run_commander(identification, 7)
+    tested.run_commander(identification, 7, "theUserId")
 
-    calls = [call("patientId", "noteId")]
+    calls = [call("patientId", "noteId", "theUserId")]
     assert trigger_render.mock_calls == calls
     calls = [
         call.info("************************"),
@@ -1116,6 +1136,6 @@ def test_run_commander(
     calls = [call.compute_audio(identification, settings[1], credentials, audio_client, 7)]
     assert commander.mock_calls == calls
     assert llm_turns_store.mock_calls == []
-    calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier")]
+    calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier", "theUserId")]
     assert customization.mock_calls == calls
     reset_mocks()

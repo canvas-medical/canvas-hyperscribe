@@ -13,7 +13,6 @@ from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.constants import Constants
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
-from hyperscribe.libraries.customization import Customization
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -55,13 +54,7 @@ class HelperEvaluation:
 
     @classmethod
     def settings(cls) -> Settings:
-        return Settings.from_dictionary(
-            dict(environ)
-            | Customization.custom_prompts_as_secret(
-                cls.aws_s3_credentials(),
-                cls.get_canvas_instance(),
-            )
-        )
+        return Settings.from_dictionary(dict(environ))
 
     @classmethod
     def settings_reasoning_allowed(cls) -> Settings:

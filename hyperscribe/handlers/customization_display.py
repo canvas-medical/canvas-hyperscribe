@@ -23,6 +23,10 @@ class CustomizationDisplay(SimpleAPI):
 
     @api.get("/customization/commands")
     def command_list(self) -> list[Response | Effect]:
+        user_id = self.request.headers.get("canvas-logged-in-user-id")
+        user_type = self.request.headers.get("canvas-logged-in-user-type")
+        if user_type != Constants.USER_TYPE_STAFF:
+            return []
         return [
             JSONResponse(
                 [
@@ -30,6 +34,7 @@ class CustomizationDisplay(SimpleAPI):
                     for item in Customization.custom_prompts(
                         AwsS3Credentials.from_dictionary(self.secrets),
                         self.environment[Constants.CUSTOMER_IDENTIFIER],
+                        user_id,
                     )
                 ],
                 status_code=HTTPStatus.OK,
@@ -38,11 +43,16 @@ class CustomizationDisplay(SimpleAPI):
 
     @api.post("/customization/command")
     def command_save(self) -> list[Response | Effect]:
+        user_id = self.request.headers.get("canvas-logged-in-user-id")
+        user_type = self.request.headers.get("canvas-logged-in-user-type")
+        if user_type != Constants.USER_TYPE_STAFF:
+            return []
         content = self.request.json()
         result = Customization.save_custom_prompt(
             AwsS3Credentials.from_dictionary(self.secrets),
             self.environment[Constants.CUSTOMER_IDENTIFIER],
             CustomPrompt.load_from_json(content),
+            user_id,
         )
         return [
             JSONResponse(

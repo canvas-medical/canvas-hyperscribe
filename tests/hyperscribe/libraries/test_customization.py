@@ -30,11 +30,17 @@ def test_custom_prompts(aws_s3):
         CustomPrompt(command="Plan", prompt="", active=False),
         CustomPrompt(command="ReasonForVisit", prompt="", active=False),
     ]
+    expected_custom = [
+        CustomPrompt(command="command1", prompt="prompt1", active=True),
+        CustomPrompt(command="command2", prompt="prompt2", active=False),
+        CustomPrompt(command="command3", prompt="prompt3", active=True),
+    ]
+
     tested = Customization
 
     # AWS credentials invalid
     aws_s3.return_value.is_ready.side_effect = [False]
-    result = tested.custom_prompts(credentials, "theCanvasInstance")
+    result = tested.custom_prompts(credentials, "theCanvasInstance", "theUserId")
     assert result == expected_default
 
     calls = [
@@ -45,16 +51,45 @@ def test_custom_prompts(aws_s3):
     assert aws_s3.mock_calls == calls
     reset_mocks()
     # AWS credentials valid
-    # -- AWS with error
-    aws_s3.return_value.is_ready.side_effect = [True]
-    aws_s3.return_value.access_s3_object.side_effect = [MockClass(status_code=HTTPStatus(500))]
-    result = tested.custom_prompts(credentials, "theCanvasInstance")
+    # -- AWS with error twice
+    aws_s3.return_value.is_ready.side_effect = [True, True]
+    aws_s3.return_value.access_s3_object.side_effect = [
+        MockClass(status_code=HTTPStatus(500)),
+        MockClass(status_code=HTTPStatus(500)),
+    ]
+    result = tested.custom_prompts(credentials, "theCanvasInstance", "theUserId")
     assert result == expected_default
 
     calls = [
         call(credentials),
         call().__bool__(),
         call().is_ready(),
+        call().access_s3_object("hyperscribe-theCanvasInstance/customizations/custom_prompts_theUserId.json"),
+        call().access_s3_object("hyperscribe-theCanvasInstance/customizations/custom_prompts.json"),
+    ]
+    assert aws_s3.mock_calls == calls
+    reset_mocks()
+    # -- AWS with error once
+    aws_s3.return_value.is_ready.side_effect = [True, True]
+    aws_s3.return_value.access_s3_object.side_effect = [
+        MockClass(status_code=HTTPStatus(500)),
+        MockClass(
+            status_code=HTTPStatus(200),
+            json=lambda: [
+                {"command": "command1", "prompt": "prompt1", "active": True},
+                {"command": "command2", "prompt": "prompt2", "active": False},
+                {"command": "command3", "prompt": "prompt3"},
+            ],
+        ),
+    ]
+    result = tested.custom_prompts(credentials, "theCanvasInstance", "theUserId")
+    assert result == expected_custom
+
+    calls = [
+        call(credentials),
+        call().__bool__(),
+        call().is_ready(),
+        call().access_s3_object("hyperscribe-theCanvasInstance/customizations/custom_prompts_theUserId.json"),
         call().access_s3_object("hyperscribe-theCanvasInstance/customizations/custom_prompts.json"),
     ]
     assert aws_s3.mock_calls == calls
@@ -71,19 +106,14 @@ def test_custom_prompts(aws_s3):
             ],
         )
     ]
-    result = tested.custom_prompts(credentials, "theCanvasInstance")
-    expected = [
-        CustomPrompt(command="command1", prompt="prompt1", active=True),
-        CustomPrompt(command="command2", prompt="prompt2", active=False),
-        CustomPrompt(command="command3", prompt="prompt3", active=True),
-    ]
-    assert result == expected
+    result = tested.custom_prompts(credentials, "theCanvasInstance", "theUserId")
+    assert result == expected_custom
 
     calls = [
         call(credentials),
         call().__bool__(),
         call().is_ready(),
-        call().access_s3_object("hyperscribe-theCanvasInstance/customizations/custom_prompts.json"),
+        call().access_s3_object("hyperscribe-theCanvasInstance/customizations/custom_prompts_theUserId.json"),
     ]
     assert aws_s3.mock_calls == calls
     reset_mocks()
@@ -108,9 +138,11 @@ def test_save_custom_prompt(custom_prompts, aws_s3):
         credentials,
         "theCanvasInstance",
         CustomPrompt(command="theCommand", prompt="thePrompt", active=True),
+        "theUserId",
     )
     assert result == expected_fail
 
+    assert custom_prompts.mock_calls == []
     calls = [
         call(credentials),
         call().__bool__(),
@@ -126,9 +158,11 @@ def test_save_custom_prompt(custom_prompts, aws_s3):
         credentials,
         "theCanvasInstance",
         CustomPrompt(command="theCommand", prompt="thePrompt", active=True),
+        "theUserId",
     )
     assert result == expected_fail
 
+    assert custom_prompts.mock_calls == []
     calls = [
         call(credentials),
         call().__bool__(),
@@ -152,15 +186,18 @@ def test_save_custom_prompt(custom_prompts, aws_s3):
         credentials,
         "theCanvasInstance",
         CustomPrompt(command="Instruct", prompt="thePrompt", active=True),
+        "theUserId",
     )
     assert result == expected_success
 
+    calls = [call(credentials, "theCanvasInstance", "theUserId")]
+    assert custom_prompts.mock_calls == calls
     calls = [
         call(credentials),
         call().__bool__(),
         call().is_ready(),
         call().upload_text_to_s3(
-            "hyperscribe-theCanvasInstance/customizations/custom_prompts.json",
+            "hyperscribe-theCanvasInstance/customizations/custom_prompts_theUserId.json",
             '[{"command": "FollowUp", "prompt": "promptFollowUp", "active": false}, '
             '{"command": "HistoryOfPresentIllness", "prompt": "promptHistoryOfPresentIllness", "active": false}, '
             '{"command": "Instruct", "prompt": "thePrompt", "active": true}, '
@@ -174,8 +211,13 @@ def test_save_custom_prompt(custom_prompts, aws_s3):
 
 def test_aws_custom_prompts():
     tested = Customization
-    result = tested.aws_custom_prompts("theCanvasInstance")
+    # empty user id
+    result = tested.aws_custom_prompts("theCanvasInstance", "")
     expected = "hyperscribe-theCanvasInstance/customizations/custom_prompts.json"
+    assert result == expected
+    # with user id
+    result = tested.aws_custom_prompts("theCanvasInstance", "theUserId")
+    expected = "hyperscribe-theCanvasInstance/customizations/custom_prompts_theUserId.json"
     assert result == expected
 
 
@@ -189,11 +231,11 @@ def test_custom_prompts_as_secret(custom_prompts):
     tested = Customization
     #
     custom_prompts.side_effect = [[]]
-    result = tested.custom_prompts_as_secret(credentials, "theCanvasInstance")
+    result = tested.custom_prompts_as_secret(credentials, "theCanvasInstance", "theUserId")
     expected = {"CustomPrompts": "[]"}
     assert result == expected
 
-    calls = [call(credentials, "theCanvasInstance")]
+    calls = [call(credentials, "theCanvasInstance", "theUserId")]
     assert custom_prompts.mock_calls == calls
     reset_mocks()
 
@@ -205,7 +247,7 @@ def test_custom_prompts_as_secret(custom_prompts):
             CustomPrompt(command="command3", prompt="prompt3", active=True),
         ]
     ]
-    result = tested.custom_prompts_as_secret(credentials, "theCanvasInstance")
+    result = tested.custom_prompts_as_secret(credentials, "theCanvasInstance", "theUserId")
     expected = {
         "CustomPrompts": '[{"command": "command1", "prompt": "prompt1", "active": true}, '
         '{"command": "command2", "prompt": "prompt2", "active": false}, '
@@ -213,6 +255,6 @@ def test_custom_prompts_as_secret(custom_prompts):
     }
     assert result == expected
 
-    calls = [call(credentials, "theCanvasInstance")]
+    calls = [call(credentials, "theCanvasInstance", "theUserId")]
     assert custom_prompts.mock_calls == calls
     reset_mocks()

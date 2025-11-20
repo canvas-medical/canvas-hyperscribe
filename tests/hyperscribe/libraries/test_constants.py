@@ -154,5 +154,6 @@ def test_constants():
         "AUDIO_IDLE_END": "end",
         #
         "WS_CHANNEL_PROGRESSES": "progresses",
+        "USER_TYPE_STAFF": "Staff",
     }
     assert is_constant(tested, constants)

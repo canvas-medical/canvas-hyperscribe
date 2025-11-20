@@ -67,7 +67,13 @@ def test_command_list(customization, aws_s3_credentials):
         aws_s3_credentials.reset_mock()
 
     tested = helper_instance()
-
+    # all good
+    tested.request = MockClass(
+        headers={
+            "canvas-logged-in-user-id": "theUserId",
+            "canvas-logged-in-user-type": "Staff",
+        },
+    )
     customization.custom_prompts.side_effect = [
         [
             CustomPrompt(command="Command1", prompt="Prompt1", active=True),
@@ -92,7 +98,7 @@ def test_command_list(customization, aws_s3_credentials):
     ]
     assert result == expected
 
-    calls = [call.custom_prompts("theAwsCredentials", "customerIdentifier")]
+    calls = [call.custom_prompts("theAwsCredentials", "customerIdentifier", "theUserId")]
     assert customization.mock_calls == calls
     calls = [
         call.from_dictionary(
@@ -105,6 +111,25 @@ def test_command_list(customization, aws_s3_credentials):
     assert aws_s3_credentials.mock_calls == calls
     reset_mocks()
 
+    # invalid user type
+    tested.request = MockClass(
+        headers={
+            "canvas-logged-in-user-id": "theUserId",
+            "canvas-logged-in-user-type": "Customer",
+        },
+    )
+
+    customization.custom_prompts.side_effect = []
+    aws_s3_credentials.from_dictionary.side_effect = []
+
+    result = tested.command_list()
+    expected = []
+    assert result == expected
+
+    assert customization.mock_calls == []
+    assert aws_s3_credentials.mock_calls == []
+    reset_mocks()
+
 
 @patch("hyperscribe.handlers.customization_display.AwsS3Credentials")
 @patch("hyperscribe.handlers.customization_display.Customization")
@@ -114,7 +139,14 @@ def test_command_save(customization, aws_s3_credentials):
         aws_s3_credentials.reset_mock()
 
     tested = helper_instance()
-    tested.request = MockClass(json=lambda: {"command": "theCommand", "prompt": "thePrompt", "active": True})
+    # all good
+    tested.request = MockClass(
+        headers={
+            "canvas-logged-in-user-id": "theUserId",
+            "canvas-logged-in-user-type": "Staff",
+        },
+        json=lambda: {"command": "theCommand", "prompt": "thePrompt", "active": True},
+    )
 
     customization.save_custom_prompt.side_effect = [MockClass(content=b"All good", status_code=200)]
     aws_s3_credentials.from_dictionary.side_effect = ["theAwsCredentials"]
@@ -128,6 +160,7 @@ def test_command_save(customization, aws_s3_credentials):
             "theAwsCredentials",
             "customerIdentifier",
             CustomPrompt(command="theCommand", prompt="thePrompt", active=True),
+            "theUserId",
         )
     ]
     assert customization.mock_calls == calls
@@ -140,4 +173,24 @@ def test_command_save(customization, aws_s3_credentials):
         )
     ]
     assert aws_s3_credentials.mock_calls == calls
+    reset_mocks()
+
+    # invalid user type
+    tested.request = MockClass(
+        headers={
+            "canvas-logged-in-user-id": "theUserId",
+            "canvas-logged-in-user-type": "Customer",
+        },
+        json=lambda: {"command": "theCommand", "prompt": "thePrompt", "active": True},
+    )
+
+    customization.save_custom_prompt.side_effect = []
+    aws_s3_credentials.from_dictionary.side_effect = []
+
+    result = tested.command_save()
+    expected = []
+    assert result == expected
+
+    assert customization.mock_calls == []
+    assert aws_s3_credentials.mock_calls == []
     reset_mocks()

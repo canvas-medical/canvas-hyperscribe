@@ -45,11 +45,11 @@ class CaptureView(SimpleAPI):
             self.request.query_params,
         )
 
-    def trigger_render(self, patient_id: str, note_id: str) -> Response:
+    def trigger_render(self, patient_id: str, note_id: str, user_id: str) -> Response:
         url = Authenticator.presigned_url(
             Settings.from_dictionary(self.secrets).api_signing_key,
             f"{Helper.canvas_host(self.environment[Constants.CUSTOMER_IDENTIFIER])}"
-            f"{Constants.PLUGIN_API_BASE_ROUTE}/render/{patient_id}/{note_id}",
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/render/{patient_id}/{note_id}/{user_id}",
             {},
         )
         return requests_post(
@@ -214,21 +214,23 @@ class CaptureView(SimpleAPI):
         match = re.search(r"chunk_(\d+)_", audio_form_part.filename)
         if match:
             StopAndGo.get(note_id).add_waiting_cycle(int(match.group(1))).save()
-            executor.submit(Helper.with_cleanup(self.trigger_render), patient_id, note_id)
+            user_id = self.request.headers.get("canvas-logged-in-user-id")
+            executor.submit(Helper.with_cleanup(self.trigger_render), patient_id, note_id, user_id)
 
         return [Response(b"Audio chunk saved OK", HTTPStatus.CREATED)]
 
-    @api.post("/render/<patient_id>/<note_id>")
+    @api.post("/render/<patient_id>/<note_id>/<user_id>")
     def render_effect_post(self) -> list[Response | Effect]:
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
+        user_id = self.request.path_params["user_id"]
 
         effects: list[Response | Effect] = []
         stop_and_go = StopAndGo.get(note_id)
         if paused := stop_and_go.paused_effects():
             effects.extend(paused)
             stop_and_go.reset_paused_effect().set_delay().save()
-            executor.submit(Helper.with_cleanup(self.trigger_render), patient_id, note_id)  # <-- loop!
+            executor.submit(Helper.with_cleanup(self.trigger_render), patient_id, note_id, user_id)  # <-- loop!
         elif not stop_and_go.is_running():
             stop_and_go.consume_delay()
             identification = IdentificationParameters(
@@ -242,6 +244,7 @@ class CaptureView(SimpleAPI):
                     Helper.with_cleanup(self.run_commander),
                     identification,
                     stop_and_go.cycle(),
+                    user_id,
                 )
             elif stop_and_go.is_ended():
                 executor.submit(
@@ -331,14 +334,18 @@ class CaptureView(SimpleAPI):
         ]
         ProgressDisplay.send_to_user(identification, settings, messages)
 
-    def run_commander(self, identification: IdentificationParameters, chunk_index: int) -> None:
+    def run_commander(self, identification: IdentificationParameters, chunk_index: int, user_id: str) -> None:
         # add the running flag
         StopAndGo.get(identification.note_uuid).set_cycle(chunk_index).set_running(True).save()
         try:
             aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
             settings = Settings.from_dictionary(
                 self.secrets
-                | Customization.custom_prompts_as_secret(aws_s3, self.environment[Constants.CUSTOMER_IDENTIFIER])
+                | Customization.custom_prompts_as_secret(
+                    aws_s3,
+                    self.environment[Constants.CUSTOMER_IDENTIFIER],
+                    user_id,
+                )
                 | {Constants.PROGRESS_SETTING_KEY: True}
             )
             audio_client = AudioClient.for_operation(
@@ -379,4 +386,4 @@ class CaptureView(SimpleAPI):
         finally:
             # remove the running flag
             StopAndGo.get(identification.note_uuid).set_running(False).save()
-            self.trigger_render(identification.patient_uuid, identification.note_uuid)
+            self.trigger_render(identification.patient_uuid, identification.note_uuid, user_id)
