@@ -9,6 +9,7 @@ from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.customization import Customization
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.custom_prompt import CustomPrompt
+from hyperscribe.structures.default_tab import DefaultTab
 
 
 class CustomizationDisplay(SimpleAPI):
@@ -21,25 +22,19 @@ class CustomizationDisplay(SimpleAPI):
             self.request.query_params,
         )
 
-    @api.get("/customization/commands")
-    def command_list(self) -> list[Response | Effect]:
+    @api.get("/customization/all")
+    def customizations(self) -> list[Response | Effect]:
         user_id = self.request.headers.get("canvas-logged-in-user-id")
         user_type = self.request.headers.get("canvas-logged-in-user-type")
         if user_type != Constants.USER_TYPE_STAFF:
             return []
-        return [
-            JSONResponse(
-                [
-                    item.to_json()
-                    for item in Customization.custom_prompts(
-                        AwsS3Credentials.from_dictionary(self.secrets),
-                        self.environment[Constants.CUSTOMER_IDENTIFIER],
-                        user_id,
-                    )
-                ],
-                status_code=HTTPStatus.OK,
-            )
-        ]
+
+        customizations = Customization.customizations(
+            AwsS3Credentials.from_dictionary(self.secrets),
+            self.environment[Constants.CUSTOMER_IDENTIFIER],
+            user_id,
+        )
+        return [JSONResponse(customizations.to_dict(), status_code=HTTPStatus.OK)]
 
     @api.post("/customization/command")
     def command_save(self) -> list[Response | Effect]:
@@ -51,8 +46,28 @@ class CustomizationDisplay(SimpleAPI):
         result = Customization.save_custom_prompt(
             AwsS3Credentials.from_dictionary(self.secrets),
             self.environment[Constants.CUSTOMER_IDENTIFIER],
-            CustomPrompt.load_from_json(content),
             user_id,
+            CustomPrompt.load_from_json(content),
+        )
+        return [
+            JSONResponse(
+                {"response": result.content.decode("utf-8") or str(result.status_code)},
+                status_code=HTTPStatus(result.status_code),
+            )
+        ]
+
+    @api.post("/customization/ui_default_tab")
+    def ui_default_tab_save(self) -> list[Response | Effect]:
+        user_id = self.request.headers.get("canvas-logged-in-user-id")
+        user_type = self.request.headers.get("canvas-logged-in-user-type")
+        if user_type != Constants.USER_TYPE_STAFF:
+            return []
+        content = self.request.json()
+        result = Customization.save_ui_default_tab(
+            AwsS3Credentials.from_dictionary(self.secrets),
+            self.environment[Constants.CUSTOMER_IDENTIFIER],
+            user_id,
+            DefaultTab(content["uiDefaultTab"]),
         )
         return [
             JSONResponse(

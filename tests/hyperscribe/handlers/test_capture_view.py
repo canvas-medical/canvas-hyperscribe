@@ -16,9 +16,11 @@ from hyperscribe.handlers.capture_view import CaptureView
 from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.structures.customization import Customization
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.custom_prompt import CustomPrompt
+from hyperscribe.structures.default_tab import DefaultTab
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
 from hyperscribe.structures.progress_message import ProgressMessage
@@ -159,19 +161,22 @@ def test_session_progress_log(progress):
     reset_mocks()
 
 
+@patch("hyperscribe.handlers.capture_view.Customization")
 @patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.render_to_string")
 @patch("hyperscribe.handlers.capture_view.Authenticator")
-def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
+def test_capture_get(authenticator, render_to_string, stop_and_go, helper, customization):
     def reset_mocks():
         authenticator.reset_mock()
         render_to_string.reset_mock()
         stop_and_go.reset_mock()
         helper.reset_mock()
+        customization.reset_mock()
 
     render_to_string.side_effect = ["<html/>"]
     helper.canvas_ws_host.side_effect = ["theWsHost"]
+    customization.customizations.side_effect = [Customization(ui_default_tab=DefaultTab.ACTIVITY, custom_prompts=[])]
     authenticator.presigned_url.side_effect = ["Url1"]
     authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7", "Url8"]
     stop_and_go.get.return_value.is_ended.side_effect = [False]
@@ -182,7 +187,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
     tested.request = SimpleNamespace(
         path_params={"patient_id": "the-00-patient", "note_id": "the-00-note", "note_reference": "4571"},
         query_params={},
-        headers={},
+        headers={"canvas-logged-in-user-id": "the-00-user"},
     )
 
     result = tested.capture_get()
@@ -237,6 +242,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
                 "isEnded": False,
                 "isPaused": False,
                 "chunkId": 6,
+                "uiDefaultTab": "activity",
             },
         ),
     ]
@@ -251,6 +257,14 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
     assert stop_and_go.mock_calls == calls
     calls = [call.canvas_ws_host("customerIdentifier")]
     assert helper.mock_calls == calls
+    calls = [
+        call.customizations(
+            AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketLogs"),
+            "customerIdentifier",
+            "the-00-user",
+        )
+    ]
+    assert customization.mock_calls == calls
     reset_mocks()
 
 

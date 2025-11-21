@@ -75,6 +75,7 @@ class CaptureView(SimpleAPI):
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
         note_reference = self.request.path_params["note_reference"]
+        user_id = self.request.headers.get("canvas-logged-in-user-id")
 
         progress_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
@@ -111,6 +112,12 @@ class CaptureView(SimpleAPI):
             f"{Constants.PLUGIN_WS_BASE_ROUTE}/{ProgressDisplay.websocket_channel(note_id)}/"
         )
 
+        customization = Customization.customizations(
+            AwsS3Credentials.from_dictionary(self.secrets),
+            self.environment[Constants.CUSTOMER_IDENTIFIER],
+            user_id,
+        )
+
         stop_and_go = StopAndGo.get(note_id)
         context = {
             "patientUuid": patient_id,
@@ -129,6 +136,7 @@ class CaptureView(SimpleAPI):
             "isEnded": stop_and_go.is_ended(),
             "isPaused": stop_and_go.is_paused(),
             "chunkId": stop_and_go.cycle() + (1 if stop_and_go.is_paused() else -1),
+            "uiDefaultTab": customization.ui_default_tab.value,
         }
 
         return [

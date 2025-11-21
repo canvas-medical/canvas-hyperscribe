@@ -35,7 +35,7 @@ def test_on_open(authenticator, launch_modal_effect, render_to_string):
 
     tested = helper_instance()
 
-    authenticator.presigned_url_no_params.side_effect = ["url1", "url2"]
+    authenticator.presigned_url_no_params.side_effect = ["url1", "url2", "url3"]
     launch_modal_effect.return_value.apply.side_effect = ["theLaunchModalEffect"]
     launch_modal_effect.TargetType.RIGHT_CHART_PANE = "RIGHT_CHART_PANE"
     render_to_string.side_effect = ["theRenderedString"]
@@ -45,12 +45,25 @@ def test_on_open(authenticator, launch_modal_effect, render_to_string):
     assert result == expected
 
     calls = [
-        call.presigned_url_no_params("theAPISigningKey", "/plugin-io/api/hyperscribe/customization/commands"),
+        call.presigned_url_no_params("theAPISigningKey", "/plugin-io/api/hyperscribe/customization/all"),
         call.presigned_url_no_params("theAPISigningKey", "/plugin-io/api/hyperscribe/customization/command"),
+        call.presigned_url_no_params("theAPISigningKey", "/plugin-io/api/hyperscribe/customization/ui_default_tab"),
     ]
     assert authenticator.mock_calls == calls
-    calls = [call(content="theRenderedString", target="RIGHT_CHART_PANE"), call().apply()]
+    calls = [
+        call(content="theRenderedString", target="RIGHT_CHART_PANE"),
+        call().apply(),
+    ]
     assert launch_modal_effect.mock_calls == calls
-    calls = [call("templates/customization.html", {"listCommands": "url1", "saveCommandPromptURL": "url2"})]
+    calls = [
+        call(
+            "templates/customization.html",
+            {
+                "allCustomizationsURL": "url1",
+                "saveCommandPromptURL": "url2",
+                "saveUIDefaultTabURL": "url3",
+            },
+        )
+    ]
     assert render_to_string.mock_calls == calls
     reset_mocks()

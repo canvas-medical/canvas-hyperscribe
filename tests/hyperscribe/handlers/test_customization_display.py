@@ -9,6 +9,8 @@ from hyperscribe.handlers.customization_display import CustomizationDisplay
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.custom_prompt import CustomPrompt
+from hyperscribe.structures.customization import Customization as UserOptions
+from hyperscribe.structures.default_tab import DefaultTab
 from tests.helper import MockClass
 
 # Disable automatic route resolution
@@ -61,7 +63,7 @@ def test_authenticate(check):
 
 @patch("hyperscribe.handlers.customization_display.AwsS3Credentials")
 @patch("hyperscribe.handlers.customization_display.Customization")
-def test_command_list(customization, aws_s3_credentials):
+def test_customizations(customization, aws_s3_credentials):
     def reset_mocks():
         customization.reset_mock()
         aws_s3_credentials.reset_mock()
@@ -74,31 +76,37 @@ def test_command_list(customization, aws_s3_credentials):
             "canvas-logged-in-user-type": "Staff",
         },
     )
-    customization.custom_prompts.side_effect = [
-        [
-            CustomPrompt(command="Command1", prompt="Prompt1", active=True),
-            CustomPrompt(command="Command2", prompt="Prompt2", active=True),
-            CustomPrompt(command="Command3", prompt="Prompt3", active=False),
-            CustomPrompt(command="Command4", prompt="", active=True),
-        ]
+    customization.customizations.side_effect = [
+        UserOptions(
+            custom_prompts=[
+                CustomPrompt(command="Command1", prompt="Prompt1", active=True),
+                CustomPrompt(command="Command2", prompt="Prompt2", active=True),
+                CustomPrompt(command="Command3", prompt="Prompt3", active=False),
+                CustomPrompt(command="Command4", prompt="", active=True),
+            ],
+            ui_default_tab=DefaultTab.TRANSCRIPT,
+        )
     ]
     aws_s3_credentials.from_dictionary.side_effect = ["theAwsCredentials"]
 
-    result = tested.command_list()
+    result = tested.customizations()
     expected = [
         JSONResponse(
-            content=[
-                {"command": "Command1", "prompt": "Prompt1", "active": True},
-                {"command": "Command2", "prompt": "Prompt2", "active": True},
-                {"command": "Command3", "prompt": "Prompt3", "active": False},
-                {"command": "Command4", "prompt": "", "active": True},
-            ],
+            content={
+                "customPrompts": [
+                    {"command": "Command1", "prompt": "Prompt1", "active": True},
+                    {"command": "Command2", "prompt": "Prompt2", "active": True},
+                    {"command": "Command3", "prompt": "Prompt3", "active": False},
+                    {"command": "Command4", "prompt": "", "active": True},
+                ],
+                "uiDefaultTab": "transcript",
+            },
             status_code=HTTPStatus(200),
         )
     ]
     assert result == expected
 
-    calls = [call.custom_prompts("theAwsCredentials", "customerIdentifier", "theUserId")]
+    calls = [call.customizations("theAwsCredentials", "customerIdentifier", "theUserId")]
     assert customization.mock_calls == calls
     calls = [
         call.from_dictionary(
@@ -119,10 +127,10 @@ def test_command_list(customization, aws_s3_credentials):
         },
     )
 
-    customization.custom_prompts.side_effect = []
+    customization.customizations.side_effect = []
     aws_s3_credentials.from_dictionary.side_effect = []
 
-    result = tested.command_list()
+    result = tested.customizations()
     expected = []
     assert result == expected
 
@@ -159,8 +167,8 @@ def test_command_save(customization, aws_s3_credentials):
         call.save_custom_prompt(
             "theAwsCredentials",
             "customerIdentifier",
-            CustomPrompt(command="theCommand", prompt="thePrompt", active=True),
             "theUserId",
+            CustomPrompt(command="theCommand", prompt="thePrompt", active=True),
         )
     ]
     assert customization.mock_calls == calls
@@ -188,6 +196,71 @@ def test_command_save(customization, aws_s3_credentials):
     aws_s3_credentials.from_dictionary.side_effect = []
 
     result = tested.command_save()
+    expected = []
+    assert result == expected
+
+    assert customization.mock_calls == []
+    assert aws_s3_credentials.mock_calls == []
+    reset_mocks()
+
+
+@patch("hyperscribe.handlers.customization_display.AwsS3Credentials")
+@patch("hyperscribe.handlers.customization_display.Customization")
+def test_ui_default_tab_save(customization, aws_s3_credentials):
+    def reset_mocks():
+        customization.reset_mock()
+        aws_s3_credentials.reset_mock()
+
+    tested = helper_instance()
+    # all good
+    tested.request = MockClass(
+        headers={
+            "canvas-logged-in-user-id": "theUserId",
+            "canvas-logged-in-user-type": "Staff",
+        },
+        json=lambda: {"uiDefaultTab": "feedback"},
+    )
+
+    customization.save_ui_default_tab.side_effect = [MockClass(content=b"All good", status_code=200)]
+    aws_s3_credentials.from_dictionary.side_effect = ["theAwsCredentials"]
+
+    result = tested.ui_default_tab_save()
+    expected = [JSONResponse(content={"response": "All good"}, status_code=HTTPStatus(200))]
+    assert result == expected
+
+    calls = [
+        call.save_ui_default_tab(
+            "theAwsCredentials",
+            "customerIdentifier",
+            "theUserId",
+            DefaultTab.FEEDBACK,
+        )
+    ]
+    assert customization.mock_calls == calls
+    calls = [
+        call.from_dictionary(
+            {
+                "key": "value",
+                "APISigningKey": "theAPISigningKey",
+            }
+        )
+    ]
+    assert aws_s3_credentials.mock_calls == calls
+    reset_mocks()
+
+    # invalid user type
+    tested.request = MockClass(
+        headers={
+            "canvas-logged-in-user-id": "theUserId",
+            "canvas-logged-in-user-type": "Customer",
+        },
+        json=lambda: {"command": "theCommand", "prompt": "thePrompt", "active": True},
+    )
+
+    customization.save_ui_default_tab.side_effect = []
+    aws_s3_credentials.from_dictionary.side_effect = []
+
+    result = tested.ui_default_tab_save()
     expected = []
     assert result == expected
 

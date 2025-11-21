@@ -12,13 +12,17 @@ class CustomizationApp(Application):
         content = render_to_string(
             "templates/customization.html",
             {
-                "listCommands": Authenticator.presigned_url_no_params(
+                "allCustomizationsURL": Authenticator.presigned_url_no_params(
                     self.secrets[Constants.SECRET_API_SIGNING_KEY],
-                    f"{Constants.PLUGIN_API_BASE_ROUTE}/customization/commands",
+                    f"{Constants.PLUGIN_API_BASE_ROUTE}/customization/all",
                 ),
                 "saveCommandPromptURL": Authenticator.presigned_url_no_params(
                     self.secrets[Constants.SECRET_API_SIGNING_KEY],
                     f"{Constants.PLUGIN_API_BASE_ROUTE}/customization/command",
+                ),
+                "saveUIDefaultTabURL": Authenticator.presigned_url_no_params(
+                    self.secrets[Constants.SECRET_API_SIGNING_KEY],
+                    f"{Constants.PLUGIN_API_BASE_ROUTE}/customization/ui_default_tab",
                 ),
             },
         )

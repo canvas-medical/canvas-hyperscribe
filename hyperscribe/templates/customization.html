@@ -6,30 +6,32 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 2em;
+      margin: 1em;
       background-color: #f5f5f5;
       font-size: 14px;
     }
     h4 {
       color: #333;
       font-size: 18px;
+      margin-top: 0.5em;
+      margin-bottom: 0.5em;
     }
-    #editor-container {
+    #editor-container, #default-tab-container {
       background-color: white;
       border: 1px solid #ddd;
       border-radius: 8px;
-      padding: 1.5em;
-      margin-top: 2em;
+      padding: 1em;
+      margin-top: 1em;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .form-group {
-      margin-bottom: 1.5em;
+      margin-bottom: 0.75em;
     }
     label {
       display: block;
       font-weight: bold;
       color: #2c3e50;
-      margin-bottom: 0.5em;
+      margin-bottom: 0.3em;
       font-size: 14px;
     }
     .checkbox-label {
@@ -39,7 +41,7 @@
       margin: 0;
     }
     .checkbox-label input[type="checkbox"] {
-      margin-right: 0.5em;
+      margin-right: 0.3em;
       width: 16px;
       height: 16px;
     }
@@ -47,11 +49,11 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 1em;
+      margin-top: 0.5em;
     }
-    #command-select {
+    #command-select, #default-tab-select {
       width: 100%;
-      padding: 8px;
+      padding: 6px;
       font-size: 14px;
       border: 1px solid #ccc;
       border-radius: 4px;
@@ -60,8 +62,8 @@
     }
     #prompt-textarea {
       width: 100%;
-      min-height: 200px;
-      padding: 8px;
+      min-height: 150px;
+      padding: 6px;
       font-family: monospace;
       font-size: 13px;
       border: 1px solid #ccc;
@@ -69,8 +71,8 @@
       resize: vertical;
       box-sizing: border-box;
     }
-    #save-button {
-      padding: 8px 16px;
+    #save-button, #save-default-tab-button {
+      padding: 6px 12px;
       background-color: #3498db;
       color: white;
       border: none;
@@ -79,16 +81,16 @@
       font-size: 14px;
       transition: background-color 0.3s;
     }
-    #save-button:hover {
+    #save-button:hover, #save-default-tab-button:hover {
       background-color: #2980b9;
     }
-    #save-button:disabled {
+    #save-button:disabled, #save-default-tab-button:disabled {
       background-color: #95a5a6;
       cursor: not-allowed;
     }
     .message {
-      margin-top: 1em;
-      padding: 8px;
+      margin-top: 0.5em;
+      padding: 6px;
       border-radius: 4px;
       font-size: 13px;
     }
@@ -106,7 +108,7 @@
       text-align: center;
       font-size: 16px;
       color: #666;
-      margin-top: 2em;
+      margin-top: 1em;
     }
   </style>
 </head>
@@ -132,8 +134,26 @@
     <div id="message"></div>
   </div>
 
+  <div id="default-tab-container" style="display: none;">
+    <div class="form-group">
+      <label for="default-tab-select">Select Default Panel Tab:</label>
+      <select id="default-tab-select">
+        <option value="activity">Activity</option>
+        <option value="feedback">Feedback</option>
+        <option value="logs">Logs</option>
+        <option value="transcript">Transcript</option>
+      </select>
+    </div>
+    <div class="button-row">
+      <div></div>
+      <button id="save-default-tab-button">Save</button>
+    </div>
+    <div id="default-tab-message"></div>
+  </div>
+
   <script>
     let commandsData = {};
+    let uiDefaultTab = '';
 
     async function loadCommands() {
       const loadingDiv = document.getElementById('loading');
@@ -141,12 +161,14 @@
       const commandSelect = document.getElementById('command-select');
 
       try {
-        const response = await fetch('{{listCommands | safe}}');
+        const response = await fetch('{{allCustomizationsURL | safe}}');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const commandList = await response.json();
+        const data = await response.json();
+        const commandList = data.customPrompts || [];
+        uiDefaultTab = data.uiDefaultTab || 'activity';
 
         // Convert array to object with command names as keys
         commandsData = {};
@@ -159,6 +181,8 @@
 
         loadingDiv.style.display = 'none';
         editorContainer.style.display = 'block';
+        document.getElementById('default-tab-container').style.display = 'block';
+        document.getElementById('default-tab-select').value = uiDefaultTab;
 
         // Populate the dropdown with commands
         for (const commandName of Object.keys(commandsData)) {
@@ -241,6 +265,48 @@
       }
     }
 
+    async function saveDefaultTab() {
+      const defaultTabSelect = document.getElementById('default-tab-select');
+      const saveButton = document.getElementById('save-default-tab-button');
+      const messageDiv = document.getElementById('default-tab-message');
+
+      const selectedTab = defaultTabSelect.value;
+
+      // Clear previous message
+      messageDiv.innerHTML = '';
+      saveButton.disabled = true;
+      saveButton.textContent = 'Saving...';
+
+      try {
+        const response = await fetch('{{saveUIDefaultTabURL | safe}}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            uiDefaultTab: selectedTab
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Update local data
+        uiDefaultTab = selectedTab;
+
+        messageDiv.innerHTML = '<div class="message success-message">Saved successfully!</div>';
+        setTimeout(() => {
+          messageDiv.innerHTML = '';
+        }, 3000);
+      } catch (error) {
+        messageDiv.innerHTML = `<div class="message error-message">Error saving: ${error.message}</div>`;
+      } finally {
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save';
+      }
+    }
+
     // Load commands when the page loads
     document.addEventListener('DOMContentLoaded', () => {
       loadCommands();
@@ -248,6 +314,7 @@
       // Add event listeners
       document.getElementById('command-select').addEventListener('change', updateTextarea);
       document.getElementById('save-button').addEventListener('click', saveCommand);
+      document.getElementById('save-default-tab-button').addEventListener('click', saveDefaultTab);
     });
   </script>
 </body>
