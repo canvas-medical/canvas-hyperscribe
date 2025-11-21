@@ -2,7 +2,7 @@ import re
 from multiprocessing import Queue
 from os import environ
 from pathlib import Path
-from shutil import copytree
+from shutil import copytree, ignore_patterns
 from subprocess import Popen, PIPE, STDOUT
 from tempfile import TemporaryDirectory
 from typing import Optional
@@ -125,7 +125,7 @@ class CaseRunnerWorker:
 
         with TemporaryDirectory() as temp_dir:
             clone_repository: Path = Path(temp_dir) / "clone"
-            copytree(job.cwd_path, clone_repository)
+            copytree(job.cwd_path, clone_repository, ignore=ignore_patterns(".venv"))
             self._update_chat_model_constants(clone_repository, job.models)
 
             env = self._build_environment(job)

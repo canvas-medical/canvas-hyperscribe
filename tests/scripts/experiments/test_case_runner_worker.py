@@ -177,6 +177,7 @@ def test__build_command_case_runner():
     assert result == expected
 
 
+@patch("scripts.experiments.case_runner_worker.ignore_patterns")
 @patch("scripts.experiments.case_runner_worker.copytree")
 @patch("scripts.experiments.case_runner_worker.TemporaryDirectory")
 @patch("scripts.experiments.case_runner_worker.Popen")
@@ -196,6 +197,7 @@ def test__process_case_runner_job(
     popen,
     temporary_directory,
     copytree,
+    ignore_patterns,
     capsys,
 ):
     job = ExperimentJob(
@@ -228,6 +230,7 @@ def test__process_case_runner_job(
         popen.reset_mock()
         temporary_directory.reset_mock()
         copytree.reset_mock()
+        ignore_patterns.reset_mock()
         process.reset_mock()
         note_grader_queue.reset_mock()
 
@@ -347,7 +350,7 @@ def test__process_case_runner_job(
         rubric_store.return_value.get_last_accepted.side_effect = [rubric_ids]
         popen.side_effect = [process]
         temporary_directory.return_value.__enter__.return_value = "/tmp/test_dir"
-
+        ignore_patterns.side_effect = ["ignoring"]
         tested = CaseRunnerWorker(Queue(), note_grader_queue, version, tags)
         tested._process_case_runner_job(job)
 
@@ -422,8 +425,17 @@ def test__process_case_runner_job(
             ]
         assert temporary_directory.mock_calls == calls
         if exp_calls:
-            calls = [call(Path("/tmp/test_repo"), Path("/tmp/test_dir/clone"))]
+            calls = [
+                call(
+                    Path("/tmp/test_repo"),
+                    Path("/tmp/test_dir/clone"),
+                    ignore="ignoring",
+                )
+            ]
         assert copytree.mock_calls == calls
+        if exp_calls:
+            calls = [call(".venv")]
+        assert ignore_patterns.mock_calls == calls
         if exp_calls:
             calls = [call.wait()]
         assert process.mock_calls == calls
