@@ -30,53 +30,11 @@
             gap: 15px;
         }
 
-        .toggle-button {
-            width: 80px;
-            height: 80px;
-            font-size: 18px;
-            font-weight: bold;
-            color: white;
-            background-color: black;
-            border: 5px solid transparent; /* Ensure space for border */
-            border-radius: 50%; /* Makes it perfectly circular */
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .toggle-button.active {
-            border-color: red;
-        }
-
-        .toggle-button.paused {
-            background-color: #666;
-        }
-
-        .toggle-button.medium {
+        .control-button {
             width: 72px;
             height: 72px;
-            font-size: 16px;
-        }
-
-        .toggle-button.small {
-            width: 64px;
-            height: 64px;
-            font-size: 14px;
-        }
-
-        .toggle-button:disabled {
-            cursor: not-allowed;
-        }
-
-        .pause-button {
-            width: 64px;
-            height: 64px;
-            font-size: 14px;
-            font-weight: bold;
-            color: white;
-            background-color: #666;
+            color: #b0c7ff;
+            background-color: #000000;
             border: 5px solid transparent;
             border-radius: 50%;
             cursor: pointer;
@@ -86,30 +44,23 @@
             justify-content: center;
         }
 
-        .pause-button:disabled {
-            background-color: #ccc;
-            color: #888;
+        .control-button .material-icons {
+            font-size: 32px;
+        }
+
+        .control-button:disabled {
+            background-color: #333;
+            color: #555;
             cursor: not-allowed;
         }
 
-        .pause-button:not(:disabled) {
-            background-color: #333;
+        .control-button:not(:disabled):hover {
+            background-color: #1a1a1a;
+            color: #c5d7ff;
         }
 
-        .pause-button.large {
-            width: 80px;
-            height: 80px;
-            font-size: 18px;
-        }
-
-        .pause-button.resume {
-            border-color: green;
-        }
-
-        .pause-button.small {
-            width: 64px;
-            height: 64px;
-            font-size: 14px;
+        .start-button.recording {
+            /* border-color: red; */ /* Removed - using audio-responsive shadow instead */
         }
 
         .debug-message {
@@ -117,6 +68,63 @@
             margin-bottom: 10px;
             color: darkgreen;
             font-family: "Helvetica", "Arial", "sans-serif";
+        }
+
+        /* Status bar styles */
+        .status-bar {
+            margin-top: 15px;
+            padding: 8px 16px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 20px;
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            text-align: center;
+            display: inline-block;
+        }
+
+        .status-bar .dots {
+            display: inline-block;
+            margin-left: 2px;
+        }
+
+        .status-bar .dots span {
+            animation: dot-blink 1.8s infinite;
+            opacity: 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .status-bar .dots span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .status-bar .dots span:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+
+        .status-bar .dots span:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+
+        .status-bar.completed .dots {
+            display: none;
+        }
+
+        @keyframes dot-blink {
+            0%, 20% {
+                opacity: 0;
+                transform: scale(1);
+            }
+            30%, 60% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+            80%, 100% {
+                opacity: 0;
+                transform: scale(1);
+            }
         }
 
         /* Tab styles */
@@ -391,20 +399,28 @@
         </div>
         <div class="button-container">
             <button
-                class="toggle-button"
-                id="captureButton"
+                class="control-button start-button"
+                id="startButton"
                 data-interval="{{interval}}">
-                Start
+                <i class="material-icons">play_arrow</i>
             </button>
             <button
-                class="pause-button"
+                class="control-button pause-button"
                 id="pauseButton"
-                disabled
-                onclick="togglePause()">
-                Pause
+                disabled>
+                <i class="material-icons">pause</i>
+            </button>
+            <button
+                class="control-button stop-button"
+                id="stopButton"
+                disabled>
+                <i class="material-icons">stop</i>
             </button>
         </div>
 
+        <div class="status-bar" id="statusBar" style="display: none;">
+            <span id="statusText">transcribing</span><span class="dots"><span>.</span><span>.</span><span>.</span></span>
+        </div>
 
         <div id="debugMessage" class="debug-message"></div>
 
@@ -509,7 +525,47 @@
                 pendingTurns: [],
                 processingTurns: false
             },
-            activeTab: '{{uiDefaultTab}}'
+            activeTab: '{{uiDefaultTab}}',
+            status: {
+                current: 'idle' // idle, transcribing, generating, completed
+            }
+        };
+
+        // Status bar helper functions
+        const statusManager = {
+            show(text, showDots = true) {
+                const statusBar = document.getElementById('statusBar');
+                const statusText = document.getElementById('statusText');
+
+                statusText.textContent = text;
+                statusBar.style.display = 'inline-block';
+
+                if (showDots) {
+                    statusBar.classList.remove('completed');
+                } else {
+                    statusBar.classList.add('completed');
+                }
+            },
+
+            hide() {
+                const statusBar = document.getElementById('statusBar');
+                statusBar.style.display = 'none';
+            },
+
+            setTranscribing() {
+                appState.status.current = 'transcribing';
+                this.show('Transcribing', true);
+            },
+
+            setGenerating() {
+                appState.status.current = 'generating';
+                this.show('Generating commands', true);
+            },
+
+            setCompleted() {
+                appState.status.current = 'completed';
+                this.show('Complete and ready for review', false);
+            }
         };
 
         // Audio Recording Class
@@ -519,6 +575,10 @@
                 this.noteId = noteId;
                 this.interval = interval;
                 this.stream = null;
+                this.audioContext = null;
+                this.analyser = null;
+                this.dataArray = null;
+                this.animationId = null;
             }
 
             async setup() {
@@ -530,7 +590,85 @@
 
                 const recorder = new MediaRecorder(this.stream, { mimeType: CONSTANTS.AUDIO.MIME_TYPE });
                 recorder.ondataavailable = this.handleDataAvailable.bind(this);
+
+                // Setup audio analysis for visualization
+                this.setupAudioAnalysis();
+
                 return recorder;
+            }
+
+            setupAudioAnalysis() {
+                // Create audio context and analyser
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.analyser = this.audioContext.createAnalyser();
+
+                // Configure analyser for efficient performance
+                this.analyser.fftSize = 256; // Small FFT size for better performance
+                this.analyser.smoothingTimeConstant = 0.5; // More responsive to changes
+
+                // Connect the stream to the analyser
+                const source = this.audioContext.createMediaStreamSource(this.stream);
+                source.connect(this.analyser);
+
+                // Create data array for frequency data
+                const bufferLength = this.analyser.frequencyBinCount;
+                this.dataArray = new Uint8Array(bufferLength);
+            }
+
+            getAudioLevel() {
+                if (!this.analyser || !this.dataArray) return 0;
+
+                // Get frequency data
+                this.analyser.getByteFrequencyData(this.dataArray);
+
+                // Calculate average volume
+                let sum = 0;
+                for (let i = 0; i < this.dataArray.length; i++) {
+                    sum += this.dataArray[i];
+                }
+                const average = sum / this.dataArray.length;
+
+                // Normalize to 0-1 range (0-255 -> 0-1)
+                return average / 255;
+            }
+
+            startVisualization() {
+                const button = document.getElementById('startButton');
+
+                const animate = () => {
+                    let level = this.getAudioLevel();
+
+                    // Apply sensitivity curve - square root makes small changes more noticeable
+                    // Also amplify by 1.5x to make it more responsive
+                    level = Math.sqrt(level) * 1.5;
+                    level = Math.min(level, 1); // Cap at 1
+
+                    // Map audio level to shadow spread (0px base + up to 16px based on volume)
+                    // Higher volume = larger outward glow
+                    const minSpread = 0;
+                    const maxSpread = 16;
+                    const shadowSpread = minSpread + (level * (maxSpread - minSpread));
+
+                    // Apply box-shadow without blur for sharp edge
+                    button.style.boxShadow = `0 0 0 ${shadowSpread}px rgba(255, 0, 0, 0.8)`;
+
+                    // Continue animation loop
+                    this.animationId = requestAnimationFrame(animate);
+                };
+
+                // Start the animation loop
+                animate();
+            }
+
+            stopVisualization() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+
+                // Reset button shadow to none
+                const button = document.getElementById('startButton');
+                button.style.boxShadow = 'none';
             }
 
             handleDataAvailable(event) {
@@ -543,6 +681,9 @@
 
                     fetch('{{saveAudioURL | safe}}', {
                         method: "POST",
+                        headers: {
+                            'canvas-logged-in-user-id': '{{userUuid}}'
+                        },
                         body: formData,
                     })
                     .then(response => response.text())
@@ -557,10 +698,16 @@
                     appState.recording.intervalId = setInterval(() => {
                         appState.recording.recorder.requestData();
                     }, 1000 * this.interval);
+
+                    // Start the audio-responsive visualization
+                    this.startVisualization();
                 }
             }
 
             stop() {
+                // Stop the visualization
+                this.stopVisualization();
+
                 if (appState.recording.recorder) {
                     appState.recording.recorder.stop();
                     if (appState.recording.intervalId) {
@@ -574,6 +721,14 @@
                     this.stream.getTracks().forEach(track => track.stop());
                     this.stream = null;
                 }
+
+                // Clean up audio context
+                if (this.audioContext) {
+                    this.audioContext.close();
+                    this.audioContext = null;
+                }
+                this.analyser = null;
+                this.dataArray = null;
             }
         }
 
@@ -662,37 +817,39 @@
                 appState.activeTab = tabName;
             },
 
-            updateButton(buttonId, text, classes = [], disabled = false) {
-                const btn = document.getElementById(buttonId);
-                btn.textContent = text;
-                btn.disabled = disabled || appState.recording.ended;
-                btn.className = buttonId === 'captureButton' ? 'toggle-button' : 'pause-button';
-                classes.forEach(cls => btn.classList.add(cls));
-            },
-
             setButtonState(state) {
-                const states = {
-                    inactive: {
-                        capture: { text: "Start", classes: [], disabled: false },
-                        pause: { text: "Pause", classes: [], disabled: true }
-                    },
-                    active: {
-                        capture: { text: "Stop", classes: ["active", "medium"], disabled: false },
-                        pause: { text: "Pause", classes: ["small"], disabled: false }
-                    },
-                    paused: {
-                        capture: { text: "Stop", classes: ["small", "paused", "active"], disabled: true },
-                        pause: { text: "Resume", classes: ["large", "resume"], disabled: false }
-                    },
-                    ended: {
-                        capture: { text: "Start", classes: [], disabled: true },
-                        pause: { text: "Pause", classes: [], disabled: true }
-                    }
-                };
-                
-                const config = states[state];
-                this.updateButton('captureButton', config.capture.text, config.capture.classes, config.capture.disabled);
-                this.updateButton('pauseButton', config.pause.text, config.pause.classes, config.pause.disabled);
+                const startBtn = document.getElementById('startButton');
+                const pauseBtn = document.getElementById('pauseButton');
+                const stopBtn = document.getElementById('stopButton');
+
+                // Reset all button classes
+                startBtn.className = 'control-button start-button';
+                pauseBtn.className = 'control-button pause-button';
+                stopBtn.className = 'control-button stop-button';
+
+                // Update button states based on recording state
+                if (state === 'inactive') {
+                    // Before recording starts
+                    startBtn.disabled = false;
+                    pauseBtn.disabled = true;
+                    stopBtn.disabled = true;
+                } else if (state === 'active') {
+                    // Recording in progress
+                    startBtn.disabled = true;
+                    startBtn.classList.add('recording'); // Adds red border for pulse effect
+                    pauseBtn.disabled = false;
+                    stopBtn.disabled = false;
+                } else if (state === 'paused') {
+                    // Recording paused - can resume or stop
+                    startBtn.disabled = false;
+                    pauseBtn.disabled = true;
+                    stopBtn.disabled = false;
+                } else if (state === 'ended') {
+                    // Recording ended
+                    startBtn.disabled = true;
+                    pauseBtn.disabled = true;
+                    stopBtn.disabled = true;
+                }
             },
 
             createTableRow(cellContents) {
@@ -818,7 +975,7 @@
                 ui.setButtonState('active');
 
                 // Re-initialize AudioRecorder (needed because MediaStream was stopped during pause)
-                const recordingInterval = parseInt(document.getElementById("captureButton").dataset.interval);
+                const recordingInterval = parseInt(document.getElementById("startButton").dataset.interval);
                 audioRecorder = new AudioRecorder('{{patientUuid}}', '{{noteUuid}}', recordingInterval);
 
                 try {
@@ -829,10 +986,11 @@
                     console.error("Error resuming recording:", error);
                     return;
                 }
-                
-                // Start progress and render fetches if not already running
+
+                // Force restart progress connection (in case WebSocket disconnected during pause)
+                appState.progress.started = false;
                 startProgressAndRenderFetches();
-                
+
                 // Fetch resume session URL
                 fetch('{{resumeSessionURL | safe}}', {method: "POST"})
                 .then(response => response.text())
@@ -843,59 +1001,86 @@
 
         let audioRecorder = null;
 
-        const button = document.getElementById("captureButton");
-        button.addEventListener("click", async () => {
-            if (!appState.recording.active) {
-                // Start recording
-                appState.recording.active = true;
-                appState.recording.paused = false;
-                ui.setButtonState('active');
-
-                resetTable();
-                resetTranscriptTable();
-                startProgressAndRenderFetches();
-                
-                // Initialize AudioRecorder
-                const recordingInterval = parseInt(document.getElementById("captureButton").dataset.interval);
-                audioRecorder = new AudioRecorder('{{patientUuid}}', '{{noteUuid}}', recordingInterval);
-                
-                try {
-                    appState.recording.recorder = await audioRecorder.setup();
-                    
-                    // Start new session
-                    fetch('{{newSessionURL | safe}}', {method: "POST"})
-                    .then(response => response.text())
-                    .then(result => {
-                        console.log(result);
-                        audioRecorder.start();
-                        console.log("Recording started");
-                    })
-                    .catch(error => console.error('Error creating session:', error));
-                } catch (error) {
-                    console.error("Error setting up recording:", error);
-                }
-            } else {
-                // Stop recording
-                appState.recording.active = false;
-                appState.recording.paused = false;
-                appState.recording.ended = true;
-                ui.setButtonState('ended');
-
-                if (audioRecorder) {
-                    audioRecorder.stop();
-                }
-
-                // Fetch end session URL
-                fetch('{{endSessionURL | safe}}', {method: "POST"})
-                .then(response => response.text())
-                .then(result => console.log(result))
-                .catch(error => console.error('Error ending session:', error));
+        // Start button event handler
+        const startButton = document.getElementById("startButton");
+        startButton.addEventListener("click", async () => {
+            // If paused, resume recording instead of starting new
+            if (appState.recording.paused) {
+                await togglePause();
+                return;
             }
+
+            // Start recording
+            appState.recording.active = true;
+            appState.recording.paused = false;
+            ui.setButtonState('active');
+            statusManager.setTranscribing();
+
+            resetTable();
+            resetTranscriptTable();
+            startProgressAndRenderFetches();
+
+            // Initialize AudioRecorder
+            const recordingInterval = parseInt(document.getElementById("startButton").dataset.interval);
+            audioRecorder = new AudioRecorder('{{patientUuid}}', '{{noteUuid}}', recordingInterval);
+
+            try {
+                appState.recording.recorder = await audioRecorder.setup();
+
+                // Start new session
+                fetch('{{newSessionURL | safe}}', {method: "POST"})
+                .then(response => response.text())
+                .then(result => {
+                    console.log(result);
+                    audioRecorder.start();
+                    console.log("Recording started");
+                })
+                .catch(error => console.error('Error creating session:', error));
+            } catch (error) {
+                console.error("Error setting up recording:", error);
+            }
+        });
+
+        // Stop button event handler
+        const stopButton = document.getElementById("stopButton");
+        stopButton.addEventListener("click", async () => {
+            // Stop recording
+            appState.recording.active = false;
+            appState.recording.paused = false;
+            appState.recording.ended = true;
+            ui.setButtonState('ended');
+
+            if (audioRecorder) {
+                // Request final data before stopping to ensure we capture the last complete chunk
+                if (appState.recording.recorder && appState.recording.recorder.state === 'recording') {
+                    appState.recording.recorder.requestData();
+                    // Small delay to allow final chunk to be uploaded before stopping
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                audioRecorder.stop();
+            }
+
+            // Fetch end session URL
+            fetch('{{endSessionURL | safe}}', {
+                method: "POST",
+                headers: {
+                    'canvas-logged-in-user-id': '{{userUuid}}'
+                }
+            })
+            .then(response => response.text())
+            .then(result => console.log(result))
+            .catch(error => console.error('Error ending session:', error));
+        });
+
+        // Pause button event handler
+        const pauseButton = document.getElementById("pauseButton");
+        pauseButton.addEventListener("click", async () => {
+            await togglePause();
         });
 
         function resetTranscriptTable() {
             const tbody = document.getElementById('transcript-table-body');
-            tbody.innerHTML = '<tr><td>waiting...</td></tr>';
+            tbody.innerHTML = '';
             const legend = document.getElementById('transcript-legend');
             legend.style.display = 'none';
             document.getElementById('legend-content').innerHTML = '';
@@ -914,6 +1099,9 @@
                 appState.recording.active = false;
                 appState.recording.paused = false;
                 ui.setButtonState('ended');
+                // Load transcript data for ended session
+                startProgressAndRenderFetches();
+                statusManager.setCompleted();
             } else if (appState.recording.paused) {
                 // Initialize as paused state
                 appState.recording.active = true;
@@ -1096,23 +1284,31 @@
                 const durationLogs = document.getElementById('duration-logs');
                 duration.textContent = '';
                 durationLogs.textContent = '';
+                statusManager.setCompleted();
                 return;
             }
-            
+
             // Get or set starting time for duration calculation
             const duration = document.getElementById('duration');
             const messageTime = new Date(message.time);
-            
+
             if (!duration.hasOwnProperty('startingTime')) {
                 duration.startingTime = messageTime;
                 const durationLogs = document.getElementById('duration-logs');
                 durationLogs.startingTime = messageTime;
             }
-            
+
             // Calculate elapsed time
             const elapsedSeconds = Math.floor((messageTime - duration.startingTime) / 1000);
             const timeText = elapsedSeconds > 0 ? `${elapsedSeconds}s` : duration.startingTime.toLocaleTimeString();
-            
+
+            // Update status based on message content
+            const msgLower = message.message.toLowerCase();
+            if (appState.status.current === 'transcribing' &&
+                (msgLower.includes('command') || msgLower.includes('instruction') || msgLower.includes('detect'))) {
+                statusManager.setGenerating();
+            }
+
             // Route message to appropriate tab
             eventRouter.routeEvent(message.section, message.message, timeText);
         }
