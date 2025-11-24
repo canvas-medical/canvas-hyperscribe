@@ -123,6 +123,16 @@ class Commander(BaseProtocol):
         response = chatter.combine_and_speaker_detection(audio_bytes, previous_transcript)
         if response.has_error is True:
             memory_log.output(f"--> transcript encountered: {response.error}")
+
+            # Send user-visible message about audio quality issue
+            messages = [
+                ProgressMessage(
+                    message="Audio quality issue detected",
+                    section=Constants.PROGRESS_SECTION_TECHNICAL,
+                )
+            ]
+            ProgressDisplay.send_to_user(chatter.identification, chatter.settings, messages)
+
             return previous_instructions, [], []  # <--- let's continue even if we were not able to get a transcript
 
         transcript = Line.load_from_json(response.content)
