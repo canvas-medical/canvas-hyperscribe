@@ -973,6 +973,7 @@
                 // Resume recording
                 appState.recording.paused = false;
                 ui.setButtonState('active');
+                statusManager.setTranscribing();
 
                 // Re-initialize AudioRecorder (needed because MediaStream was stopped during pause)
                 const recordingInterval = parseInt(document.getElementById("startButton").dataset.interval);
