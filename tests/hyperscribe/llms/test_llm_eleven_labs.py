@@ -237,3 +237,60 @@ def test_request(requests_post):
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
+
+    # Timestamp anomaly detection
+    # Simulating a case where multiple consecutive words have identical timestamps
+    content = {
+        "words": [
+            {"text": "The", "start": 0.0, "end": 0.2, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "quick", "start": 0.2, "end": 0.5, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "brown", "start": 0.5, "end": 0.8, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "fox", "start": 0.8, "end": 1.0, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "jumped", "start": 1.0, "end": 1.3, "type": "word", "speaker_id": "speaker_0"},
+            # Multiple words all have the same timestamp (1.3)
+            {"text": "over", "start": 1.3, "end": 1.3, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "the", "start": 1.3, "end": 1.3, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "lazy", "start": 1.3, "end": 1.3, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "dog", "start": 1.3, "end": 1.3, "type": "word", "speaker_id": "speaker_0"},
+        ],
+    }
+    response = type(
+        "Response",
+        (),
+        {
+            "status_code": 200,
+            "text": json.dumps(content),
+            "json": lambda self: content,
+        },
+    )()
+
+    requests_post.side_effect = [response]
+
+    tested = LlmElevenLabs(memory_log, "apiKey", "theModel", False)
+    tested.add_audio(b"someBytes", "mp3")
+    result = tested.request()
+
+    # Should return error status due to timestamp anomaly
+    assert result.code == 422
+    assert "Timestamp anomaly detected" in result.response
+
+    # Verify API was called correctly
+    calls = [
+        call(
+            "https://api.elevenlabs.io/v1/speech-to-text",
+            headers={"xi-api-key": "apiKey"},
+            params={},
+            data={"model_id": "theModel", "diarize": True, "temperature": 0},
+            files={"file": b"someBytes"},
+            verify=True,
+            timeout=None,
+        ),
+    ]
+    assert requests_post.mock_calls == calls
+
+    # Verify that the anomaly was logged
+    logged_messages = [str(call) for call in memory_log.mock_calls]
+    anomaly_logged = any("TIMESTAMP ANOMALY DETECTED" in msg for msg in logged_messages)
+    assert anomaly_logged, "Expected timestamp anomaly to be logged"
+
+    reset_mocks()

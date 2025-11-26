@@ -3,6 +3,7 @@ from http import HTTPStatus
 
 from requests import post as requests_post
 
+from hyperscribe.libraries.transcript_validator import TimestampAnomalyDetector
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.http_response import HttpResponse
 from hyperscribe.structures.token_counts import TokenCounts
@@ -51,8 +52,28 @@ class LlmElevenLabs(LlmBase):
             tokens=TokenCounts(prompt=0, generated=0),
         )
         if result.code == HTTPStatus.OK.value:
+            # Validate timestamps for anomalies (e.g., hallucinated content)
+            response_json = request.json()
+            words_list = response_json.get("words", [])
+
+            detector = TimestampAnomalyDetector(min_consecutive_identical=3)
+            is_valid, error_msg, anomaly_details = detector.validate_elevenlabs_words(
+                words_list, raise_on_anomaly=False
+            )
+
+            if not is_valid:
+                self.memory_log.log(f"⚠️  TIMESTAMP ANOMALY DETECTED: {error_msg}")
+                self.memory_log.log(f"Anomaly details: {json.dumps(anomaly_details, indent=2)}")
+
+                # Return an error response instead of processing potentially hallucinated content
+                return HttpResponse(
+                    code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                    response=f"Timestamp anomaly detected in transcription: {error_msg}",
+                    tokens=TokenCounts(prompt=0, generated=0),
+                )
+
             turns: list[dict] = []
-            for words in request.json()["words"]:
+            for words in words_list:
                 if not turns or words["speaker_id"] != turns[-1]["speaker_id"]:
                     turns.append(
                         {
