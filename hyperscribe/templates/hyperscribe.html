@@ -1156,7 +1156,7 @@
             const elapsedSeconds = (now.getTime() - duration.startingTime) / 1000;
             const minutes = Math.floor(elapsedSeconds / 60);
             const seconds = Math.floor(elapsedSeconds % 60);
-            const timeText = `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+            const timeText = `${minutes} min ${seconds} sec`;
             duration.textContent = timeText;
             durationLogs.textContent = timeText;
         }
@@ -1301,19 +1301,9 @@
 
             // Calculate elapsed time
             const elapsedSeconds = Math.floor((messageTime - duration.startingTime) / 1000);
-            const msgLower = message.message.toLowerCase();
-
-            let timeText;
-            if (msgLower === 'stopped' || msgLower === 'finished') {
-                // For stopped/finished: show minutes, seconds, and timestamp
-                const minutes = Math.floor(elapsedSeconds / 60);
-                const seconds = elapsedSeconds % 60;
-                const timestamp = messageTime.toLocaleTimeString();
-                timeText = `${minutes} min ${seconds} sec ${timestamp}`;
-            } else {
-                // For other messages: show seconds or timestamp
-                timeText = elapsedSeconds > 0 ? `${elapsedSeconds}s` : duration.startingTime.toLocaleTimeString();
-            }
+            const minutes = Math.floor(elapsedSeconds / 60);
+            const seconds = elapsedSeconds % 60;
+            const timeText = `${minutes} min ${seconds} sec`;
 
             // Update status based on message content
             if (appState.status.current === 'transcribing' &&
@@ -1418,19 +1408,9 @@
                                 // compute the time from the first message
                                 const messageTime = new Date(msg.time);
                                 const elapsedSeconds = Math.floor((messageTime - startingTime) / 1000);
-                                const msgLower = msg.message.toLowerCase();
-
-                                let timeText;
-                                if (msgLower === 'stopped' || msgLower === 'finished') {
-                                    // For stopped/finished: show minutes, seconds, and timestamp
-                                    const minutes = Math.floor(elapsedSeconds / 60);
-                                    const seconds = elapsedSeconds % 60;
-                                    const timestamp = messageTime.toLocaleTimeString();
-                                    timeText = `${minutes} min ${seconds} sec ${timestamp}`;
-                                } else {
-                                    // For other messages: show seconds or timestamp
-                                    timeText = elapsedSeconds > 0 ? `${elapsedSeconds}s` : startingTime.toLocaleTimeString();
-                                }
+                                const minutes = Math.floor(elapsedSeconds / 60);
+                                const seconds = elapsedSeconds % 60;
+                                const timeText = `${minutes} min ${seconds} sec`;
 
                                 // Create row and route to appropriate table
                                 const mask = parseInt(msg.section.split(':')[1] || '0');
