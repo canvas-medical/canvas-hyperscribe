@@ -1156,7 +1156,7 @@
             const elapsedSeconds = (now.getTime() - duration.startingTime) / 1000;
             const minutes = Math.floor(elapsedSeconds / 60);
             const seconds = Math.floor(elapsedSeconds % 60);
-            const timeText = `${minutes} min ${seconds} sec`;
+            const timeText = `${minutes}m ${String(seconds).padStart(2, '0')}s`;
             duration.textContent = timeText;
             durationLogs.textContent = timeText;
         }
@@ -1301,11 +1301,10 @@
 
             // Calculate elapsed time
             const elapsedSeconds = Math.floor((messageTime - duration.startingTime) / 1000);
-            const minutes = Math.floor(elapsedSeconds / 60);
-            const seconds = elapsedSeconds % 60;
-            const timeText = `${minutes} min ${seconds} sec`;
+            const timeText = elapsedSeconds > 0 ? `${elapsedSeconds}s` : duration.startingTime.toLocaleTimeString();
 
             // Update status based on message content
+            const msgLower = message.message.toLowerCase();
             if (appState.status.current === 'transcribing' &&
                 (msgLower.includes('command') || msgLower.includes('instruction') || msgLower.includes('detect'))) {
                 statusManager.setGenerating();
@@ -1408,10 +1407,8 @@
                                 // compute the time from the first message
                                 const messageTime = new Date(msg.time);
                                 const elapsedSeconds = Math.floor((messageTime - startingTime) / 1000);
-                                const minutes = Math.floor(elapsedSeconds / 60);
-                                const seconds = elapsedSeconds % 60;
-                                const timeText = `${minutes} min ${seconds} sec`;
-
+                                const timeText = elapsedSeconds > 0 ? `${elapsedSeconds}s` : startingTime.toLocaleTimeString();
+                                
                                 // Create row and route to appropriate table
                                 const mask = parseInt(msg.section.split(':')[1] || '0');
                                 const medicalValue1 = 1;    // events:1
