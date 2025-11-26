@@ -229,6 +229,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
                 "patientUuid": "the-00-patient",
                 "noteUuid": "the-00-note",
                 "noteReference": "4571",
+                "userUuid": "the-00-user",
                 "interval": 5,
                 "endFlag": "EOF",
                 "wsProgressURL": "theWsHost/plugin-io/ws/hyperscribe/progress_the00note/",

@@ -123,6 +123,7 @@ class CaptureView(SimpleAPI):
             "patientUuid": patient_id,
             "noteUuid": note_id,
             "noteReference": note_reference,
+            "userUuid": user_id,
             "interval": self.secrets[Constants.SECRET_AUDIO_INTERVAL],
             "endFlag": Constants.PROGRESS_END_OF_MESSAGES,
             "wsProgressURL": ws_progress_url,
@@ -183,6 +184,9 @@ class CaptureView(SimpleAPI):
         if not stop_and_go.is_ended() and action == Constants.AUDIO_IDLE_END:
             stop_and_go.set_ended(True).save()
             self.session_progress_log(patient_id, note_id, "stopped")
+            # Trigger render to check for completion and send EOF message
+            user_id = self.request.headers.get("canvas-logged-in-user-id")
+            executor.submit(Helper.with_cleanup(self.trigger_render), patient_id, note_id, user_id)
         elif stop_and_go.is_paused() and action == Constants.AUDIO_IDLE_RESUME:
             stop_and_go.set_paused(False).save()
             self.session_progress_log(patient_id, note_id, "resumed")
