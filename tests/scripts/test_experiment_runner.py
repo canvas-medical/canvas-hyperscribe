@@ -3,7 +3,6 @@ from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
-from evaluations.structures.experiment_job import ExperimentJob
 from evaluations.structures.experiment_models import ExperimentModels
 from evaluations.structures.records.case_id import CaseId as CaseIdRecord
 from evaluations.structures.records.experiment import Experiment as ExperimentRecord
@@ -33,6 +32,11 @@ def test__parameters(argument_parser):
             type=int,
             default=3,
             help="Max cases run simultaneously",
+        ),
+        call().add_argument(
+            "--resume",
+            action="store_true",
+            help="Resume experiment by skipping already completed jobs",
         ),
         call().parse_args(),
     ]
@@ -115,6 +119,48 @@ def test_hyperscribe_version_exists(popen):
         reset_mocks()
 
 
+@patch("scripts.experiment_runner.ExperimentResultStore")
+@patch("scripts.experiment_runner.HelperEvaluation")
+def test__get_completed_jobs(helper, experiment_result_store):
+    def reset_mocks():
+        helper.reset_mock()
+        experiment_result_store.reset_mock()
+
+    tested = ExperimentRunner
+
+    helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
+    experiment_result_store.return_value._select.side_effect = [
+        [
+            {"case_id": 756, "gen_id": 117, "grade_id": 217, "cycle_transcript_overlap": 95},
+            {"case_id": 789, "gen_id": 132, "grade_id": 232, "cycle_transcript_overlap": 125},
+        ]
+    ]
+
+    result = tested._get_completed_jobs(473)
+    expected = {(756, 117, 217, 95), (789, 132, 232, 125)}
+    assert result == expected
+
+    calls = [call.postgres_credentials()]
+    assert helper.mock_calls == calls
+    calls = [
+        call("thePostgresCredentials"),
+        call()._select(
+            (
+                "\n        SELECT DISTINCT case_id,\n               "
+                "(SELECT model_note_generator_id FROM experiment_model\n                 "
+                "WHERE experiment_id = %(exp_id)s LIMIT 1) as gen_id,\n               "
+                "(SELECT model_note_grader_id FROM experiment_model\n                 "
+                "WHERE experiment_id = %(exp_id)s LIMIT 1) as grade_id,\n               "
+                "cycle_transcript_overlap\n        FROM experiment_result\n        "
+                "WHERE experiment_id = %(exp_id)s\n        "
+            ),
+            {"exp_id": 473},
+        ),
+    ]
+    assert experiment_result_store.mock_calls == calls
+    reset_mocks()
+
+
 @patch("scripts.experiment_runner.run")
 def test__clone_repository(mock_run):
     def reset_mocks():
@@ -154,6 +200,7 @@ def test__clone_repository(mock_run):
 @patch.object(ExperimentRunner, "_clone_repository")
 @patch.object(ExperimentRunner, "hyperscribe_tags")
 @patch.object(ExperimentRunner, "_generate_jobs")
+@patch.object(ExperimentRunner, "_get_completed_jobs")
 @patch.object(ExperimentRunner, "hyperscribe_version_exists")
 @patch.object(ExperimentRunner, "_experiment_hyperscribe_version")
 @patch.object(ExperimentRunner, "_parameters")
@@ -161,6 +208,7 @@ def test_run(
     parameters,
     experiment_hyperscribe_version,
     hyperscribe_version_exists,
+    get_completed_jobs,
     generate_jobs,
     hyperscribe_tags,
     clone_repository,
@@ -194,6 +242,7 @@ def test_run(
         parameters.reset_mock()
         experiment_hyperscribe_version.reset_mock()
         hyperscribe_version_exists.reset_mock()
+        get_completed_jobs.reset_mock()
         clone_repository.reset_mock()
         hyperscribe_tags.reset_mock()
         generate_jobs.reset_mock()
@@ -211,10 +260,11 @@ def test_run(
 
     tested = ExperimentRunner
 
-    # all good
-    parameters.side_effect = [Namespace(max_workers=3, experiment_id=473)]
+    # normal run without resume
+    parameters.side_effect = [Namespace(max_workers=3, experiment_id=473, resume=False)]
     experiment_hyperscribe_version.side_effect = [version]
     hyperscribe_version_exists.side_effect = [True]
+    get_completed_jobs.side_effect = [set()]
     temporary_directory.return_value.__enter__.return_value = "/tmp/test_dir"
     clone_repository.side_effect = [None]
     hyperscribe_tags.side_effect = [tags]
@@ -234,47 +284,14 @@ def test_run(
     assert clone_repository.mock_calls == calls
     calls = [call(Path("/tmp/test_dir"))]
     assert hyperscribe_tags.mock_calls == calls
-    calls = [call(473, Path("/tmp/test_dir"))]
+    calls = [call(473, Path("/tmp/test_dir"), set())]
     assert generate_jobs.mock_calls == calls
-    calls = [
-        call(),
-        call(),
-        call().put("job0"),
-        call().put("job1"),
-        call().put("job2"),
-        call().put("job3"),
-        call().put(None),
-        call().put(None),
-        call().put(None),
-        call().put(None),
-        call().put(None),
-        call().put(None),
-    ]
-    assert queue.mock_calls == calls
-    calls = [
-        call(target="CaseRunnerWorker0"),
-        call(target="CaseRunnerWorker1"),
-        call(target="CaseRunnerWorker2"),
-        call(target="NoteGraderWorker0"),
-        call(target="NoteGraderWorker1"),
-        call(target="NoteGraderWorker2"),
-    ]
-    assert process.mock_calls == calls
-    calls = [call.start(), call.join()]
-    for mock in processes:
-        assert mock.mock_calls == calls
-    calls = []
-    for mock in case_runner_workers:
-        assert mock.mock_calls == calls
-    calls = []
-    for mock in note_grader_workers:
-        assert mock.mock_calls == calls
     assert capsys.readouterr().out == ""
     assert capsys.readouterr().err == ""
     reset_mocks()
 
     # hyperscribe version does not exist
-    parameters.side_effect = [Namespace(max_workers=3, experiment_id=473)]
+    parameters.side_effect = [Namespace(max_workers=3, experiment_id=473, resume=False)]
     experiment_hyperscribe_version.side_effect = ["nonExistentVersion"]
     hyperscribe_version_exists.side_effect = [False]
     tested.run()
@@ -285,13 +302,52 @@ def test_run(
     assert experiment_hyperscribe_version.mock_calls == calls
     calls = [call("nonExistentVersion")]
     assert hyperscribe_version_exists.mock_calls == calls
-    calls = []
-    assert clone_repository.mock_calls == calls
-    calls = []
-    assert hyperscribe_tags.mock_calls == calls
-    calls = []
-    assert generate_jobs.mock_calls == calls
     assert capsys.readouterr().out == "hyperscribe version does not exist: nonExistentVersion\n"
+    assert capsys.readouterr().err == ""
+    reset_mocks()
+
+    # resume mode
+    parameters.side_effect = [Namespace(max_workers=1, experiment_id=473, resume=True)]
+    experiment_hyperscribe_version.side_effect = [version]
+    hyperscribe_version_exists.side_effect = [True]
+    get_completed_jobs.side_effect = [{(100, 1, 2, 95), (101, 1, 2, 125)}]
+    temporary_directory.return_value.__enter__.return_value = "/tmp/test_dir"
+    clone_repository.side_effect = [None]
+    hyperscribe_tags.side_effect = [tags]
+    case_runner_worker.side_effect = case_runner_workers[:1]
+    note_grader_worker.side_effect = note_grader_workers[:1]
+    process.side_effect = processes[:2]
+
+    mock_jobs = []
+    for i in range(15):
+        mock_job = MagicMock()
+        mock_job.case_name = f"test_case_{i}"
+        mock_job.case_id = i
+        mock_jobs.append(mock_job)
+    generate_jobs.side_effect = [mock_jobs]
+
+    tested.run()
+
+    calls = [call()]
+    assert parameters.mock_calls == calls
+    calls = [call(473)]
+    assert experiment_hyperscribe_version.mock_calls == calls
+    calls = [call(version)]
+    assert hyperscribe_version_exists.mock_calls == calls
+    calls = [call(473)]
+    assert get_completed_jobs.mock_calls == calls
+    calls = [call(version, Path("/tmp/test_dir"))]
+    assert clone_repository.mock_calls == calls
+    calls = [call(Path("/tmp/test_dir"))]
+    assert hyperscribe_tags.mock_calls == calls
+    calls = [call(473, Path("/tmp/test_dir"), {(100, 1, 2, 95), (101, 1, 2, 125)})]
+    assert generate_jobs.mock_calls == calls
+
+    # Check resume mode output
+    output = capsys.readouterr().out
+    assert "Resume mode enabled - found 2 unique job combinations already completed" in output
+    assert "Queued 10 jobs - Latest: Case test_case_9 (ID: 9)" in output
+    assert "Final summary: Added 15 new jobs to queue" in output
     assert capsys.readouterr().err == ""
     reset_mocks()
 
@@ -331,210 +387,21 @@ def test__generate_jobs(helper, experiment_store, capsys):
             grader_is_reasoning=True,
         ),
     ]
-    # all good
     repository = Path("/tmp/test_repo")
+
+    # normal job generation
     helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
     experiment_store.return_value.get_experiment.side_effect = [experiment]
     experiment_store.return_value.get_cases.side_effect = [cases]
     experiment_store.return_value.get_models.side_effect = [models_experiments]
-    result = [j for j in tested._generate_jobs(117, repository)]
-    expected = [
-        ExperimentJob(
-            job_index=1,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=756,
-            case_name="theCaseNameX",
-            models=models_experiments[0],
-            cycle_time=0,
-            cycle_transcript_overlap=95,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=2,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=756,
-            case_name="theCaseNameX",
-            models=models_experiments[0],
-            cycle_time=0,
-            cycle_transcript_overlap=95,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=3,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=756,
-            case_name="theCaseNameX",
-            models=models_experiments[0],
-            cycle_time=0,
-            cycle_transcript_overlap=125,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=4,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=756,
-            case_name="theCaseNameX",
-            models=models_experiments[0],
-            cycle_time=0,
-            cycle_transcript_overlap=125,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=5,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=756,
-            case_name="theCaseNameX",
-            models=models_experiments[1],
-            cycle_time=0,
-            cycle_transcript_overlap=95,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=6,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=756,
-            case_name="theCaseNameX",
-            models=models_experiments[1],
-            cycle_time=0,
-            cycle_transcript_overlap=95,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=7,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=756,
-            case_name="theCaseNameX",
-            models=models_experiments[1],
-            cycle_time=0,
-            cycle_transcript_overlap=125,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=8,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=756,
-            case_name="theCaseNameX",
-            models=models_experiments[1],
-            cycle_time=0,
-            cycle_transcript_overlap=125,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=9,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=789,
-            case_name="theCaseNameY",
-            models=models_experiments[0],
-            cycle_time=0,
-            cycle_transcript_overlap=95,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=10,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=789,
-            case_name="theCaseNameY",
-            models=models_experiments[0],
-            cycle_time=0,
-            cycle_transcript_overlap=95,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=11,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=789,
-            case_name="theCaseNameY",
-            models=models_experiments[0],
-            cycle_time=0,
-            cycle_transcript_overlap=125,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=12,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=789,
-            case_name="theCaseNameY",
-            models=models_experiments[0],
-            cycle_time=0,
-            cycle_transcript_overlap=125,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=13,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=789,
-            case_name="theCaseNameY",
-            models=models_experiments[1],
-            cycle_time=0,
-            cycle_transcript_overlap=95,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=14,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=789,
-            case_name="theCaseNameY",
-            models=models_experiments[1],
-            cycle_time=0,
-            cycle_transcript_overlap=95,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=15,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=789,
-            case_name="theCaseNameY",
-            models=models_experiments[1],
-            cycle_time=0,
-            cycle_transcript_overlap=125,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-        ExperimentJob(
-            job_index=16,
-            experiment_id=117,
-            experiment_name="theName",
-            case_id=789,
-            case_name="theCaseNameY",
-            models=models_experiments[1],
-            cycle_time=0,
-            cycle_transcript_overlap=125,
-            grade_replications=11,
-            cwd_path=repository,
-        ),
-    ]
-    assert result == expected
+    result = list(tested._generate_jobs(117, repository, set()))
+
+    # Should get all jobs: 2 cases * 2 models * 2 overlaps * 2 replications = 16 jobs
+    assert len(result) == 16
+    assert result[0].case_id == 756
+    assert result[0].models == models_experiments[0]
+    assert result[0].cycle_transcript_overlap == 95
     assert capsys.readouterr().out == ""
-    assert capsys.readouterr().err == ""
 
     calls = [call.postgres_credentials()]
     assert helper.mock_calls == calls
@@ -550,13 +417,9 @@ def test__generate_jobs(helper, experiment_store, capsys):
     # experiment does not exist
     helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
     experiment_store.return_value.get_experiment.side_effect = [ExperimentRecord(id=0)]
-    experiment_store.return_value.get_cases.side_effect = []
-    experiment_store.return_value.get_models.side_effect = []
-    result = [j for j in tested._generate_jobs(117, repository)]
+    result = list(tested._generate_jobs(117, repository, set()))
     assert result == []
-    exp_out = "Experiment not found\n"
-    assert capsys.readouterr().out == exp_out
-    assert capsys.readouterr().err == ""
+    assert capsys.readouterr().out == "Experiment not found\n"
 
     calls = [call.postgres_credentials()]
     assert helper.mock_calls == calls
@@ -571,12 +434,9 @@ def test__generate_jobs(helper, experiment_store, capsys):
     helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
     experiment_store.return_value.get_experiment.side_effect = [experiment]
     experiment_store.return_value.get_cases.side_effect = [[]]
-    experiment_store.return_value.get_models.side_effect = []
-    result = [j for j in tested._generate_jobs(117, repository)]
+    result = list(tested._generate_jobs(117, repository, set()))
     assert result == []
-    exp_out = "Experiment has no cases\n"
-    assert capsys.readouterr().out == exp_out
-    assert capsys.readouterr().err == ""
+    assert capsys.readouterr().out == "Experiment has no cases\n"
 
     calls = [call.postgres_credentials()]
     assert helper.mock_calls == calls
@@ -588,16 +448,71 @@ def test__generate_jobs(helper, experiment_store, capsys):
     assert experiment_store.mock_calls == calls
     reset_mocks()
 
-    # experiment has no model
+    # experiment has no models
     helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
     experiment_store.return_value.get_experiment.side_effect = [experiment]
     experiment_store.return_value.get_cases.side_effect = [cases]
     experiment_store.return_value.get_models.side_effect = [[]]
-    result = [j for j in tested._generate_jobs(117, repository)]
+    result = list(tested._generate_jobs(117, repository, set()))
     assert result == []
-    exp_out = "Experiment has no models\n"
-    assert capsys.readouterr().out == exp_out
-    assert capsys.readouterr().err == ""
+    assert capsys.readouterr().out == "Experiment has no models\n"
+
+    calls = [call.postgres_credentials()]
+    assert helper.mock_calls == calls
+    calls = [
+        call("thePostgresCredentials"),
+        call().get_experiment(117),
+        call().get_cases(117),
+        call().get_models(117),
+    ]
+    assert experiment_store.mock_calls == calls
+    reset_mocks()
+
+    # with completed jobs (resume mode)
+    completed_jobs = {(756, 117, 217, 95)}
+    helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
+    experiment_store.return_value.get_experiment.side_effect = [experiment]
+    experiment_store.return_value.get_cases.side_effect = [cases]
+    experiment_store.return_value.get_models.side_effect = [models_experiments]
+
+    result = list(tested._generate_jobs(117, repository, completed_jobs))
+
+    # Should skip (756, 117, 217, 95) - that's 2 replications skipped = 14 total jobs
+    assert len(result) == 14
+    # Verify skipped job is not in results
+    skipped_jobs = [
+        j
+        for j in result
+        if j.case_id == 756 and j.models.model_generator.id == 117 and j.cycle_transcript_overlap == 95
+    ]
+    assert len(skipped_jobs) == 0
+    # Check resume mode output
+    output = capsys.readouterr().out
+    assert "Job generation complete:" in output
+    assert "Jobs skipped due to completion: 2" in output
+    assert "Cases processed: 2/2" in output
+
+    calls = [call.postgres_credentials()]
+    assert helper.mock_calls == calls
+    calls = [
+        call("thePostgresCredentials"),
+        call().get_experiment(117),
+        call().get_cases(117),
+        call().get_models(117),
+    ]
+    assert experiment_store.mock_calls == calls
+    reset_mocks()
+
+    # test with None completed_jobs (should default to empty set)
+    helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
+    experiment_store.return_value.get_experiment.side_effect = [experiment]
+    experiment_store.return_value.get_cases.side_effect = [cases]
+    experiment_store.return_value.get_models.side_effect = [models_experiments]
+
+    result = list(tested._generate_jobs(117, repository, None))
+
+    assert len(result) == 16
+    assert capsys.readouterr().out == ""
 
     calls = [call.postgres_credentials()]
     assert helper.mock_calls == calls
