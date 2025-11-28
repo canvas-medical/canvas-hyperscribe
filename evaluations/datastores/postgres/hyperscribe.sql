@@ -195,7 +195,6 @@ CREATE TABLE public.model
     vendor  text      NOT NULL,
     api_key text      NOT NULL,
     model   text      NOT NULL,
-    CONSTRAINT model_vendor_name_key UNIQUE (vendor),
     CONSTRAINT model_pkey PRIMARY KEY (id)
 );
 
