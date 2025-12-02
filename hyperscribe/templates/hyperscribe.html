@@ -1019,6 +1019,7 @@
 
             resetTable();
             resetTranscriptTable();
+            appState.progress.started = false;
             startProgressAndRenderFetches();
 
             // Initialize AudioRecorder
@@ -1306,6 +1307,7 @@
             const timeText = `${minutes} min ${seconds} sec`;
 
             // Update status based on message content
+            const msgLower = message.message.toLowerCase();
             if (appState.status.current === 'transcribing' &&
                 (msgLower.includes('command') || msgLower.includes('instruction') || msgLower.includes('detect'))) {
                 statusManager.setGenerating();
