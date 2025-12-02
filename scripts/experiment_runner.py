@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from argparse import ArgumentParser, Namespace
 from multiprocessing import Process, Queue
@@ -10,6 +12,7 @@ from typing import Generator
 from evaluations.datastores.postgres.experiment import Experiment as ExperimentStore
 from evaluations.datastores.postgres.experiment_result import ExperimentResult as ExperimentResultStore
 from evaluations.helper_evaluation import HelperEvaluation
+from evaluations.structures.completed_job import CompletedJob
 from evaluations.structures.experiment_job import ExperimentJob
 from hyperscribe.libraries.constants import Constants
 from scripts.experiments.case_runner_worker import CaseRunnerWorker
@@ -64,7 +67,7 @@ class ExperimentRunner:
         return process.returncode == 0
 
     @classmethod
-    def _get_completed_jobs(cls, experiment_id: int) -> set[tuple]:
+    def _get_completed_jobs(cls, experiment_id: int) -> set[CompletedJob]:
         """Get a set of completed job signatures to avoid duplication."""
         psql_credential = HelperEvaluation.postgres_credentials()
         result_store = ExperimentResultStore(psql_credential)
@@ -75,16 +78,21 @@ class ExperimentRunner:
         # Query to get completed jobs signature: (case_id, model_generator_id, model_grader_id, cycle_overlap)
         # We need to identify unique job combinations that are already done
         sql = """
-        SELECT DISTINCT er.case_id, n.model_note_generator_id,g.model_note_grader_id,er.cycle_transcript_overlap
+        SELECT DISTINCT er.case_id, n.model_note_generator_id, g.model_note_grader_id, er.cycle_transcript_overlap
         FROM experiment_result as er
-         join  (SELECT model_note_generator_id,experiment_id FROM experiment_model) as n on n.experiment_id=er.experiment_id
-         join  (SELECT model_note_grader_id,experiment_id FROM experiment_model) as g on g.experiment_id=er.experiment_id
-        WHERE er.experiment_id = %(exp_id)s;
+         join (SELECT model_note_generator_id, experiment_id FROM experiment_model) as n on n.experiment_id = er.experiment_id
+         join (SELECT model_note_grader_id, experiment_id FROM experiment_model) as g on g.experiment_id = er.experiment_id
+        WHERE er.experiment_id = %(exp_id)s
         """
 
         for record in result_store._select(sql, {"exp_id": experiment_id}):
             completed_jobs.add(
-                (record["case_id"], record["gen_id"], record["grade_id"], record["cycle_transcript_overlap"])
+                CompletedJob(
+                    case_id=record["case_id"],
+                    model_generator_id=record["model_note_generator_id"],
+                    model_grader_id=record["model_note_grader_id"],
+                    cycle_overlap=record["cycle_transcript_overlap"]
+                )
             )
 
         return completed_jobs
@@ -149,9 +157,7 @@ class ExperimentRunner:
 
             jobs_added = 0
 
-            for job in cls._generate_jobs(
-                args.experiment_id, clone_repository, completed_jobs if args.resume else set()
-            ):
+            for job in cls._generate_jobs(args.experiment_id, clone_repository, completed_jobs):
                 case_runner_queue.put(job)
                 jobs_added += 1
                 if args.resume and jobs_added % 10 == 0:  # Print every 10 jobs in resume mode
@@ -174,7 +180,7 @@ class ExperimentRunner:
 
     @classmethod
     def _generate_jobs(
-        cls, experiment_id: int, repository: Path, completed_jobs: set[tuple] | None = None
+        cls, experiment_id: int, repository: Path, completed_jobs: set[CompletedJob]
     ) -> Generator[ExperimentJob, None, None]:
         psql_credential = HelperEvaluation.postgres_credentials()
 
@@ -194,9 +200,6 @@ class ExperimentRunner:
             print("Experiment has no models")
             return
 
-        if completed_jobs is None:
-            completed_jobs = set()
-
         job_index = 0
         jobs_skipped = 0
         total_cases_processed = 0
@@ -208,11 +211,11 @@ class ExperimentRunner:
                 for cycle_overlap in experiment.cycle_transcript_overlaps:
                     # Check if this job combination is already completed (only in resume mode)
                     if completed_jobs:
-                        job_signature = (
-                            int(case.id),
-                            models_experiment.model_generator.id,
-                            models_experiment.model_grader.id,
-                            cycle_overlap,
+                        job_signature = CompletedJob(
+                            case_id=int(case.id),
+                            model_generator_id=models_experiment.model_generator.id,
+                            model_grader_id=models_experiment.model_grader.id,
+                            cycle_overlap=cycle_overlap,
                         )
 
                         if job_signature in completed_jobs:
