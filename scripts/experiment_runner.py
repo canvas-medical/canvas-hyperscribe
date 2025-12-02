@@ -75,14 +75,11 @@ class ExperimentRunner:
         # Query to get completed jobs signature: (case_id, model_generator_id, model_grader_id, cycle_overlap)
         # We need to identify unique job combinations that are already done
         sql = """
-        SELECT DISTINCT case_id,
-               (SELECT model_note_generator_id FROM experiment_model
-                 WHERE experiment_id = %(exp_id)s LIMIT 1) as gen_id,
-               (SELECT model_note_grader_id FROM experiment_model
-                 WHERE experiment_id = %(exp_id)s LIMIT 1) as grade_id,
-               cycle_transcript_overlap
-        FROM experiment_result
-        WHERE experiment_id = %(exp_id)s
+        SELECT DISTINCT er.case_id, n.model_note_generator_id,g.model_note_grader_id,er.cycle_transcript_overlap
+        FROM experiment_result as er
+         join  (SELECT model_note_generator_id,experiment_id FROM experiment_model) as n on n.experiment_id=er.experiment_id
+         join  (SELECT model_note_grader_id,experiment_id FROM experiment_model) as g on g.experiment_id=er.experiment_id
+        WHERE er.experiment_id = %(exp_id)s;
         """
 
         for record in result_store._select(sql, {"exp_id": experiment_id}):
