@@ -2,7 +2,7 @@ import re
 from datetime import timezone, datetime
 from http import HTTPStatus
 from types import SimpleNamespace
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 import pytest
 from canvas_generated.messages.effects_pb2 import Effect
@@ -16,10 +16,10 @@ from hyperscribe.handlers.capture_view import CaptureView
 from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
-from hyperscribe.structures.customization import Customization
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.custom_prompt import CustomPrompt
+from hyperscribe.structures.customization import Customization
 from hyperscribe.structures.default_tab import DefaultTab
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
@@ -96,7 +96,7 @@ def test_trigger_render(authenticator, helper, requests_post):
         helper.reset_mock()
         requests_post.reset_mock()
 
-    authenticator.presigned_url.side_effect = ["theUrl"]
+    authenticator.presigned_url_no_params.side_effect = ["theUrl"]
     helper.canvas_host.side_effect = ["theHost"]
     requests_post.side_effect = ["theResponse"]
 
@@ -106,10 +106,9 @@ def test_trigger_render(authenticator, helper, requests_post):
     assert result == expected
 
     calls = [
-        call.presigned_url(
+        call.presigned_url_no_params(
             "signingKey",
-            "theHost/plugin-io/api/hyperscribe/render/thePatientId/theNoteId/theUserId",
-            {},
+            "theHost/plugin-io/api/hyperscribe/capture/render/thePatientId/theNoteId/theUserId",
         )
     ]
     assert authenticator.mock_calls == calls
@@ -402,19 +401,27 @@ def test_idle_session_post(session_progress_log, stop_and_go):
         reset_mocks()
 
 
+@patch.object(Note, "objects")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.AudioClient")
 @patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.executor")
-def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
+def test_audio_chunk_post(executor, helper, audio_client, stop_and_go, note_db):
+    stop_and_go_not_running = MagicMock(is_running=lambda: False)
+    stop_and_go_is_running = MagicMock(is_running=lambda: True)
+
     def reset_mocks():
         executor.reset_mock()
         helper.reset_mock()
         audio_client.reset_mock()
         stop_and_go.reset_mock()
+        note_db.reset_mock()
+        stop_and_go_not_running.reset_mock()
+        stop_and_go_is_running.reset_mock()
 
     tested = helper_instance()
     # missing file part
+    stop_and_go.get.side_effect = []
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
         form_data=lambda: {},
@@ -428,6 +435,9 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
     assert helper.mock_calls == []
     assert audio_client.mock_calls == []
     assert stop_and_go.mock_calls == []
+    assert note_db.mock_calls == []
+    assert stop_and_go_not_running.mock_calls == []
+    assert stop_and_go_is_running.mock_calls == []
     reset_mocks()
 
     # non-file part
@@ -440,6 +450,7 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
         def is_file(self):
             return False
 
+    stop_and_go.get.side_effect = []
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
         form_data=lambda: {"audio": Part()},
@@ -453,6 +464,9 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
     assert helper.mock_calls == []
     assert audio_client.mock_calls == []
     assert stop_and_go.mock_calls == []
+    assert note_db.mock_calls == []
+    assert stop_and_go_not_running.mock_calls == []
+    assert stop_and_go_is_running.mock_calls == []
     reset_mocks()
 
     # save error (returns list)
@@ -465,6 +479,7 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
             return True
 
     part = PartOK()
+    stop_and_go.get.side_effect = []
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
         headers={"canvas-logged-in-user-id": "theUserId"},
@@ -483,32 +498,82 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
     ]
     assert audio_client.mock_calls == calls
     assert stop_and_go.mock_calls == []
+    assert note_db.mock_calls == []
+    assert stop_and_go_not_running.mock_calls == []
+    assert stop_and_go_is_running.mock_calls == []
     reset_mocks()
 
     # save success
     # -- valid name
+    # -- -- commander not running
     audio_client.for_operation.return_value.save_audio_chunk.side_effect = [
         SimpleNamespace(status_code=201, content=b"")
     ]
+    stop_and_go.get.side_effect = [stop_and_go_not_running]
+    note_db.get.return_value.provider.id = "theProviderId"
+
     result = tested.audio_chunk_post()
     resp = result[0]
-    assert resp.status_code == 201 and resp.content == b"Audio chunk saved OK"
+    assert resp.status_code == 201 and resp.content == b"Audio chunk 123 saved OK"
 
-    calls = [call.submit(helper.with_cleanup.return_value, "thePatientId", "theNoteId", "theUserId")]
+    calls = [
+        call.submit(
+            helper.with_cleanup.return_value,
+            IdentificationParameters(
+                patient_uuid="thePatientId",
+                note_uuid="theNoteId",
+                provider_uuid="theProviderId",
+                canvas_instance="customerIdentifier",
+            ),
+            "theUserId",
+        )
+    ]
     assert executor.mock_calls == calls
-    calls = [call.with_cleanup(tested.trigger_render)]
+    calls = [call.with_cleanup(tested.run_commander)]
     assert helper.mock_calls == calls
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),  # -- valid name
         call.for_operation().save_audio_chunk("thePatientId", "theNoteId", part),
     ]
     assert audio_client.mock_calls == calls
-    calls = [
-        call.get("theNoteId"),
-        call.get().add_waiting_cycle(123),
-        call.get().add_waiting_cycle().save(),
-    ]
+    calls = [call.get("theNoteId")]
     assert stop_and_go.mock_calls == calls
+    calls = [call.get(id="theNoteId")]
+    assert note_db.mock_calls == calls
+    calls = [
+        call.add_waiting_cycle(123),
+        call.add_waiting_cycle().save(),
+    ]
+    assert stop_and_go_not_running.mock_calls == calls
+    assert stop_and_go_is_running.mock_calls == []
+    reset_mocks()
+    # -- -- commander is running
+    audio_client.for_operation.return_value.save_audio_chunk.side_effect = [
+        SimpleNamespace(status_code=201, content=b"")
+    ]
+    stop_and_go.get.side_effect = [stop_and_go_is_running]
+    note_db.get.return_value.provider.id = "theProviderId"
+
+    result = tested.audio_chunk_post()
+    resp = result[0]
+    assert resp.status_code == 201 and resp.content == b"Audio chunk 123 saved OK"
+
+    assert executor.mock_calls == []
+    assert helper.mock_calls == []
+    calls = [
+        call.for_operation("https://audio", "customerIdentifier", "shared"),  # -- valid name
+        call.for_operation().save_audio_chunk("thePatientId", "theNoteId", part),
+    ]
+    assert audio_client.mock_calls == calls
+    calls = [call.get("theNoteId")]
+    assert stop_and_go.mock_calls == calls
+    assert note_db.mock_calls == []
+    assert stop_and_go_not_running.mock_calls == []
+    calls = [
+        call.add_waiting_cycle(123),
+        call.add_waiting_cycle().save(),
+    ]
+    assert stop_and_go_is_running.mock_calls == calls
     reset_mocks()
     # -- invalid name
     audio_client.for_operation.return_value.save_audio_chunk.side_effect = [
@@ -517,7 +582,7 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
     part.filename = "chunk_other.test"
     result = tested.audio_chunk_post()
     resp = result[0]
-    assert resp.status_code == 201 and resp.content == b"Audio chunk saved OK"
+    assert resp.status_code == 201 and resp.content == b"Audio chunk 0 saved OK"
 
     assert executor.mock_calls == []
     assert helper.mock_calls == []
@@ -527,167 +592,55 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
     ]
     assert audio_client.mock_calls == calls
     assert stop_and_go.mock_calls == []
+    assert note_db.mock_calls == []
+    assert stop_and_go_not_running.mock_calls == []
+    assert stop_and_go_is_running.mock_calls == []
     reset_mocks()
 
 
-@patch.object(Note, "objects")
-@patch("hyperscribe.handlers.capture_view.Helper")
-@patch("hyperscribe.handlers.capture_view.executor")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
-def test_render_effect_post(stop_and_go, executor, helper, note_db):
+def test_render_effect_post(stop_and_go):
     def reset_mocks():
         stop_and_go.reset_mock()
-        executor.reset_mock()
-        helper.reset_mock()
-        note_db.reset_mock()
 
     tested = helper_instance()
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "patientId", "note_id": "noteId", "user_id": "theUserId"},
+        headers={"canvas-logged-in-user-id": "wrongUserId"},
+    )
 
     effects = [
         Effect(type="LOG", payload="Log1"),
         Effect(type="LOG", payload="Log2"),
         Effect(type="LOG", payload="Log3"),
     ]
-    date_0 = datetime(2025, 8, 7, 18, 11, 21, 123456, tzinfo=timezone.utc)
-    identification = IdentificationParameters(
-        patient_uuid="patientId",
-        note_uuid="noteId",
-        provider_uuid="theProviderId",
-        canvas_instance="customerIdentifier",
-    )
+    # there are paused effects
+    stop_and_go.get.return_value.paused_effects.side_effect = [effects]
+    result = tested.render_effect_post()
+    assert result == effects
 
-    tests = [
-        (
-            effects,
-            True,
-            True,
-            7,
-            True,
-            effects,
-            [
-                call.get("noteId"),
-                call.get().paused_effects(),
-                call.get().reset_paused_effect(),
-                call.get().reset_paused_effect().set_delay(),
-                call.get().reset_paused_effect().set_delay().save(),
-            ],
-            [call.submit(helper.with_cleanup.return_value, "patientId", "noteId", "theUserId")],
-            [call.with_cleanup(tested.trigger_render)],
-            [],
-        ),
-        (
-            [],
-            True,
-            True,
-            7,
-            True,
-            [],
-            [
-                call.get("noteId"),
-                call.get().paused_effects(),
-                call.get().is_running(),
-            ],
-            [],
-            [],
-            [],
-        ),
-        (
-            [],
-            False,
-            True,
-            7,
-            True,
-            [],
-            [
-                call.get("noteId"),
-                call.get().paused_effects(),
-                call.get().is_running(),
-                call.get().consume_delay(),
-                call.get().consume_next_waiting_cycles(True),
-                call.get().cycle(),
-            ],
-            [call.submit(helper.with_cleanup.return_value, identification, 7, "theUserId")],
-            [call.with_cleanup(tested.run_commander)],
-            [call.get(id="noteId")],
-        ),
-        (
-            [],
-            False,
-            False,
-            7,
-            True,
-            [],
-            [
-                call.get("noteId"),
-                call.get().paused_effects(),
-                call.get().is_running(),
-                call.get().consume_delay(),
-                call.get().consume_next_waiting_cycles(True),
-                call.get().is_ended(),
-                call.get().created(),
-                call.get().cycle(),
-            ],
-            [call.submit(helper.with_cleanup.return_value, identification, date_0, 7)],
-            [call.with_cleanup(tested.run_reviewer)],
-            [call.get(id="noteId")],
-        ),
-        (
-            [],
-            False,
-            False,
-            7,
-            False,
-            [],
-            [
-                call.get("noteId"),
-                call.get().paused_effects(),
-                call.get().is_running(),
-                call.get().consume_delay(),
-                call.get().consume_next_waiting_cycles(True),
-                call.get().is_ended(),
-            ],
-            [],
-            [],
-            [call.get(id="noteId")],
-        ),
+    calls = [
+        call.get("noteId"),
+        call.get().paused_effects(),
+        call.get().reset_paused_effect(),
+        call.get().reset_paused_effect().set_delay(),
+        call.get().reset_paused_effect().set_delay().save(),
     ]
+    assert stop_and_go.mock_calls == calls
+    reset_mocks()
 
-    for idx, test in enumerate(tests):
-        (
-            paused_effects,
-            is_running,
-            consume,
-            cycle,
-            is_ended,
-            expected,
-            exp_stop_and_go,
-            exp_executor,
-            exp_helper,
-            exp_note_db,
-        ) = test
+    # there are NO paused effects
+    stop_and_go.get.return_value.paused_effects.side_effect = [[]]
 
-        note_db.get.return_value.provider.id = "theProviderId"
+    result = tested.render_effect_post()
+    assert result == []
 
-        stop_and_go.get.return_value.paused_effects.side_effect = [paused_effects]
-        stop_and_go.get.return_value.is_running.side_effect = [is_running]
-        stop_and_go.get.return_value.consume_next_waiting_cycles.side_effect = [consume]
-        stop_and_go.get.return_value.cycle.side_effect = [cycle]
-        stop_and_go.get.return_value.is_ended.side_effect = [is_ended]
-        stop_and_go.get.return_value.created.side_effect = [date_0]
-
-        tested.request = SimpleNamespace(
-            path_params={"patient_id": "patientId", "note_id": "noteId", "user_id": "theUserId"},
-            headers={"canvas-logged-in-user-id": "wrongUserId"},
-        )
-
-        result = tested.render_effect_post()
-        assert result == expected
-
-        assert stop_and_go.mock_calls == exp_stop_and_go, f"---> {idx}"
-        assert executor.mock_calls == exp_executor, f"---> {idx}"
-        assert helper.mock_calls == exp_helper, f"---> {idx}"
-        assert note_db.mock_calls == exp_note_db, f"---> {idx}"
-        reset_mocks()
+    calls = [
+        call.get("noteId"),
+        call.get().paused_effects(),
+    ]
+    assert stop_and_go.mock_calls == calls
+    reset_mocks()
 
 
 @patch("hyperscribe.handlers.capture_view.datetime", wraps=datetime)
@@ -836,8 +789,10 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
 @patch("hyperscribe.handlers.capture_view.LlmDecisionsReviewer")
 @patch("hyperscribe.handlers.capture_view.ImplementedCommands")
 @patch("hyperscribe.handlers.capture_view.log")
-def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress, command_db):
+@patch.object(CaptureView, "session_progress_log")
+def test_run_reviewer(session_progress_log, log, implemented_commands, llm_decision_reviewer, progress, command_db):
     def reset_mocks():
+        session_progress_log.reset_mock()
         log.reset_mock()
         implemented_commands.reset_mock()
         llm_decision_reviewer.reset_mock()
@@ -880,14 +835,12 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
     tested.secrets["AuditLLMDecisions"] = "theNoteId"
     tested.run_reviewer(identification, date_0, 7)
 
+    calls = [call("patientId", "noteId", "EOF")]
+    assert session_progress_log.mock_calls == calls
     assert log.mock_calls == []
     assert implemented_commands.mock_calls == []
     assert llm_decision_reviewer.mock_calls == []
-    calls = [
-        call.send_to_user(identification, settings, [ProgressMessage(message="finished", section="events:7")]),
-        call.send_to_user(identification, settings, [ProgressMessage(message="EOF", section="events:7")]),
-    ]
-    assert progress.mock_calls == calls
+    assert progress.mock_calls == []
     assert command_db.mock_calls == []
     reset_mocks()
 
@@ -922,6 +875,8 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
     calls = [call.schema_key2instruction()]
     assert implemented_commands.mock_calls == calls
 
+    calls = [call("patientId", "noteId", "EOF")]
+    assert session_progress_log.mock_calls == calls
     calls = [
         call.review(
             identification,
@@ -938,11 +893,7 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
         ),
     ]
     assert llm_decision_reviewer.mock_calls == calls
-    calls = [
-        call.send_to_user(identification, settings, [ProgressMessage(message="finished", section="events:7")]),
-        call.send_to_user(identification, settings, [ProgressMessage(message="EOF", section="events:7")]),
-    ]
-    assert progress.mock_calls == calls
+    assert progress.mock_calls == []
     calls = [
         call.filter(patient__id="patientId", note__id="noteId", state="staged"),
         call.filter().order_by("dbid"),
@@ -958,9 +909,13 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
 @patch("hyperscribe.handlers.capture_view.MemoryLog")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.log")
+@patch.object(CaptureView, "session_progress_log")
+@patch.object(CaptureView, "run_reviewer")
 @patch.object(CaptureView, "trigger_render")
 def test_run_commander(
     trigger_render,
+    run_reviewer,
+    session_progress_log,
     log,
     stop_and_go,
     memory_log,
@@ -974,14 +929,17 @@ def test_run_commander(
 
     def reset_mocks():
         trigger_render.reset_mock()
+        run_reviewer.reset_mock()
+        session_progress_log.reset_mock()
         log.reset_mock()
         stop_and_go.reset_mock()
         memory_log.reset_mock()
         progress.reset_mock()
         commander.reset_mock()
-        customization.reset_mock()
         llm_turns_store.reset_mock()
+        customization.reset_mock()
 
+    date_0 = datetime(2025, 12, 5, 13, 35, 46, tzinfo=timezone.utc)
     identification = IdentificationParameters(
         patient_uuid="patientId",
         note_uuid="noteId",
@@ -1037,6 +995,8 @@ def test_run_commander(
     effects = [
         Effect(type="LOG", payload="Log1"),
         Effect(type="LOG", payload="Log2"),
+        Effect(type="LOG", payload="Log3"),
+        Effect(type="LOG", payload="Log4"),
     ]
     audio_client = AudioClient(
         base_url="https://audio",
@@ -1047,19 +1007,17 @@ def test_run_commander(
 
     tested = helper_instance()
     # all good
-    progress_msg = [ProgressMessage(section="events:4", message="waiting for the next cycle 8...")]
+    # -- no exception
     tests = [
-        (False, False, [], "=> go to next iteration (8)", progress_msg),
-        (True, False, [], None, None),
-        (True, False, ["effect"], "=> go to next iteration (8)", progress_msg),
-        (False, True, [], "=> go to next iteration (8)", progress_msg),
-        (True, True, [], None, None),
+        (True, [call(identification, date_0, 5)], [call("patientId", "noteId", "finished")]),
+        (False, [], []),
     ]
-    for is_ended, is_paused, waiting_cycles, exp_log_msg, exp_progress_msg in tests:
-        commander.compute_audio.side_effect = [(False, effects)]
+    for is_ended, exp_call_reviewed, exp_call_progress in tests:
+        commander.compute_audio.side_effect = [(False, effects[0:2]), (False, []), (False, effects[2:])]
+        stop_and_go.get.return_value.consume_next_waiting_cycles.side_effect = [True, True, True, False]
+        stop_and_go.get.return_value.created.side_effect = [date_0]
+        stop_and_go.get.return_value.cycle.side_effect = [2, 3, 4, 5]
         stop_and_go.get.return_value.is_ended.side_effect = [is_ended]
-        stop_and_go.get.return_value.is_paused.side_effect = [is_paused]
-        stop_and_go.get.return_value.waiting_cycles.side_effect = [waiting_cycles]
         customization.custom_prompts_as_secret.side_effect = [
             {
                 "CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1","active":true},'
@@ -1068,49 +1026,70 @@ def test_run_commander(
             }
         ]
 
-        tested.run_commander(identification, 7, "theUserId")
+        tested.run_commander(identification, "theUserId")
 
-        calls = [call("patientId", "noteId", "theUserId")]
+        calls = [
+            call("patientId", "noteId", "theUserId"),
+            call("patientId", "noteId", "theUserId"),
+        ]
         assert trigger_render.mock_calls == calls
-        calls = []
-        if exp_log_msg:
-            calls = [call.info(exp_log_msg)]
-        assert log.mock_calls == calls
+        assert run_reviewer.mock_calls == exp_call_reviewed
+        assert session_progress_log.mock_calls == exp_call_progress
+        assert log.mock_calls == []
         calls = [
             call.get("noteId"),
-            call.get().set_cycle(7),
-            call.get().set_cycle().set_running(True),
-            call.get().set_cycle().set_running().save(),
+            call.get().set_running(True),
+            call.get().set_running().save(),
             call.get("noteId"),
-            call.get().add_paused_effects(effects),
+            call.get().consume_next_waiting_cycles(True),
+            call.get().cycle(),
+            call.get("noteId"),
+            call.get().add_paused_effects(effects[0:2]),
             call.get().add_paused_effects().save(),
-            call.get().waiting_cycles(),
+            call.get("noteId"),
+            call.get().consume_next_waiting_cycles(True),
+            call.get().cycle(),
+            call.get("noteId"),
+            call.get().consume_next_waiting_cycles(True),
+            call.get().cycle(),
+            call.get("noteId"),
+            call.get().add_paused_effects(effects[2:]),
+            call.get().add_paused_effects().save(),
+            call.get("noteId"),
+            call.get().consume_next_waiting_cycles(True),
+            call.get("noteId"),
+            call.get().set_running(False),
+            call.get().set_running().save(),
+            call.get().is_ended(),
         ]
-        if not waiting_cycles:
-            calls.append(call.get().is_ended())
-
-        calls.extend(
-            [
-                call.get("noteId"),
-                call.get().set_running(False),
-                call.get().set_running().save(),
-            ]
-        )
-
+        if is_ended:
+            calls.extend(
+                [
+                    call.get().created(),
+                    call.get().cycle(),
+                ]
+            )
         assert stop_and_go.mock_calls == calls
         calls = [
             call.instance(identification, "main", credentials),
             call.instance().output("SDK: theVersion - Text: theVendorTextLLM - Audio: theVendorAudioLLM - Workers: 5"),
             call.end_session("noteId"),
+            call.end_session("noteId"),
+            call.end_session("noteId"),
         ]
         assert memory_log.mock_calls == calls
-        calls = []
-        if not is_ended or waiting_cycles:
-            calls = [call.send_to_user(identification, settings[0], exp_progress_msg)]
-        assert progress.mock_calls == calls
-        calls = [call.compute_audio(identification, settings[0], credentials, audio_client, 7)]
+        assert progress.mock_calls == []
+        calls = [
+            call.compute_audio(identification, settings[0], credentials, audio_client, 2),
+            call.compute_audio(identification, settings[0], credentials, audio_client, 3),
+            call.compute_audio(identification, settings[0], credentials, audio_client, 4),
+        ]
         assert commander.mock_calls == calls
-        calls = [call.end_session("noteId")]
+        calls = [
+            call.end_session("noteId"),
+            call.end_session("noteId"),
+            call.end_session("noteId"),
+        ]
         assert llm_turns_store.mock_calls == calls
         calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier", "theUserId")]
         assert customization.mock_calls == calls
@@ -1118,28 +1097,35 @@ def test_run_commander(
 
     # error in Commander.compute_audio
     commander.compute_audio.side_effect = [Exception("Test error")]
+    stop_and_go.get.return_value.consume_next_waiting_cycles.side_effect = [True]
+    stop_and_go.get.return_value.cycle.side_effect = [7]
+    stop_and_go.get.return_value.is_ended.side_effect = [False]
     customization.custom_prompts_as_secret.side_effect = [
         {"CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1","active":true}]'}
     ]
 
-    tested.run_commander(identification, 7, "theUserId")
+    tested.run_commander(identification, "theUserId")
 
-    calls = [call("patientId", "noteId", "theUserId")]
-    assert trigger_render.mock_calls == calls
+    assert trigger_render.mock_calls == []
+    assert run_reviewer.mock_calls == []
+    assert session_progress_log.mock_calls == []
     calls = [
         call.info("************************"),
-        call.info("Error while running commander: Test error"),
+        call.error("Error while running commander: Test error", exc_info=True),
         call.info("************************"),
     ]
     assert log.mock_calls == calls
     calls = [
         call.get("noteId"),
-        call.get().set_cycle(7),
-        call.get().set_cycle().set_running(True),
-        call.get().set_cycle().set_running().save(),
+        call.get().set_running(True),
+        call.get().set_running().save(),
+        call.get("noteId"),
+        call.get().consume_next_waiting_cycles(True),
+        call.get().cycle(),
         call.get("noteId"),
         call.get().set_running(False),
         call.get().set_running().save(),
+        call.get().is_ended(),
     ]
     assert stop_and_go.mock_calls == calls
     calls = [
