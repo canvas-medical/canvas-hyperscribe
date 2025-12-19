@@ -3,7 +3,12 @@ from enum import Enum
 from re import match
 from typing import Type, Any
 
-from canvas_sdk.clients.llms.structures.settings import LlmSettingsAnthropic, LlmSettingsGemini, LlmSettingsGpt4, LlmSettingsGpt5
+from canvas_sdk.clients.llms.structures.settings import (
+    LlmSettingsAnthropic,
+    LlmSettingsGemini,
+    LlmSettingsGpt4,
+    LlmSettingsGpt5,
+)
 from canvas_sdk.utils.db import thread_cleanup
 from canvas_sdk.v1.data.note import NoteStateChangeEvent, NoteStates
 

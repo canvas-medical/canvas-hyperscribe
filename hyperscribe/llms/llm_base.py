@@ -20,7 +20,6 @@ from hyperscribe.structures.llm_turn import LlmTurn
 
 
 class LlmBase(LlmApi, ABC):
-
     def __init__(self, settings: LlmSettings, memory_log: MemoryLog, with_audit: bool):
         super().__init__(settings, memory_log)
         self.memory_log = memory_log
@@ -79,11 +78,11 @@ class LlmBase(LlmApi, ABC):
         return result
 
     def single_conversation(
-            self,
-            system_prompt: list[str],
-            user_prompt: list[str],
-            schemas: list,
-            instruction: Instruction | None,
+        self,
+        system_prompt: list[str],
+        user_prompt: list[str],
+        schemas: list,
+        instruction: Instruction | None,
     ) -> list:
         used_schemas = [s for s in schemas]
         used_prompt = [s for s in user_prompt]
@@ -150,8 +149,8 @@ class LlmBase(LlmApi, ABC):
         if not result:
             return JsonExtract(
                 error="No JSON markdown found. "
-                      "The response should be enclosed within a JSON Markdown block like: \n"
-                      "```json\nJSON OUTPUT HERE\n```",
+                "The response should be enclosed within a JSON Markdown block like: \n"
+                "```json\nJSON OUTPUT HERE\n```",
                 has_error=True,
                 content=[],
             )
