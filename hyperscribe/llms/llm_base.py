@@ -1,82 +1,37 @@
 from __future__ import annotations
-from time import time
+
 import json
 import re
+from abc import ABC
 from http import HTTPStatus
+from time import time
 
+from canvas_sdk.clients.llms import LlmSettings
+from canvas_sdk.clients.llms.libraries import LlmApi
 from canvas_sdk.questionnaires.utils import Draft7Validator
 from logger import log
 
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.libraries.memory_log import MemoryLog
-from hyperscribe.structures.http_response import HttpResponse
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.llm_turn import LlmTurn
-from hyperscribe.structures.token_counts import TokenCounts
 
 
-class LlmBase:
-    ROLE_SYSTEM = "system"
-    ROLE_USER = "user"
-    ROLE_MODEL = "model"
+class LlmBase(LlmApi, ABC):
 
-    def __init__(self, memory_log: MemoryLog, api_key: str, model: str, with_audit: bool):
+    def __init__(self, settings: LlmSettings, memory_log: MemoryLog, with_audit: bool):
+        super().__init__(settings, memory_log)
         self.memory_log = memory_log
-        self.api_key = api_key
-        self.model = model
         self.with_audit = with_audit
-        self.temperature = 0.0
-        self.prompts: list[LlmTurn] = []
         self.audios: list[dict] = []
 
     def support_speaker_identification(self) -> bool:
         raise NotImplementedError()
 
-    def reset_prompts(self) -> None:
-        self.prompts = []
-
-    def add_prompt(self, prompt: LlmTurn) -> None:
-        if prompt.role == self.ROLE_SYSTEM:
-            self.set_system_prompt(prompt.text)
-        elif prompt.role == self.ROLE_USER:
-            self.set_user_prompt(prompt.text)
-        elif prompt.role == self.ROLE_MODEL:
-            self.set_model_prompt(prompt.text)
-
-    def set_system_prompt(self, text: list[str]) -> None:
-        prompt = LlmTurn(role=self.ROLE_SYSTEM, text=text)
-        if self.prompts and self.prompts[0].role == LlmBase.ROLE_SYSTEM:
-            self.prompts[0] = prompt
-        else:
-            self.prompts.insert(0, prompt)
-
-    def set_user_prompt(self, text: list[str]) -> None:
-        self.prompts.append(LlmTurn(role=self.ROLE_USER, text=text))
-
-    def set_model_prompt(self, text: list[str]) -> None:
-        self.prompts.append(LlmTurn(role=self.ROLE_MODEL, text=text))
-
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         raise NotImplementedError()
-
-    def request(self) -> HttpResponse:
-        raise NotImplementedError()
-
-    def attempt_requests(self, attempts: int) -> HttpResponse:
-        for _ in range(attempts):
-            result = self.request()
-            if result.code == HTTPStatus.OK.value:
-                break
-        else:
-            result = HttpResponse(
-                code=HTTPStatus.TOO_MANY_REQUESTS,
-                response=f"Http error: max attempts ({attempts}) exceeded",
-                tokens=TokenCounts(prompt=0, generated=0),
-            )
-            self.memory_log.log(f"error: {result.response}")
-        return result
 
     def chat(self, schemas: list) -> JsonExtract:
         self.memory_log.log("-- CHAT BEGINS --")
@@ -84,22 +39,22 @@ class LlmBase:
         start = time()
         for _ in range(Constants.MAX_ATTEMPTS_LLM_JSON):
             attempts += 1
-            response = self.attempt_requests(Constants.MAX_ATTEMPTS_LLM_HTTP)
+            responses = self.attempt_requests(Constants.MAX_ATTEMPTS_LLM_HTTP)
             # http error
-            if response.code != HTTPStatus.OK.value:
-                result = JsonExtract(has_error=True, error=response.response, content=[])
+            if responses and responses[-1].code != HTTPStatus.OK:
+                result = JsonExtract(has_error=True, error=responses[-1].response, content=[])
                 break
 
-            result = self.extract_json_from(response.response, schemas)
-            self.memory_log.add_consumption(response.tokens)
-            if result.has_error is False:
+            result = self.extract_json_from(responses[-1].response, schemas)
+            self.memory_log.add_consumption(responses[-1].tokens)
+            if not result.has_error:
                 self.memory_log.log("result->>")
                 self.memory_log.log(json.dumps(result.content, indent=2))
                 self.memory_log.log("<<-")
                 break
 
             # JSON error
-            self.set_model_prompt(response.response.splitlines())
+            self.set_model_prompt(responses[-1].response.splitlines())
             self.set_user_prompt(
                 [
                     "Your previous response has the following errors:",
@@ -124,11 +79,11 @@ class LlmBase:
         return result
 
     def single_conversation(
-        self,
-        system_prompt: list[str],
-        user_prompt: list[str],
-        schemas: list,
-        instruction: Instruction | None,
+            self,
+            system_prompt: list[str],
+            user_prompt: list[str],
+            schemas: list,
+            instruction: Instruction | None,
     ) -> list:
         used_schemas = [s for s in schemas]
         used_prompt = [s for s in user_prompt]
@@ -146,7 +101,7 @@ class LlmBase:
         return []
 
     def store_llm_turns(self, model_prompt: list[str], instruction: Instruction | None) -> None:
-        if self.with_audit is False:
+        if not self.with_audit:
             return
         label = self.memory_log.label
         index = -1
@@ -195,8 +150,8 @@ class LlmBase:
         if not result:
             return JsonExtract(
                 error="No JSON markdown found. "
-                "The response should be enclosed within a JSON Markdown block like: \n"
-                "```json\nJSON OUTPUT HERE\n```",
+                      "The response should be enclosed within a JSON Markdown block like: \n"
+                      "```json\nJSON OUTPUT HERE\n```",
                 has_error=True,
                 content=[],
             )

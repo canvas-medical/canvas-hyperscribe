@@ -109,13 +109,9 @@ class Settings(NamedTuple):
             return sorted(re.findall(r"[a-zA-Z0-9]+", string))
         return []
 
-    def llm_audio_model(self) -> str:
-        result = Constants.OPENAI_CHAT_AUDIO
-        if self.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
-            result = Constants.GOOGLE_CHAT_ALL
-        if self.llm_audio.vendor.upper() == Constants.VENDOR_ELEVEN_LABS.upper():
-            result = Constants.ELEVEN_LABS_AUDIO
-        return result
+    @classmethod
+    def llm_audio_model(cls) -> str:
+        return Constants.ELEVEN_LABS_AUDIO
 
     def llm_text_model(self, model_spec: ModelSpec) -> str:
         if self.reasoning_llm:

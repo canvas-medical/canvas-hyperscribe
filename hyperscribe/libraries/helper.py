@@ -3,6 +3,7 @@ from enum import Enum
 from re import match
 from typing import Type, Any
 
+from canvas_sdk.clients.llms.structures.settings import LlmSettingsAnthropic, LlmSettingsGemini, LlmSettingsGpt4, LlmSettingsGpt5
 from canvas_sdk.utils.db import thread_cleanup
 from canvas_sdk.v1.data.note import NoteStateChangeEvent, NoteStates
 
@@ -13,7 +14,6 @@ from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.llms.llm_eleven_labs import LlmElevenLabs
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai
-from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 
@@ -64,31 +64,38 @@ class Helper:
 
     @classmethod
     def chatter(cls, settings: Settings, memory_log: MemoryLog, model_spec: ModelSpec) -> LlmBase:
+        api_key = settings.llm_text.api_key
+        model = settings.llm_text_model(model_spec)
         if settings.llm_text.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
             return LlmGoogle(
+                LlmSettingsGemini(api_key=api_key, model=model, temperature=0.0),
                 memory_log,
-                settings.llm_text.api_key,
-                settings.llm_text_model(model_spec),
                 settings.audit_llm,
             )
         elif settings.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
-            return LlmAnthropic(
-                memory_log,
-                settings.llm_text.api_key,
-                settings.llm_text_model(model_spec),
-                settings.audit_llm,
+            llm_settings = LlmSettingsAnthropic(
+                api_key=api_key,
+                model=model,
+                temperature=0.0,
+                max_tokens=64000,
             )
+            return LlmAnthropic(llm_settings, memory_log, settings.audit_llm)
         else:
-            model = settings.llm_text_model(model_spec)
-            if model == Constants.OPENAI_CHAT_TEXT_O3:
-                return LlmOpenaiO3(
-                    memory_log,
-                    settings.llm_text.api_key,
-                    with_audit=settings.audit_llm,
-                    temperature=settings.llm_text_temperature(),
+            llm_settings = LlmSettingsGpt4(api_key=api_key, model=model, temperature=0.0)
+            if model.lower().startswith("gpt-5.1") or model.lower().startswith("o"):
+                effort = "none"
+                verbosity = "medium"
+                if settings.reasoning_llm:
+                    effort = "high"
+                    verbosity = "high"
+
+                llm_settings = LlmSettingsGpt5(
+                    api_key=api_key,
+                    model=model,
+                    reasoning_effort=effort,
+                    text_verbosity=verbosity,
                 )
-            else:
-                return LlmOpenai(memory_log, settings.llm_text.api_key, model, settings.audit_llm)
+            return LlmOpenai(llm_settings, memory_log, settings.audit_llm)
 
     @classmethod
     def audio2texter(cls, settings: Settings, memory_log: MemoryLog) -> LlmBase:

@@ -2,22 +2,22 @@ from __future__ import annotations
 
 from datetime import datetime, UTC
 
+from canvas_sdk.clients.llms import LlmTokens
 from logger import log
 
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
-from hyperscribe.structures.token_counts import TokenCounts
 
 ENTRIES: dict[str, dict[str, list[str]]] = {}  # store the logs sent to AWS S3
-PROMPTS: dict[str, TokenCounts] = {}  # store the token consumptions
+PROMPTS: dict[str, LlmTokens] = {}  # store the token consumptions
 
 
 class MemoryLog:
     @classmethod
-    def token_counts(cls, note_uuid: str) -> TokenCounts:
-        return PROMPTS.get(note_uuid) or TokenCounts(prompt=0, generated=0)
+    def token_counts(cls, note_uuid: str) -> LlmTokens:
+        return PROMPTS.get(note_uuid) or LlmTokens(prompt=0, generated=0)
 
     @classmethod
     def end_session(cls, note_uuid: str) -> str:
@@ -60,11 +60,11 @@ class MemoryLog:
     def __init__(self, identification: IdentificationParameters, label: str) -> None:
         self.identification = identification
         self.label = label
-        self.counts = TokenCounts(prompt=0, generated=0)
+        self.counts = LlmTokens(prompt=0, generated=0)
         self.s3_credentials = AwsS3Credentials(aws_key="", aws_secret="", region="", bucket="")
         if self.identification.note_uuid not in ENTRIES:
             ENTRIES[self.identification.note_uuid] = {}
-            PROMPTS[self.identification.note_uuid] = TokenCounts(prompt=0, generated=0)
+            PROMPTS[self.identification.note_uuid] = LlmTokens(prompt=0, generated=0)
         if label not in ENTRIES[self.identification.note_uuid]:
             ENTRIES[self.identification.note_uuid][self.label] = []
         self.current_idx = len(ENTRIES[self.identification.note_uuid][self.label])
@@ -97,6 +97,6 @@ class MemoryLog:
             # self.current_idx = to_index # <-- ensure a full log is stored
             client_s3.upload_text_to_s3(log_path, self.logs(from_index, to_index))
 
-    def add_consumption(self, counts: TokenCounts) -> None:
+    def add_consumption(self, counts: LlmTokens) -> None:
         self.counts.add(counts)
         PROMPTS[self.identification.note_uuid].add(counts)
