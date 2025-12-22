@@ -1,20 +1,24 @@
+from http import HTTPStatus
 from unittest.mock import patch, call, MagicMock
 
+from canvas_sdk.clients.llms import LlmResponse, LlmSettings
+from canvas_sdk.clients.llms import LlmTokens
+
 from hyperscribe.llms.llm_eleven_labs import LlmElevenLabs
-from hyperscribe.structures.http_response import HttpResponse
-from hyperscribe.structures.token_counts import TokenCounts
 
 
 def test_support_speaker_identification():
     memory_log = MagicMock()
-    tested = LlmElevenLabs(memory_log, "elevenLabsKey", "theModel", False)
+    settings = LlmSettings("apiKey", "theModel")
+    tested = LlmElevenLabs(settings, memory_log, False)
     result = tested.support_speaker_identification()
     assert result is False
 
 
 def test_add_audio():
     memory_log = MagicMock()
-    tested = LlmElevenLabs(memory_log, "elevenLabsKey", "theModel", False)
+    settings = LlmSettings("apiKey", "theModel")
+    tested = LlmElevenLabs(settings, memory_log, False)
 
     result = tested.audios
     assert result == []
@@ -30,6 +34,13 @@ def test_add_audio():
     assert memory_log.mock_calls == []
 
 
+def test__api_base_url():
+    tested = LlmElevenLabs
+    result = tested._api_base_url()
+    expected = "https://api.elevenlabs.io/v1/speech-to-text"
+    assert result == expected
+
+
 @patch("hyperscribe.llms.llm_eleven_labs.requests_post")
 def test_request(requests_post):
     memory_log = MagicMock()
@@ -41,9 +52,10 @@ def test_request(requests_post):
     # no audio
     requests_post.side_effect = []
 
-    tested = LlmElevenLabs(memory_log, "apiKey", "theModel", False)
+    settings = LlmSettings("apiKey", "theModel")
+    tested = LlmElevenLabs(settings, memory_log, False)
     result = tested.request()
-    expected = HttpResponse(code=422, response="no audio provided", tokens=TokenCounts(prompt=0, generated=0))
+    expected = LlmResponse(code=HTTPStatus(422), response="no audio provided", tokens=LlmTokens(prompt=0, generated=0))
     assert result == expected
 
     assert requests_post.mock_calls == []
@@ -64,13 +76,14 @@ def test_request(requests_post):
     )()
     requests_post.side_effect = [response]
 
-    tested = LlmElevenLabs(memory_log, "apiKey", "theModel", False)
+    settings = LlmSettings("apiKey", "theModel")
+    tested = LlmElevenLabs(settings, memory_log, False)
     tested.add_audio(b"someBytes", "mp3")
     result = tested.request()
-    expected = HttpResponse(
-        code=202,
+    expected = LlmResponse(
+        code=HTTPStatus(202),
         response='{"error": "theError"}',
-        tokens=TokenCounts(prompt=0, generated=0),
+        tokens=LlmTokens(prompt=0, generated=0),
     )
     assert result == expected
 
@@ -112,18 +125,19 @@ def test_request(requests_post):
 
     requests_post.side_effect = [response]
 
-    tested = LlmElevenLabs(memory_log, "apiKey", "theModel", False)
+    settings = LlmSettings("apiKey", "theModel")
+    tested = LlmElevenLabs(settings, memory_log, False)
     tested.add_audio(b"someBytes", "mp3")
     result = tested.request()
-    expected = HttpResponse(
-        code=200,
+    expected = LlmResponse(
+        code=HTTPStatus(200),
         response="```json\n[\n {"
         '\n  "speaker": "speaker_0",'
         '\n  "text": "[silence]",'
         '\n  "start": 0.0,'
         '\n  "end": 0.0'
         "\n }\n]\n```",
-        tokens=TokenCounts(prompt=0, generated=0),
+        tokens=LlmTokens(prompt=0, generated=0),
     )
     assert result == expected
 
@@ -179,11 +193,12 @@ def test_request(requests_post):
 
     requests_post.side_effect = [response]
 
-    tested = LlmElevenLabs(memory_log, "apiKey", "theModel", False)
+    settings = LlmSettings("apiKey", "theModel")
+    tested = LlmElevenLabs(settings, memory_log, False)
     tested.add_audio(b"someBytes", "mp3")
     result = tested.request()
-    expected = HttpResponse(
-        code=200,
+    expected = LlmResponse(
+        code=HTTPStatus(200),
         response="```json\n"
         "[\n "
         '{\n  "speaker": "speaker_0",\n  "text": "text Atext Ctext D",\n  "start": 0.0,\n  "end": 4.7\n },\n '
@@ -194,7 +209,7 @@ def test_request(requests_post):
         '{\n  "speaker": "speaker_1",\n  "text": "text L text N",\n  "start": 12.5,\n  "end": 15.3\n }\n'
         "]\n"
         "```",
-        tokens=TokenCounts(prompt=0, generated=0),
+        tokens=LlmTokens(prompt=0, generated=0),
     )
     assert result == expected
 

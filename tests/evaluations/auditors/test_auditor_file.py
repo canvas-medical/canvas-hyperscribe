@@ -12,7 +12,7 @@ from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
-from hyperscribe.structures.token_counts import TokenCounts
+from canvas_sdk.clients.llms import LlmTokens
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_constant, MockFile
 
@@ -194,7 +194,7 @@ def test_case_finalize(summarized_generated_commands, filesystem_case):
         folder.__truediv__.return_value.open.side_effect = buffers
         summarized_generated_commands.side_effect = [{"summary": "generated"}]
 
-        tested.case_finalize(errors, 33, TokenCounts(prompt=187, generated=91))
+        tested.case_finalize(errors, 33, LlmTokens(prompt=187, generated=91))
         assert buffers[0].content == '{\n  "summary": "generated"\n}'
         assert buffers[1].content == exp_err
 

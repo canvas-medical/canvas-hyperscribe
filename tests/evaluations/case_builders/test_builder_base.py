@@ -219,7 +219,7 @@ def test_run(
             helper.get_canvas_instance.side_effect = ["canvasInstance"]
             helper.trace_error.side_effect = [{"error": "test"}]
             memory_log.end_session.side_effect = ["flushedMemoryLog"]
-            memory_log.token_counts.side_effect = ["tokenCounts"]
+            memory_log.token_counts.side_effect = ["LlmTokens"]
             mock_datetime.now.side_effect = [dates[1]]
             mock_auditor.s3_credentials = "awsS3CredentialsInstance1"
             mock_auditor.settings = settings
@@ -279,7 +279,7 @@ def test_run(
             assert mock_datetime.mock_calls == calls
             calls = [
                 call.case_prepare(),
-                call.case_finalize({"error": "test"} if has_error else {}, 0, "tokenCounts"),
+                call.case_finalize({"error": "test"} if has_error else {}, 0, "LlmTokens"),
                 call.generate_html_summary(),
                 call.generate_html_summary().as_uri(),
             ]
@@ -320,7 +320,7 @@ def test_run(
             helper.settings.side_effect = [settings]
             helper.trace_error.side_effect = [{"error": "test"}]
             memory_log.end_session.side_effect = ["flushedMemoryLog"]
-            memory_log.token_counts.side_effect = ["tokenCounts"]
+            memory_log.token_counts.side_effect = ["LlmTokens"]
             mock_datetime.now.side_effect = [dates[2]]
             mock_auditor.s3_credentials = "awsS3CredentialsInstance1"
             mock_auditor.settings = settings
@@ -378,7 +378,7 @@ def test_run(
             assert mock_datetime.mock_calls == calls
             calls = [
                 call.case_prepare(),
-                call.case_finalize({"error": "test"} if has_error else {}, 0, "tokenCounts"),
+                call.case_finalize({"error": "test"} if has_error else {}, 0, "LlmTokens"),
                 call.generate_html_summary(),
                 call.generate_html_summary().as_uri(),
             ]

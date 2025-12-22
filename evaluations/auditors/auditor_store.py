@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+from canvas_sdk.clients.llms import LlmTokens
 from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 
 from evaluations.constants import Constants
@@ -12,7 +13,6 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
-from hyperscribe.structures.token_counts import TokenCounts
 
 
 class AuditorStore(AuditorBase):
@@ -30,7 +30,7 @@ class AuditorStore(AuditorBase):
     def case_update_limited_cache(self, limited_cache: dict) -> None:
         raise NotImplementedError
 
-    def case_finalize(self, errors: dict, experiment_result_id: int, token_counts: TokenCounts) -> None:
+    def case_finalize(self, errors: dict, experiment_result_id: int, token_counts: LlmTokens) -> None:
         raise NotImplementedError
 
     def upsert_audio(self, label: str, audio: bytes) -> None:

@@ -238,12 +238,12 @@ def test_list_from():
 
 def test_llm_audio_model():
     tests = [
-        ("", "gpt-4o-audio-preview"),
-        ("Anthropic", "gpt-4o-audio-preview"),
+        ("", "scribe_v1"),
+        ("Anthropic", "scribe_v1"),
         ("ElevenLabs", "scribe_v1"),
-        ("Google", "models/gemini-2.5-flash"),
-        ("OpenAI", "gpt-4o-audio-preview"),
-        ("Other", "gpt-4o-audio-preview"),
+        ("Google", "scribe_v1"),
+        ("OpenAI", "scribe_v1"),
+        ("Other", "scribe_v1"),
     ]
     for vendor, expected in tests:
         tested = Settings(

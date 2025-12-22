@@ -1,5 +1,5 @@
 from evaluations.structures.records.generated_note import GeneratedNote
-from hyperscribe.structures.token_counts import TokenCounts
+from canvas_sdk.clients.llms import LlmTokens
 from tests.helper import is_namedtuple
 
 
@@ -21,7 +21,7 @@ def test_class():
         "failed": bool,
         "errors": dict,
         "experiment": bool,
-        "token_counts": TokenCounts,
+        "token_counts": LlmTokens,
         "id": int,
     }
     assert is_namedtuple(tested, fields)
@@ -43,5 +43,5 @@ def test_default():
     assert result.parameters2command == {}
     assert result.failed is False
     assert result.errors == {}
-    assert result.token_counts == TokenCounts(prompt=0, generated=0)
+    assert result.token_counts == LlmTokens(prompt=0, generated=0)
     assert result.id == 0

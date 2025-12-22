@@ -33,7 +33,6 @@ def test_constants():
         "TEXT_MODEL_REASONING": "reasoning",
         "TEXT_MODEL_CHAT": "chat",
         "MEMORY_LOG_LABEL": "main",
-        "OPENAI_CHAT_AUDIO": "gpt-4o-audio-preview",
         "OPENAI_CHAT_TEXT": "gpt-4.1",
         "OPENAI_CHAT_TEXT_O3": "o3",
         "OPENAI_REASONING_TEXT": "o3",

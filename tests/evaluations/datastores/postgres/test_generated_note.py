@@ -5,7 +5,7 @@ from evaluations.datastores.postgres.generated_note import GeneratedNote
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from evaluations.structures.records.generated_note import GeneratedNote as Record
-from hyperscribe.structures.token_counts import TokenCounts
+from canvas_sdk.clients.llms import LlmTokens
 from tests.helper import compare_sql
 
 
@@ -72,7 +72,7 @@ def test_insert(alter, mock_datetime):
         transcript2instructions={"case": "transcript2instructions"},
         instruction2parameters={"case": "instruction2parameters"},
         parameters2command={"case": "parameters2command"},
-        token_counts=TokenCounts(prompt=157, generated=71),
+        token_counts=LlmTokens(prompt=157, generated=71),
         failed=True,
         errors={"case": "errors"},
         experiment=False,
@@ -91,7 +91,7 @@ def test_insert(alter, mock_datetime):
         transcript2instructions={"case": "transcript2instructions"},
         instruction2parameters={"case": "instruction2parameters"},
         parameters2command={"case": "parameters2command"},
-        token_counts=TokenCounts(prompt=157, generated=71),
+        token_counts=LlmTokens(prompt=157, generated=71),
         failed=True,
         errors={"case": "errors"},
         experiment=False,

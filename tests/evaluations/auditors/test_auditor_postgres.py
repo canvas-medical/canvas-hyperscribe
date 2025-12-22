@@ -13,7 +13,7 @@ from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
-from hyperscribe.structures.token_counts import TokenCounts
+from canvas_sdk.clients.llms import LlmTokens
 from hyperscribe.structures.vendor_key import VendorKey
 
 
@@ -318,7 +318,7 @@ def test_case_finalize(
         tested.case_finalize(
             {"error1": "value1", "error2": "value2"},
             experiment_result_id,
-            TokenCounts(prompt=187, generated=91),
+            LlmTokens(prompt=187, generated=91),
         )
 
         calls = [call()]

@@ -5,6 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from random import randint
 
+from canvas_sdk.clients.llms import LlmTokens
+
 from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.filesystem.case import Case as FileSystemCase
@@ -12,7 +14,6 @@ from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
-from hyperscribe.structures.token_counts import TokenCounts
 
 
 class AuditorFile(AuditorStore):
@@ -56,7 +57,7 @@ class AuditorFile(AuditorStore):
             ),
         )
 
-    def case_finalize(self, errors: dict, experiment_result_id: int, token_counts: TokenCounts) -> None:
+    def case_finalize(self, errors: dict, experiment_result_id: int, token_counts: LlmTokens) -> None:
         # update the cycles
         case = FileSystemCase.get(self.case)
         FileSystemCase.upsert(

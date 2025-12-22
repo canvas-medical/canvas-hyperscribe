@@ -6,7 +6,7 @@ from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
-from hyperscribe.structures.token_counts import TokenCounts
+from canvas_sdk.clients.llms import LlmTokens
 
 
 def test_token_counts():
@@ -14,21 +14,21 @@ def test_token_counts():
         tested = MemoryLog
 
         result = tested.token_counts("noteUuid")
-        expected = TokenCounts(prompt=0, generated=0)
+        expected = LlmTokens(prompt=0, generated=0)
         assert result == expected
 
         memory_log.PROMPTS = {
-            "noteUuid_1": TokenCounts(prompt=121, generated=81),
-            "noteUuid_2": TokenCounts(prompt=122, generated=82),
+            "noteUuid_1": LlmTokens(prompt=121, generated=81),
+            "noteUuid_2": LlmTokens(prompt=122, generated=82),
         }
         result = tested.token_counts("noteUuid_1")
-        expected = TokenCounts(prompt=121, generated=81)
+        expected = LlmTokens(prompt=121, generated=81)
         assert result == expected
         result = tested.token_counts("noteUuid_2")
-        expected = TokenCounts(prompt=122, generated=82)
+        expected = LlmTokens(prompt=122, generated=82)
         assert result == expected
         result = tested.token_counts("noteUuid_3")
-        expected = TokenCounts(prompt=0, generated=0)
+        expected = LlmTokens(prompt=0, generated=0)
         assert result == expected
 
 
@@ -50,10 +50,10 @@ def test_end_session():
                 "noteUuid_4": {},
             }
             memory_log.PROMPTS = {
-                "noteUuid_1": TokenCounts(prompt=121, generated=81),
-                "noteUuid_2": TokenCounts(prompt=122, generated=82),
-                "noteUuid_3": TokenCounts(prompt=123, generated=83),
-                "noteUuid_4": TokenCounts(prompt=124, generated=84),
+                "noteUuid_1": LlmTokens(prompt=121, generated=81),
+                "noteUuid_2": LlmTokens(prompt=122, generated=82),
+                "noteUuid_3": LlmTokens(prompt=123, generated=83),
+                "noteUuid_4": LlmTokens(prompt=124, generated=84),
             }
             result = tested.end_session("noteUuid_2")
             expected = "TOTAL Tokens: 122 / 82\n\n\n\nm\nn\n\n\n\nr\ns\n\n\n\nx\ny"
@@ -116,17 +116,17 @@ def test___init__():
             _ = MemoryLog(identification, "theLabel")
             expected = {"noteUuid": {"theLabel": []}}
             assert memory_log.ENTRIES == expected
-            expected = {"noteUuid": TokenCounts(prompt=0, generated=0)}
+            expected = {"noteUuid": LlmTokens(prompt=0, generated=0)}
             assert memory_log.PROMPTS == expected
 
             # nothing empty
             memory_log.ENTRIES = {"noteUuid": {"theLabel": []}}
-            memory_log.PROMPTS = {"noteUuid": TokenCounts(prompt=0, generated=0)}
+            memory_log.PROMPTS = {"noteUuid": LlmTokens(prompt=0, generated=0)}
 
             tested = MemoryLog(identification, "theLabel")
             expected = {"noteUuid": {"theLabel": []}}
             assert memory_log.ENTRIES == expected
-            expected = {"noteUuid": TokenCounts(prompt=0, generated=0)}
+            expected = {"noteUuid": LlmTokens(prompt=0, generated=0)}
             assert memory_log.PROMPTS == expected
 
             assert tested.identification == identification
@@ -319,7 +319,7 @@ def test_store_so_far(log, get_discussion, aws_s3):
     }
     tested = MemoryLog(identification, "theLabel")
     tested.s3_credentials = aws_s3_credentials
-    tested.counts = TokenCounts(prompt=127, generated=93)
+    tested.counts = LlmTokens(prompt=127, generated=93)
     with patch.object(memory_log, "ENTRIES", entries):
         #
         aws_s3.return_value.is_ready.side_effect = [False]
@@ -368,10 +368,10 @@ def test_add_consumption():
         canvas_instance="canvasInstance",
     )
     with patch.object(memory_log, "PROMPTS", {}):
-        memory_log.PROMPTS = {"noteUuid": TokenCounts(prompt=523, generated=187)}
+        memory_log.PROMPTS = {"noteUuid": LlmTokens(prompt=523, generated=187)}
         tested = MemoryLog(identification, "theLabel")
-        tested.counts = TokenCounts(prompt=127, generated=93)
+        tested.counts = LlmTokens(prompt=127, generated=93)
 
-        tested.add_consumption(TokenCounts(prompt=100, generated=50))
-        assert tested.counts == TokenCounts(prompt=227, generated=143)
-        assert memory_log.PROMPTS == {"noteUuid": TokenCounts(prompt=623, generated=237)}
+        tested.add_consumption(LlmTokens(prompt=100, generated=50))
+        assert tested.counts == LlmTokens(prompt=227, generated=143)
+        assert memory_log.PROMPTS == {"noteUuid": LlmTokens(prompt=623, generated=237)}

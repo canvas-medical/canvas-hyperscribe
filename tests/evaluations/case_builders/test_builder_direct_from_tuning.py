@@ -450,7 +450,7 @@ def test_generate_case(
         helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
         helper.trace_error.side_effect = [{"error": "test"}]
         generated_note.return_value.last_run_for.side_effect = [last_run_side_effect]
-        memory_log.token_counts.side_effect = ["tokenCounts"]
+        memory_log.token_counts.side_effect = ["LlmTokens"]
         mock_settings.llm_audio.vendor = "theVendorAudio"
         mock_settings.llm_audio_model.side_effect = ["theModelAudio"]
         mock_settings.llm_text.vendor = "theVendorText"
@@ -577,11 +577,11 @@ def test_generate_case(
                             "audio2transcript",
                             {"theCycleKey": [{"speaker": "theSpeaker6", "text": "theText6", "start": 8.3, "end": 9.9}]},
                         ),
-                        call().case_finalize({}, 0, "tokenCounts"),
+                        call().case_finalize({}, 0, "LlmTokens"),
                     ],
                 )
             else:
-                calls.extend([call().case_finalize({"error": "test"}, 0, "tokenCounts")])
+                calls.extend([call().case_finalize({"error": "test"}, 0, "LlmTokens")])
             calls.extend([call().summarized_generated_commands_as_instructions()])
             assert auditor_postgres.mock_calls == calls
             calls = [call.schema_key2instruction()]

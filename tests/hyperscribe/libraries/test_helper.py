@@ -3,6 +3,13 @@ from enum import Enum
 from unittest.mock import patch, call, MagicMock
 
 import pytest
+from canvas_sdk.clients.llms import LlmSettings
+from canvas_sdk.clients.llms.structures.settings import (
+    LlmSettingsGemini,
+    LlmSettingsAnthropic,
+    LlmSettingsGpt4,
+    LlmSettingsGpt5,
+)
 from canvas_sdk.v1.data.note import NoteStateChangeEvent, NoteStates
 
 from hyperscribe.libraries.helper import Helper
@@ -10,7 +17,6 @@ from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_eleven_labs import LlmElevenLabs
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai
-from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
@@ -116,23 +122,84 @@ def test_icd10_strip_dot():
         assert result == expected, f"---> {code}"
 
 
-def test_chatter():
+@patch.object(Settings, "llm_text_model")
+def test_chatter(llm_text_model):
     memory_log = MagicMock()
+
+    def reset_mocks():
+        llm_text_model.reset_mock()
+        memory_log.reset_mock()
+
     tested = Helper
     tests = [
-        ("Anthropic", LlmAnthropic, "claude-sonnet-4-5-20250929"),
-        ("Google", LlmGoogle, "models/gemini-2.5-flash"),
-        ("OpenAI", LlmOpenaiO3, "o3"),
-        ("Any", LlmOpenai, "gpt-4.1"),
+        (
+            "Anthropic",
+            True,
+            ["theModel"],
+            LlmAnthropic,
+            LlmSettingsAnthropic(api_key="textKey", model="theModel", temperature=0.0, max_tokens=64000),
+        ),
+        (
+            "Google",
+            True,
+            ["theModel"],
+            LlmGoogle,
+            LlmSettingsGemini(api_key="textKey", model="theModel", temperature=0.0),
+        ),
+        ("Any", True, ["theModel"], LlmOpenai, LlmSettingsGpt4(api_key="textKey", model="theModel", temperature=0.0)),
+        (
+            "Anthropic",
+            False,
+            ["theModel"],
+            LlmAnthropic,
+            LlmSettingsAnthropic(api_key="textKey", model="theModel", temperature=0.0, max_tokens=64000),
+        ),
+        (
+            "Google",
+            False,
+            ["theModel"],
+            LlmGoogle,
+            LlmSettingsGemini(api_key="textKey", model="theModel", temperature=0.0),
+        ),
+        ("Any", False, ["theModel"], LlmOpenai, LlmSettingsGpt4(api_key="textKey", model="theModel", temperature=0.0)),
+        #
+        (
+            "Any",
+            False,
+            ["gpt-5.1xyz"],
+            LlmOpenai,
+            LlmSettingsGpt5(api_key="textKey", model="gpt-5.1xyz", reasoning_effort="none", text_verbosity="medium"),
+        ),
+        (
+            "Any",
+            True,
+            ["gpt-5.1xyz"],
+            LlmOpenai,
+            LlmSettingsGpt5(api_key="textKey", model="gpt-5.1xyz", reasoning_effort="high", text_verbosity="high"),
+        ),
+        (
+            "Any",
+            False,
+            ["o123"],
+            LlmOpenai,
+            LlmSettingsGpt5(api_key="textKey", model="o123", reasoning_effort="none", text_verbosity="medium"),
+        ),
+        (
+            "Any",
+            True,
+            ["o123"],
+            LlmOpenai,
+            LlmSettingsGpt5(api_key="textKey", model="o123", reasoning_effort="high", text_verbosity="high"),
+        ),
     ]
-    for vendor, exp_class, exp_model in tests:
-        memory_log.reset_mock()
+    for vendor, reasoning_llm, side_effect_llm_text_model, exp_class, exp_settings in tests:
+        reset_mocks()
         settings = Settings(
             llm_text=VendorKey(vendor=vendor, api_key="textKey"),
             llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
             structured_rfv=False,
             audit_llm=False,
-            reasoning_llm=False,
+            reasoning_llm=reasoning_llm,
             custom_prompts=[],
             is_tuning=False,
             api_signing_key="theApiSigningKey",
@@ -144,28 +211,26 @@ def test_chatter():
             trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=37,
         )
+        llm_text_model.side_effect = side_effect_llm_text_model
 
-        # handle o3 alternative.
-        if exp_model == "o3":
-            with patch("hyperscribe.structures.settings.Settings.llm_text_model", return_value="o3"):
-                result = tested.chatter(settings, memory_log, ModelSpec.SIMPLER)
-        else:
-            result = tested.chatter(settings, memory_log, ModelSpec.SIMPLER)
+        result = tested.chatter(settings, memory_log, ModelSpec.SIMPLER)
 
+        calls = [call(ModelSpec.SIMPLER)]
+        assert llm_text_model.mock_calls == calls
         assert memory_log.mock_calls == []
+
         assert isinstance(result, exp_class)
-        assert result.api_key == "textKey"
-        assert result.model == exp_model
+        assert result.settings == exp_settings
         assert result.memory_log == memory_log
+        assert result.with_audit is False
 
 
 def test_audio2texter():
     memory_log = MagicMock()
     tested = Helper
     tests = [
-        ("Google", LlmGoogle, "models/gemini-2.5-flash"),
         ("ElevenLabs", LlmElevenLabs, "scribe_v1"),
-        ("Any", LlmOpenai, "gpt-4o-audio-preview"),
+        ("Any", LlmElevenLabs, "scribe_v1"),
     ]
     for vendor, exp_class, exp_model in tests:
         memory_log.reset_mock()
@@ -191,8 +256,8 @@ def test_audio2texter():
         )
         assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)
-        assert result.api_key == "audioKey"
-        assert result.model == exp_model
+        exp_settings = LlmSettings(api_key="audioKey", model=exp_model)
+        assert result.settings == exp_settings
         assert result.memory_log == memory_log
 
 

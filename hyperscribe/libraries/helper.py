@@ -3,6 +3,7 @@ from enum import Enum
 from re import match
 from typing import Type, Any
 
+from canvas_sdk.clients.llms import LlmSettings
 from canvas_sdk.clients.llms.structures.settings import (
     LlmSettingsAnthropic,
     LlmSettingsGemini,
@@ -104,12 +105,11 @@ class Helper:
 
     @classmethod
     def audio2texter(cls, settings: Settings, memory_log: MemoryLog) -> LlmBase:
-        result: Type[LlmBase] = LlmOpenai
-        if settings.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
-            result = LlmGoogle
-        elif settings.llm_audio.vendor.upper() == Constants.VENDOR_ELEVEN_LABS.upper():
-            result = LlmElevenLabs
-        return result(memory_log, settings.llm_audio.api_key, settings.llm_audio_model(), settings.audit_llm)
+        llm_settings = LlmSettings(
+            api_key=settings.llm_audio.api_key,
+            model=settings.llm_audio_model(),
+        )
+        return LlmElevenLabs(llm_settings, memory_log, settings.audit_llm)
 
     @classmethod
     def canvas_host(cls, canvas_instance: str) -> str:

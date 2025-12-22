@@ -12,7 +12,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
-from hyperscribe.structures.token_counts import TokenCounts
+from canvas_sdk.clients.llms import LlmTokens
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import MockFile
 
@@ -91,7 +91,7 @@ def test_case_finalize():
         _ = tested.case_finalize(
             {"error1": "value1", "error2": "value2"},
             73,
-            TokenCounts(prompt=187, generated=91),
+            LlmTokens(prompt=187, generated=91),
         )
 
 

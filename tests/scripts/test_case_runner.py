@@ -159,7 +159,7 @@ def test_run(
     mock_auditor.settings = "theSettings"
     mock_auditor.s3_credentials = "theAwsCredentials"
     audio_interpreter.side_effect = [mock_chatter]
-    memory_log.token_counts.side_effect = ["tokenCounts"]
+    memory_log.token_counts.side_effect = ["LlmTokens"]
     mock_chatter.identification = identification
 
     tested = CaseRunner
@@ -199,7 +199,7 @@ def test_run(
         call.set_cycle(1),
         call.set_cycle(2),
         call.set_cycle(3),
-        call.case_finalize({}, 17, "tokenCounts"),
+        call.case_finalize({}, 17, "LlmTokens"),
     ]
     assert mock_auditor.mock_calls == calls
     reset_mocks()
@@ -220,7 +220,7 @@ def test_run(
     mock_auditor.settings = "theSettings"
     mock_auditor.s3_credentials = "theAwsCredentials"
     audio_interpreter.side_effect = [mock_chatter]
-    memory_log.token_counts.side_effect = ["tokenCounts"]
+    memory_log.token_counts.side_effect = ["LlmTokens"]
     mock_chatter.identification = identification
 
     tested = CaseRunner
@@ -258,7 +258,7 @@ def test_run(
         call.limited_chart(),
         call.set_cycle(1),
         call.set_cycle(2),
-        call.case_finalize({"error": "test"}, 11, "tokenCounts"),
+        call.case_finalize({"error": "test"}, 11, "LlmTokens"),
     ]
     assert mock_auditor.mock_calls == calls
     reset_mocks()

@@ -21,7 +21,7 @@ from hyperscribe.structures.llm_turn import LlmTurn
 
 class LlmBase(LlmApi, ABC):
     def __init__(self, settings: LlmSettings, memory_log: MemoryLog, with_audit: bool):
-        super().__init__(settings, memory_log)
+        super().__init__(settings)
         self.memory_log = memory_log
         self.with_audit = with_audit
         self.audios: list[dict] = []
@@ -33,14 +33,21 @@ class LlmBase(LlmApi, ABC):
         raise NotImplementedError()
 
     def chat(self, schemas: list) -> JsonExtract:
-        self.memory_log.log("-- CHAT BEGINS --")
+        self.memory_log.log(f"-- CHAT BEGINS ({self.settings.model}) --")
         attempts = 0
         start = time()
         for _ in range(Constants.MAX_ATTEMPTS_LLM_JSON):
             attempts += 1
             responses = self.attempt_requests(Constants.MAX_ATTEMPTS_LLM_HTTP)
+
+            self.memory_log.log("--- request begins:")
+            self.memory_log.log(json.dumps([p.to_dict() for p in self.prompts], indent=2))
+            self.memory_log.log(f"status code: {responses[-1].code}")
+            self.memory_log.log(responses[-1].response)
+            self.memory_log.log("--- request ends ---")
+
             # http error
-            if responses and responses[-1].code != HTTPStatus.OK:
+            if responses[-1].code != HTTPStatus.OK:
                 result = JsonExtract(has_error=True, error=responses[-1].response, content=[])
                 break
 

@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from canvas_sdk.clients.llms import LlmOpenai as LlmOpenaiBase
+from http import HTTPStatus
+
+from canvas_sdk.clients.llms import LlmOpenai as LlmOpenaiBase, LlmTokens, LlmResponse
 from requests import post as requests_post
 
 from hyperscribe.llms.llm_base import LlmBase
-from hyperscribe.structures.http_response import HttpResponse
-from hyperscribe.structures.token_counts import TokenCounts
 
 
 class LlmOpenai(LlmOpenaiBase, LlmBase):
     def support_speaker_identification(self) -> bool:
         return True
 
-    def audio_to_text(self, audio: bytes) -> HttpResponse:
+    def audio_to_text(self, audio: bytes) -> LlmResponse:
         default_model = "whisper-1"
         language = "en"
         response_format = "text"
@@ -31,8 +31,8 @@ class LlmOpenai(LlmOpenaiBase, LlmBase):
         }
         files = {"file": ("audio.mp3", audio, "application/octet-stream")}
         request = requests_post(url, headers=headers, params={}, data=data, files=files, verify=True)
-        return HttpResponse(
-            code=request.status_code,
+        return LlmResponse(
+            code=HTTPStatus(request.status_code),
             response=request.text,
-            tokens=TokenCounts(prompt=0, generated=0),
+            tokens=LlmTokens(prompt=0, generated=0),
         )

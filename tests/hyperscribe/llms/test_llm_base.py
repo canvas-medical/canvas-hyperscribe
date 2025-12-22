@@ -1,33 +1,46 @@
 import json
+from abc import ABC
+from http import HTTPStatus
 from time import time
 from unittest.mock import patch, call, MagicMock
 
 import pytest
+from canvas_sdk.clients.llms import LlmResponse, LlmSettings
+from canvas_sdk.clients.llms import LlmTokens
+from canvas_sdk.clients.llms.libraries import LlmApi
 
 from hyperscribe.llms.llm_base import LlmBase
-from hyperscribe.structures.http_response import HttpResponse
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.llm_turn import LlmTurn
-from hyperscribe.structures.token_counts import TokenCounts
-from tests.helper import is_constant
 
 
-def test_constants():
+class ImplementedLlmBase(LlmBase):
+    def request(self) -> LlmResponse:
+        return LlmResponse(
+            code=HTTPStatus(HTTPStatus.OK),
+            response="theResponse",
+            tokens=LlmTokens(prompt=123, generated=45),
+        )
+
+    @classmethod
+    def _api_base_url(cls) -> str:
+        return "theApiBaseUrl"
+
+
+def test_class():
     tested = LlmBase
-    constants = {"ROLE_SYSTEM": "system", "ROLE_USER": "user", "ROLE_MODEL": "model"}
-    assert is_constant(tested, constants)
+    assert issubclass(tested, (ABC, LlmApi))
 
 
 def test___init__():
     memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel", False)
+    settings = LlmSettings("apiKey", "theModel")
+    tested = ImplementedLlmBase(settings, memory_log, False)
     assert memory_log.mock_calls == []
     assert tested.memory_log is memory_log
-    assert tested.api_key == "apiKey"
-    assert tested.model == "theModel"
+    assert tested.settings == settings
     assert tested.with_audit == False
-    assert tested.temperature == 0.0
     assert tested.prompts == []
     assert tested.audios == []
 
@@ -36,163 +49,20 @@ def test___init__():
 
 def test_support_speaker_identification():
     memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel", False)
+    settings = LlmSettings("apiKey", "theModel")
+    tested = ImplementedLlmBase(settings, memory_log, False)
     with pytest.raises(NotImplementedError):
         _ = tested.support_speaker_identification()
     assert memory_log.mock_calls == []
 
 
-def test_reset_prompts():
-    prompts = [
-        LlmTurn(role="system", text=["line 0"]),
-        LlmTurn(role="user", text=["line 1"]),
-        LlmTurn(role="model", text=["line 2"]),
-    ]
-
-    memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel", False)
-    tested.add_prompt(prompts[0])
-    tested.add_prompt(prompts[1])
-    tested.add_prompt(prompts[2])
-    assert tested.prompts == prompts
-
-    tested.reset_prompts()
-    assert tested.prompts == []
-
-
-def test_add_prompt():
-    prompts = [
-        LlmTurn(role="system", text=["line 0"]),
-        LlmTurn(role="system", text=["line 1"]),
-        LlmTurn(role="user", text=["line 2"]),
-        LlmTurn(role="user", text=["line 3"]),
-        LlmTurn(role="model", text=["line 4"]),
-        LlmTurn(role="model", text=["line 5"]),
-        LlmTurn(role="other", text=["line 6"]),
-    ]
-
-    memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel", False)
-    tested.add_prompt(prompts[0])
-    assert tested.prompts == [prompts[i] for i in [0]]
-    tested.add_prompt(prompts[2])
-    assert tested.prompts == [prompts[i] for i in [0, 2]]
-    tested.add_prompt(prompts[4])
-    assert tested.prompts == [prompts[i] for i in [0, 2, 4]]
-    tested.add_prompt(prompts[6])
-    assert tested.prompts == [prompts[i] for i in [0, 2, 4]]
-    tested.add_prompt(prompts[1])
-    assert tested.prompts == [prompts[i] for i in [1, 2, 4]]
-    tested.add_prompt(prompts[3])
-    assert tested.prompts == [prompts[i] for i in [1, 2, 4, 3]]
-    tested.add_prompt(prompts[5])
-    assert tested.prompts == [prompts[i] for i in [1, 2, 4, 3, 5]]
-
-
-def test_set_system_prompt():
-    memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel", False)
-    assert tested.prompts == []
-    #
-    tested.set_system_prompt(["line 1", "line 2"])
-    result = tested.prompts
-    expected = [LlmTurn(role="system", text=["line 1", "line 2"])]
-    assert result == expected
-    assert memory_log.mock_calls == []
-    #
-    tested.set_system_prompt(["line 3"])
-    result = tested.prompts
-    expected = [LlmTurn(role="system", text=["line 3"])]
-    assert result == expected
-    assert memory_log.mock_calls == []
-    #
-    tested.prompts = [LlmTurn(role="user", text=["line 1", "line 2"])]
-    tested.set_system_prompt(["line 3"])
-    result = tested.prompts
-    expected = [LlmTurn(role="system", text=["line 3"]), LlmTurn(role="user", text=["line 1", "line 2"])]
-    assert result == expected
-    assert memory_log.mock_calls == []
-
-
-def test_set_user_prompt():
-    memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel", False)
-    assert tested.prompts == []
-    tested.set_user_prompt(["line 1", "line 2"])
-    result = tested.prompts
-    expected = [LlmTurn(role="user", text=["line 1", "line 2"])]
-    assert result == expected
-    assert memory_log.mock_calls == []
-
-
-def test_set_model_prompt():
-    memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel", False)
-    assert tested.prompts == []
-    tested.set_model_prompt(["line 1", "line 2"])
-    result = tested.prompts
-    expected = [LlmTurn(role="model", text=["line 1", "line 2"])]
-    assert result == expected
-    assert memory_log.mock_calls == []
-
-
 def test_add_audio():
     memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel", False)
+    settings = LlmSettings("apiKey", "theModel")
+    tested = ImplementedLlmBase(settings, memory_log, False)
     with pytest.raises(NotImplementedError):
         _ = tested.add_audio(b"audio", "format")
     assert memory_log.mock_calls == []
-
-
-def test_request():
-    memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel", False)
-    with pytest.raises(NotImplementedError):
-        _ = tested.request()
-    assert memory_log.mock_calls == []
-
-
-@patch.object(LlmBase, "request")
-def test_attempt_requests(request):
-    memory_log = MagicMock()
-
-    def reset_mocks():
-        request.reset_mock()
-
-    tested = LlmBase(memory_log, "apiKey", "theModel", False)
-
-    # one error
-    request.side_effect = [
-        HttpResponse(code=501, response="some response1", tokens=TokenCounts(prompt=0, generated=0)),
-        HttpResponse(code=200, response="some response2", tokens=TokenCounts(prompt=0, generated=0)),
-    ]
-    result = tested.attempt_requests(3)
-    expected = HttpResponse(code=200, response="some response2", tokens=TokenCounts(prompt=0, generated=0))
-    assert result == expected
-    calls = [call(), call()]
-    assert request.mock_calls == calls
-    assert memory_log.mock_calls == []
-    reset_mocks()
-
-    # too many errors
-    request.side_effect = [
-        HttpResponse(code=501, response="some response1", tokens=TokenCounts(prompt=0, generated=0)),
-        HttpResponse(code=501, response="some response2", tokens=TokenCounts(prompt=0, generated=0)),
-        HttpResponse(code=501, response="some response3", tokens=TokenCounts(prompt=0, generated=0)),
-        HttpResponse(code=200, response="some response4", tokens=TokenCounts(prompt=73, generated=31)),
-    ]
-    result = tested.attempt_requests(3)
-    expected = HttpResponse(
-        code=429,
-        response="Http error: max attempts (3) exceeded",
-        tokens=TokenCounts(prompt=0, generated=0),
-    )
-    assert result == expected
-    calls = [call(), call(), call()]
-    assert request.mock_calls == calls
-    calls = [call.log("error: Http error: max attempts (3) exceeded")]
-    assert memory_log.mock_calls == calls
-    reset_mocks()
 
 
 @patch("hyperscribe.llms.llm_base.time", wraps=time)
@@ -209,17 +79,20 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
 
     times = [136.458, 139.687, 141.951, 147.632, 153.321, 167.528]
 
-    tested = LlmBase(memory_log, "apiKey", "theModel", False)
+    settings = LlmSettings("apiKey", "theModel")
+    tested = ImplementedLlmBase(settings, memory_log, False)
     assert tested.prompts == []
 
     # http error
     mock_time.side_effect = times[0:2]
     attempt_requests.side_effect = [
-        HttpResponse(
-            code=429,
-            response="max attempts (3) exceeded",
-            tokens=TokenCounts(prompt=0, generated=0),
-        )
+        [
+            LlmResponse(
+                code=HTTPStatus(429),
+                response="max attempts (3) exceeded",
+                tokens=LlmTokens(prompt=0, generated=0),
+            )
+        ]
     ]
     extract_json_from.side_effect = []
     result = tested.chat([])
@@ -234,7 +107,12 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
     assert attempt_requests.mock_calls == calls
     assert extract_json_from.mock_calls == []
     calls = [
-        call.log("-- CHAT BEGINS --"),
+        call.log("-- CHAT BEGINS (theModel) --"),
+        call.log("--- request begins:"),
+        call.log("[]"),
+        call.log("status code: 429"),
+        call.log("max attempts (3) exceeded"),
+        call.log("--- request ends ---"),
         call.log("--- CHAT ENDS - 1 attempts - 3229ms ---"),
         call.store_so_far(),
     ]
@@ -245,8 +123,20 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
     # -- one json error
     mock_time.side_effect = times[2:4]
     attempt_requests.side_effect = [
-        HttpResponse(code=200, response="response1:\nline1\nline2", tokens=TokenCounts(prompt=71, generated=51)),
-        HttpResponse(code=200, response="response2:\nline3\nline4", tokens=TokenCounts(prompt=83, generated=47)),
+        [
+            LlmResponse(
+                code=HTTPStatus(200),
+                response="response1:\nline1\nline2",
+                tokens=LlmTokens(prompt=71, generated=51),
+            )
+        ],
+        [
+            LlmResponse(
+                code=HTTPStatus(200),
+                response="response2:\nline3\nline4",
+                tokens=LlmTokens(prompt=83, generated=47),
+            )
+        ],
     ]
     extract_json_from.side_effect = [
         JsonExtract(has_error=True, error="some error1", content=["error 1"]),
@@ -279,9 +169,33 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
     calls = [call("response1:\nline1\nline2", []), call("response2:\nline3\nline4", [])]
     assert extract_json_from.mock_calls == calls
     calls = [
-        call.log("-- CHAT BEGINS --"),
-        call.add_consumption(TokenCounts(prompt=71, generated=51)),
-        call.add_consumption(TokenCounts(prompt=83, generated=47)),
+        call.log("-- CHAT BEGINS (theModel) --"),
+        call.log("--- request begins:"),
+        call.log("[]"),
+        call.log("status code: 200"),
+        call.log("response1:\nline1\nline2"),
+        call.log("--- request ends ---"),
+        call.add_consumption(LlmTokens(prompt=71, generated=51)),
+        call.log("--- request begins:"),
+        call.log(
+            "["
+            '\n  {\n    "role": "model",\n    "text": ['
+            '\n      "response1:",\n      "line1",\n      "line2"'
+            "\n    ]\n  },"
+            '\n  {\n    "role": "user",\n    "text": ['
+            '\n      "Your previous response has the following errors:",'
+            '\n      "```text",'
+            '\n      "some error1",'
+            '\n      "```",'
+            '\n      "",'
+            '\n      "Please, correct your answer following rigorously the initial request and '
+            'the mandatory response format."'
+            "\n    ]\n  }\n]"
+        ),
+        call.log("status code: 200"),
+        call.log("response2:\nline3\nline4"),
+        call.log("--- request ends ---"),
+        call.add_consumption(LlmTokens(prompt=83, generated=47)),
         call.log("result->>"),
         call.log('[\n  "line1",\n  "line2"\n]'),
         call.log("<<-"),
@@ -293,10 +207,34 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
     # -- too many json error
     mock_time.side_effect = times[4:6]
     attempt_requests.side_effect = [
-        HttpResponse(code=200, response="response1:\nline1\nline2", tokens=TokenCounts(prompt=71, generated=41)),
-        HttpResponse(code=200, response="response2:\nline3\nline4", tokens=TokenCounts(prompt=72, generated=42)),
-        HttpResponse(code=200, response="response3:\nline5\nline6", tokens=TokenCounts(prompt=73, generated=43)),
-        HttpResponse(code=200, response="response4:\nline7\nline8", tokens=TokenCounts(prompt=74, generated=44)),
+        [
+            LlmResponse(
+                code=HTTPStatus(200),
+                response="response1:\nline1\nline2",
+                tokens=LlmTokens(prompt=71, generated=41),
+            )
+        ],
+        [
+            LlmResponse(
+                code=HTTPStatus(200),
+                response="response2:\nline3\nline4",
+                tokens=LlmTokens(prompt=72, generated=42),
+            )
+        ],
+        [
+            LlmResponse(
+                code=HTTPStatus(200),
+                response="response3:\nline5\nline6",
+                tokens=LlmTokens(prompt=73, generated=43),
+            )
+        ],
+        [
+            LlmResponse(
+                code=HTTPStatus(200),
+                response="response4:\nline7\nline8",
+                tokens=LlmTokens(prompt=74, generated=44),
+            )
+        ],
     ]
     extract_json_from.side_effect = [
         JsonExtract(has_error=True, error="some error1", content=["error 1"]),
@@ -360,10 +298,65 @@ def test_chat(attempt_requests, extract_json_from, mock_time):
     ]
     assert extract_json_from.mock_calls == calls
     calls = [
-        call.log("-- CHAT BEGINS --"),
-        call.add_consumption(TokenCounts(prompt=71, generated=41)),
-        call.add_consumption(TokenCounts(prompt=72, generated=42)),
-        call.add_consumption(TokenCounts(prompt=73, generated=43)),
+        call.log("-- CHAT BEGINS (theModel) --"),
+        call.log("--- request begins:"),
+        call.log("[]"),
+        call.log("status code: 200"),
+        call.log("response1:\nline1\nline2"),
+        call.log("--- request ends ---"),
+        call.add_consumption(LlmTokens(prompt=71, generated=41)),
+        call.log("--- request begins:"),
+        call.log(
+            "["
+            '\n  {\n    "role": "model",\n    "text": ['
+            '\n      "response1:",\n      "line1",\n      "line2"'
+            "\n    ]\n  },"
+            '\n  {\n    "role": "user",\n    "text": ['
+            '\n      "Your previous response has the following errors:",'
+            '\n      "```text",'
+            '\n      "some error1",'
+            '\n      "```",'
+            '\n      "",'
+            '\n      "Please, correct your answer following rigorously the initial request and '
+            'the mandatory response format."'
+            "\n    ]\n  }\n]"
+        ),
+        call.log("status code: 200"),
+        call.log("response2:\nline3\nline4"),
+        call.log("--- request ends ---"),
+        call.add_consumption(LlmTokens(prompt=72, generated=42)),
+        call.log("--- request begins:"),
+        call.log(
+            "["
+            '\n  {\n    "role": "model",\n    "text": ['
+            '\n      "response1:",\n      "line1",\n      "line2"'
+            "\n    ]\n  },"
+            '\n  {\n    "role": "user",\n    "text": ['
+            '\n      "Your previous response has the following errors:",'
+            '\n      "```text",'
+            '\n      "some error1",'
+            '\n      "```",'
+            '\n      "",'
+            '\n      "Please, correct your answer following rigorously the initial request and '
+            'the mandatory response format."'
+            "\n    ]\n  },\n  {"
+            '\n    "role": "model",\n    "text": ['
+            '\n      "response2:",\n      "line3",\n      "line4"'
+            "\n    ]\n  },"
+            '\n  {\n    "role": "user",\n    "text": ['
+            '\n      "Your previous response has the following errors:",'
+            '\n      "```text",'
+            '\n      "some error2",'
+            '\n      "```",'
+            '\n      "",'
+            '\n      "Please, correct your answer following rigorously the initial request and '
+            'the mandatory response format."'
+            "\n    ]\n  }\n]"
+        ),
+        call.log("status code: 200"),
+        call.log("response3:\nline5\nline6"),
+        call.log("--- request ends ---"),
+        call.add_consumption(LlmTokens(prompt=73, generated=43)),
         call.log("error: JSON incorrect: max attempts (3) exceeded"),
         call.log("--- CHAT ENDS - 3 attempts - 14206ms ---"),
         call.store_so_far(),
@@ -392,8 +385,8 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
     user_prompt = ["theUserPrompt"]
     schemas = ["schema1", "schema2"]
 
-    tested = LlmBase(memory_log, "theApiKey", "theModel", True)
-
+    settings = LlmSettings("theApiKey", "theModel")
+    tested = ImplementedLlmBase(settings, memory_log, True)
     # without error
     # -- no instruction, several schemas
     chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent1"], ["theContent2"]])]
@@ -430,7 +423,7 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
 
     # -- with instruction
     for with_audit in [True, False]:
-        tested = LlmBase(memory_log, "theApiKey", "theModel", with_audit)
+        tested = ImplementedLlmBase(settings, memory_log, with_audit)
         instruction = Instruction(
             uuid="theUuid",
             index=0,
@@ -510,8 +503,9 @@ def test_store_llm_turns(discussion_store):
         LlmTurn(role="model", text=["```json", '["line1", "line2"]', "```"]),
     ]
 
+    settings = LlmSettings("theApiKey", "theModel")
     # no audit
-    tested = LlmBase(memory_log, "theApiKey", "theModel", False)
+    tested = ImplementedLlmBase(settings, memory_log, False)
     tested.prompts = prompts
     tested.store_llm_turns(["line1", "line2"], instruction)
 
@@ -520,7 +514,7 @@ def test_store_llm_turns(discussion_store):
     reset_mocks()
 
     # with audit
-    tested = LlmBase(memory_log, "theApiKey", "theModel", True)
+    tested = ImplementedLlmBase(settings, memory_log, True)
     tested.prompts = prompts
     # -- with instruction
     tested.store_llm_turns(["line1", "line2"], instruction)

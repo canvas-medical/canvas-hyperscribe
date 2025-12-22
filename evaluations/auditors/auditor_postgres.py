@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from subprocess import check_output
 
+from canvas_sdk.clients.llms import LlmTokens
+
 from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.postgres.case import Case as CaseStore
@@ -15,7 +17,6 @@ from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
-from hyperscribe.structures.token_counts import TokenCounts
 
 
 class AuditorPostgres(AuditorStore):
@@ -71,7 +72,7 @@ class AuditorPostgres(AuditorStore):
     def case_update_limited_cache(self, limited_cache: dict) -> None:
         CaseStore(self.postgres_credentials).update_fields(self.case_id(), {"limited_chart": limited_cache})
 
-    def case_finalize(self, errors: dict, experiment_result_id: int, token_counts: TokenCounts) -> None:
+    def case_finalize(self, errors: dict, experiment_result_id: int, token_counts: LlmTokens) -> None:
         generated_note_id = self.generated_note_id()
         summarized_generated_commands = self.summarized_generated_commands()
         GeneratedNoteStore(self.postgres_credentials).update_fields(

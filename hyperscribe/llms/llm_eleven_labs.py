@@ -34,6 +34,7 @@ class LlmElevenLabs(LlmBase):
             "diarize": True,
             "temperature": 0,
         }
+        self.memory_log.log("--- request begins:")
         request = requests_post(
             self._api_base_url(),
             headers=headers,
@@ -43,6 +44,9 @@ class LlmElevenLabs(LlmBase):
             verify=True,
             timeout=None,
         )
+        self.memory_log.log(f"status code: {request.status_code}")
+        self.memory_log.log(request.json())
+        self.memory_log.log("--- request ends ---")
         result = LlmResponse(
             code=HTTPStatus(request.status_code),
             response=request.text,

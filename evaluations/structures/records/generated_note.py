@@ -1,6 +1,6 @@
 from typing import NamedTuple
 
-from hyperscribe.structures.token_counts import TokenCounts
+from canvas_sdk.clients.llms import LlmTokens
 
 
 class GeneratedNote(NamedTuple):
@@ -19,5 +19,5 @@ class GeneratedNote(NamedTuple):
     failed: bool = False
     errors: dict = {}
     experiment: bool = False
-    token_counts: TokenCounts = TokenCounts(prompt=0, generated=0)
+    token_counts: LlmTokens = LlmTokens(prompt=0, generated=0)
     id: int = 0
