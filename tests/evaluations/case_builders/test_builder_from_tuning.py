@@ -3,6 +3,9 @@ from unittest.mock import patch, call, MagicMock
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_tuning import BuilderFromTuning
+from hyperscribe.libraries.commander import Commander
+from hyperscribe.structures.cycle_data import CycleData
+from hyperscribe.structures.cycle_data_source import CycleDataSource
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
@@ -51,15 +54,15 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_tuning.CachedSdk")
 @patch("evaluations.case_builders.builder_from_tuning.ImplementedCommands")
 @patch("evaluations.case_builders.builder_from_tuning.LimitedCache")
-@patch.object(BuilderFromTuning, "_run_cycle")
-def test__run(run_cycle, limited_cache, implemented_commands, cached_discussion, audio_interpreter, capsys):
+@patch.object(Commander, "audio2commands")
+def test__run(audio2commands, limited_cache, implemented_commands, cached_discussion, audio_interpreter, capsys):
     recorder = MagicMock()
     mock_limited_cache = MagicMock()
     mock_json_file = MagicMock()
     mock_mp3_files = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
-        run_cycle.reset_mock()
+        audio2commands.reset_mock()
         limited_cache.reset_mock()
         implemented_commands.reset_mock()
         cached_discussion.reset_mock()
@@ -112,12 +115,12 @@ def test__run(run_cycle, limited_cache, implemented_commands, cached_discussion,
     mock_json_file.name = "theJsonFile"
     mock_json_file.open.return_value.__enter__.return_value.read.side_effect = ['{"key": "value"}']
 
-    run_cycle.side_effect = [
-        (instructions[:2], lines[0]),
-        (instructions[:3], lines[1]),
-        (instructions[:4], lines[2]),
-        (instructions[:5], lines[3]),
-        (instructions[:6], lines[4]),
+    audio2commands.side_effect = [
+        (instructions[:2], [], lines[0]),
+        (instructions[:3], [], lines[1]),
+        (instructions[:4], [], lines[2]),
+        (instructions[:5], [], lines[3]),
+        (instructions[:6], [], lines[4]),
     ]
 
     parameters = Namespace(
@@ -176,13 +179,43 @@ def test__run(run_cycle, limited_cache, implemented_commands, cached_discussion,
     calls = [call("theSettings", "theAwsS3Credentials", mock_limited_cache, identification)]
     assert audio_interpreter.mock_calls == calls
     calls = [
-        call(recorder, exp_combined[0], audio_interpreter.return_value, instructions[:1], []),
-        call(recorder, exp_combined[1], audio_interpreter.return_value, instructions[:2], lines[0]),
-        call(recorder, exp_combined[2], audio_interpreter.return_value, instructions[:3], lines[1]),
-        call(recorder, exp_combined[3], audio_interpreter.return_value, instructions[:4], lines[2]),
-        call(recorder, exp_combined[4], audio_interpreter.return_value, instructions[:5], lines[3]),
+        call(
+            recorder,
+            CycleData(audio=exp_combined[0], transcript=[], source=CycleDataSource.AUDIO),
+            audio_interpreter.return_value,
+            instructions[:1],
+            [],
+        ),
+        call(
+            recorder,
+            CycleData(audio=exp_combined[1], transcript=[], source=CycleDataSource.AUDIO),
+            audio_interpreter.return_value,
+            instructions[:2],
+            lines[0],
+        ),
+        call(
+            recorder,
+            CycleData(audio=exp_combined[2], transcript=[], source=CycleDataSource.AUDIO),
+            audio_interpreter.return_value,
+            instructions[:3],
+            lines[1],
+        ),
+        call(
+            recorder,
+            CycleData(audio=exp_combined[3], transcript=[], source=CycleDataSource.AUDIO),
+            audio_interpreter.return_value,
+            instructions[:4],
+            lines[2],
+        ),
+        call(
+            recorder,
+            CycleData(audio=exp_combined[4], transcript=[], source=CycleDataSource.AUDIO),
+            audio_interpreter.return_value,
+            instructions[:5],
+            lines[3],
+        ),
     ]
-    assert run_cycle.mock_calls == calls
+    assert audio2commands.mock_calls == calls
     calls = [
         call.open("r"),
         call.open().__enter__(),

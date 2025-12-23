@@ -14,7 +14,7 @@ class StopAndGo:
         self._is_running: bool = False
         self._is_paused: bool = False
         self._is_ended: bool = False
-        self._cycle: int = 1
+        self._cycle: int = 0
         self._paused_effects: list[Effect] = []
         self._waiting_cycles: list[int] = []
         self._delay: int = 0  # seconds to wait when set
@@ -61,9 +61,11 @@ class StopAndGo:
         self._paused_effects = []
         return self
 
-    def add_waiting_cycle(self, cycle: int) -> StopAndGo:
-        if cycle not in self._waiting_cycles:
-            self._waiting_cycles.append(cycle)
+    def add_waiting_cycle(self) -> StopAndGo:
+        next_cycle = self._cycle + 1
+        if self._waiting_cycles:
+            next_cycle = self._waiting_cycles[-1] + 1
+        self._waiting_cycles.append(next_cycle)
         return self
 
     def consume_next_waiting_cycles(self, save: bool) -> bool:

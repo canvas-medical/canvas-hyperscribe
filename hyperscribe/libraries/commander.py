@@ -10,7 +10,6 @@ from canvas_sdk.utils.http import ThreadPoolExecutor
 from canvas_sdk.v1.data.command import Command
 
 from hyperscribe.handlers.progress_display import ProgressDisplay
-from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.auditor_base import AuditorBase
 from hyperscribe.libraries.auditor_live import AuditorLive
@@ -24,6 +23,7 @@ from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.cycle_data import CycleData
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -34,19 +34,17 @@ from hyperscribe.structures.settings import Settings
 
 class Commander(BaseProtocol):
     @classmethod
-    def compute_audio(
+    def compute_cycle(
         cls,
         identification: IdentificationParameters,
         settings: Settings,
         aws_s3: AwsS3Credentials,
-        audio_client: AudioClient,
         chunk_index: int,
     ) -> tuple[bool, list[Effect]]:
-        audio_bytes = audio_client.get_audio_chunk(identification.patient_uuid, identification.note_uuid, chunk_index)
-
+        cycle_data = CycleData.from_s3(aws_s3, identification, chunk_index)
         memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
-        memory_log.output(f"--> audio length: {len(audio_bytes)}")
-        if not audio_bytes:
+        memory_log.output(f"--> cycle length: {cycle_data.length()}")
+        if not cycle_data.length():
             return False, []
 
         messages = [
@@ -79,12 +77,13 @@ class Commander(BaseProtocol):
         auditor = AuditorLive(chunk_index, settings, aws_s3, identification)
         discussion.previous_instructions, results, discussion.previous_transcript = cls.audio2commands(
             auditor,
-            audio_bytes,
+            cycle_data,
             chatter,
             previous_instructions,
             discussion.previous_transcript,
         )
         discussion.save()
+
         # summary
         memory_log.output(f"<===  note: {identification.note_uuid} ===>")
         memory_log.output(f"Structured RfV: {settings.structured_rfv}")
@@ -114,19 +113,23 @@ class Commander(BaseProtocol):
     def audio2commands(
         cls,
         auditor: AuditorBase,
-        audio_bytes: bytes,
+        cycle_data: CycleData,
         chatter: AudioInterpreter,
         previous_instructions: list[Instruction],
         previous_transcript: list[Line],
     ) -> tuple[list[Instruction], list[Effect], list[Line]]:
         memory_log = MemoryLog.instance(chatter.identification, Constants.MEMORY_LOG_LABEL, chatter.s3_credentials)
-        response = chatter.combine_and_speaker_detection(audio_bytes, previous_transcript)
-        if response.has_error is True:
-            memory_log.output(f"--> transcript encountered: {response.error}")
-            return previous_instructions, [], []  # <--- let's continue even if we were not able to get a transcript
+        if cycle_data.is_audio():
+            response = chatter.combine_and_speaker_detection(cycle_data.audio, previous_transcript)
+            if response.has_error is True:
+                memory_log.output(f"--> transcript encountered: {response.error}")
+                return previous_instructions, [], []  # <--- let's continue even if we were not able to get a transcript
 
-        transcript = Line.load_from_json(response.content)
-        auditor.identified_transcript(audio_bytes, transcript)
+            transcript = Line.load_from_json(response.content)
+        else:
+            transcript = cycle_data.transcript
+
+        auditor.identified_transcript(cycle_data.audio, transcript)
         memory_log.output(f"--> transcript back and forth: {len(transcript)}")
         messages = [
             ProgressMessage(

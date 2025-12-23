@@ -26,6 +26,8 @@ def test_constants():
         "MAX_ATTEMPTS_CANVAS_SERVICES": 2,
         "MAX_TIME_OUT_CANVAS_SERVICES": 7,
         "MAX_CHARGE_DESCRIPTIONS": 500,
+        "CYCLE_DATA_MAX_ATTEMPTS": 3,
+        "CYCLE_DATA_PAUSE_SECONDS": 3,
         "MAX_WORKERS_MIN": 1,
         "MAX_WORKERS_MAX": 10,
         "MAX_WORKERS_DEFAULT": 3,

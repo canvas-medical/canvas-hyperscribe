@@ -6,7 +6,10 @@ from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.case_builders.builder_base import BuilderBase
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.cached_sdk import CachedSdk
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
+from hyperscribe.structures.cycle_data import CycleData
+from hyperscribe.structures.cycle_data_source import CycleDataSource
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.line import Line
 
@@ -56,7 +59,13 @@ class BuilderFromMp3(BuilderBase):
             discussion.set_cycle(cycle + 1)
             recorder.set_cycle(cycle + 1)
 
-            previous, transcript_tail = cls._run_cycle(recorder, combined, chatter, previous, transcript_tail)
+            previous, _, transcript_tail = Commander.audio2commands(
+                recorder,
+                CycleData(audio=combined, transcript=[], source=CycleDataSource.AUDIO),
+                chatter,
+                previous,
+                transcript_tail,
+            )
 
         if parameters.render:
             cls._render_in_ui(recorder, identification, limited_cache)

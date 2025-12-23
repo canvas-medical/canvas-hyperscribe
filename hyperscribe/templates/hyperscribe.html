@@ -273,6 +273,81 @@
             color: #dc3545;
         }
 
+        /* Transcript form styles */
+        #transcript-form {
+            width: 100%;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 5px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            display: none; /* Hidden by default */
+        }
+
+        #transcript-form.visible {
+            display: block;
+        }
+
+        #transcript-textbox {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid rgba(0, 40, 255, 0.3);
+            border-radius: 5px;
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+            min-height: 60px;
+        }
+
+        #transcript-textbox:focus {
+            outline: none;
+            border-color: rgba(0, 40, 255, 0.6);
+        }
+
+        .transcript-submit-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        #transcript-submit-button {
+            padding: 10px 20px;
+            background-color: rgba(0, 40, 255, 0.8);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #transcript-submit-button:hover {
+            background-color: rgba(0, 40, 255, 1);
+        }
+
+        #transcript-submit-button:disabled {
+            background-color: rgba(0, 40, 255, 0.4);
+            cursor: not-allowed;
+        }
+
+        #transcript-message {
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 14px;
+            font-weight: normal;
+        }
+
+        #transcript-message.success {
+            color: #28a745;
+        }
+
+        #transcript-message.error {
+            color: #dc3545;
+        }
+
         .filter-controls label {
             display: flex;
             align-items: center;
@@ -461,6 +536,13 @@
         </div>
 
         <div id="transcript-container" class="table-container {% if uiDefaultTab == 'transcript' %}active{% endif %}">
+            <div id="transcript-form" {% if isPaused %}class="visible"{% endif %}>
+                <textarea id="transcript-textbox" placeholder="Add transcript text..."></textarea>
+                <div class="transcript-submit-row">
+                    <button id="transcript-submit-button" onclick="submitTranscript()">Submit</button>
+                    <span id="transcript-message"></span>
+                </div>
+            </div>
             <div id="transcript-legend" class="legend" style="display: none;">
                 <div id="legend-content"></div>
             </div>
@@ -821,6 +903,7 @@
                 const startBtn = document.getElementById('startButton');
                 const pauseBtn = document.getElementById('pauseButton');
                 const stopBtn = document.getElementById('stopButton');
+                const transcriptForm = document.getElementById('transcript-form');
 
                 // Reset all button classes
                 startBtn.className = 'control-button start-button';
@@ -833,22 +916,26 @@
                     startBtn.disabled = false;
                     pauseBtn.disabled = true;
                     stopBtn.disabled = true;
+                    transcriptForm.classList.add('visible');
                 } else if (state === 'active') {
                     // Recording in progress
                     startBtn.disabled = true;
                     startBtn.classList.add('recording'); // Adds red border for pulse effect
                     pauseBtn.disabled = false;
                     stopBtn.disabled = false;
+                    transcriptForm.classList.remove('visible');
                 } else if (state === 'paused') {
                     // Recording paused - can resume or stop
                     startBtn.disabled = false;
                     pauseBtn.disabled = true;
                     stopBtn.disabled = false;
+                    transcriptForm.classList.add('visible');
                 } else if (state === 'ended') {
                     // Recording ended
                     startBtn.disabled = true;
                     pauseBtn.disabled = true;
                     stopBtn.disabled = true;
+                    transcriptForm.classList.remove('visible');
                 }
             },
 
@@ -1045,7 +1132,7 @@
 
         // Stop button event handler
         const stopButton = document.getElementById("stopButton");
-        stopButton.addEventListener("click", async () => {
+        stopButton.addEventListener("click", () => {
             // Stop recording
             appState.recording.active = false;
             appState.recording.paused = false;
@@ -1053,12 +1140,6 @@
             ui.setButtonState('ended');
 
             if (audioRecorder) {
-                // Request final data before stopping to ensure we capture the last complete chunk
-                if (appState.recording.recorder && appState.recording.recorder.state === 'recording') {
-                    appState.recording.recorder.requestData();
-                    // Small delay to allow final chunk to be uploaded before stopping
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
                 audioRecorder.stop();
             }
 
@@ -1569,8 +1650,9 @@
             }, delay);
         }
 
-        // Global variable to track feedback message timeout
+        // Global variables to track message timeouts
         let feedbackMessageTimeout = null;
+        let transcriptMessageTimeout = null;
 
         function clearFeedbackMessage() {
             const messageSpan = document.getElementById('feedback-message');
@@ -1584,18 +1666,45 @@
 
         function showFeedbackMessage(text, className = '') {
             const messageSpan = document.getElementById('feedback-message');
-            
+
             // Clear any existing timeout
             if (feedbackMessageTimeout) {
                 clearTimeout(feedbackMessageTimeout);
             }
-            
+
             messageSpan.textContent = text;
             messageSpan.className = className;
-            
+
             // Set timeout to clear message after 5 seconds (unless it's a "Sending..." message)
             if (text !== 'Sending...') {
                 feedbackMessageTimeout = setTimeout(clearFeedbackMessage, 5000);
+            }
+        }
+
+        function clearTranscriptMessage() {
+            const messageSpan = document.getElementById('transcript-message');
+            messageSpan.textContent = '';
+            messageSpan.className = '';
+            if (transcriptMessageTimeout) {
+                clearTimeout(transcriptMessageTimeout);
+                transcriptMessageTimeout = null;
+            }
+        }
+
+        function showTranscriptMessage(text, className = '') {
+            const messageSpan = document.getElementById('transcript-message');
+
+            // Clear any existing timeout
+            if (transcriptMessageTimeout) {
+                clearTimeout(transcriptMessageTimeout);
+            }
+
+            messageSpan.textContent = text;
+            messageSpan.className = className;
+
+            // Set timeout to clear message after 5 seconds (unless it's a "Sending..." message)
+            if (text !== 'Sending...') {
+                transcriptMessageTimeout = setTimeout(clearTranscriptMessage, 5000);
             }
         }
 
@@ -1650,6 +1759,88 @@
                 submitButton.disabled = false;
                 submitButton.textContent = 'Submit';
             });
+        }
+
+        async function submitTranscript() {
+            const textbox = document.getElementById('transcript-textbox');
+            const submitButton = document.getElementById('transcript-submit-button');
+            const transcriptText = textbox.value.trim();
+
+            // Clear previous message
+            clearTranscriptMessage();
+
+            if (!transcriptText) {
+                showTranscriptMessage('Please enter some text before submitting.', 'error');
+                return;
+            }
+
+            // Disable the submit button while processing
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
+            showTranscriptMessage('Sending...');
+
+            try {
+                // If recording is not started, start it and immediately pause
+                if (!appState.recording.active && !appState.recording.paused && !appState.recording.ended) {
+                    // Start new session
+                    await fetch('{{newSessionURL | safe}}', {method: "POST"})
+                        .then(response => response.text())
+                        .then(result => console.log('Session started:', result))
+                        .catch(error => {
+                            console.error('Error creating session:', error);
+                            throw error;
+                        });
+
+                    // Update state to active and paused
+                    appState.recording.active = true;
+                    appState.recording.paused = true;
+
+                    // Initialize progress fetching
+                    resetTable();
+                    resetTranscriptTable();
+                    appState.progress.started = false;
+                    startProgressAndRenderFetches();
+
+                    // Immediately pause the session
+                    await fetch('{{pauseSessionURL | safe}}', {method: "POST"})
+                        .then(response => response.text())
+                        .then(result => console.log('Session paused:', result))
+                        .catch(error => console.error('Error pausing session:', error));
+
+                    // Update UI to paused state
+                    ui.setButtonState('paused');
+                }
+
+                // Prepare the transcript data
+                const formData = new FormData();
+                formData.append('transcript', transcriptText);
+
+                // Submit the transcript to the saveTranscriptURL
+                const response = await fetch('{{saveTranscriptURL | safe}}', {
+                    method: 'POST',
+                    headers: {
+                        'canvas-logged-in-user-id': '{{userUuid}}'
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    textbox.value = '';
+                    showTranscriptMessage('Transcript submitted successfully!', 'success');
+                } else {
+                    // Try to get error message from response
+                    const errorText = await response.text();
+                    throw new Error(errorText || `Server error: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Error submitting transcript:', error);
+                const errorMessage = error.message || 'Unknown error occurred';
+                showTranscriptMessage(`Error: ${errorMessage}`, 'error');
+            } finally {
+                // Re-enable the submit button
+                submitButton.disabled = false;
+                submitButton.textContent = 'Submit';
+            }
         }
     </script>
 </body>
