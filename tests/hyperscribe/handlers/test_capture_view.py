@@ -13,7 +13,6 @@ from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
 
 from hyperscribe.handlers.capture_view import CaptureView
-from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.access_policy import AccessPolicy
@@ -219,6 +218,10 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
             "signingKey",
             "/plugin-io/api/hyperscribe/audio/the-00-patient/the-00-note",
         ),
+        call.presigned_url_no_params(
+            "signingKey",
+            "/plugin-io/api/hyperscribe/transcript/the-00-patient/the-00-note",
+        ),
     ]
     assert authenticator.mock_calls == calls
     calls = [
@@ -239,6 +242,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
                 "endSessionURL": "Url5",
                 "feedbackURL": "Url6",
                 "saveAudioURL": "Url7",
+                "saveTranscriptURL": "Url8",
                 "isEnded": False,
                 "isPaused": False,
                 "chunkId": 6,
@@ -268,16 +272,10 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.capture_view.AudioClient")
 @patch.object(CaptureView, "session_progress_log")
-def test_new_session_post(session_progress_log, audio_client):
+def test_new_session_post(session_progress_log):
     def reset_mocks():
         session_progress_log.reset_mock()
-        audio_client.reset_mock()
-
-    audio_client.for_operation.return_value.get_user_token.side_effect = ["theUserToken"]
-    audio_client.for_operation.return_value.create_session.side_effect = ["theSessionId"]
-    audio_client.for_operation.return_value.add_session.side_effect = ["theFhirResponse"]
 
     tested = helper_instance()
     tested.request = SimpleNamespace(
@@ -289,13 +287,6 @@ def test_new_session_post(session_progress_log, audio_client):
 
     calls = [call("thePatientId", "theNoteId", "started")]
     assert session_progress_log.mock_calls == calls
-    calls = [
-        call.for_operation("https://audio", "customerIdentifier", "shared"),
-        call.for_operation().get_user_token("theUserId"),
-        call.for_operation().create_session("theUserToken", {"note_id": "theNoteId", "patient_id": "thePatientId"}),
-        call.for_operation().add_session("thePatientId", "theNoteId", "theSessionId", "theUserId", "theUserToken"),
-    ]
-    assert audio_client.mock_calls == calls
     reset_mocks()
 
 
@@ -401,200 +392,278 @@ def test_idle_session_post(session_progress_log, stop_and_go):
         reset_mocks()
 
 
-@patch.object(Note, "objects")
-@patch("hyperscribe.handlers.capture_view.StopAndGo")
-@patch("hyperscribe.handlers.capture_view.AudioClient")
-@patch("hyperscribe.handlers.capture_view.Helper")
-@patch("hyperscribe.handlers.capture_view.executor")
-def test_audio_chunk_post(executor, helper, audio_client, stop_and_go, note_db):
-    stop_and_go_not_running = MagicMock(is_running=lambda: False)
-    stop_and_go_is_running = MagicMock(is_running=lambda: True)
-
+@patch("hyperscribe.handlers.capture_view.log")
+@patch("hyperscribe.handlers.capture_view.WebmPrefix")
+@patch.object(CaptureView, "_add_cycle")
+def test_audio_chunk_post(add_cycle, webm_prefix, log):
     def reset_mocks():
-        executor.reset_mock()
-        helper.reset_mock()
-        audio_client.reset_mock()
-        stop_and_go.reset_mock()
-        note_db.reset_mock()
-        stop_and_go_not_running.reset_mock()
-        stop_and_go_is_running.reset_mock()
+        add_cycle.reset_mock()
+        webm_prefix.reset_mock()
+        log.reset_mock()
 
     tested = helper_instance()
     # missing file part
-    stop_and_go.get.side_effect = []
+    add_cycle.side_effect = []
+    webm_prefix.side_effect = []
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
         form_data=lambda: {},
     )
     result = tested.audio_chunk_post()
-    assert isinstance(result, list)
-    resp = result[0]
-    assert isinstance(resp, Response) and resp.status_code == 400
+    expected = [Response(b"No audio file part in the request", HTTPStatus(400))]
+    assert result == expected
 
-    assert executor.mock_calls == []
-    assert helper.mock_calls == []
-    assert audio_client.mock_calls == []
-    assert stop_and_go.mock_calls == []
-    assert note_db.mock_calls == []
-    assert stop_and_go_not_running.mock_calls == []
-    assert stop_and_go_is_running.mock_calls == []
+    assert add_cycle.mock_calls == []
+    assert webm_prefix.mock_calls == []
+    assert log.mock_calls == []
     reset_mocks()
 
     # non-file part
-    class Part:
-        name = "audio"
-        filename = "chunk_123_other"
-        content = b""
-        content_type = "audio/test"
-
-        def is_file(self):
-            return False
-
-    stop_and_go.get.side_effect = []
+    add_cycle.side_effect = []
+    webm_prefix.side_effect = []
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
-        form_data=lambda: {"audio": Part()},
+        form_data=lambda: {"audio": SimpleNamespace(is_file=lambda: False)},
     )
     result = tested.audio_chunk_post()
-    assert isinstance(result, list)
-    resp = result[0]
-    assert isinstance(resp, Response) and resp.status_code == 422
+    expected = [Response(b"The audio form part is not a file", HTTPStatus(422))]
+    assert result == expected
 
-    assert executor.mock_calls == []
-    assert helper.mock_calls == []
-    assert audio_client.mock_calls == []
-    assert stop_and_go.mock_calls == []
-    assert note_db.mock_calls == []
-    assert stop_and_go_not_running.mock_calls == []
-    assert stop_and_go_is_running.mock_calls == []
+    assert add_cycle.mock_calls == []
+    assert webm_prefix.mock_calls == []
+    assert log.mock_calls == []
     reset_mocks()
 
-    # save error (returns list)
-    audio_client.for_operation.return_value.save_audio_chunk.side_effect = [
-        SimpleNamespace(status_code=500, content=b"err")
-    ]
-
-    class PartOK(Part):
-        def is_file(self):
-            return True
-
-    part = PartOK()
-    stop_and_go.get.side_effect = []
+    # valid form
+    # -- first chunk
+    add_cycle.side_effect = [[Response(b"Good", HTTPStatus(200))]]
+    webm_prefix.side_effect = []
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
-        headers={"canvas-logged-in-user-id": "theUserId"},
-        form_data=lambda: {"audio": part},
+        form_data=lambda: {
+            "audio": SimpleNamespace(
+                is_file=lambda: True,
+                name="audio",
+                filename="chunk_000_other",
+                content=b"theAudio",
+                content_type="audio/test",
+            )
+        },
     )
     result = tested.audio_chunk_post()
-    assert isinstance(result, list)
-    resp = result[0]
-    assert resp.status_code == 500 and resp.content == b"err"
+    expected = [Response(b"Good", HTTPStatus(200))]
+    assert result == expected
 
-    assert executor.mock_calls == []
-    assert helper.mock_calls == []
+    calls = [call(b"theAudio", "audio/test")]
+    assert add_cycle.mock_calls == calls
+    assert webm_prefix.mock_calls == []
     calls = [
-        call.for_operation("https://audio", "customerIdentifier", "shared"),
-        call.for_operation().save_audio_chunk("thePatientId", "theNoteId", part),
+        call.info("audio_form_part.name: audio"),
+        call.info("audio_form_part.filename: chunk_000_other"),
+        call.info("len(audio_form_part.content): 8"),
+        call.info("audio_form_part.content_type: audio/test"),
     ]
-    assert audio_client.mock_calls == calls
-    assert stop_and_go.mock_calls == []
-    assert note_db.mock_calls == []
-    assert stop_and_go_not_running.mock_calls == []
-    assert stop_and_go_is_running.mock_calls == []
+    assert log.mock_calls == calls
+    reset_mocks()
+    # -- later chunk
+    add_cycle.side_effect = [[Response(b"Good", HTTPStatus(200))]]
+    webm_prefix.add_prefix.side_effect = [b"thePrefixedAudio"]
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        form_data=lambda: {
+            "audio": SimpleNamespace(
+                is_file=lambda: True,
+                name="audio",
+                filename="chunk_123_other",
+                content=b"theAudio",
+                content_type="audio/test",
+            )
+        },
+    )
+    result = tested.audio_chunk_post()
+    expected = [Response(b"Good", HTTPStatus(200))]
+    assert result == expected
+
+    calls = [call(b"thePrefixedAudio", "audio/test")]
+    assert add_cycle.mock_calls == calls
+    calls = [call.add_prefix(b"theAudio")]
+    assert webm_prefix.mock_calls == calls
+    calls = [
+        call.info("audio_form_part.name: audio"),
+        call.info("audio_form_part.filename: chunk_123_other"),
+        call.info("len(audio_form_part.content): 8"),
+        call.info("audio_form_part.content_type: audio/test"),
+    ]
+    assert log.mock_calls == calls
     reset_mocks()
 
-    # save success
-    # -- valid name
-    # -- -- commander not running
-    audio_client.for_operation.return_value.save_audio_chunk.side_effect = [
-        SimpleNamespace(status_code=201, content=b"")
-    ]
+
+@patch.object(CaptureView, "_add_cycle")
+def test_transcript_chunk_post(add_cycle):
+    def reset_mocks():
+        add_cycle.reset_mock()
+
+    tested = helper_instance()
+    add_cycle.side_effect = [[Response(b"Good", HTTPStatus(200))]]
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        form_data=lambda: {"transcript": SimpleNamespace(value="theTranscript")},
+    )
+    result = tested.transcript_chunk_post()
+    expected = [Response(b"Good", HTTPStatus(200))]
+    assert result == expected
+
+    calls = [call(b"theTranscript", "text/plain")]
+    assert add_cycle.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(Note, "objects")
+@patch("hyperscribe.handlers.capture_view.log")
+@patch("hyperscribe.handlers.capture_view.AwsS3")
+@patch("hyperscribe.handlers.capture_view.StopAndGo")
+@patch("hyperscribe.handlers.capture_view.CycleData")
+@patch("hyperscribe.handlers.capture_view.Helper")
+@patch("hyperscribe.handlers.capture_view.executor")
+def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note_db):
+    stop_and_go_not_running = MagicMock(is_running=lambda: False, waiting_cycles=lambda: [21])
+    stop_and_go_is_running = MagicMock(is_running=lambda: True, waiting_cycles=lambda: [27, 28])
+
+    def reset_mocks():
+        executor.reset_mock()
+        helper.reset_mock()
+        cycle_data.reset_mock()
+        stop_and_go.reset_mock()
+        aws_s3.reset_mock()
+        log.reset_mock()
+        note_db.reset_mock()
+        stop_and_go_not_running.reset_mock()
+        stop_and_go_is_running.reset_mock()
+
+    aws_s3_credentials = AwsS3Credentials(
+        aws_key="theKey",
+        aws_secret="theSecret",
+        region="theRegion",
+        bucket="theBucketLogs",
+    )
+    identification = IdentificationParameters(
+        patient_uuid="thePatientId",
+        note_uuid="theNoteId",
+        provider_uuid="theProviderId",
+        canvas_instance="customerIdentifier",
+    )
+
+    tested = helper_instance()
+    # failed AWS S3 upload
+    cycle_data.s3_key_path.side_effect = ["theS3Path"]
     stop_and_go.get.side_effect = [stop_and_go_not_running]
+    aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"theProblem", status_code=501)]
     note_db.get.return_value.provider.id = "theProviderId"
 
-    result = tested.audio_chunk_post()
-    resp = result[0]
-    assert resp.status_code == 201 and resp.content == b"Audio chunk 123 saved OK"
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        form_data=lambda: {},
+    )
+    result = tested._add_cycle(b"theContent", "content/type")
+    expected = [Response(b"theProblem", HTTPStatus(501))]
+    assert result == expected
 
-    calls = [
-        call.submit(
-            helper.with_cleanup.return_value,
-            IdentificationParameters(
-                patient_uuid="thePatientId",
-                note_uuid="theNoteId",
-                provider_uuid="theProviderId",
-                canvas_instance="customerIdentifier",
-            ),
-            "theUserId",
-        )
-    ]
-    assert executor.mock_calls == calls
-    calls = [call.with_cleanup(tested.run_commander)]
-    assert helper.mock_calls == calls
-    calls = [
-        call.for_operation("https://audio", "customerIdentifier", "shared"),  # -- valid name
-        call.for_operation().save_audio_chunk("thePatientId", "theNoteId", part),
-    ]
-    assert audio_client.mock_calls == calls
+    assert executor.mock_calls == []
+    assert helper.mock_calls == []
+    calls = [call.s3_key_path(identification, 21)]
+    assert cycle_data.mock_calls == calls
     calls = [call.get("theNoteId")]
     assert stop_and_go.mock_calls == calls
+    calls = [
+        call(aws_s3_credentials),
+        call().upload_binary_to_s3("theS3Path", b"theContent", "content/type"),
+    ]
+    assert aws_s3.mock_calls == calls
+    calls = [call.info("Failed to save chunk 21 with status 501: b'theProblem'")]
+    assert log.mock_calls == calls
     calls = [call.get(id="theNoteId")]
     assert note_db.mock_calls == calls
     calls = [
-        call.add_waiting_cycle(123),
+        call.add_waiting_cycle(),
         call.add_waiting_cycle().save(),
     ]
     assert stop_and_go_not_running.mock_calls == calls
     assert stop_and_go_is_running.mock_calls == []
     reset_mocks()
-    # -- -- commander is running
-    audio_client.for_operation.return_value.save_audio_chunk.side_effect = [
-        SimpleNamespace(status_code=201, content=b"")
-    ]
-    stop_and_go.get.side_effect = [stop_and_go_is_running]
+    # AWS S3 upload succeeded
+    # -- commander not running
+    cycle_data.s3_key_path.side_effect = ["theS3Path"]
+    stop_and_go.get.side_effect = [stop_and_go_not_running]
+    aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"Good", status_code=200)]
     note_db.get.return_value.provider.id = "theProviderId"
 
-    result = tested.audio_chunk_post()
-    resp = result[0]
-    assert resp.status_code == 201 and resp.content == b"Audio chunk 123 saved OK"
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        form_data=lambda: {},
+        headers={"canvas-logged-in-user-id": "theUserId"},
+    )
+    result = tested._add_cycle(b"theContent", "content/type")
+    expected = [Response(b"Chunk 21 saved OK", HTTPStatus(201))]
+    assert result == expected
+
+    calls = [call.submit(helper.with_cleanup.return_value, identification, "theUserId")]
+    assert executor.mock_calls == calls
+    calls = [call.with_cleanup(tested.run_commander)]
+    assert helper.mock_calls == calls
+    calls = [call.s3_key_path(identification, 21)]
+    assert cycle_data.mock_calls == calls
+    calls = [call.get("theNoteId")]
+    assert stop_and_go.mock_calls == calls
+    calls = [
+        call(aws_s3_credentials),
+        call().upload_binary_to_s3("theS3Path", b"theContent", "content/type"),
+    ]
+    assert aws_s3.mock_calls == calls
+    assert log.mock_calls == []
+    calls = [call.get(id="theNoteId")]
+    assert note_db.mock_calls == calls
+    calls = [
+        call.add_waiting_cycle(),
+        call.add_waiting_cycle().save(),
+    ]
+    assert stop_and_go_not_running.mock_calls == calls
+    assert stop_and_go_is_running.mock_calls == []
+    reset_mocks()
+    # -- commander is running
+    cycle_data.s3_key_path.side_effect = ["theS3Path"]
+    stop_and_go.get.side_effect = [stop_and_go_is_running]
+    aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"Good", status_code=200)]
+    note_db.get.return_value.provider.id = "theProviderId"
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        form_data=lambda: {},
+        headers={"canvas-logged-in-user-id": "theUserId"},
+    )
+    result = tested._add_cycle(b"theContent", "content/type")
+    expected = [Response(b"Chunk 28 saved OK", HTTPStatus(201))]
+    assert result == expected
 
     assert executor.mock_calls == []
     assert helper.mock_calls == []
-    calls = [
-        call.for_operation("https://audio", "customerIdentifier", "shared"),  # -- valid name
-        call.for_operation().save_audio_chunk("thePatientId", "theNoteId", part),
-    ]
-    assert audio_client.mock_calls == calls
+    calls = [call.s3_key_path(identification, 28)]
+    assert cycle_data.mock_calls == calls
     calls = [call.get("theNoteId")]
     assert stop_and_go.mock_calls == calls
-    assert note_db.mock_calls == []
+    calls = [
+        call(aws_s3_credentials),
+        call().upload_binary_to_s3("theS3Path", b"theContent", "content/type"),
+    ]
+    assert aws_s3.mock_calls == calls
+    assert log.mock_calls == []
+    calls = [call.get(id="theNoteId")]
+    assert note_db.mock_calls == calls
     assert stop_and_go_not_running.mock_calls == []
     calls = [
-        call.add_waiting_cycle(123),
+        call.add_waiting_cycle(),
         call.add_waiting_cycle().save(),
     ]
     assert stop_and_go_is_running.mock_calls == calls
-    reset_mocks()
-    # -- invalid name
-    audio_client.for_operation.return_value.save_audio_chunk.side_effect = [
-        SimpleNamespace(status_code=201, content=b"")
-    ]
-    part.filename = "chunk_other.test"
-    result = tested.audio_chunk_post()
-    resp = result[0]
-    assert resp.status_code == 201 and resp.content == b"Audio chunk 0 saved OK"
-
-    assert executor.mock_calls == []
-    assert helper.mock_calls == []
-    calls = [
-        call.for_operation("https://audio", "customerIdentifier", "shared"),  # -- valid name
-        call.for_operation().save_audio_chunk("thePatientId", "theNoteId", part),
-    ]
-    assert audio_client.mock_calls == calls
-    assert stop_and_go.mock_calls == []
-    assert note_db.mock_calls == []
-    assert stop_and_go_not_running.mock_calls == []
-    assert stop_and_go_is_running.mock_calls == []
     reset_mocks()
 
 
@@ -998,22 +1067,39 @@ def test_run_commander(
         Effect(type="LOG", payload="Log3"),
         Effect(type="LOG", payload="Log4"),
     ]
-    audio_client = AudioClient(
-        base_url="https://audio",
-        registration_key=None,
-        instance="customerIdentifier",
-        instance_key="shared",
-    )
 
     tested = helper_instance()
     # all good
+    # -- already running
+    commander.compute_cycle.side_effect = []
+    stop_and_go.get.return_value.is_running.side_effect = [True]
+
+    tested.run_commander(identification, "theUserId")
+
+    assert trigger_render.mock_calls == []
+    assert run_reviewer.mock_calls == []
+    assert session_progress_log.mock_calls == []
+    assert log.mock_calls == []
+    calls = [
+        call.get("noteId"),
+        call.get().is_running(),
+    ]
+    assert stop_and_go.mock_calls == calls
+    assert memory_log.mock_calls == []
+    assert progress.mock_calls == []
+    assert commander.mock_calls == []
+    assert llm_turns_store.mock_calls == []
+    assert customization.mock_calls == []
+    reset_mocks()
+
     # -- no exception
     tests = [
         (True, [call(identification, date_0, 5)], [call("patientId", "noteId", "finished")]),
         (False, [], []),
     ]
     for is_ended, exp_call_reviewed, exp_call_progress in tests:
-        commander.compute_audio.side_effect = [(False, effects[0:2]), (False, []), (False, effects[2:])]
+        commander.compute_cycle.side_effect = [(False, effects[0:2]), (False, []), (False, effects[2:])]
+        stop_and_go.get.return_value.is_running.side_effect = [False]
         stop_and_go.get.return_value.consume_next_waiting_cycles.side_effect = [True, True, True, False]
         stop_and_go.get.return_value.created.side_effect = [date_0]
         stop_and_go.get.return_value.cycle.side_effect = [2, 3, 4, 5]
@@ -1038,6 +1124,7 @@ def test_run_commander(
         assert log.mock_calls == []
         calls = [
             call.get("noteId"),
+            call.get().is_running(),
             call.get().set_running(True),
             call.get().set_running().save(),
             call.get("noteId"),
@@ -1080,9 +1167,9 @@ def test_run_commander(
         assert memory_log.mock_calls == calls
         assert progress.mock_calls == []
         calls = [
-            call.compute_audio(identification, settings[0], credentials, audio_client, 2),
-            call.compute_audio(identification, settings[0], credentials, audio_client, 3),
-            call.compute_audio(identification, settings[0], credentials, audio_client, 4),
+            call.compute_cycle(identification, settings[0], credentials, 2),
+            call.compute_cycle(identification, settings[0], credentials, 3),
+            call.compute_cycle(identification, settings[0], credentials, 4),
         ]
         assert commander.mock_calls == calls
         calls = [
@@ -1096,7 +1183,8 @@ def test_run_commander(
         reset_mocks()
 
     # error in Commander.compute_audio
-    commander.compute_audio.side_effect = [Exception("Test error")]
+    commander.compute_cycle.side_effect = [Exception("Test error")]
+    stop_and_go.get.return_value.is_running.side_effect = [False]
     stop_and_go.get.return_value.consume_next_waiting_cycles.side_effect = [True]
     stop_and_go.get.return_value.cycle.side_effect = [7]
     stop_and_go.get.return_value.is_ended.side_effect = [False]
@@ -1117,6 +1205,7 @@ def test_run_commander(
     assert log.mock_calls == calls
     calls = [
         call.get("noteId"),
+        call.get().is_running(),
         call.get().set_running(True),
         call.get().set_running().save(),
         call.get("noteId"),
@@ -1134,7 +1223,7 @@ def test_run_commander(
     ]
     assert memory_log.mock_calls == calls
     assert progress.mock_calls == []
-    calls = [call.compute_audio(identification, settings[1], credentials, audio_client, 7)]
+    calls = [call.compute_cycle(identification, settings[1], credentials, 7)]
     assert commander.mock_calls == calls
     assert llm_turns_store.mock_calls == []
     calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier", "theUserId")]

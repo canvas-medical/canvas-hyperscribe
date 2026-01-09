@@ -3,7 +3,6 @@ from argparse import Namespace
 from datetime import datetime, UTC
 from importlib import import_module
 from pathlib import Path
-from typing import Tuple
 
 from canvas_sdk.v1.data import Patient, Command
 from requests import post as requests_post, Response
@@ -13,7 +12,6 @@ from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.datastore_case import DatastoreCase
 from evaluations.helper_evaluation import HelperEvaluation
-from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
@@ -24,8 +22,6 @@ from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.identification_parameters import IdentificationParameters
-from hyperscribe.structures.instruction import Instruction
-from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
 
 
@@ -114,28 +110,6 @@ class BuilderBase:
                     discussion.cycle,
                 )
                 BuilderAuditUrl.presigned_url(identification.patient_uuid, identification.note_uuid)
-
-    @classmethod
-    def _run_cycle(
-        cls,
-        auditor: AuditorStore,
-        audio_bytes: bytes,
-        chatter: AudioInterpreter,
-        previous_instructions: list[Instruction],
-        previous_transcript: list[Line],
-    ) -> Tuple[list[Instruction], list[Line]]:
-        if transcript := auditor.transcript():
-            instructions, _ = Commander.transcript2commands(auditor, transcript, chatter, previous_instructions)
-            end_of_transcript: list[Line] = []
-        else:
-            instructions, _, end_of_transcript = Commander.audio2commands(
-                auditor,
-                audio_bytes,
-                chatter,
-                previous_instructions,
-                previous_transcript,
-            )
-        return instructions, end_of_transcript
 
     @classmethod
     def _limited_cache_from(cls, identification: IdentificationParameters, settings: Settings) -> LimitedCache:

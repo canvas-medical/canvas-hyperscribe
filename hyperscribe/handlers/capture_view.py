@@ -1,4 +1,3 @@
-import re
 from datetime import datetime, UTC
 from http import HTTPStatus
 
@@ -14,7 +13,6 @@ from logger import log
 from requests import post as requests_post
 
 from hyperscribe.handlers.progress_display import ProgressDisplay
-from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.commander import Commander
@@ -27,10 +25,12 @@ from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.libraries.stop_and_go import StopAndGo
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.cycle_data import CycleData
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.webm_prefix import WebmPrefix
 
 executor = ThreadPoolExecutor(max_workers=50)
 
@@ -102,6 +102,10 @@ class CaptureView(SimpleAPI):
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
             f"{Constants.PLUGIN_API_BASE_ROUTE}/audio/{patient_id}/{note_id}",
         )
+        save_transcript_url = Authenticator.presigned_url_no_params(
+            self.secrets[Constants.SECRET_API_SIGNING_KEY],
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/transcript/{patient_id}/{note_id}",
+        )
         ws_progress_url = (
             f"{Helper.canvas_ws_host(self.environment[Constants.CUSTOMER_IDENTIFIER])}"
             f"{Constants.PLUGIN_WS_BASE_ROUTE}/{ProgressDisplay.websocket_channel(note_id)}/"
@@ -129,6 +133,7 @@ class CaptureView(SimpleAPI):
             "endSessionURL": end_session_url,
             "feedbackURL": feedback_url,
             "saveAudioURL": save_audio_url,
+            "saveTranscriptURL": save_transcript_url,
             "isEnded": stop_and_go.is_ended(),
             "isPaused": stop_and_go.is_paused(),
             "chunkId": stop_and_go.cycle() + (1 if stop_and_go.is_paused() else -1),
@@ -144,24 +149,8 @@ class CaptureView(SimpleAPI):
 
     @api.post("/capture/new-session/<patient_id>/<note_id>")
     def new_session_post(self) -> list[Response | Effect]:
-        audio_client = AudioClient.for_operation(
-            self.secrets[Constants.SECRET_AUDIO_HOST],
-            self.environment[Constants.CUSTOMER_IDENTIFIER],
-            self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
-        )
-
-        logged_in_user_id = self.request.headers.get("canvas-logged-in-user-id")
-        user_token = audio_client.get_user_token(logged_in_user_id)
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
-        session_id = audio_client.create_session(
-            user_token,
-            {
-                "note_id": note_id,
-                "patient_id": patient_id,
-            },
-        )
-        audio_client.add_session(patient_id, note_id, session_id, logged_in_user_id, user_token)
         self.session_progress_log(patient_id, note_id, "started")
         return []
 
@@ -198,35 +187,41 @@ class CaptureView(SimpleAPI):
         log.info(f"len(audio_form_part.content): {len(audio_form_part.content)}")
         log.info(f"audio_form_part.content_type: {audio_form_part.content_type}")
 
-        audio_client = AudioClient.for_operation(
-            self.secrets[Constants.SECRET_AUDIO_HOST],
-            self.environment[Constants.CUSTOMER_IDENTIFIER],
-            self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
+        content = audio_form_part.content
+        content_type = audio_form_part.content_type
+        if not audio_form_part.filename.startswith("chunk_000_"):
+            content = WebmPrefix.add_prefix(audio_form_part.content)
+        return self._add_cycle(content, content_type)
+
+    @api.post("/transcript/<patient_id>/<note_id>")
+    def transcript_chunk_post(self) -> list[Response | Effect]:
+        form_data = self.request.form_data()
+        content = form_data.get("transcript").value.encode()
+        content_type = CycleData.content_type_text()
+        return self._add_cycle(content, content_type)
+
+    def _add_cycle(self, content: bytes, content_type: str) -> list[Response | Effect]:
+        identification = IdentificationParameters(
+            patient_uuid=self.request.path_params["patient_id"],
+            note_uuid=self.request.path_params["note_id"],
+            provider_uuid=str(Note.objects.get(id=self.request.path_params["note_id"]).provider.id),
+            canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
         )
-        patient_id = self.request.path_params["patient_id"]
-        note_id = self.request.path_params["note_id"]
-        response = audio_client.save_audio_chunk(patient_id, note_id, audio_form_part)
+        stop_and_go = StopAndGo.get(identification.note_uuid)
+        stop_and_go.add_waiting_cycle().save()
+        cycle = stop_and_go.waiting_cycles()[-1]
 
-        if response.status_code != HTTPStatus.CREATED:
-            log.info(f"Failed to save chunk with status {response.status_code}: {str(response.content)}")
+        aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
+        path_s3 = CycleData.s3_key_path(identification, cycle)
+        response = AwsS3(aws_s3).upload_binary_to_s3(path_s3, content, content_type)
+        if response.status_code != HTTPStatus.OK:
+            log.info(f"Failed to save chunk {cycle} with status {response.status_code}: {str(response.content)}")
             return [Response(response.content, HTTPStatus(response.status_code))]
+        if not stop_and_go.is_running():
+            user_id = self.request.headers.get("canvas-logged-in-user-id")
+            executor.submit(Helper.with_cleanup(self.run_commander), identification, user_id)
 
-        chunk = 0
-        if match := re.search(r"chunk_(\d+)_", audio_form_part.filename):
-            chunk = int(match.group(1))
-            stop_and_go = StopAndGo.get(note_id)
-            stop_and_go.add_waiting_cycle(chunk).save()
-            if not stop_and_go.is_running():
-                identification = IdentificationParameters(
-                    patient_uuid=patient_id,
-                    note_uuid=note_id,
-                    provider_uuid=str(Note.objects.get(id=note_id).provider.id),
-                    canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
-                )
-                user_id = self.request.headers.get("canvas-logged-in-user-id")
-                executor.submit(Helper.with_cleanup(self.run_commander), identification, user_id)
-
-        return [Response(f"Audio chunk {chunk} saved OK".encode(), HTTPStatus.CREATED)]
+        return [Response(f"Chunk {cycle} saved OK".encode(), HTTPStatus.CREATED)]
 
     @api.post("/capture/render/<patient_id>/<note_id>/<user_id>")
     def render_effect_post(self) -> list[Response | Effect]:
@@ -309,7 +304,10 @@ class CaptureView(SimpleAPI):
 
     def run_commander(self, identification: IdentificationParameters, user_id: str) -> None:
         # add the running flag
-        StopAndGo.get(identification.note_uuid).set_running(True).save()
+        stop_and_go = StopAndGo.get(identification.note_uuid)
+        if stop_and_go.is_running():
+            return
+        stop_and_go.set_running(True).save()
         try:
             aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
             settings = Settings.from_dictionary(
@@ -321,12 +319,6 @@ class CaptureView(SimpleAPI):
                 )
                 | {Constants.PROGRESS_SETTING_KEY: True}
             )
-            audio_client = AudioClient.for_operation(
-                self.secrets[Constants.SECRET_AUDIO_HOST],
-                self.environment[Constants.CUSTOMER_IDENTIFIER],
-                self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
-            )
-
             MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3).output(
                 f"SDK: {version} - "
                 f"Text: {settings.llm_text.vendor} - "
@@ -342,13 +334,7 @@ class CaptureView(SimpleAPI):
                 # from canvas_sdk.clients.waiter import Waiter
                 # Waiter.sleep_for(40)
                 # effects = []
-                had_audio, effects = Commander.compute_audio(
-                    identification,
-                    settings,
-                    aws_s3,
-                    audio_client,
-                    stop_and_go.cycle(),
-                )
+                had_audio, effects = Commander.compute_cycle(identification, settings, aws_s3, stop_and_go.cycle())
 
                 # store the effects to be rendered
                 if effects:

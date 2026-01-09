@@ -19,7 +19,7 @@ def test___init__(mock_datetime):
     assert tested._is_running is False
     assert tested._is_paused is False
     assert tested._is_ended is False
-    assert tested._cycle == 1
+    assert tested._cycle == 0
     assert tested._paused_effects == []
     assert tested._waiting_cycles == []
     assert tested._delay == 0
@@ -69,7 +69,7 @@ def test_is_ended():
 
 def test_cycle():
     tested = StopAndGo("theNoteUuid")
-    assert tested.cycle() == 1
+    assert tested.cycle() == 0
     tested.set_cycle(7)
     assert tested.cycle() == 7
 
@@ -115,7 +115,7 @@ def test_set_ended():
 
 def test_set_cycle():
     tested = StopAndGo("theNoteUuid")
-    assert tested.cycle() == 1
+    assert tested.cycle() == 0
     result = tested.set_cycle(7)
     assert result is tested
     assert tested.cycle() == 7
@@ -161,16 +161,17 @@ def test_reset_paused_effect():
 def test_add_waiting_cycle():
     tested = StopAndGo("theNoteUuid")
     assert tested.waiting_cycles() == []
-    result = tested.add_waiting_cycle(5)
+    result = tested.add_waiting_cycle()
     assert result is tested
-    assert tested.waiting_cycles() == [5]
-    result = tested.add_waiting_cycle(3)
+    assert tested.waiting_cycles() == [1]
+    result = tested.add_waiting_cycle()
     assert result is tested
-    assert tested.waiting_cycles() == [5, 3]
-    # adding duplicate should not add again
-    result = tested.add_waiting_cycle(5)
+    assert tested.waiting_cycles() == [1, 2]
+
+    tested._waiting_cycles = [43, 47]  # <-- not realistic
+    result = tested.add_waiting_cycle()
     assert result is tested
-    assert tested.waiting_cycles() == [5, 3]
+    assert tested.waiting_cycles() == [43, 47, 48]
 
 
 @patch.object(StopAndGo, "save")
@@ -179,9 +180,7 @@ def test_consume_next_waiting_cycles(save):
         save.reset_mock()
 
     tested = StopAndGo("theNoteUuid")
-    tested.add_waiting_cycle(5)
-    tested.add_waiting_cycle(3)
-    tested.add_waiting_cycle(7)
+    tested._waiting_cycles = [5, 3, 7]  # <-- not realistic
 
     # consume with save=True
     result = tested.consume_next_waiting_cycles(True)
@@ -231,9 +230,8 @@ def test_consume_next_waiting_cycles(save):
 def test_waiting_cycles():
     tested = StopAndGo("theNoteUuid")
     assert tested.waiting_cycles() == []
-    tested.add_waiting_cycle(5)
-    tested.add_waiting_cycle(3)
-    assert tested.waiting_cycles() == [5, 3]
+    tested._waiting_cycles = [43, 47]  # <-- not realistic
+    assert tested.waiting_cycles() == [43, 47]
 
 
 def test_set_delay():
@@ -399,7 +397,7 @@ def test_get(mock_datetime, get_cache):
     result = tested.get("theNoteUuid")
     assert isinstance(result, StopAndGo)
     assert result.note_uuid == "theNoteUuid"
-    assert result._cycle == 1
+    assert result._cycle == 0
     assert result._created == datetime(2025, 8, 7, 14, 1, 37, 123456, tzinfo=UTC)
     assert result._is_running is False
     assert result._is_ended is False

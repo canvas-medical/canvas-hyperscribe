@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
 import pytest
-from canvas_generated.messages.effects_pb2 import Effect
 from canvas_sdk.test_utils import factories
 from canvas_sdk.v1.data import Command
 
@@ -16,7 +15,6 @@ from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
-from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -384,91 +382,6 @@ def test_run(
             ]
             assert mock_auditor.mock_calls == calls
             reset_mocks()
-
-
-@patch("evaluations.case_builders.builder_base.Commander")
-@patch("evaluations.case_builders.builder_base.AuditorStore")
-def test__run_cycle(auditor_store, commander):
-    chatter = MagicMock()
-
-    def reset_mocks():
-        auditor_store.reset_mock()
-        commander.reset_mock()
-        chatter.reset_mock()
-
-    audios = [b"audio1", b"audio2"]
-    instructions = [
-        Instruction(
-            uuid="uuid1",
-            index=0,
-            instruction="theInstruction1",
-            information="theInformation1",
-            is_new=False,
-            is_updated=True,
-            previous_information="thePreviousInformation1",
-        ),
-        Instruction(
-            uuid="uuid2",
-            index=1,
-            instruction="theInstruction2",
-            information="theInformation2",
-            is_new=False,
-            is_updated=True,
-            previous_information="thePreviousInformation2",
-        ),
-        Instruction(
-            uuid="uuid3",
-            index=2,
-            instruction="theInstruction3",
-            information="theInformation3",
-            is_new=False,
-            is_updated=True,
-            previous_information="thePreviousInformation3",
-        ),
-    ]
-    effects = [
-        Effect(type="LOG", payload="Log1"),
-        Effect(type="LOG", payload="Log2"),
-        Effect(type="LOG", payload="Log3"),
-    ]
-    lines = [
-        Line(speaker="voiceA", text="theText1", start=2.1, end=4.8),
-        Line(speaker="voiceB", text="theText2", start=4.8, end=5.7),
-        Line(speaker="voiceB", text="theText3", start=5.7, end=8.8),
-        Line(speaker="voiceA", text="theText4", start=8.8, end=9.9),
-    ]
-    previous = [Line(speaker="voiceA", text="theText0", start=0.0, end=2.1)]
-
-    tested = BuilderBase
-    # the transcript has not been done yet
-    auditor_store.transcript.side_effect = [[]]
-    commander.transcript2commands.side_effect = []
-    commander.audio2commands.side_effect = [(instructions, effects, "the end of the new transcript")]
-    result = tested._run_cycle(auditor_store, audios, chatter, instructions[:2], previous)
-    expected = (instructions, "the end of the new transcript")
-    assert result == expected
-
-    calls = [call.transcript()]
-    assert auditor_store.mock_calls == calls
-    calls = [call.audio2commands(auditor_store, audios, chatter, instructions[:2], previous)]
-    assert commander.mock_calls == calls
-    assert chatter.mock_calls == []
-    reset_mocks()
-
-    # the transcript has been done
-    auditor_store.transcript.side_effect = [lines]
-    commander.transcript2commands.side_effect = [(instructions, effects)]
-    commander.audio2commands.side_effect = []
-    result = tested._run_cycle(auditor_store, audios, chatter, instructions[:2], previous)
-    expected = (instructions, [])
-    assert result == expected
-
-    calls = [call.transcript()]
-    assert auditor_store.mock_calls == calls
-    calls = [call.transcript2commands(auditor_store, lines, chatter, instructions[:2])]
-    assert commander.mock_calls == calls
-    assert chatter.mock_calls == []
-    reset_mocks()
 
 
 @patch.object(Commander, "existing_commands_to_coded_items")
