@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from argparse import ArgumentParser, Namespace
 from multiprocessing import Process, Queue
@@ -8,7 +10,9 @@ from tempfile import TemporaryDirectory
 from typing import Generator
 
 from evaluations.datastores.postgres.experiment import Experiment as ExperimentStore
+from evaluations.datastores.postgres.experiment_result import ExperimentResult as ExperimentResultStore
 from evaluations.helper_evaluation import HelperEvaluation
+from evaluations.structures.completed_job import CompletedJob
 from evaluations.structures.experiment_job import ExperimentJob
 from hyperscribe.libraries.constants import Constants
 from scripts.experiments.case_runner_worker import CaseRunnerWorker
@@ -30,6 +34,11 @@ class ExperimentRunner:
             type=int,
             default=Constants.MAX_WORKERS_DEFAULT,
             help="Max cases run simultaneously",
+        )
+        parser.add_argument(
+            "--resume",
+            action="store_true",
+            help="Resume experiment by skipping already completed jobs",
         )
         args = parser.parse_args()
 
@@ -58,6 +67,37 @@ class ExperimentRunner:
         return process.returncode == 0
 
     @classmethod
+    def _get_completed_jobs(cls, experiment_id: int) -> set[CompletedJob]:
+        """Get a set of completed job signatures to avoid duplication."""
+        psql_credential = HelperEvaluation.postgres_credentials()
+        result_store = ExperimentResultStore(psql_credential)
+
+        # Get all completed experiment results
+        completed_jobs = set()
+
+        # Query to get completed jobs signature: (case_id, model_generator_id, model_grader_id, cycle_overlap)
+        # We need to identify unique job combinations that are already done
+        sql = """
+        SELECT DISTINCT er.case_id, n.model_note_generator_id, g.model_note_grader_id, er.cycle_transcript_overlap
+        FROM experiment_result as er
+         join (SELECT model_note_generator_id, experiment_id FROM experiment_model) as n on n.experiment_id = er.experiment_id
+         join (SELECT model_note_grader_id, experiment_id FROM experiment_model) as g on g.experiment_id = er.experiment_id
+        WHERE er.experiment_id = %(exp_id)s
+        """
+
+        for record in result_store._select(sql, {"exp_id": experiment_id}):
+            completed_jobs.add(
+                CompletedJob(
+                    case_id=record["case_id"],
+                    model_generator_id=record["model_note_generator_id"],
+                    model_grader_id=record["model_note_grader_id"],
+                    cycle_overlap=record["cycle_transcript_overlap"]
+                )
+            )
+
+        return completed_jobs
+
+    @classmethod
     def _clone_repository(cls, hyperscribe_version: str, clone_repository: Path) -> None:
         repository = Path(__file__).parent.parent
         run(
@@ -80,6 +120,13 @@ class ExperimentRunner:
         if not cls.hyperscribe_version_exists(hyperscribe_version):
             print(f"hyperscribe version does not exist: {hyperscribe_version}")
             return
+
+        # Get completed jobs to skip if resume is enabled
+        completed_jobs = set()
+        if args.resume:
+            completed_jobs = cls._get_completed_jobs(args.experiment_id)
+            print(f"Resume mode enabled - found {len(completed_jobs)} unique job combinations already completed")
+
         with TemporaryDirectory() as temp_dir:
             clone_repository = Path(temp_dir)
             cls._clone_repository(hyperscribe_version, clone_repository)
@@ -108,8 +155,16 @@ class ExperimentRunner:
                 worker.start()
                 note_grader_workers.append(worker)
 
-            for job in cls._generate_jobs(args.experiment_id, clone_repository):
+            jobs_added = 0
+
+            for job in cls._generate_jobs(args.experiment_id, clone_repository, completed_jobs):
                 case_runner_queue.put(job)
+                jobs_added += 1
+                if args.resume and jobs_added % 10 == 0:  # Print every 10 jobs in resume mode
+                    print(f"Queued {jobs_added} jobs - Latest: Case {job.case_name} (ID: {job.case_id})")
+
+            if args.resume:
+                print(f"\nFinal summary: Added {jobs_added} new jobs to queue")
 
             for _ in range(args.max_workers):
                 case_runner_queue.put(None)
@@ -124,7 +179,9 @@ class ExperimentRunner:
                 worker.join()
 
     @classmethod
-    def _generate_jobs(cls, experiment_id: int, repository: Path) -> Generator[ExperimentJob, None, None]:
+    def _generate_jobs(
+        cls, experiment_id: int, repository: Path, completed_jobs: set[CompletedJob]
+    ) -> Generator[ExperimentJob, None, None]:
         psql_credential = HelperEvaluation.postgres_credentials()
 
         store = ExperimentStore(psql_credential)
@@ -144,9 +201,28 @@ class ExperimentRunner:
             return
 
         job_index = 0
+        jobs_skipped = 0
+        total_cases_processed = 0
+
         for case in cases:
+            total_cases_processed += 1
+
             for models_experiment in models:
                 for cycle_overlap in experiment.cycle_transcript_overlaps:
+                    # Check if this job combination is already completed (only in resume mode)
+                    if completed_jobs:
+                        job_signature = CompletedJob(
+                            case_id=int(case.id),
+                            model_generator_id=models_experiment.model_generator.id,
+                            model_grader_id=models_experiment.model_grader.id,
+                            cycle_overlap=cycle_overlap,
+                        )
+
+                        if job_signature in completed_jobs:
+                            # Skip all replications for this job combination
+                            jobs_skipped += experiment.note_replications
+                            continue
+
                     # Create note_replications copies of each job
                     for _ in range(experiment.note_replications):
                         job_index += 1
@@ -163,6 +239,11 @@ class ExperimentRunner:
                             cwd_path=repository,
                         )
                         yield job
+
+        if completed_jobs:  # Only print if in resume mode
+            print(f"Job generation complete:")
+            print(f"Jobs skipped due to completion: {jobs_skipped}")
+            print(f"Cases processed: {total_cases_processed}/{len(cases)}")
 
 
 if __name__ == "__main__":
