@@ -281,11 +281,7 @@
             border-radius: 5px;
             margin-bottom: 10px;
             box-sizing: border-box;
-            display: none; /* Hidden by default */
-        }
-
-        #transcript-form.visible {
-            display: block;
+            display: block; /* Always visible */
         }
 
         #transcript-textbox {
@@ -536,7 +532,7 @@
         </div>
 
         <div id="transcript-container" class="table-container {% if uiDefaultTab == 'transcript' %}active{% endif %}">
-            <div id="transcript-form" {% if isPaused %}class="visible"{% endif %}>
+            <div id="transcript-form">
                 <textarea id="transcript-textbox" placeholder="Add transcript text..."></textarea>
                 <div class="transcript-submit-row">
                     <button id="transcript-submit-button" onclick="submitTranscript()">Submit</button>
@@ -903,7 +899,7 @@
                 const startBtn = document.getElementById('startButton');
                 const pauseBtn = document.getElementById('pauseButton');
                 const stopBtn = document.getElementById('stopButton');
-                const transcriptForm = document.getElementById('transcript-form');
+                const transcriptSubmitBtn = document.getElementById('transcript-submit-button');
 
                 // Reset all button classes
                 startBtn.className = 'control-button start-button';
@@ -916,26 +912,26 @@
                     startBtn.disabled = false;
                     pauseBtn.disabled = true;
                     stopBtn.disabled = true;
-                    transcriptForm.classList.add('visible');
+                    transcriptSubmitBtn.disabled = false;
                 } else if (state === 'active') {
                     // Recording in progress
                     startBtn.disabled = true;
                     startBtn.classList.add('recording'); // Adds red border for pulse effect
                     pauseBtn.disabled = false;
                     stopBtn.disabled = false;
-                    transcriptForm.classList.remove('visible');
+                    transcriptSubmitBtn.disabled = true;
                 } else if (state === 'paused') {
                     // Recording paused - can resume or stop
                     startBtn.disabled = false;
                     pauseBtn.disabled = true;
                     stopBtn.disabled = false;
-                    transcriptForm.classList.add('visible');
+                    transcriptSubmitBtn.disabled = false;
                 } else if (state === 'ended') {
                     // Recording ended
                     startBtn.disabled = true;
                     pauseBtn.disabled = true;
                     stopBtn.disabled = true;
-                    transcriptForm.classList.remove('visible');
+                    transcriptSubmitBtn.disabled = true;
                 }
             },
 
@@ -1132,7 +1128,40 @@
 
         // Stop button event handler
         const stopButton = document.getElementById("stopButton");
-        stopButton.addEventListener("click", () => {
+        stopButton.addEventListener("click", async () => {
+            const textbox = document.getElementById('transcript-textbox');
+            const transcriptText = textbox.value.trim();
+
+            // Check if there's unsent text in the transcript textarea
+            if (transcriptText) {
+                const userConfirmed = confirm('You have text in the transcript field. Do you want to send it before stopping?');
+
+                if (userConfirmed) {
+                    // Submit the transcript before stopping
+                    try {
+                        const formData = new FormData();
+                        formData.append('transcript', transcriptText);
+
+                        const response = await fetch('{{saveTranscriptURL | safe}}', {
+                            method: 'POST',
+                            headers: {
+                                'canvas-logged-in-user-id': '{{userUuid}}'
+                            },
+                            body: formData
+                        });
+
+                        if (response.ok) {
+                            textbox.value = '';
+                            console.log('Transcript submitted before stopping');
+                        } else {
+                            console.warn('Failed to submit transcript before stopping:', response.status);
+                        }
+                    } catch (error) {
+                        console.error('Error submitting transcript before stopping:', error);
+                    }
+                }
+            }
+
             // Stop recording
             appState.recording.active = false;
             appState.recording.paused = false;
@@ -1217,12 +1246,20 @@
             resetTable();
             resetTranscriptTable();
             initializeButtonStates();
-            
+
             // Initialize previousMessage to epoch to allow initial content display
             appState.progress.previousMessage = new Date(0);
-            
+
             // Fetch initial progress data, then connect to WebSocket
             fetchInitialProgressData();
+
+            // Load draft transcript and start auto-save
+            loadDraftTranscript();
+            startTranscriptAutoSave();
+
+            // Add blur event listener to textarea for immediate save on focus loss
+            const transcriptTextbox = document.getElementById('transcript-textbox');
+            transcriptTextbox.addEventListener('blur', autoSaveDraftTranscript);
         });
 
         // -----------------------------------------------------------------
@@ -1840,6 +1877,76 @@
                 // Re-enable the submit button
                 submitButton.disabled = false;
                 submitButton.textContent = 'Submit';
+            }
+        }
+
+        // Auto-save functionality for transcript draft
+        let lastSavedTranscriptText = '';
+        let transcriptAutoSaveInterval = null;
+
+        async function autoSaveDraftTranscript() {
+            const textbox = document.getElementById('transcript-textbox');
+            const currentText = textbox.value;
+
+            // Only save if text has changed
+            if (currentText === lastSavedTranscriptText) {
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('transcript', currentText);
+
+                const response = await fetch('{{draftTranscriptURL | safe}}', {
+                    method: 'POST',
+                    headers: {
+                        'canvas-logged-in-user-id': '{{userUuid}}'
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    lastSavedTranscriptText = currentText;
+                    console.log('Draft transcript auto-saved');
+                } else {
+                    console.warn('Failed to auto-save draft transcript:', response.status);
+                }
+            } catch (error) {
+                console.error('Error auto-saving draft transcript:', error);
+            }
+        }
+
+        function startTranscriptAutoSave() {
+            if (transcriptAutoSaveInterval) {
+                clearInterval(transcriptAutoSaveInterval);
+            }
+            transcriptAutoSaveInterval = setInterval(autoSaveDraftTranscript, 5000);
+        }
+
+        async function loadDraftTranscript() {
+            try {
+                const response = await fetch('{{draftTranscriptURL | safe}}', {
+                    method: 'GET',
+                    headers: {
+                        'canvas-logged-in-user-id': '{{userUuid}}'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const draftText = data.draft || '';
+                    if (draftText) {
+                        const textbox = document.getElementById('transcript-textbox');
+                        textbox.value = draftText;
+                        lastSavedTranscriptText = draftText;
+                        console.log('Draft transcript loaded');
+                    }
+                } else if (response.status !== 404) {
+                    // Only warn if it's not a "not found" response (404 is expected if no draft exists)
+                    console.warn('Failed to load draft transcript:', response.status);
+                }
+            } catch (error) {
+                console.error('Error loading draft transcript:', error);
             }
         }
     </script>

@@ -1,8 +1,9 @@
 from datetime import datetime, UTC
 from http import HTTPStatus
 
+from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
-from canvas_sdk.effects.simple_api import Response, HTMLResponse
+from canvas_sdk.effects.simple_api import Response, HTMLResponse, JSONResponse
 from canvas_sdk.handlers.base import version
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPI, api
 from canvas_sdk.templates import render_to_string
@@ -106,6 +107,10 @@ class CaptureView(SimpleAPI):
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
             f"{Constants.PLUGIN_API_BASE_ROUTE}/transcript/{patient_id}/{note_id}",
         )
+        draft_transcript_url = Authenticator.presigned_url_no_params(
+            self.secrets[Constants.SECRET_API_SIGNING_KEY],
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/draft/{patient_id}/{note_id}",
+        )
         ws_progress_url = (
             f"{Helper.canvas_ws_host(self.environment[Constants.CUSTOMER_IDENTIFIER])}"
             f"{Constants.PLUGIN_WS_BASE_ROUTE}/{ProgressDisplay.websocket_channel(note_id)}/"
@@ -134,6 +139,7 @@ class CaptureView(SimpleAPI):
             "feedbackURL": feedback_url,
             "saveAudioURL": save_audio_url,
             "saveTranscriptURL": save_transcript_url,
+            "draftTranscriptURL": draft_transcript_url,
             "isEnded": stop_and_go.is_ended(),
             "isPaused": stop_and_go.is_paused(),
             "chunkId": stop_and_go.cycle() + (1 if stop_and_go.is_paused() else -1),
@@ -199,6 +205,22 @@ class CaptureView(SimpleAPI):
         content = form_data.get("transcript").value.encode()
         content_type = CycleData.content_type_text()
         return self._add_cycle(content, content_type)
+
+    def _draft_key(self) -> str:
+        patient_uuid = self.request.path_params["patient_id"]
+        note_uuid = self.request.path_params["note_id"]
+        return f"draft_{patient_uuid}_{note_uuid}"
+
+    @api.post("/draft/<patient_id>/<note_id>")
+    def draft_chunk_post(self) -> list[Response | Effect]:
+        form_data = self.request.form_data()
+        content = form_data.get("transcript").value
+        get_cache().set(self._draft_key(), content)
+        return [Response(status_code=HTTPStatus.CREATED)]
+
+    @api.get("/draft/<patient_id>/<note_id>")
+    def draft_chunk_get(self) -> list[Response | Effect]:
+        return [JSONResponse(content={"draft": get_cache().get(self._draft_key()) or ""}, status_code=HTTPStatus.OK)]
 
     def _add_cycle(self, content: bytes, content_type: str) -> list[Response | Effect]:
         identification = IdentificationParameters(

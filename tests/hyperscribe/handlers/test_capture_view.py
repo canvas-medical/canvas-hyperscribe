@@ -6,7 +6,7 @@ from unittest.mock import patch, call, MagicMock
 
 import pytest
 from canvas_generated.messages.effects_pb2 import Effect
-from canvas_sdk.effects.simple_api import Response, HTMLResponse
+from canvas_sdk.effects.simple_api import Response, HTMLResponse, JSONResponse
 from canvas_sdk.handlers.simple_api import SimpleAPI, Credentials
 from canvas_sdk.handlers.simple_api.api import StringFormPart
 from canvas_sdk.v1.data.command import Command
@@ -176,7 +176,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
     helper.canvas_ws_host.side_effect = ["theWsHost"]
     customization.customizations.side_effect = [Customization(ui_default_tab=DefaultTab.ACTIVITY, custom_prompts=[])]
     authenticator.presigned_url.side_effect = ["Url1"]
-    authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7", "Url8"]
+    authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7", "Url8", "Url9"]
     stop_and_go.get.return_value.is_ended.side_effect = [False]
     stop_and_go.get.return_value.is_paused.side_effect = [False, False]
     stop_and_go.get.return_value.cycle.side_effect = [7]
@@ -222,6 +222,10 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
             "signingKey",
             "/plugin-io/api/hyperscribe/transcript/the-00-patient/the-00-note",
         ),
+        call.presigned_url_no_params(
+            "signingKey",
+            "/plugin-io/api/hyperscribe/draft/the-00-patient/the-00-note",
+        ),
     ]
     assert authenticator.mock_calls == calls
     calls = [
@@ -243,6 +247,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
                 "feedbackURL": "Url6",
                 "saveAudioURL": "Url7",
                 "saveTranscriptURL": "Url8",
+                "draftTranscriptURL": "Url9",
                 "isEnded": False,
                 "isPaused": False,
                 "chunkId": 6,
@@ -515,6 +520,61 @@ def test_transcript_chunk_post(add_cycle):
 
     calls = [call(b"theTranscript", "text/plain")]
     assert add_cycle.mock_calls == calls
+    reset_mocks()
+
+
+def test__draft_key():
+    tested = helper_instance()
+    tested.request = SimpleNamespace(path_params={"patient_id": "patientId", "note_id": "noteId"})
+    result = tested._draft_key()
+    expected = "draft_patientId_noteId"
+    assert result == expected
+
+
+@patch("hyperscribe.handlers.capture_view.get_cache")
+def test_draft_chunk_post(get_cache):
+    def reset_mocks():
+        get_cache.reset_mock()
+
+    tested = helper_instance()
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        form_data=lambda: {"transcript": SimpleNamespace(value="theTranscript")},
+    )
+    result = tested.draft_chunk_post()
+    expected = [Response(status_code=HTTPStatus(201))]
+    assert result == expected
+
+    calls = [
+        call(),
+        call().set("draft_thePatientId_theNoteId", "theTranscript"),
+    ]
+    assert get_cache.mock_calls == calls
+    reset_mocks()
+
+
+@patch("hyperscribe.handlers.capture_view.get_cache")
+def test_draft_chunk_get(get_cache):
+    def reset_mocks():
+        get_cache.reset_mock()
+
+    get_cache.return_value.get.side_effect = ["theTranscript"]
+    tested = helper_instance()
+    tested.request = SimpleNamespace(path_params={"patient_id": "thePatientId", "note_id": "theNoteId"})
+    result = tested.draft_chunk_get()
+    expected = [
+        JSONResponse(
+            content={"draft": "theTranscript"},
+            status_code=HTTPStatus(200),
+        )
+    ]
+    assert result == expected
+
+    calls = [
+        call(),
+        call().get("draft_thePatientId_theNoteId"),
+    ]
+    assert get_cache.mock_calls == calls
     reset_mocks()
 
 
