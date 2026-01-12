@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.85.0",
-  "plugin_version": "2025-12-19 v0.2.153 (main)",
+  "plugin_version": "2025-12-23 v0.2.154 (main)",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [],
@@ -160,9 +160,9 @@
     "VendorTextLLM"
   ],
   "tags": {
-    "version_date": "2025-12-19",
+    "version_date": "2025-12-23",
     "version_branch": "main",
-    "version_semantic": "0.2.153"
+    "version_semantic": "0.2.154"
   },
   "references": [],
   "license": "",

@@ -25,6 +25,8 @@ class Constants:
     MAX_CHARGE_DESCRIPTIONS = (
         500  # limit to the charge descriptions submitted to the LLM to retrieve the CPT code of a Perform command
     )
+    CYCLE_DATA_MAX_ATTEMPTS = 3
+    CYCLE_DATA_PAUSE_SECONDS = 3
     # max parallel executions
     MAX_WORKERS_MIN = 1
     MAX_WORKERS_MAX = 10

@@ -1,17 +1,17 @@
 from datetime import datetime, timezone
 from unittest.mock import patch, call, MagicMock
 
-import pytest
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_sdk.v1.data import Command
 
-from hyperscribe.libraries.audio_client import AudioClient, CachedAudioSession
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.cycle_data import CycleData
+from hyperscribe.structures.cycle_data_source import CycleDataSource
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -23,60 +23,48 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
 
-@pytest.fixture
-def the_audio_client() -> AudioClient:
-    return AudioClient.for_operation("https://theAudioServer.com", "theTestEnv", "theAudioHostSharedSecret")
-
-
-@pytest.fixture
-def the_session() -> CachedAudioSession:
-    return CachedAudioSession("theSessionId", "theUserToken", "theLoggedInUserId")
-
-
 @patch("hyperscribe.libraries.commander.AwsS3")
 @patch("hyperscribe.libraries.commander.ProgressDisplay")
 @patch("hyperscribe.libraries.commander.MemoryLog")
 @patch("hyperscribe.libraries.commander.LimitedCache")
 @patch("hyperscribe.libraries.commander.AudioInterpreter")
 @patch("hyperscribe.libraries.commander.AuditorLive")
-@patch.object(AudioClient, "get_audio_chunk")
+@patch("hyperscribe.libraries.commander.CycleData")
 @patch.object(CachedSdk, "save")
 @patch.object(CachedSdk, "get_discussion")
 @patch.object(Command, "objects")
 @patch.object(Commander, "existing_commands_to_coded_items")
 @patch.object(Commander, "existing_commands_to_instructions")
 @patch.object(Commander, "audio2commands")
-def test_compute_audio(
+def test_compute_cycle(
     audio2commands,
     existing_commands_to_instructions,
     existing_commands_to_coded_items,
     command_db,
     cache_get_discussion,
     cache_save,
-    get_audio_chunk,
+    cycle_data,
     auditor_live,
     audio_interpreter,
     limited_cache,
     memory_log,
     progress,
     aws_s3,
-    the_audio_client,
-    the_session,
 ):
     def reset_mocks():
         audio2commands.reset_mock()
         existing_commands_to_instructions.reset_mock()
         existing_commands_to_coded_items.reset_mock()
         command_db.reset_mock()
-        auditor_live.reset_mock()
         cache_get_discussion.reset_mock()
         cache_save.reset_mock()
+        cycle_data.reset_mock()
+        auditor_live.reset_mock()
         audio_interpreter.reset_mock()
         limited_cache.reset_mock()
         memory_log.reset_mock()
         progress.reset_mock()
         aws_s3.reset_mock()
-        get_audio_chunk.reset_mock()
 
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
@@ -107,42 +95,44 @@ def test_compute_audio(
         trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
+    tested = Commander
+
     # no more audio
     audio2commands.side_effect = []
     existing_commands_to_instructions.side_effect = []
     existing_commands_to_coded_items.side_effect = []
     command_db.filter.return_value.order_by.side_effect = []
-    auditor_live.side_effect = []
     cache_get_discussion.side_effect = []
+    cycle_data.from_s3.side_effect = [CycleData(audio=b"", transcript=[], source=CycleDataSource.AUDIO)]
+    auditor_live.side_effect = []
     audio_interpreter.side_effect = []
     limited_cache.side_effect = []
+    memory_log.end_session.side_effect = []
     aws_s3.return_value.is_ready.side_effect = []
 
-    tested = Commander
-    get_audio_chunk.side_effect = [b""]
-    result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
+    result = tested.compute_cycle(identification, settings, aws_s3_credentials, 3)
     expected = (False, [])
     assert result == expected
 
-    calls = [call.instance(identification, "main", aws_s3_credentials), call.instance().output("--> audio length: 0")]
-    assert memory_log.mock_calls == calls
     assert audio2commands.mock_calls == []
     assert existing_commands_to_instructions.mock_calls == []
     assert existing_commands_to_coded_items.mock_calls == []
     assert command_db.mock_calls == []
-    assert auditor_live.mock_calls == []
     assert cache_get_discussion.mock_calls == []
     assert cache_save.mock_calls == []
+    calls = [call.from_s3(aws_s3_credentials, identification, 3)]
+    assert cycle_data.mock_calls == calls
+    assert auditor_live.mock_calls == []
     assert audio_interpreter.mock_calls == []
     assert limited_cache.mock_calls == []
+    calls = [call.instance(identification, "main", aws_s3_credentials), call.instance().output("--> cycle length: 0")]
+    assert memory_log.mock_calls == calls
     assert progress.mock_calls == []
     assert aws_s3.mock_calls == []
-    calls = [call(identification.patient_uuid, identification.note_uuid, 3)]
-    assert get_audio_chunk.mock_calls == calls
     reset_mocks()
 
     # audios retrieved
-    for is_ready in [True, False]:
+    for s3_is_ready in [True, False]:
         instructions = [
             Instruction(
                 uuid="uuidA",
@@ -213,19 +203,22 @@ def test_compute_audio(
         discussion.cycle = 7
         discussion.previous_instructions = instructions[2:]
         discussion.previous_transcript = [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)]
+
+        cycle_data_instance = CycleData(audio=b"raw-audio-bytes", transcript=[], source=CycleDataSource.AUDIO)
+
         audio2commands.side_effect = [(exp_instructions, exp_effects, "other last words.")]
         existing_commands_to_instructions.side_effect = [instructions]
         existing_commands_to_coded_items.side_effect = ["stagedCommands"]
         command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
-        auditor_live.side_effect = ["AuditorInstance"]
         cache_get_discussion.side_effect = [discussion]
+        cycle_data.from_s3.side_effect = [cycle_data_instance]
+        auditor_live.side_effect = ["AuditorInstance"]
         audio_interpreter.side_effect = ["AudioInterpreterInstance"]
         limited_cache.side_effect = ["LimitedCacheInstance"]
-        aws_s3.return_value.is_ready.side_effect = [is_ready]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
-        tested = Commander
-        get_audio_chunk.side_effect = [b"raw-audio-bytes"]
-        result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
+        aws_s3.return_value.is_ready.side_effect = [s3_is_ready]
+
+        result = tested.compute_cycle(identification, settings, aws_s3_credentials, 3)
         expected = (True, exp_effects)
         assert result == expected
 
@@ -234,8 +227,39 @@ def test_compute_audio(
         assert discussion.previous_transcript == "other last words."
 
         calls = [
+            call(
+                "AuditorInstance",
+                cycle_data_instance,
+                "AudioInterpreterInstance",
+                instructions,
+                [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
+            )
+        ]
+        assert audio2commands.mock_calls == calls
+        calls = [call("QuerySetCommands", instructions[2:])]
+        assert existing_commands_to_instructions.mock_calls == calls
+        calls = [call("QuerySetCommands", AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]), True)]
+        assert existing_commands_to_coded_items.mock_calls == calls
+        calls = [
+            call.filter(patient__id="patientUuid", note__id="noteUuid", state="staged"),
+            call.filter().order_by("dbid"),
+        ]
+        assert command_db.mock_calls == calls
+        calls = [call("noteUuid")]
+        assert cache_get_discussion.mock_calls == calls
+        calls = [call(), call()]
+        assert cache_save.mock_calls == calls
+        calls = [call.from_s3(aws_s3_credentials, identification, 3)]
+        assert cycle_data.mock_calls == calls
+        calls = [call(3, settings, aws_s3_credentials, identification)]
+        assert auditor_live.mock_calls == calls
+        calls = [call(settings, aws_s3_credentials, "LimitedCacheInstance", identification)]
+        assert audio_interpreter.mock_calls == calls
+        calls = [call("patientUuid", "providerUuid", "stagedCommands")]
+        assert limited_cache.mock_calls == calls
+        calls = [
             call.instance(identification, "main", aws_s3_credentials),
-            call.instance().output("--> audio length: 15"),
+            call.instance().output("--> cycle length: 15"),
             call.instance().output("<===  note: noteUuid ===>"),
             call.instance().output("Structured RfV: True"),
             call.instance().output("Audit LLM Decisions: False"),
@@ -252,7 +276,7 @@ def test_compute_audio(
             call.instance().output("Log3"),
             call.instance().output("<=== END ===>"),
         ]
-        if is_ready:
+        if s3_is_ready:
             calls.append(
                 call.instance().output(
                     "--> log path: hyperscribe-canvasInstance/finals/2025-03-10/patientUuid-noteUuid/03.log",
@@ -260,35 +284,6 @@ def test_compute_audio(
             )
             calls.append(call.end_session("noteUuid"))
         assert memory_log.mock_calls == calls
-        calls = [
-            call(
-                "AuditorInstance",
-                b"raw-audio-bytes",
-                "AudioInterpreterInstance",
-                instructions,
-                [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
-            )
-        ]
-        assert audio2commands.mock_calls == calls
-        calls = [call("QuerySetCommands", instructions[2:])]
-        assert existing_commands_to_instructions.mock_calls == calls
-        calls = [call("QuerySetCommands", AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]), True)]
-        assert existing_commands_to_coded_items.mock_calls == calls
-        calls = [
-            call.filter(patient__id="patientUuid", note__id="noteUuid", state="staged"),
-            call.filter().order_by("dbid"),
-        ]
-        assert command_db.mock_calls == calls
-        calls = [call(3, settings, aws_s3_credentials, identification)]
-        assert auditor_live.mock_calls == calls
-        calls = [call("noteUuid")]
-        assert cache_get_discussion.mock_calls == calls
-        calls = [call(), call()]
-        assert cache_save.mock_calls == calls
-        calls = [call(settings, aws_s3_credentials, "LimitedCacheInstance", identification)]
-        assert audio_interpreter.mock_calls == calls
-        calls = [call("patientUuid", "providerUuid", "stagedCommands")]
-        assert limited_cache.mock_calls == calls
         calls = [
             call.send_to_user(
                 identification,
@@ -302,7 +297,7 @@ def test_compute_audio(
             call().__bool__(),
             call().is_ready(),
         ]
-        if is_ready:
+        if s3_is_ready:
             calls.append(
                 call().upload_text_to_s3(
                     "hyperscribe-canvasInstance/finals/2025-03-10/patientUuid-noteUuid/03.log",
@@ -310,8 +305,6 @@ def test_compute_audio(
                 ),
             )
         assert aws_s3.mock_calls == calls
-        calls = [call(identification.patient_uuid, identification.note_uuid, 3)]
-        assert get_audio_chunk.mock_calls == calls
         reset_mocks()
 
 
@@ -333,7 +326,6 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
 
     tested = Commander
 
-    audio_bytes = b"audioBytes"
     previous = [
         Instruction(
             uuid="uuidA",
@@ -374,7 +366,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         Line(speaker="speaker", text="last words 3", start=2.5, end=3.6),
     ]
 
-    text = " ".join([f"word{i:02d}" for i in range(4)])
+    text = " ".join([f"word{i:01d}" for i in range(4)])
 
     transcript = [
         {"speaker": "speaker1", "text": f"{text} textA.", "start": 0.0, "end": 1.3},
@@ -382,6 +374,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         {"speaker": "speaker1", "text": f"{text} textC.", "start": 2.5, "end": 3.6},
     ]
     # all good
+    # -- chunk is audio
     transcript2commands.side_effect = [("instructions", "effects")]
     tail_of.side_effect = [lines]
     mock_chatter.combine_and_speaker_detection.side_effect = [
@@ -391,9 +384,10 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     mock_chatter.s3_credentials = "s3Credentials"
     mock_chatter.settings = settings
 
+    cycle_data = CycleData(audio=b"audioBytes", transcript=[], source=CycleDataSource.AUDIO)
     result = tested.audio2commands(
         mock_auditor,
-        audio_bytes,
+        cycle_data,
         mock_chatter,
         previous,
         [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
@@ -413,9 +407,9 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
             [
                 ProgressMessage(
                     message="["
-                    '{"speaker": "speaker1", "text": "word00 word01 word02 word03 textA.", "start": 0.0, "end": 1.3}, '
-                    '{"speaker": "speaker2", "text": "word00 word01 word02 word03 textB.", "start": 1.3, "end": 2.5}, '
-                    '{"speaker": "speaker1", "text": "word00 word01 word02 word03 textC.", "start": 2.5, "end": 3.6}]',
+                    '{"speaker": "speaker1", "text": "word0 word1 word2 word3 textA.", "start": 0.0, "end": 1.3}, '
+                    '{"speaker": "speaker2", "text": "word0 word1 word2 word3 textB.", "start": 1.3, "end": 2.5}, '
+                    '{"speaker": "speaker1", "text": "word0 word1 word2 word3 textC.", "start": 2.5, "end": 3.6}]',
                     section="transcript",
                 )
             ],
@@ -475,17 +469,84 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     ]
     assert mock_chatter.mock_calls == calls
     reset_mocks()
+    # -- chunk is text
+    transcript2commands.side_effect = [("instructions", "effects")]
+    tail_of.side_effect = [lines]
+    mock_chatter.combine_and_speaker_detection.side_effect = []
+    mock_chatter.identification = identification
+    mock_chatter.s3_credentials = "s3Credentials"
+    mock_chatter.settings = settings
 
-    # --- transcript has error
+    cycle_data = CycleData(
+        audio=b"",
+        transcript=[Line(speaker="theSpeaker", text="the text", start=0.0, end=0.0)],
+        source=CycleDataSource.TRANSCRIPT,
+    )
+    result = tested.audio2commands(
+        mock_auditor,
+        cycle_data,
+        mock_chatter,
+        previous,
+        [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
+    )
+    expected = ("instructions", "effects", lines)
+    assert result == expected
+
+    calls = [
+        call.instance(identification, "main", "s3Credentials"),
+        call.instance().output("--> transcript back and forth: 1"),
+    ]
+    assert memory_log.mock_calls == calls
+    calls = [
+        call.send_to_user(
+            identification,
+            settings,
+            [
+                ProgressMessage(
+                    message='[{"speaker": "theSpeaker", "text": "the text", "start": 0.0, "end": 0.0}]',
+                    section="transcript",
+                )
+            ],
+        )
+    ]
+    assert progress.mock_calls == calls
+    calls = [
+        call(
+            mock_auditor,
+            [Line(speaker="theSpeaker", text="the text", start=0.0, end=0.0)],
+            mock_chatter,
+            [
+                Instruction(
+                    uuid="uuidA",
+                    index=0,
+                    instruction="theInstructionA",
+                    information="theInformationA",
+                    is_new=True,
+                    is_updated=False,
+                    previous_information="thePreviousInformation1",
+                ),
+            ],
+        ),
+    ]
+    assert transcript2commands.mock_calls == calls
+    calls = [call([Line(speaker="theSpeaker", text="the text", start=0.0, end=0.0)], 37)]
+    assert tail_of.mock_calls == calls
+    calls = [call.identified_transcript(b"", [Line(speaker="theSpeaker", text="the text", start=0.0, end=0.0)])]
+    assert mock_auditor.mock_calls == calls
+    assert mock_chatter.mock_calls == []
+    reset_mocks()
+
+    # transcript has error
     transcript2commands.side_effect = []
     tail_of.side_effect = []
     mock_chatter.combine_and_speaker_detection.side_effect = [
         JsonExtract(has_error=True, error="theError", content=transcript),
     ]
 
+    cycle_data = CycleData(audio=b"audioBytes", transcript=[], source=CycleDataSource.AUDIO)
     result = tested.audio2commands(
         mock_auditor,
-        audio_bytes,
+        cycle_data,
         mock_chatter,
         previous,
         [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],

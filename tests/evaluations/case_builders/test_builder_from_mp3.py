@@ -4,7 +4,10 @@ from unittest.mock import patch, call, MagicMock
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_mp3 import BuilderFromMp3
 from hyperscribe.libraries.cached_sdk import CachedSdk
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
+from hyperscribe.structures.cycle_data import CycleData
+from hyperscribe.structures.cycle_data_source import CycleDataSource
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
@@ -60,15 +63,15 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_mp3.AudioInterpreter")
 @patch.object(CachedSdk, "get_discussion")
 @patch.object(ImplementedCommands, "schema_key2instruction")
+@patch.object(Commander, "audio2commands")
 @patch.object(BuilderFromMp3, "_render_in_ui")
-@patch.object(BuilderFromMp3, "_run_cycle")
 @patch.object(BuilderFromMp3, "_combined_audios")
 @patch.object(BuilderFromMp3, "_limited_cache_from")
 def test__run(
     limited_cache_from,
     combined_audios,
-    run_cycle,
     render_in_ui,
+    audio2commands,
     schema_key2instruction,
     get_discussion,
     audio_interpreter,
@@ -82,8 +85,8 @@ def test__run(
     def reset_mocks():
         limited_cache_from.reset_mock()
         combined_audios.reset_mock()
-        run_cycle.reset_mock()
         render_in_ui.reset_mock()
+        audio2commands.reset_mock()
         schema_key2instruction.reset_mock()
         get_discussion.reset_mock()
         audio_interpreter.reset_mock()
@@ -128,11 +131,11 @@ def test__run(
         schema_key2instruction.side_effect = ["schemaKey2instruction"]
         recorder.settings = "theSettings"
         recorder.s3_credentials = "theAwsS3Credentials"
-        combined_audios.side_effect = [[[b"audio1"], [b"audio1", b"audio2"], [b"audio2", b"audio3"]]]
-        run_cycle.side_effect = [
-            (instructions[:2], lines[0]),
-            (instructions[:3], lines[1]),
-            (instructions[:4], lines[2]),
+        combined_audios.side_effect = [[b"audio1", b"audio2", b"audio3"]]
+        audio2commands.side_effect = [
+            (instructions[:2], [], lines[0]),
+            (instructions[:3], [], lines[1]),
+            (instructions[:4], [], lines[2]),
         ]
         parameters = Namespace(
             patient="thePatientUuid",
@@ -165,16 +168,34 @@ def test__run(
         assert get_discussion.mock_calls == calls
         calls = [call(parameters)]
         assert combined_audios.mock_calls == calls
-        calls = [
-            call(recorder, [b"audio1"], audio_interpreter.return_value, instructions[:1], []),
-            call(recorder, [b"audio1", b"audio2"], audio_interpreter.return_value, instructions[:2], lines[0]),
-            call(recorder, [b"audio2", b"audio3"], audio_interpreter.return_value, instructions[:3], lines[1]),
-        ]
-        assert run_cycle.mock_calls == calls
         calls = []
         if is_render:
             calls = [call(recorder, identification, limited_cache_from.return_value)]
         assert render_in_ui.mock_calls == calls
+        calls = [
+            call(
+                recorder,
+                CycleData(audio=b"audio1", transcript=[], source=CycleDataSource.AUDIO),
+                audio_interpreter.return_value,
+                instructions[:1],
+                [],
+            ),
+            call(
+                recorder,
+                CycleData(audio=b"audio2", transcript=[], source=CycleDataSource.AUDIO),
+                audio_interpreter.return_value,
+                instructions[:2],
+                lines[0],
+            ),
+            call(
+                recorder,
+                CycleData(audio=b"audio3", transcript=[], source=CycleDataSource.AUDIO),
+                audio_interpreter.return_value,
+                instructions[:3],
+                lines[1],
+            ),
+        ]
+        assert audio2commands.mock_calls == calls
         for idx, mock_file in enumerate(mock_files):
             assert mock_file.mock_calls == []
         calls = [
