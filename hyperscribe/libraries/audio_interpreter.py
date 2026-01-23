@@ -436,11 +436,9 @@ class AudioInterpreter:
                 user_prompt.extend(
                     [
                         "",
-                        "IMPORTANT - PRE-FILLED TEMPLATE GUIDANCE:",
-                        "The following instructions contain text that was entered by the clinician BEFORE the visit. "
-                        "This text is guidance that the clinician is providing to the scribe and should serve as a "
-                        "template for the output placed in each command. Preserve the structure and headings while "
-                        "filling in the content from the transcript:",
+                        "The following instructions contain text that the licensed healthcare provider entered "
+                        "before the visit. Your task is to use this text as guidance and a template for your "
+                        "response. Preserve the structure and headings while filling in content from the transcript:",
                     ]
                 )
                 for instruction_type, template in templates_with_guidance:
@@ -543,8 +541,8 @@ class AudioInterpreter:
         if instruction.prefilled_template:
             user_prompt.extend(
                 [
-                    "IMPORTANT - CLINICIAN TEMPLATE:",
-                    "The clinician pre-filled this command with the following template text before the visit:",
+                    "The licensed healthcare provider pre-filled this command with the following template text "
+                    "before the visit:",
                     "```text",
                     instruction.prefilled_template,
                     "```",
