@@ -1,0 +1,10 @@
+{
+  "session_id": "454d2b46-776a-4f93-a64b-cbbcddc7fe86",
+  "timestamp": "2026-01-23T03:41:47.756985+00:00",
+  "exit_reason": "other",
+  "working_directory": "/Users/alexiadowns/code/canvas-hyperscribe",
+  "transcript_path": "/Users/alexiadowns/.claude/projects/-Users-alexiadowns-code-canvas-hyperscribe/454d2b46-776a-4f93-a64b-cbbcddc7fe86.jsonl",
+  "cost_data": {
+    "transcript_parse_error": "[Errno 2] No such file or directory: '/Users/alexiadowns/.claude/projects/-Users-alexiadowns-code-canvas-hyperscribe/454d2b46-776a-4f93-a64b-cbbcddc7fe86.jsonl'"
+  }
+}

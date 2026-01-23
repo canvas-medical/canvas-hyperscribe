@@ -1,0 +1,30 @@
+{
+  "created_date": "2026-01-23T03:41:47.757485+00:00",
+  "last_update": "2026-01-23T03:42:55.016979+00:00",
+  "session_count": 2,
+  "total_tokens": {
+    "input": 0,
+    "output": 0,
+    "total": 0
+  },
+  "cache_usage": {
+    "cache_write": 0,
+    "cache_read": 0
+  },
+  "cost_usd": 0.0,
+  "cost_formatted": "$0.0000",
+  "sessions": [
+    {
+      "session_id": "454d2b46-776a-4f93-a64b-cbbcddc7fe86",
+      "date": "2026-01-23T03:41:47.756985+00:00",
+      "duration": null,
+      "cost_usd": 0
+    },
+    {
+      "session_id": "bbc0c6b9-9e0c-44a1-a740-8541a4eb8b17",
+      "date": "2026-01-23T03:42:55.016275+00:00",
+      "duration": null,
+      "cost_usd": 0
+    }
+  ]
+}

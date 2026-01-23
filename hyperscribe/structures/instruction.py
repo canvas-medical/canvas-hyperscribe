@@ -11,6 +11,7 @@ class Instruction:
         is_new: bool,
         is_updated: bool,
         previous_information: str,
+        prefilled_template: str = "",
     ):
         self.uuid = uuid
         self.index = index
@@ -19,6 +20,7 @@ class Instruction:
         self.is_new = is_new
         self.is_updated = is_updated
         self.previous_information = previous_information
+        self.prefilled_template = prefilled_template
 
     @classmethod
     def load_from_json(cls, json_list: list) -> list[Instruction]:
@@ -31,12 +33,13 @@ class Instruction:
                 is_new=json_object.get("isNew", True),
                 is_updated=json_object.get("isUpdated", False),
                 previous_information="",
+                prefilled_template=json_object.get("prefilledTemplate", ""),
             )
             for json_object in json_list
         ]
 
     def to_json(self, reset_flags: bool) -> dict:
-        return {
+        result = {
             "uuid": self.uuid,
             "index": self.index,
             "instruction": self.instruction,
@@ -44,6 +47,9 @@ class Instruction:
             "isNew": False if reset_flags else self.is_new,
             "isUpdated": False if reset_flags else self.is_updated,
         }
+        if self.prefilled_template:
+            result["prefilledTemplate"] = self.prefilled_template
+        return result
 
     def limited_str(self) -> str:
         return (
@@ -59,6 +65,7 @@ class Instruction:
             and self.instruction == other.instruction
             and self.information == other.information
             and self.previous_information == other.previous_information
+            and self.prefilled_template == other.prefilled_template
             and self.is_new == other.is_new
             and self.is_updated == other.is_updated
         )

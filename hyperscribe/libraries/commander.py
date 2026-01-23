@@ -461,12 +461,17 @@ class Commander(BaseProtocol):
             instruction_type = mapping[command.schema_key]
             instruction_uuid = str(command.id)
             information = ""
+            prefilled_template = ""
 
+            # Extract content from pre-initialized commands (e.g., HPI, RFV)
             for initialized in pre_initialized:
                 if instruction_type == initialized.class_name() and (
                     code_item := initialized.staged_command_extract(command.data)
                 ):
                     information = code_item.label
+                    # If no previous instructions exist, this content is clinician pre-filled template
+                    if not instructions:
+                        prefilled_template = code_item.label
 
             for idx, instruction in enumerate(instructions):
                 if idx in consumed_indexes:
@@ -474,6 +479,8 @@ class Commander(BaseProtocol):
                 if instruction_type == instruction.instruction:
                     consumed_indexes.append(idx)
                     information = instruction.information
+                    # Preserve prefilled_template from previous cycles
+                    prefilled_template = instruction.prefilled_template
                     break
 
             result[instruction_uuid] = Instruction(
@@ -484,6 +491,7 @@ class Commander(BaseProtocol):
                 is_new=False,
                 is_updated=False,
                 previous_information="",
+                prefilled_template=prefilled_template,
             )
         return list(result.values())
 

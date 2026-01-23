@@ -428,12 +428,46 @@ class AudioInterpreter:
                     "But, in all cases, you must provide each and every new, updated and unchanged instructions.",
                 ],
             )
+            # Add context for instructions with pre-filled templates from the clinician
+            templates_with_guidance = [
+                (inst.instruction, inst.prefilled_template) for inst in known_instructions if inst.prefilled_template
+            ]
+            if templates_with_guidance:
+                user_prompt.extend(
+                    [
+                        "",
+                        "IMPORTANT - PRE-FILLED TEMPLATE GUIDANCE:",
+                        "The following instructions contain text that was entered by the clinician BEFORE the visit. "
+                        "This text is guidance that the clinician is providing to the scribe and should serve as a "
+                        "template for the output placed in each command. Preserve the structure and headings while "
+                        "filling in the content from the transcript:",
+                    ]
+                )
+                for instruction_type, template in templates_with_guidance:
+                    user_prompt.extend(
+                        [
+                            f"- {instruction_type}:",
+                            "```text",
+                            template,
+                            "```",
+                        ]
+                    )
         chatter = Helper.chatter(
             self.settings,
             MemoryLog.instance(self.identification, f"transcript2instructions:{section}", self.s3_credentials),
             ModelSpec.COMPLEX,
         )
         result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
+
+        # Build a map of prefilled templates from known instructions
+        prefilled_templates = {
+            inst.uuid: inst.prefilled_template for inst in known_instructions if inst.prefilled_template
+        }
+
+        # Merge prefilled_template back into results (LLM doesn't return this field)
+        for item in result:
+            if item.get("uuid") in prefilled_templates:
+                item["prefilledTemplate"] = prefilled_templates[item["uuid"]]
 
         # add back the missing instructions
         return_uuids = [instruction.uuid for instruction in Instruction.load_from_json(result)]
@@ -458,6 +492,10 @@ class AudioInterpreter:
             user_prompt.append("Or provide a corrected version to follow the constraints if needed.")
             user_prompt.append("")
             result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
+            # Merge prefilled_template back after constraint review (LLM doesn't return this field)
+            for item in result:
+                if item.get("uuid") in prefilled_templates:
+                    item["prefilledTemplate"] = prefilled_templates[item["uuid"]]
         return result
 
     def create_sdk_command_parameters(self, instruction: Instruction) -> InstructionWithParameters | None:
@@ -500,13 +538,33 @@ class AudioInterpreter:
             json.dumps(schemas[0], indent=1),
             "```",
             "",
-            "Be sure your response validates the JSON Schema.",
-            "",
-            "Before finalizing, verify completeness by checking that patient concerns are accurately captured "
-            "and any provider recommendations, follow-up plans, and instructions are complete, specific "
-            "and are accurate given the conversation.",
-            "",
         ]
+        # Add template guidance if the clinician pre-filled this command
+        if instruction.prefilled_template:
+            user_prompt.extend(
+                [
+                    "IMPORTANT - CLINICIAN TEMPLATE:",
+                    "The clinician pre-filled this command with the following template text before the visit:",
+                    "```text",
+                    instruction.prefilled_template,
+                    "```",
+                    "Use this text as a structural template. Fill in the placeholders and complete the sections "
+                    "while preserving the clinician's intended format, headings, and structure. Do not delete "
+                    "or ignore the template sections - instead, populate them with relevant information from "
+                    "the transcript.",
+                    "",
+                ]
+            )
+        user_prompt.extend(
+            [
+                "Be sure your response validates the JSON Schema.",
+                "",
+                "Before finalizing, verify completeness by checking that patient concerns are accurately captured "
+                "and any provider recommendations, follow-up plans, and instructions are complete, specific "
+                "and are accurate given the conversation.",
+                "",
+            ]
+        )
         log_label = f"{instruction.instruction}_{instruction.uuid}_instruction2parameters"
         memory_log = MemoryLog.instance(self.identification, log_label, self.s3_credentials)
         chatter = Helper.chatter(self.settings, memory_log, ModelSpec.SIMPLER)

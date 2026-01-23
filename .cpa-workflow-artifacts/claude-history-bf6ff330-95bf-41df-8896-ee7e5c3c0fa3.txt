@@ -1,0 +1,6 @@
+Use your Canvas SDK skill to research this plugin and document what it does and how it is implemented. Create a spec.md file with the output and place it in an artifacts folder
+Look at the enhancement request here /Users/alexiadowns/code/canvas-hyperscribe/artifacts/Hyperscribe Free Text Enhancement.rtf and the reference image here artifacts/Visit with Prefilled Text.png.
+
+Make a plan that breaks the enhancement request into separable change sets that are as small as possible within reason, then sequence those steps while respecting dependencies. 
+Put the plan in a file and save it in the artifacts folder.
+Run the .claude/scripts/export-session-history.py script

@@ -20,6 +20,7 @@ def test_load_from_json():
                 "information": "theInformation2",
                 "isNew": True,
                 "isUpdated": False,
+                "prefilledTemplate": "Current concerns with memory:",
             },
             {},
             {
@@ -41,6 +42,7 @@ def test_load_from_json():
             is_new=False,
             is_updated=True,
             previous_information="",
+            prefilled_template="",
         ),
         Instruction(
             uuid="theUuid2",
@@ -50,6 +52,7 @@ def test_load_from_json():
             is_new=True,
             is_updated=False,
             previous_information="",
+            prefilled_template="Current concerns with memory:",
         ),
         Instruction(
             uuid="",
@@ -59,6 +62,7 @@ def test_load_from_json():
             is_new=True,
             is_updated=False,
             previous_information="",
+            prefilled_template="",
         ),
         Instruction(
             uuid="theUuid3",
@@ -68,6 +72,7 @@ def test_load_from_json():
             is_new=False,
             is_updated=True,
             previous_information="",
+            prefilled_template="",
         ),
     ]
     assert result == expected
@@ -106,6 +111,45 @@ def test_to_json():
         assert expected == result
 
 
+def test_to_json_with_prefilled_template():
+    # Test that prefilled_template is included when non-empty
+    tested = Instruction(
+        uuid="theUuid",
+        index=3,
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=True,
+        is_updated=False,
+        previous_information="",
+        prefilled_template="Current concerns with memory:",
+    )
+    result = tested.to_json(False)
+    expected = {
+        "uuid": "theUuid",
+        "index": 3,
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "isNew": True,
+        "isUpdated": False,
+        "prefilledTemplate": "Current concerns with memory:",
+    }
+    assert expected == result
+
+    # Test that prefilled_template is NOT included when empty
+    tested_empty = Instruction(
+        uuid="theUuid",
+        index=3,
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=True,
+        is_updated=False,
+        previous_information="",
+        prefilled_template="",
+    )
+    result_empty = tested_empty.to_json(False)
+    assert "prefilledTemplate" not in result_empty
+
+
 def test_limited_str():
     tested = Instruction(
         uuid="theUuid",
@@ -130,6 +174,7 @@ def test___eq__():
         is_new=True,
         is_updated=True,
         previous_information="thePreviousInformation",
+        prefilled_template="theTemplate",
     )
     tests = [
         (
@@ -141,6 +186,7 @@ def test___eq__():
                 is_new=True,
                 is_updated=True,
                 previous_information="thePreviousInformation",
+                prefilled_template="theTemplate",
             ),
             True,
         ),
@@ -153,6 +199,7 @@ def test___eq__():
                 is_new=True,
                 is_updated=True,
                 previous_information="thePreviousInformation",
+                prefilled_template="theTemplate",
             ),
             False,
         ),
@@ -165,6 +212,7 @@ def test___eq__():
                 is_new=True,
                 is_updated=True,
                 previous_information="thePreviousInformation",
+                prefilled_template="theTemplate",
             ),
             False,
         ),
@@ -177,6 +225,7 @@ def test___eq__():
                 is_new=True,
                 is_updated=True,
                 previous_information="thePreviousInformation",
+                prefilled_template="theTemplate",
             ),
             False,
         ),
@@ -189,6 +238,7 @@ def test___eq__():
                 is_new=True,
                 is_updated=True,
                 previous_information="thePreviousInformation",
+                prefilled_template="theTemplate",
             ),
             False,
         ),
@@ -201,6 +251,7 @@ def test___eq__():
                 is_new=False,
                 is_updated=True,
                 previous_information="thePreviousInformation",
+                prefilled_template="theTemplate",
             ),
             False,
         ),
@@ -213,6 +264,7 @@ def test___eq__():
                 is_new=True,
                 is_updated=False,
                 previous_information="thePreviousInformation",
+                prefilled_template="theTemplate",
             ),
             False,
         ),
@@ -225,6 +277,20 @@ def test___eq__():
                 is_new=True,
                 is_updated=True,
                 previous_information="otherPreviousInformation",
+                prefilled_template="theTemplate",
+            ),
+            False,
+        ),
+        (
+            Instruction(
+                uuid="theUuid",
+                index=7,
+                instruction="theInstruction",
+                information="theInformation",
+                is_new=True,
+                is_updated=True,
+                previous_information="thePreviousInformation",
+                prefilled_template="otherTemplate",
             ),
             False,
         ),
