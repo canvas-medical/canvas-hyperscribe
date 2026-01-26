@@ -615,10 +615,11 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
 
     tested = helper_instance()
     # failed AWS S3 upload
+    # -- valid response from AWS S3
     cycle_data.s3_key_path.side_effect = ["theS3Path"]
     stop_and_go.get.side_effect = [stop_and_go_not_running]
     aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"theProblem", status_code=501)]
-    note_db.get.return_value.provider.id = "theProviderId"
+    note_db.get.side_effect = [SimpleNamespace(provider=SimpleNamespace(id="theProviderId"))]
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
@@ -650,12 +651,48 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
     assert stop_and_go_not_running.mock_calls == calls
     assert stop_and_go_is_running.mock_calls == []
     reset_mocks()
+    # -- invalid response from AWS S3
+    cycle_data.s3_key_path.side_effect = ["theS3Path"]
+    stop_and_go.get.side_effect = [stop_and_go_not_running]
+    aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=None, status_code=None)]
+    note_db.get.side_effect = [SimpleNamespace(provider=SimpleNamespace(id="theProviderId"))]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        form_data=lambda: {},
+    )
+    result = tested._add_cycle(b"theContent", "content/type")
+    expected = [Response(b"Failed to save chunk (AWS S3 failure)", HTTPStatus(503))]
+    assert result == expected
+
+    assert executor.mock_calls == []
+    assert helper.mock_calls == []
+    calls = [call.s3_key_path(identification, 21)]
+    assert cycle_data.mock_calls == calls
+    calls = [call.get("theNoteId")]
+    assert stop_and_go.mock_calls == calls
+    calls = [
+        call(aws_s3_credentials),
+        call().upload_binary_to_s3("theS3Path", b"theContent", "content/type"),
+    ]
+    assert aws_s3.mock_calls == calls
+    calls = [call.info("Failed to save chunk 21 with status None: None")]
+    assert log.mock_calls == calls
+    calls = [call.get(id="theNoteId")]
+    assert note_db.mock_calls == calls
+    calls = [
+        call.add_waiting_cycle(),
+        call.add_waiting_cycle().save(),
+    ]
+    assert stop_and_go_not_running.mock_calls == calls
+    assert stop_and_go_is_running.mock_calls == []
+    reset_mocks()
     # AWS S3 upload succeeded
     # -- commander not running
     cycle_data.s3_key_path.side_effect = ["theS3Path"]
     stop_and_go.get.side_effect = [stop_and_go_not_running]
     aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"Good", status_code=200)]
-    note_db.get.return_value.provider.id = "theProviderId"
+    note_db.get.side_effect = [SimpleNamespace(provider=SimpleNamespace(id="theProviderId"))]
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
@@ -693,7 +730,7 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
     cycle_data.s3_key_path.side_effect = ["theS3Path"]
     stop_and_go.get.side_effect = [stop_and_go_is_running]
     aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"Good", status_code=200)]
-    note_db.get.return_value.provider.id = "theProviderId"
+    note_db.get.side_effect = [SimpleNamespace(provider=SimpleNamespace(id="theProviderId"))]
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},

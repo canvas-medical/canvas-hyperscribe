@@ -238,6 +238,8 @@ class CaptureView(SimpleAPI):
         response = AwsS3(aws_s3).upload_binary_to_s3(path_s3, content, content_type)
         if response.status_code != HTTPStatus.OK:
             log.info(f"Failed to save chunk {cycle} with status {response.status_code}: {str(response.content)}")
+            if not response.status_code:
+                return [Response(b"Failed to save chunk (AWS S3 failure)", HTTPStatus.SERVICE_UNAVAILABLE)]
             return [Response(response.content, HTTPStatus(response.status_code))]
         if not stop_and_go.is_running():
             user_id = self.request.headers.get("canvas-logged-in-user-id")
