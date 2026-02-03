@@ -1,6 +1,5 @@
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.libraries.limited_cache import LimitedCache
@@ -12,9 +11,6 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.instruction_with_summary import InstructionWithSummary
 from hyperscribe.structures.settings import Settings
-
-if TYPE_CHECKING:
-    pass
 
 
 class Base:
