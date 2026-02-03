@@ -29,10 +29,18 @@ class UpdateGoal(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Check if the progress field can be edited by plugins
+        if not self.can_edit_field("progress"):
+            return None
+
         goal_uuid = ""
         if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             goal_uuid = current[idx].uuid
             self.add_code2description(current[idx].uuid, current[idx].label)
+
+        # Get progress with template enhancement
+        progress = instruction.parameters["progressAndBarriers"]
+        progress = self.enhance_with_template_instructions(progress, "progress", instruction, chatter)
 
         return InstructionWithCommand.add_command(
             instruction,
@@ -44,7 +52,7 @@ class UpdateGoal(Base):
                     UpdateGoalCommand.AchievementStatus,
                 ),
                 priority=Helper.enum_or_none(instruction.parameters["priority"], UpdateGoalCommand.Priority),
-                progress=instruction.parameters["progressAndBarriers"],
+                progress=progress,
                 note_uuid=self.identification.note_uuid,
             ),
         )

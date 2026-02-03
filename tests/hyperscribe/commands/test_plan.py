@@ -1,6 +1,6 @@
 from hashlib import md5
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, call
 
 from canvas_sdk.commands.commands.plan import PlanCommand
 
@@ -101,6 +101,27 @@ def test_command_from_json():
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert chatter.mock_calls == []
+
+
+@patch.object(Plan, "can_edit_field")
+def test_command_from_json_field_locked(can_edit_field):
+    chatter = MagicMock()
+    tested = helper_instance()
+    arguments = {
+        "uuid": "theUuid",
+        "index": 7,
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "previous_information": "thePreviousInformation",
+        "parameters": {"plan": "thePlan"},
+    }
+    instruction = InstructionWithParameters(**arguments)
+    can_edit_field.return_value = False
+    result = tested.command_from_json(instruction, chatter)
+    assert result is None
+    assert can_edit_field.mock_calls == [call("narrative")]
 
 
 def test_command_parameters():

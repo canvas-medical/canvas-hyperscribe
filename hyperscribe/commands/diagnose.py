@@ -32,21 +32,38 @@ class Diagnose(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Get field values with template permission checks
+        background: str | None = None
+        if self.can_edit_field("background"):
+            background = instruction.parameters["rationale"]
+            background = self.enhance_with_template_instructions(background, "background", instruction, chatter)
+
+        today_assessment: str | None = None
+        if self.can_edit_field("today_assessment"):
+            today_assessment = instruction.parameters["assessment"]
+            today_assessment = self.enhance_with_template_instructions(
+                today_assessment, "today_assessment", instruction, chatter
+            )
+
+        # If neither field can be edited, skip this command
+        if background is None and today_assessment is None:
+            return None
+
         icd10_code = SelectorChat.condition_from(
             instruction,
             chatter,
             instruction.parameters["keywords"].split(","),
             instruction.parameters["ICD10"].split(","),
-            "\n".join([instruction.parameters["rationale"], "", instruction.parameters["assessment"]]),
+            "\n".join([background or "", "", today_assessment or ""]),
         )
         self.add_code2description(icd10_code.uuid, icd10_code.label)
         return InstructionWithCommand.add_command(
             instruction,
             DiagnoseCommand(
                 icd10_code=icd10_code.code,
-                background=instruction.parameters["rationale"],
+                background=background or "",
                 approximate_date_of_onset=Helper.str2date(instruction.parameters["onsetDate"]),
-                today_assessment=instruction.parameters["assessment"],
+                today_assessment=today_assessment or "",
                 note_uuid=self.identification.note_uuid,
             ),
         )

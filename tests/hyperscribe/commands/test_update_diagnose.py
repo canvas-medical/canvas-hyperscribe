@@ -271,6 +271,34 @@ def test_command_from_json(add_code2description, current_conditions, search_cond
         reset_mocks()
 
 
+@patch.object(UpdateDiagnose, "can_edit_field")
+def test_command_from_json_fields_locked(can_edit_field):
+    chatter = MagicMock()
+    tested = helper_instance()
+    arguments = {
+        "uuid": "theUuid",
+        "index": 7,
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "previous_information": "thePreviousInformation",
+        "parameters": {
+            "keywords": "keyword1,keyword2,keyword3",
+            "ICD10": "ICD01,ICD02,ICD03",
+            "previousCondition": "theCondition",
+            "previousConditionIndex": 1,
+            "rationale": "theRationale",
+            "assessment": "theAssessment",
+        },
+    }
+    instruction = InstructionWithParameters(**arguments)
+    can_edit_field.return_value = False
+    result = tested.command_from_json(instruction, chatter)
+    assert result is None
+    assert can_edit_field.mock_calls == [call("background"), call("narrative")]
+
+
 def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()

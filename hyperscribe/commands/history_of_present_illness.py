@@ -28,10 +28,20 @@ class HistoryOfPresentIllness(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Check if the narrative field can be edited by plugins
+        if not self.can_edit_field("narrative"):
+            return None
+
+        # Get the narrative content with custom prompt processing
+        narrative = self.command_from_json_custom_prompted(instruction.parameters["narrative"], chatter)
+
+        # Enhance with template {add:} instructions if any
+        narrative = self.enhance_with_template_instructions(narrative, "narrative", instruction, chatter)
+
         return InstructionWithCommand.add_command(
             instruction,
             HistoryOfPresentIllnessCommand(
-                narrative=self.command_from_json_custom_prompted(instruction.parameters["narrative"], chatter),
+                narrative=narrative,
                 note_uuid=self.identification.note_uuid,
             ),
         )

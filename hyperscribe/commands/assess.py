@@ -33,13 +33,29 @@ class Assess(Base):
         if 0 <= (idx := instruction.parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
             condition_id = current[idx].uuid
             self.add_code2description(current[idx].uuid, current[idx].label)
+
+        # Get field values with template permission checks
+        background: str | None = None
+        if self.can_edit_field("background"):
+            background = instruction.parameters["rationale"]
+            background = self.enhance_with_template_instructions(background, "background", instruction, chatter)
+
+        narrative: str | None = None
+        if self.can_edit_field("narrative"):
+            narrative = instruction.parameters["assessment"]
+            narrative = self.enhance_with_template_instructions(narrative, "narrative", instruction, chatter)
+
+        # If neither field can be edited, skip this command
+        if background is None and narrative is None:
+            return None
+
         return InstructionWithCommand.add_command(
             instruction,
             AssessCommand(
                 condition_id=condition_id,
-                background=instruction.parameters["rationale"],
+                background=background or "",
                 status=Helper.enum_or_none(instruction.parameters["status"], AssessCommand.Status),
-                narrative=instruction.parameters["assessment"],
+                narrative=narrative or "",
                 note_uuid=self.identification.note_uuid,
             ),
         )

@@ -29,15 +29,32 @@ class Goal(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Get field values with template permission checks
+        goal_statement: str | None = None
+        if self.can_edit_field("goal_statement"):
+            goal_statement = instruction.parameters["goal"]
+            goal_statement = self.enhance_with_template_instructions(
+                goal_statement, "goal_statement", instruction, chatter
+            )
+
+        progress: str | None = None
+        if self.can_edit_field("progress"):
+            progress = instruction.parameters["progressAndBarriers"]
+            progress = self.enhance_with_template_instructions(progress, "progress", instruction, chatter)
+
+        # If neither field can be edited, skip this command
+        if goal_statement is None and progress is None:
+            return None
+
         return InstructionWithCommand.add_command(
             instruction,
             GoalCommand(
-                goal_statement=instruction.parameters["goal"],
+                goal_statement=goal_statement or "",
                 start_date=Helper.str2date(instruction.parameters["startDate"]),
                 due_date=Helper.str2date(instruction.parameters["dueDate"]),
                 achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
                 priority=Helper.enum_or_none(instruction.parameters["priority"], GoalCommand.Priority),
-                progress=instruction.parameters["progressAndBarriers"],
+                progress=progress or "",
                 note_uuid=self.identification.note_uuid,
             ),
         )

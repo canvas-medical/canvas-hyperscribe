@@ -31,8 +31,18 @@ class ReasonForVisit(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Check if the comment field can be edited by plugins
+        if not self.can_edit_field("comment"):
+            return None
+
+        # Get the comment content with custom prompt processing
+        comment = self.command_from_json_custom_prompted(instruction.parameters["comment"], chatter)
+
+        # Enhance with template {add:} instructions if any
+        comment = self.enhance_with_template_instructions(comment, "comment", instruction, chatter)
+
         result = ReasonForVisitCommand(
-            comment=self.command_from_json_custom_prompted(instruction.parameters["comment"], chatter),
+            comment=comment,
             note_uuid=self.identification.note_uuid,
         )
         if "reasonForVisitIndex" in instruction.parameters:

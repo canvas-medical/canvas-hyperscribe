@@ -136,6 +136,35 @@ def test_command_from_json():
     assert chatter.mock_calls == []
 
 
+@patch.object(Goal, "can_edit_field")
+def test_command_from_json_fields_locked(can_edit_field):
+    chatter = MagicMock()
+    tested = helper_instance()
+    arguments = {
+        "uuid": "theUuid",
+        "index": 7,
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "previous_information": "thePreviousInformation",
+        "parameters": {
+            "goal": "theGoal",
+            "startDate": "2023-11-12",
+            "dueDate": "2025-02-04",
+            "status": "improving",
+            "priority": "medium-priority",
+            "progressAndBarriers": "theProgressAndBarriers",
+        },
+    }
+    instruction = InstructionWithParameters(**arguments)
+    # Both fields locked
+    can_edit_field.return_value = False
+    result = tested.command_from_json(instruction, chatter)
+    assert result is None
+    assert can_edit_field.mock_calls == [call("goal_statement"), call("progress")]
+
+
 def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()

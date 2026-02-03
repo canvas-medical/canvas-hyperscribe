@@ -125,10 +125,25 @@ class Task(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Get field values with template permission checks
+        title: str | None = None
+        if self.can_edit_field("title"):
+            title = instruction.parameters["title"]
+            title = self.enhance_with_template_instructions(title, "title", instruction, chatter)
+
+        comment: str | None = None
+        if self.can_edit_field("comment"):
+            comment = instruction.parameters["comment"]
+            comment = self.enhance_with_template_instructions(comment, "comment", instruction, chatter)
+
+        # If neither field can be edited, skip this command
+        if title is None and comment is None:
+            return None
+
         result = TaskCommand(
-            title=instruction.parameters["title"],
+            title=title or "",
             due_date=Helper.str2date(instruction.parameters["dueDate"]),
-            comment=instruction.parameters["comment"],
+            comment=comment or "",
             note_uuid=self.identification.note_uuid,
         )
         if instruction.parameters["assignTo"]:
@@ -136,7 +151,7 @@ class Task(Base):
                 instruction,
                 chatter,
                 instruction.parameters["assignTo"],
-                instruction.parameters["comment"],
+                comment or "",
             )
 
         if instruction.parameters["labels"]:
@@ -144,7 +159,7 @@ class Task(Base):
                 instruction,
                 chatter,
                 instruction.parameters["labels"],
-                instruction.parameters["comment"],
+                comment or "",
             )
 
         return InstructionWithCommand.add_command(instruction, result)
