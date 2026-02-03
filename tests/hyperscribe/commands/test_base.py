@@ -669,3 +669,211 @@ def test_enhance_with_template_instructions_llm_returns_empty_string(
     result = tested.enhance_with_template_instructions("original content", "narrative", instruction, chatter)
 
     assert result == "original content"
+
+
+@patch("hyperscribe.commands.base.TemplatePermissions")
+@patch.object(Base, "class_name")
+def test_get_template_framework(mock_class_name, mock_template_permissions):
+    """Test get_template_framework delegates to template_permissions."""
+    tested = helper_instance()
+
+    mock_class_name.return_value = "TestCommand"
+    mock_template_permissions.return_value.get_edit_framework_by_class.return_value = (
+        "Patient is a [AGE] year old [GENDER]."
+    )
+
+    result = tested.get_template_framework("narrative")
+    assert result == "Patient is a [AGE] year old [GENDER]."
+
+    calls = [call("TestCommand", "narrative")]
+    assert mock_template_permissions.return_value.get_edit_framework_by_class.mock_calls == calls
+
+
+@patch("hyperscribe.commands.base.TemplatePermissions")
+@patch.object(Base, "class_name")
+def test_get_template_framework_no_framework(mock_class_name, mock_template_permissions):
+    """Test get_template_framework returns None when no framework."""
+    tested = helper_instance()
+
+    mock_class_name.return_value = "TestCommand"
+    mock_template_permissions.return_value.get_edit_framework_by_class.return_value = None
+
+    result = tested.get_template_framework("narrative")
+    assert result is None
+
+
+@patch.object(Base, "enhance_with_template_instructions")
+@patch.object(Base, "get_template_framework")
+def test_fill_template_content_no_framework(mock_get_framework, mock_enhance):
+    """Test fill_template_content calls enhance when no framework."""
+    chatter = MagicMock()
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+
+    tested = helper_instance()
+    mock_get_framework.return_value = None
+    mock_enhance.return_value = "enhanced content"
+
+    result = tested.fill_template_content("generated content", "narrative", instruction, chatter)
+
+    assert result == "enhanced content"
+    calls = [call("narrative")]
+    assert mock_get_framework.mock_calls == calls
+    calls = [call("generated content", "narrative", instruction, chatter)]
+    assert mock_enhance.mock_calls == calls
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "get_template_framework")
+def test_fill_template_content_with_framework(
+    mock_get_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Test fill_template_content uses LLM to fill template when framework exists."""
+    chatter = MagicMock()
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information="Patient reports headache for 3 days.",
+        is_new=False,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+
+    tested = helper_instance()
+    mock_get_framework.return_value = "Patient is a [AGE] year old [GENDER] presenting with [SYMPTOMS]."
+    mock_get_instructions.return_value = ["symptoms", "duration"]
+    mock_json_schema.get.return_value = [{"type": "array"}]
+    mock_demographic.return_value = "theDemographic"
+    date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
+    mock_datetime.now.return_value = date_0
+    chatter.single_conversation.return_value = [
+        {"enhancedContent": "Patient is a 45 year old male presenting with headache x3d."}
+    ]
+
+    result = tested.fill_template_content("generated headache content", "narrative", instruction, chatter)
+
+    assert result == "Patient is a 45 year old male presenting with headache x3d."
+    calls = [call.get(["template_enhanced_content"])]
+    assert mock_json_schema.mock_calls == calls
+    assert chatter.reset_prompts.called
+    assert chatter.single_conversation.called
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "get_template_framework")
+def test_fill_template_content_with_framework_no_add_instructions(
+    mock_get_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Test fill_template_content works when framework exists but no add instructions."""
+    chatter = MagicMock()
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information="Patient reports headache.",
+        is_new=False,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+
+    tested = helper_instance()
+    mock_get_framework.return_value = "Patient is presenting today."
+    mock_get_instructions.return_value = []  # No add instructions
+    mock_json_schema.get.return_value = [{"type": "array"}]
+    mock_demographic.return_value = "theDemographic"
+    date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
+    mock_datetime.now.return_value = date_0
+    chatter.single_conversation.return_value = [{"enhancedContent": "Patient is presenting today with headache."}]
+
+    result = tested.fill_template_content("generated content", "narrative", instruction, chatter)
+
+    assert result == "Patient is presenting today with headache."
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "get_template_framework")
+def test_fill_template_content_llm_returns_empty(
+    mock_get_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Test fill_template_content returns generated content when LLM returns empty."""
+    chatter = MagicMock()
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+
+    tested = helper_instance()
+    mock_get_framework.return_value = "Template structure here."
+    mock_get_instructions.return_value = ["symptoms"]
+    mock_json_schema.get.return_value = [{"type": "array"}]
+    mock_demographic.return_value = "theDemographic"
+    date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
+    mock_datetime.now.return_value = date_0
+    chatter.single_conversation.return_value = []
+
+    result = tested.fill_template_content("generated content", "narrative", instruction, chatter)
+
+    # Falls back to generated content
+    assert result == "generated content"
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "get_template_framework")
+def test_fill_template_content_llm_returns_empty_string(
+    mock_get_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Test fill_template_content returns generated content when LLM returns empty string."""
+    chatter = MagicMock()
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+
+    tested = helper_instance()
+    mock_get_framework.return_value = "Template structure here."
+    mock_get_instructions.return_value = ["symptoms"]
+    mock_json_schema.get.return_value = [{"type": "array"}]
+    mock_demographic.return_value = "theDemographic"
+    date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
+    mock_datetime.now.return_value = date_0
+    chatter.single_conversation.return_value = [{"enhancedContent": ""}]
+
+    result = tested.fill_template_content("generated content", "narrative", instruction, chatter)
+
+    # Falls back to generated content
+    assert result == "generated content"

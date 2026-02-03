@@ -38,8 +38,8 @@ class ReasonForVisit(Base):
         # Get the comment content with custom prompt processing
         comment = self.command_from_json_custom_prompted(instruction.parameters["comment"], chatter)
 
-        # Enhance with template {add:} instructions if any
-        comment = self.enhance_with_template_instructions(comment, "comment", instruction, chatter)
+        # Fill template content if a template framework exists, or enhance with {add:} instructions
+        comment = self.fill_template_content(comment, "comment", instruction, chatter)
 
         result = ReasonForVisitCommand(
             comment=comment,

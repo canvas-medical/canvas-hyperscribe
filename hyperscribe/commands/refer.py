@@ -62,14 +62,14 @@ class Refer(Base):
         notes_to_specialist: str | None = None
         if self.can_edit_field("notes_to_specialist"):
             notes_to_specialist = instruction.parameters["notesToSpecialist"]
-            notes_to_specialist = self.enhance_with_template_instructions(
+            notes_to_specialist = self.fill_template_content(
                 notes_to_specialist, "notes_to_specialist", instruction, chatter
             )
 
         comment: str | None = None
         if self.can_edit_field("comment"):
             comment = instruction.parameters["comment"]
-            comment = self.enhance_with_template_instructions(comment, "comment", instruction, chatter)
+            comment = self.fill_template_content(comment, "comment", instruction, chatter)
 
         # If neither field can be edited, skip this command
         if notes_to_specialist is None and comment is None:

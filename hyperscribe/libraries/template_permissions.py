@@ -215,6 +215,44 @@ class TemplatePermissions:
         command_type = get_command_type(hyperscribe_class_name)
         return self.get_add_instructions(command_type, field_name)
 
+    def get_edit_framework(self, command_type: str, field_name: str) -> str | None:
+        """Get the template framework (base content) for a field.
+
+        The plugin_edit_framework contains the template structure with {sub:} and {lit:}
+        resolved, but with placeholders for {add:} content. This is the base content
+        that should be used when filling in template fields.
+
+        Args:
+            command_type: The Canvas SDK command type name
+            field_name: The field name to get the framework for
+
+        Returns:
+            The template framework string, or None if no template is applied.
+        """
+        permissions = self._load_permissions()
+        if command_type not in permissions:
+            return None
+
+        for fp in permissions[command_type].get("field_permissions", []):
+            if fp.get("field_name") == field_name:
+                framework = fp.get("plugin_edit_framework")
+                return str(framework) if framework else None
+
+        return None
+
+    def get_edit_framework_by_class(self, hyperscribe_class_name: str, field_name: str) -> str | None:
+        """Get the template framework using Hyperscribe class name.
+
+        Args:
+            hyperscribe_class_name: The Hyperscribe command class name
+            field_name: The field name to get the framework for
+
+        Returns:
+            The template framework string, or None if no template is applied.
+        """
+        command_type = get_command_type(hyperscribe_class_name)
+        return self.get_edit_framework(command_type, field_name)
+
     def get_editable_fields(self, command_type: str) -> set[str] | None:
         """Get set of field names that are editable for a command type.
 

@@ -36,14 +36,12 @@ class Diagnose(Base):
         background: str | None = None
         if self.can_edit_field("background"):
             background = instruction.parameters["rationale"]
-            background = self.enhance_with_template_instructions(background, "background", instruction, chatter)
+            background = self.fill_template_content(background, "background", instruction, chatter)
 
         today_assessment: str | None = None
         if self.can_edit_field("today_assessment"):
             today_assessment = instruction.parameters["assessment"]
-            today_assessment = self.enhance_with_template_instructions(
-                today_assessment, "today_assessment", instruction, chatter
-            )
+            today_assessment = self.fill_template_content(today_assessment, "today_assessment", instruction, chatter)
 
         # If neither field can be edited, skip this command
         if background is None and today_assessment is None:

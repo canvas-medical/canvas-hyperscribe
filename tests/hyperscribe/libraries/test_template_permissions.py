@@ -321,6 +321,79 @@ class TestTemplatePermissions:
         result = tested.get_add_instructions_by_class("HistoryOfPresentIllness", "narrative")
         assert result == ["symptoms"]
 
+    def test_get_edit_framework_no_template(self):
+        """Test get_edit_framework returns None when no template."""
+        mock_cache = make_mock_cache({})
+
+        tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
+        assert tested.get_edit_framework("HistoryOfPresentIllnessCommand", "narrative") is None
+
+    def test_get_edit_framework_with_framework(self):
+        """Test get_edit_framework returns the framework string."""
+        mock_cache = make_mock_cache(
+            {
+                "HistoryOfPresentIllnessCommand": {
+                    "plugin_can_edit": True,
+                    "field_permissions": [
+                        {
+                            "field_name": "narrative",
+                            "plugin_can_edit": True,
+                            "plugin_edit_framework": "Patient is a [AGE] year old [GENDER].",
+                        }
+                    ],
+                }
+            }
+        )
+
+        tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
+        result = tested.get_edit_framework("HistoryOfPresentIllnessCommand", "narrative")
+        assert result == "Patient is a [AGE] year old [GENDER]."
+
+    def test_get_edit_framework_field_not_found(self):
+        """Test get_edit_framework returns None when field not found."""
+        mock_cache = make_mock_cache(
+            {
+                "HistoryOfPresentIllnessCommand": {
+                    "plugin_can_edit": True,
+                    "field_permissions": [{"field_name": "other_field", "plugin_edit_framework": "some framework"}],
+                }
+            }
+        )
+
+        tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
+        assert tested.get_edit_framework("HistoryOfPresentIllnessCommand", "narrative") is None
+
+    def test_get_edit_framework_missing_key(self):
+        """Test get_edit_framework returns None when plugin_edit_framework key missing."""
+        mock_cache = make_mock_cache(
+            {
+                "HistoryOfPresentIllnessCommand": {
+                    "plugin_can_edit": True,
+                    "field_permissions": [{"field_name": "narrative", "plugin_can_edit": True}],
+                }
+            }
+        )
+
+        tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
+        assert tested.get_edit_framework("HistoryOfPresentIllnessCommand", "narrative") is None
+
+    def test_get_edit_framework_by_class(self):
+        """Test get_edit_framework_by_class converts class name correctly."""
+        mock_cache = make_mock_cache(
+            {
+                "HistoryOfPresentIllnessCommand": {
+                    "plugin_can_edit": True,
+                    "field_permissions": [
+                        {"field_name": "narrative", "plugin_edit_framework": "Template content here."}
+                    ],
+                }
+            }
+        )
+
+        tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
+        result = tested.get_edit_framework_by_class("HistoryOfPresentIllness", "narrative")
+        assert result == "Template content here."
+
     def test_get_editable_fields_no_template(self):
         """Test get_editable_fields returns None when no template."""
         mock_cache = make_mock_cache({})

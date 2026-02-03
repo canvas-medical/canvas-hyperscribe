@@ -33,14 +33,12 @@ class Goal(Base):
         goal_statement: str | None = None
         if self.can_edit_field("goal_statement"):
             goal_statement = instruction.parameters["goal"]
-            goal_statement = self.enhance_with_template_instructions(
-                goal_statement, "goal_statement", instruction, chatter
-            )
+            goal_statement = self.fill_template_content(goal_statement, "goal_statement", instruction, chatter)
 
         progress: str | None = None
         if self.can_edit_field("progress"):
             progress = instruction.parameters["progressAndBarriers"]
-            progress = self.enhance_with_template_instructions(progress, "progress", instruction, chatter)
+            progress = self.fill_template_content(progress, "progress", instruction, chatter)
 
         # If neither field can be edited, skip this command
         if goal_statement is None and progress is None:

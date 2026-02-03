@@ -39,12 +39,12 @@ class UpdateDiagnose(Base):
         background: str | None = None
         if self.can_edit_field("background"):
             background = instruction.parameters["rationale"]
-            background = self.enhance_with_template_instructions(background, "background", instruction, chatter)
+            background = self.fill_template_content(background, "background", instruction, chatter)
 
         narrative: str | None = None
         if self.can_edit_field("narrative"):
             narrative = instruction.parameters["assessment"]
-            narrative = self.enhance_with_template_instructions(narrative, "narrative", instruction, chatter)
+            narrative = self.fill_template_content(narrative, "narrative", instruction, chatter)
 
         # If neither field can be edited, skip this command
         if background is None and narrative is None:

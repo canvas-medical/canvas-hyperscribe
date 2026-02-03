@@ -227,6 +227,111 @@ class Base:
         """
         return self.template_permissions.get_add_instructions_by_class(self.class_name(), field_name)
 
+    def get_template_framework(self, field_name: str) -> str | None:
+        """Get the template framework (base content) for a field.
+
+        The framework is the template structure with {sub:} and {lit:} resolved,
+        but with placeholders for {add:} content. This is used as the base
+        when filling in template fields.
+
+        Args:
+            field_name: The field name to get the framework for
+
+        Returns:
+            The framework string, or None if no template is applied.
+        """
+        return self.template_permissions.get_edit_framework_by_class(self.class_name(), field_name)
+
+    def fill_template_content(
+        self,
+        generated_content: str,
+        field_name: str,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> str:
+        """Fill template content by merging generated content with template framework.
+
+        When a template is applied, this method uses the template framework as the base
+        structure and incorporates the generated content into the {add:} placeholders.
+        If no template is applied, returns the generated content as-is.
+
+        Args:
+            generated_content: The LLM-generated content to incorporate
+            field_name: The field name being filled
+            instruction: The instruction with parameters (contains transcript info)
+            chatter: The LLM interface for merging content
+
+        Returns:
+            The filled template content, or generated content if no template.
+        """
+        framework = self.get_template_framework(field_name)
+        if not framework:
+            # No template framework - use generated content with optional enhancement
+            return self.enhance_with_template_instructions(generated_content, field_name, instruction, chatter)
+
+        add_instructions = self.get_template_instructions(field_name)
+
+        schemas = JsonSchema.get(["template_enhanced_content"])
+        system_prompt = [
+            "The conversation is in the context of a clinical encounter between "
+            f"patient ({self.cache.demographic__str__(False)}) and licensed healthcare provider.",
+            "",
+            "You are filling in a medical note template based on visit transcript information.",
+            "The template has a specific structure that must be preserved.",
+            "Your task is to fill in the template with relevant information from the transcript.",
+            "",
+            "Important guidelines:",
+            "- PRESERVE the template structure exactly as provided",
+            "- Only fill in the sections marked for addition",
+            "- Do not fabricate or invent clinical details",
+            "- If information is not available in the transcript, leave placeholders empty or minimal",
+            "- Maintain clinical accuracy and professionalism",
+            "",
+            f"Current date/time: {datetime.now().isoformat()}",
+            "",
+        ]
+
+        add_instruction_text = ""
+        if add_instructions:
+            add_instruction_text = f"\n\nThe template expects information about: {', '.join(add_instructions)}"
+
+        user_prompt = [
+            "Template structure to fill:",
+            "```text",
+            framework,
+            "```",
+            "",
+            "Information from the transcript:",
+            "```text",
+            instruction.information,
+            "```",
+            "",
+            "Generated content (use as reference for what to include):",
+            "```text",
+            generated_content,
+            "```",
+            add_instruction_text,
+            "",
+            "Fill in the template structure with the relevant information.",
+            "Return the completed template with all placeholders filled appropriately.",
+            "If the transcript doesn't contain needed information, use minimal placeholder text.",
+            "",
+            "Your response must be a JSON Markdown block:",
+            "```json",
+            json.dumps([{"enhancedContent": "the filled template content here"}]),
+            "```",
+            "",
+        ]
+
+        chatter.reset_prompts()
+        if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
+            filled = str(response[0].get("enhancedContent", generated_content))
+            if filled:
+                return filled
+
+        # Fallback to generated content if template filling fails
+        return generated_content
+
     def enhance_with_template_instructions(
         self,
         content: str,

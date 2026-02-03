@@ -35,8 +35,8 @@ class HistoryOfPresentIllness(Base):
         # Get the narrative content with custom prompt processing
         narrative = self.command_from_json_custom_prompted(instruction.parameters["narrative"], chatter)
 
-        # Enhance with template {add:} instructions if any
-        narrative = self.enhance_with_template_instructions(narrative, "narrative", instruction, chatter)
+        # Fill template content if a template framework exists, or enhance with {add:} instructions
+        narrative = self.fill_template_content(narrative, "narrative", instruction, chatter)
 
         return InstructionWithCommand.add_command(
             instruction,

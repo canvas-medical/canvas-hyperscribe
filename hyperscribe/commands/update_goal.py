@@ -38,9 +38,9 @@ class UpdateGoal(Base):
             goal_uuid = current[idx].uuid
             self.add_code2description(current[idx].uuid, current[idx].label)
 
-        # Get progress with template enhancement
+        # Get progress with template fill
         progress = instruction.parameters["progressAndBarriers"]
-        progress = self.enhance_with_template_instructions(progress, "progress", instruction, chatter)
+        progress = self.fill_template_content(progress, "progress", instruction, chatter)
 
         return InstructionWithCommand.add_command(
             instruction,
