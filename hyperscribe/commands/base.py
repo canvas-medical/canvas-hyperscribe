@@ -1,6 +1,8 @@
 import json
 from datetime import datetime
 
+from logger import log
+
 from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.template_permissions import TemplatePermissions
@@ -265,11 +267,22 @@ class Base:
             The filled template content, or generated content if no template.
         """
         framework = self.get_template_framework(field_name)
+        add_instructions = self.get_template_instructions(field_name)
+
+        # Debug logging to capture what's received from note_templates cache
+        log.info(f"[TEMPLATE DEBUG] ===== fill_template_content =====")
+        log.info(f"[TEMPLATE DEBUG] Command: {self.class_name()}, Field: {field_name}")
+        log.info(f"[TEMPLATE DEBUG] Note UUID: {self.identification.note_uuid}")
+        log.info(f"[TEMPLATE DEBUG] Framework received (repr): {framework!r}")
+        log.info(f"[TEMPLATE DEBUG] Framework received (str): {framework}")
+        log.info(f"[TEMPLATE DEBUG] Add instructions: {add_instructions!r}")
+        log.info(f"[TEMPLATE DEBUG] Has template applied: {self.template_permissions.has_template_applied()}")
+        log.info(f"[TEMPLATE DEBUG] All permissions: {self.template_permissions._load_permissions()}")
+        log.info(f"[TEMPLATE DEBUG] ================================")
+
         if not framework:
             # No template framework - use generated content with optional enhancement
             return self.enhance_with_template_instructions(generated_content, field_name, instruction, chatter)
-
-        add_instructions = self.get_template_instructions(field_name)
 
         schemas = JsonSchema.get(["template_enhanced_content"])
         system_prompt = [
