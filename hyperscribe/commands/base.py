@@ -269,16 +269,14 @@ class Base:
         framework = self.get_template_framework(field_name)
         add_instructions = self.get_template_instructions(field_name)
 
-        # Debug logging to capture what's received from note_templates cache
-        log.info(f"[TEMPLATE DEBUG] ===== fill_template_content =====")
-        log.info(f"[TEMPLATE DEBUG] Command: {self.class_name()}, Field: {field_name}")
-        log.info(f"[TEMPLATE DEBUG] Note UUID: {self.identification.note_uuid}")
-        log.info(f"[TEMPLATE DEBUG] Framework received (repr): {framework!r}")
-        log.info(f"[TEMPLATE DEBUG] Framework received (str): {framework}")
-        log.info(f"[TEMPLATE DEBUG] Add instructions: {add_instructions!r}")
-        log.info(f"[TEMPLATE DEBUG] Has template applied: {self.template_permissions.has_template_applied()}")
-        log.info(f"[TEMPLATE DEBUG] All permissions: {self.template_permissions._load_permissions()}")
-        log.info(f"[TEMPLATE DEBUG] ================================")
+        # If no framework from cache, check if existing content has structure worth preserving
+        if not framework:
+            existing_content = instruction.information
+            if self._has_structured_content(existing_content):
+                log.info(
+                    f"[TEMPLATE] Using existing structured content as framework for {self.class_name()}.{field_name}"
+                )
+                framework = existing_content
 
         if not framework:
             # No template framework - use generated content with optional enhancement
@@ -289,16 +287,16 @@ class Base:
             "The conversation is in the context of a clinical encounter between "
             f"patient ({self.cache.demographic__str__(False)}) and licensed healthcare provider.",
             "",
-            "You are filling in a medical note template based on visit transcript information.",
-            "The template has a specific structure that must be preserved.",
-            "Your task is to fill in the template with relevant information from the transcript.",
+            "You are updating a medical note that has a specific structure with section headers.",
+            "Your task is to preserve this EXACT structure while updating the content.",
             "",
-            "Important guidelines:",
-            "- PRESERVE the template structure exactly as provided",
-            "- Only fill in the sections marked for addition",
+            "CRITICAL REQUIREMENTS:",
+            "- Keep ALL section headers exactly as they appear (e.g., 'Current concerns with memory or cognition:')",
+            "- Keep the same line breaks and paragraph structure",
+            "- Only update the CONTENT within each section, not the headers themselves",
+            "- Do NOT convert the structured format into prose paragraphs",
+            "- Do NOT remove or merge sections",
             "- Do not fabricate or invent clinical details",
-            "- If information is not available in the transcript, leave placeholders empty or minimal",
-            "- Maintain clinical accuracy and professionalism",
             "",
             f"Current date/time: {datetime.now().isoformat()}",
             "",
@@ -309,29 +307,23 @@ class Base:
             add_instruction_text = f"\n\nThe template expects information about: {', '.join(add_instructions)}"
 
         user_prompt = [
-            "Template structure to fill:",
+            "EXISTING STRUCTURED CONTENT (preserve this exact format):",
             "```text",
             framework,
             "```",
             "",
-            "Information from the transcript:",
-            "```text",
-            instruction.information,
-            "```",
-            "",
-            "Generated content (use as reference for what to include):",
+            "UPDATED INFORMATION from the transcript:",
             "```text",
             generated_content,
             "```",
             add_instruction_text,
             "",
-            "Fill in the template structure with the relevant information.",
-            "Return the completed template with all placeholders filled appropriately.",
-            "If the transcript doesn't contain needed information, use minimal placeholder text.",
+            "Update the content while keeping the EXACT same structure, section headers, and formatting.",
+            "Return the content with the same headers and layout as the original.",
             "",
             "Your response must be a JSON Markdown block:",
             "```json",
-            json.dumps([{"enhancedContent": "the filled template content here"}]),
+            json.dumps([{"enhancedContent": "the structured content with same format as original"}]),
             "```",
             "",
         ]
@@ -344,6 +336,43 @@ class Base:
 
         # Fallback to generated content if template filling fails
         return generated_content
+
+    def _has_structured_content(self, content: str) -> bool:
+        """Check if content has structure worth preserving (section headers, etc.).
+
+        Detects patterns like:
+        - Lines ending with colons followed by content (section headers)
+        - Multiple distinct sections separated by blank lines
+
+        Args:
+            content: The content to check
+
+        Returns:
+            True if the content appears to have intentional structure.
+        """
+        if not content or len(content) < 50:
+            return False
+
+        lines = content.strip().split("\n")
+        if len(lines) < 3:
+            return False
+
+        # Look for section header patterns (lines ending with colon, or "Header: content" patterns)
+        header_pattern_count = 0
+        for line in lines:
+            line = line.strip()
+            # Pattern: "Something something:" at start of line (section header)
+            if line.endswith(":") and len(line) > 5:
+                header_pattern_count += 1
+            # Pattern: "Header: " followed by content on same line
+            elif ": " in line and line.index(": ") < 60:
+                prefix = line.split(": ")[0]
+                # Check if prefix looks like a header (starts with capital, reasonable length)
+                if prefix and prefix[0].isupper() and 3 <= len(prefix) <= 60:
+                    header_pattern_count += 1
+
+        # Consider structured if we find 2+ section headers
+        return header_pattern_count >= 2
 
     def enhance_with_template_instructions(
         self,

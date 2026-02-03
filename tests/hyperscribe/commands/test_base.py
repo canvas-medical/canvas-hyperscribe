@@ -877,3 +877,111 @@ def test_fill_template_content_llm_returns_empty_string(
 
     # Falls back to generated content
     assert result == "generated content"
+
+
+def test_has_structured_content_with_section_headers():
+    """Test _has_structured_content detects section headers ending with colon."""
+    tested = helper_instance()
+
+    # Content with section headers (colons at end of lines)
+    structured = """Patient Name is presenting for a visit.
+
+Current concerns with memory or cognition: Patient reports some issues.
+
+Current concerns with physical functioning: Patient reports stiffness.
+
+Patient history provided by: Patient and family member."""
+
+    assert tested._has_structured_content(structured) is True
+
+
+def test_has_structured_content_with_inline_headers():
+    """Test _has_structured_content detects inline header patterns."""
+    tested = helper_instance()
+
+    # Content with "Header: content" patterns
+    structured = """Chief Complaint: Headache for 3 days
+Duration: 3 days
+Severity: Moderate
+Associated symptoms: Nausea, light sensitivity"""
+
+    assert tested._has_structured_content(structured) is True
+
+
+def test_has_structured_content_prose_paragraph():
+    """Test _has_structured_content returns False for plain prose."""
+    tested = helper_instance()
+
+    prose = (
+        "The patient is a 46-year-old male presenting for a comprehensive geriatric assessment. "
+        "He reports increasing frequency of tip-of-the-tongue phenomenon and difficulty recalling "
+        "proper names of acquaintances. His family notes that he occasionally repeats questions "
+        "within a 15-minute window."
+    )
+
+    assert tested._has_structured_content(prose) is False
+
+
+def test_has_structured_content_too_short():
+    """Test _has_structured_content returns False for short content."""
+    tested = helper_instance()
+
+    assert tested._has_structured_content("Short") is False
+    assert tested._has_structured_content("") is False
+
+
+def test_has_structured_content_single_line():
+    """Test _has_structured_content returns False for single line."""
+    tested = helper_instance()
+
+    single_line = "This is a single line of content without any structure."
+    assert tested._has_structured_content(single_line) is False
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "get_template_framework")
+def test_fill_template_content_uses_existing_structure(
+    mock_get_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Test fill_template_content uses existing structured content when no framework from cache."""
+    chatter = MagicMock()
+
+    # instruction.information contains structured content
+    structured_content = """Patient Name is a 46 year old male presenting for assessment.
+
+Current concerns with memory or cognition: Patient reports some memory issues.
+
+Current concerns with physical functioning: Patient reports stiffness."""
+
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information=structured_content,
+        is_new=False,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+
+    tested = helper_instance()
+    mock_get_framework.return_value = None  # No framework from cache
+    mock_get_instructions.return_value = []
+    mock_json_schema.get.return_value = [{"type": "array"}]
+    mock_demographic.return_value = "theDemographic"
+    date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
+    mock_datetime.now.return_value = date_0
+    chatter.single_conversation.return_value = [{"enhancedContent": "Updated structured content"}]
+
+    result = tested.fill_template_content("generated prose", "narrative", instruction, chatter)
+
+    # Should have called LLM to merge content with the existing structure
+    assert chatter.single_conversation.called
+    call_args = chatter.single_conversation.call_args
+    user_prompt = call_args[0][1]
+    # The structured content should be in the prompt (as list items)
+    prompt_text = " ".join(user_prompt)
+    assert "Current concerns with memory or cognition" in prompt_text
