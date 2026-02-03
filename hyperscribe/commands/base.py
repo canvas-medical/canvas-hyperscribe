@@ -1,8 +1,10 @@
 import json
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -11,6 +13,9 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 from hyperscribe.structures.instruction_with_summary import InstructionWithSummary
 from hyperscribe.structures.settings import Settings
 
+if TYPE_CHECKING:
+    pass
+
 
 class Base:
     def __init__(self, settings: Settings, cache: LimitedCache, identification: IdentificationParameters):
@@ -18,6 +23,7 @@ class Base:
         self.identification = identification
         self.cache = cache
         self._arguments_code2description: dict[str, str] = {}
+        self._template_permissions: TemplatePermissions | None = None
 
     @classmethod
     def class_name(cls) -> str:
@@ -184,3 +190,118 @@ class Base:
 
     def is_available(self) -> bool:
         raise NotImplementedError
+
+    # =========================================================================
+    # Template Permission Methods
+    # =========================================================================
+
+    @property
+    def template_permissions(self) -> TemplatePermissions:
+        """Get the template permissions checker for this command's note.
+
+        Lazily initializes the TemplatePermissions instance on first access.
+        """
+        if self._template_permissions is None:
+            self._template_permissions = TemplatePermissions(self.identification.note_uuid)
+        return self._template_permissions
+
+    def can_edit_field(self, field_name: str) -> bool:
+        """Check if a field can be edited based on template permissions.
+
+        Args:
+            field_name: The field name to check (e.g., "narrative", "background")
+
+        Returns:
+            True if the field can be edited, False if locked by template.
+            Returns True if no template is applied.
+        """
+        return self.template_permissions.can_edit_field_by_class(self.class_name(), field_name)
+
+    def get_template_instructions(self, field_name: str) -> list[str]:
+        """Get {add:} instructions from template for a specific field.
+
+        {add:} instructions tell the plugin what content should be included
+        in the generated text for this field.
+
+        Args:
+            field_name: The field name to get instructions for
+
+        Returns:
+            List of instruction strings, or empty list if none.
+        """
+        return self.template_permissions.get_add_instructions_by_class(self.class_name(), field_name)
+
+    def enhance_with_template_instructions(
+        self,
+        content: str,
+        field_name: str,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> str:
+        """Enhance content based on template {add:} instructions.
+
+        If the template has {add:} instructions for this field, use the LLM
+        to incorporate that information into the content based on the
+        original transcript information.
+
+        Args:
+            content: The base content to enhance
+            field_name: The field name being enhanced
+            instruction: The instruction with parameters (contains transcript info)
+            chatter: The LLM interface for generating enhanced content
+
+        Returns:
+            Enhanced content string, or original content if no instructions.
+        """
+        add_instructions = self.get_template_instructions(field_name)
+        if not add_instructions:
+            return content
+
+        schemas = JsonSchema.get(["template_enhanced_content"])
+        system_prompt = [
+            "The conversation is in the context of a clinical encounter between "
+            f"patient ({self.cache.demographic__str__(False)}) and licensed healthcare provider.",
+            "",
+            "You are enhancing a medical note field based on template guidance.",
+            "The user will provide the current content and specific topics that should be included.",
+            "Your task is to incorporate the requested information naturally into the narrative.",
+            "",
+            "Important guidelines:",
+            "- Only add information that can be supported by the transcript",
+            "- Do not fabricate or invent clinical details",
+            "- Maintain the existing style and tone of the content",
+            "- If the requested information is not present in the transcript, do not add it",
+            "",
+            f"Current date/time: {datetime.now().isoformat()}",
+            "",
+        ]
+        user_prompt = [
+            "Current content:",
+            "```text",
+            content,
+            "```",
+            "",
+            "Original transcript information:",
+            "```text",
+            instruction.information,
+            "```",
+            "",
+            f"Please ensure the content includes information about: {', '.join(add_instructions)}",
+            "",
+            "Return the enhanced content. If the requested information is not available "
+            "in the transcript, return the original content unchanged.",
+            "",
+            "Your response must be a JSON Markdown block:",
+            "```json",
+            json.dumps([{"enhancedContent": "the enhanced content here"}]),
+            "```",
+            "",
+        ]
+
+        chatter.reset_prompts()
+        if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
+            enhanced = str(response[0].get("enhancedContent", content))
+            if enhanced:
+                return enhanced
+
+        return content

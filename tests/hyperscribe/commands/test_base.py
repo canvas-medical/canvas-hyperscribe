@@ -79,6 +79,7 @@ def test___init__():
     assert tested.identification == identification
     assert tested.cache == cache
     assert tested._arguments_code2description == {}
+    assert tested._template_permissions is None
 
 
 def test_class_name():
@@ -449,3 +450,222 @@ def test_is_available():
     tested = helper_instance()
     with pytest.raises(NotImplementedError):
         _ = tested.is_available()
+
+
+# =========================================================================
+# Template Permission Method Tests
+# =========================================================================
+
+
+@patch("hyperscribe.commands.base.TemplatePermissions")
+def test_template_permissions_property(mock_template_permissions):
+    """Test that template_permissions property lazily creates TemplatePermissions."""
+    tested = helper_instance()
+
+    # First access should create the instance
+    result1 = tested.template_permissions
+
+    # Verify TemplatePermissions was called with the note_uuid
+    mock_template_permissions.assert_called_once_with("noteUuid")
+    assert result1 is mock_template_permissions.return_value
+
+    # Second access should return cached instance (no new calls)
+    mock_template_permissions.reset_mock()
+    result2 = tested.template_permissions
+    assert result2 is result1
+    mock_template_permissions.assert_not_called()
+
+
+@patch("hyperscribe.commands.base.TemplatePermissions")
+@patch.object(Base, "class_name")
+def test_can_edit_field(mock_class_name, mock_template_permissions):
+    """Test can_edit_field delegates to template_permissions."""
+    tested = helper_instance()
+
+    mock_class_name.return_value = "TestCommand"
+    mock_template_permissions.return_value.can_edit_field_by_class.return_value = True
+
+    result = tested.can_edit_field("narrative")
+    assert result is True
+
+    calls = [call("TestCommand", "narrative")]
+    assert mock_template_permissions.return_value.can_edit_field_by_class.mock_calls == calls
+
+
+@patch("hyperscribe.commands.base.TemplatePermissions")
+@patch.object(Base, "class_name")
+def test_can_edit_field_locked(mock_class_name, mock_template_permissions):
+    """Test can_edit_field returns False when field is locked."""
+    tested = helper_instance()
+
+    mock_class_name.return_value = "TestCommand"
+    mock_template_permissions.return_value.can_edit_field_by_class.return_value = False
+
+    result = tested.can_edit_field("narrative")
+    assert result is False
+
+
+@patch("hyperscribe.commands.base.TemplatePermissions")
+@patch.object(Base, "class_name")
+def test_get_template_instructions(mock_class_name, mock_template_permissions):
+    """Test get_template_instructions delegates to template_permissions."""
+    tested = helper_instance()
+
+    mock_class_name.return_value = "TestCommand"
+    mock_template_permissions.return_value.get_add_instructions_by_class.return_value = [
+        "symptoms",
+        "duration",
+    ]
+
+    result = tested.get_template_instructions("narrative")
+    assert result == ["symptoms", "duration"]
+
+    calls = [call("TestCommand", "narrative")]
+    assert mock_template_permissions.return_value.get_add_instructions_by_class.mock_calls == calls
+
+
+@patch("hyperscribe.commands.base.TemplatePermissions")
+@patch.object(Base, "class_name")
+def test_get_template_instructions_empty(mock_class_name, mock_template_permissions):
+    """Test get_template_instructions returns empty list when no instructions."""
+    tested = helper_instance()
+
+    mock_class_name.return_value = "TestCommand"
+    mock_template_permissions.return_value.get_add_instructions_by_class.return_value = []
+
+    result = tested.get_template_instructions("narrative")
+    assert result == []
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+def test_enhance_with_template_instructions_no_instructions(
+    mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Test enhance_with_template_instructions returns original content when no instructions."""
+    chatter = MagicMock()
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+
+    tested = helper_instance()
+    mock_get_instructions.return_value = []
+
+    result = tested.enhance_with_template_instructions("original content", "narrative", instruction, chatter)
+
+    assert result == "original content"
+    assert chatter.mock_calls == []
+    assert mock_json_schema.mock_calls == []
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+def test_enhance_with_template_instructions_with_instructions(
+    mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Test enhance_with_template_instructions uses LLM to incorporate instructions."""
+    chatter = MagicMock()
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information="Patient reports headache for 3 days.",
+        is_new=False,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+
+    tested = helper_instance()
+    mock_get_instructions.return_value = ["symptoms", "duration"]
+    mock_json_schema.get.return_value = [{"type": "array"}]
+    mock_demographic.return_value = "theDemographic"
+    date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
+    mock_datetime.now.return_value = date_0
+    chatter.single_conversation.return_value = [{"enhancedContent": "Enhanced: headache x3d"}]
+
+    result = tested.enhance_with_template_instructions("original content", "narrative", instruction, chatter)
+
+    assert result == "Enhanced: headache x3d"
+    calls = [call.get(["template_enhanced_content"])]
+    assert mock_json_schema.mock_calls == calls
+    calls = [call.reset_prompts(), call.single_conversation(MagicMock(), MagicMock(), MagicMock(), instruction)]
+    assert chatter.reset_prompts.called
+    assert chatter.single_conversation.called
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+def test_enhance_with_template_instructions_llm_returns_empty(
+    mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Test enhance_with_template_instructions returns original when LLM returns empty."""
+    chatter = MagicMock()
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+
+    tested = helper_instance()
+    mock_get_instructions.return_value = ["symptoms"]
+    mock_json_schema.get.return_value = [{"type": "array"}]
+    mock_demographic.return_value = "theDemographic"
+    date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
+    mock_datetime.now.return_value = date_0
+    chatter.single_conversation.return_value = []
+
+    result = tested.enhance_with_template_instructions("original content", "narrative", instruction, chatter)
+
+    assert result == "original content"
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+def test_enhance_with_template_instructions_llm_returns_empty_string(
+    mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Test enhance_with_template_instructions returns original when LLM returns empty string."""
+    chatter = MagicMock()
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+
+    tested = helper_instance()
+    mock_get_instructions.return_value = ["symptoms"]
+    mock_json_schema.get.return_value = [{"type": "array"}]
+    mock_demographic.return_value = "theDemographic"
+    date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
+    mock_datetime.now.return_value = date_0
+    chatter.single_conversation.return_value = [{"enhancedContent": ""}]
+
+    result = tested.enhance_with_template_instructions("original content", "narrative", instruction, chatter)
+
+    assert result == "original content"
