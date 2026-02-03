@@ -30,7 +30,13 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
     def reset_mocks():
         command_list.reset_mocks()
 
-    with patch.object(ImplementedCommands, "command_list") as command_list:
+    with (
+        patch.object(ImplementedCommands, "command_list") as command_list,
+        patch("hyperscribe.libraries.audio_interpreter.TemplatePermissions") as mock_template_permissions,
+    ):
+        # Template permissions default to allowing all commands
+        mock_template_permissions.return_value.can_edit_command_by_class.return_value = True
+
         settings = Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
             llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
@@ -75,14 +81,19 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
         return instance, settings, aws_s3, cache
 
 
+@patch("hyperscribe.libraries.audio_interpreter.TemplatePermissions")
 @patch.object(ImplementedCommands, "command_list")
-def test___init__(command_list):
+def test___init__(command_list, mock_template_permissions):
     mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
         command_list.reset_mocks()
+        mock_template_permissions.reset_mock()
         for item in mocks:
             item.reset_mock()
+
+    # Template permissions default to allowing all commands
+    mock_template_permissions.return_value.can_edit_command_by_class.return_value = True
 
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
@@ -127,20 +138,121 @@ def test___init__(command_list):
     assert instance.s3_credentials == aws_s3
     assert instance.identification == identification
     assert instance.cache == cache
+    assert instance._template_permissions is mock_template_permissions.return_value
+
+    # Verify TemplatePermissions was initialized with the note_uuid
+    mock_template_permissions.assert_called_once_with("noteUuid")
 
     calls = [call()]
     assert command_list.mock_calls == calls
     for idx, mock in enumerate(mocks):
+        # With walrus operator optimization, class_name() is called only once
+        # (assigned via := in policy check) and reused for dict key
         calls = [
             call(settings, cache, identification),
             call().__bool__(),
             call().class_name(),
             call().is_available(),
         ]
-        if idx != 2:
-            calls.append(call().class_name())
+        # No second class_name() call needed with walrus operator optimization
         assert mock.mock_calls == calls
     reset_mocks()
+
+
+@patch("hyperscribe.libraries.audio_interpreter.TemplatePermissions")
+@patch.object(ImplementedCommands, "command_list")
+def test___init___with_template_filtering(command_list, mock_template_permissions):
+    """Test that commands locked by template permissions are excluded from _command_context."""
+    mocks = [MagicMock(), MagicMock(), MagicMock()]
+
+    # CommandA is allowed, CommandB is locked by template, CommandC is allowed
+    def can_edit_side_effect(class_name: str) -> bool:
+        return class_name != "CommandB"
+
+    mock_template_permissions.return_value.can_edit_command_by_class.side_effect = can_edit_side_effect
+
+    settings = Settings(
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
+        structured_rfv=False,
+        audit_llm=False,
+        reasoning_llm=False,
+        custom_prompts=[],
+        is_tuning=False,
+        api_signing_key="theApiSigningKey",
+        max_workers=3,
+        hierarchical_detection_threshold=5,
+        send_progress=False,
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
+        cycle_transcript_overlap=37,
+    )
+    aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+
+    mocks[0].return_value.is_available.side_effect = [True]
+    mocks[1].return_value.is_available.side_effect = [True]
+    mocks[2].return_value.is_available.side_effect = [True]
+    mocks[0].return_value.class_name.side_effect = ["CommandA", "CommandA"]
+    mocks[1].return_value.class_name.side_effect = ["CommandB", "CommandB"]
+    mocks[2].return_value.class_name.side_effect = ["CommandC", "CommandC"]
+    command_list.side_effect = [mocks]
+
+    cache = LimitedCache("patientUuid", "providerUuid", {})
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    instance = AudioInterpreter(settings, aws_s3, cache, identification)
+
+    # CommandB should be excluded from _command_context due to template lock
+    assert "CommandA" in instance._command_context
+    assert "CommandB" not in instance._command_context
+    assert "CommandC" in instance._command_context
+
+
+@patch("hyperscribe.libraries.audio_interpreter.TemplatePermissions")
+@patch.object(ImplementedCommands, "command_list")
+def test_template_permissions_property(command_list, mock_template_permissions):
+    """Test that template_permissions property returns the TemplatePermissions instance."""
+    mocks = [MagicMock()]
+    mock_template_permissions.return_value.can_edit_command_by_class.return_value = True
+    mocks[0].return_value.is_available.side_effect = [True]
+    mocks[0].return_value.class_name.side_effect = ["CommandA", "CommandA"]
+    command_list.side_effect = [mocks]
+
+    settings = Settings(
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
+        structured_rfv=False,
+        audit_llm=False,
+        reasoning_llm=False,
+        custom_prompts=[],
+        is_tuning=False,
+        api_signing_key="theApiSigningKey",
+        max_workers=3,
+        hierarchical_detection_threshold=5,
+        send_progress=False,
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
+        cycle_transcript_overlap=37,
+    )
+    aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+    cache = LimitedCache("patientUuid", "providerUuid", {})
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    instance = AudioInterpreter(settings, aws_s3, cache, identification)
+
+    # Verify the property returns the instance
+    result = instance.template_permissions
+    assert result is mock_template_permissions.return_value
 
 
 def test_common_instructions():
@@ -207,8 +319,7 @@ def test_common_instructions():
                 call().class_name(),
                 call().is_available(),
             ]
-            if idx != 2:
-                calls.append(call().class_name())
+            # With walrus operator optimization, class_name() is called only once
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 
@@ -258,10 +369,9 @@ def test_instruction_constraints():
                 call().class_name(),
                 call().is_available(),
             ]
-            if idx != 2:
-                calls.append(call().class_name())
-                if idx in list_idx:
-                    calls.append(call().instruction_constraints())
+            # With walrus operator optimization, class_name() is called only once
+            if idx != 2 and idx in list_idx:
+                calls.append(call().instruction_constraints())
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 
@@ -311,8 +421,7 @@ def test_command_structures(questionnaire_command_name_list):
                 call().class_name(),
                 call().is_available(),
             ]
-            if idx != 2:
-                calls.append(call().class_name())
+            # With walrus operator optimization, class_name() is called only once
             if idx == rank:
                 calls.append(call().command_parameters())
             assert mock.mock_calls == calls, f"---> {idx}"
@@ -364,8 +473,7 @@ def test_command_schema(questionnaire_command_name_list):
                 call().class_name(),
                 call().is_available(),
             ]
-            if idx != 2:
-                calls.append(call().class_name())
+            # With walrus operator optimization, class_name() is called only once
             if idx == rank:
                 calls.append(call().command_parameters_schemas())
             assert mock.mock_calls == calls, f"---> {idx}"
@@ -912,11 +1020,18 @@ def test_detect_sections(json_schema, chatter, memory_log):
         memory_log.reset_mock()
         for item in mocks:
             item.reset_mock()
+        # Set up class_name for direct calls (as instructions in detect_sections)
         mocks[0].class_name.side_effect = ["First", "First"]
         mocks[1].class_name.side_effect = ["Second", "Second"]
         mocks[2].class_name.side_effect = ["Third", "Third"]
         mocks[3].class_name.side_effect = ["Fourth", "Fourth"]
         mocks[4].class_name.side_effect = ["Fifth", "Fifth"]
+        # Set up class_name on return_value (for init comprehension)
+        mocks[0].return_value.class_name.return_value = "First"
+        mocks[1].return_value.class_name.return_value = "Second"
+        mocks[2].return_value.class_name.return_value = "Third"
+        mocks[3].return_value.class_name.return_value = "Fourth"
+        mocks[4].return_value.class_name.return_value = "Fifth"
         mocks[0].note_section.side_effect = ["Assessment"]
         mocks[1].note_section.side_effect = ["Plan"]
         mocks[2].note_section.side_effect = ["Plan"]
@@ -1028,13 +1143,8 @@ def test_detect_sections(json_schema, chatter, memory_log):
             call().class_name(),
             call().is_available(),
         ]
-        if idx != 2:
-            calls.extend(
-                [
-                    call().class_name(),
-                    call().class_name().__hash__(),
-                ]
-            )
+        # With walrus operator optimization, class_name() is called only once during init
+        # The subsequent calls are from detect_sections (directly on mock as instruction)
         calls.extend(
             [
                 call.note_section(),
@@ -1267,11 +1377,18 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
         memory_log.reset_mock()
         for item in mocks:
             item.reset_mock()
+        # Set up class_name for direct calls (as instructions in detect_instructions_flat)
         mocks[0].class_name.side_effect = ["First", "First"]
         mocks[1].class_name.side_effect = ["Second", "Second"]
         mocks[2].class_name.side_effect = ["Third", "Third"]
         mocks[3].class_name.side_effect = ["Fourth", "Fourth"]
         mocks[4].class_name.side_effect = ["Fifth", "Fifth"]
+        # Set up class_name on return_value (for init comprehension)
+        mocks[0].return_value.class_name.return_value = "First"
+        mocks[1].return_value.class_name.return_value = "Second"
+        mocks[2].return_value.class_name.return_value = "Third"
+        mocks[3].return_value.class_name.return_value = "Fourth"
+        mocks[4].return_value.class_name.return_value = "Fifth"
         mocks[0].instruction_description.side_effect = ["Description1"]
         mocks[1].instruction_description.side_effect = ["Description2"]
         mocks[2].instruction_description.side_effect = ["Description3"]
@@ -1453,13 +1570,8 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             call().class_name(),
             call().is_available(),
         ]
-        if idx != 2:
-            calls.extend(
-                [
-                    call().class_name(),
-                    call().class_name().__hash__(),
-                ]
-            )
+        # With walrus operator optimization, class_name() is called only once during init
+        # The subsequent calls are from detect_instructions_flat (directly on mock as instruction)
         calls.extend(
             [
                 call.class_name(),
@@ -1974,8 +2086,7 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
                 call().class_name(),
                 call().is_available(),
             ]
-            if idx != 2:
-                calls.extend([call().class_name()])
+            # With walrus operator optimization, class_name() is called only once
             if idx == rank and idx != 2:
                 calls.extend([call().command_from_json_with_summary(instruction, "LlmBaseInstance")])
             assert mock.mock_calls == calls, f"---> {idx}"
@@ -2070,13 +2181,11 @@ def test_update_questionnaire(chatter, memory_log):
                 call().class_name(),
                 call().is_available(),
             ]
-            if idx != 2:
-                calls.extend([call().class_name()])
+            # With walrus operator optimization, class_name() is called only once
             if idx == rank and idx != 2:
-                if idx != 2:
-                    calls.extend([call().update_from_transcript(discussion, instruction, "LlmBaseInstance")])
-                    if rank != 3:
-                        calls.extend([call().command_from_questionnaire("theUuid", questionnaire_mocks[rank])])
+                calls.extend([call().update_from_transcript(discussion, instruction, "LlmBaseInstance")])
+                if rank != 3:
+                    calls.extend([call().command_from_questionnaire("theUuid", questionnaire_mocks[rank])])
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 
