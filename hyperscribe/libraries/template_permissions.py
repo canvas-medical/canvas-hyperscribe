@@ -7,7 +7,7 @@ and incorporate {add:} instructions into content generation.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any
 
 from logger import log
 
@@ -61,7 +61,7 @@ class TemplatePermissions:
     def __init__(
         self,
         note_uuid: str,
-        cache_getter: Callable[[], Any] | None = None,
+        cache_getter: Any = None,
     ) -> None:
         """Initialize the template permissions checker.
 
