@@ -355,10 +355,12 @@ class Base:
             return False
 
         # Known template section header patterns (case-insensitive matching)
+        # Include variations (e.g., "or" vs "and") that may appear in templates
         known_section_headers = [
             "current concerns with memory or cognition:",
+            "current concerns with memory and cognition:",
             "current concerns with physical functioning:",
-            "patient history provided by:",
+            "patient history provided by",  # No colon - may have content after
             "chief complaint:",
             "history of present illness:",
             "assessment:",

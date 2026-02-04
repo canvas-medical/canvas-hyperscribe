@@ -990,6 +990,21 @@ def test_has_structured_content_known_headers_case_insensitive():
     assert tested._has_structured_content(mixed_case) is True
 
 
+def test_has_structured_content_memory_and_cognition_variation():
+    """Test _has_structured_content detects 'and' variation of memory/cognition header."""
+    tested = helper_instance()
+
+    # The actual template may use "and" instead of "or"
+    content = (
+        "Arthur Henderson is an older male patient. "
+        "Current concerns with memory and cognition: Maria reports Arthur is repeating questions. "
+        "Current concerns with physical functioning: Arthur reports morning knee stiffness. "
+        "Patient history provided by both Arthur and his daughter Maria."
+    )
+
+    assert tested._has_structured_content(content) is True
+
+
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
 @patch("hyperscribe.commands.base.JsonSchema")
