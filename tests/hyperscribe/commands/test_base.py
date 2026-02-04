@@ -1005,6 +1005,28 @@ def test_has_structured_content_memory_and_cognition_variation():
     assert tested._has_structured_content(content) is True
 
 
+def test_has_structured_content_plan_template():
+    """Test _has_structured_content detects Plan template structure."""
+    tested = helper_instance()
+
+    # Plan template with cognitive evaluation recommended header
+    content = """Continue to follow up with PCP.
+
+Cognitive evaluation recommended in: 6 months"""
+
+    assert tested._has_structured_content(content) is True
+
+
+def test_has_structured_content_single_known_header():
+    """Test _has_structured_content detects even a single known header."""
+    tested = helper_instance()
+
+    # Content with just one known header should still be detected
+    content = "Follow up with primary care in 2 weeks for blood pressure check."
+
+    assert tested._has_structured_content(content) is True
+
+
 @patch("canvas_sdk.v1.data.note.Note")
 @patch("hyperscribe.commands.base.get_schema_key")
 def test_get_current_note_content_success(mock_get_schema_key, mock_note_class):

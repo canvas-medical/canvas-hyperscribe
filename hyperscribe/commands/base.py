@@ -424,19 +424,20 @@ class Base:
             "chief complaint:",
             "history of present illness:",
             "assessment:",
-            "plan:",
+            "cognitive evaluation recommended",
+            "follow up with",
+            "recommended in:",
         ]
 
         # First check for known template section headers anywhere in the content
         content_lower = content.lower()
         known_header_count = sum(1 for header in known_section_headers if header in content_lower)
-        if known_header_count >= 2:
+        # Even 1 known header is enough to consider it structured
+        if known_header_count >= 1:
             return True
 
         # Fall back to line-by-line detection for other structured content
         lines = content.strip().split("\n")
-        if len(lines) < 3:
-            return False
 
         # Look for section header patterns (lines ending with colon, or "Header: content" patterns)
         header_pattern_count = 0
