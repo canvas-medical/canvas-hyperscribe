@@ -1,5 +1,7 @@
 """Tests for template_permissions module."""
 
+import importlib
+import sys
 from unittest.mock import MagicMock
 
 import pytest
@@ -612,3 +614,56 @@ class TestDefaultCacheGetter:
         finally:
             # Restore original values
             template_permissions._get_cache = original_get_cache
+
+
+def test_module_import_fallback_when_canvas_sdk_unavailable():
+    """Test that _get_cache is None when canvas_sdk.caching.plugins is unavailable."""
+    import builtins
+
+    # Save the original __import__
+    original_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "canvas_sdk.caching.plugins" or ("canvas_sdk.caching" in name and "plugins" in str(args)):
+            raise ImportError("Mocked: canvas_sdk.caching.plugins not available")
+        return original_import(name, *args, **kwargs)
+
+    # Save ALL modules that might cache the template_permissions module
+    modules_to_save = [
+        "hyperscribe.libraries.template_permissions",
+        "hyperscribe.libraries",
+        "hyperscribe",
+    ]
+    saved_modules = {key: sys.modules.get(key) for key in modules_to_save}
+
+    try:
+        # Remove the modules to force fresh import
+        for key in modules_to_save:
+            if key in sys.modules:
+                del sys.modules[key]
+
+        # Patch __import__ to raise ImportError for canvas_sdk.caching.plugins
+        builtins.__import__ = mock_import
+
+        # Use importlib to force a fresh import
+        tp_reloaded = importlib.import_module("hyperscribe.libraries.template_permissions")
+
+        # Verify _get_cache is None due to ImportError fallback
+        assert tp_reloaded._get_cache is None
+
+    finally:
+        # Restore original __import__ first
+        builtins.__import__ = original_import
+
+        # Remove any modules that were imported with the mock
+        for key in modules_to_save:
+            if key in sys.modules:
+                del sys.modules[key]
+
+        # Restore original modules
+        for key, module in saved_modules.items():
+            if module is not None:
+                sys.modules[key] = module
+
+        # Force re-import of original module with working canvas_sdk
+        importlib.import_module("hyperscribe.libraries.template_permissions")
