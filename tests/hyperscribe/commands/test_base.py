@@ -880,17 +880,20 @@ def test_fill_template_content_llm_returns_empty_string(
 
 
 def test_has_structured_content_with_section_headers():
-    """Test _has_structured_content detects section headers ending with colon."""
+    """Test _has_structured_content detects section headers ending with colon only."""
     tested = helper_instance()
 
-    # Content with section headers (colons at end of lines)
+    # Content with section headers that END with colon (no content after colon on same line)
     structured = """Patient Name is presenting for a visit.
 
-Current concerns with memory or cognition: Patient reports some issues.
+Current concerns with memory or cognition:
+Patient reports some issues with memory.
 
-Current concerns with physical functioning: Patient reports stiffness.
+Current concerns with physical functioning:
+Patient reports stiffness in joints.
 
-Patient history provided by: Patient and family member."""
+Patient history provided by:
+Patient and family member."""
 
     assert tested._has_structured_content(structured) is True
 
@@ -920,6 +923,25 @@ def test_has_structured_content_prose_paragraph():
     )
 
     assert tested._has_structured_content(prose) is False
+
+
+def test_has_structured_content_invalid_header_patterns():
+    """Test _has_structured_content rejects lines with colons that aren't valid headers."""
+    tested = helper_instance()
+
+    # Content with colons but invalid header patterns:
+    # - lowercase prefixes (e.g., "the patient: something")
+    # - very short prefixes (e.g., "a: something")
+    # These should NOT be counted as headers
+    content = """This is some content with colons that are not headers.
+
+the patient: reports some symptoms here
+a: small prefix that should not match
+another lowercase: prefix example here
+
+This is just regular text without structure."""
+
+    assert tested._has_structured_content(content) is False
 
 
 def test_has_structured_content_too_short():
