@@ -266,13 +266,27 @@ class Base:
         Returns:
             The filled template content, or generated content if no template.
         """
+        # Debug: Log cache contents for template permissions
+        log.info(f"[TEMPLATE DEBUG] ========== fill_template_content ==========")
+        log.info(f"[TEMPLATE DEBUG] Command: {self.class_name()}, Field: {field_name}")
+        log.info(f"[TEMPLATE DEBUG] Note UUID: {self.identification.note_uuid}")
+        log.info(f"[TEMPLATE DEBUG] Has template applied: {self.template_permissions.has_template_applied()}")
+        log.info(f"[TEMPLATE DEBUG] All cached permissions: {self.template_permissions._load_permissions()}")
+
         framework = self.get_template_framework(field_name)
         add_instructions = self.get_template_instructions(field_name)
+
+        log.info(f"[TEMPLATE DEBUG] Framework from cache: {framework!r}")
+        log.info(f"[TEMPLATE DEBUG] Add instructions: {add_instructions!r}")
 
         # If no framework from cache, check if existing content has structure worth preserving
         if not framework:
             existing_content = instruction.information
-            if self._has_structured_content(existing_content):
+            has_structure = self._has_structured_content(existing_content)
+            log.info(f"[TEMPLATE DEBUG] No framework from cache, checking existing content")
+            log.info(f"[TEMPLATE DEBUG] Existing content (first 500 chars): {existing_content[:500]!r}")
+            log.info(f"[TEMPLATE DEBUG] Has structure detected: {has_structure}")
+            if has_structure:
                 log.info(
                     f"[TEMPLATE] Using existing structured content as framework for {self.class_name()}.{field_name}"
                 )
