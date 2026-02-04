@@ -1027,6 +1027,34 @@ def test_has_structured_content_single_known_header():
     assert tested._has_structured_content(content) is True
 
 
+def test_has_structured_content_inline_headers_not_known():
+    """Test _has_structured_content detects inline headers that aren't in known list."""
+    tested = helper_instance()
+
+    # Content with "Header: content" patterns that aren't in the known headers list
+    # This exercises the fallback line-by-line detection (line 457)
+    content = """Medications Reviewed: All current prescriptions
+Treatment Response: Good improvement noted
+Side Effects: None reported
+Blood Pressure: 120/80 mmHg"""
+
+    assert tested._has_structured_content(content) is True
+
+
+def test_has_structured_content_single_inline_header_insufficient():
+    """Test _has_structured_content returns False for single inline header."""
+    tested = helper_instance()
+
+    # Content with only 1 inline header (not enough - needs 2+)
+    # And no known headers
+    content = """This is a description of the patient visit.
+Patient presents for routine checkup. Medications Reviewed: Aspirin 81mg daily.
+Everything else looks fine and patient is doing well."""
+
+    # Should be False because only 1 inline header found (not 2+)
+    assert tested._has_structured_content(content) is False
+
+
 @patch("canvas_sdk.v1.data.note.Note")
 @patch("hyperscribe.commands.base.get_schema_key")
 def test_get_current_note_content_success(mock_get_schema_key, mock_note_class):
@@ -1079,6 +1107,60 @@ def test_get_current_note_content_no_content(mock_get_schema_key, mock_note_clas
 
 @patch("canvas_sdk.v1.data.note.Note")
 @patch("hyperscribe.commands.base.get_schema_key")
+def test_get_current_note_content_field_not_in_data(mock_get_schema_key, mock_note_class):
+    """Test get_current_note_content when field_name not in command.data."""
+    tested = helper_instance()
+    mock_get_schema_key.return_value = "hpi"
+
+    mock_note = MagicMock()
+    mock_command = MagicMock()
+    mock_command.data = {"other_field": "some content"}  # field_name not present
+    mock_note.commands.filter.return_value = [mock_command]
+    mock_note_class.objects.get.return_value = mock_note
+
+    result = tested.get_current_note_content("narrative")
+
+    assert result is None
+
+
+@patch("canvas_sdk.v1.data.note.Note")
+@patch("hyperscribe.commands.base.get_schema_key")
+def test_get_current_note_content_command_data_none(mock_get_schema_key, mock_note_class):
+    """Test get_current_note_content when command.data is None."""
+    tested = helper_instance()
+    mock_get_schema_key.return_value = "hpi"
+
+    mock_note = MagicMock()
+    mock_command = MagicMock()
+    mock_command.data = None  # data is None
+    mock_note.commands.filter.return_value = [mock_command]
+    mock_note_class.objects.get.return_value = mock_note
+
+    result = tested.get_current_note_content("narrative")
+
+    assert result is None
+
+
+@patch("canvas_sdk.v1.data.note.Note")
+@patch("hyperscribe.commands.base.get_schema_key")
+def test_get_current_note_content_empty_field_value(mock_get_schema_key, mock_note_class):
+    """Test get_current_note_content when field value is empty."""
+    tested = helper_instance()
+    mock_get_schema_key.return_value = "hpi"
+
+    mock_note = MagicMock()
+    mock_command = MagicMock()
+    mock_command.data = {"narrative": ""}  # Empty value
+    mock_note.commands.filter.return_value = [mock_command]
+    mock_note_class.objects.get.return_value = mock_note
+
+    result = tested.get_current_note_content("narrative")
+
+    assert result is None
+
+
+@patch("canvas_sdk.v1.data.note.Note")
+@patch("hyperscribe.commands.base.get_schema_key")
 def test_get_current_note_content_handles_exception(mock_get_schema_key, mock_note_class):
     """Test get_current_note_content handles exceptions gracefully."""
     tested = helper_instance()
@@ -1088,6 +1170,54 @@ def test_get_current_note_content_handles_exception(mock_get_schema_key, mock_no
     result = tested.get_current_note_content("narrative")
 
     assert result is None
+
+
+@patch.object(Base, "enhance_with_template_instructions")
+@patch.object(Base, "_has_structured_content")
+@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "get_template_framework")
+@patch.object(Base, "get_current_note_content")
+def test_fill_template_content_existing_content_no_structure(
+    mock_get_note_content,
+    mock_get_framework,
+    mock_get_instructions,
+    mock_has_structure,
+    mock_enhance,
+):
+    """Test fill_template_content falls back to enhance when existing content has no structure."""
+    chatter = MagicMock()
+
+    # The actual note content is prose without structure
+    prose_content = (
+        "The patient is a 46-year-old male presenting for a comprehensive geriatric assessment. "
+        "He reports increasing frequency of tip-of-the-tongue phenomenon."
+    )
+
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information="Some prose from transcript",
+        is_new=False,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+
+    tested = helper_instance()
+    mock_get_framework.return_value = None  # No framework from cache
+    mock_get_instructions.return_value = []
+    mock_get_note_content.return_value = prose_content  # Note has content
+    mock_has_structure.return_value = False  # But content has no structure
+    mock_enhance.return_value = "enhanced content"
+
+    result = tested.fill_template_content("generated prose", "narrative", instruction, chatter)
+
+    # Should fall back to enhance_with_template_instructions
+    assert result == "enhanced content"
+    mock_enhance.assert_called_once_with("generated prose", "narrative", instruction, chatter)
+    # Should NOT have called LLM directly for template filling
+    assert not chatter.single_conversation.called
 
 
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
