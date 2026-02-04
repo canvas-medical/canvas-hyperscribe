@@ -884,16 +884,17 @@ def test_has_structured_content_with_section_headers():
     tested = helper_instance()
 
     # Content with section headers that END with colon (no content after colon on same line)
+    # Using headers NOT in the known list to test the fallback line-by-line detection
     structured = """Patient Name is presenting for a visit.
 
-Current concerns with memory or cognition:
-Patient reports some issues with memory.
+Cardiovascular examination:
+Heart sounds normal, no murmurs.
 
-Current concerns with physical functioning:
-Patient reports stiffness in joints.
+Respiratory examination:
+Lungs clear bilaterally.
 
-Patient history provided by:
-Patient and family member."""
+Neurological examination:
+Alert and oriented."""
 
     assert tested._has_structured_content(structured) is True
 
@@ -953,11 +954,40 @@ def test_has_structured_content_too_short():
 
 
 def test_has_structured_content_single_line():
-    """Test _has_structured_content returns False for single line."""
+    """Test _has_structured_content returns False for single line without known headers."""
     tested = helper_instance()
 
     single_line = "This is a single line of content without any structure."
     assert tested._has_structured_content(single_line) is False
+
+
+def test_has_structured_content_known_template_headers_inline():
+    """Test _has_structured_content detects known template headers even inline."""
+    tested = helper_instance()
+
+    # Content with known template section headers inline (no line breaks)
+    # This mimics the geriatric assessment template format
+    inline_structured = (
+        "Arthur Henderson is a male patient presenting for a comprehensive geriatric assessment. "
+        "Current concerns with memory or cognition: Patient reports feeling 'pretty sharp' and does "
+        "crossword puzzles daily, but daughter reports he is repeating questions frequently. "
+        "Current concerns with physical functioning: Patient reports morning knee stiffness. "
+        "Patient history provided by: both patient and daughter."
+    )
+
+    assert tested._has_structured_content(inline_structured) is True
+
+
+def test_has_structured_content_known_headers_case_insensitive():
+    """Test _has_structured_content detects known headers case-insensitively."""
+    tested = helper_instance()
+
+    mixed_case = (
+        "Patient presents today. CURRENT CONCERNS WITH MEMORY OR COGNITION: Some memory issues. "
+        "current concerns with physical functioning: Mobility problems noted."
+    )
+
+    assert tested._has_structured_content(mixed_case) is True
 
 
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)

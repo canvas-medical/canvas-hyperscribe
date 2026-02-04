@@ -342,6 +342,7 @@ class Base:
 
         Detects patterns like:
         - Lines ending with colons followed by content (section headers)
+        - Known template section headers appearing inline
         - Multiple distinct sections separated by blank lines
 
         Args:
@@ -353,6 +354,24 @@ class Base:
         if not content or len(content) < 50:
             return False
 
+        # Known template section header patterns (case-insensitive matching)
+        known_section_headers = [
+            "current concerns with memory or cognition:",
+            "current concerns with physical functioning:",
+            "patient history provided by:",
+            "chief complaint:",
+            "history of present illness:",
+            "assessment:",
+            "plan:",
+        ]
+
+        # First check for known template section headers anywhere in the content
+        content_lower = content.lower()
+        known_header_count = sum(1 for header in known_section_headers if header in content_lower)
+        if known_header_count >= 2:
+            return True
+
+        # Fall back to line-by-line detection for other structured content
         lines = content.strip().split("\n")
         if len(lines) < 3:
             return False
