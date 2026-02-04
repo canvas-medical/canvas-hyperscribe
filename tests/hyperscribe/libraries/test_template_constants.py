@@ -144,3 +144,42 @@ class TestGetFreeTextFields:
         result = get_free_text_fields("PrescribeCommand")
         assert "sig" in result
         assert "note_to_pharmacist" in result
+
+
+class TestGetSchemaKey:
+    """Tests for the get_schema_key function."""
+
+    def test_history_of_present_illness_returns_hpi(self):
+        """Test HistoryOfPresentIllness maps to 'hpi' schema_key."""
+        from hyperscribe.libraries.template_constants import get_schema_key
+
+        result = get_schema_key("HistoryOfPresentIllness")
+        assert result == "hpi"
+
+    def test_plan_returns_plan(self):
+        """Test Plan maps to 'plan' schema_key."""
+        from hyperscribe.libraries.template_constants import get_schema_key
+
+        result = get_schema_key("Plan")
+        assert result == "plan"
+
+    def test_assess_returns_assess(self):
+        """Test Assess maps to 'assess' schema_key."""
+        from hyperscribe.libraries.template_constants import get_schema_key
+
+        result = get_schema_key("Assess")
+        assert result == "assess"
+
+    def test_unknown_class_returns_none(self):
+        """Test unknown class name returns None."""
+        from hyperscribe.libraries.template_constants import get_schema_key
+
+        result = get_schema_key("UnknownClass")
+        assert result is None
+
+    def test_reason_for_visit_returns_reasonforvisit(self):
+        """Test ReasonForVisit maps to 'reasonForVisit' schema_key."""
+        from hyperscribe.libraries.template_constants import get_schema_key
+
+        result = get_schema_key("ReasonForVisit")
+        assert result == "reasonForVisit"

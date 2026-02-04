@@ -5,6 +5,7 @@ from logger import log
 
 from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_constants import get_schema_key
 from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
@@ -244,6 +245,44 @@ class Base:
         """
         return self.template_permissions.get_edit_framework_by_class(self.class_name(), field_name)
 
+    def get_current_note_content(self, field_name: str) -> str | None:
+        """Read the current content from the note for this command type and field.
+
+        This reads the actual saved content from Canvas, not the instruction
+        extracted from the transcript. This is used to detect if the note
+        has template structure that should be preserved.
+
+        Args:
+            field_name: The field name to read (e.g., "narrative", "comment")
+
+        Returns:
+            The current field content from the note, or None if not found.
+        """
+        try:
+            from canvas_sdk.v1.data.note import Note
+
+            schema_key = get_schema_key(self.class_name())
+            if not schema_key:
+                log.info(f"[TEMPLATE] No schema_key mapping for {self.class_name()}")
+                return None
+
+            note = Note.objects.get(id=self.identification.note_uuid)
+            commands = note.commands.filter(schema_key=schema_key)
+
+            for command in commands:
+                if command.data and field_name in command.data:
+                    content = command.data.get(field_name)
+                    if content:
+                        log.info(f"[TEMPLATE] Found existing {schema_key}.{field_name} content (length={len(content)})")
+                        return str(content)
+
+            log.info(f"[TEMPLATE] No existing {schema_key}.{field_name} content found in note")
+            return None
+
+        except Exception as e:
+            log.warning(f"[TEMPLATE] Error reading note content: {e}")
+            return None
+
     def fill_template_content(
         self,
         generated_content: str,
@@ -279,17 +318,24 @@ class Base:
         log.info(f"[TEMPLATE DEBUG] Framework from cache: {framework!r}")
         log.info(f"[TEMPLATE DEBUG] Add instructions: {add_instructions!r}")
 
-        # If no framework from cache, check if existing content has structure worth preserving
+        # If no framework from cache, check if actual note content has structure worth preserving
         if not framework:
-            existing_content = instruction.information
-            has_structure = self._has_structured_content(existing_content)
-            log.info(f"[TEMPLATE DEBUG] No framework from cache, checking existing content")
-            log.info(f"[TEMPLATE DEBUG] Existing content (first 500 chars): {existing_content[:500]!r}")
-            log.info(f"[TEMPLATE DEBUG] Has structure detected: {has_structure}")
-            if has_structure:
-                log.info(
-                    f"[TEMPLATE] Using existing structured content as framework for {self.class_name()}.{field_name}"
-                )
+            # Read the ACTUAL current content from the note, not from instruction.information
+            # (instruction.information comes from transcript extraction, not from the saved note)
+            existing_content = self.get_current_note_content(field_name)
+            log.info(f"[TEMPLATE DEBUG] No framework from cache, checking actual note content")
+            if existing_content:
+                log.info(f"[TEMPLATE DEBUG] Note content (first 500 chars): {existing_content[:500]!r}")
+                has_structure = self._has_structured_content(existing_content)
+                log.info(f"[TEMPLATE DEBUG] Has structure detected: {has_structure}")
+                if has_structure:
+                    log.info(
+                        f"[TEMPLATE] Using existing note content as framework for {self.class_name()}.{field_name}"
+                    )
+            else:
+                log.info(f"[TEMPLATE DEBUG] No existing note content found")
+                has_structure = False
+            if has_structure and existing_content:
                 framework = existing_content
 
         if not framework:

@@ -113,3 +113,38 @@ def get_free_text_fields(command_type: str) -> list[str]:
         List of field names that are free text fields, or empty list if none
     """
     return FREE_TEXT_FIELDS.get(command_type, [])
+
+
+# Mapping from Hyperscribe class names to Canvas SDK schema_keys (for querying commands)
+HYPERSCRIBE_TO_SCHEMA_KEY: dict[str, str] = {
+    "Allergy": "allergy",
+    "Assess": "assess",
+    "CloseGoal": "closeGoal",
+    "Diagnose": "diagnose",
+    "FamilyHistory": "familyHistory",
+    "FollowUp": "followUp",
+    "Goal": "goal",
+    "HistoryOfPresentIllness": "hpi",
+    "Instruct": "instruct",
+    "LabOrder": "labOrder",
+    "MedicalHistory": "medicalHistory",
+    "Perform": "perform",
+    "Plan": "plan",
+    "ReasonForVisit": "reasonForVisit",
+    "Refer": "refer",
+    "Task": "task",
+    "UpdateDiagnose": "updateDiagnosis",
+    "UpdateGoal": "updateGoal",
+}
+
+
+def get_schema_key(hyperscribe_class_name: str) -> str | None:
+    """Convert a Hyperscribe class name to its corresponding Canvas SDK schema_key.
+
+    Args:
+        hyperscribe_class_name: The Hyperscribe command class name (e.g., "HistoryOfPresentIllness")
+
+    Returns:
+        The corresponding Canvas SDK schema_key (e.g., "hpi"), or None if not mapped
+    """
+    return HYPERSCRIBE_TO_SCHEMA_KEY.get(hyperscribe_class_name)

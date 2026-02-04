@@ -1005,18 +1005,87 @@ def test_has_structured_content_memory_and_cognition_variation():
     assert tested._has_structured_content(content) is True
 
 
+@patch("canvas_sdk.v1.data.note.Note")
+@patch("hyperscribe.commands.base.get_schema_key")
+def test_get_current_note_content_success(mock_get_schema_key, mock_note_class):
+    """Test get_current_note_content reads content from the note."""
+    tested = helper_instance()
+
+    # Mock the schema_key lookup
+    mock_get_schema_key.return_value = "hpi"
+
+    # Mock the Note.objects.get() and commands query
+    mock_note = MagicMock()
+    mock_command = MagicMock()
+    mock_command.data = {"narrative": "Structured content from note"}
+    mock_note.commands.filter.return_value = [mock_command]
+    mock_note_class.objects.get.return_value = mock_note
+
+    result = tested.get_current_note_content("narrative")
+
+    assert result == "Structured content from note"
+    mock_note_class.objects.get.assert_called_once_with(id="noteUuid")
+    mock_note.commands.filter.assert_called_once_with(schema_key="hpi")
+
+
+@patch("hyperscribe.commands.base.get_schema_key")
+def test_get_current_note_content_no_schema_key(mock_get_schema_key):
+    """Test get_current_note_content returns None when no schema_key mapping."""
+    tested = helper_instance()
+    mock_get_schema_key.return_value = None
+
+    result = tested.get_current_note_content("narrative")
+
+    assert result is None
+
+
+@patch("canvas_sdk.v1.data.note.Note")
+@patch("hyperscribe.commands.base.get_schema_key")
+def test_get_current_note_content_no_content(mock_get_schema_key, mock_note_class):
+    """Test get_current_note_content returns None when no content found."""
+    tested = helper_instance()
+    mock_get_schema_key.return_value = "hpi"
+
+    mock_note = MagicMock()
+    mock_note.commands.filter.return_value = []  # No commands found
+    mock_note_class.objects.get.return_value = mock_note
+
+    result = tested.get_current_note_content("narrative")
+
+    assert result is None
+
+
+@patch("canvas_sdk.v1.data.note.Note")
+@patch("hyperscribe.commands.base.get_schema_key")
+def test_get_current_note_content_handles_exception(mock_get_schema_key, mock_note_class):
+    """Test get_current_note_content handles exceptions gracefully."""
+    tested = helper_instance()
+    mock_get_schema_key.return_value = "hpi"
+    mock_note_class.objects.get.side_effect = Exception("Database error")
+
+    result = tested.get_current_note_content("narrative")
+
+    assert result is None
+
+
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
 @patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
 @patch.object(Base, "get_template_framework")
+@patch.object(Base, "get_current_note_content")
 def test_fill_template_content_uses_existing_structure(
-    mock_get_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+    mock_get_note_content,
+    mock_get_framework,
+    mock_get_instructions,
+    mock_json_schema,
+    mock_demographic,
+    mock_datetime,
 ):
     """Test fill_template_content uses existing structured content when no framework from cache."""
     chatter = MagicMock()
 
-    # instruction.information contains structured content
+    # The actual note content contains structured content (read from Canvas)
     structured_content = """Patient Name is a 46 year old male presenting for assessment.
 
 Current concerns with memory or cognition: Patient reports some memory issues.
@@ -1027,7 +1096,7 @@ Current concerns with physical functioning: Patient reports stiffness."""
         uuid="theUuid",
         index=7,
         instruction="theInstruction",
-        information=structured_content,
+        information="Some prose from transcript",  # This is from transcript, not the note
         is_new=False,
         is_updated=True,
         previous_information="thePreviousInformation",
@@ -1037,6 +1106,7 @@ Current concerns with physical functioning: Patient reports stiffness."""
     tested = helper_instance()
     mock_get_framework.return_value = None  # No framework from cache
     mock_get_instructions.return_value = []
+    mock_get_note_content.return_value = structured_content  # Actual note has structure
     mock_json_schema.get.return_value = [{"type": "array"}]
     mock_demographic.return_value = "theDemographic"
     date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
