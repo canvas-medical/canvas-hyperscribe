@@ -417,7 +417,12 @@ def test_command_parameters_schemas():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = "Any past condition. There can be only one condition per instruction, and no instruction in the lack of."
+    expected = (
+        "Any medical condition the patient confirms he or she has had or "
+        "been diagnosed with before the current visit. "
+        "There can be only one condition per instruction, and no instruction in the lack of. "
+        "Do NOT create this instruction for conditions the patient denies, negates, or states they do not have."
+    )
     assert result == expected
 
 

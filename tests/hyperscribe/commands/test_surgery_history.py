@@ -335,8 +335,10 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Any past surgery. There can be one and only one surgery per instruction, "
+        "Any surgery that the patient confirms he or she has had in the past. "
+        "There can be one and only one surgery per instruction, "
         "and no instruction in the lack of. "
+        "Do NOT create this instruction for surgeries the patient denies, negates, or states they have not had. "
         "Do not create instructions for vague references like 'multiple surgeries' "
         "only create instructions when a specific surgery type is mentioned."
     )

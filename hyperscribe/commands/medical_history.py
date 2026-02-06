@@ -122,7 +122,12 @@ class MedicalHistory(Base):
         ]
 
     def instruction_description(self) -> str:
-        return "Any past condition. There can be only one condition per instruction, and no instruction in the lack of."
+        return (
+            "Any medical condition the patient confirms he or she has had or "
+            "been diagnosed with before the current visit. "
+            "There can be only one condition per instruction, and no instruction in the lack of. "
+            "Do NOT create this instruction for conditions the patient denies, negates, or states they do not have."
+        )
 
     def instruction_constraints(self) -> str:
         result = ""
