@@ -30,15 +30,8 @@ class Goal(Base):
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
         # Get field values with template permission checks
-        goal_statement: str | None = None
-        if self.can_edit_field("goal_statement"):
-            goal_statement = instruction.parameters["goal"]
-            goal_statement = self.fill_template_content(goal_statement, "goal_statement", instruction, chatter)
-
-        progress: str | None = None
-        if self.can_edit_field("progress"):
-            progress = instruction.parameters["progressAndBarriers"]
-            progress = self.fill_template_content(progress, "progress", instruction, chatter)
+        goal_statement = self.resolve_field("goal_statement", instruction.parameters["goal"], instruction, chatter)
+        progress = self.resolve_field("progress", instruction.parameters["progressAndBarriers"], instruction, chatter)
 
         # If neither field can be edited, skip this command
         if goal_statement is None and progress is None:

@@ -35,15 +35,8 @@ class Assess(Base):
             self.add_code2description(current[idx].uuid, current[idx].label)
 
         # Get field values with template permission checks
-        background: str | None = None
-        if self.can_edit_field("background"):
-            background = instruction.parameters["rationale"]
-            background = self.fill_template_content(background, "background", instruction, chatter)
-
-        narrative: str | None = None
-        if self.can_edit_field("narrative"):
-            narrative = instruction.parameters["assessment"]
-            narrative = self.fill_template_content(narrative, "narrative", instruction, chatter)
+        background = self.resolve_field("background", instruction.parameters["rationale"], instruction, chatter)
+        narrative = self.resolve_field("narrative", instruction.parameters["assessment"], instruction, chatter)
 
         # If neither field can be edited, skip this command
         if background is None and narrative is None:

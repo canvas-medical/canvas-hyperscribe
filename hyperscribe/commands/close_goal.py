@@ -30,8 +30,8 @@ class CloseGoal(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
-        # Check if the progress field can be edited by plugins
-        if not self.can_edit_field("progress"):
+        progress = self.resolve_field("progress", instruction.parameters["progressAndBarriers"], instruction, chatter)
+        if progress is None:
             return None
 
         goal_uuid = "0"
@@ -39,10 +39,6 @@ class CloseGoal(Base):
             # TODO should be  goal_uuid = current[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
             goal_uuid = current[idx].code
             self.add_code2description(current[idx].code, current[idx].label)
-
-        # Get progress with template fill
-        progress = instruction.parameters["progressAndBarriers"]
-        progress = self.fill_template_content(progress, "progress", instruction, chatter)
 
         return InstructionWithCommand.add_command(
             instruction,

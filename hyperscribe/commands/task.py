@@ -126,15 +126,8 @@ class Task(Base):
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
         # Get field values with template permission checks
-        title: str | None = None
-        if self.can_edit_field("title"):
-            title = instruction.parameters["title"]
-            title = self.fill_template_content(title, "title", instruction, chatter)
-
-        comment: str | None = None
-        if self.can_edit_field("comment"):
-            comment = instruction.parameters["comment"]
-            comment = self.fill_template_content(comment, "comment", instruction, chatter)
+        title = self.resolve_field("title", instruction.parameters["title"], instruction, chatter)
+        comment = self.resolve_field("comment", instruction.parameters["comment"], instruction, chatter)
 
         # If neither field can be edited, skip this command
         if title is None and comment is None:

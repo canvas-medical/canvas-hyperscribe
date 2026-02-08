@@ -35,7 +35,7 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
         patch("hyperscribe.libraries.audio_interpreter.TemplatePermissions") as mock_template_permissions,
     ):
         # Template permissions default to allowing all commands
-        mock_template_permissions.return_value.can_edit_command_by_class.return_value = True
+        mock_template_permissions.return_value.can_edit_command.return_value = True
 
         settings = Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
@@ -93,7 +93,7 @@ def test___init__(command_list, mock_template_permissions):
             item.reset_mock()
 
     # Template permissions default to allowing all commands
-    mock_template_permissions.return_value.can_edit_command_by_class.return_value = True
+    mock_template_permissions.return_value.can_edit_command.return_value = True
 
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
@@ -169,7 +169,7 @@ def test___init___with_template_filtering(command_list, mock_template_permission
     def can_edit_side_effect(class_name: str) -> bool:
         return class_name != "CommandB"
 
-    mock_template_permissions.return_value.can_edit_command_by_class.side_effect = can_edit_side_effect
+    mock_template_permissions.return_value.can_edit_command.side_effect = can_edit_side_effect
 
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
@@ -218,7 +218,7 @@ def test___init___with_template_filtering(command_list, mock_template_permission
 def test_template_permissions_property(command_list, mock_template_permissions):
     """Test that template_permissions property returns the TemplatePermissions instance."""
     mocks = [MagicMock()]
-    mock_template_permissions.return_value.can_edit_command_by_class.return_value = True
+    mock_template_permissions.return_value.can_edit_command.return_value = True
     mocks[0].return_value.is_available.side_effect = [True]
     mocks[0].return_value.class_name.side_effect = ["CommandA", "CommandA"]
     command_list.side_effect = [mocks]
