@@ -482,7 +482,7 @@ def _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime):
     mock_datetime.now.return_value = FIXED_DATE
 
 
-@patch("hyperscribe.commands.template_mixin.TemplatePermissions")
+@patch("hyperscribe.commands.base.TemplatePermissions")
 def test_template_permissions_property(mock_template_permissions):
     """Test lazy init and caching of TemplatePermissions."""
     tested = helper_instance()
@@ -497,7 +497,7 @@ def test_template_permissions_property(mock_template_permissions):
 
 
 @pytest.mark.parametrize("return_val", [True, False])
-@patch("hyperscribe.commands.template_mixin.TemplatePermissions")
+@patch("hyperscribe.commands.base.TemplatePermissions")
 @patch.object(Base, "class_name")
 def test_can_edit_field(mock_class_name, mock_tp, return_val):
     tested = helper_instance()
@@ -508,7 +508,7 @@ def test_can_edit_field(mock_class_name, mock_tp, return_val):
 
 
 @pytest.mark.parametrize("return_val", [["symptoms", "duration"], []])
-@patch("hyperscribe.commands.template_mixin.TemplatePermissions")
+@patch("hyperscribe.commands.base.TemplatePermissions")
 @patch.object(Base, "class_name")
 def test_get_template_instructions(mock_class_name, mock_tp, return_val):
     tested = helper_instance()
@@ -519,7 +519,7 @@ def test_get_template_instructions(mock_class_name, mock_tp, return_val):
 
 
 @pytest.mark.parametrize("return_val", ["Patient is a [AGE] year old.", None])
-@patch("hyperscribe.commands.template_mixin.TemplatePermissions")
+@patch("hyperscribe.commands.base.TemplatePermissions")
 @patch.object(Base, "class_name")
 def test_get_template_framework(mock_class_name, mock_tp, return_val):
     tested = helper_instance()
@@ -532,9 +532,9 @@ def test_get_template_framework(mock_class_name, mock_tp, return_val):
 # -- enhance_with_template_instructions ------------------------------------
 
 
-@patch("hyperscribe.commands.template_mixin.datetime", wraps=datetime)
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.template_mixin.JsonSchema")
+@patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
 def test_enhance_no_instructions_returns_original(
     mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
@@ -549,9 +549,9 @@ def test_enhance_no_instructions_returns_original(
     assert mock_json_schema.mock_calls == []
 
 
-@patch("hyperscribe.commands.template_mixin.datetime", wraps=datetime)
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.template_mixin.JsonSchema")
+@patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
 def test_enhance_with_instructions_calls_llm(mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime):
     chatter = MagicMock()
@@ -568,9 +568,9 @@ def test_enhance_with_instructions_calls_llm(mock_get_instructions, mock_json_sc
 
 
 @pytest.mark.parametrize("llm_response", [[], [{"enhancedContent": ""}]])
-@patch("hyperscribe.commands.template_mixin.datetime", wraps=datetime)
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.template_mixin.JsonSchema")
+@patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
 def test_enhance_llm_empty_returns_original(
     mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime, llm_response
@@ -611,9 +611,9 @@ def test_fill_template_content_no_framework(
     assert not chatter.single_conversation.called
 
 
-@patch("hyperscribe.commands.template_mixin.datetime", wraps=datetime)
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.template_mixin.JsonSchema")
+@patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
 @patch.object(Base, "_resolve_framework")
 def test_fill_template_content_with_framework(
@@ -635,9 +635,9 @@ def test_fill_template_content_with_framework(
     assert chatter.single_conversation.called
 
 
-@patch("hyperscribe.commands.template_mixin.datetime", wraps=datetime)
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.template_mixin.JsonSchema")
+@patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
 @patch.object(Base, "_resolve_framework")
 def test_fill_template_content_strips_lit_markers(
@@ -663,9 +663,116 @@ def test_fill_template_content_strips_lit_markers(
     assert "Current concerns with functioning:" in user_prompt_text
 
 
-@patch("hyperscribe.commands.template_mixin.datetime", wraps=datetime)
+@patch.object(Base, "enhance_with_template_instructions")
+@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "_resolve_framework")
+def test_fill_template_content_sub_only_uses_enhance_path(mock_resolve_framework, mock_get_instructions, mock_enhance):
+    """Framework with only {sub:} + {add:} falls through to enhance path, not merge."""
+    chatter = MagicMock()
+    instruction = make_instruction(information="Exam findings.")
+    tested = helper_instance()
+    mock_resolve_framework.return_value = "{sub:Intact. No rashes.}{add:Replace with findings if available.}"
+    mock_get_instructions.return_value = []
+    mock_enhance.return_value = "enhanced content"
+
+    result = tested.fill_template_content("generated", "narrative", instruction, chatter)
+
+    assert result == "enhanced content"
+    mock_enhance.assert_called_once_with(
+        "generated",
+        "narrative",
+        instruction,
+        chatter,
+        extra_instructions=["Replace with findings if available."],
+    )
+    # The merge LLM call should NOT have been made
+    assert not chatter.single_conversation.called
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.template_mixin.JsonSchema")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "_resolve_framework")
+def test_fill_template_content_lit_plus_sub_preserves_lit(
+    mock_resolve_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Framework with {lit:} + {sub:} keeps lit content and removes sub content."""
+    chatter = MagicMock()
+    instruction = make_instruction(information="Patient findings.")
+    tested = helper_instance()
+    mock_resolve_framework.return_value = "{lit:Section Header:}\n{sub:default text here}"
+    mock_get_instructions.return_value = []
+    _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
+    chatter.single_conversation.return_value = [{"enhancedContent": "filled"}]
+
+    tested.fill_template_content("generated", "narrative", instruction, chatter)
+
+    user_prompt_text = "\n".join(chatter.single_conversation.call_args[0][1])
+    assert "Section Header:" in user_prompt_text
+    assert "default text here" not in user_prompt_text
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "_resolve_framework")
+def test_fill_template_content_extracts_add_markers(
+    mock_resolve_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Inline {add:} markers are extracted from framework, stripped from display, and merged into instructions."""
+    chatter = MagicMock()
+    instruction = make_instruction(information="General exam findings noted.")
+    tested = helper_instance()
+    mock_resolve_framework.return_value = (
+        "{lit:NAD. Well-developed, pleasant.}{add:Replace defaults with transcript findings if available.}"
+    )
+    mock_get_instructions.return_value = []
+    _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
+    chatter.single_conversation.return_value = [{"enhancedContent": "filled content"}]
+
+    tested.fill_template_content("generated", "narrative", instruction, chatter)
+
+    user_prompt_text = "\n".join(chatter.single_conversation.call_args[0][1])
+    # {add:} markers should be stripped from the structured content
+    assert "{add:" not in user_prompt_text
+    # {lit:} markers should also be stripped
+    assert "{lit:" not in user_prompt_text
+    # The literal text should be present
+    assert "NAD. Well-developed, pleasant." in user_prompt_text
+    # The add instruction should appear in the instruction text
+    assert "Replace defaults with transcript findings if available." in user_prompt_text
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "_resolve_framework")
+def test_fill_template_content_merges_add_markers_with_cache_instructions(
+    mock_resolve_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+):
+    """Inline {add:} markers are merged with add_instructions from the cache field."""
+    chatter = MagicMock()
+    instruction = make_instruction(information="Patient findings.")
+    tested = helper_instance()
+    mock_resolve_framework.return_value = "Some framework text{add:inline instruction}"
+    mock_get_instructions.return_value = ["cached instruction"]
+    _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
+    chatter.single_conversation.return_value = [{"enhancedContent": "filled"}]
+
+    tested.fill_template_content("generated", "narrative", instruction, chatter)
+
+    user_prompt_text = "\n".join(chatter.single_conversation.call_args[0][1])
+    # Both sources of instructions should appear
+    assert "cached instruction" in user_prompt_text
+    assert "inline instruction" in user_prompt_text
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
 @patch.object(Base, "_resolve_framework")
 def test_fill_template_content_with_framework_no_add_instructions(
@@ -684,9 +791,9 @@ def test_fill_template_content_with_framework_no_add_instructions(
 
 
 @pytest.mark.parametrize("llm_response", [[], [{"enhancedContent": ""}]])
-@patch("hyperscribe.commands.template_mixin.datetime", wraps=datetime)
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.template_mixin.JsonSchema")
+@patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
 @patch.object(Base, "_resolve_framework")
 def test_fill_template_content_llm_empty_falls_back(
@@ -709,9 +816,9 @@ def test_fill_template_content_llm_empty_falls_back(
     assert result == "generated content"
 
 
-@patch("hyperscribe.commands.template_mixin.datetime", wraps=datetime)
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.template_mixin.JsonSchema")
+@patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
 @patch.object(Base, "_resolve_framework")
 def test_fill_template_content_uses_existing_structure(
@@ -740,136 +847,6 @@ def test_fill_template_content_uses_existing_structure(
     assert "Current concerns with memory or cognition" in prompt_text
 
 
-# -- _has_structured_content -----------------------------------------------
-
-
-def test_has_structured_content_true_section_headers():
-    tested = helper_instance()
-    content = (
-        "Patient presenting for a visit.\n\n"
-        "Cardiovascular examination:\nHeart sounds normal.\n\n"
-        "Respiratory examination:\nLungs clear bilaterally."
-    )
-    assert tested._has_structured_content(content) is True
-
-
-def test_has_structured_content_true_inline_headers():
-    tested = helper_instance()
-    content = (
-        "Chief Complaint: Headache for 3 days\n"
-        "Duration: 3 days\n"
-        "Severity: Moderate\n"
-        "Associated symptoms: Nausea, light sensitivity"
-    )
-    assert tested._has_structured_content(content) is True
-
-
-def test_has_structured_content_true_custom_headers():
-    tested = helper_instance()
-    content = (
-        "Medications Reviewed: All current prescriptions\n"
-        "Treatment Response: Good improvement noted\n"
-        "Side Effects: None reported\n"
-        "Blood Pressure: 120/80 mmHg"
-    )
-    assert tested._has_structured_content(content) is True
-
-
-@pytest.mark.parametrize(
-    "content",
-    [
-        # prose paragraph
-        (
-            "The patient is a 46-year-old male presenting for a comprehensive geriatric assessment. "
-            "He reports increasing frequency of tip-of-the-tongue phenomenon and difficulty recalling "
-            "proper names of acquaintances. His family notes that he occasionally repeats questions "
-            "within a 15-minute window."
-        ),
-        # invalid header patterns (lowercase, too-short prefix)
-        (
-            "This has colons that are not headers.\n\n"
-            "the patient: reports symptoms\na: small prefix\nanother lowercase: prefix"
-        ),
-        # too short
-        "Short",
-        # empty
-        "",
-        # single line
-        "This is a single line of content without any structure.",
-        # single header (below 2+ threshold)
-        "Continue to follow up with PCP.\n\nCognitive evaluation recommended in: 6 months",
-        # single inline header
-        "Patient presents for checkup. Medications Reviewed: Aspirin 81mg daily.\nEverything else looks fine.",
-    ],
-)
-def test_has_structured_content_false(content):
-    tested = helper_instance()
-    assert tested._has_structured_content(content) is False
-
-
-# -- get_current_note_content ----------------------------------------------
-
-
-@patch("canvas_sdk.v1.data.note.Note")
-@patch("hyperscribe.commands.template_mixin.get_schema_key")
-def test_get_current_note_content_success(mock_get_schema_key, mock_note_class):
-    tested = helper_instance()
-    mock_get_schema_key.return_value = "hpi"
-    mock_note = MagicMock()
-    mock_command = MagicMock()
-    mock_command.data = {"narrative": "Structured content from note"}
-    mock_note.commands.filter.return_value = [mock_command]
-    mock_note_class.objects.get.return_value = mock_note
-
-    result = tested.get_current_note_content("narrative")
-
-    assert result == "Structured content from note"
-    mock_note_class.objects.get.assert_called_once_with(id="noteUuid")
-    mock_note.commands.filter.assert_called_once_with(schema_key="hpi")
-
-
-@patch("hyperscribe.commands.template_mixin.get_schema_key")
-def test_get_current_note_content_no_schema_key(mock_get_schema_key):
-    tested = helper_instance()
-    mock_get_schema_key.return_value = None
-    assert tested.get_current_note_content("narrative") is None
-
-
-@pytest.mark.parametrize(
-    "commands,data",
-    [
-        ([], None),  # no commands found
-        ("one_command", {"other_field": "content"}),  # field_name not present
-        ("one_command", None),  # command.data is None
-        ("one_command", {"narrative": ""}),  # empty field value
-    ],
-)
-@patch("canvas_sdk.v1.data.note.Note")
-@patch("hyperscribe.commands.template_mixin.get_schema_key")
-def test_get_current_note_content_returns_none(mock_get_schema_key, mock_note_class, commands, data):
-    tested = helper_instance()
-    mock_get_schema_key.return_value = "hpi"
-    mock_note = MagicMock()
-    if commands == []:
-        mock_note.commands.filter.return_value = []
-    else:
-        mock_command = MagicMock()
-        mock_command.data = data
-        mock_note.commands.filter.return_value = [mock_command]
-    mock_note_class.objects.get.return_value = mock_note
-
-    assert tested.get_current_note_content("narrative") is None
-
-
-@patch("canvas_sdk.v1.data.note.Note")
-@patch("hyperscribe.commands.template_mixin.get_schema_key")
-def test_get_current_note_content_handles_exception(mock_get_schema_key, mock_note_class):
-    tested = helper_instance()
-    mock_get_schema_key.return_value = "hpi"
-    mock_note_class.objects.get.side_effect = Exception("Database error")
-    assert tested.get_current_note_content("narrative") is None
-
-
 # -- _resolve_framework ----------------------------------------------------
 
 
@@ -879,40 +856,6 @@ def test_resolve_framework_returns_cached_framework(mock_get_framework):
     mock_get_framework.return_value = "Cached framework content"
     assert tested._resolve_framework("narrative") == "Cached framework content"
     mock_get_framework.assert_called_once_with("narrative")
-
-
-@patch.object(Base, "_has_structured_content")
-@patch.object(Base, "get_current_note_content")
-@patch.object(Base, "get_template_framework")
-def test_resolve_framework_falls_back_to_structured_note_content(
-    mock_get_framework, mock_get_note_content, mock_has_structure
-):
-    tested = helper_instance()
-    mock_get_framework.return_value = None
-    mock_get_note_content.return_value = "Structured: content\nHeader: value"
-    mock_has_structure.return_value = True
-    assert tested._resolve_framework("narrative") == "Structured: content\nHeader: value"
-
-
-@pytest.mark.parametrize(
-    "note_content,has_structure",
-    [
-        ("Just some plain prose text.", False),  # unstructured
-        (None, None),  # no content at all
-    ],
-)
-@patch.object(Base, "_has_structured_content")
-@patch.object(Base, "get_current_note_content")
-@patch.object(Base, "get_template_framework")
-def test_resolve_framework_returns_none(
-    mock_get_framework, mock_get_note_content, mock_has_structure, note_content, has_structure
-):
-    tested = helper_instance()
-    mock_get_framework.return_value = None
-    mock_get_note_content.return_value = note_content
-    if has_structure is not None:
-        mock_has_structure.return_value = has_structure
-    assert tested._resolve_framework("narrative") is None
 
 
 # -- resolve_field ---------------------------------------------------------

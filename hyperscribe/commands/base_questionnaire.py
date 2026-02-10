@@ -31,6 +31,16 @@ class BaseQuestionnaire(Base):
     def sdk_command(self) -> Type[QuestionnaireCommand]:
         raise NotImplementedError
 
+    def additional_instructions(self) -> list[str]:
+        return []
+
+    def skipped_field_instruction(self) -> str:
+        """LLM instruction for handling the 'skipped' field. Override for custom semantics."""
+        return (
+            "This includes the values of 'skipped', change it to 'false' only if the question "
+            "is obviously answered in the transcript, don't change it at all otherwise."
+        )
+
     @classmethod
     def staged_command_extract(cls, data: dict) -> CodedItem | None:
         questionnaire = ((data.get("questionnaire") or {}).get("extra")) or {}
@@ -219,7 +229,7 @@ class BaseQuestionnaire(Base):
                 "Your response must be the JSON Markdown block of the questionnaire, with all the necessary "
                 "changes to reflect the transcript content.",
                 "",
-            ]
+            ] + self.additional_instructions()
             transcript = json.dumps([line.to_json() for line in discussion], indent=1)
 
             user_prompt = [
@@ -238,10 +248,7 @@ class BaseQuestionnaire(Base):
                 "the changes should be based on explicit information only.",
             ]
             if include_skipped:
-                user_prompt.append(
-                    "This includes the values of 'skipped', change it to 'false' only if the question "
-                    "is obviously answered in the transcript, don't change it at all otherwise."
-                )
+                user_prompt.append(self.skipped_field_instruction())
             user_prompt.append("")
             schemas = [self.json_schema_questionnaire(include_skipped)]
             chatter.reset_prompts()
@@ -249,8 +256,17 @@ class BaseQuestionnaire(Base):
             chatter.set_user_prompt(user_prompt)
             response = chatter.chat(schemas)
             if not response.has_error:
-                return questionnaire.update_from_llm_with(response.content[0])
+                updated = questionnaire.update_from_llm_with(response.content[0])
+                return self.post_process_questionnaire(questionnaire, updated)
         return None
+
+    def post_process_questionnaire(
+        self,
+        original: QuestionnaireDefinition,
+        updated: QuestionnaireDefinition,
+    ) -> QuestionnaireDefinition:
+        """Hook to fix up LLM output. Default is passthrough; subclasses may override."""
+        return updated
 
     def command_from_questionnaire(
         self,
@@ -285,7 +301,7 @@ class BaseQuestionnaire(Base):
             cmd_questions.append(cmd_question)
 
             if include_skipped and hasattr(command, "set_question_enabled"):
-                command.set_question_enabled(question_id, question.skipped is False)
+                command.set_question_enabled(question_id, question.skipped is not True)
 
         # SDK may (should?) offer a more elegant way to provide the responses without accessing the database
         command.questions = cmd_questions

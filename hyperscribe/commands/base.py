@@ -1,7 +1,9 @@
 import json
+import re
 from datetime import datetime
 
-from hyperscribe.commands.template_mixin import TemplateIntegrationMixin
+from logger import log
+
 from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.template_permissions import TemplatePermissions
@@ -14,7 +16,7 @@ from hyperscribe.structures.instruction_with_summary import InstructionWithSumma
 from hyperscribe.structures.settings import Settings
 
 
-class Base(TemplateIntegrationMixin):
+class Base:
     def __init__(self, settings: Settings, cache: LimitedCache, identification: IdentificationParameters):
         self.settings = settings
         self.identification = identification
@@ -187,3 +189,208 @@ class Base(TemplateIntegrationMixin):
 
     def is_available(self) -> bool:
         raise NotImplementedError
+
+    # -- Template integration ------------------------------------------------
+
+    @property
+    def template_permissions(self) -> TemplatePermissions:
+        """Lazily initialize and return the TemplatePermissions instance."""
+        if self._template_permissions is None:
+            self._template_permissions = TemplatePermissions(self.identification.note_uuid)
+        return self._template_permissions
+
+    def can_edit_field(self, field_name: str) -> bool:
+        """Check if a field can be edited based on template permissions."""
+        return self.template_permissions.can_edit_field(self.class_name(), field_name)
+
+    def get_template_instructions(self, field_name: str) -> list[str]:
+        """Get {add:} instructions from template for a specific field."""
+        return self.template_permissions.get_add_instructions(self.class_name(), field_name)
+
+    def get_template_framework(self, field_name: str) -> str | None:
+        """Get the template framework (base content) for a field."""
+        return self.template_permissions.get_edit_framework(self.class_name(), field_name)
+
+    def _resolve_framework(self, field_name: str) -> str | None:
+        """Resolve template framework from cache."""
+        framework = self.get_template_framework(field_name)
+        if framework:
+            log.info(
+                f"[TEMPLATE] Resolved cached framework for {self.class_name()}.{field_name} (length={len(framework)})"
+            )
+        return framework
+
+    def resolve_field(
+        self,
+        field_name: str,
+        param_value: str,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> str | None:
+        """Check edit permission and fill template content. Returns None if locked."""
+        if not self.can_edit_field(field_name):
+            return None
+        return self.fill_template_content(param_value, field_name, instruction, chatter)
+
+    def fill_template_content(
+        self,
+        generated_content: str,
+        field_name: str,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> str:
+        """Merge generated content with template framework, or return as-is if no template."""
+        log.info(f"[TEMPLATE] fill_template_content: {self.class_name()}.{field_name}")
+
+        framework = self._resolve_framework(field_name)
+        add_instructions = self.get_template_instructions(field_name)
+
+        if not framework:
+            if add_instructions:
+                log.info(f"[TEMPLATE] No framework, enhancing with add_instructions: {add_instructions}")
+            return self.enhance_with_template_instructions(generated_content, field_name, instruction, chatter)
+
+        # Unwrap {lit:} markers — literal text that must be preserved
+        display_framework = re.sub(r"\{lit:([^}]*)\}", r"\1", framework)
+
+        # Remove {sub:} markers — substitutable defaults replaced by generated content
+        display_framework = re.sub(r"\{sub:([^}]*)\}", "", display_framework)
+
+        # Extract and strip {add:} markers — inline instructions for the LLM
+        inline_instructions = re.findall(r"\{add:([^}]*)\}", display_framework)
+        display_framework = re.sub(r"\{add:([^}]*)\}", "", display_framework)
+
+        # Merge with any from the cache field (backward compat)
+        add_instructions = (add_instructions or []) + inline_instructions
+
+        # If no preservable content remains (framework was only {sub:} + {add:}),
+        # enhance the generated content with instructions instead of merging
+        if not display_framework.strip():
+            log.info(f"[TEMPLATE] Framework has no literal content, enhancing with instructions: {add_instructions}")
+            return self.enhance_with_template_instructions(
+                generated_content,
+                field_name,
+                instruction,
+                chatter,
+                extra_instructions=add_instructions,
+            )
+
+        schemas = JsonSchema.get(["template_enhanced_content"])
+        system_prompt = [
+            "The conversation is in the context of a clinical encounter between "
+            f"patient ({self.cache.demographic__str__(False)}) and licensed healthcare provider.",
+            "",
+            "You are updating a medical note that has a specific structure with section headers.",
+            "Your task is to preserve this EXACT structure while updating the content.",
+            "",
+            "CRITICAL REQUIREMENTS:",
+            "- Keep ALL existing text from the original content - do NOT delete any lines",
+            "- Keep ALL section headers exactly as they appear",
+            "- Keep the same line breaks and paragraph structure",
+            "- Only ADD information from the transcript to fill in empty sections",
+            "- Do NOT convert the structured format into prose paragraphs",
+            "- Do NOT remove, delete, or merge any existing content",
+            "- Do not fabricate or invent clinical details",
+            "- If a section is already filled, keep it as-is unless the transcript has updates",
+            "",
+            f"Current date/time: {datetime.now().isoformat()}",
+            "",
+        ]
+
+        add_instruction_text = ""
+        if add_instructions:
+            add_instruction_text = f"\n\nThe template expects information about: {', '.join(add_instructions)}"
+
+        user_prompt = [
+            "EXISTING STRUCTURED CONTENT (preserve this exact format):",
+            "```text",
+            display_framework,
+            "```",
+            "",
+            "UPDATED INFORMATION from the transcript:",
+            "```text",
+            generated_content,
+            "```",
+            add_instruction_text,
+            "",
+            "IMPORTANT: Keep ALL existing text from the original. Do NOT delete any lines.",
+            "Only fill in empty sections with information from the transcript.",
+            "Return the content with the EXACT same text, headers, and layout as the original.",
+            "",
+            "Your response must be a JSON Markdown block:",
+            "```json",
+            json.dumps([{"enhancedContent": "the structured content with same format as original"}]),
+            "```",
+            "",
+        ]
+
+        chatter.reset_prompts()
+        if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
+            filled = str(response[0].get("enhancedContent", generated_content))
+            if filled:
+                return filled
+
+        # Fallback to generated content if template filling fails
+        return generated_content
+
+    def enhance_with_template_instructions(
+        self,
+        content: str,
+        field_name: str,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+        extra_instructions: list[str] | None = None,
+    ) -> str:
+        """Enhance content based on template {add:} instructions using the LLM."""
+        add_instructions = self.get_template_instructions(field_name) + (extra_instructions or [])
+        if not add_instructions:
+            return content
+
+        schemas = JsonSchema.get(["template_enhanced_content"])
+        system_prompt = [
+            "The conversation is in the context of a clinical encounter between "
+            f"patient ({self.cache.demographic__str__(False)}) and licensed healthcare provider.",
+            "",
+            "You are enhancing a medical note field based on template guidance.",
+            "The user will provide the current content and specific topics that should be included.",
+            "Your task is to incorporate the requested information naturally into the narrative.",
+            "",
+            "Important guidelines:",
+            "- Only add information that can be supported by the transcript",
+            "- Do not fabricate or invent clinical details",
+            "- Maintain the existing style and tone of the content",
+            "- If the requested information is not present in the transcript, do not add it",
+            "",
+            f"Current date/time: {datetime.now().isoformat()}",
+            "",
+        ]
+        user_prompt = [
+            "Current content:",
+            "```text",
+            content,
+            "```",
+            "",
+            "Original transcript information:",
+            "```text",
+            instruction.information,
+            "```",
+            "",
+            f"Please ensure the content includes information about: {', '.join(add_instructions)}",
+            "",
+            "Return the enhanced content. If the requested information is not available "
+            "in the transcript, return the original content unchanged.",
+            "",
+            "Your response must be a JSON Markdown block:",
+            "```json",
+            json.dumps([{"enhancedContent": "the enhanced content here"}]),
+            "```",
+            "",
+        ]
+
+        chatter.reset_prompts()
+        if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
+            enhanced = str(response[0].get("enhancedContent", content))
+            if enhanced:
+                return enhanced
+
+        return content
