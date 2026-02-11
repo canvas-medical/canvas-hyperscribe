@@ -58,7 +58,12 @@ class Task(Base):
             "",
             "```",
             "",
-            "Sort the following staff members, teams and roles from most relevant to least, and return the first one:",
+            "Sort the following staff members, teams and roles "
+            "from most relevant to least, and return the first one. "
+            "Only return a match if the assignee description clearly refers "
+            "to a specific person, team, or role in the list. "
+            "If the description is generic (e.g. 'assistant', 'nurse', 'staff') "
+            "and does not clearly identify a specific entry, return an empty list.",
             "",
             "\n".join(f" * {staff.label} (type: staff, id: {staff.uuid})" for staff in staffs),
             "\n".join(f" * {team.label} (type: team, id: {team.uuid})" for team in teams),
@@ -67,6 +72,10 @@ class Task(Base):
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
             json.dumps([{"type": "staff, team or role", "id": "the id, as int", "name": "the entity"}]),
+            "```",
+            "Or, if no clear match exists:",
+            "```json",
+            "[]",
             "```",
             "",
         ]
