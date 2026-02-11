@@ -15,6 +15,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class UpdateDiagnose(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "UpdateDiagnosisCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_UPDATE_DIAGNOSE
 

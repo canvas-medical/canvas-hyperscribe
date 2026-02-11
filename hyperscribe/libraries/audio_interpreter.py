@@ -46,7 +46,7 @@ class AudioInterpreter:
             if (instance := command_class(settings, cache, identification))
             and self.settings.commands_policy.is_allowed(class_name := instance.class_name())
             and instance.is_available()
-            and self._template_permissions.can_edit_command(class_name)
+            and self._template_permissions.can_edit_command(command_class)
         }
 
     @property

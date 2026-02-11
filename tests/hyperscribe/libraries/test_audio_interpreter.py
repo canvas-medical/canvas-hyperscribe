@@ -166,8 +166,8 @@ def test___init___with_template_filtering(command_list, mock_template_permission
     mocks = [MagicMock(), MagicMock(), MagicMock()]
 
     # CommandA is allowed, CommandB is locked by template, CommandC is allowed
-    def can_edit_side_effect(class_name: str) -> bool:
-        return class_name != "CommandB"
+    def can_edit_side_effect(command_class) -> bool:
+        return command_class is not mocks[1]
 
     mock_template_permissions.return_value.can_edit_command.side_effect = can_edit_side_effect
 

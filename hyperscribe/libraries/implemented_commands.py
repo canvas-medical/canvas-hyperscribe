@@ -95,3 +95,27 @@ class ImplementedCommands:
     @classmethod
     def schema_key2instruction(cls) -> dict[str, str]:
         return {command_class.schema_key(): command_class.class_name() for command_class in cls.command_list()}
+
+    @classmethod
+    def template_command_list(cls) -> list[Type[Base]]:
+        """Commands that support template integration (free-text fields)."""
+        return [
+            Allergy,
+            Assess,
+            CloseGoal,
+            Diagnose,
+            FamilyHistory,
+            FollowUp,
+            Goal,
+            HistoryOfPresentIllness,
+            Instruct,
+            LabOrder,
+            MedicalHistory,
+            Perform,
+            Plan,
+            ReasonForVisit,
+            Refer,
+            Task,
+            UpdateDiagnose,
+            UpdateGoal,
+        ]

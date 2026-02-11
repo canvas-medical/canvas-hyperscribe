@@ -6,7 +6,44 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from hyperscribe.libraries.template_permissions import TemplatePermissions
+from hyperscribe.commands.base import Base
+from hyperscribe.libraries.template_permissions import COMMAND_PERMISSIONS_KEY_PREFIX, TemplatePermissions
+
+
+# Stub command classes for testing — command_type() returns the same values
+# that would come from the real classes (HistoryOfPresentIllnessCommand, etc.)
+class _Stub(Base):
+    """Base for test stubs that need a specific command_type()."""
+
+    _command_type: str = ""
+
+    @classmethod
+    def command_type(cls) -> str:
+        return cls._command_type
+
+
+class _HistoryOfPresentIllness(_Stub):
+    _command_type = "HistoryOfPresentIllnessCommand"
+
+
+class _Plan(_Stub):
+    _command_type = "PlanCommand"
+
+
+class _Assess(_Stub):
+    _command_type = "AssessCommand"
+
+
+class _Some(_Stub):
+    _command_type = "SomeCommand"
+
+
+class _SomeOther(_Stub):
+    _command_type = "SomeOtherCommand"
+
+
+class _NotInPermissions(_Stub):
+    _command_type = "NotInPermissionsCommand"
 
 
 def make_mock_cache(data: dict) -> MagicMock:
@@ -17,6 +54,10 @@ def make_mock_cache(data: dict) -> MagicMock:
 
 def make_cache_getter(mock_cache: MagicMock):
     return lambda: mock_cache
+
+
+def test_command_permissions_key_prefix():
+    assert COMMAND_PERMISSIONS_KEY_PREFIX == "note_template_cmd_perms_"
 
 
 class TestTemplatePermissions:
@@ -75,29 +116,29 @@ class TestTemplatePermissions:
     def test_can_edit_command_no_template(self):
         mock_cache = make_mock_cache({})
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_command("HistoryOfPresentIllness") is True
+        assert tested.can_edit_command(_HistoryOfPresentIllness) is True
 
     def test_can_edit_command_allowed(self):
         mock_cache = make_mock_cache(
             {"HistoryOfPresentIllnessCommand": {"plugin_can_edit": True, "field_permissions": []}}
         )
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_command("HistoryOfPresentIllness") is True
+        assert tested.can_edit_command(_HistoryOfPresentIllness) is True
 
     def test_can_edit_command_denied(self):
         mock_cache = make_mock_cache({"PlanCommand": {"plugin_can_edit": False, "field_permissions": []}})
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_command("Plan") is False
+        assert tested.can_edit_command(_Plan) is False
 
     def test_can_edit_command_missing_key_defaults_true(self):
         mock_cache = make_mock_cache({"SomeCommand": {"field_permissions": []}})
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_command("Some") is True
+        assert tested.can_edit_command(_Some) is True
 
     def test_can_edit_field_no_template(self):
         mock_cache = make_mock_cache({})
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_field("HistoryOfPresentIllness", "narrative") is True
+        assert tested.can_edit_field(_HistoryOfPresentIllness, "narrative") is True
 
     def test_can_edit_field_command_not_editable(self):
         mock_cache = make_mock_cache(
@@ -109,7 +150,7 @@ class TestTemplatePermissions:
             }
         )
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_field("Plan", "narrative") is False
+        assert tested.can_edit_field(_Plan, "narrative") is False
 
     def test_can_edit_field_field_permission_allowed(self):
         mock_cache = make_mock_cache(
@@ -124,13 +165,13 @@ class TestTemplatePermissions:
             }
         )
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_field("Assess", "narrative") is True
-        assert tested.can_edit_field("Assess", "background") is False
+        assert tested.can_edit_field(_Assess, "narrative") is True
+        assert tested.can_edit_field(_Assess, "background") is False
 
     def test_can_edit_field_no_specific_permission_inherits(self):
         mock_cache = make_mock_cache({"AssessCommand": {"plugin_can_edit": True, "field_permissions": []}})
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_field("Assess", "some_other_field") is True
+        assert tested.can_edit_field(_Assess, "some_other_field") is True
 
     def test_can_edit_field_missing_plugin_can_edit_defaults_true(self):
         mock_cache = make_mock_cache(
@@ -142,12 +183,12 @@ class TestTemplatePermissions:
             }
         )
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_field("Assess", "narrative") is True
+        assert tested.can_edit_field(_Assess, "narrative") is True
 
     def test_get_add_instructions_no_template(self):
         mock_cache = make_mock_cache({})
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.get_add_instructions("HistoryOfPresentIllness", "narrative") == []
+        assert tested.get_add_instructions(_HistoryOfPresentIllness, "narrative") == []
 
     def test_get_add_instructions_with_instructions(self):
         mock_cache = make_mock_cache(
@@ -165,7 +206,7 @@ class TestTemplatePermissions:
             }
         )
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        result = tested.get_add_instructions("HistoryOfPresentIllness", "narrative")
+        result = tested.get_add_instructions(_HistoryOfPresentIllness, "narrative")
         assert result == ["symptoms", "duration", "severity"]
 
     def test_get_add_instructions_field_not_found(self):
@@ -178,7 +219,7 @@ class TestTemplatePermissions:
             }
         )
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.get_add_instructions("HistoryOfPresentIllness", "narrative") == []
+        assert tested.get_add_instructions(_HistoryOfPresentIllness, "narrative") == []
 
     def test_get_add_instructions_missing_key(self):
         mock_cache = make_mock_cache(
@@ -190,12 +231,12 @@ class TestTemplatePermissions:
             }
         )
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.get_add_instructions("HistoryOfPresentIllness", "narrative") == []
+        assert tested.get_add_instructions(_HistoryOfPresentIllness, "narrative") == []
 
     def test_get_edit_framework_no_template(self):
         mock_cache = make_mock_cache({})
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.get_edit_framework("HistoryOfPresentIllness", "narrative") is None
+        assert tested.get_edit_framework(_HistoryOfPresentIllness, "narrative") is None
 
     def test_get_edit_framework_with_framework(self):
         mock_cache = make_mock_cache(
@@ -213,7 +254,7 @@ class TestTemplatePermissions:
             }
         )
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        framework = tested.get_edit_framework("HistoryOfPresentIllness", "narrative")
+        framework = tested.get_edit_framework(_HistoryOfPresentIllness, "narrative")
         assert framework == "Patient is a [AGE] year old [GENDER]."
 
     def test_get_edit_framework_field_not_found(self):
@@ -226,7 +267,7 @@ class TestTemplatePermissions:
             }
         )
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.get_edit_framework("HistoryOfPresentIllness", "narrative") is None
+        assert tested.get_edit_framework(_HistoryOfPresentIllness, "narrative") is None
 
     def test_get_edit_framework_missing_key(self):
         mock_cache = make_mock_cache(
@@ -238,7 +279,7 @@ class TestTemplatePermissions:
             }
         )
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.get_edit_framework("HistoryOfPresentIllness", "narrative") is None
+        assert tested.get_edit_framework(_HistoryOfPresentIllness, "narrative") is None
 
     def test_clear_cache(self):
         mock_cache = make_mock_cache({"SomeCommand": {"plugin_can_edit": True}})
@@ -255,22 +296,22 @@ class TestTemplatePermissionsEdgeCases:
     def test_empty_field_permissions_list(self):
         mock_cache = make_mock_cache({"SomeCommand": {"plugin_can_edit": True, "field_permissions": []}})
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_field("Some", "any_field") is True
-        assert tested.get_add_instructions("Some", "any_field") == []
+        assert tested.can_edit_field(_Some, "any_field") is True
+        assert tested.get_add_instructions(_Some, "any_field") == []
 
     def test_missing_field_permissions_key(self):
         mock_cache = make_mock_cache({"SomeCommand": {"plugin_can_edit": True}})
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_field("Some", "any_field") is True
-        assert tested.get_add_instructions("Some", "any_field") == []
+        assert tested.can_edit_field(_Some, "any_field") is True
+        assert tested.get_add_instructions(_Some, "any_field") == []
 
     def test_field_permission_without_field_name(self):
         mock_cache = make_mock_cache(
             {"SomeCommand": {"plugin_can_edit": True, "field_permissions": [{"plugin_can_edit": True}]}}
         )
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_field("Some", "narrative") is True
-        assert tested.get_add_instructions("Some", "narrative") == []
+        assert tested.can_edit_field(_Some, "narrative") is True
+        assert tested.get_add_instructions(_Some, "narrative") == []
 
     def test_multiple_notes_separate_caches(self):
         mock_cache1 = make_mock_cache({"CommandA": {"plugin_can_edit": True}})
@@ -283,9 +324,9 @@ class TestTemplatePermissionsEdgeCases:
     def test_command_type_not_in_permissions(self):
         mock_cache = make_mock_cache({"SomeOtherCommand": {"plugin_can_edit": True}})
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
-        assert tested.can_edit_command("NotInPermissions") is True
-        assert tested.can_edit_field("NotInPermissions", "any_field") is True
-        assert tested.get_add_instructions("NotInPermissions", "any_field") == []
+        assert tested.can_edit_command(_NotInPermissions) is True
+        assert tested.can_edit_field(_NotInPermissions, "any_field") is True
+        assert tested.get_add_instructions(_NotInPermissions, "any_field") == []
 
 
 class TestDefaultCacheGetter:

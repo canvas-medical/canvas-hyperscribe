@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import json as _json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from logger import log
 
-from hyperscribe.libraries.template_constants import (
-    COMMAND_PERMISSIONS_KEY_PREFIX,
-    get_command_type,
-)
+if TYPE_CHECKING:
+    from hyperscribe.commands.base import Base
+
+# Cache key prefix (must match note_templates/utils/constants.py)
+COMMAND_PERMISSIONS_KEY_PREFIX = "note_template_cmd_perms_"
 
 
 # Shared prefix must match what brigade_note_templates/template_cache.py writes with.
@@ -70,17 +71,17 @@ class TemplatePermissions:
         """True if this note has template permissions stored."""
         return bool(self._load_permissions())
 
-    def can_edit_command(self, hyperscribe_class_name: str) -> bool:
+    def can_edit_command(self, command_class: type[Base]) -> bool:
         """True if the command type is editable (or absent from permissions)."""
-        command_type = get_command_type(hyperscribe_class_name)
+        command_type = command_class.command_type()
         permissions = self._load_permissions()
         if command_type not in permissions:
             return True
         return bool(permissions[command_type].get("plugin_can_edit", True))
 
-    def can_edit_field(self, hyperscribe_class_name: str, field_name: str) -> bool:
+    def can_edit_field(self, command_class: type[Base], field_name: str) -> bool:
         """True if a specific field is editable (inherits from command if unset)."""
-        command_type = get_command_type(hyperscribe_class_name)
+        command_type = command_class.command_type()
         permissions = self._load_permissions()
         if command_type not in permissions:
             return True
@@ -95,9 +96,9 @@ class TemplatePermissions:
 
         return True
 
-    def get_add_instructions(self, hyperscribe_class_name: str, field_name: str) -> list[str]:
+    def get_add_instructions(self, command_class: type[Base], field_name: str) -> list[str]:
         """Return {add:} instruction strings for a field, or empty list."""
-        command_type = get_command_type(hyperscribe_class_name)
+        command_type = command_class.command_type()
         permissions = self._load_permissions()
         if command_type not in permissions:
             return []
@@ -109,9 +110,9 @@ class TemplatePermissions:
 
         return []
 
-    def get_edit_framework(self, hyperscribe_class_name: str, field_name: str) -> str | None:
+    def get_edit_framework(self, command_class: type[Base], field_name: str) -> str | None:
         """Return the plugin_edit_framework for a field, or None."""
-        command_type = get_command_type(hyperscribe_class_name)
+        command_type = command_class.command_type()
         permissions = self._load_permissions()
         if command_type not in permissions:
             return None

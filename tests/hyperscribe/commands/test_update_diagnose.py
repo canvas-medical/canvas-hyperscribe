@@ -49,6 +49,10 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    assert UpdateDiagnose.command_type() == "UpdateDiagnosisCommand"
+
+
 def test_schema_key():
     tested = UpdateDiagnose
     result = tested.schema_key()

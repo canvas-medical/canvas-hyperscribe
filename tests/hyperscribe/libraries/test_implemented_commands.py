@@ -71,6 +71,35 @@ def test_implemented_commands():
     assert commands == expected
 
 
+def test_template_command_list():
+    tested = ImplementedCommands
+    result = tested.template_command_list()
+    for command in result:
+        assert issubclass(command, Base)
+    commands = [c.class_name() for c in result]
+    expected = [
+        "Allergy",
+        "Assess",
+        "CloseGoal",
+        "Diagnose",
+        "FamilyHistory",
+        "FollowUp",
+        "Goal",
+        "HistoryOfPresentIllness",
+        "Instruct",
+        "LabOrder",
+        "MedicalHistory",
+        "Perform",
+        "Plan",
+        "ReasonForVisit",
+        "Refer",
+        "Task",
+        "UpdateDiagnose",
+        "UpdateGoal",
+    ]
+    assert commands == expected
+
+
 def test_schema_key2instruction():
     tested = ImplementedCommands
     result = tested.schema_key2instruction()

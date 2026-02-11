@@ -53,6 +53,10 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    assert Medication.command_type() == "MedicationStatementCommand"
+
+
 def test_schema_key():
     tested = Medication
     result = tested.schema_key()
