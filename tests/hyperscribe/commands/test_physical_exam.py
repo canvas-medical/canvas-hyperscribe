@@ -1,3 +1,4 @@
+import hashlib
 from unittest.mock import MagicMock
 
 import pytest
@@ -99,9 +100,8 @@ def test_additional_instructions():
     tested = helper_instance()
     result = tested.additional_instructions()
     assert len(result) == 2
-    assert "physical examination" in result[0]
-    assert "objective findings" in result[0]
-    assert "do not modify the questionnaire values" in result[1].lower()
+    assert hashlib.md5(result[0].encode()).hexdigest() == "fa17394ae4790665d519c04150ba4dfb"
+    assert hashlib.md5(result[1].encode()).hexdigest() == "c55d9ae3fe7886276774f1b585335ee0"
 
 
 def test_sdk_command():
