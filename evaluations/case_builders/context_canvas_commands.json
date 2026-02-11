@@ -28,7 +28,7 @@
   "StopMedication": "Stop a medication. There can be only one medication, with the rationale, to stop per instruction, and no instruction in the lack of.",
   "StructuredAssessment": "Command for capturing structured clinical assessments, such as risk scores or screening tools.",
   "SurgeryHistory": "Any past surgery. There can be only one surgery per instruction, and no instruction in the lack of.",
-  "Task": "Specific task assigned to someone at the healthcare facility, including the speaking clinician. A task might include a due date and a specific assignee. There can be only one task per instruction, and no instruction in the lack of.",
+  "Task": "A clinical work item or action to be completed, such as: scheduling a follow-up appointment, reviewing lab results, sending a referral fax, contacting a patient, or completing prior authorization paperwork. A task may optionally include a due date. A task should only include an assignee if the clinician explicitly names a specific person, team, or role. There can be one and only one task per instruction, and no instruction in the lack of.",
   "UpdateDiagnose": "Change of a medical condition () identified by the provider, including rationale, current assessment. There is one instruction per condition change, and no instruction in the lack of.",
   "UpdateGoal": "Change of status of a previously set goal, including progress, barriers, priority or due date.",
   "Vitals": "Vital sign measurements (height, weight, waist circumference, temperature, blood pressure, pulse rate, respiration rate). All measurements should be combined in one instruction."

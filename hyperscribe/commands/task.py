@@ -207,10 +207,15 @@ class Task(Base):
 
     def instruction_description(self) -> str:
         return (
-            "Specific task assigned to someone or a group at the healthcare facility, "
-            "including the speaking clinician. "
-            "A task might include a due date and a specific assignee. "
-            "There can be one and only one task per instruction, and no instruction in the lack of."
+            "A clinical work item or action to be completed, such as: "
+            "scheduling a follow-up appointment, reviewing lab results, "
+            "sending a referral fax, contacting a patient, "
+            "or completing prior authorization paperwork. "
+            "A task may optionally include a due date. "
+            "A task should only include an assignee if the clinician "
+            "explicitly names a specific person, team, or role. "
+            "There can be one and only one task per instruction, "
+            "and no instruction in the lack of."
         )
 
     def instruction_constraints(self) -> str:
