@@ -95,6 +95,15 @@ def test_include_skipped():
     assert result is True
 
 
+def test_additional_instructions():
+    tested = helper_instance()
+    result = tested.additional_instructions()
+    assert len(result) == 2
+    assert "physical examination" in result[0]
+    assert "objective findings" in result[0]
+    assert "do not modify the questionnaire values" in result[1].lower()
+
+
 def test_sdk_command():
     tested = helper_instance()
     result = tested.sdk_command()
