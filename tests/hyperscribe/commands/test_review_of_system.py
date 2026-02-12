@@ -47,7 +47,10 @@ def test_class():
 
 
 def test_command_type():
-    assert ReviewOfSystem.command_type() == "ReviewOfSystemsCommand"
+    tested = ReviewOfSystem
+    result = tested.command_type()
+    expected = "ReviewOfSystemsCommand"
+    assert result == expected
 
 
 def test_schema_key():

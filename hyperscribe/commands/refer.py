@@ -12,6 +12,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Refer(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "ReferCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_REFER
 
@@ -63,10 +67,6 @@ class Refer(Base):
             "notes_to_specialist", instruction.parameters["notesToSpecialist"], instruction, chatter
         )
         comment = self.resolve_field("comment", instruction.parameters["comment"], instruction, chatter)
-
-        # If neither field can be edited, skip this command
-        if notes_to_specialist is None and comment is None:
-            return None
 
         zip_codes = self.cache.practice_setting("serviceAreaZipCodes")
         information = instruction.parameters["referredServiceProvider"]["specialty"]
@@ -200,4 +200,4 @@ class Refer(Base):
         return ""
 
     def is_available(self) -> bool:
-        return True
+        return any([self.can_edit_field(field) for field in ["notes_to_specialist", "comment"]])

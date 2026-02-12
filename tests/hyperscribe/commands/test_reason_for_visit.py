@@ -50,6 +50,13 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    tested = ReasonForVisit
+    result = tested.command_type()
+    expected = "ReasonForVisitCommand"
+    assert result == expected
+
+
 def test_schema_key():
     tested = ReasonForVisit
     result = tested.schema_key()
@@ -159,27 +166,6 @@ def test_command_from_json(add_code2description, existing_reason_for_visits):
         assert existing_reason_for_visits.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
-
-
-@patch.object(ReasonForVisit, "can_edit_field")
-def test_command_from_json_field_locked(can_edit_field):
-    chatter = MagicMock()
-    tested = helper_instance(structured_rfv=False)
-    arguments = {
-        "uuid": "theUuid",
-        "index": 7,
-        "instruction": "theInstruction",
-        "information": "theInformation",
-        "is_new": False,
-        "is_updated": True,
-        "previous_information": "thePreviousInformation",
-        "parameters": {"comment": "theComment"},
-    }
-    instruction = InstructionWithParameters(**arguments)
-    can_edit_field.return_value = False
-    result = tested.command_from_json(instruction, chatter)
-    assert result is None
-    assert can_edit_field.mock_calls == [call("comment")]
 
 
 @patch.object(LimitedCache, "existing_reason_for_visits")
@@ -341,8 +327,9 @@ def test_instruction_constraints(existing_reason_for_visits):
         reset_mocks()
 
 
+@patch.object(ReasonForVisit, "can_edit_field", return_value=True)
 @patch.object(LimitedCache, "existing_reason_for_visits")
-def test_is_available(existing_reason_for_visits):
+def test_is_available(existing_reason_for_visits, can_edit_field):
     def reset_mocks():
         existing_reason_for_visits.reset_mock()
 
@@ -376,3 +363,10 @@ def test_is_available(existing_reason_for_visits):
     calls = [call()]
     assert existing_reason_for_visits.mock_calls == calls
     reset_mocks()
+
+
+@patch.object(ReasonForVisit, "can_edit_field", return_value=False)
+def test_is_available_all_fields_locked(can_edit_field):
+    tested = helper_instance()
+    result = tested.is_available()
+    assert result is False

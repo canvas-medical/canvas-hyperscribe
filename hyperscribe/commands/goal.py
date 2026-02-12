@@ -11,6 +11,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Goal(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "GoalCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_GOAL
 
@@ -32,10 +36,6 @@ class Goal(Base):
         # Get field values with template permission checks
         goal_statement = self.resolve_field("goal_statement", instruction.parameters["goal"], instruction, chatter)
         progress = self.resolve_field("progress", instruction.parameters["progressAndBarriers"], instruction, chatter)
-
-        # If neither field can be edited, skip this command
-        if goal_statement is None and progress is None:
-            return None
 
         return InstructionWithCommand.add_command(
             instruction,
@@ -122,4 +122,4 @@ class Goal(Base):
         return result
 
     def is_available(self) -> bool:
-        return True
+        return any([self.can_edit_field(field) for field in ["goal_statement", "progress"]])

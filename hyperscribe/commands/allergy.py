@@ -15,6 +15,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Allergy(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "AllergyCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_ALLERGY
 

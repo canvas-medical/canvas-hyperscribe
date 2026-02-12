@@ -14,6 +14,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Task(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "TaskCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_TASK
 
@@ -129,10 +133,6 @@ class Task(Base):
         title = self.resolve_field("title", instruction.parameters["title"], instruction, chatter)
         comment = self.resolve_field("comment", instruction.parameters["comment"], instruction, chatter)
 
-        # If neither field can be edited, skip this command
-        if title is None and comment is None:
-            return None
-
         result = TaskCommand(
             title=title or "",
             due_date=Helper.str2date(instruction.parameters["dueDate"]),
@@ -216,4 +216,4 @@ class Task(Base):
         return ""
 
     def is_available(self) -> bool:
-        return True
+        return any([self.can_edit_field(field) for field in ["title", "comment"]])

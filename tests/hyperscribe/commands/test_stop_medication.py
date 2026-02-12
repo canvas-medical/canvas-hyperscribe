@@ -48,6 +48,13 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    tested = StopMedication
+    result = tested.command_type()
+    expected = "StopMedicationCommand"
+    assert result == expected
+
+
 def test_schema_key():
     tested = StopMedication
     result = tested.schema_key()

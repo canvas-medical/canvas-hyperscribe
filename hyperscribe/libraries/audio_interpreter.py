@@ -11,7 +11,6 @@ from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -39,20 +38,14 @@ class AudioInterpreter:
         self.s3_credentials = s3_credentials
         self.identification = identification
         self.cache = cache
-        self._template_permissions = TemplatePermissions(identification.note_uuid)
         self._command_context = {
             class_name: instance
             for command_class in ImplementedCommands.command_list()
             if (instance := command_class(settings, cache, identification))
             and self.settings.commands_policy.is_allowed(class_name := instance.class_name())
             and instance.is_available()
-            and self._template_permissions.can_edit_command(command_class)
+            and instance.can_edit_command()
         }
-
-    @property
-    def template_permissions(self) -> TemplatePermissions:
-        """Get the template permissions checker for this interpreter's note."""
-        return self._template_permissions
 
     def common_instructions(self) -> list[Base]:
         return [

@@ -50,6 +50,13 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    tested = Refill
+    result = tested.command_type()
+    expected = "RefillCommand"
+    assert result == expected
+
+
 def test_schema_key():
     tested = Refill
     result = tested.schema_key()

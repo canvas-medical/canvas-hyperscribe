@@ -22,7 +22,7 @@ class Base:
         self.identification = identification
         self.cache = cache
         self._arguments_code2description: dict[str, str] = {}
-        self._template_permissions: TemplatePermissions | None = None
+        self.permissions = TemplatePermissions(identification.note_uuid)
 
     @classmethod
     def class_name(cls) -> str:
@@ -30,8 +30,7 @@ class Base:
 
     @classmethod
     def command_type(cls) -> str:
-        """The Canvas SDK command type name for template permission lookups."""
-        return f"{cls.__name__}Command"
+        raise NotImplementedError
 
     @classmethod
     def schema_key(cls) -> str:
@@ -197,24 +196,58 @@ class Base:
 
     # -- Template integration ------------------------------------------------
 
-    @property
-    def template_permissions(self) -> TemplatePermissions:
-        """Lazily initialize and return the TemplatePermissions instance."""
-        if self._template_permissions is None:
-            self._template_permissions = TemplatePermissions(self.identification.note_uuid)
-        return self._template_permissions
+    def can_edit_command(self) -> bool:
+        """Check if this command type is editable based on template permissions."""
+        command_type = self.command_type()
+        permissions = self.permissions.load_permissions()
+        if command_type not in permissions:
+            return True
+        return bool(permissions[command_type].get("plugin_can_edit", True))
 
     def can_edit_field(self, field_name: str) -> bool:
         """Check if a field can be edited based on template permissions."""
-        return self.template_permissions.can_edit_field(type(self), field_name)
+        command_type = self.command_type()
+        permissions = self.permissions.load_permissions()
+        if command_type not in permissions:
+            return True
+
+        cmd_perms = permissions[command_type]
+        if not cmd_perms.get("plugin_can_edit", True):
+            return False
+
+        for fp in cmd_perms.get("field_permissions", []):
+            if fp.get("field_name") == field_name:
+                return bool(fp.get("plugin_can_edit", True))
+
+        return True
 
     def get_template_instructions(self, field_name: str) -> list[str]:
         """Get {add:} instructions from template for a specific field."""
-        return self.template_permissions.get_add_instructions(type(self), field_name)
+        command_type = self.command_type()
+        permissions = self.permissions.load_permissions()
+        if command_type not in permissions:
+            return []
+
+        for fp in permissions[command_type].get("field_permissions", []):
+            if fp.get("field_name") == field_name:
+                instructions = fp.get("add_instructions", [])
+                return list(instructions) if instructions else []
+
+        return []
 
     def get_template_framework(self, field_name: str) -> str | None:
         """Get the template framework (base content) for a field."""
-        return self.template_permissions.get_edit_framework(type(self), field_name)
+        command_type = self.command_type()
+        permissions = self.permissions.load_permissions()
+        if command_type not in permissions:
+            return None
+
+        for fp in permissions[command_type].get("field_permissions", []):
+            if fp.get("field_name") == field_name:
+                framework = fp.get("plugin_edit_framework")
+                return str(framework) if framework else None
+
+        return None
 
     def _resolve_framework(self, field_name: str) -> str | None:
         """Resolve template framework from cache."""
@@ -252,10 +285,12 @@ class Base:
         framework = self._resolve_framework(field_name)
         add_instructions = self.get_template_instructions(field_name)
 
+        if not framework and not add_instructions:
+            return generated_content
+
         if not framework:
-            if add_instructions:
-                log.info(f"[TEMPLATE] No framework, enhancing with add_instructions: {add_instructions}")
-            return self.enhance_with_template_instructions(generated_content, field_name, instruction, chatter)
+            log.info(f"[TEMPLATE] No framework, enhancing with add_instructions: {add_instructions}")
+            return self.enhance_with_template_instructions(generated_content, add_instructions, instruction, chatter)
 
         # Strip {lit:} markers from framework — they declare protected text
         # in the cache but should not appear in the LLM prompt.
@@ -312,8 +347,7 @@ class Base:
 
         chatter.reset_prompts()
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-            filled = str(response[0].get("enhancedContent", generated_content))
-            if filled:
+            if filled := str(response[0].get("enhancedContent")):
                 return filled
 
         # Fallback to generated content if template filling fails
@@ -322,15 +356,11 @@ class Base:
     def enhance_with_template_instructions(
         self,
         content: str,
-        field_name: str,
+        add_instructions: list[str],
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> str:
         """Enhance content based on template {add:} instructions using the LLM."""
-        add_instructions = self.get_template_instructions(field_name)
-        if not add_instructions:
-            return content
-
         schemas = JsonSchema.get(["template_enhanced_content"])
         system_prompt = [
             "The conversation is in the context of a clinical encounter between "
@@ -374,8 +404,7 @@ class Base:
 
         chatter.reset_prompts()
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-            enhanced = str(response[0].get("enhancedContent", content))
-            if enhanced:
+            if enhanced := str(response[0].get("enhancedContent")):
                 return enhanced
 
         return content

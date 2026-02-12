@@ -10,6 +10,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class HistoryOfPresentIllness(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "HistoryOfPresentIllnessCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_HISTORY_OF_PRESENT_ILLNESS
 
@@ -28,10 +32,6 @@ class HistoryOfPresentIllness(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
-        # Check if the narrative field can be edited by plugins
-        if not self.can_edit_field("narrative"):
-            return None
-
         # Get the narrative content with custom prompt processing
         narrative = self.command_from_json_custom_prompted(instruction.parameters["narrative"], chatter)
 
@@ -91,4 +91,4 @@ class HistoryOfPresentIllness(Base):
         return ""
 
     def is_available(self) -> bool:
-        return True
+        return self.can_edit_field("narrative")

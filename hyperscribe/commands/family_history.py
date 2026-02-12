@@ -14,6 +14,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class FamilyHistory(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "FamilyHistoryCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_FAMILY_HISTORY
 

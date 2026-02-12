@@ -10,6 +10,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class ReasonForVisit(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "ReasonForVisitCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_REASON_FOR_VISIT
 
@@ -31,10 +35,6 @@ class ReasonForVisit(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
-        # Check if the comment field can be edited by plugins
-        if not self.can_edit_field("comment"):
-            return None
-
         # Get the comment content with custom prompt processing
         comment = self.command_from_json_custom_prompted(instruction.parameters["comment"], chatter)
 
@@ -120,6 +120,8 @@ class ReasonForVisit(Base):
         return ""
 
     def is_available(self) -> bool:
+        if not self.can_edit_field("comment"):
+            return False
         if self.settings.structured_rfv:
             return bool(self.cache.existing_reason_for_visits())
         return True

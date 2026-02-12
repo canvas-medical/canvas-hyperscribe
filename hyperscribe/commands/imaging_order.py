@@ -16,6 +16,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class ImagingOrder(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "ImagingOrderCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_IMAGING_ORDER
 

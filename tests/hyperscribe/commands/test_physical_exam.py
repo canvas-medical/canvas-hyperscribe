@@ -46,6 +46,13 @@ def test_class():
     assert issubclass(tested, BaseQuestionnaire)
 
 
+def test_command_type():
+    tested = PhysicalExam
+    result = tested.command_type()
+    expected = "PhysicalExamCommand"
+    assert result == expected
+
+
 def test_schema_key():
     tested = PhysicalExam
     result = tested.schema_key()

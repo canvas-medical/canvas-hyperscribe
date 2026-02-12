@@ -12,6 +12,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Diagnose(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "DiagnoseCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return "diagnose"
 
@@ -37,10 +41,6 @@ class Diagnose(Base):
         today_assessment = self.resolve_field(
             "today_assessment", instruction.parameters["assessment"], instruction, chatter
         )
-
-        # If neither field can be edited, skip this command
-        if background is None and today_assessment is None:
-            return None
 
         icd10_code = SelectorChat.condition_from(
             instruction,
@@ -133,4 +133,4 @@ class Diagnose(Base):
         return result
 
     def is_available(self) -> bool:
-        return True
+        return any([self.can_edit_field(field) for field in ["background", "today_assessment"]])

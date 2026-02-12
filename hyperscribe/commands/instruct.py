@@ -15,6 +15,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Instruct(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "InstructCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_INSTRUCT
 
@@ -34,10 +38,6 @@ class Instruct(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
-        # Check if the comment field can be edited by plugins
-        if not self.can_edit_field("comment"):
-            return None
-
         # Get the comment content with custom prompt processing
         comment = self.command_from_json_custom_prompted(instruction.parameters["comment"], chatter)
 
@@ -131,4 +131,4 @@ class Instruct(Base):
         return ""
 
     def is_available(self) -> bool:
-        return True
+        return self.can_edit_field("comment")

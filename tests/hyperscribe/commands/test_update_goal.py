@@ -48,6 +48,13 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    tested = UpdateGoal
+    result = tested.command_type()
+    expected = "UpdateGoalCommand"
+    assert result == expected
+
+
 def test_schema_key():
     tested = UpdateGoal
     result = tested.schema_key()
@@ -162,34 +169,6 @@ def test_command_from_json(add_code2description, current_goals):
         assert current_goals.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
-
-
-@patch.object(UpdateGoal, "can_edit_field")
-def test_command_from_json_field_locked(can_edit_field):
-    chatter = MagicMock()
-    tested = helper_instance()
-    arguments = {
-        "uuid": "theUuid",
-        "index": 7,
-        "instruction": "theInstruction",
-        "information": "theInformation",
-        "is_new": False,
-        "is_updated": True,
-        "previous_information": "thePreviousInformation",
-        "parameters": {
-            "goal": "display2a",
-            "goalIndex": 1,
-            "dueDate": "2025-02-03",
-            "status": "improving",
-            "priority": "medium-priority",
-            "progressAndBarriers": "theProgressAndBarriers",
-        },
-    }
-    instruction = InstructionWithParameters(**arguments)
-    can_edit_field.return_value = False
-    result = tested.command_from_json(instruction, chatter)
-    assert result is None
-    assert can_edit_field.mock_calls == [call("progress")]
 
 
 def test_command_parameters():
@@ -315,8 +294,9 @@ def test_instruction_constraints(current_goals):
     reset_mocks()
 
 
+@patch.object(UpdateGoal, "can_edit_field", return_value=True)
 @patch.object(LimitedCache, "current_goals")
-def test_is_available(current_goals):
+def test_is_available(current_goals, can_edit_field):
     def reset_mocks():
         current_goals.reset_mock()
 
@@ -334,3 +314,10 @@ def test_is_available(current_goals):
         calls = [call()]
         assert current_goals.mock_calls == calls
         reset_mocks()
+
+
+@patch.object(UpdateGoal, "can_edit_field", return_value=False)
+def test_is_available_all_fields_locked(can_edit_field):
+    tested = helper_instance()
+    result = tested.is_available()
+    assert result is False

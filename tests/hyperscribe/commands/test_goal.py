@@ -51,6 +51,13 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    tested = Goal
+    result = tested.command_type()
+    expected = "GoalCommand"
+    assert result == expected
+
+
 def test_schema_key():
     tested = Goal
     result = tested.schema_key()
@@ -134,35 +141,6 @@ def test_command_from_json():
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert chatter.mock_calls == []
-
-
-@patch.object(Goal, "can_edit_field")
-def test_command_from_json_fields_locked(can_edit_field):
-    chatter = MagicMock()
-    tested = helper_instance()
-    arguments = {
-        "uuid": "theUuid",
-        "index": 7,
-        "instruction": "theInstruction",
-        "information": "theInformation",
-        "is_new": False,
-        "is_updated": True,
-        "previous_information": "thePreviousInformation",
-        "parameters": {
-            "goal": "theGoal",
-            "startDate": "2023-11-12",
-            "dueDate": "2025-02-04",
-            "status": "improving",
-            "priority": "medium-priority",
-            "progressAndBarriers": "theProgressAndBarriers",
-        },
-    }
-    instruction = InstructionWithParameters(**arguments)
-    # Both fields locked
-    can_edit_field.return_value = False
-    result = tested.command_from_json(instruction, chatter)
-    assert result is None
-    assert can_edit_field.mock_calls == [call("goal_statement"), call("progress")]
 
 
 def test_command_parameters():
@@ -434,7 +412,15 @@ def test_instruction_constraints(current_goals):
         reset_mocks()
 
 
-def test_is_available():
+@patch.object(Goal, "can_edit_field", return_value=True)
+def test_is_available(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
     assert result is True
+
+
+@patch.object(Goal, "can_edit_field", return_value=False)
+def test_is_available_all_fields_locked(can_edit_field):
+    tested = helper_instance()
+    result = tested.is_available()
+    assert result is False

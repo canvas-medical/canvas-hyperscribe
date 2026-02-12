@@ -54,7 +54,10 @@ def test_class():
 
 
 def test_command_type():
-    assert Medication.command_type() == "MedicationStatementCommand"
+    tested = Medication
+    result = tested.command_type()
+    expected = "MedicationStatementCommand"
+    assert result == expected
 
 
 def test_schema_key():

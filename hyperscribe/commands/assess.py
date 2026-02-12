@@ -11,6 +11,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Assess(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "AssessCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_ASSESS
 
@@ -37,10 +41,6 @@ class Assess(Base):
         # Get field values with template permission checks
         background = self.resolve_field("background", instruction.parameters["rationale"], instruction, chatter)
         narrative = self.resolve_field("narrative", instruction.parameters["assessment"], instruction, chatter)
-
-        # If neither field can be edited, skip this command
-        if background is None and narrative is None:
-            return None
 
         return InstructionWithCommand.add_command(
             instruction,
@@ -119,4 +119,5 @@ class Assess(Base):
         return f"'{self.class_name()}' has to be related to one of the following conditions: {text}"
 
     def is_available(self) -> bool:
-        return bool(self.cache.current_conditions())
+        editable = any([self.can_edit_field(field) for field in ["background", "narrative"]])
+        return editable and bool(self.cache.current_conditions())

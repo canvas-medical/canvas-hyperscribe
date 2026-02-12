@@ -54,7 +54,10 @@ def test_class():
 
 
 def test_command_type():
-    assert SurgeryHistory.command_type() == "PastSurgicalHistoryCommand"
+    tested = SurgeryHistory
+    result = tested.command_type()
+    expected = "PastSurgicalHistoryCommand"
+    assert result == expected
 
 
 def test_schema_key():
