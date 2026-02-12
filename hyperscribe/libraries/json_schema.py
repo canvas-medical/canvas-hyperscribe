@@ -227,7 +227,7 @@ JSON_SCHEMAS: dict[str, dict] = {
             "required": ["type", "id", "name"],
             "additionalProperties": False,
         },
-        "minItems": 1,
+        "minItems": 0,
         "maxItems": 1,
     },
     "voice_identification": {

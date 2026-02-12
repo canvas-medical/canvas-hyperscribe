@@ -133,7 +133,12 @@ def test_select_assignee(add_code2description, existing_staff_members, existing_
         "",
         "```",
         "",
-        "Sort the following staff members, teams and roles from most relevant to least, and return the first one:",
+        "Sort the following staff members, teams and roles "
+        "from most relevant to least, and return the first one. "
+        "Only return a match if the assignee description clearly refers "
+        "to a specific person, team, or role in the list. "
+        "If the description is generic (e.g. 'assistant', 'nurse', 'staff') "
+        "and does not clearly identify a specific entry, return an empty list.",
         "",
         " * Joe Smith (type: staff, id: 741)\n * Jane Doe (type: staff, id: 596)\n * Jim Boy (type: staff, id: 963)",
         " * Administrative (type: team, id: 741)\n * Medical (type: team, id: 752)",
@@ -142,6 +147,10 @@ def test_select_assignee(add_code2description, existing_staff_members, existing_
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
         '[{"type": "staff, team or role", "id": "the id, as int", "name": "the entity"}]',
+        "```",
+        "Or, if no clear match exists:",
+        "```json",
+        "[]",
         "```",
         "",
     ]
@@ -159,7 +168,7 @@ def test_select_assignee(add_code2description, existing_staff_members, existing_
                 "required": ["type", "id", "name"],
                 "additionalProperties": False,
             },
-            "minItems": 1,
+            "minItems": 0,
             "maxItems": 1,
         },
     ]
@@ -569,10 +578,15 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Specific task assigned to someone or a group at the healthcare facility, "
-        "including the speaking clinician. "
-        "A task might include a due date and a specific assignee. "
-        "There can be one and only one task per instruction, and no instruction in the lack of."
+        "A clinical work item or action to be completed, such as: "
+        "scheduling a follow-up appointment, reviewing lab results, "
+        "sending a referral fax, contacting a patient, "
+        "or completing prior authorization paperwork. "
+        "A task may optionally include a due date. "
+        "A task should only include an assignee if the clinician "
+        "explicitly names a specific person, team, or role. "
+        "There can be one and only one task per instruction, "
+        "and no instruction in the lack of."
     )
     assert result == expected
 

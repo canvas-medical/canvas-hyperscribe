@@ -58,7 +58,12 @@ class Task(Base):
             "",
             "```",
             "",
-            "Sort the following staff members, teams and roles from most relevant to least, and return the first one:",
+            "Sort the following staff members, teams and roles "
+            "from most relevant to least, and return the first one. "
+            "Only return a match if the assignee description clearly refers "
+            "to a specific person, team, or role in the list. "
+            "If the description is generic (e.g. 'assistant', 'nurse', 'staff') "
+            "and does not clearly identify a specific entry, return an empty list.",
             "",
             "\n".join(f" * {staff.label} (type: staff, id: {staff.uuid})" for staff in staffs),
             "\n".join(f" * {team.label} (type: team, id: {team.uuid})" for team in teams),
@@ -67,6 +72,10 @@ class Task(Base):
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
             json.dumps([{"type": "staff, team or role", "id": "the id, as int", "name": "the entity"}]),
+            "```",
+            "Or, if no clear match exists:",
+            "```json",
+            "[]",
             "```",
             "",
         ]
@@ -198,10 +207,15 @@ class Task(Base):
 
     def instruction_description(self) -> str:
         return (
-            "Specific task assigned to someone or a group at the healthcare facility, "
-            "including the speaking clinician. "
-            "A task might include a due date and a specific assignee. "
-            "There can be one and only one task per instruction, and no instruction in the lack of."
+            "A clinical work item or action to be completed, such as: "
+            "scheduling a follow-up appointment, reviewing lab results, "
+            "sending a referral fax, contacting a patient, "
+            "or completing prior authorization paperwork. "
+            "A task may optionally include a due date. "
+            "A task should only include an assignee if the clinician "
+            "explicitly names a specific person, team, or role. "
+            "There can be one and only one task per instruction, "
+            "and no instruction in the lack of."
         )
 
     def instruction_constraints(self) -> str:

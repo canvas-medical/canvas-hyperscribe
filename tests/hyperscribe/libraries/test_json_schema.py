@@ -479,10 +479,7 @@ def test_schema_selector_assignee():
         ([{"type": "staff", "id": 1, "name": "theName"}], ""),
         ([{"type": "team", "id": 2, "name": "theName"}], ""),
         ([{"type": "role", "id": 3, "name": "theName"}], ""),
-        (
-            [],
-            "[] should be non-empty",
-        ),
+        ([], ""),
         (
             [{"type": "staff", "id": 1, "name": "name1"}, {"type": "team", "id": 2, "name": "name2"}],
             "[{'type': 'staff', 'id': 1, 'name': 'name1'}, {'type': 'team', 'id': 2, 'name': 'name2'}] is too long",
@@ -656,7 +653,7 @@ def test_get():
                 "required": ["type", "id", "name"],
                 "additionalProperties": False,
             },
-            "minItems": 1,
+            "minItems": 0,
             "maxItems": 1,
         },
         {
