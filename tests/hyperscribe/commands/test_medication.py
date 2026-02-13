@@ -202,6 +202,19 @@ def test_command_from_json(add_code2description, medication_details):
     assert chatter.mock_calls == []
     reset_mocks()
 
+    # empty keywords -- no FDB search, no LLM call
+    for empty_keywords in ["", "  ", " , , "]:
+        empty_arguments = {**arguments, "parameters": {"keywords": empty_keywords, "sig": "theSig"}}
+        instruction_empty = InstructionWithParameters(**empty_arguments)
+        result = tested.command_from_json(instruction_empty, chatter)
+        command = MedicationStatementCommand(sig="theSig", note_uuid="noteUuid")
+        expected = InstructionWithCommand(**(empty_arguments | {"command": command}))
+        assert result == expected
+        assert add_code2description.mock_calls == []
+        assert medication_details.mock_calls == []
+        assert chatter.mock_calls == []
+        reset_mocks()
+
 
 def test_command_parameters():
     tested = helper_instance()

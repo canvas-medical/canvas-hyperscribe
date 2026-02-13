@@ -316,6 +316,24 @@ def test_medical_concept(get_attempts):
         assert get_attempts.mock_calls == calls
         reset_mocks()
 
+    # empty/whitespace expressions are skipped
+    for empty_expressions in [[""], ["", "  ", " "], []]:
+        get_attempts.side_effect = []
+        result = tested.medical_concept(url, empty_expressions, MedicalConcept)
+        assert result == []
+        assert get_attempts.mock_calls == []
+        reset_mocks()
+
+    # mixed: only non-empty expressions trigger API calls
+    get_attempts.side_effect = [
+        [{"concept_id": 123, "term": "termA"}],
+    ]
+    result = tested.medical_concept(url, ["", "expression1", "  "], MedicalConcept)
+    assert result == [MedicalConcept(concept_id=123, term="termA")]
+    calls = [call(url, params | {"query": "expression1"}, False)]
+    assert get_attempts.mock_calls == calls
+    reset_mocks()
+
 
 @patch.object(CanvasScience, "get_attempts")
 def test_search_allergy(get_attempts):
