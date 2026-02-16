@@ -157,6 +157,7 @@ class CaptureView(SimpleAPI):
     def new_session_post(self) -> list[Response | Effect]:
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
+        StopAndGo(note_id).save()
         self.session_progress_log(patient_id, note_id, "started")
         return []
 

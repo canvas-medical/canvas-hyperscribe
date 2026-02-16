@@ -277,10 +277,15 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
     reset_mocks()
 
 
+@patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch.object(CaptureView, "session_progress_log")
-def test_new_session_post(session_progress_log):
+def test_new_session_post(session_progress_log, stop_and_go):
     def reset_mocks():
         session_progress_log.reset_mock()
+        stop_and_go.reset_mock()
+
+    mock_instance = MagicMock()
+    stop_and_go.return_value = mock_instance
 
     tested = helper_instance()
     tested.request = SimpleNamespace(
@@ -290,6 +295,8 @@ def test_new_session_post(session_progress_log):
     result = tested.new_session_post()
     assert result == []
 
+    calls = [call("theNoteId"), call().save()]
+    assert stop_and_go.mock_calls == calls
     calls = [call("thePatientId", "theNoteId", "started")]
     assert session_progress_log.mock_calls == calls
     reset_mocks()
