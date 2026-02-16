@@ -160,6 +160,16 @@ class CaptureView(SimpleAPI):
         self.session_progress_log(patient_id, note_id, "started")
         return []
 
+    @api.post("/capture/reset-session/<note_id>")
+    def reset_session_post(self) -> list[Response | Effect]:
+        user_type = self.request.headers.get("canvas-logged-in-user-type")
+        if user_type != Constants.USER_TYPE_STAFF:
+            return [Response(b"Unauthorized", HTTPStatus.UNAUTHORIZED)]
+        note_id = self.request.path_params["note_id"]
+        StopAndGo(note_id).save()
+        log.info(f"Session manually reset for note {note_id}")
+        return [Response(b"Session reset", HTTPStatus.OK)]
+
     @api.post("/capture/idle/<patient_id>/<note_id>/<action>")
     def idle_session_post(self) -> list[Response | Effect]:
         patient_id = self.request.path_params["patient_id"]

@@ -295,6 +295,59 @@ def test_new_session_post(session_progress_log):
     reset_mocks()
 
 
+@patch("hyperscribe.handlers.capture_view.log")
+@patch("hyperscribe.handlers.capture_view.StopAndGo")
+def test_reset_session_post(stop_and_go, mock_log):
+    def reset_mocks():
+        stop_and_go.reset_mock()
+        mock_log.reset_mock()
+
+    tested = helper_instance()
+
+    # non-staff user: unauthorized
+    tested.request = SimpleNamespace(
+        path_params={"note_id": "theNoteId"},
+        headers={"canvas-logged-in-user-type": "Patient"},
+    )
+    result = tested.reset_session_post()
+    expected = [Response(b"Unauthorized", HTTPStatus.UNAUTHORIZED)]
+    assert result == expected
+
+    calls = []
+    assert stop_and_go.mock_calls == calls
+    assert mock_log.mock_calls == calls
+    reset_mocks()
+
+    # missing user type header: unauthorized
+    tested.request = SimpleNamespace(
+        path_params={"note_id": "theNoteId"},
+        headers={},
+    )
+    result = tested.reset_session_post()
+    expected = [Response(b"Unauthorized", HTTPStatus.UNAUTHORIZED)]
+    assert result == expected
+
+    calls = []
+    assert stop_and_go.mock_calls == calls
+    assert mock_log.mock_calls == calls
+    reset_mocks()
+
+    # staff user: reset session
+    tested.request = SimpleNamespace(
+        path_params={"note_id": "theNoteId"},
+        headers={"canvas-logged-in-user-type": "Staff"},
+    )
+    result = tested.reset_session_post()
+    expected = [Response(b"Session reset", HTTPStatus.OK)]
+    assert result == expected
+
+    calls = [call("theNoteId"), call().save()]
+    assert stop_and_go.mock_calls == calls
+    calls = [call.info("Session manually reset for note theNoteId")]
+    assert mock_log.mock_calls == calls
+    reset_mocks()
+
+
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch.object(CaptureView, "session_progress_log")
 def test_idle_session_post(session_progress_log, stop_and_go):
