@@ -35,8 +35,8 @@ class Medication(Base):
     ) -> InstructionWithCommand | None:
         result = MedicationStatementCommand(sig=instruction.parameters["sig"], note_uuid=self.identification.note_uuid)
         # retrieve existing medications defined in Canvas Science
-        expressions = instruction.parameters["keywords"].split(",")
-        if medications := CanvasScience.medication_details(expressions):
+        expressions = [e.strip() for e in instruction.parameters["keywords"].split(",") if e.strip()]
+        if expressions and (medications := CanvasScience.medication_details(expressions)):
             # retrieve the correct medication
             system_prompt = [
                 "The conversation is in the medical context.",

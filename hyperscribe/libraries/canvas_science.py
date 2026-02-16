@@ -69,7 +69,9 @@ class CanvasScience:
 
         params = {"format": "json", "limit": 10}
         all_concepts: list = [
-            cls.get_attempts(url, params | {"query": expression}, False) for expression in expressions
+            cls.get_attempts(url, params | {"query": expression}, False)
+            for expression in expressions
+            if expression.strip()
         ]
         for concepts in all_concepts:
             for concept in concepts:
