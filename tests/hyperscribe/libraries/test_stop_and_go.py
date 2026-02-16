@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch, call
 
 from canvas_sdk.effects import Effect
@@ -65,6 +65,59 @@ def test_is_ended():
     assert tested.is_ended() is False
     tested.set_ended(True)
     assert tested.is_ended() is True
+
+
+@patch("hyperscribe.libraries.stop_and_go.datetime", wraps=datetime)
+def test_is_stale(mock_datetime):
+    def reset_mocks():
+        mock_datetime.reset_mock()
+
+    now = datetime(2025, 8, 7, 15, 0, 0, tzinfo=UTC)
+    mock_datetime.now.side_effect = [
+        datetime(2025, 8, 7, 14, 0, 0, tzinfo=UTC),  # __init__
+    ]
+    tested = StopAndGo("theNoteUuid")
+    reset_mocks()
+
+    # fresh session: not stale (10 min old)
+    tested._created = now - timedelta(minutes=10)
+    mock_datetime.now.side_effect = [now]
+    assert tested.is_stale() is False
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    reset_mocks()
+
+    # exactly at threshold: not stale (30 min)
+    tested._created = now - timedelta(minutes=30)
+    mock_datetime.now.side_effect = [now]
+    assert tested.is_stale() is False
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    reset_mocks()
+
+    # past threshold: stale (31 min)
+    tested._created = now - timedelta(minutes=31)
+    mock_datetime.now.side_effect = [now]
+    assert tested.is_stale() is True
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    reset_mocks()
+
+    # custom threshold: 5 min old, threshold=3 -> stale
+    tested._created = now - timedelta(minutes=5)
+    mock_datetime.now.side_effect = [now]
+    assert tested.is_stale(threshold_minutes=3) is True
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    reset_mocks()
+
+    # custom threshold: 5 min old, threshold=10 -> not stale
+    tested._created = now - timedelta(minutes=5)
+    mock_datetime.now.side_effect = [now]
+    assert tested.is_stale(threshold_minutes=10) is False
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    reset_mocks()
 
 
 def test_cycle():

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from time import sleep
 
 from canvas_sdk.caching.plugins import get_cache
@@ -30,6 +30,9 @@ class StopAndGo:
 
     def is_ended(self) -> bool:
         return self._is_ended
+
+    def is_stale(self, threshold_minutes: int = 30) -> bool:
+        return datetime.now(UTC) - self._created > timedelta(minutes=threshold_minutes)
 
     def cycle(self) -> int:
         return self._cycle
