@@ -257,6 +257,7 @@ def test_instruction_constraints(current_goals):
 def test_is_available(current_goals, can_edit_field):
     def reset_mocks():
         current_goals.reset_mock()
+        can_edit_field.reset_mock()
 
     tested = helper_instance()
     goals = [
@@ -269,6 +270,8 @@ def test_is_available(current_goals, can_edit_field):
         current_goals.side_effect = [side_effect]
         result = tested.is_available()
         assert result is expected
+        calls = [call("progress")]
+        assert can_edit_field.mock_calls == calls
         calls = [call()]
         assert current_goals.mock_calls == calls
         reset_mocks()
@@ -278,4 +281,8 @@ def test_is_available(current_goals, can_edit_field):
 def test_is_available_all_fields_locked(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
-    assert result is False
+    expected = False
+    assert result == expected
+
+    calls = [call("progress")]
+    assert can_edit_field.mock_calls == calls

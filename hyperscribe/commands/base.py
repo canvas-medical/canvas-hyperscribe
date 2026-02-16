@@ -22,7 +22,7 @@ class Base:
         self.identification = identification
         self.cache = cache
         self._arguments_code2description: dict[str, str] = {}
-        self.permissions = TemplatePermissions(identification.note_uuid)
+        self.permissions = TemplatePermissions.for_note(identification.note_uuid)
 
     @classmethod
     def class_name(cls) -> str:

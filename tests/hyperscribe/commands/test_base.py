@@ -78,12 +78,19 @@ def test___init__():
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    tested = Base(settings, cache, identification)
-    assert tested.settings == settings
-    assert tested.identification == identification
-    assert tested.cache == cache
-    assert tested._arguments_code2description == {}
-    assert isinstance(tested.permissions, TemplatePermissions)
+    mock_permissions = MagicMock()
+    with patch.object(TemplatePermissions, "for_note", return_value=mock_permissions) as mock_for_note:
+        tested = Base(settings, cache, identification)
+        assert tested.settings == settings
+        assert tested.identification == identification
+        assert tested.cache == cache
+        assert tested._arguments_code2description == {}
+        assert tested.permissions is mock_permissions
+
+        calls = [call("noteUuid")]
+        assert mock_for_note.mock_calls == calls
+        calls = []
+        assert mock_permissions.mock_calls == calls
 
 
 def test_class_name():
@@ -943,12 +950,14 @@ def test_resolve_field(mock_can_edit, mock_fill):
     mock_can_edit.reset_mock()
     mock_fill.reset_mock()
     mock_can_edit.return_value = False
+    locked_chatter = MagicMock()
 
-    result = tested.resolve_field("narrative", "text", make_instruction(), MagicMock())
+    result = tested.resolve_field("narrative", "text", make_instruction(), locked_chatter)
 
     assert result is None
     assert mock_can_edit.mock_calls == [call("narrative")]
     assert mock_fill.mock_calls == []
+    assert locked_chatter.mock_calls == []
 
 
 # -- fill_template_content -------------------------------------------------
@@ -1066,6 +1075,12 @@ def test_fill_template_content_strips_lit_markers(
     assert "{lit:" not in user_prompt_text
     assert "Current concerns with memory:" in user_prompt_text
     assert "Current concerns with functioning:" in user_prompt_text
+    assert mock_resolve_framework.mock_calls == [call("narrative")]
+    assert mock_get_instructions.mock_calls == [call("narrative")]
+    assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
+    assert mock_demographic.mock_calls == [call(False)]
+    assert mock_datetime.mock_calls == [call.now()]
+    assert chatter.single_conversation.called
 
 
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
@@ -1083,9 +1098,16 @@ def test_fill_template_content_with_framework_no_add_instructions(
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
     chatter.single_conversation.return_value = [{"enhancedContent": "Patient is presenting today with headache."}]
 
-    result = tested.fill_template_content("generated", "narrative", make_instruction(), chatter)
+    instruction = make_instruction()
+    result = tested.fill_template_content("generated", "narrative", instruction, chatter)
 
     assert result == "Patient is presenting today with headache."
+    assert mock_resolve_framework.mock_calls == [call("narrative")]
+    assert mock_get_instructions.mock_calls == [call("narrative")]
+    assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
+    assert mock_demographic.mock_calls == [call(False)]
+    assert mock_datetime.mock_calls == [call.now()]
+    assert chatter.single_conversation.called
 
 
 @pytest.mark.parametrize("llm_response", [[], [{"enhancedContent": ""}]])
@@ -1112,6 +1134,12 @@ def test_fill_template_content_llm_empty_falls_back(
     result = tested.fill_template_content("generated content", "narrative", make_instruction(), chatter)
 
     assert result == "generated content"
+    assert mock_resolve_framework.mock_calls == [call("narrative")]
+    assert mock_get_instructions.mock_calls == [call("narrative")]
+    assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
+    assert mock_demographic.mock_calls == [call(False)]
+    assert mock_datetime.mock_calls == [call.now()]
+    assert chatter.single_conversation.called
 
 
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
@@ -1143,6 +1171,12 @@ def test_fill_template_content_uses_existing_structure(
 
     prompt_text = " ".join(chatter.single_conversation.call_args[0][1])
     assert "Current concerns with memory or cognition" in prompt_text
+    assert mock_resolve_framework.mock_calls == [call("narrative")]
+    assert mock_get_instructions.mock_calls == [call("narrative")]
+    assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
+    assert mock_demographic.mock_calls == [call(False)]
+    assert mock_datetime.mock_calls == [call.now()]
+    assert chatter.single_conversation.called
 
 
 # -- enhance_with_template_instructions ------------------------------------
@@ -1193,3 +1227,7 @@ def test_enhance_with_template_instructions_llm_empty(mock_json_schema, mock_dem
     result = tested.enhance_with_template_instructions("original", ["symptoms"], make_instruction(), chatter)
 
     assert result == "original"
+    assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
+    assert mock_demographic.mock_calls == [call(False)]
+    assert mock_datetime.mock_calls == [call.now()]
+    assert chatter.single_conversation.called

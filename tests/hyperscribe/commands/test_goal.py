@@ -418,9 +418,16 @@ def test_is_available(can_edit_field):
     result = tested.is_available()
     assert result is True
 
+    calls = [call("goal_statement"), call("progress")]
+    assert can_edit_field.mock_calls == calls
+
 
 @patch.object(Goal, "can_edit_field", return_value=False)
 def test_is_available_all_fields_locked(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
-    assert result is False
+    expected = False
+    assert result == expected
+
+    calls = [call("goal_statement"), call("progress")]
+    assert can_edit_field.mock_calls == calls

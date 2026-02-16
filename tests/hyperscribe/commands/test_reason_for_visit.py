@@ -332,6 +332,7 @@ def test_instruction_constraints(existing_reason_for_visits):
 def test_is_available(existing_reason_for_visits, can_edit_field):
     def reset_mocks():
         existing_reason_for_visits.reset_mock()
+        can_edit_field.reset_mock()
 
     reason_for_visits = [
         CodedItem(uuid="theUuid1", label="display1", code="code1"),
@@ -345,6 +346,8 @@ def test_is_available(existing_reason_for_visits, can_edit_field):
     result = tested.is_available()
     assert result is True
     assert existing_reason_for_visits.mock_calls == []
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
     reset_mocks()
 
     # with structured RfV
@@ -355,6 +358,8 @@ def test_is_available(existing_reason_for_visits, can_edit_field):
     assert result is False
     calls = [call()]
     assert existing_reason_for_visits.mock_calls == calls
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
     reset_mocks()
     # -- some reasons for visit defined
     existing_reason_for_visits.side_effect = [reason_for_visits]
@@ -362,6 +367,8 @@ def test_is_available(existing_reason_for_visits, can_edit_field):
     assert result is True
     calls = [call()]
     assert existing_reason_for_visits.mock_calls == calls
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
     reset_mocks()
 
 
@@ -369,4 +376,8 @@ def test_is_available(existing_reason_for_visits, can_edit_field):
 def test_is_available_all_fields_locked(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
-    assert result is False
+    expected = False
+    assert result == expected
+
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls

@@ -199,6 +199,18 @@ def test___init___with_template_filtering(command_list):
     assert "CommandB" not in instance._command_context
     assert "CommandC" in instance._command_context
 
+    calls = [call()]
+    assert command_list.mock_calls == calls
+    for mock in mocks:
+        calls = [
+            call(settings, cache, identification),
+            call().__bool__(),
+            call().class_name(),
+            call().is_available(),
+            call().can_edit_command(),
+        ]
+        assert mock.mock_calls == calls
+
 
 def test_common_instructions():
     mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]

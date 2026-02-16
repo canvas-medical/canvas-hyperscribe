@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import json as _json
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Any, Callable
 
 from logger import log
 
 from hyperscribe.libraries.constants import Constants
 
+from canvas_sdk.caching.base import Cache
 from canvas_sdk.caching.client import get_cache as _get_cache_client
-
-if TYPE_CHECKING:
-    from canvas_sdk.caching.base import Cache
 
 
 class TemplatePermissions:
@@ -21,6 +19,15 @@ class TemplatePermissions:
     Cache key: ``note_template_cmd_perms_{note_uuid}``
     Value: ``{CommandType: {plugin_can_edit, field_permissions: [...]}}``
     """
+
+    _instances: dict[str, TemplatePermissions] = {}
+
+    @classmethod
+    def for_note(cls, note_uuid: str, cache_getter: Callable[[], Cache] | None = None) -> TemplatePermissions:
+        """Return a shared instance per note_uuid (singleton)."""
+        if note_uuid not in cls._instances:
+            cls._instances[note_uuid] = cls(note_uuid, cache_getter)
+        return cls._instances[note_uuid]
 
     def __init__(self, note_uuid: str, cache_getter: Callable[[], Cache] | None = None) -> None:
         self.note_uuid = note_uuid

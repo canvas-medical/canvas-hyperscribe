@@ -48,6 +48,17 @@ class TestTemplatePermissions:
         calls = [call.get("note_template_cmd_perms_test-note-uuid", default={})]
         assert mock_cache.mock_calls == calls
 
+    def test_load_permissions_empty(self):
+        mock_cache = make_mock_cache({})
+        tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
+
+        result = tested.load_permissions()
+        expected = {}
+        assert result == expected
+
+        calls = [call.get("note_template_cmd_perms_test-note-uuid", default={})]
+        assert mock_cache.mock_calls == calls
+
     def test_load_permissions_caches_result(self):
         mock_cache = make_mock_cache({"SomeCommand": {"plugin_can_edit": True}})
         tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
@@ -97,6 +108,63 @@ class TestTemplatePermissions:
         assert mock_cache1.mock_calls == calls
         calls = [call.get("note_template_cmd_perms_note-uuid-2", default={})]
         assert mock_cache2.mock_calls == calls
+
+
+class TestForNote:
+    def teardown_method(self):
+        TemplatePermissions._instances.clear()
+
+    def test_returns_instance(self):
+        mock_cache = make_mock_cache({})
+        tested = TemplatePermissions
+        result = tested.for_note("note-uuid-1", cache_getter=make_cache_getter(mock_cache))
+        assert isinstance(result, TemplatePermissions)
+        assert result.note_uuid == "note-uuid-1"
+
+        calls = []
+        assert mock_cache.mock_calls == calls
+
+    def test_same_uuid_returns_same_instance(self):
+        mock_cache = make_mock_cache({})
+        cache_getter = make_cache_getter(mock_cache)
+        tested = TemplatePermissions
+        result1 = tested.for_note("note-uuid-1", cache_getter=cache_getter)
+        result2 = tested.for_note("note-uuid-1", cache_getter=cache_getter)
+        assert result1 is result2
+
+        calls = []
+        assert mock_cache.mock_calls == calls
+
+    def test_different_uuids_return_different_instances(self):
+        mock_cache = make_mock_cache({})
+        cache_getter = make_cache_getter(mock_cache)
+        tested = TemplatePermissions
+        result1 = tested.for_note("note-uuid-1", cache_getter=cache_getter)
+        result2 = tested.for_note("note-uuid-2", cache_getter=cache_getter)
+        assert result1 is not result2
+        assert result1.note_uuid == "note-uuid-1"
+        assert result2.note_uuid == "note-uuid-2"
+
+        calls = []
+        assert mock_cache.mock_calls == calls
+
+    def test_shared_instance_single_cache_load(self):
+        mock_cache = make_mock_cache({"CommandA": {"plugin_can_edit": True}})
+        cache_getter = make_cache_getter(mock_cache)
+        tested = TemplatePermissions
+        instance1 = tested.for_note("note-uuid-1", cache_getter=cache_getter)
+        instance2 = tested.for_note("note-uuid-1", cache_getter=cache_getter)
+        assert instance1 is instance2
+
+        result = instance1.load_permissions()
+        expected = {"CommandA": {"plugin_can_edit": True}}
+        assert result == expected
+
+        result = instance2.load_permissions()
+        assert result == expected
+
+        calls = [call.get("note_template_cmd_perms_note-uuid-1", default={})]
+        assert mock_cache.mock_calls == calls
 
 
 class TestDefaultCacheGetter:

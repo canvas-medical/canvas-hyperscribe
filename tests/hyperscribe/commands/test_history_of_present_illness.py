@@ -1,6 +1,6 @@
 from hashlib import md5
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresentIllnessCommand
 
@@ -203,9 +203,16 @@ def test_is_available(can_edit_field):
     result = tested.is_available()
     assert result is True
 
+    calls = [call("narrative")]
+    assert can_edit_field.mock_calls == calls
+
 
 @patch.object(HistoryOfPresentIllness, "can_edit_field", return_value=False)
 def test_is_available_all_fields_locked(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
-    assert result is False
+    expected = False
+    assert result == expected
+
+    calls = [call("narrative")]
+    assert can_edit_field.mock_calls == calls
