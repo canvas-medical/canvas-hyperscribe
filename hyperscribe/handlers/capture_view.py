@@ -158,7 +158,12 @@ class CaptureView(SimpleAPI):
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
         stop_and_go = StopAndGo.get(note_id)
-        if stop_and_go.is_stale():
+        if stop_and_go.is_stale() and stop_and_go.is_running():
+            log.warning(
+                f"Stale session detected for note {note_id}: "
+                f"cycle={stop_and_go.cycle()}, "
+                f"created={stop_and_go.created().isoformat()}"
+            )
             StopAndGo(note_id).save()
         self.session_progress_log(patient_id, note_id, "started")
         return []

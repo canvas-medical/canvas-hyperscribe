@@ -277,12 +277,14 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
     reset_mocks()
 
 
+@patch("hyperscribe.handlers.capture_view.log")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch.object(CaptureView, "session_progress_log")
-def test_new_session_post(session_progress_log, stop_and_go):
+def test_new_session_post(session_progress_log, stop_and_go, mock_log):
     def reset_mocks():
         session_progress_log.reset_mock()
         stop_and_go.reset_mock()
+        mock_log.reset_mock()
 
     tested = helper_instance()
     tested.request = SimpleNamespace(
@@ -290,23 +292,62 @@ def test_new_session_post(session_progress_log, stop_and_go):
         headers={"canvas-logged-in-user-id": "theUserId"},
     )
 
-    # stale session: reset StopAndGo
+    # stale + is_running: reset StopAndGo and log warning
     mock_existing = MagicMock()
     mock_existing.is_stale.return_value = True
+    mock_existing.is_running.return_value = True
+    mock_existing.cycle.return_value = 3
+    mock_existing.created.return_value = datetime(2025, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
     stop_and_go.get.return_value = mock_existing
 
     result = tested.new_session_post()
     assert result == []
 
-    calls = [call.get("theNoteId"), call.get().is_stale(), call("theNoteId"), call().save()]
+    calls = [
+        call.get("theNoteId"),
+        call.get().is_stale(),
+        call.get().is_running(),
+        call.get().cycle(),
+        call.get().created(),
+        call("theNoteId"),
+        call().save(),
+    ]
     assert stop_and_go.mock_calls == calls
     calls = [call()]
     assert mock_existing.is_stale.mock_calls == calls
+    calls = [call()]
+    assert mock_existing.is_running.mock_calls == calls
+    calls = [call()]
+    assert mock_existing.cycle.mock_calls == calls
+    calls = [call()]
+    assert mock_existing.created.mock_calls == calls
     calls = [call("thePatientId", "theNoteId", "started")]
     assert session_progress_log.mock_calls == calls
+    calls = [call.warning("Stale session detected for note theNoteId: cycle=3, created=2025-01-15T10:30:00+00:00")]
+    assert mock_log.mock_calls == calls
     reset_mocks()
 
-    # fresh session: do not reset StopAndGo
+    # stale + not is_running: do not reset StopAndGo (ended normally)
+    mock_existing = MagicMock()
+    mock_existing.is_stale.return_value = True
+    mock_existing.is_running.return_value = False
+    stop_and_go.get.return_value = mock_existing
+
+    result = tested.new_session_post()
+    assert result == []
+
+    calls = [call.get("theNoteId"), call.get().is_stale(), call.get().is_running()]
+    assert stop_and_go.mock_calls == calls
+    calls = [call()]
+    assert mock_existing.is_stale.mock_calls == calls
+    calls = [call()]
+    assert mock_existing.is_running.mock_calls == calls
+    calls = [call("thePatientId", "theNoteId", "started")]
+    assert session_progress_log.mock_calls == calls
+    assert mock_log.mock_calls == []
+    reset_mocks()
+
+    # fresh + is_running: do not reset StopAndGo (active session, not stuck)
     mock_existing = MagicMock()
     mock_existing.is_stale.return_value = False
     stop_and_go.get.return_value = mock_existing
@@ -318,8 +359,10 @@ def test_new_session_post(session_progress_log, stop_and_go):
     assert stop_and_go.mock_calls == calls
     calls = [call()]
     assert mock_existing.is_stale.mock_calls == calls
+    assert mock_existing.is_running.mock_calls == []
     calls = [call("thePatientId", "theNoteId", "started")]
     assert session_progress_log.mock_calls == calls
+    assert mock_log.mock_calls == []
     reset_mocks()
 
 
