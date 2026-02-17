@@ -292,10 +292,10 @@ def test_new_session_post(session_progress_log, stop_and_go, mock_log):
         headers={"canvas-logged-in-user-id": "theUserId"},
     )
 
-    # stale + is_running: reset StopAndGo and log warning
+    # is_running + waiting_cycles: stuck session, reset and log warning
     mock_existing = MagicMock()
-    mock_existing.is_stale.return_value = True
     mock_existing.is_running.return_value = True
+    mock_existing.waiting_cycles.return_value = [4, 5]
     mock_existing.cycle.return_value = 3
     mock_existing.created.return_value = datetime(2025, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
     stop_and_go.get.return_value = mock_existing
@@ -305,61 +305,66 @@ def test_new_session_post(session_progress_log, stop_and_go, mock_log):
 
     calls = [
         call.get("theNoteId"),
-        call.get().is_stale(),
         call.get().is_running(),
+        call.get().waiting_cycles(),
         call.get().cycle(),
+        call.get().waiting_cycles(),
         call.get().created(),
         call("theNoteId"),
         call().save(),
     ]
     assert stop_and_go.mock_calls == calls
     calls = [call()]
-    assert mock_existing.is_stale.mock_calls == calls
-    calls = [call()]
     assert mock_existing.is_running.mock_calls == calls
+    calls = [call(), call()]
+    assert mock_existing.waiting_cycles.mock_calls == calls
     calls = [call()]
     assert mock_existing.cycle.mock_calls == calls
     calls = [call()]
     assert mock_existing.created.mock_calls == calls
     calls = [call("thePatientId", "theNoteId", "started")]
     assert session_progress_log.mock_calls == calls
-    calls = [call.warning("Stale session detected for note theNoteId: cycle=3, created=2025-01-15T10:30:00+00:00")]
+    calls = [
+        call.warning(
+            "Stuck session detected for note theNoteId: cycle=3, waiting=[4, 5], created=2025-01-15T10:30:00+00:00"
+        )
+    ]
     assert mock_log.mock_calls == calls
     reset_mocks()
 
-    # stale + not is_running: do not reset StopAndGo (ended normally)
+    # is_running + no waiting_cycles: commander still active, no reset
     mock_existing = MagicMock()
-    mock_existing.is_stale.return_value = True
+    mock_existing.is_running.return_value = True
+    mock_existing.waiting_cycles.return_value = []
+    stop_and_go.get.return_value = mock_existing
+
+    result = tested.new_session_post()
+    assert result == []
+
+    calls = [call.get("theNoteId"), call.get().is_running(), call.get().waiting_cycles()]
+    assert stop_and_go.mock_calls == calls
+    calls = [call()]
+    assert mock_existing.is_running.mock_calls == calls
+    calls = [call()]
+    assert mock_existing.waiting_cycles.mock_calls == calls
+    calls = [call("thePatientId", "theNoteId", "started")]
+    assert session_progress_log.mock_calls == calls
+    assert mock_log.mock_calls == []
+    reset_mocks()
+
+    # not is_running: session ended normally, no reset
+    mock_existing = MagicMock()
     mock_existing.is_running.return_value = False
     stop_and_go.get.return_value = mock_existing
 
     result = tested.new_session_post()
     assert result == []
 
-    calls = [call.get("theNoteId"), call.get().is_stale(), call.get().is_running()]
+    calls = [call.get("theNoteId"), call.get().is_running()]
     assert stop_and_go.mock_calls == calls
-    calls = [call()]
-    assert mock_existing.is_stale.mock_calls == calls
     calls = [call()]
     assert mock_existing.is_running.mock_calls == calls
-    calls = [call("thePatientId", "theNoteId", "started")]
-    assert session_progress_log.mock_calls == calls
-    assert mock_log.mock_calls == []
-    reset_mocks()
-
-    # fresh + is_running: do not reset StopAndGo (active session, not stuck)
-    mock_existing = MagicMock()
-    mock_existing.is_stale.return_value = False
-    stop_and_go.get.return_value = mock_existing
-
-    result = tested.new_session_post()
-    assert result == []
-
-    calls = [call.get("theNoteId"), call.get().is_stale()]
-    assert stop_and_go.mock_calls == calls
-    calls = [call()]
-    assert mock_existing.is_stale.mock_calls == calls
-    assert mock_existing.is_running.mock_calls == []
+    assert mock_existing.waiting_cycles.mock_calls == []
     calls = [call("thePatientId", "theNoteId", "started")]
     assert session_progress_log.mock_calls == calls
     assert mock_log.mock_calls == []

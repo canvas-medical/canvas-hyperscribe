@@ -158,10 +158,11 @@ class CaptureView(SimpleAPI):
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
         stop_and_go = StopAndGo.get(note_id)
-        if stop_and_go.is_stale() and stop_and_go.is_running():
+        if stop_and_go.is_running() and stop_and_go.waiting_cycles():
             log.warning(
-                f"Stale session detected for note {note_id}: "
+                f"Stuck session detected for note {note_id}: "
                 f"cycle={stop_and_go.cycle()}, "
+                f"waiting={stop_and_go.waiting_cycles()}, "
                 f"created={stop_and_go.created().isoformat()}"
             )
             StopAndGo(note_id).save()
