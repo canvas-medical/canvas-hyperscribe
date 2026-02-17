@@ -838,6 +838,69 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
     ]
     assert stop_and_go_is_running.mock_calls == calls
     reset_mocks()
+    # -- commander is running and stuck (5+ waiting cycles) => auto-recover
+    mock_created = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    stop_and_go_stuck = MagicMock()
+    stop_and_go_stuck.is_running.side_effect = [True, False]
+    stop_and_go_stuck.waiting_cycles.return_value = [21, 22, 23, 24, 25]
+    stop_and_go_stuck.cycle.return_value = 20
+    stop_and_go_stuck.created.return_value = mock_created
+
+    cycle_data.s3_key_path.side_effect = ["theS3Path"]
+    stop_and_go.get.side_effect = [stop_and_go_stuck]
+    aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"Good", status_code=200)]
+    note_db.get.side_effect = [SimpleNamespace(provider=SimpleNamespace(id="theProviderId"))]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        form_data=lambda: {},
+        headers={"canvas-logged-in-user-id": "theUserId"},
+    )
+    result = tested._add_cycle(b"theContent", "content/type")
+    expected = [Response(b"Chunk 25 saved OK", HTTPStatus(201))]
+    assert result == expected
+
+    calls = [call.submit(helper.with_cleanup.return_value, identification, "theUserId")]
+    assert executor.mock_calls == calls
+    calls = [call.with_cleanup(tested.run_commander)]
+    assert helper.mock_calls == calls
+    calls = [call.s3_key_path(identification, 25)]
+    assert cycle_data.mock_calls == calls
+    calls = [call.get("theNoteId")]
+    assert stop_and_go.mock_calls == calls
+    calls = [
+        call(aws_s3_credentials),
+        call().upload_binary_to_s3("theS3Path", b"theContent", "content/type"),
+    ]
+    assert aws_s3.mock_calls == calls
+    calls = [
+        call.warning(
+            "Stuck session detected for note theNoteId: "
+            "cycle=20, "
+            "waiting=[21, 22, 23, 24, 25], "
+            f"created={mock_created.isoformat()}"
+        ),
+    ]
+    assert log.mock_calls == calls
+    calls = [call.get(id="theNoteId")]
+    assert note_db.mock_calls == calls
+    calls = [
+        call.add_waiting_cycle(),
+        call.add_waiting_cycle().save(),
+        call.waiting_cycles(),
+        call.is_running(),
+        call.waiting_cycles(),
+        call.cycle(),
+        call.waiting_cycles(),
+        call.created(),
+        call.set_running(False),
+        call.set_running(False).save(),
+        call.is_running(),
+    ]
+    assert stop_and_go_stuck.mock_calls == calls
+    assert stop_and_go_not_running.mock_calls == []
+    assert stop_and_go_is_running.mock_calls == []
+    reset_mocks()
 
 
 @patch("hyperscribe.handlers.capture_view.StopAndGo")

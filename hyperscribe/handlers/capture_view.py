@@ -250,6 +250,18 @@ class CaptureView(SimpleAPI):
             if not response.status_code:
                 return [Response(b"Failed to save chunk (AWS S3 failure)", HTTPStatus.SERVICE_UNAVAILABLE)]
             return [Response(response.content, HTTPStatus(response.status_code))]
+        if (
+            stop_and_go.is_running()
+            and len(stop_and_go.waiting_cycles()) >= Constants.STUCK_SESSION_WAITING_CYCLES_THRESHOLD
+        ):
+            log.warning(
+                f"Stuck session detected for note {identification.note_uuid}: "
+                f"cycle={stop_and_go.cycle()}, "
+                f"waiting={stop_and_go.waiting_cycles()}, "
+                f"created={stop_and_go.created().isoformat()}"
+            )
+            stop_and_go.set_running(False).save()
+
         if not stop_and_go.is_running():
             user_id = self.request.headers.get("canvas-logged-in-user-id")
             executor.submit(Helper.with_cleanup(self.run_commander), identification, user_id)
