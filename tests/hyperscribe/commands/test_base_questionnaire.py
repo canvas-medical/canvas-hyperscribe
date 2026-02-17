@@ -62,6 +62,54 @@ def test_include_skipped():
         _ = tested.include_skipped()
 
 
+def test_additional_instructions():
+    tested = helper_instance()
+    result = tested.additional_instructions()
+    assert result == []
+
+
+def test_skipped_field_instruction():
+    tested = helper_instance()
+    result = tested.skipped_field_instruction()
+    assert result == (
+        "This includes the values of 'skipped', change it to 'false' only if the question "
+        "is obviously answered in the transcript, don't change it at all otherwise."
+    )
+
+
+def test_post_process_questionnaire():
+    tested = helper_instance()
+    original = Questionnaire(
+        dbid=1,
+        name="test",
+        questions=[
+            Question(
+                dbid=10,
+                label="q1",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=100, value="text", selected=False, comment=None)],
+            ),
+        ],
+    )
+    updated = Questionnaire(
+        dbid=1,
+        name="test",
+        questions=[
+            Question(
+                dbid=10,
+                label="q1",
+                type=QuestionType.TYPE_TEXT,
+                skipped=True,
+                responses=[Response(dbid=100, value="", selected=False, comment=None)],
+            ),
+        ],
+    )
+    result = tested.post_process_questionnaire(original, updated)
+    # default is passthrough — returns updated as-is
+    assert result is updated
+
+
 def test_staged_command_extract():
     tested = BaseQuestionnaire
     tests = [
@@ -957,6 +1005,13 @@ def test_command_from_questionnaire(sdk_command, include_skipped, set_question_e
                 skipped=False,
                 responses=[Response(dbid=144, value=777, selected=True, comment=None)],
             ),
+            Question(
+                dbid=450,
+                label="theQuestion5",
+                type=QuestionType.TYPE_TEXT,
+                skipped=None,
+                responses=[Response(dbid=155, value="someText", selected=False, comment=None)],
+            ),
         ],
     )
 
@@ -964,7 +1019,7 @@ def test_command_from_questionnaire(sdk_command, include_skipped, set_question_e
         pass
 
     tests = [
-        (True, [call("234", True), call("125", False), call("345", True), call("236", True)]),
+        (True, [call("234", True), call("125", False), call("345", True), call("236", True), call("450", True)]),
         (False, []),
     ]
 
@@ -977,7 +1032,7 @@ def test_command_from_questionnaire(sdk_command, include_skipped, set_question_e
         assert isinstance(result, TestQuestionnaireCommand)
         assert result.command_uuid == "theUuid"
         assert result.note_uuid == "noteUuid"
-        assert len(result.questions) == 4
+        assert len(result.questions) == 5
         assert result.questions[0].response == 143
         assert result.questions[1].response == [
             {"text": "theResponse4", "value": 145, "comment": "theComment4", "selected": False},
@@ -987,6 +1042,7 @@ def test_command_from_questionnaire(sdk_command, include_skipped, set_question_e
         ]
         assert result.questions[2].response == "changedResponse3"
         assert result.questions[3].response == 777
+        assert result.questions[4].response == "someText"
 
         calls = [call()]
         assert sdk_command.mock_calls == calls
