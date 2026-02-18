@@ -3,6 +3,7 @@ from unittest.mock import patch, call
 
 from canvas_sdk.effects import Effect
 
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.stop_and_go import StopAndGo
 
 
@@ -158,7 +159,15 @@ def test_reset_paused_effect():
     assert tested.paused_effects() == []
 
 
-def test_add_waiting_cycle():
+@patch("hyperscribe.libraries.stop_and_go.log")
+@patch("hyperscribe.libraries.stop_and_go.datetime", wraps=datetime)
+def test_add_waiting_cycle(mock_datetime, mock_log):
+    def reset_mocks():
+        mock_datetime.reset_mock()
+        mock_log.reset_mock()
+
+    # basic behavior: not running, below threshold
+    mock_datetime.now.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)]
     tested = StopAndGo("theNoteUuid")
     assert tested.waiting_cycles() == []
     result = tested.add_waiting_cycle()
@@ -172,6 +181,61 @@ def test_add_waiting_cycle():
     result = tested.add_waiting_cycle()
     assert result is tested
     assert tested.waiting_cycles() == [43, 47, 48]
+
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    assert mock_log.mock_calls == []
+    reset_mocks()
+
+    # below threshold while running: no warning, stays running
+    mock_datetime.now.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)]
+    tested = StopAndGo("theNoteUuid")
+    tested._is_running = True
+    for _ in range(Constants.STUCK_SESSION_WAITING_CYCLES_THRESHOLD - 1):
+        tested.add_waiting_cycle()
+    assert tested.is_running() is True
+    assert len(tested.waiting_cycles()) == Constants.STUCK_SESSION_WAITING_CYCLES_THRESHOLD - 1
+
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    assert mock_log.mock_calls == []
+    reset_mocks()
+
+    # at threshold while running: warning logged, is_running flipped to False
+    mock_datetime.now.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)]
+    tested = StopAndGo("theNoteUuid")
+    tested._is_running = True
+    for _ in range(Constants.STUCK_SESSION_WAITING_CYCLES_THRESHOLD):
+        tested.add_waiting_cycle()
+    assert tested.is_running() is False
+    assert len(tested.waiting_cycles()) == Constants.STUCK_SESSION_WAITING_CYCLES_THRESHOLD
+
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    calls = [
+        call.warning(
+            "Stuck session detected for note theNoteUuid: "
+            "cycle=0, "
+            "waiting=[1, 2, 3, 4, 5], "
+            "created=2025-01-01T00:00:00+00:00"
+        ),
+    ]
+    assert mock_log.mock_calls == calls
+    reset_mocks()
+
+    # not running: no warning even with many waiting cycles
+    mock_datetime.now.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)]
+    tested = StopAndGo("theNoteUuid")
+    tested._is_running = False
+    for _ in range(Constants.STUCK_SESSION_WAITING_CYCLES_THRESHOLD + 2):
+        tested.add_waiting_cycle()
+    assert tested.is_running() is False
+    assert len(tested.waiting_cycles()) == Constants.STUCK_SESSION_WAITING_CYCLES_THRESHOLD + 2
+
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    assert mock_log.mock_calls == []
+    reset_mocks()
 
 
 @patch.object(StopAndGo, "save")

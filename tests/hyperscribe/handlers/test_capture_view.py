@@ -159,27 +159,32 @@ def test_session_progress_log(progress):
     reset_mocks()
 
 
+@patch("hyperscribe.handlers.capture_view.log")
 @patch("hyperscribe.handlers.capture_view.Customization")
 @patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.render_to_string")
 @patch("hyperscribe.handlers.capture_view.Authenticator")
-def test_capture_get(authenticator, render_to_string, stop_and_go, helper, customization):
+def test_capture_get(authenticator, render_to_string, stop_and_go, helper, customization, mock_log):
     def reset_mocks():
         authenticator.reset_mock()
         render_to_string.reset_mock()
         stop_and_go.reset_mock()
         helper.reset_mock()
         customization.reset_mock()
+        mock_log.reset_mock()
 
+    # normal case: not stuck
     render_to_string.side_effect = ["<html/>"]
     helper.canvas_ws_host.side_effect = ["theWsHost"]
     customization.customizations.side_effect = [Customization(ui_default_tab=DefaultTab.ACTIVITY, custom_prompts=[])]
     authenticator.presigned_url.side_effect = ["Url1"]
     authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7", "Url8", "Url9"]
+    stop_and_go.get.return_value.is_running.side_effect = [False]
     stop_and_go.get.return_value.is_ended.side_effect = [False]
     stop_and_go.get.return_value.is_paused.side_effect = [False, False]
     stop_and_go.get.return_value.cycle.side_effect = [7]
+    stop_and_go.get.return_value.waiting_cycles.side_effect = []
 
     tested = helper_instance()
     tested.request = SimpleNamespace(
@@ -258,6 +263,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
     assert render_to_string.mock_calls == calls
     calls = [
         call.get("the-00-note"),
+        call.get().is_running(),
         call.get().is_ended(),
         call.get().is_paused(),
         call.get().cycle(),
@@ -274,17 +280,82 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
         )
     ]
     assert customization.mock_calls == calls
+    assert mock_log.mock_calls == []
+    reset_mocks()
+
+    # stuck session: is_running + 5 waiting cycles => force reset
+    mock_existing = MagicMock()
+    mock_existing.is_running.side_effect = [True]
+    mock_existing.waiting_cycles.side_effect = [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]
+    mock_existing.cycle.side_effect = [0]
+    mock_existing.created.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc)]
+    stop_and_go.get.side_effect = [mock_existing]
+
+    mock_reset = MagicMock()
+    stop_and_go.return_value = mock_reset
+    mock_reset.is_ended.side_effect = [False]
+    mock_reset.is_paused.side_effect = [False, False]
+    mock_reset.cycle.side_effect = [0]
+
+    render_to_string.side_effect = ["<html/>"]
+    helper.canvas_ws_host.side_effect = ["theWsHost"]
+    customization.customizations.side_effect = [Customization(ui_default_tab=DefaultTab.ACTIVITY, custom_prompts=[])]
+    authenticator.presigned_url.side_effect = ["Url1"]
+    authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7", "Url8", "Url9"]
+
+    tested = helper_instance()
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "the-00-patient", "note_id": "the-00-note", "note_reference": "4571"},
+        query_params={},
+        headers={"canvas-logged-in-user-id": "the-00-user"},
+    )
+
+    result = tested.capture_get()
+    expected = [HTMLResponse(content="<html/>", status_code=HTTPStatus(200))]
+    assert result == expected
+
+    calls = [
+        call.get("the-00-note"),
+        call("the-00-note"),
+        call().save(),
+        call().is_ended(),
+        call().is_paused(),
+        call().cycle(),
+        call().is_paused(),
+    ]
+    assert stop_and_go.mock_calls == calls
+    calls = [
+        call.is_running(),
+        call.waiting_cycles(),
+        call.cycle(),
+        call.waiting_cycles(),
+        call.created(),
+    ]
+    assert mock_existing.mock_calls == calls
+    calls = [
+        call.save(),
+        call.is_ended(),
+        call.is_paused(),
+        call.cycle(),
+        call.is_paused(),
+    ]
+    assert mock_reset.mock_calls == calls
+    calls = [
+        call.warning(
+            "Stuck session detected on page load for note the-00-note: "
+            "cycle=0, "
+            "waiting=[1, 2, 3, 4, 5], "
+            "created=2025-01-01T00:00:00+00:00"
+        ),
+    ]
+    assert mock_log.mock_calls == calls
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.capture_view.log")
-@patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch.object(CaptureView, "session_progress_log")
-def test_new_session_post(session_progress_log, stop_and_go, mock_log):
+def test_new_session_post(session_progress_log):
     def reset_mocks():
         session_progress_log.reset_mock()
-        stop_and_go.reset_mock()
-        mock_log.reset_mock()
 
     tested = helper_instance()
     tested.request = SimpleNamespace(
@@ -292,82 +363,11 @@ def test_new_session_post(session_progress_log, stop_and_go, mock_log):
         headers={"canvas-logged-in-user-id": "theUserId"},
     )
 
-    # is_running + waiting_cycles: stuck session, reset and log warning
-    mock_existing = MagicMock()
-    mock_existing.is_running.return_value = True
-    mock_existing.waiting_cycles.return_value = [4, 5]
-    mock_existing.cycle.return_value = 3
-    mock_existing.created.return_value = datetime(2025, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
-    stop_and_go.get.return_value = mock_existing
-
     result = tested.new_session_post()
     assert result == []
 
-    calls = [
-        call.get("theNoteId"),
-        call.get().is_running(),
-        call.get().waiting_cycles(),
-        call.get().cycle(),
-        call.get().waiting_cycles(),
-        call.get().created(),
-        call("theNoteId"),
-        call().save(),
-    ]
-    assert stop_and_go.mock_calls == calls
-    calls = [call()]
-    assert mock_existing.is_running.mock_calls == calls
-    calls = [call(), call()]
-    assert mock_existing.waiting_cycles.mock_calls == calls
-    calls = [call()]
-    assert mock_existing.cycle.mock_calls == calls
-    calls = [call()]
-    assert mock_existing.created.mock_calls == calls
     calls = [call("thePatientId", "theNoteId", "started")]
     assert session_progress_log.mock_calls == calls
-    calls = [
-        call.warning(
-            "Stuck session detected for note theNoteId: cycle=3, waiting=[4, 5], created=2025-01-15T10:30:00+00:00"
-        )
-    ]
-    assert mock_log.mock_calls == calls
-    reset_mocks()
-
-    # is_running + no waiting_cycles: commander still active, no reset
-    mock_existing = MagicMock()
-    mock_existing.is_running.return_value = True
-    mock_existing.waiting_cycles.return_value = []
-    stop_and_go.get.return_value = mock_existing
-
-    result = tested.new_session_post()
-    assert result == []
-
-    calls = [call.get("theNoteId"), call.get().is_running(), call.get().waiting_cycles()]
-    assert stop_and_go.mock_calls == calls
-    calls = [call()]
-    assert mock_existing.is_running.mock_calls == calls
-    calls = [call()]
-    assert mock_existing.waiting_cycles.mock_calls == calls
-    calls = [call("thePatientId", "theNoteId", "started")]
-    assert session_progress_log.mock_calls == calls
-    assert mock_log.mock_calls == []
-    reset_mocks()
-
-    # not is_running: session ended normally, no reset
-    mock_existing = MagicMock()
-    mock_existing.is_running.return_value = False
-    stop_and_go.get.return_value = mock_existing
-
-    result = tested.new_session_post()
-    assert result == []
-
-    calls = [call.get("theNoteId"), call.get().is_running()]
-    assert stop_and_go.mock_calls == calls
-    calls = [call()]
-    assert mock_existing.is_running.mock_calls == calls
-    assert mock_existing.waiting_cycles.mock_calls == []
-    calls = [call("thePatientId", "theNoteId", "started")]
-    assert session_progress_log.mock_calls == calls
-    assert mock_log.mock_calls == []
     reset_mocks()
 
 
@@ -838,16 +838,11 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
     ]
     assert stop_and_go_is_running.mock_calls == calls
     reset_mocks()
-    # -- commander is running and stuck (5+ waiting cycles) => auto-recover
-    mock_created = datetime(2025, 1, 1, tzinfo=timezone.utc)
-    stop_and_go_stuck = MagicMock()
-    stop_and_go_stuck.is_running.side_effect = [True, False]
-    stop_and_go_stuck.waiting_cycles.return_value = [21, 22, 23, 24, 25]
-    stop_and_go_stuck.cycle.return_value = 20
-    stop_and_go_stuck.created.return_value = mock_created
+    # -- commander was running but add_waiting_cycle() detected stuck => auto-recover
+    stop_and_go_was_stuck = MagicMock(is_running=lambda: False, waiting_cycles=lambda: [21, 22, 23, 24, 25])
 
     cycle_data.s3_key_path.side_effect = ["theS3Path"]
-    stop_and_go.get.side_effect = [stop_and_go_stuck]
+    stop_and_go.get.side_effect = [stop_and_go_was_stuck]
     aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"Good", status_code=200)]
     note_db.get.side_effect = [SimpleNamespace(provider=SimpleNamespace(id="theProviderId"))]
 
@@ -873,31 +868,14 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
         call().upload_binary_to_s3("theS3Path", b"theContent", "content/type"),
     ]
     assert aws_s3.mock_calls == calls
-    calls = [
-        call.warning(
-            "Stuck session detected for note theNoteId: "
-            "cycle=20, "
-            "waiting=[21, 22, 23, 24, 25], "
-            f"created={mock_created.isoformat()}"
-        ),
-    ]
-    assert log.mock_calls == calls
+    assert log.mock_calls == []
     calls = [call.get(id="theNoteId")]
     assert note_db.mock_calls == calls
     calls = [
         call.add_waiting_cycle(),
         call.add_waiting_cycle().save(),
-        call.waiting_cycles(),
-        call.is_running(),
-        call.waiting_cycles(),
-        call.cycle(),
-        call.waiting_cycles(),
-        call.created(),
-        call.set_running(False),
-        call.set_running(False).save(),
-        call.is_running(),
     ]
-    assert stop_and_go_stuck.mock_calls == calls
+    assert stop_and_go_was_stuck.mock_calls == calls
     assert stop_and_go_not_running.mock_calls == []
     assert stop_and_go_is_running.mock_calls == []
     reset_mocks()

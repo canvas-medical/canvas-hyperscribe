@@ -123,6 +123,19 @@ class CaptureView(SimpleAPI):
         )
 
         stop_and_go = StopAndGo.get(note_id)
+        if (
+            stop_and_go.is_running()
+            and len(stop_and_go.waiting_cycles()) >= Constants.STUCK_SESSION_WAITING_CYCLES_THRESHOLD
+        ):
+            log.warning(
+                f"Stuck session detected on page load for note {note_id}: "
+                f"cycle={stop_and_go.cycle()}, "
+                f"waiting={stop_and_go.waiting_cycles()}, "
+                f"created={stop_and_go.created().isoformat()}"
+            )
+            stop_and_go = StopAndGo(note_id)
+            stop_and_go.save()  # force reset
+
         context = {
             "patientUuid": patient_id,
             "noteUuid": note_id,
@@ -157,15 +170,6 @@ class CaptureView(SimpleAPI):
     def new_session_post(self) -> list[Response | Effect]:
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
-        stop_and_go = StopAndGo.get(note_id)
-        if stop_and_go.is_running() and stop_and_go.waiting_cycles():
-            log.warning(
-                f"Stuck session detected for note {note_id}: "
-                f"cycle={stop_and_go.cycle()}, "
-                f"waiting={stop_and_go.waiting_cycles()}, "
-                f"created={stop_and_go.created().isoformat()}"
-            )
-            StopAndGo(note_id).save()
         self.session_progress_log(patient_id, note_id, "started")
         return []
 
@@ -250,17 +254,6 @@ class CaptureView(SimpleAPI):
             if not response.status_code:
                 return [Response(b"Failed to save chunk (AWS S3 failure)", HTTPStatus.SERVICE_UNAVAILABLE)]
             return [Response(response.content, HTTPStatus(response.status_code))]
-        if (
-            stop_and_go.is_running()
-            and len(stop_and_go.waiting_cycles()) >= Constants.STUCK_SESSION_WAITING_CYCLES_THRESHOLD
-        ):
-            log.warning(
-                f"Stuck session detected for note {identification.note_uuid}: "
-                f"cycle={stop_and_go.cycle()}, "
-                f"waiting={stop_and_go.waiting_cycles()}, "
-                f"created={stop_and_go.created().isoformat()}"
-            )
-            stop_and_go.set_running(False).save()
 
         if not stop_and_go.is_running():
             user_id = self.request.headers.get("canvas-logged-in-user-id")
