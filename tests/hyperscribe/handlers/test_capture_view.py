@@ -166,6 +166,10 @@ def test_session_progress_log(progress):
 @patch("hyperscribe.handlers.capture_view.render_to_string")
 @patch("hyperscribe.handlers.capture_view.Authenticator")
 def test_capture_get(authenticator, render_to_string, stop_and_go, helper, customization, mock_log):
+    mock_normal = MagicMock()
+    mock_existing = MagicMock()
+    mock_reset = MagicMock()
+
     def reset_mocks():
         authenticator.reset_mock()
         render_to_string.reset_mock()
@@ -173,6 +177,9 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
         helper.reset_mock()
         customization.reset_mock()
         mock_log.reset_mock()
+        mock_normal.reset_mock()
+        mock_existing.reset_mock()
+        mock_reset.reset_mock()
 
     # normal case: not stuck
     render_to_string.side_effect = ["<html/>"]
@@ -180,11 +187,12 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
     customization.customizations.side_effect = [Customization(ui_default_tab=DefaultTab.ACTIVITY, custom_prompts=[])]
     authenticator.presigned_url.side_effect = ["Url1"]
     authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7", "Url8", "Url9"]
-    stop_and_go.get.return_value.is_running.side_effect = [False]
-    stop_and_go.get.return_value.is_ended.side_effect = [False]
-    stop_and_go.get.return_value.is_paused.side_effect = [False, False]
-    stop_and_go.get.return_value.cycle.side_effect = [7]
-    stop_and_go.get.return_value.waiting_cycles.side_effect = []
+    mock_normal.is_running.side_effect = [False]
+    mock_normal.is_ended.side_effect = [False]
+    mock_normal.is_paused.side_effect = [False, False]
+    mock_normal.cycle.side_effect = [7]
+    mock_normal.waiting_cycles.side_effect = []
+    stop_and_go.get.side_effect = [mock_normal]
 
     tested = helper_instance()
     tested.request = SimpleNamespace(
@@ -261,15 +269,16 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
         ),
     ]
     assert render_to_string.mock_calls == calls
-    calls = [
-        call.get("the-00-note"),
-        call.get().is_running(),
-        call.get().is_ended(),
-        call.get().is_paused(),
-        call.get().cycle(),
-        call.get().is_paused(),
-    ]
+    calls = [call.get("the-00-note")]
     assert stop_and_go.mock_calls == calls
+    calls = [
+        call.is_running(),
+        call.is_ended(),
+        call.is_paused(),
+        call.cycle(),
+        call.is_paused(),
+    ]
+    assert mock_normal.mock_calls == calls
     calls = [call.canvas_ws_host("customerIdentifier")]
     assert helper.mock_calls == calls
     calls = [
@@ -284,15 +293,13 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
     reset_mocks()
 
     # stuck session: is_running + 5 waiting cycles => force reset
-    mock_existing = MagicMock()
     mock_existing.is_running.side_effect = [True]
     mock_existing.waiting_cycles.side_effect = [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]
     mock_existing.cycle.side_effect = [0]
     mock_existing.created.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc)]
     stop_and_go.get.side_effect = [mock_existing]
 
-    mock_reset = MagicMock()
-    stop_and_go.return_value = mock_reset
+    stop_and_go.side_effect = [mock_reset]
     mock_reset.is_ended.side_effect = [False]
     mock_reset.is_paused.side_effect = [False, False]
     mock_reset.cycle.side_effect = [0]
@@ -317,11 +324,6 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
     calls = [
         call.get("the-00-note"),
         call("the-00-note"),
-        call().save(),
-        call().is_ended(),
-        call().is_paused(),
-        call().cycle(),
-        call().is_paused(),
     ]
     assert stop_and_go.mock_calls == calls
     calls = [
