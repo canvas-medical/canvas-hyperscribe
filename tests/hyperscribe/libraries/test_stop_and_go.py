@@ -159,15 +159,8 @@ def test_reset_paused_effect():
     assert tested.paused_effects() == []
 
 
-@patch("hyperscribe.libraries.stop_and_go.log")
-@patch("hyperscribe.libraries.stop_and_go.datetime", wraps=datetime)
-def test_add_waiting_cycle(mock_datetime, mock_log):
-    def reset_mocks():
-        mock_datetime.reset_mock()
-        mock_log.reset_mock()
-
-    # basic behavior: not running, below threshold
-    mock_datetime.now.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)]
+@patch.object(StopAndGo, "_recover_stuck_session", autospec=True, side_effect=lambda self: self)
+def test_add_waiting_cycle(mock_recover):
     tested = StopAndGo("theNoteUuid")
     assert tested.waiting_cycles() == []
     result = tested.add_waiting_cycle()
@@ -182,61 +175,8 @@ def test_add_waiting_cycle(mock_datetime, mock_log):
     assert result is tested
     assert tested.waiting_cycles() == [43, 47, 48]
 
-    calls = [call.now(UTC)]
-    assert mock_datetime.mock_calls == calls
-    assert mock_log.mock_calls == []
-    reset_mocks()
-
-    with patch.object(Constants, "STUCK_SESSION_WAITING_CYCLES_THRESHOLD", 3):
-        # below threshold while running: no warning, stays running
-        mock_datetime.now.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)]
-        tested = StopAndGo("theNoteUuid")
-        tested._is_running = True
-        for _ in range(2):
-            tested.add_waiting_cycle()
-        assert tested.is_running() is True
-        assert len(tested.waiting_cycles()) == 2
-
-        calls = [call.now(UTC)]
-        assert mock_datetime.mock_calls == calls
-        assert mock_log.mock_calls == []
-        reset_mocks()
-
-        # at threshold while running: warning logged, is_running flipped to False
-        mock_datetime.now.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)]
-        tested = StopAndGo("theNoteUuid")
-        tested._is_running = True
-        for _ in range(3):
-            tested.add_waiting_cycle()
-        assert tested.is_running() is False
-        assert len(tested.waiting_cycles()) == 3
-
-        calls = [call.now(UTC)]
-        assert mock_datetime.mock_calls == calls
-        calls = [
-            call.warning(
-                "Stuck session detected for note theNoteUuid: "
-                "cycle=0, "
-                "waiting=[1, 2, 3], "
-                "created=2025-01-01T00:00:00+00:00"
-            ),
-        ]
-        assert mock_log.mock_calls == calls
-        reset_mocks()
-
-        # not running: no warning even with many waiting cycles
-        mock_datetime.now.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)]
-        tested = StopAndGo("theNoteUuid")
-        tested._is_running = False
-        for _ in range(5):
-            tested.add_waiting_cycle()
-        assert tested.is_running() is False
-        assert len(tested.waiting_cycles()) == 5
-
-        calls = [call.now(UTC)]
-        assert mock_datetime.mock_calls == calls
-        assert mock_log.mock_calls == []
-        reset_mocks()
+    calls = [call(tested), call(tested), call(tested)]
+    assert mock_recover.mock_calls == calls
 
 
 @patch("hyperscribe.libraries.stop_and_go.log")
@@ -248,13 +188,14 @@ def test__recover_stuck_session(mock_datetime, mock_log):
 
     with patch.object(Constants, "STUCK_SESSION_WAITING_CYCLES_THRESHOLD", 3):
         # not running, at threshold: no recovery
-        mock_datetime.now.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)]
+        mock_datetime.now.side_effect = [datetime(2025, 6, 14, 9, 23, 41, tzinfo=UTC)]
         tested = StopAndGo("theNoteUuid")
         tested._is_running = False
         tested._waiting_cycles = [1, 2, 3]
         result = tested._recover_stuck_session()
         assert result is tested
         assert tested.is_running() is False
+        assert tested.waiting_cycles() == [1, 2, 3]
 
         calls = [call.now(UTC)]
         assert mock_datetime.mock_calls == calls
@@ -262,13 +203,14 @@ def test__recover_stuck_session(mock_datetime, mock_log):
         reset_mocks()
 
         # running, below threshold: no recovery
-        mock_datetime.now.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)]
+        mock_datetime.now.side_effect = [datetime(2025, 6, 14, 9, 23, 41, tzinfo=UTC)]
         tested = StopAndGo("theNoteUuid")
         tested._is_running = True
         tested._waiting_cycles = [1, 2]
         result = tested._recover_stuck_session()
         assert result is tested
         assert tested.is_running() is True
+        assert tested.waiting_cycles() == [1, 2]
 
         calls = [call.now(UTC)]
         assert mock_datetime.mock_calls == calls
@@ -276,7 +218,7 @@ def test__recover_stuck_session(mock_datetime, mock_log):
         reset_mocks()
 
         # running, at threshold: recovery
-        mock_datetime.now.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)]
+        mock_datetime.now.side_effect = [datetime(2025, 6, 14, 9, 23, 41, tzinfo=UTC)]
         tested = StopAndGo("theNoteUuid")
         tested._is_running = True
         tested._waiting_cycles = [1, 2, 3]
@@ -292,7 +234,7 @@ def test__recover_stuck_session(mock_datetime, mock_log):
                 "Stuck session detected for note theNoteUuid: "
                 "cycle=0, "
                 "waiting=[1, 2, 3], "
-                "created=2025-01-01T00:00:00+00:00"
+                "created=2025-06-14T09:23:41+00:00"
             ),
         ]
         assert mock_log.mock_calls == calls
@@ -471,17 +413,17 @@ def test_to_json(mock_datetime):
     reset_mocks()
 
 
-@patch("hyperscribe.libraries.stop_and_go.log")
+@patch.object(StopAndGo, "_recover_stuck_session", autospec=True, side_effect=lambda self: self)
 @patch("hyperscribe.libraries.stop_and_go.get_cache")
 @patch("hyperscribe.libraries.stop_and_go.datetime", wraps=datetime)
-def test_get(mock_datetime, get_cache, mock_log):
+def test_get(mock_datetime, get_cache, mock_recover):
     def reset_mocks():
         mock_datetime.reset_mock()
         get_cache.reset_mock()
-        mock_log.reset_mock()
+        mock_recover.reset_mock()
 
     tested = StopAndGo
-    # key exists, not stuck
+    # key exists
     get_cache.return_value.get.side_effect = [
         {
             "cycle": 7,
@@ -516,41 +458,9 @@ def test_get(mock_datetime, get_cache, mock_log):
     assert result._delay == 3
     calls = [call(), call().get("stopAndGo:theNoteUuid")]
     assert get_cache.mock_calls == calls
-    assert mock_log.mock_calls == []
+    calls = [call(result)]
+    assert mock_recover.mock_calls == calls
     reset_mocks()
-
-    # key exists, stuck session recovered on load
-    with patch.object(Constants, "STUCK_SESSION_WAITING_CYCLES_THRESHOLD", 3):
-        get_cache.return_value.get.side_effect = [
-            {
-                "cycle": 4,
-                "noteUuid": "theNoteUuid",
-                "created": "2025-01-01T00:00:00+00:00",
-                "isRunning": True,
-                "isPaused": False,
-                "isEnded": False,
-                "pausedEffects": [],
-                "waitingCycles": [5, 6, 7],
-                "delay": 0,
-            }
-        ]
-        result = tested.get("theNoteUuid")
-        assert isinstance(result, StopAndGo)
-        assert result._is_running is False
-        assert result._waiting_cycles == [5, 6, 7]
-
-        calls = [call(), call().get("stopAndGo:theNoteUuid")]
-        assert get_cache.mock_calls == calls
-        calls = [
-            call.warning(
-                "Stuck session detected for note theNoteUuid: "
-                "cycle=4, "
-                "waiting=[5, 6, 7], "
-                "created=2025-01-01T00:00:00+00:00"
-            ),
-        ]
-        assert mock_log.mock_calls == calls
-        reset_mocks()
 
     # key does not exist
     mock_datetime.now.side_effect = [datetime(2025, 8, 7, 14, 1, 37, 123456, tzinfo=UTC)]
@@ -568,7 +478,7 @@ def test_get(mock_datetime, get_cache, mock_log):
     assert result._delay == 0
     calls = [call(), call().get("stopAndGo:theNoteUuid")]
     assert get_cache.mock_calls == calls
-    assert mock_log.mock_calls == []
+    assert mock_recover.mock_calls == []
     reset_mocks()
 
 

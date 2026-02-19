@@ -123,7 +123,6 @@ class CaptureView(SimpleAPI):
         )
 
         stop_and_go = StopAndGo.get(note_id)
-
         context = {
             "patientUuid": patient_id,
             "noteUuid": note_id,
@@ -242,7 +241,6 @@ class CaptureView(SimpleAPI):
             if not response.status_code:
                 return [Response(b"Failed to save chunk (AWS S3 failure)", HTTPStatus.SERVICE_UNAVAILABLE)]
             return [Response(response.content, HTTPStatus(response.status_code))]
-
         if not stop_and_go.is_running():
             user_id = self.request.headers.get("canvas-logged-in-user-id")
             executor.submit(Helper.with_cleanup(self.run_commander), identification, user_id)
