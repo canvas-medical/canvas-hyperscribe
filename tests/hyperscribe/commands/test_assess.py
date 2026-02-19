@@ -316,3 +316,28 @@ def test_is_available_all_fields_locked(can_edit_field):
 
     calls = [call("background"), call("narrative")]
     assert can_edit_field.mock_calls == calls
+
+
+@patch.object(Assess, "can_edit_field")
+@patch.object(LimitedCache, "current_conditions")
+def test_is_available_partial_field_locked(current_conditions, can_edit_field):
+    tested = helper_instance()
+    conditions = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+    ]
+    tests = [
+        ([True, False], True),
+        ([False, True], True),
+    ]
+    for side_effect, expected in tests:
+        can_edit_field.side_effect = side_effect
+        current_conditions.side_effect = [conditions]
+        result = tested.is_available()
+        assert result is expected
+
+        calls = [call("background"), call("narrative")]
+        assert can_edit_field.mock_calls == calls
+        calls = [call()]
+        assert current_conditions.mock_calls == calls
+        can_edit_field.reset_mock()
+        current_conditions.reset_mock()

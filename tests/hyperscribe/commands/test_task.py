@@ -610,3 +610,20 @@ def test_is_available_all_fields_locked(can_edit_field):
 
     calls = [call("title"), call("comment")]
     assert can_edit_field.mock_calls == calls
+
+
+@patch.object(Task, "can_edit_field")
+def test_is_available_partial_field_locked(can_edit_field):
+    tested = helper_instance()
+    tests = [
+        ([True, False], True),
+        ([False, True], True),
+    ]
+    for side_effect, expected in tests:
+        can_edit_field.side_effect = side_effect
+        result = tested.is_available()
+        assert result is expected
+
+        calls = [call("title"), call("comment")]
+        assert can_edit_field.mock_calls == calls
+        can_edit_field.reset_mock()
