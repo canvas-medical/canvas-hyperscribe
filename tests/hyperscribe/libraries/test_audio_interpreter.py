@@ -51,7 +51,7 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
         aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
         if mocks:
             for m in mocks:
-                m.return_value.can_edit_command.return_value = True
+                m.return_value.can_edit_command.side_effect = [True]
             mocks[0].return_value.is_available.side_effect = [True]
             mocks[1].return_value.is_available.side_effect = [True]
             mocks[2].return_value.is_available.side_effect = [False]
@@ -106,7 +106,7 @@ def test___init__(command_list):
     aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
 
     for m in mocks:
-        m.return_value.can_edit_command.return_value = True
+        m.return_value.can_edit_command.side_effect = [True]
     mocks[0].return_value.is_available.side_effect = [True]
     mocks[1].return_value.is_available.side_effect = [True]
     mocks[2].return_value.is_available.side_effect = [False]
@@ -154,9 +154,9 @@ def test___init___with_template_filtering(command_list):
     mocks = [MagicMock(), MagicMock(), MagicMock()]
 
     # CommandA is allowed, CommandB is locked by template, CommandC is allowed
-    mocks[0].return_value.can_edit_command.return_value = True
-    mocks[1].return_value.can_edit_command.return_value = False
-    mocks[2].return_value.can_edit_command.return_value = True
+    mocks[0].return_value.can_edit_command.side_effect = [True]
+    mocks[1].return_value.can_edit_command.side_effect = [False]
+    mocks[2].return_value.can_edit_command.side_effect = [True]
 
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
