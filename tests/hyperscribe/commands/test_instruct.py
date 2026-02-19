@@ -322,7 +322,7 @@ def test_is_available(can_edit_field):
 
 
 @patch.object(Instruct, "can_edit_field", return_value=False)
-def test_is_available_all_fields_locked(can_edit_field):
+def test_is_available__all_fields_locked(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
     expected = False

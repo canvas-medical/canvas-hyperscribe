@@ -320,7 +320,7 @@ def test_is_available(current_goals, can_edit_field):
 
 
 @patch.object(UpdateGoal, "can_edit_field", return_value=False)
-def test_is_available_all_fields_locked(can_edit_field):
+def test_is_available__all_fields_locked(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
     expected = False

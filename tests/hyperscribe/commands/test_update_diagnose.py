@@ -436,7 +436,7 @@ def test_is_available(current_conditions, can_edit_field):
 
 
 @patch.object(UpdateDiagnose, "can_edit_field", return_value=False)
-def test_is_available_all_fields_locked(can_edit_field):
+def test_is_available__all_fields_locked(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
     expected = False
@@ -448,7 +448,7 @@ def test_is_available_all_fields_locked(can_edit_field):
 
 @patch.object(UpdateDiagnose, "can_edit_field")
 @patch.object(LimitedCache, "current_conditions")
-def test_is_available_partial_field_locked(current_conditions, can_edit_field):
+def test_is_available__partial_field_locked(current_conditions, can_edit_field):
     tested = helper_instance()
     conditions = [
         CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
