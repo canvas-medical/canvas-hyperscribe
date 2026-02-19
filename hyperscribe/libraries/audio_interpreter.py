@@ -59,6 +59,12 @@ class AudioInterpreter:
         for class_name, instance in self._command_context.items():
             if class_name in names and (constraint := instance.instruction_constraints()):
                 result.append(constraint)
+            elif (
+                class_name == "Diagnose"
+                and class_name not in names
+                and (constraint := instance.instruction_constraints())
+            ):
+                result.append(constraint)
         return result
 
     def command_structures(self, class_name: str) -> dict:
