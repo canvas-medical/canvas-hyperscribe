@@ -36,6 +36,9 @@ class BaseQuestionnaire(Base):
         return []
 
     def skipped_field_instruction(self) -> str:
+        # The imperative tone is intentional — the LLM must never flip 'skipped' back to True
+        # once a question has been enabled. This is enforced both by this prompt and by
+        # post_process_questionnaire as a structural safeguard.
         return (
             "CRITICAL: If a question already has 'skipped' set to 'false', you MUST keep it as 'false'. "
             "Never change 'skipped' from 'false' back to 'true' or 'null'. "
