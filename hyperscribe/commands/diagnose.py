@@ -107,19 +107,27 @@ class Diagnose(Base):
 
     def instruction_description(self) -> str:
         return (
-            "Medical condition identified by a provider; the necessary information to report includes: "
+            "Medical condition identified, diagnosed, or referenced as pertaining to the patient "
+            "by a provider; the necessary information to report includes: "
             "- the medical condition itself, "
             "- all reasoning explicitly mentioned in the transcript, "
             "- current detailed assessment as mentioned in the transcript, and "
             "- the approximate date of onset if mentioned in the transcript. "
+            "If a condition is discussed in relation to the patient's treatment or medications "
+            "(e.g., asking about a medication used for a specific condition), and that condition is not already "
+            "in the patient's chart, create a Diagnose instruction for it. "
             "There is one and only one condition per instruction with all necessary information, "
             "and no instruction in the lack of."
         )
 
     def instruction_constraints(self) -> str:
         result = ""
-        if text := ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()]):
-            result = f"Only document '{self.class_name()}' for conditions outside the following list: {text}."
+        if text := ", ".join([f"{condition.label}" for condition in self.cache.all_chart_conditions()]):
+            result = (
+                f"Only document '{self.class_name()}' for conditions outside the following list: {text}. "
+                f"However, if a condition is mentioned or discussed in the transcript but is NOT in this list, "
+                f"a '{self.class_name()}' instruction MUST be created for it."
+            )
         return result
 
     def is_available(self) -> bool:

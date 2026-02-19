@@ -60,6 +60,7 @@ def test___init__():
     assert tested._settings == {}
 
     assert tested._allergies is None
+    assert tested._all_conditions is None
     assert tested._condition_history is None
     assert tested._conditions is None
     assert tested._demographic is None
@@ -266,6 +267,9 @@ def test_retrieve_conditions(condition_db, codings_db):
         ConditionCoding(system="http://snomed.info/sct", display="display2c", code="44"),
         ConditionCoding(system="ICD-10", display="display3a", code="CODE9876"),
         ConditionCoding(system="ICD-10", display="display5a", code="CODE8888"),
+        ConditionCoding(system="ICD-10", display="display6a", code="CODE7777"),
+        ConditionCoding(system="ICD-10", display="display7a", code="CODE6666"),
+        ConditionCoding(system="ICD-10", display="display8a", code="CODE5555"),
         ConditionCoding(system="ImpossibleCase", display="ImpossibleCase", code="ImpossibleCase"),
         None,
     ]
@@ -276,8 +280,11 @@ def test_retrieve_conditions(condition_db, codings_db):
             Condition(id=uuid5(NAMESPACE_DNS, "3"), clinical_status="resolved", surgical=True),
             Condition(id=uuid5(NAMESPACE_DNS, "4"), clinical_status="resolved", surgical=False),
             Condition(id=uuid5(NAMESPACE_DNS, "5"), clinical_status="active"),
-            Condition(id=uuid5(NAMESPACE_DNS, "6"), clinical_status="resolved"),
-            Condition(id=uuid5(NAMESPACE_DNS, "7"), clinical_status="active"),
+            Condition(id=uuid5(NAMESPACE_DNS, "6"), clinical_status="relapse"),
+            Condition(id=uuid5(NAMESPACE_DNS, "7"), clinical_status="remission"),
+            Condition(id=uuid5(NAMESPACE_DNS, "8"), clinical_status="investigative"),
+            Condition(id=uuid5(NAMESPACE_DNS, "9"), clinical_status="resolved"),
+            Condition(id=uuid5(NAMESPACE_DNS, "10"), clinical_status="active"),
         ],
     ]
     tested = LimitedCache("patientUuid", "providerUuid", {})
@@ -298,11 +305,28 @@ def test_retrieve_conditions(condition_db, codings_db):
     result = tested._surgery_history
     expected = [CodedItem(uuid="98123fde-012f-5ff3-8b50-881449dac91a", label="display2c", code="44")]
     assert result == expected
+    result = tested._all_conditions
+    expected = [
+        CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display4a", code="CODE45"),
+        CodedItem(uuid="98123fde-012f-5ff3-8b50-881449dac91a", label="display2c", code="44"),
+        CodedItem(uuid="6ed955c6-506a-5343-9be4-2c0afae02eef", label="display3a", code="CODE98.76"),
+        CodedItem(uuid="c8691da2-158a-5ed6-8537-0e6f140801f2", label="display5a", code="CODE88.88"),
+        CodedItem(uuid="a6c4fc8f-6950-51de-a9ae-2c519c465071", label="display6a", code="CODE77.77"),
+        CodedItem(uuid="a9f96b98-dd44-5216-ab0d-dbfc6b262edf", label="display7a", code="CODE66.66"),
+        CodedItem(uuid="e99caacd-6c45-5906-bd9f-b79e62f25963", label="display8a", code="CODE55.55"),
+        CodedItem(uuid="e4d80b30-151e-51b5-9f4f-18a3b82718e6", label="ImpossibleCase", code="ImpossibleCase"),
+    ]
+    assert result == expected
 
     calls = [
         call.committed(),
         call.committed().for_patient("patientUuid"),
-        call.committed().for_patient().filter(clinical_status__in=["active", "resolved"]),
+        call.committed()
+        .for_patient()
+        .filter(
+            clinical_status__in=["active", "resolved", "relapse", "remission", "investigative"],
+        ),
         call.committed().for_patient().filter().order_by("-dbid"),
     ]
     assert condition_db.mock_calls == calls
@@ -318,7 +342,7 @@ def test_retrieve_conditions(condition_db, codings_db):
         call.filter().annotate().order_by("system_order"),
         call.filter().annotate().order_by().first(),
     ]
-    assert codings_db.mock_calls == calls * 7
+    assert codings_db.mock_calls == calls * 10
     reset_mocks()
 
 
@@ -525,6 +549,27 @@ def test_current_conditions(retrieve_conditions):
     result = tested.current_conditions()
     assert result == []
     assert tested._conditions == []
+    assert retrieve_conditions.mock_calls == []
+    reset_mocks()
+
+
+@patch.object(LimitedCache, "retrieve_conditions")
+def test_all_chart_conditions(retrieve_conditions):
+    def reset_mocks():
+        retrieve_conditions.reset_mock()
+
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+    assert tested._all_conditions is None
+    result = tested.all_chart_conditions()
+    assert result == []
+    calls = [call()]
+    assert retrieve_conditions.mock_calls == calls
+    reset_mocks()
+
+    tested._all_conditions = []
+    result = tested.all_chart_conditions()
+    assert result == []
+    assert tested._all_conditions == []
     assert retrieve_conditions.mock_calls == []
     reset_mocks()
 
@@ -1470,11 +1515,13 @@ def test_preferred_lab_partner(lab_partner_db, practice_setting):
 @patch.object(LimitedCache, "current_conditions")
 @patch.object(LimitedCache, "current_allergies")
 @patch.object(LimitedCache, "condition_history")
+@patch.object(LimitedCache, "all_chart_conditions")
 @patch.object(LimitedCache, "charge_descriptions")
 @patch.object(LimitedCache, "demographic__str__")
 def test_to_json(
     demographic,
     charge_descriptions,
+    all_chart_conditions,
     condition_history,
     current_allergies,
     current_conditions,
@@ -1495,6 +1542,7 @@ def test_to_json(
     def reset_mocks():
         demographic.reset_mock()
         charge_descriptions.reset_mock()
+        all_chart_conditions.reset_mock()
         condition_history.reset_mock()
         current_allergies.reset_mock()
         current_conditions.reset_mock()
@@ -1538,6 +1586,12 @@ def test_to_json(
             [
                 ChargeDescription(short_name="shortName1", full_name="fullName1", cpt_code="code1"),
                 ChargeDescription(short_name="shortName2", full_name="fullName2", cpt_code="code2"),
+            ],
+        ]
+        all_chart_conditions.side_effect = [
+            [
+                CodedItem(uuid="uuid014", label="label014", code="code014"),
+                CodedItem(uuid="uuid114", label="label114", code="code114"),
             ],
         ]
         condition_history.side_effect = [
@@ -1637,6 +1691,10 @@ def test_to_json(
 
         result = tested.to_json(obfuscate)
         expected = {
+            "allChartConditions": [
+                {"code": "code014", "label": "label014", "uuid": "uuid014"},
+                {"code": "code114", "label": "label114", "uuid": "uuid114"},
+            ],
             "conditionHistory": [
                 {"code": "code002", "label": "label002", "uuid": "uuid002"},
                 {"code": "code102", "label": "label102", "uuid": "uuid102"},
@@ -1730,6 +1788,7 @@ def test_to_json(
         calls = [call(obfuscate)]
         assert demographic.mock_calls == calls
         calls = [call()]
+        assert all_chart_conditions.mock_calls == calls
         assert condition_history.mock_calls == calls
         assert current_allergies.mock_calls == calls
         assert current_conditions.mock_calls == calls
@@ -1749,6 +1808,10 @@ def test_to_json(
 
 def test_load_from_json():
     cache = {
+        "allChartConditions": [
+            {"code": "code014", "label": "label014", "uuid": "uuid014"},
+            {"code": "code114", "label": "label114", "uuid": "uuid114"},
+        ],
         "conditionHistory": [
             {"code": "code002", "label": "label002", "uuid": "uuid002"},
             {"code": "code102", "label": "label102", "uuid": "uuid102"},
@@ -1867,6 +1930,10 @@ def test_load_from_json():
     }
     assert result.demographic__str__(True) == "theDemographic"
 
+    assert result.all_chart_conditions() == [
+        CodedItem(uuid="uuid014", label="label014", code="code014"),
+        CodedItem(uuid="uuid114", label="label114", code="code114"),
+    ]
     assert result.current_allergies() == [
         CodedItem(uuid="uuid003", label="label003", code="code003"),
         CodedItem(uuid="uuid103", label="label103", code="code103"),

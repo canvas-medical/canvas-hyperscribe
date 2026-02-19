@@ -362,21 +362,25 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Medical condition identified by a provider; the necessary information to report includes: "
+        "Medical condition identified, diagnosed, or referenced as pertaining to the patient "
+        "by a provider; the necessary information to report includes: "
         "- the medical condition itself, "
         "- all reasoning explicitly mentioned in the transcript, "
         "- current detailed assessment as mentioned in the transcript, and "
         "- the approximate date of onset if mentioned in the transcript. "
+        "If a condition is discussed in relation to the patient's treatment or medications "
+        "(e.g., asking about a medication used for a specific condition), and that condition is not already "
+        "in the patient's chart, create a Diagnose instruction for it. "
         "There is one and only one condition per instruction with all necessary information, "
         "and no instruction in the lack of."
     )
     assert result == expected
 
 
-@patch.object(LimitedCache, "current_conditions")
-def test_instruction_constraints(current_conditions):
+@patch.object(LimitedCache, "all_chart_conditions")
+def test_instruction_constraints(all_chart_conditions):
     def reset_mocks():
-        current_conditions.reset_mock()
+        all_chart_conditions.reset_mock()
 
     tested = helper_instance()
     conditions = [
@@ -387,16 +391,18 @@ def test_instruction_constraints(current_conditions):
     tests = [
         (
             conditions,
-            "Only document 'Diagnose' for conditions outside the following list: display1a, display2a, display3a.",
+            "Only document 'Diagnose' for conditions outside the following list: display1a, display2a, display3a. "
+            "However, if a condition is mentioned or discussed in the transcript but is NOT in this list, "
+            "a 'Diagnose' instruction MUST be created for it.",
         ),
         ([], ""),
     ]
     for side_effect, expected in tests:
-        current_conditions.side_effect = [side_effect]
+        all_chart_conditions.side_effect = [side_effect]
         result = tested.instruction_constraints()
         assert result == expected
         calls = [call()]
-        assert current_conditions.mock_calls == calls
+        assert all_chart_conditions.mock_calls == calls
         reset_mocks()
 
 
