@@ -71,43 +71,304 @@ def test_additional_instructions():
 def test_skipped_field_instruction():
     tested = helper_instance()
     result = tested.skipped_field_instruction()
-    assert result == (
-        "This includes the values of 'skipped', change it to 'false' only if the question "
-        "is obviously answered in the transcript, don't change it at all otherwise."
+    expected = (
+        "CRITICAL: If a question already has 'skipped' set to 'false', you MUST keep it as 'false'. "
+        "Never change 'skipped' from 'false' back to 'true' or 'null'. "
+        "You may only change 'skipped' from 'true' to 'false' if the question is clearly addressed "
+        "in the transcript. Questions that are already enabled must stay enabled."
     )
+    assert result == expected
 
 
-def test_post_process_questionnaire():
+@patch("hyperscribe.commands.base_questionnaire.log")
+def test_post_process_questionnaire__preserves_enabled_state(mock_log):
+    """LLM flips skipped from False to True — post-process reverts it."""
     tested = helper_instance()
     original = Questionnaire(
         dbid=1,
-        name="test",
+        name="PE",
         questions=[
             Question(
                 dbid=10,
-                label="q1",
+                label="General",
                 type=QuestionType.TYPE_TEXT,
                 skipped=False,
-                responses=[Response(dbid=100, value="text", selected=False, comment=None)],
+                responses=[Response(dbid=100, value="normal", selected=False, comment=None)],
+            ),
+            Question(
+                dbid=11,
+                label="HEENT",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=101, value="clear", selected=False, comment=None)],
             ),
         ],
     )
     updated = Questionnaire(
         dbid=1,
-        name="test",
+        name="PE",
         questions=[
             Question(
                 dbid=10,
-                label="q1",
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=True,
+                responses=[Response(dbid=100, value="normal", selected=False, comment=None)],
+            ),
+            Question(
+                dbid=11,
+                label="HEENT",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=101, value="updated findings", selected=False, comment=None)],
+            ),
+        ],
+    )
+    result = tested.post_process_questionnaire(original, updated)
+    expected = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=100, value="normal", selected=False, comment=None)],
+            ),
+            Question(
+                dbid=11,
+                label="HEENT",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=101, value="updated findings", selected=False, comment=None)],
+            ),
+        ],
+    )
+    assert result == expected
+    assert mock_log.mock_calls == [
+        call.info("[POST-PROCESS] Preserving enabled state for question 10 (General)"),
+    ]
+
+
+@patch("hyperscribe.commands.base_questionnaire.log")
+def test_post_process_questionnaire__normalizes_none_to_false(mock_log):
+    """Skipped=None should be normalized to False (enabled by default)."""
+    tested = helper_instance()
+    original = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=None,
+                responses=[Response(dbid=100, value="", selected=False, comment=None)],
+            ),
+        ],
+    )
+    updated = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=None,
+                responses=[Response(dbid=100, value="", selected=False, comment=None)],
+            ),
+        ],
+    )
+    result = tested.post_process_questionnaire(original, updated)
+    expected = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=100, value="", selected=False, comment=None)],
+            ),
+        ],
+    )
+    assert result == expected
+    assert mock_log.mock_calls == []
+
+
+@patch("hyperscribe.commands.base_questionnaire.log")
+def test_post_process_questionnaire__preserves_text(mock_log):
+    """LLM clears existing text — post-process restores it."""
+    tested = helper_instance()
+    original = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=100, value="normal appearance", selected=False, comment=None)],
+            ),
+        ],
+    )
+    updated = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=100, value="", selected=False, comment=None)],
+            ),
+        ],
+    )
+    result = tested.post_process_questionnaire(original, updated)
+    expected = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=100, value="normal appearance", selected=False, comment=None)],
+            ),
+        ],
+    )
+    assert result == expected
+    assert mock_log.mock_calls == [
+        call.info("[POST-PROCESS] Preserving text for question 10 (General)"),
+    ]
+
+
+@patch("hyperscribe.commands.base_questionnaire.log")
+def test_post_process_questionnaire__allows_text_updates(mock_log):
+    """LLM updates text with new content — post-process allows it."""
+    tested = helper_instance()
+    original = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=100, value="normal", selected=False, comment=None)],
+            ),
+        ],
+    )
+    updated = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=100, value="well-appearing, no distress", selected=False, comment=None)],
+            ),
+        ],
+    )
+    result = tested.post_process_questionnaire(original, updated)
+    expected = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=100, value="well-appearing, no distress", selected=False, comment=None)],
+            ),
+        ],
+    )
+    assert result == expected
+    assert mock_log.mock_calls == []
+
+
+@patch("hyperscribe.commands.base_questionnaire.log")
+def test_post_process_questionnaire__allows_skipped_true_to_false(mock_log):
+    """LLM enables a previously-skipped question — post-process allows it."""
+    tested = helper_instance()
+    original = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
                 type=QuestionType.TYPE_TEXT,
                 skipped=True,
                 responses=[Response(dbid=100, value="", selected=False, comment=None)],
             ),
         ],
     )
+    updated = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=100, value="new findings", selected=False, comment=None)],
+            ),
+        ],
+    )
     result = tested.post_process_questionnaire(original, updated)
-    # default is passthrough — returns updated as-is
-    assert result is updated
+    expected = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[
+            Question(
+                dbid=10,
+                label="General",
+                type=QuestionType.TYPE_TEXT,
+                skipped=False,
+                responses=[Response(dbid=100, value="new findings", selected=False, comment=None)],
+            ),
+        ],
+    )
+    assert result == expected
+    assert mock_log.mock_calls == []
+
+
+@patch("hyperscribe.commands.base_questionnaire.log")
+def test_post_process_questionnaire__unknown_question(mock_log):
+    """Updated questionnaire has a question not in original — passes through."""
+    tested = helper_instance()
+    original = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[],
+    )
+    new_q = Question(
+        dbid=99,
+        label="Unknown",
+        type=QuestionType.TYPE_TEXT,
+        skipped=True,
+        responses=[Response(dbid=999, value="text", selected=False, comment=None)],
+    )
+    updated = Questionnaire(
+        dbid=1,
+        name="PE",
+        questions=[new_q],
+    )
+    result = tested.post_process_questionnaire(original, updated)
+    assert result.questions[0] is new_q
+    assert mock_log.mock_calls == []
 
 
 def test_staged_command_extract():
@@ -519,15 +780,17 @@ def test_relevant_question_ids():
         reset_mocks()
 
 
+@patch("hyperscribe.commands.base_questionnaire.log")
 @patch.object(BaseQuestionnaire, "relevant_question_ids")
 @patch.object(BaseQuestionnaire, "include_skipped")
-def test_update_from_transcript(include_skipped, relevant_question_ids):
+def test_update_from_transcript(include_skipped, relevant_question_ids, mock_log):
     mock_chatter = MagicMock()
 
     def reset_mocks():
         include_skipped.reset_mock()
         relevant_question_ids.reset_mock()
         mock_chatter.reset_mock()
+        mock_log.reset_mock()
 
     discussion = Line.load_from_json(
         [
@@ -610,7 +873,7 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
                 dbid=371,
                 label="theQuestion4",
                 type=QuestionType.TYPE_CHECKBOX,
-                skipped=True,
+                skipped=False,
                 responses=[
                     Response(dbid=146, value="theResponse5", selected=True, comment="theComment5"),
                     Response(dbid=147, value="theResponse6", selected=True, comment="theComment6"),
@@ -690,8 +953,10 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
             "Your task is to replace the values of the JSON object as necessary.",
             "Since the current questionnaire's state is based on previous parts of the transcript, the changes "
             "should be based on explicit information only.",
-            "This includes the values of 'skipped', change it to 'false' only if the question "
-            "is obviously answered in the transcript, don't change it at all otherwise.",
+            "CRITICAL: If a question already has 'skipped' set to 'false', you MUST keep it as 'false'. "
+            "Never change 'skipped' from 'false' back to 'true' or 'null'. "
+            "You may only change 'skipped' from 'true' to 'false' if the question is clearly addressed "
+            "in the transcript. Questions that are already enabled must stay enabled.",
             "",
         ],
         "noSkipped": [
@@ -844,6 +1109,7 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
         assert relevant_question_ids.mock_calls == calls
         assert include_skipped.mock_calls == []
         assert mock_chatter.mock_calls == []
+        assert mock_log.mock_calls == []
         reset_mocks()
 
         # get a response
@@ -916,6 +1182,9 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
             call.chat([schemas[key_skipped]]),
         ]
         assert mock_chatter.mock_calls == calls
+        assert mock_log.mock_calls == [
+            call.info("[POST-PROCESS] Preserving enabled state for question 371 (theQuestion4)"),
+        ]
         reset_mocks()
 
         # no response
@@ -933,6 +1202,7 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
             call.chat([schemas[key_skipped]]),
         ]
         assert mock_chatter.mock_calls == calls
+        assert mock_log.mock_calls == []
         reset_mocks()
 
         # invalid question definition
@@ -951,6 +1221,7 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
         assert result is None
         assert include_skipped.mock_calls == []
         assert mock_chatter.mock_calls == []
+        assert mock_log.mock_calls == []
         reset_mocks()
 
 
