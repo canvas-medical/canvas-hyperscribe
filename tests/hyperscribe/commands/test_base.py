@@ -14,7 +14,7 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import MockClass
 
-# Permissions dict used by Base.command_type() → "BaseCommand"
+# Permissions dict used by Base.command_type() -> "BaseCommand"
 BASE_CMD = "BaseCommand"
 
 
@@ -494,417 +494,428 @@ def make_instruction(**overrides) -> InstructionWithParameters:
 
 def _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime):
     """Common setup for tests that exercise the LLM path."""
-    mock_json_schema.get.return_value = [{"type": "array"}]
-    mock_demographic.return_value = "theDemographic"
-    mock_datetime.now.return_value = FIXED_DATE
+    mock_json_schema.get.side_effect = [[{"type": "array"}]]
+    mock_demographic.side_effect = ["theDemographic"]
+    mock_datetime.now.side_effect = [FIXED_DATE]
 
 
 # -- can_edit_command ------------------------------------------------------
 
 
-class TestCanEditCommand:
-    def test_no_template(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(return_value={})
-        tested.permissions.load_permissions = load_permissions
+def test_can_edit_command__no_template():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(return_value={})
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.can_edit_command()
-        expected = True
-        assert result == expected
+    result = tested.can_edit_command()
+    expected = True
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-    def test_allowed(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}})
-        tested.permissions.load_permissions = load_permissions
 
-        result = tested.can_edit_command()
-        expected = True
-        assert result == expected
+def test_can_edit_command__allowed():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}})
+    tested.permissions.load_permissions = load_permissions
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    result = tested.can_edit_command()
+    expected = True
+    assert result == expected
 
-    def test_denied(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": False, "field_permissions": []}})
-        tested.permissions.load_permissions = load_permissions
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-        result = tested.can_edit_command()
-        expected = False
-        assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+def test_can_edit_command__denied():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": False, "field_permissions": []}})
+    tested.permissions.load_permissions = load_permissions
 
-    def test_missing_key_defaults_true(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(return_value={BASE_CMD: {"field_permissions": []}})
-        tested.permissions.load_permissions = load_permissions
+    result = tested.can_edit_command()
+    expected = False
+    assert result == expected
 
-        result = tested.can_edit_command()
-        expected = True
-        assert result == expected
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+
+def test_can_edit_command__missing_key_defaults_true():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(return_value={BASE_CMD: {"field_permissions": []}})
+    tested.permissions.load_permissions = load_permissions
+
+    result = tested.can_edit_command()
+    expected = True
+    assert result == expected
+
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
 
 # -- can_edit_field --------------------------------------------------------
 
 
-class TestCanEditField:
-    def test_no_template(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(return_value={})
-        tested.permissions.load_permissions = load_permissions
+def test_can_edit_field__no_template():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(return_value={})
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.can_edit_field("narrative")
-        expected = True
-        assert result == expected
+    result = tested.can_edit_field("narrative")
+    expected = True
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-    def test_command_not_editable(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(
-            return_value={
-                BASE_CMD: {
-                    "plugin_can_edit": False,
-                    "field_permissions": [{"field_name": "narrative", "plugin_can_edit": True}],
-                }
+
+def test_can_edit_field__command_not_editable():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(
+        return_value={
+            BASE_CMD: {
+                "plugin_can_edit": False,
+                "field_permissions": [{"field_name": "narrative", "plugin_can_edit": True}],
             }
-        )
-        tested.permissions.load_permissions = load_permissions
+        }
+    )
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.can_edit_field("narrative")
-        expected = False
-        assert result == expected
+    result = tested.can_edit_field("narrative")
+    expected = False
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-    def test_field_allowed(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(
-            return_value={
-                BASE_CMD: {
-                    "plugin_can_edit": True,
-                    "field_permissions": [
-                        {"field_name": "narrative", "plugin_can_edit": True},
-                        {"field_name": "background", "plugin_can_edit": False},
-                    ],
-                }
+
+def test_can_edit_field__field_allowed():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(
+        return_value={
+            BASE_CMD: {
+                "plugin_can_edit": True,
+                "field_permissions": [
+                    {"field_name": "narrative", "plugin_can_edit": True},
+                    {"field_name": "background", "plugin_can_edit": False},
+                ],
             }
-        )
-        tested.permissions.load_permissions = load_permissions
+        }
+    )
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.can_edit_field("narrative")
-        expected = True
-        assert result == expected
+    result = tested.can_edit_field("narrative")
+    expected = True
+    assert result == expected
 
-        result = tested.can_edit_field("background")
-        expected = False
-        assert result == expected
+    result = tested.can_edit_field("background")
+    expected = False
+    assert result == expected
 
-        calls = [call(), call()]
-        assert command_type.mock_calls == calls
-        calls = [call(), call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call(), call()]
+    assert command_type.mock_calls == calls
+    calls = [call(), call()]
+    assert load_permissions.mock_calls == calls
 
-    def test_no_specific_permission_inherits(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}})
-        tested.permissions.load_permissions = load_permissions
 
-        result = tested.can_edit_field("some_other_field")
-        expected = True
-        assert result == expected
+def test_can_edit_field__no_specific_permission_inherits():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}})
+    tested.permissions.load_permissions = load_permissions
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    result = tested.can_edit_field("some_other_field")
+    expected = True
+    assert result == expected
 
-    def test_missing_key_defaults_true(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(
-            return_value={
-                BASE_CMD: {
-                    "plugin_can_edit": True,
-                    "field_permissions": [{"field_name": "narrative"}],
-                }
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
+
+
+def test_can_edit_field__missing_key_defaults_true():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(
+        return_value={
+            BASE_CMD: {
+                "plugin_can_edit": True,
+                "field_permissions": [{"field_name": "narrative"}],
             }
-        )
-        tested.permissions.load_permissions = load_permissions
+        }
+    )
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.can_edit_field("narrative")
-        expected = True
-        assert result == expected
+    result = tested.can_edit_field("narrative")
+    expected = True
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-    def test_empty_field_permissions(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}})
-        tested.permissions.load_permissions = load_permissions
 
-        result = tested.can_edit_field("any_field")
-        expected = True
-        assert result == expected
+def test_can_edit_field__empty_field_permissions():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}})
+    tested.permissions.load_permissions = load_permissions
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    result = tested.can_edit_field("any_field")
+    expected = True
+    assert result == expected
 
-    def test_field_without_field_name(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(
-            return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": [{"plugin_can_edit": True}]}}
-        )
-        tested.permissions.load_permissions = load_permissions
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-        result = tested.can_edit_field("narrative")
-        expected = True
-        assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+def test_can_edit_field__field_without_field_name():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(
+        return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": [{"plugin_can_edit": True}]}}
+    )
+    tested.permissions.load_permissions = load_permissions
+
+    result = tested.can_edit_field("narrative")
+    expected = True
+    assert result == expected
+
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
 
 # -- get_template_instructions ---------------------------------------------
 
 
-class TestGetTemplateInstructions:
-    def test_no_template(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(return_value={})
-        tested.permissions.load_permissions = load_permissions
+def test_get_template_instructions__no_template():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(return_value={})
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.get_template_instructions("narrative")
-        expected = []
-        assert result == expected
+    result = tested.get_template_instructions("narrative")
+    expected = []
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-    def test_with_instructions(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(
-            return_value={
-                BASE_CMD: {
-                    "plugin_can_edit": True,
-                    "field_permissions": [
-                        {
-                            "field_name": "narrative",
-                            "plugin_can_edit": True,
-                            "add_instructions": ["symptoms", "duration", "severity"],
-                        }
-                    ],
-                }
+
+def test_get_template_instructions__with_instructions():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(
+        return_value={
+            BASE_CMD: {
+                "plugin_can_edit": True,
+                "field_permissions": [
+                    {
+                        "field_name": "narrative",
+                        "plugin_can_edit": True,
+                        "add_instructions": ["symptoms", "duration", "severity"],
+                    }
+                ],
             }
-        )
-        tested.permissions.load_permissions = load_permissions
+        }
+    )
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.get_template_instructions("narrative")
-        expected = ["symptoms", "duration", "severity"]
-        assert result == expected
+    result = tested.get_template_instructions("narrative")
+    expected = ["symptoms", "duration", "severity"]
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-    def test_field_not_found(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(
-            return_value={
-                BASE_CMD: {
-                    "plugin_can_edit": True,
-                    "field_permissions": [{"field_name": "other_field", "add_instructions": ["foo"]}],
-                }
+
+def test_get_template_instructions__field_not_found():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(
+        return_value={
+            BASE_CMD: {
+                "plugin_can_edit": True,
+                "field_permissions": [{"field_name": "other_field", "add_instructions": ["foo"]}],
             }
-        )
-        tested.permissions.load_permissions = load_permissions
+        }
+    )
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.get_template_instructions("narrative")
-        expected = []
-        assert result == expected
+    result = tested.get_template_instructions("narrative")
+    expected = []
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-    def test_missing_key(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(
-            return_value={
-                BASE_CMD: {
-                    "plugin_can_edit": True,
-                    "field_permissions": [{"field_name": "narrative", "plugin_can_edit": True}],
-                }
+
+def test_get_template_instructions__missing_key():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(
+        return_value={
+            BASE_CMD: {
+                "plugin_can_edit": True,
+                "field_permissions": [{"field_name": "narrative", "plugin_can_edit": True}],
             }
-        )
-        tested.permissions.load_permissions = load_permissions
+        }
+    )
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.get_template_instructions("narrative")
-        expected = []
-        assert result == expected
+    result = tested.get_template_instructions("narrative")
+    expected = []
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
 
 # -- get_template_framework ------------------------------------------------
 
 
-class TestGetTemplateFramework:
-    def test_no_template(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(return_value={})
-        tested.permissions.load_permissions = load_permissions
+def test_get_template_framework__no_template():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(return_value={})
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.get_template_framework("narrative")
-        expected = None
-        assert result == expected
+    result = tested.get_template_framework("narrative")
+    expected = None
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-    def test_with_framework(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(
-            return_value={
-                BASE_CMD: {
-                    "plugin_can_edit": True,
-                    "field_permissions": [
-                        {
-                            "field_name": "narrative",
-                            "plugin_can_edit": True,
-                            "plugin_edit_framework": "Patient is a [AGE] year old [GENDER].",
-                        }
-                    ],
-                }
+
+def test_get_template_framework__with_framework():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(
+        return_value={
+            BASE_CMD: {
+                "plugin_can_edit": True,
+                "field_permissions": [
+                    {
+                        "field_name": "narrative",
+                        "plugin_can_edit": True,
+                        "plugin_edit_framework": "Patient is a [AGE] year old [GENDER].",
+                    }
+                ],
             }
-        )
-        tested.permissions.load_permissions = load_permissions
+        }
+    )
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.get_template_framework("narrative")
-        expected = "Patient is a [AGE] year old [GENDER]."
-        assert result == expected
+    result = tested.get_template_framework("narrative")
+    expected = "Patient is a [AGE] year old [GENDER]."
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-    def test_field_not_found(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(
-            return_value={
-                BASE_CMD: {
-                    "plugin_can_edit": True,
-                    "field_permissions": [{"field_name": "other_field", "plugin_edit_framework": "some framework"}],
-                }
+
+def test_get_template_framework__field_not_found():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(
+        return_value={
+            BASE_CMD: {
+                "plugin_can_edit": True,
+                "field_permissions": [{"field_name": "other_field", "plugin_edit_framework": "some framework"}],
             }
-        )
-        tested.permissions.load_permissions = load_permissions
+        }
+    )
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.get_template_framework("narrative")
-        expected = None
-        assert result == expected
+    result = tested.get_template_framework("narrative")
+    expected = None
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
-    def test_missing_key(self):
-        tested = helper_instance()
-        command_type = MagicMock(return_value=BASE_CMD)
-        tested.command_type = command_type
-        load_permissions = MagicMock(
-            return_value={
-                BASE_CMD: {
-                    "plugin_can_edit": True,
-                    "field_permissions": [{"field_name": "narrative", "plugin_can_edit": True}],
-                }
+
+def test_get_template_framework__missing_key():
+    tested = helper_instance()
+    command_type = MagicMock(return_value=BASE_CMD)
+    tested.command_type = command_type
+    load_permissions = MagicMock(
+        return_value={
+            BASE_CMD: {
+                "plugin_can_edit": True,
+                "field_permissions": [{"field_name": "narrative", "plugin_can_edit": True}],
             }
-        )
-        tested.permissions.load_permissions = load_permissions
+        }
+    )
+    tested.permissions.load_permissions = load_permissions
 
-        result = tested.get_template_framework("narrative")
-        expected = None
-        assert result == expected
+    result = tested.get_template_framework("narrative")
+    expected = None
+    assert result == expected
 
-        calls = [call()]
-        assert command_type.mock_calls == calls
-        calls = [call()]
-        assert load_permissions.mock_calls == calls
+    calls = [call()]
+    assert command_type.mock_calls == calls
+    calls = [call()]
+    assert load_permissions.mock_calls == calls
 
 
 # -- _resolve_framework ----------------------------------------------------
@@ -924,40 +935,6 @@ def test__resolve_framework(mock_get_framework):
     mock_get_framework.return_value = None
     assert tested._resolve_framework("narrative") is None
     assert mock_get_framework.mock_calls == [call("narrative")]
-
-
-# -- resolve_field ---------------------------------------------------------
-
-
-@patch.object(Base, "fill_template_content")
-@patch.object(Base, "can_edit_field")
-def test_resolve_field(mock_can_edit, mock_fill):
-    instruction = make_instruction()
-    chatter = MagicMock()
-    tested = helper_instance()
-
-    # editable field
-    mock_can_edit.return_value = True
-    mock_fill.return_value = "filled content"
-
-    result = tested.resolve_field("narrative", "generated text", instruction, chatter)
-
-    assert result == "filled content"
-    assert mock_can_edit.mock_calls == [call("narrative")]
-    assert mock_fill.mock_calls == [call("generated text", "narrative", instruction, chatter)]
-
-    # locked field
-    mock_can_edit.reset_mock()
-    mock_fill.reset_mock()
-    mock_can_edit.return_value = False
-    locked_chatter = MagicMock()
-
-    result = tested.resolve_field("narrative", "text", make_instruction(), locked_chatter)
-
-    assert result is None
-    assert mock_can_edit.mock_calls == [call("narrative")]
-    assert mock_fill.mock_calls == []
-    assert locked_chatter.mock_calls == []
 
 
 # -- fill_template_content -------------------------------------------------
@@ -1034,19 +1011,53 @@ def test_fill_template_content_with_framework(
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
     assert mock_datetime.mock_calls == [call.now()]
-    assert (
-        chatter.mock_calls
-        == [
-            call.reset_prompts(),
-            call.single_conversation(
-                chatter.reset_prompts.call_args,  # placeholder — checked via called
-                chatter.single_conversation.call_args,
-                [{"type": "array"}],
-                instruction,
-            ),
-        ]
-        or chatter.single_conversation.called
-    )
+    system_prompt = [
+        "The conversation is in the context of a clinical encounter between "
+        "patient (theDemographic) and licensed healthcare provider.",
+        "",
+        "You are updating a medical note that has a specific structure with section headers.",
+        "Your task is to preserve this EXACT structure while updating the content.",
+        "",
+        "CRITICAL REQUIREMENTS:",
+        "- Keep ALL existing text from the original content - do NOT delete any lines",
+        "- Keep ALL section headers exactly as they appear",
+        "- Keep the same line breaks and paragraph structure",
+        "- Only ADD information from the transcript to fill in empty sections",
+        "- Do NOT convert the structured format into prose paragraphs",
+        "- Do NOT remove, delete, or merge any existing content",
+        "- Do not fabricate or invent clinical details",
+        "- If a section is already filled, keep it as-is unless the transcript has updates",
+        "",
+        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "",
+    ]
+    user_prompt = [
+        "EXISTING STRUCTURED CONTENT (preserve this exact format):",
+        "```text",
+        "Patient is a [AGE] year old [GENDER] presenting with [SYMPTOMS].",
+        "```",
+        "",
+        "UPDATED INFORMATION from the transcript:",
+        "```text",
+        "generated headache content",
+        "```",
+        "\n\nThe template expects information about: symptoms, duration",
+        "",
+        "IMPORTANT: Keep ALL existing text from the original. Do NOT delete any lines.",
+        "Only fill in empty sections with information from the transcript.",
+        "Return the content with the EXACT same text, headers, and layout as the original.",
+        "",
+        "Your response must be a JSON Markdown block:",
+        "```json",
+        '[{"enhancedContent": "the structured content with same format as original"}]',
+        "```",
+        "",
+    ]
+    calls = [
+        call.reset_prompts(),
+        call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
+    ]
+    assert chatter.mock_calls == calls
 
 
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
@@ -1071,16 +1082,58 @@ def test_fill_template_content_strips_lit_markers(
 
     tested.fill_template_content("generated", "narrative", instruction, chatter)
 
-    user_prompt_text = "\n".join(chatter.single_conversation.call_args[0][1])
-    assert "{lit:" not in user_prompt_text
-    assert "Current concerns with memory:" in user_prompt_text
-    assert "Current concerns with functioning:" in user_prompt_text
     assert mock_resolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
     assert mock_datetime.mock_calls == [call.now()]
-    assert chatter.single_conversation.called
+    system_prompt = [
+        "The conversation is in the context of a clinical encounter between "
+        "patient (theDemographic) and licensed healthcare provider.",
+        "",
+        "You are updating a medical note that has a specific structure with section headers.",
+        "Your task is to preserve this EXACT structure while updating the content.",
+        "",
+        "CRITICAL REQUIREMENTS:",
+        "- Keep ALL existing text from the original content - do NOT delete any lines",
+        "- Keep ALL section headers exactly as they appear",
+        "- Keep the same line breaks and paragraph structure",
+        "- Only ADD information from the transcript to fill in empty sections",
+        "- Do NOT convert the structured format into prose paragraphs",
+        "- Do NOT remove, delete, or merge any existing content",
+        "- Do not fabricate or invent clinical details",
+        "- If a section is already filled, keep it as-is unless the transcript has updates",
+        "",
+        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "",
+    ]
+    user_prompt = [
+        "EXISTING STRUCTURED CONTENT (preserve this exact format):",
+        "```text",
+        "Patient presenting for assessment.\nCurrent concerns with memory:\nCurrent concerns with functioning:",
+        "```",
+        "",
+        "UPDATED INFORMATION from the transcript:",
+        "```text",
+        "generated",
+        "```",
+        "",
+        "",
+        "IMPORTANT: Keep ALL existing text from the original. Do NOT delete any lines.",
+        "Only fill in empty sections with information from the transcript.",
+        "Return the content with the EXACT same text, headers, and layout as the original.",
+        "",
+        "Your response must be a JSON Markdown block:",
+        "```json",
+        '[{"enhancedContent": "the structured content with same format as original"}]',
+        "```",
+        "",
+    ]
+    calls = [
+        call.reset_prompts(),
+        call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
+    ]
+    assert chatter.mock_calls == calls
 
 
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
@@ -1107,7 +1160,53 @@ def test_fill_template_content_with_framework_no_add_instructions(
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
     assert mock_datetime.mock_calls == [call.now()]
-    assert chatter.single_conversation.called
+    system_prompt = [
+        "The conversation is in the context of a clinical encounter between "
+        "patient (theDemographic) and licensed healthcare provider.",
+        "",
+        "You are updating a medical note that has a specific structure with section headers.",
+        "Your task is to preserve this EXACT structure while updating the content.",
+        "",
+        "CRITICAL REQUIREMENTS:",
+        "- Keep ALL existing text from the original content - do NOT delete any lines",
+        "- Keep ALL section headers exactly as they appear",
+        "- Keep the same line breaks and paragraph structure",
+        "- Only ADD information from the transcript to fill in empty sections",
+        "- Do NOT convert the structured format into prose paragraphs",
+        "- Do NOT remove, delete, or merge any existing content",
+        "- Do not fabricate or invent clinical details",
+        "- If a section is already filled, keep it as-is unless the transcript has updates",
+        "",
+        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "",
+    ]
+    user_prompt = [
+        "EXISTING STRUCTURED CONTENT (preserve this exact format):",
+        "```text",
+        "Patient is presenting today.",
+        "```",
+        "",
+        "UPDATED INFORMATION from the transcript:",
+        "```text",
+        "generated",
+        "```",
+        "",
+        "",
+        "IMPORTANT: Keep ALL existing text from the original. Do NOT delete any lines.",
+        "Only fill in empty sections with information from the transcript.",
+        "Return the content with the EXACT same text, headers, and layout as the original.",
+        "",
+        "Your response must be a JSON Markdown block:",
+        "```json",
+        '[{"enhancedContent": "the structured content with same format as original"}]',
+        "```",
+        "",
+    ]
+    calls = [
+        call.reset_prompts(),
+        call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
+    ]
+    assert chatter.mock_calls == calls
 
 
 @pytest.mark.parametrize("llm_response", [[], [{"enhancedContent": ""}]])
@@ -1131,7 +1230,8 @@ def test_fill_template_content_llm_empty_falls_back(
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
     chatter.single_conversation.return_value = llm_response
 
-    result = tested.fill_template_content("generated content", "narrative", make_instruction(), chatter)
+    instruction = make_instruction()
+    result = tested.fill_template_content("generated content", "narrative", instruction, chatter)
 
     assert result == "generated content"
     assert mock_resolve_framework.mock_calls == [call("narrative")]
@@ -1139,7 +1239,53 @@ def test_fill_template_content_llm_empty_falls_back(
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
     assert mock_datetime.mock_calls == [call.now()]
-    assert chatter.single_conversation.called
+    system_prompt = [
+        "The conversation is in the context of a clinical encounter between "
+        "patient (theDemographic) and licensed healthcare provider.",
+        "",
+        "You are updating a medical note that has a specific structure with section headers.",
+        "Your task is to preserve this EXACT structure while updating the content.",
+        "",
+        "CRITICAL REQUIREMENTS:",
+        "- Keep ALL existing text from the original content - do NOT delete any lines",
+        "- Keep ALL section headers exactly as they appear",
+        "- Keep the same line breaks and paragraph structure",
+        "- Only ADD information from the transcript to fill in empty sections",
+        "- Do NOT convert the structured format into prose paragraphs",
+        "- Do NOT remove, delete, or merge any existing content",
+        "- Do not fabricate or invent clinical details",
+        "- If a section is already filled, keep it as-is unless the transcript has updates",
+        "",
+        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "",
+    ]
+    user_prompt = [
+        "EXISTING STRUCTURED CONTENT (preserve this exact format):",
+        "```text",
+        "Template structure here.",
+        "```",
+        "",
+        "UPDATED INFORMATION from the transcript:",
+        "```text",
+        "generated content",
+        "```",
+        "\n\nThe template expects information about: symptoms",
+        "",
+        "IMPORTANT: Keep ALL existing text from the original. Do NOT delete any lines.",
+        "Only fill in empty sections with information from the transcript.",
+        "Return the content with the EXACT same text, headers, and layout as the original.",
+        "",
+        "Your response must be a JSON Markdown block:",
+        "```json",
+        '[{"enhancedContent": "the structured content with same format as original"}]',
+        "```",
+        "",
+    ]
+    calls = [
+        call.reset_prompts(),
+        call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
+    ]
+    assert chatter.mock_calls == calls
 
 
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
@@ -1169,14 +1315,58 @@ def test_fill_template_content_uses_existing_structure(
 
     tested.fill_template_content("generated prose", "narrative", instruction, chatter)
 
-    prompt_text = " ".join(chatter.single_conversation.call_args[0][1])
-    assert "Current concerns with memory or cognition" in prompt_text
     assert mock_resolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
     assert mock_datetime.mock_calls == [call.now()]
-    assert chatter.single_conversation.called
+    system_prompt = [
+        "The conversation is in the context of a clinical encounter between "
+        "patient (theDemographic) and licensed healthcare provider.",
+        "",
+        "You are updating a medical note that has a specific structure with section headers.",
+        "Your task is to preserve this EXACT structure while updating the content.",
+        "",
+        "CRITICAL REQUIREMENTS:",
+        "- Keep ALL existing text from the original content - do NOT delete any lines",
+        "- Keep ALL section headers exactly as they appear",
+        "- Keep the same line breaks and paragraph structure",
+        "- Only ADD information from the transcript to fill in empty sections",
+        "- Do NOT convert the structured format into prose paragraphs",
+        "- Do NOT remove, delete, or merge any existing content",
+        "- Do not fabricate or invent clinical details",
+        "- If a section is already filled, keep it as-is unless the transcript has updates",
+        "",
+        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "",
+    ]
+    user_prompt = [
+        "EXISTING STRUCTURED CONTENT (preserve this exact format):",
+        "```text",
+        structured_content,
+        "```",
+        "",
+        "UPDATED INFORMATION from the transcript:",
+        "```text",
+        "generated prose",
+        "```",
+        "",
+        "",
+        "IMPORTANT: Keep ALL existing text from the original. Do NOT delete any lines.",
+        "Only fill in empty sections with information from the transcript.",
+        "Return the content with the EXACT same text, headers, and layout as the original.",
+        "",
+        "Your response must be a JSON Markdown block:",
+        "```json",
+        '[{"enhancedContent": "the structured content with same format as original"}]',
+        "```",
+        "",
+    ]
+    calls = [
+        call.reset_prompts(),
+        call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
+    ]
+    assert chatter.mock_calls == calls
 
 
 # -- enhance_with_template_instructions ------------------------------------
@@ -1199,19 +1389,50 @@ def test_enhance_with_template_instructions(mock_json_schema, mock_demographic, 
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
     assert mock_datetime.mock_calls == [call.now()]
-    assert (
-        chatter.mock_calls
-        == [
-            call.reset_prompts(),
-            call.single_conversation(
-                chatter.reset_prompts.call_args,
-                chatter.single_conversation.call_args,
-                [{"type": "array"}],
-                instruction,
-            ),
-        ]
-        or chatter.single_conversation.called
-    )
+    system_prompt = [
+        "The conversation is in the context of a clinical encounter between "
+        "patient (theDemographic) and licensed healthcare provider.",
+        "",
+        "You are enhancing a medical note field based on template guidance.",
+        "The user will provide the current content and specific topics that should be included.",
+        "Your task is to incorporate the requested information naturally into the narrative.",
+        "",
+        "Important guidelines:",
+        "- Only add information that can be supported by the transcript",
+        "- Do not fabricate or invent clinical details",
+        "- Maintain the existing style and tone of the content",
+        "- If the requested information is not present in the transcript, do not add it",
+        "",
+        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "",
+    ]
+    user_prompt = [
+        "Current content:",
+        "```text",
+        "original",
+        "```",
+        "",
+        "Original transcript information:",
+        "```text",
+        "Patient reports headache for 3 days.",
+        "```",
+        "",
+        "Please ensure the content includes information about: symptoms, duration",
+        "",
+        "Return the enhanced content. If the requested information is not available "
+        "in the transcript, return the original content unchanged.",
+        "",
+        "Your response must be a JSON Markdown block:",
+        "```json",
+        '[{"enhancedContent": "the enhanced content here"}]',
+        "```",
+        "",
+    ]
+    calls = [
+        call.reset_prompts(),
+        call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
+    ]
+    assert chatter.mock_calls == calls
 
 
 @pytest.mark.parametrize("llm_response", [[], [{"enhancedContent": ""}]])
@@ -1224,10 +1445,54 @@ def test_enhance_with_template_instructions_llm_empty(mock_json_schema, mock_dem
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
     chatter.single_conversation.return_value = llm_response
 
-    result = tested.enhance_with_template_instructions("original", ["symptoms"], make_instruction(), chatter)
+    instruction = make_instruction()
+    result = tested.enhance_with_template_instructions("original", ["symptoms"], instruction, chatter)
 
     assert result == "original"
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
     assert mock_datetime.mock_calls == [call.now()]
-    assert chatter.single_conversation.called
+    system_prompt = [
+        "The conversation is in the context of a clinical encounter between "
+        "patient (theDemographic) and licensed healthcare provider.",
+        "",
+        "You are enhancing a medical note field based on template guidance.",
+        "The user will provide the current content and specific topics that should be included.",
+        "Your task is to incorporate the requested information naturally into the narrative.",
+        "",
+        "Important guidelines:",
+        "- Only add information that can be supported by the transcript",
+        "- Do not fabricate or invent clinical details",
+        "- Maintain the existing style and tone of the content",
+        "- If the requested information is not present in the transcript, do not add it",
+        "",
+        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "",
+    ]
+    user_prompt = [
+        "Current content:",
+        "```text",
+        "original",
+        "```",
+        "",
+        "Original transcript information:",
+        "```text",
+        "theInformation",
+        "```",
+        "",
+        "Please ensure the content includes information about: symptoms",
+        "",
+        "Return the enhanced content. If the requested information is not available "
+        "in the transcript, return the original content unchanged.",
+        "",
+        "Your response must be a JSON Markdown block:",
+        "```json",
+        '[{"enhancedContent": "the enhanced content here"}]',
+        "```",
+        "",
+    ]
+    calls = [
+        call.reset_prompts(),
+        call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
+    ]
+    assert chatter.mock_calls == calls

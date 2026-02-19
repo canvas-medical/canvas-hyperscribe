@@ -260,18 +260,6 @@ class Base:
         log.info(f"[TEMPLATE] No framework resolved for {self.class_name()}.{field_name}")
         return None
 
-    def resolve_field(
-        self,
-        field_name: str,
-        param_value: str,
-        instruction: InstructionWithParameters,
-        chatter: LlmBase,
-    ) -> str | None:
-        """Check edit permission and fill template content. Returns None if locked."""
-        if not self.can_edit_field(field_name):
-            return None
-        return self.fill_template_content(param_value, field_name, instruction, chatter)
-
     def fill_template_content(
         self,
         generated_content: str,

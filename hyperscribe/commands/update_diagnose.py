@@ -40,12 +40,20 @@ class UpdateDiagnose(Base):
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
         # Get field values with template permission checks
-        background = self.resolve_field("background", instruction.parameters["rationale"], instruction, chatter)
-        narrative = self.resolve_field("narrative", instruction.parameters["assessment"], instruction, chatter)
+        background = (
+            self.fill_template_content(instruction.parameters["rationale"], "background", instruction, chatter)
+            if self.can_edit_field("background")
+            else ""
+        )
+        narrative = (
+            self.fill_template_content(instruction.parameters["assessment"], "narrative", instruction, chatter)
+            if self.can_edit_field("narrative")
+            else ""
+        )
 
         result = UpdateDiagnosisCommand(
-            background=background or "",
-            narrative=narrative or "",
+            background=background,
+            narrative=narrative,
             note_uuid=self.identification.note_uuid,
         )
         if (

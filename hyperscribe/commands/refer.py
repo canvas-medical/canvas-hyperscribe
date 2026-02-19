@@ -63,10 +63,18 @@ class Refer(Base):
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
         # Get field values with template permission checks
-        notes_to_specialist = self.resolve_field(
-            "notes_to_specialist", instruction.parameters["notesToSpecialist"], instruction, chatter
+        notes_to_specialist = (
+            self.fill_template_content(
+                instruction.parameters["notesToSpecialist"], "notes_to_specialist", instruction, chatter
+            )
+            if self.can_edit_field("notes_to_specialist")
+            else ""
         )
-        comment = self.resolve_field("comment", instruction.parameters["comment"], instruction, chatter)
+        comment = (
+            self.fill_template_content(instruction.parameters["comment"], "comment", instruction, chatter)
+            if self.can_edit_field("comment")
+            else ""
+        )
 
         zip_codes = self.cache.practice_setting("serviceAreaZipCodes")
         information = instruction.parameters["referredServiceProvider"]["specialty"]
@@ -83,8 +91,8 @@ class Refer(Base):
                 ReferCommand.ClinicalQuestion,
             ),
             priority=Helper.enum_or_none(instruction.parameters["priority"], ReferCommand.Priority),
-            notes_to_specialist=notes_to_specialist or "",
-            comment=comment or "",
+            notes_to_specialist=notes_to_specialist,
+            comment=comment,
             note_uuid=self.identification.note_uuid,
             diagnosis_codes=[],
         )
@@ -96,7 +104,7 @@ class Refer(Base):
                 chatter,
                 condition["conditionKeywords"].split(","),
                 condition["ICD10"].split(","),
-                comment or "",
+                comment,
             )
             if item.code:
                 conditions.append(item)

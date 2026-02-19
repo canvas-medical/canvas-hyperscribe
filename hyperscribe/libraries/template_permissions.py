@@ -24,7 +24,7 @@ class TemplatePermissions:
 
     @classmethod
     def for_note(cls, note_uuid: str, cache_getter: Callable[[], Cache] | None = None) -> TemplatePermissions:
-        """Return a shared instance per note_uuid (singleton)."""
+        """Return a cached instance per note_uuid; creates one on first call."""
         if note_uuid not in cls._instances:
             cls._instances[note_uuid] = cls(note_uuid, cache_getter)
         return cls._instances[note_uuid]

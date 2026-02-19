@@ -37,9 +37,15 @@ class Diagnose(Base):
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
         # Get field values with template permission checks
-        background = self.resolve_field("background", instruction.parameters["rationale"], instruction, chatter)
-        today_assessment = self.resolve_field(
-            "today_assessment", instruction.parameters["assessment"], instruction, chatter
+        background = (
+            self.fill_template_content(instruction.parameters["rationale"], "background", instruction, chatter)
+            if self.can_edit_field("background")
+            else ""
+        )
+        today_assessment = (
+            self.fill_template_content(instruction.parameters["assessment"], "today_assessment", instruction, chatter)
+            if self.can_edit_field("today_assessment")
+            else ""
         )
 
         icd10_code = SelectorChat.condition_from(
@@ -47,16 +53,16 @@ class Diagnose(Base):
             chatter,
             instruction.parameters["keywords"].split(","),
             instruction.parameters["ICD10"].split(","),
-            "\n".join([background or "", "", today_assessment or ""]),
+            "\n".join([background, "", today_assessment]),
         )
         self.add_code2description(icd10_code.uuid, icd10_code.label)
         return InstructionWithCommand.add_command(
             instruction,
             DiagnoseCommand(
                 icd10_code=icd10_code.code,
-                background=background or "",
+                background=background,
                 approximate_date_of_onset=Helper.str2date(instruction.parameters["onsetDate"]),
-                today_assessment=today_assessment or "",
+                today_assessment=today_assessment,
                 note_uuid=self.identification.note_uuid,
             ),
         )

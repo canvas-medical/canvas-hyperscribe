@@ -39,16 +39,24 @@ class Assess(Base):
             self.add_code2description(current[idx].uuid, current[idx].label)
 
         # Get field values with template permission checks
-        background = self.resolve_field("background", instruction.parameters["rationale"], instruction, chatter)
-        narrative = self.resolve_field("narrative", instruction.parameters["assessment"], instruction, chatter)
+        background = (
+            self.fill_template_content(instruction.parameters["rationale"], "background", instruction, chatter)
+            if self.can_edit_field("background")
+            else ""
+        )
+        narrative = (
+            self.fill_template_content(instruction.parameters["assessment"], "narrative", instruction, chatter)
+            if self.can_edit_field("narrative")
+            else ""
+        )
 
         return InstructionWithCommand.add_command(
             instruction,
             AssessCommand(
                 condition_id=condition_id,
-                background=background or "",
+                background=background,
                 status=Helper.enum_or_none(instruction.parameters["status"], AssessCommand.Status),
-                narrative=narrative or "",
+                narrative=narrative,
                 note_uuid=self.identification.note_uuid,
             ),
         )

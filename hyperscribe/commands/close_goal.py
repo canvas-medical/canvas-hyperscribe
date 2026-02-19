@@ -34,7 +34,11 @@ class CloseGoal(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
-        progress = self.resolve_field("progress", instruction.parameters["progressAndBarriers"], instruction, chatter)
+        progress = (
+            self.fill_template_content(instruction.parameters["progressAndBarriers"], "progress", instruction, chatter)
+            if self.can_edit_field("progress")
+            else ""
+        )
 
         goal_uuid = "0"
         if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
