@@ -159,16 +159,13 @@ def test_session_progress_log(progress):
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.capture_view.log")
 @patch("hyperscribe.handlers.capture_view.Customization")
 @patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.render_to_string")
 @patch("hyperscribe.handlers.capture_view.Authenticator")
-def test_capture_get(authenticator, render_to_string, stop_and_go, helper, customization, mock_log):
-    mock_normal = MagicMock()
-    mock_existing = MagicMock()
-    mock_reset = MagicMock()
+def test_capture_get(authenticator, render_to_string, stop_and_go, helper, customization):
+    mock_stop_and_go = MagicMock()
 
     def reset_mocks():
         authenticator.reset_mock()
@@ -176,23 +173,17 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
         stop_and_go.reset_mock()
         helper.reset_mock()
         customization.reset_mock()
-        mock_log.reset_mock()
-        mock_normal.reset_mock()
-        mock_existing.reset_mock()
-        mock_reset.reset_mock()
+        mock_stop_and_go.reset_mock()
 
-    # normal case: not stuck
     render_to_string.side_effect = ["<html/>"]
     helper.canvas_ws_host.side_effect = ["theWsHost"]
     customization.customizations.side_effect = [Customization(ui_default_tab=DefaultTab.ACTIVITY, custom_prompts=[])]
     authenticator.presigned_url.side_effect = ["Url1"]
     authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7", "Url8", "Url9"]
-    mock_normal.is_running.side_effect = [False]
-    mock_normal.is_ended.side_effect = [False]
-    mock_normal.is_paused.side_effect = [False, False]
-    mock_normal.cycle.side_effect = [7]
-    mock_normal.waiting_cycles.side_effect = []
-    stop_and_go.get.side_effect = [mock_normal]
+    mock_stop_and_go.is_ended.side_effect = [False]
+    mock_stop_and_go.is_paused.side_effect = [False, False]
+    mock_stop_and_go.cycle.side_effect = [7]
+    stop_and_go.get.side_effect = [mock_stop_and_go]
 
     tested = helper_instance()
     tested.request = SimpleNamespace(
@@ -272,13 +263,12 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
     calls = [call.get("the-00-note")]
     assert stop_and_go.mock_calls == calls
     calls = [
-        call.is_running(),
         call.is_ended(),
         call.is_paused(),
         call.cycle(),
         call.is_paused(),
     ]
-    assert mock_normal.mock_calls == calls
+    assert mock_stop_and_go.mock_calls == calls
     calls = [call.canvas_ws_host("customerIdentifier")]
     assert helper.mock_calls == calls
     calls = [
@@ -289,68 +279,6 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
         )
     ]
     assert customization.mock_calls == calls
-    assert mock_log.mock_calls == []
-    reset_mocks()
-
-    # stuck session: is_running + 5 waiting cycles => force reset
-    mock_existing.is_running.side_effect = [True]
-    mock_existing.waiting_cycles.side_effect = [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]
-    mock_existing.cycle.side_effect = [0]
-    mock_existing.created.side_effect = [datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc)]
-    stop_and_go.get.side_effect = [mock_existing]
-
-    stop_and_go.side_effect = [mock_reset]
-    mock_reset.is_ended.side_effect = [False]
-    mock_reset.is_paused.side_effect = [False, False]
-    mock_reset.cycle.side_effect = [0]
-
-    render_to_string.side_effect = ["<html/>"]
-    helper.canvas_ws_host.side_effect = ["theWsHost"]
-    customization.customizations.side_effect = [Customization(ui_default_tab=DefaultTab.ACTIVITY, custom_prompts=[])]
-    authenticator.presigned_url.side_effect = ["Url1"]
-    authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7", "Url8", "Url9"]
-
-    tested = helper_instance()
-    tested.request = SimpleNamespace(
-        path_params={"patient_id": "the-00-patient", "note_id": "the-00-note", "note_reference": "4571"},
-        query_params={},
-        headers={"canvas-logged-in-user-id": "the-00-user"},
-    )
-
-    result = tested.capture_get()
-    expected = [HTMLResponse(content="<html/>", status_code=HTTPStatus(200))]
-    assert result == expected
-
-    calls = [
-        call.get("the-00-note"),
-        call("the-00-note"),
-    ]
-    assert stop_and_go.mock_calls == calls
-    calls = [
-        call.is_running(),
-        call.waiting_cycles(),
-        call.cycle(),
-        call.waiting_cycles(),
-        call.created(),
-    ]
-    assert mock_existing.mock_calls == calls
-    calls = [
-        call.save(),
-        call.is_ended(),
-        call.is_paused(),
-        call.cycle(),
-        call.is_paused(),
-    ]
-    assert mock_reset.mock_calls == calls
-    calls = [
-        call.warning(
-            "Stuck session detected on page load for note the-00-note: "
-            "cycle=0, "
-            "waiting=[1, 2, 3, 4, 5], "
-            "created=2025-01-01T00:00:00+00:00"
-        ),
-    ]
-    assert mock_log.mock_calls == calls
     reset_mocks()
 
 

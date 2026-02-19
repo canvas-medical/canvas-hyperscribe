@@ -123,18 +123,6 @@ class CaptureView(SimpleAPI):
         )
 
         stop_and_go = StopAndGo.get(note_id)
-        if (
-            stop_and_go.is_running()
-            and len(stop_and_go.waiting_cycles()) >= Constants.STUCK_SESSION_WAITING_CYCLES_THRESHOLD
-        ):
-            log.warning(
-                f"Stuck session detected on page load for note {note_id}: "
-                f"cycle={stop_and_go.cycle()}, "
-                f"waiting={stop_and_go.waiting_cycles()}, "
-                f"created={stop_and_go.created().isoformat()}"
-            )
-            stop_and_go = StopAndGo(note_id)
-            stop_and_go.save()  # force reset
 
         context = {
             "patientUuid": patient_id,

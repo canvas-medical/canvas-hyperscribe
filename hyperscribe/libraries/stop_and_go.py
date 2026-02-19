@@ -69,7 +69,9 @@ class StopAndGo:
         if self._waiting_cycles:
             next_cycle = self._waiting_cycles[-1] + 1
         self._waiting_cycles.append(next_cycle)
+        return self._recover_stuck_session()
 
+    def _recover_stuck_session(self) -> StopAndGo:
         if self._is_running and len(self._waiting_cycles) >= Constants.STUCK_SESSION_WAITING_CYCLES_THRESHOLD:
             self._is_running = False
             log.warning(
@@ -78,7 +80,6 @@ class StopAndGo:
                 f"waiting={self.waiting_cycles()}, "
                 f"created={self.created().isoformat()}"
             )
-
         return self
 
     def consume_next_waiting_cycles(self, save: bool) -> bool:
@@ -120,7 +121,7 @@ class StopAndGo:
     @classmethod
     def get(cls, note_uuid: str) -> StopAndGo:
         if cached := get_cache().get(f"stopAndGo:{note_uuid}"):
-            return StopAndGo.load_from_json(cached)
+            return StopAndGo.load_from_json(cached)._recover_stuck_session()
         return StopAndGo(note_uuid)
 
     @classmethod
