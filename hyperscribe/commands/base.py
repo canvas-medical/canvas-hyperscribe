@@ -22,7 +22,7 @@ class Base:
         self.identification = identification
         self.cache = cache
         self._arguments_code2description: dict[str, str] = {}
-        self.permissions = TemplatePermissions.for_note(identification.note_uuid)
+        self.permissions = TemplatePermissions(identification.note_uuid)
 
     @classmethod
     def class_name(cls) -> str:
@@ -194,7 +194,7 @@ class Base:
     def is_available(self) -> bool:
         raise NotImplementedError
 
-    # -- Template integration ------------------------------------------------
+    # -- Template integration - begin ----------------------------------------
 
     def can_edit_command(self) -> bool:
         """Check if this command type is editable based on template permissions."""
@@ -215,7 +215,7 @@ class Base:
         if not cmd_perms.get("plugin_can_edit", True):
             return False
 
-        for fp in cmd_perms.get("field_permissions", []):
+        for fp in cmd_perms.get("field_permissions") or []:
             if fp.get("field_name") == field_name:
                 return bool(fp.get("plugin_can_edit", True))
 
@@ -228,7 +228,7 @@ class Base:
         if command_type not in permissions:
             return []
 
-        for fp in permissions[command_type].get("field_permissions", []):
+        for fp in permissions[command_type].get("field_permissions") or []:
             if fp.get("field_name") == field_name:
                 instructions = fp.get("add_instructions", [])
                 return list(instructions) if instructions else []
@@ -242,14 +242,14 @@ class Base:
         if command_type not in permissions:
             return None
 
-        for fp in permissions[command_type].get("field_permissions", []):
+        for fp in permissions[command_type].get("field_permissions") or []:
             if fp.get("field_name") == field_name:
                 framework = fp.get("plugin_edit_framework")
                 return str(framework) if framework else None
 
         return None
 
-    def _resolve_framework(self, field_name: str) -> str | None:
+    def resolve_framework(self, field_name: str) -> str | None:
         """Resolve template framework from cache."""
         framework = self.get_template_framework(field_name)
         if framework:
@@ -270,7 +270,7 @@ class Base:
         """Merge generated content with template framework, or return as-is if no template."""
         log.info(f"[TEMPLATE] fill_template_content: {self.class_name()}.{field_name}")
 
-        framework = self._resolve_framework(field_name)
+        framework = self.resolve_framework(field_name)
         add_instructions = self.get_template_instructions(field_name)
 
         if not framework and not add_instructions:
@@ -396,3 +396,5 @@ class Base:
                 return enhanced
 
         return content
+
+    # -- Template integration - end ------------------------------------------

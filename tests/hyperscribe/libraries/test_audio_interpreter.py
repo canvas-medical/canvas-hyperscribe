@@ -195,9 +195,11 @@ def test___init___with_template_filtering(command_list):
     instance = AudioInterpreter(settings, aws_s3, cache, identification)
 
     # CommandB should be excluded from _command_context due to template lock
-    assert "CommandA" in instance._command_context
-    assert "CommandB" not in instance._command_context
-    assert "CommandC" in instance._command_context
+    expected = {
+        "CommandA": mocks[0].return_value,
+        "CommandC": mocks[2].return_value,
+    }
+    assert instance._command_context == expected
 
     calls = [call()]
     assert command_list.mock_calls == calls
@@ -988,11 +990,11 @@ def test_detect_sections(json_schema, chatter, memory_log):
         mocks[3].class_name.side_effect = ["Fourth", "Fourth"]
         mocks[4].class_name.side_effect = ["Fifth", "Fifth"]
         # Set up class_name on return_value (for init comprehension)
-        mocks[0].return_value.class_name.return_value = "First"
-        mocks[1].return_value.class_name.return_value = "Second"
-        mocks[2].return_value.class_name.return_value = "Third"
-        mocks[3].return_value.class_name.return_value = "Fourth"
-        mocks[4].return_value.class_name.return_value = "Fifth"
+        mocks[0].return_value.class_name.side_effect = ["First"]
+        mocks[1].return_value.class_name.side_effect = ["Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth"]
+        mocks[4].return_value.class_name.side_effect = ["Fifth"]
         mocks[0].note_section.side_effect = ["Assessment"]
         mocks[1].note_section.side_effect = ["Plan"]
         mocks[2].note_section.side_effect = ["Plan"]
@@ -1346,11 +1348,11 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
         mocks[3].class_name.side_effect = ["Fourth", "Fourth"]
         mocks[4].class_name.side_effect = ["Fifth", "Fifth"]
         # Set up class_name on return_value (for init comprehension)
-        mocks[0].return_value.class_name.return_value = "First"
-        mocks[1].return_value.class_name.return_value = "Second"
-        mocks[2].return_value.class_name.return_value = "Third"
-        mocks[3].return_value.class_name.return_value = "Fourth"
-        mocks[4].return_value.class_name.return_value = "Fifth"
+        mocks[0].return_value.class_name.side_effect = ["First"]
+        mocks[1].return_value.class_name.side_effect = ["Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth"]
+        mocks[4].return_value.class_name.side_effect = ["Fifth"]
         mocks[0].instruction_description.side_effect = ["Description1"]
         mocks[1].instruction_description.side_effect = ["Description2"]
         mocks[2].instruction_description.side_effect = ["Description3"]

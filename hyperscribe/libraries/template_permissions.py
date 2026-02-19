@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json as _json
-from typing import Any, Callable
+from typing import Any
 
 from logger import log
 
@@ -20,41 +20,38 @@ class TemplatePermissions:
     Value: ``{CommandType: {plugin_can_edit, field_permissions: [...]}}``
     """
 
-    _instances: dict[str, TemplatePermissions] = {}
-
-    @classmethod
-    def for_note(cls, note_uuid: str, cache_getter: Callable[[], Cache] | None = None) -> TemplatePermissions:
-        """Return a cached instance per note_uuid; creates one on first call."""
-        if note_uuid not in cls._instances:
-            cls._instances[note_uuid] = cls(note_uuid, cache_getter)
-        return cls._instances[note_uuid]
-
-    def __init__(self, note_uuid: str, cache_getter: Callable[[], Cache] | None = None) -> None:
-        self.note_uuid = note_uuid
-        self._permissions_cache: dict[str, Any] | None = None
-        self._cache_getter = cache_getter or self.default_cache_getter
+    PERMISSIONS: dict[str, dict[str, Any]] = {}
 
     @classmethod
     def default_cache_getter(cls) -> Cache:
         """Default cache getter that uses a shared (non-plugin-scoped) cache prefix."""
         return _get_cache_client(driver="plugins", prefix=Constants.TEMPLATE_SHARED_CACHE_PREFIX)
 
+    def __init__(self, note_uuid: str) -> None:
+        self.note_uuid = note_uuid
+
+    def __del__(self) -> None:
+        if self.note_uuid in self.PERMISSIONS:
+            del self.PERMISSIONS[self.note_uuid]
+
     def load_permissions(self) -> dict[str, Any]:
-        """Load permissions from cache (lazy, once per instance)."""
-        if self._permissions_cache is not None:
-            return self._permissions_cache
+        """Load permissions from cache (lazy, once per note_uuid)."""
+        if self.note_uuid not in self.PERMISSIONS:
+            try:
+                key = f"{Constants.TEMPLATE_COMMAND_PERMISSIONS_KEY_PREFIX}{self.note_uuid}"
+                self.PERMISSIONS[self.note_uuid] = self.default_cache_getter().get(key, default={})
 
-        try:
-            cache = self._cache_getter()
-            key = f"{Constants.TEMPLATE_COMMAND_PERMISSIONS_KEY_PREFIX}{self.note_uuid}"
-            self._permissions_cache = cache.get(key, default={})
-            cmd_names = list(self._permissions_cache.keys()) if self._permissions_cache else []
-            log.info(f"[TEMPLATE] Loaded permissions for {self.note_uuid}: {cmd_names}")
-            if self._permissions_cache:
-                perms_json = _json.dumps(self._permissions_cache, indent=2, default=str)
-                log.info(f"[TEMPLATE] Permissions structure:\n{perms_json}")
-        except Exception as e:
-            log.warning(f"Could not load template permissions for {self.note_uuid}: {e}")
-            self._permissions_cache = {}
+                cmd_names = []
+                if self.PERMISSIONS[self.note_uuid]:
+                    cmd_names = list(self.PERMISSIONS[self.note_uuid].keys())
+                log.info(f"[TEMPLATE] Loaded permissions for {self.note_uuid}: {cmd_names}")
 
-        return self._permissions_cache
+                if self.PERMISSIONS[self.note_uuid]:
+                    perms_json = _json.dumps(self.PERMISSIONS[self.note_uuid], indent=2, default=str)
+                    log.info(f"[TEMPLATE] Permissions structure:\n{perms_json}")
+
+            except Exception as e:
+                log.warning(f"Could not load template permissions for {self.note_uuid}: {e}")
+                self.PERMISSIONS[self.note_uuid] = {}
+
+        return self.PERMISSIONS[self.note_uuid]

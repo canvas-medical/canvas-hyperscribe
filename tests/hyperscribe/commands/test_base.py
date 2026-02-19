@@ -78,19 +78,13 @@ def test___init__():
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    mock_permissions = MagicMock()
-    with patch.object(TemplatePermissions, "for_note", return_value=mock_permissions) as mock_for_note:
-        tested = Base(settings, cache, identification)
-        assert tested.settings == settings
-        assert tested.identification == identification
-        assert tested.cache == cache
-        assert tested._arguments_code2description == {}
-        assert tested.permissions is mock_permissions
-
-        calls = [call("noteUuid")]
-        assert mock_for_note.mock_calls == calls
-        calls = []
-        assert mock_permissions.mock_calls == calls
+    tested = Base(settings, cache, identification)
+    assert tested.settings == settings
+    assert tested.identification == identification
+    assert tested.cache == cache
+    assert tested._arguments_code2description == {}
+    assert isinstance(tested.permissions, TemplatePermissions)
+    assert tested.permissions.note_uuid == "noteUuid"
 
 
 def test_class_name():
@@ -918,22 +912,22 @@ def test_get_template_framework__missing_key():
     assert load_permissions.mock_calls == calls
 
 
-# -- _resolve_framework ----------------------------------------------------
+# -- resolve_framework ----------------------------------------------------
 
 
 @patch.object(Base, "get_template_framework")
-def test__resolve_framework(mock_get_framework):
+def test_resolve_framework(mock_get_framework):
     tested = helper_instance()
 
     # returns cached framework when available
     mock_get_framework.return_value = "Cached framework content"
-    assert tested._resolve_framework("narrative") == "Cached framework content"
+    assert tested.resolve_framework("narrative") == "Cached framework content"
     assert mock_get_framework.mock_calls == [call("narrative")]
 
     # returns None when no framework
     mock_get_framework.reset_mock()
     mock_get_framework.return_value = None
-    assert tested._resolve_framework("narrative") is None
+    assert tested.resolve_framework("narrative") is None
     assert mock_get_framework.mock_calls == [call("narrative")]
 
 
@@ -941,45 +935,45 @@ def test__resolve_framework(mock_get_framework):
 
 
 @patch.object(Base, "enhance_with_template_instructions")
-@patch.object(Base, "_resolve_framework")
+@patch.object(Base, "resolve_framework")
 @patch.object(Base, "get_template_instructions")
 def test_fill_template_content__no_framework_no_instructions(
-    mock_get_instructions, mock_resolve_framework, mock_enhance
+    mock_get_instructions, mockresolve_framework, mock_enhance
 ):
     """No framework and no add_instructions -> returns generated content directly."""
     chatter = MagicMock()
     instruction = make_instruction()
     tested = helper_instance()
-    mock_resolve_framework.return_value = None
+    mockresolve_framework.return_value = None
     mock_get_instructions.return_value = []
 
     result = tested.fill_template_content("generated", "narrative", instruction, chatter)
 
     assert result == "generated"
-    assert mock_resolve_framework.mock_calls == [call("narrative")]
+    assert mockresolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
     assert mock_enhance.mock_calls == []
     assert chatter.mock_calls == []
 
 
 @patch.object(Base, "enhance_with_template_instructions")
-@patch.object(Base, "_resolve_framework")
+@patch.object(Base, "resolve_framework")
 @patch.object(Base, "get_template_instructions")
 def test_fill_template_content__no_framework_with_instructions(
-    mock_get_instructions, mock_resolve_framework, mock_enhance
+    mock_get_instructions, mockresolve_framework, mock_enhance
 ):
     """No framework but has add_instructions -> delegates to enhance_with_template_instructions."""
     chatter = MagicMock()
     instruction = make_instruction()
     tested = helper_instance()
-    mock_resolve_framework.return_value = None
+    mockresolve_framework.return_value = None
     mock_get_instructions.return_value = ["symptoms", "duration"]
     mock_enhance.return_value = "enhanced content"
 
     result = tested.fill_template_content("generated", "narrative", instruction, chatter)
 
     assert result == "enhanced content"
-    assert mock_resolve_framework.mock_calls == [call("narrative")]
+    assert mockresolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
     assert mock_enhance.mock_calls == [call("generated", ["symptoms", "duration"], instruction, chatter)]
     assert chatter.mock_calls == []
@@ -989,14 +983,14 @@ def test_fill_template_content__no_framework_with_instructions(
 @patch.object(LimitedCache, "demographic__str__")
 @patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
-@patch.object(Base, "_resolve_framework")
+@patch.object(Base, "resolve_framework")
 def test_fill_template_content_with_framework(
-    mock_resolve_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+    mockresolve_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
 ):
     chatter = MagicMock()
     instruction = make_instruction(information="Patient reports headache for 3 days.")
     tested = helper_instance()
-    mock_resolve_framework.return_value = "Patient is a [AGE] year old [GENDER] presenting with [SYMPTOMS]."
+    mockresolve_framework.return_value = "Patient is a [AGE] year old [GENDER] presenting with [SYMPTOMS]."
     mock_get_instructions.return_value = ["symptoms", "duration"]
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
     chatter.single_conversation.return_value = [
@@ -1006,7 +1000,7 @@ def test_fill_template_content_with_framework(
     result = tested.fill_template_content("generated headache content", "narrative", instruction, chatter)
 
     assert result == "Patient is a 45 year old male presenting with headache x3d."
-    assert mock_resolve_framework.mock_calls == [call("narrative")]
+    assert mockresolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
@@ -1064,14 +1058,14 @@ def test_fill_template_content_with_framework(
 @patch.object(LimitedCache, "demographic__str__")
 @patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
-@patch.object(Base, "_resolve_framework")
+@patch.object(Base, "resolve_framework")
 def test_fill_template_content_strips_lit_markers(
-    mock_resolve_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+    mockresolve_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
 ):
     chatter = MagicMock()
     instruction = make_instruction(information="Patient memory concerns noted.")
     tested = helper_instance()
-    mock_resolve_framework.return_value = (
+    mockresolve_framework.return_value = (
         "Patient presenting for assessment.\n"
         "{lit:Current concerns with memory:}\n"
         "{lit:Current concerns with functioning:}"
@@ -1082,7 +1076,7 @@ def test_fill_template_content_strips_lit_markers(
 
     tested.fill_template_content("generated", "narrative", instruction, chatter)
 
-    assert mock_resolve_framework.mock_calls == [call("narrative")]
+    assert mockresolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
@@ -1140,13 +1134,13 @@ def test_fill_template_content_strips_lit_markers(
 @patch.object(LimitedCache, "demographic__str__")
 @patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
-@patch.object(Base, "_resolve_framework")
+@patch.object(Base, "resolve_framework")
 def test_fill_template_content_with_framework_no_add_instructions(
-    mock_resolve_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+    mockresolve_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
 ):
     chatter = MagicMock()
     tested = helper_instance()
-    mock_resolve_framework.return_value = "Patient is presenting today."
+    mockresolve_framework.return_value = "Patient is presenting today."
     mock_get_instructions.return_value = []
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
     chatter.single_conversation.return_value = [{"enhancedContent": "Patient is presenting today with headache."}]
@@ -1155,7 +1149,7 @@ def test_fill_template_content_with_framework_no_add_instructions(
     result = tested.fill_template_content("generated", "narrative", instruction, chatter)
 
     assert result == "Patient is presenting today with headache."
-    assert mock_resolve_framework.mock_calls == [call("narrative")]
+    assert mockresolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
@@ -1214,9 +1208,9 @@ def test_fill_template_content_with_framework_no_add_instructions(
 @patch.object(LimitedCache, "demographic__str__")
 @patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
-@patch.object(Base, "_resolve_framework")
+@patch.object(Base, "resolve_framework")
 def test_fill_template_content_llm_empty_falls_back(
-    mock_resolve_framework,
+    mockresolve_framework,
     mock_get_instructions,
     mock_json_schema,
     mock_demographic,
@@ -1225,7 +1219,7 @@ def test_fill_template_content_llm_empty_falls_back(
 ):
     chatter = MagicMock()
     tested = helper_instance()
-    mock_resolve_framework.return_value = "Template structure here."
+    mockresolve_framework.return_value = "Template structure here."
     mock_get_instructions.return_value = ["symptoms"]
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
     chatter.single_conversation.return_value = llm_response
@@ -1234,7 +1228,7 @@ def test_fill_template_content_llm_empty_falls_back(
     result = tested.fill_template_content("generated content", "narrative", instruction, chatter)
 
     assert result == "generated content"
-    assert mock_resolve_framework.mock_calls == [call("narrative")]
+    assert mockresolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
@@ -1292,9 +1286,9 @@ def test_fill_template_content_llm_empty_falls_back(
 @patch.object(LimitedCache, "demographic__str__")
 @patch("hyperscribe.commands.base.JsonSchema")
 @patch.object(Base, "get_template_instructions")
-@patch.object(Base, "_resolve_framework")
+@patch.object(Base, "resolve_framework")
 def test_fill_template_content_uses_existing_structure(
-    mock_resolve_framework,
+    mockresolve_framework,
     mock_get_instructions,
     mock_json_schema,
     mock_demographic,
@@ -1308,14 +1302,14 @@ def test_fill_template_content_uses_existing_structure(
     )
     instruction = make_instruction(information="Some prose from transcript")
     tested = helper_instance()
-    mock_resolve_framework.return_value = structured_content
+    mockresolve_framework.return_value = structured_content
     mock_get_instructions.return_value = []
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
     chatter.single_conversation.return_value = [{"enhancedContent": "Updated structured content"}]
 
     tested.fill_template_content("generated prose", "narrative", instruction, chatter)
 
-    assert mock_resolve_framework.mock_calls == [call("narrative")]
+    assert mockresolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]

@@ -1,19 +1,9 @@
 """Tests for template_permissions module."""
 
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.template_permissions import TemplatePermissions
-
-
-def make_mock_cache(data: dict) -> MagicMock:
-    mock_cache = MagicMock()
-    mock_cache.get.return_value = data
-    return mock_cache
-
-
-def make_cache_getter(mock_cache: MagicMock):
-    return lambda: mock_cache
 
 
 def test_command_permissions_key_prefix():
@@ -24,77 +14,100 @@ def test_command_permissions_key_prefix():
 
 
 class TestTemplatePermissions:
+    def teardown_method(self):
+        TemplatePermissions.PERMISSIONS.clear()
+
     def test_init(self):
         tested = TemplatePermissions("test-note-uuid")
         assert tested.note_uuid == "test-note-uuid"
-        assert tested._permissions_cache is None
 
-    def test_init_with_cache_getter(self):
-        mock_cache = make_mock_cache({})
-        cache_getter = make_cache_getter(mock_cache)
-        tested = TemplatePermissions("test-note-uuid", cache_getter=cache_getter)
-        assert tested._cache_getter == cache_getter
+    def test_del_cleans_up_permissions(self):
+        TemplatePermissions.PERMISSIONS["test-note-uuid"] = {"SomeCommand": {}}
+        tested = TemplatePermissions("test-note-uuid")
+        del tested
+        assert "test-note-uuid" not in TemplatePermissions.PERMISSIONS
 
-    def test_load_permissions_success(self):
-        mock_cache = make_mock_cache(
+    def test_del_no_error_when_missing(self):
+        tested = TemplatePermissions("test-note-uuid")
+        del tested
+        assert "test-note-uuid" not in TemplatePermissions.PERMISSIONS
+
+    @patch.object(TemplatePermissions, "default_cache_getter")
+    def test_load_permissions_success(self, mock_cache_getter):
+        mock_cache = MagicMock()
+        mock_cache.get.side_effect = [
             {"HistoryOfPresentIllnessCommand": {"plugin_can_edit": True, "field_permissions": []}}
-        )
-        tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
+        ]
+        mock_cache_getter.side_effect = [mock_cache]
+        tested = TemplatePermissions("test-note-uuid")
 
         result = tested.load_permissions()
         expected = {"HistoryOfPresentIllnessCommand": {"plugin_can_edit": True, "field_permissions": []}}
         assert result == expected
 
+        calls = [call()]
+        assert mock_cache_getter.mock_calls == calls
         calls = [call.get("note_template_cmd_perms_test-note-uuid", default={})]
         assert mock_cache.mock_calls == calls
 
-    def test_load_permissions_empty(self):
-        mock_cache = make_mock_cache({})
-        tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
+    @patch.object(TemplatePermissions, "default_cache_getter")
+    def test_load_permissions_empty(self, mock_cache_getter):
+        mock_cache = MagicMock()
+        mock_cache.get.side_effect = [{}]
+        mock_cache_getter.side_effect = [mock_cache]
+        tested = TemplatePermissions("test-note-uuid")
 
         result = tested.load_permissions()
         expected = {}
         assert result == expected
 
+        calls = [call()]
+        assert mock_cache_getter.mock_calls == calls
         calls = [call.get("note_template_cmd_perms_test-note-uuid", default={})]
         assert mock_cache.mock_calls == calls
 
-    def test_load_permissions_caches_result(self):
-        mock_cache = make_mock_cache({"SomeCommand": {"plugin_can_edit": True}})
-        tested = TemplatePermissions("test-note-uuid", cache_getter=make_cache_getter(mock_cache))
+    @patch.object(TemplatePermissions, "default_cache_getter")
+    def test_load_permissions_caches_result(self, mock_cache_getter):
+        mock_cache = MagicMock()
+        mock_cache.get.side_effect = [{"SomeCommand": {"plugin_can_edit": True}}]
+        mock_cache_getter.side_effect = [mock_cache]
+        tested = TemplatePermissions("test-note-uuid")
 
         result1 = tested.load_permissions()
         result2 = tested.load_permissions()
         assert result1 == result2
 
+        calls = [call()]
+        assert mock_cache_getter.mock_calls == calls
         calls = [call.get("note_template_cmd_perms_test-note-uuid", default={})]
         assert mock_cache.mock_calls == calls
 
     def test_load_permissions_import_error(self):
-        def raise_import_error():
-            raise ImportError("canvas_sdk not available")
-
-        tested = TemplatePermissions("test-note-uuid", cache_getter=raise_import_error)
-
-        result = tested.load_permissions()
-        expected = {}
-        assert result == expected
+        with patch.object(
+            TemplatePermissions, "default_cache_getter", side_effect=ImportError("canvas_sdk not available")
+        ):
+            tested = TemplatePermissions("test-note-uuid")
+            result = tested.load_permissions()
+            expected = {}
+            assert result == expected
 
     def test_load_permissions_exception(self):
-        def raise_runtime_error():
-            raise RuntimeError("Cache unavailable")
+        with patch.object(TemplatePermissions, "default_cache_getter", side_effect=RuntimeError("Cache unavailable")):
+            tested = TemplatePermissions("test-note-uuid")
+            result = tested.load_permissions()
+            expected = {}
+            assert result == expected
 
-        tested = TemplatePermissions("test-note-uuid", cache_getter=raise_runtime_error)
-
-        result = tested.load_permissions()
-        expected = {}
-        assert result == expected
-
-    def test_multiple_notes_separate_caches(self):
-        mock_cache1 = make_mock_cache({"CommandA": {"plugin_can_edit": True}})
-        mock_cache2 = make_mock_cache({"CommandB": {"plugin_can_edit": False}})
-        tested1 = TemplatePermissions("note-uuid-1", cache_getter=make_cache_getter(mock_cache1))
-        tested2 = TemplatePermissions("note-uuid-2", cache_getter=make_cache_getter(mock_cache2))
+    @patch.object(TemplatePermissions, "default_cache_getter")
+    def test_multiple_notes_separate_caches(self, mock_cache_getter):
+        mock_cache = MagicMock()
+        mock_cache.get.side_effect = [
+            {"CommandA": {"plugin_can_edit": True}},
+            {"CommandB": {"plugin_can_edit": False}},
+        ]
+        mock_cache_getter.side_effect = [mock_cache, mock_cache]
+        tested1 = TemplatePermissions("note-uuid-1")
+        tested2 = TemplatePermissions("note-uuid-2")
 
         result = tested1.load_permissions()
         expected = {"CommandA": {"plugin_can_edit": True}}
@@ -104,65 +117,33 @@ class TestTemplatePermissions:
         expected = {"CommandB": {"plugin_can_edit": False}}
         assert result == expected
 
-        calls = [call.get("note_template_cmd_perms_note-uuid-1", default={})]
-        assert mock_cache1.mock_calls == calls
-        calls = [call.get("note_template_cmd_perms_note-uuid-2", default={})]
-        assert mock_cache2.mock_calls == calls
-
-
-class TestForNote:
-    def teardown_method(self):
-        TemplatePermissions._instances.clear()
-
-    def test_returns_instance(self):
-        mock_cache = make_mock_cache({})
-        tested = TemplatePermissions
-        result = tested.for_note("note-uuid-1", cache_getter=make_cache_getter(mock_cache))
-        assert isinstance(result, TemplatePermissions)
-        assert result.note_uuid == "note-uuid-1"
-
-        calls = []
+        calls = [call(), call()]
+        assert mock_cache_getter.mock_calls == calls
+        calls = [
+            call.get("note_template_cmd_perms_note-uuid-1", default={}),
+            call.get("note_template_cmd_perms_note-uuid-2", default={}),
+        ]
         assert mock_cache.mock_calls == calls
 
-    def test_same_uuid_returns_same_instance(self):
-        mock_cache = make_mock_cache({})
-        cache_getter = make_cache_getter(mock_cache)
-        tested = TemplatePermissions
-        result1 = tested.for_note("note-uuid-1", cache_getter=cache_getter)
-        result2 = tested.for_note("note-uuid-1", cache_getter=cache_getter)
-        assert result1 is result2
+    @patch.object(TemplatePermissions, "default_cache_getter")
+    def test_shared_class_cache_single_load(self, mock_cache_getter):
+        """Two instances for the same note_uuid share the class-level PERMISSIONS dict."""
+        mock_cache = MagicMock()
+        mock_cache.get.side_effect = [{"CommandA": {"plugin_can_edit": True}}]
+        mock_cache_getter.side_effect = [mock_cache]
 
-        calls = []
-        assert mock_cache.mock_calls == calls
+        instance1 = TemplatePermissions("note-uuid-1")
+        instance2 = TemplatePermissions("note-uuid-1")
 
-    def test_different_uuids_return_different_instances(self):
-        mock_cache = make_mock_cache({})
-        cache_getter = make_cache_getter(mock_cache)
-        tested = TemplatePermissions
-        result1 = tested.for_note("note-uuid-1", cache_getter=cache_getter)
-        result2 = tested.for_note("note-uuid-2", cache_getter=cache_getter)
-        assert result1 is not result2
-        assert result1.note_uuid == "note-uuid-1"
-        assert result2.note_uuid == "note-uuid-2"
-
-        calls = []
-        assert mock_cache.mock_calls == calls
-
-    def test_shared_instance_single_cache_load(self):
-        mock_cache = make_mock_cache({"CommandA": {"plugin_can_edit": True}})
-        cache_getter = make_cache_getter(mock_cache)
-        tested = TemplatePermissions
-        instance1 = tested.for_note("note-uuid-1", cache_getter=cache_getter)
-        instance2 = tested.for_note("note-uuid-1", cache_getter=cache_getter)
-        assert instance1 is instance2
-
-        result = instance1.load_permissions()
+        result1 = instance1.load_permissions()
         expected = {"CommandA": {"plugin_can_edit": True}}
-        assert result == expected
+        assert result1 == expected
 
-        result = instance2.load_permissions()
-        assert result == expected
+        result2 = instance2.load_permissions()
+        assert result2 == expected
 
+        calls = [call()]
+        assert mock_cache_getter.mock_calls == calls
         calls = [call.get("note_template_cmd_perms_note-uuid-1", default={})]
         assert mock_cache.mock_calls == calls
 
@@ -195,6 +176,7 @@ class TestDefaultCacheGetter:
             mock_cache.get.return_value = {"TestCommand": {"plugin_can_edit": True}}
             template_permissions._get_cache_client = MagicMock(return_value=mock_cache)
 
+            TemplatePermissions.PERMISSIONS.clear()
             tested = TemplatePermissions("test-note-uuid")
             result = tested.load_permissions()
             expected = {"TestCommand": {"plugin_can_edit": True}}
@@ -206,3 +188,4 @@ class TestDefaultCacheGetter:
             assert mock_cache.mock_calls == calls
         finally:
             template_permissions._get_cache_client = original_get_cache
+            TemplatePermissions.PERMISSIONS.clear()
