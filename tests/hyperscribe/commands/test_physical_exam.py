@@ -1,4 +1,3 @@
-import hashlib
 from unittest.mock import MagicMock
 
 import pytest
@@ -94,14 +93,6 @@ def test_include_skipped():
     tested = helper_instance()
     result = tested.include_skipped()
     assert result is True
-
-
-def test_additional_instructions():
-    tested = helper_instance()
-    result = tested.additional_instructions()
-    assert len(result) == 2
-    assert hashlib.md5(result[0].encode()).hexdigest() == "33f81d66de9a03b65f6e71fcca4f93eb"
-    assert hashlib.md5(result[1].encode()).hexdigest() == "c55d9ae3fe7886276774f1b585335ee0"
 
 
 def test_sdk_command():

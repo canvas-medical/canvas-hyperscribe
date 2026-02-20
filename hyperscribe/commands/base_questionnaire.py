@@ -32,20 +32,6 @@ class BaseQuestionnaire(Base):
     def sdk_command(self) -> Type[QuestionnaireCommand]:
         raise NotImplementedError
 
-    def additional_instructions(self) -> list[str]:
-        return []
-
-    def skipped_field_instruction(self) -> str:
-        # The imperative tone is intentional — the LLM must never flip 'skipped' back to True
-        # once a question has been enabled. This is enforced both by this prompt and by
-        # post_process_questionnaire as a structural safeguard.
-        return (
-            "CRITICAL: If a question already has 'skipped' set to 'false', you MUST keep it as 'false'. "
-            "Never change 'skipped' from 'false' back to 'true' or 'null'. "
-            "You may only change 'skipped' from 'true' to 'false' if the question is clearly addressed "
-            "in the transcript. Questions that are already enabled must stay enabled."
-        )
-
     @classmethod
     def staged_command_extract(cls, data: dict) -> CodedItem | None:
         questionnaire = ((data.get("questionnaire") or {}).get("extra")) or {}
@@ -234,7 +220,7 @@ class BaseQuestionnaire(Base):
                 "Your response must be the JSON Markdown block of the questionnaire, with all the necessary "
                 "changes to reflect the transcript content.",
                 "",
-            ] + self.additional_instructions()
+            ]
             transcript = json.dumps([line.to_json() for line in discussion], indent=1)
 
             user_prompt = [
@@ -253,7 +239,15 @@ class BaseQuestionnaire(Base):
                 "the changes should be based on explicit information only.",
             ]
             if include_skipped:
-                user_prompt.append(self.skipped_field_instruction())
+                # The imperative tone is intentional — the LLM must never flip 'skipped' back to True
+                # once a question has been enabled. This is enforced both by this prompt and by
+                # post_process_questionnaire as a structural safeguard.
+                user_prompt.append(
+                    "CRITICAL: If a question already has 'skipped' set to 'false', you MUST keep it as 'false'. "
+                    "Never change 'skipped' from 'false' back to 'true' or 'null'. "
+                    "You may only change 'skipped' from 'true' to 'false' if the question is clearly addressed "
+                    "in the transcript. Questions that are already enabled must stay enabled."
+                )
             user_prompt.append("")
             schemas = [self.json_schema_questionnaire(include_skipped)]
             chatter.reset_prompts()
@@ -265,8 +259,9 @@ class BaseQuestionnaire(Base):
                 return self.post_process_questionnaire(questionnaire, updated)
         return None
 
+    @classmethod
     def post_process_questionnaire(
-        self,
+        cls,
         original: QuestionnaireDefinition,
         updated: QuestionnaireDefinition,
     ) -> QuestionnaireDefinition:
