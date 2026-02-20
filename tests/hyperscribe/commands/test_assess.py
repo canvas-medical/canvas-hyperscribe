@@ -91,14 +91,14 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(LimitedCache, "current_conditions")
+@patch.object(LimitedCache, "all_chart_conditions")
 @patch.object(Assess, "add_code2description")
-def test_command_from_json(add_code2description, current_conditions):
+def test_command_from_json(add_code2description, all_chart_conditions):
     chatter = MagicMock()
 
     def reset_mocks():
         chatter.reset_mock()
-        current_conditions.reset_mock()
+        all_chart_conditions.reset_mock()
         add_code2description.reset_mock()
 
     tested = helper_instance()
@@ -113,7 +113,7 @@ def test_command_from_json(add_code2description, current_conditions):
         (4, None, []),
     ]
     for idx, exp_uuid, exp_calls in tests:
-        current_conditions.side_effect = [conditions, conditions]
+        all_chart_conditions.side_effect = [conditions, conditions]
         arguments = {
             "uuid": "theUuid",
             "index": 7,
@@ -142,7 +142,7 @@ def test_command_from_json(add_code2description, current_conditions):
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call()]
-        assert current_conditions.mock_calls == calls
+        assert all_chart_conditions.mock_calls == calls
         assert add_code2description.mock_calls == exp_calls
         assert chatter.mock_calls == []
         reset_mocks()
@@ -161,10 +161,10 @@ def test_command_parameters():
     assert result == expected
 
 
-@patch.object(LimitedCache, "current_conditions")
-def test_command_parameters_schemas(current_conditions):
+@patch.object(LimitedCache, "all_chart_conditions")
+def test_command_parameters_schemas(all_chart_conditions):
     def reset_mocks():
-        current_conditions.reset_mock()
+        all_chart_conditions.reset_mock()
 
     tested = helper_instance()
     conditions = [
@@ -172,7 +172,7 @@ def test_command_parameters_schemas(current_conditions):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
-    current_conditions.side_effect = [conditions]
+    all_chart_conditions.side_effect = [conditions]
     result = tested.command_parameters_schemas()
     expected = [
         {
@@ -222,14 +222,14 @@ def test_command_parameters_schemas(current_conditions):
 
     assert result == expected
     calls = [call()]
-    assert current_conditions.mock_calls == calls
+    assert all_chart_conditions.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(LimitedCache, "current_conditions")
-def test_instruction_description(current_conditions):
+@patch.object(LimitedCache, "all_chart_conditions")
+def test_instruction_description(all_chart_conditions):
     def reset_mocks():
-        current_conditions.reset_mock()
+        all_chart_conditions.reset_mock()
 
     tested = helper_instance()
     conditions = [
@@ -237,23 +237,25 @@ def test_instruction_description(current_conditions):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
-    current_conditions.side_effect = [conditions]
+    all_chart_conditions.side_effect = [conditions]
     result = tested.instruction_description()
     expected = (
-        "Today's assessment of a diagnosed condition (display1a, display2a, display3a). "
+        "Today's assessment of a condition on the patient's chart (display1a, display2a, display3a). "
+        "If any of these conditions are discussed, evaluated, or referenced during the visit, "
+        "an Assess instruction MUST be created for each one discussed. "
         "There can be only one assessment per condition per instruction, "
         "and no instruction in the lack of."
     )
     assert result == expected
     calls = [call()]
-    assert current_conditions.mock_calls == calls
+    assert all_chart_conditions.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(LimitedCache, "current_conditions")
-def test_instruction_constraints(current_conditions):
+@patch.object(LimitedCache, "all_chart_conditions")
+def test_instruction_constraints(all_chart_conditions):
     def reset_mocks():
-        current_conditions.reset_mock()
+        all_chart_conditions.reset_mock()
 
     tested = helper_instance()
     conditions = [
@@ -261,24 +263,26 @@ def test_instruction_constraints(current_conditions):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
-    current_conditions.side_effect = [conditions]
+    all_chart_conditions.side_effect = [conditions]
     result = tested.instruction_constraints()
     expected = (
         "'Assess' has to be related to one of the following conditions: "
         "display1a (ICD-10: CODE12.3), "
         "display2a (ICD-10: CODE45), "
-        "display3a (ICD-10: CODE98.76)"
+        "display3a (ICD-10: CODE98.76). "
+        "If any of these conditions are discussed during the visit, "
+        "an 'Assess' instruction SHOULD be created for each one discussed."
     )
     assert result == expected
     calls = [call()]
-    assert current_conditions.mock_calls == calls
+    assert all_chart_conditions.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(LimitedCache, "current_conditions")
-def test_is_available(current_conditions):
+@patch.object(LimitedCache, "all_chart_conditions")
+def test_is_available(all_chart_conditions):
     def reset_mocks():
-        current_conditions.reset_mock()
+        all_chart_conditions.reset_mock()
 
     tested = helper_instance()
     conditions = [
@@ -288,9 +292,9 @@ def test_is_available(current_conditions):
     ]
     tests = [(conditions, True), ([], False)]
     for side_effect, expected in tests:
-        current_conditions.side_effect = [side_effect]
+        all_chart_conditions.side_effect = [side_effect]
         result = tested.is_available()
         assert result is expected
         calls = [call()]
-        assert current_conditions.mock_calls == calls
+        assert all_chart_conditions.mock_calls == calls
         reset_mocks()
