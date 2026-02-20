@@ -10,6 +10,7 @@ from canvas_sdk.commands.commands.questionnaire.question import (
     RadioQuestion,
     BaseQuestion,
 )
+from logger import log
 
 from hyperscribe.commands.base import Base
 from hyperscribe.libraries.constants import Constants
@@ -238,9 +239,14 @@ class BaseQuestionnaire(Base):
                 "the changes should be based on explicit information only.",
             ]
             if include_skipped:
+                # The imperative tone is intentional — the LLM must never flip 'skipped' back to True
+                # once a question has been enabled. This is enforced both by this prompt and by
+                # post_process_questionnaire as a structural safeguard.
                 user_prompt.append(
-                    "This includes the values of 'skipped', change it to 'false' only if the question "
-                    "is obviously answered in the transcript, don't change it at all otherwise."
+                    "CRITICAL: If a question already has 'skipped' set to 'false', you MUST keep it as 'false'. "
+                    "Never change 'skipped' from 'false' back to 'true' or 'null'. "
+                    "You may only change 'skipped' from 'true' to 'false' if the question is clearly addressed "
+                    "in the transcript. Questions that are already enabled must stay enabled."
                 )
             user_prompt.append("")
             schemas = [self.json_schema_questionnaire(include_skipped)]
@@ -249,8 +255,61 @@ class BaseQuestionnaire(Base):
             chatter.set_user_prompt(user_prompt)
             response = chatter.chat(schemas)
             if not response.has_error:
-                return questionnaire.update_from_llm_with(response.content[0])
+                updated = questionnaire.update_from_llm_with(response.content[0])
+                return self.post_process_questionnaire(questionnaire, updated)
         return None
+
+    @classmethod
+    def post_process_questionnaire(
+        cls,
+        original: QuestionnaireDefinition,
+        updated: QuestionnaireDefinition,
+    ) -> QuestionnaireDefinition:
+        """Prevent the LLM from clearing existing findings or disabling questions."""
+        original_by_id = {q.dbid: q for q in original.questions}
+        fixed_questions: list[Question] = []
+
+        for upd_ques in updated.questions:
+            orig_ques = original_by_id.get(upd_ques.dbid)
+            if orig_ques is None:
+                fixed_questions.append(upd_ques)
+                continue
+
+            # Never disable a question that was already enabled - normalize None to False,
+            # and never let the LLM flip an enabled question to skipped
+            skipped = upd_ques.skipped
+            if orig_ques.skipped is not True and upd_ques.skipped is True:
+                log.info(f"[POST-PROCESS] Preserving enabled state for question {upd_ques.dbid} ({upd_ques.label})")
+                skipped = orig_ques.skipped
+            if skipped is None:
+                skipped = False
+
+            # Preserve non-empty text - never let the LLM clear existing findings
+            fixed_responses: list[Response] = []
+            for upd_resp, orig_resp in zip(upd_ques.responses, orig_ques.responses):
+                value = upd_resp.value
+                if (
+                    isinstance(orig_resp.value, str)
+                    and orig_resp.value.strip()
+                    and (not isinstance(upd_resp.value, str) or not upd_resp.value.strip())
+                ):
+                    log.info(f"[POST-PROCESS] Preserving text for question {upd_ques.dbid} ({upd_ques.label})")
+                    value = orig_resp.value
+                fixed_responses.append(
+                    Response(dbid=upd_resp.dbid, value=value, selected=upd_resp.selected, comment=upd_resp.comment)
+                )
+
+            fixed_questions.append(
+                Question(
+                    dbid=upd_ques.dbid,
+                    label=upd_ques.label,
+                    type=upd_ques.type,
+                    skipped=skipped,
+                    responses=fixed_responses,
+                )
+            )
+
+        return QuestionnaireDefinition(dbid=updated.dbid, name=updated.name, questions=fixed_questions)
 
     def command_from_questionnaire(
         self,
@@ -285,7 +344,7 @@ class BaseQuestionnaire(Base):
             cmd_questions.append(cmd_question)
 
             if include_skipped and hasattr(command, "set_question_enabled"):
-                command.set_question_enabled(question_id, question.skipped is False)
+                command.set_question_enabled(question_id, question.skipped is not True)
 
         # SDK may (should?) offer a more elegant way to provide the responses without accessing the database
         command.questions = cmd_questions
