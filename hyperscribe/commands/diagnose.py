@@ -107,12 +107,15 @@ class Diagnose(Base):
 
     def instruction_description(self) -> str:
         return (
-            "Medical condition identified by a provider; the necessary information to report includes: "
-            "- the medical condition itself, "
-            "- all reasoning explicitly mentioned in the transcript, "
-            "- current detailed assessment as mentioned in the transcript, and "
-            "- the approximate date of onset if mentioned in the transcript. "
-            "There is one and only one condition per instruction with all necessary information, "
+            "Medical condition identified, diagnosed, or referenced as pertaining to the patient "
+            "by a provider. When available in the transcript, also include: "
+            "- all reasoning explicitly mentioned, "
+            "- current detailed assessment, and "
+            "- the approximate date of onset. "
+            "If a condition is discussed in relation to the patient's treatment or medications "
+            "(e.g., asking about a medication used for a specific condition), and that condition is not already "
+            "in the patient's chart, create a Diagnose instruction for it. "
+            "There is one and only one condition per instruction, "
             "and no instruction in the lack of."
         )
 
