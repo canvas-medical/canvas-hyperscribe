@@ -377,10 +377,10 @@ def test_instruction_description():
     assert result == expected
 
 
-@patch.object(LimitedCache, "all_chart_conditions")
-def test_instruction_constraints(all_chart_conditions):
+@patch.object(LimitedCache, "current_conditions")
+def test_instruction_constraints(current_conditions):
     def reset_mocks():
-        all_chart_conditions.reset_mock()
+        current_conditions.reset_mock()
 
     tested = helper_instance()
     conditions = [
@@ -391,18 +391,16 @@ def test_instruction_constraints(all_chart_conditions):
     tests = [
         (
             conditions,
-            "Only document 'Diagnose' for conditions outside the following list: display1a, display2a, display3a. "
-            "However, if a condition is mentioned or discussed in the transcript but is NOT in this list, "
-            "a 'Diagnose' instruction MUST be created for it.",
+            "Only document 'Diagnose' for conditions outside the following list: display1a, display2a, display3a.",
         ),
         ([], ""),
     ]
     for side_effect, expected in tests:
-        all_chart_conditions.side_effect = [side_effect]
+        current_conditions.side_effect = [side_effect]
         result = tested.instruction_constraints()
         assert result == expected
         calls = [call()]
-        assert all_chart_conditions.mock_calls == calls
+        assert current_conditions.mock_calls == calls
         reset_mocks()
 
 

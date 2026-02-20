@@ -122,12 +122,8 @@ class Diagnose(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if text := ", ".join([f"{condition.label}" for condition in self.cache.all_chart_conditions()]):
-            result = (
-                f"Only document '{self.class_name()}' for conditions outside the following list: {text}. "
-                f"However, if a condition is mentioned or discussed in the transcript but is NOT in this list, "
-                f"a '{self.class_name()}' instruction MUST be created for it."
-            )
+        if text := ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()]):
+            result = f"Only document '{self.class_name()}' for conditions outside the following list: {text}."
         return result
 
     def is_available(self) -> bool:

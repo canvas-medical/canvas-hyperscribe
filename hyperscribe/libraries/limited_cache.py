@@ -55,7 +55,6 @@ class LimitedCache:
         self._settings: dict = {}
         self._allergies: list[CodedItem] | None = None
         self._condition_history: list[CodedItem] | None = None
-        self._all_conditions: list[CodedItem] | None = None
         self._conditions: list[CodedItem] | None = None
         self._demographic: str | None = None
         self._family_history: list[CodedItem] | None = None
@@ -129,14 +128,7 @@ class LimitedCache:
         self._conditions = []
         self._condition_history = []
         self._surgery_history = []
-        self._all_conditions = []
-        statuses = [
-            ClinicalStatus.ACTIVE,
-            ClinicalStatus.RESOLVED,
-            ClinicalStatus.RELAPSE,
-            ClinicalStatus.REMISSION,
-            ClinicalStatus.INVESTIGATIVE,
-        ]
+        statuses = [ClinicalStatus.ACTIVE, ClinicalStatus.RESOLVED]
         systems = [CodeSystems.ICD10, CodeSystems.SNOMED]
         conditions = Condition.objects.committed().for_patient(self.patient_uuid).filter(clinical_status__in=statuses)
         for condition in conditions.order_by("-dbid"):
@@ -150,7 +142,6 @@ class LimitedCache:
 
             if coding:
                 item = CodedItem(uuid=str(condition.id), label=coding.display, code=Helper.icd10_add_dot(coding.code))
-                self._all_conditions.append(item)
                 if condition.clinical_status == ClinicalStatus.ACTIVE:
                     self._conditions.append(item)
                 elif condition.clinical_status == ClinicalStatus.RESOLVED and condition.surgical is False:
@@ -242,11 +233,6 @@ class LimitedCache:
         if self._conditions is None:
             self.retrieve_conditions()
         return self._conditions or []
-
-    def all_chart_conditions(self) -> list[CodedItem]:
-        if self._all_conditions is None:
-            self.retrieve_conditions()
-        return self._all_conditions or []
 
     def current_medications(self) -> list[MedicationCached]:
         if self._medications is None:
@@ -490,7 +476,6 @@ class LimitedCache:
             },  # force the setting fetch
             "demographicStr": self.demographic__str__(obfuscate),
             #
-            "allChartConditions": [i.to_dict() for i in self.all_chart_conditions()],
             "conditionHistory": [i.to_dict() for i in self.condition_history()],
             "currentAllergies": [i.to_dict() for i in self.current_allergies()],
             "currentConditions": [i.to_dict() for i in self.current_conditions()],
@@ -530,7 +515,6 @@ class LimitedCache:
             },
         )
 
-        result._all_conditions = CodedItem.load_from_json_list(cache.get("allChartConditions", []))
         result._condition_history = CodedItem.load_from_json_list(cache.get("conditionHistory", []))
         result._allergies = CodedItem.load_from_json_list(cache.get("currentAllergies", []))
         result._conditions = CodedItem.load_from_json_list(cache.get("currentConditions", []))

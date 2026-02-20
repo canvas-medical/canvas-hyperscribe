@@ -30,13 +30,9 @@ class Assess(Base):
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
         condition_id: str | None = None
-        if (
-            0
-            <= (idx := instruction.parameters["conditionIndex"])
-            < len(conditions := self.cache.all_chart_conditions())
-        ):
-            condition_id = conditions[idx].uuid
-            self.add_code2description(conditions[idx].uuid, conditions[idx].label)
+        if 0 <= (idx := instruction.parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
+            condition_id = current[idx].uuid
+            self.add_code2description(current[idx].uuid, current[idx].label)
         return InstructionWithCommand.add_command(
             instruction,
             AssessCommand(
@@ -59,7 +55,7 @@ class Assess(Base):
 
     def command_parameters_schemas(self) -> list[dict]:
         statuses = [status.value for status in AssessCommand.Status]
-        conditions = [condition.label for condition in self.cache.all_chart_conditions()]
+        conditions = [condition.label for condition in self.cache.current_conditions()]
         return [
             {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -101,23 +97,17 @@ class Assess(Base):
         ]
 
     def instruction_description(self) -> str:
-        text = ", ".join([f"{condition.label}" for condition in self.cache.all_chart_conditions()])
+        text = ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()])
         return (
-            f"Today's assessment of a condition on the patient's chart ({text}). "
-            "If any of these conditions are discussed, evaluated, or referenced during the visit, "
-            "an Assess instruction MUST be created for each one discussed. "
+            f"Today's assessment of a diagnosed condition ({text}). "
             "There can be only one assessment per condition per instruction, and no instruction in the lack of."
         )
 
     def instruction_constraints(self) -> str:
         text = ", ".join(
-            [f"{condition.label} (ICD-10: {condition.code})" for condition in self.cache.all_chart_conditions()],
+            [f"{condition.label} (ICD-10: {condition.code})" for condition in self.cache.current_conditions()],
         )
-        return (
-            f"'{self.class_name()}' has to be related to one of the following conditions: {text}. "
-            f"If any of these conditions are discussed during the visit, "
-            f"an '{self.class_name()}' instruction SHOULD be created for each one discussed."
-        )
+        return f"'{self.class_name()}' has to be related to one of the following conditions: {text}"
 
     def is_available(self) -> bool:
-        return bool(self.cache.all_chart_conditions())
+        return bool(self.cache.current_conditions())
