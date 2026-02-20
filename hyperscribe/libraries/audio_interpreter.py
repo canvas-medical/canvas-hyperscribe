@@ -39,11 +39,12 @@ class AudioInterpreter:
         self.identification = identification
         self.cache = cache
         self._command_context = {
-            instance.class_name(): instance
+            class_name: instance
             for command_class in ImplementedCommands.command_list()
             if (instance := command_class(settings, cache, identification))
-            and self.settings.commands_policy.is_allowed(instance.class_name())
+            and self.settings.commands_policy.is_allowed(class_name := instance.class_name())
             and instance.is_available()
+            and instance.can_edit_command()
         }
 
     def common_instructions(self) -> list[Base]:

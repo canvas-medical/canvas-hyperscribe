@@ -47,6 +47,13 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    tested = Assess
+    result = tested.command_type()
+    expected = "AssessCommand"
+    assert result == expected
+
+
 def test_schema_key():
     tested = Assess
     result = tested.schema_key()
@@ -275,10 +282,12 @@ def test_instruction_constraints(current_conditions):
     reset_mocks()
 
 
+@patch.object(Assess, "can_edit_field", return_value=True)
 @patch.object(LimitedCache, "current_conditions")
-def test_is_available(current_conditions):
+def test_is_available(current_conditions, can_edit_field):
     def reset_mocks():
         current_conditions.reset_mock()
+        can_edit_field.reset_mock()
 
     tested = helper_instance()
     conditions = [
@@ -291,6 +300,44 @@ def test_is_available(current_conditions):
         current_conditions.side_effect = [side_effect]
         result = tested.is_available()
         assert result is expected
+        calls = [call("background"), call("narrative")]
+        assert can_edit_field.mock_calls == calls
         calls = [call()]
         assert current_conditions.mock_calls == calls
         reset_mocks()
+
+
+@patch.object(Assess, "can_edit_field", return_value=False)
+def test_is_available__all_fields_locked(can_edit_field):
+    tested = helper_instance()
+    result = tested.is_available()
+    expected = False
+    assert result == expected
+
+    calls = [call("background"), call("narrative")]
+    assert can_edit_field.mock_calls == calls
+
+
+@patch.object(Assess, "can_edit_field")
+@patch.object(LimitedCache, "current_conditions")
+def test_is_available__partial_field_locked(current_conditions, can_edit_field):
+    tested = helper_instance()
+    conditions = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+    ]
+    tests = [
+        ([True, False], True),
+        ([False, True], True),
+    ]
+    for side_effect, expected in tests:
+        can_edit_field.side_effect = side_effect
+        current_conditions.side_effect = [conditions]
+        result = tested.is_available()
+        assert result is expected
+
+        calls = [call("background"), call("narrative")]
+        assert can_edit_field.mock_calls == calls
+        calls = [call()]
+        assert current_conditions.mock_calls == calls
+        can_edit_field.reset_mock()
+        current_conditions.reset_mock()

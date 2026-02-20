@@ -14,6 +14,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Task(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "TaskCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_TASK
 
@@ -134,10 +138,22 @@ class Task(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Get field values with template permission checks
+        title = (
+            self.fill_template_content(instruction.parameters["title"], "title", instruction, chatter)
+            if self.can_edit_field("title")
+            else ""
+        )
+        comment = (
+            self.fill_template_content(instruction.parameters["comment"], "comment", instruction, chatter)
+            if self.can_edit_field("comment")
+            else ""
+        )
+
         result = TaskCommand(
-            title=instruction.parameters["title"],
+            title=title,
             due_date=Helper.str2date(instruction.parameters["dueDate"]),
-            comment=instruction.parameters["comment"],
+            comment=comment,
             note_uuid=self.identification.note_uuid,
         )
         if instruction.parameters["assignTo"]:
@@ -145,7 +161,7 @@ class Task(Base):
                 instruction,
                 chatter,
                 instruction.parameters["assignTo"],
-                instruction.parameters["comment"],
+                comment,
             )
 
         if instruction.parameters["labels"]:
@@ -153,7 +169,7 @@ class Task(Base):
                 instruction,
                 chatter,
                 instruction.parameters["labels"],
-                instruction.parameters["comment"],
+                comment,
             )
 
         return InstructionWithCommand.add_command(instruction, result)
@@ -222,4 +238,4 @@ class Task(Base):
         return ""
 
     def is_available(self) -> bool:
-        return True
+        return any([self.can_edit_field(field) for field in ["title", "comment"]])

@@ -13,6 +13,10 @@ from hyperscribe.structures.medication_search import MedicationSearch
 
 class AdjustPrescription(BasePrescription):
     @classmethod
+    def command_type(cls) -> str:
+        return "AdjustPrescriptionCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_ADJUST_PRESCRIPTION
 

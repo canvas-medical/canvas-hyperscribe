@@ -11,6 +11,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class UpdateGoal(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "UpdateGoalCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_UPDATE_GOAL
 
@@ -29,6 +33,12 @@ class UpdateGoal(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        progress = (
+            self.fill_template_content(instruction.parameters["progressAndBarriers"], "progress", instruction, chatter)
+            if self.can_edit_field("progress")
+            else ""
+        )
+
         goal_uuid = ""
         if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             goal_uuid = current[idx].uuid
@@ -44,7 +54,7 @@ class UpdateGoal(Base):
                     UpdateGoalCommand.AchievementStatus,
                 ),
                 priority=Helper.enum_or_none(instruction.parameters["priority"], UpdateGoalCommand.Priority),
-                progress=instruction.parameters["progressAndBarriers"],
+                progress=progress,
                 note_uuid=self.identification.note_uuid,
             ),
         )
@@ -118,4 +128,4 @@ class UpdateGoal(Base):
         return f'"{self.class_name()}" has to be related to one of the following goals: {text}'
 
     def is_available(self) -> bool:
-        return bool(self.cache.current_goals())
+        return self.can_edit_field("progress") and bool(self.cache.current_goals())

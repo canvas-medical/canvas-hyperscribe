@@ -50,6 +50,8 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
         )
         aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
         if mocks:
+            for m in mocks:
+                m.return_value.can_edit_command.side_effect = [True]
             mocks[0].return_value.is_available.side_effect = [True]
             mocks[1].return_value.is_available.side_effect = [True]
             mocks[2].return_value.is_available.side_effect = [False]
@@ -103,6 +105,8 @@ def test___init__(command_list):
     )
     aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
 
+    for m in mocks:
+        m.return_value.can_edit_command.side_effect = [True]
     mocks[0].return_value.is_available.side_effect = [True]
     mocks[1].return_value.is_available.side_effect = [True]
     mocks[2].return_value.is_available.side_effect = [False]
@@ -127,20 +131,87 @@ def test___init__(command_list):
     assert instance.s3_credentials == aws_s3
     assert instance.identification == identification
     assert instance.cache == cache
-
     calls = [call()]
     assert command_list.mock_calls == calls
     for idx, mock in enumerate(mocks):
+        # With walrus operator optimization, class_name() is called only once
+        # (assigned via := in policy check) and reused for dict key
         calls = [
             call(settings, cache, identification),
             call().__bool__(),
             call().class_name(),
             call().is_available(),
         ]
-        if idx != 2:
-            calls.append(call().class_name())
+        if idx != 2:  # mock[2] has is_available=False, so can_edit_command is not called
+            calls.append(call().can_edit_command())
         assert mock.mock_calls == calls
     reset_mocks()
+
+
+@patch.object(ImplementedCommands, "command_list")
+def test___init___with_template_filtering(command_list):
+    """Test that commands locked by template permissions are excluded from _command_context."""
+    mocks = [MagicMock(), MagicMock(), MagicMock()]
+
+    # CommandA is allowed, CommandB is locked by template, CommandC is allowed
+    mocks[0].return_value.can_edit_command.side_effect = [True]
+    mocks[1].return_value.can_edit_command.side_effect = [False]
+    mocks[2].return_value.can_edit_command.side_effect = [True]
+
+    settings = Settings(
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
+        structured_rfv=False,
+        audit_llm=False,
+        reasoning_llm=False,
+        custom_prompts=[],
+        is_tuning=False,
+        api_signing_key="theApiSigningKey",
+        max_workers=3,
+        hierarchical_detection_threshold=5,
+        send_progress=False,
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
+        cycle_transcript_overlap=37,
+    )
+    aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+
+    mocks[0].return_value.is_available.side_effect = [True]
+    mocks[1].return_value.is_available.side_effect = [True]
+    mocks[2].return_value.is_available.side_effect = [True]
+    mocks[0].return_value.class_name.side_effect = ["CommandA", "CommandA"]
+    mocks[1].return_value.class_name.side_effect = ["CommandB", "CommandB"]
+    mocks[2].return_value.class_name.side_effect = ["CommandC", "CommandC"]
+    command_list.side_effect = [mocks]
+
+    cache = LimitedCache("patientUuid", "providerUuid", {})
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    instance = AudioInterpreter(settings, aws_s3, cache, identification)
+
+    # CommandB should be excluded from _command_context due to template lock
+    expected = {
+        "CommandA": mocks[0].return_value,
+        "CommandC": mocks[2].return_value,
+    }
+    assert instance._command_context == expected
+
+    calls = [call()]
+    assert command_list.mock_calls == calls
+    for mock in mocks:
+        calls = [
+            call(settings, cache, identification),
+            call().__bool__(),
+            call().class_name(),
+            call().is_available(),
+            call().can_edit_command(),
+        ]
+        assert mock.mock_calls == calls
 
 
 def test_common_instructions():
@@ -208,7 +279,7 @@ def test_common_instructions():
                 call().is_available(),
             ]
             if idx != 2:
-                calls.append(call().class_name())
+                calls.append(call().can_edit_command())
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 
@@ -259,9 +330,9 @@ def test_instruction_constraints():
                 call().is_available(),
             ]
             if idx != 2:
-                calls.append(call().class_name())
-                if idx in list_idx:
-                    calls.append(call().instruction_constraints())
+                calls.append(call().can_edit_command())
+            if idx != 2 and idx in list_idx:
+                calls.append(call().instruction_constraints())
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 
@@ -312,7 +383,7 @@ def test_command_structures(questionnaire_command_name_list):
                 call().is_available(),
             ]
             if idx != 2:
-                calls.append(call().class_name())
+                calls.append(call().can_edit_command())
             if idx == rank:
                 calls.append(call().command_parameters())
             assert mock.mock_calls == calls, f"---> {idx}"
@@ -365,7 +436,7 @@ def test_command_schema(questionnaire_command_name_list):
                 call().is_available(),
             ]
             if idx != 2:
-                calls.append(call().class_name())
+                calls.append(call().can_edit_command())
             if idx == rank:
                 calls.append(call().command_parameters_schemas())
             assert mock.mock_calls == calls, f"---> {idx}"
@@ -912,11 +983,18 @@ def test_detect_sections(json_schema, chatter, memory_log):
         memory_log.reset_mock()
         for item in mocks:
             item.reset_mock()
+        # Set up class_name for direct calls (as instructions in detect_sections)
         mocks[0].class_name.side_effect = ["First", "First"]
         mocks[1].class_name.side_effect = ["Second", "Second"]
         mocks[2].class_name.side_effect = ["Third", "Third"]
         mocks[3].class_name.side_effect = ["Fourth", "Fourth"]
         mocks[4].class_name.side_effect = ["Fifth", "Fifth"]
+        # Set up class_name on return_value (for init comprehension)
+        mocks[0].return_value.class_name.side_effect = ["First"]
+        mocks[1].return_value.class_name.side_effect = ["Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth"]
+        mocks[4].return_value.class_name.side_effect = ["Fifth"]
         mocks[0].note_section.side_effect = ["Assessment"]
         mocks[1].note_section.side_effect = ["Plan"]
         mocks[2].note_section.side_effect = ["Plan"]
@@ -1029,12 +1107,8 @@ def test_detect_sections(json_schema, chatter, memory_log):
             call().is_available(),
         ]
         if idx != 2:
-            calls.extend(
-                [
-                    call().class_name(),
-                    call().class_name().__hash__(),
-                ]
-            )
+            calls.append(call().can_edit_command())
+        # The subsequent calls are from detect_sections (directly on mock as instruction)
         calls.extend(
             [
                 call.note_section(),
@@ -1267,11 +1341,18 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
         memory_log.reset_mock()
         for item in mocks:
             item.reset_mock()
+        # Set up class_name for direct calls (as instructions in detect_instructions_flat)
         mocks[0].class_name.side_effect = ["First", "First"]
         mocks[1].class_name.side_effect = ["Second", "Second"]
         mocks[2].class_name.side_effect = ["Third", "Third"]
         mocks[3].class_name.side_effect = ["Fourth", "Fourth"]
         mocks[4].class_name.side_effect = ["Fifth", "Fifth"]
+        # Set up class_name on return_value (for init comprehension)
+        mocks[0].return_value.class_name.side_effect = ["First"]
+        mocks[1].return_value.class_name.side_effect = ["Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth"]
+        mocks[4].return_value.class_name.side_effect = ["Fifth"]
         mocks[0].instruction_description.side_effect = ["Description1"]
         mocks[1].instruction_description.side_effect = ["Description2"]
         mocks[2].instruction_description.side_effect = ["Description3"]
@@ -1454,12 +1535,8 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             call().is_available(),
         ]
         if idx != 2:
-            calls.extend(
-                [
-                    call().class_name(),
-                    call().class_name().__hash__(),
-                ]
-            )
+            calls.append(call().can_edit_command())
+        # The subsequent calls are from detect_instructions_flat (directly on mock as instruction)
         calls.extend(
             [
                 call.class_name(),
@@ -1975,7 +2052,7 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
                 call().is_available(),
             ]
             if idx != 2:
-                calls.extend([call().class_name()])
+                calls.append(call().can_edit_command())
             if idx == rank and idx != 2:
                 calls.extend([call().command_from_json_with_summary(instruction, "LlmBaseInstance")])
             assert mock.mock_calls == calls, f"---> {idx}"
@@ -2071,12 +2148,11 @@ def test_update_questionnaire(chatter, memory_log):
                 call().is_available(),
             ]
             if idx != 2:
-                calls.extend([call().class_name()])
+                calls.append(call().can_edit_command())
             if idx == rank and idx != 2:
-                if idx != 2:
-                    calls.extend([call().update_from_transcript(discussion, instruction, "LlmBaseInstance")])
-                    if rank != 3:
-                        calls.extend([call().command_from_questionnaire("theUuid", questionnaire_mocks[rank])])
+                calls.extend([call().update_from_transcript(discussion, instruction, "LlmBaseInstance")])
+                if rank != 3:
+                    calls.extend([call().command_from_questionnaire("theUuid", questionnaire_mocks[rank])])
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 

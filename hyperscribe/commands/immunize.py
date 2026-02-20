@@ -10,6 +10,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Immunize(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "ImmunizeCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_IMMUNIZE
 

@@ -56,6 +56,13 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    tested = Instruct
+    result = tested.command_type()
+    expected = "InstructCommand"
+    assert result == expected
+
+
 def test_schema_key():
     tested = Instruct
     result = tested.schema_key()
@@ -304,7 +311,22 @@ def test_instruction_constraints():
     assert result == expected
 
 
-def test_is_available():
+@patch.object(Instruct, "can_edit_field", return_value=True)
+def test_is_available(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
     assert result is True
+
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
+
+
+@patch.object(Instruct, "can_edit_field", return_value=False)
+def test_is_available__all_fields_locked(can_edit_field):
+    tested = helper_instance()
+    result = tested.is_available()
+    expected = False
+    assert result == expected
+
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls

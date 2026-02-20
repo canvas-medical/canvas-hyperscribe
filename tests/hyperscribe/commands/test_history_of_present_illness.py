@@ -1,6 +1,6 @@
 from hashlib import md5
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresentIllnessCommand
 
@@ -51,6 +51,13 @@ def helper_instance(custom_prompts: list[CustomPrompt] = None) -> HistoryOfPrese
 def test_class():
     tested = HistoryOfPresentIllness
     assert issubclass(tested, Base)
+
+
+def test_command_type():
+    tested = HistoryOfPresentIllness
+    result = tested.command_type()
+    expected = "HistoryOfPresentIllnessCommand"
+    assert result == expected
 
 
 def test_schema_key():
@@ -190,7 +197,22 @@ def test_instruction_constraints():
     assert result == expected
 
 
-def test_is_available():
+@patch.object(HistoryOfPresentIllness, "can_edit_field", return_value=True)
+def test_is_available(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
     assert result is True
+
+    calls = [call("narrative")]
+    assert can_edit_field.mock_calls == calls
+
+
+@patch.object(HistoryOfPresentIllness, "can_edit_field", return_value=False)
+def test_is_available__all_fields_locked(can_edit_field):
+    tested = helper_instance()
+    result = tested.is_available()
+    expected = False
+    assert result == expected
+
+    calls = [call("narrative")]
+    assert can_edit_field.mock_calls == calls

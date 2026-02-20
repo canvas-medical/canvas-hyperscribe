@@ -105,6 +105,33 @@ def test_schema_command_summary():
         assert result == expected, f"---> {idx}"
 
 
+def test_schema_template_enhanced_content():
+    schema = JsonSchema.get(["template_enhanced_content"])[0]
+    tests = [
+        ([{"enhancedContent": "Enhanced narrative content"}], ""),
+        ([{"enhancedContent": "line1\nline2\nline3"}], ""),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [{"enhancedContent": "content1"}, {"enhancedContent": "content2"}],
+            "[{'enhancedContent': 'content1'}, {'enhancedContent': 'content2'}] is too long",
+        ),
+        (
+            [{"enhancedContent": "the content", "other": "added"}],
+            "Additional properties are not allowed ('other' was unexpected), in path [0]",
+        ),
+        (
+            [{}],
+            "'enhancedContent' is a required property, in path [0]",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
+
+
 def test_schema_generic_parameters():
     schema = JsonSchema.get(["generic_parameters"])[0]
     tests = [

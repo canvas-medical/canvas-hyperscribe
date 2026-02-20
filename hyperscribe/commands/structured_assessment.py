@@ -8,6 +8,10 @@ from hyperscribe.libraries.constants import Constants
 
 class StructuredAssessment(BaseQuestionnaire):
     @classmethod
+    def command_type(cls) -> str:
+        return "StructuredAssessmentCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_STRUCTURED_ASSESSMENT
 

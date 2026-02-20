@@ -158,5 +158,8 @@ def test_constants():
         #
         "WS_CHANNEL_PROGRESSES": "progresses",
         "USER_TYPE_STAFF": "Staff",
+        #
+        "TEMPLATE_COMMAND_PERMISSIONS_KEY_PREFIX": "note_template_cmd_perms_",
+        "TEMPLATE_SHARED_CACHE_PREFIX": "note_template_permissions",
     }
     assert is_constant(tested, constants)

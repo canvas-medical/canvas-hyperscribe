@@ -51,6 +51,13 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    tested = Task
+    result = tested.command_type()
+    expected = "TaskCommand"
+    assert result == expected
+
+
 def test_schema_key():
     tested = Task
     result = tested.schema_key()
@@ -598,7 +605,39 @@ def test_instruction_constraints():
     assert result == expected
 
 
-def test_is_available():
+@patch.object(Task, "can_edit_field", return_value=True)
+def test_is_available(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
     assert result is True
+
+    calls = [call("title"), call("comment")]
+    assert can_edit_field.mock_calls == calls
+
+
+@patch.object(Task, "can_edit_field", return_value=False)
+def test_is_available__all_fields_locked(can_edit_field):
+    tested = helper_instance()
+    result = tested.is_available()
+    expected = False
+    assert result == expected
+
+    calls = [call("title"), call("comment")]
+    assert can_edit_field.mock_calls == calls
+
+
+@patch.object(Task, "can_edit_field")
+def test_is_available__partial_field_locked(can_edit_field):
+    tested = helper_instance()
+    tests = [
+        ([True, False], True),
+        ([False, True], True),
+    ]
+    for side_effect, expected in tests:
+        can_edit_field.side_effect = side_effect
+        result = tested.is_available()
+        assert result is expected
+
+        calls = [call("title"), call("comment")]
+        assert can_edit_field.mock_calls == calls
+        can_edit_field.reset_mock()

@@ -50,6 +50,13 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    tested = ReasonForVisit
+    result = tested.command_type()
+    expected = "ReasonForVisitCommand"
+    assert result == expected
+
+
 def test_schema_key():
     tested = ReasonForVisit
     result = tested.schema_key()
@@ -320,10 +327,12 @@ def test_instruction_constraints(existing_reason_for_visits):
         reset_mocks()
 
 
+@patch.object(ReasonForVisit, "can_edit_field", return_value=True)
 @patch.object(LimitedCache, "existing_reason_for_visits")
-def test_is_available(existing_reason_for_visits):
+def test_is_available(existing_reason_for_visits, can_edit_field):
     def reset_mocks():
         existing_reason_for_visits.reset_mock()
+        can_edit_field.reset_mock()
 
     reason_for_visits = [
         CodedItem(uuid="theUuid1", label="display1", code="code1"),
@@ -337,6 +346,8 @@ def test_is_available(existing_reason_for_visits):
     result = tested.is_available()
     assert result is True
     assert existing_reason_for_visits.mock_calls == []
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
     reset_mocks()
 
     # with structured RfV
@@ -347,6 +358,8 @@ def test_is_available(existing_reason_for_visits):
     assert result is False
     calls = [call()]
     assert existing_reason_for_visits.mock_calls == calls
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
     reset_mocks()
     # -- some reasons for visit defined
     existing_reason_for_visits.side_effect = [reason_for_visits]
@@ -354,4 +367,17 @@ def test_is_available(existing_reason_for_visits):
     assert result is True
     calls = [call()]
     assert existing_reason_for_visits.mock_calls == calls
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
     reset_mocks()
+
+
+@patch.object(ReasonForVisit, "can_edit_field", return_value=False)
+def test_is_available__all_fields_locked(can_edit_field):
+    tested = helper_instance()
+    result = tested.is_available()
+    expected = False
+    assert result == expected
+
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls

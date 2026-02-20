@@ -12,6 +12,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class CloseGoal(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "CloseGoalCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_CLOSE_GOAL
 
@@ -30,6 +34,12 @@ class CloseGoal(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        progress = (
+            self.fill_template_content(instruction.parameters["progressAndBarriers"], "progress", instruction, chatter)
+            if self.can_edit_field("progress")
+            else ""
+        )
+
         goal_uuid = "0"
         if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             # TODO should be  goal_uuid = current[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
@@ -42,7 +52,7 @@ class CloseGoal(Base):
                 # TODO should be goal_id=goal_uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
                 goal_id=int(goal_uuid),
                 achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
-                progress=instruction.parameters["progressAndBarriers"],
+                progress=progress,
                 note_uuid=self.identification.note_uuid,
             ),
         )
@@ -102,4 +112,4 @@ class CloseGoal(Base):
         return f'"{self.class_name()}" has to be related to one of the following goals: {text}'
 
     def is_available(self) -> bool:
-        return bool(self.cache.current_goals())
+        return self.can_edit_field("progress") and bool(self.cache.current_goals())

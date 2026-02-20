@@ -48,6 +48,13 @@ def test_class():
     assert issubclass(tested, Base)
 
 
+def test_command_type():
+    tested = UpdateGoal
+    result = tested.command_type()
+    expected = "UpdateGoalCommand"
+    assert result == expected
+
+
 def test_schema_key():
     tested = UpdateGoal
     result = tested.schema_key()
@@ -287,10 +294,12 @@ def test_instruction_constraints(current_goals):
     reset_mocks()
 
 
+@patch.object(UpdateGoal, "can_edit_field", return_value=True)
 @patch.object(LimitedCache, "current_goals")
-def test_is_available(current_goals):
+def test_is_available(current_goals, can_edit_field):
     def reset_mocks():
         current_goals.reset_mock()
+        can_edit_field.reset_mock()
 
     tested = helper_instance()
     goals = [
@@ -303,6 +312,19 @@ def test_is_available(current_goals):
         current_goals.side_effect = [side_effect]
         result = tested.is_available()
         assert result is expected
+        calls = [call("progress")]
+        assert can_edit_field.mock_calls == calls
         calls = [call()]
         assert current_goals.mock_calls == calls
         reset_mocks()
+
+
+@patch.object(UpdateGoal, "can_edit_field", return_value=False)
+def test_is_available__all_fields_locked(can_edit_field):
+    tested = helper_instance()
+    result = tested.is_available()
+    expected = False
+    assert result == expected
+
+    calls = [call("progress")]
+    assert can_edit_field.mock_calls == calls

@@ -15,6 +15,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Instruct(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "InstructCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_INSTRUCT
 
@@ -34,8 +38,14 @@ class Instruct(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Get the comment content with custom prompt processing
+        comment = self.command_from_json_custom_prompted(instruction.parameters["comment"], chatter)
+
+        # Fill template content if a template framework exists, or enhance with {add:} instructions
+        comment = self.fill_template_content(comment, "comment", instruction, chatter)
+
         result = InstructCommand(
-            comment=self.command_from_json_custom_prompted(instruction.parameters["comment"], chatter),
+            comment=comment,
             note_uuid=self.identification.note_uuid,
         )
         # retrieve existing instructions defined in Canvas Science
@@ -121,4 +131,4 @@ class Instruct(Base):
         return ""
 
     def is_available(self) -> bool:
-        return True
+        return self.can_edit_field("comment")
