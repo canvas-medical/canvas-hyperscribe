@@ -28,6 +28,7 @@ def test_constants():
         "MAX_CHARGE_DESCRIPTIONS": 500,
         "CYCLE_DATA_MAX_ATTEMPTS": 3,
         "CYCLE_DATA_PAUSE_SECONDS": 3,
+        "STUCK_SESSION_WAITING_CYCLES_THRESHOLD": 5,
         "MAX_WORKERS_MIN": 1,
         "MAX_WORKERS_MAX": 10,
         "MAX_WORKERS_DEFAULT": 3,
