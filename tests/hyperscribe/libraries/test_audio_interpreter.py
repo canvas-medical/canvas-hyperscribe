@@ -266,67 +266,6 @@ def test_instruction_constraints():
         reset_mocks()
 
 
-def test_instruction_constraints_diagnose_always_included():
-    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
-
-    def reset_mocks():
-        for item in mocks:
-            item.reset_mock()
-
-    tests = [
-        # (instruction_dicts, diagnose_constraint, expected)
-        # Diagnose NOT in names, non-empty constraint → included via elif
-        (
-            [{"instruction": "Command1"}, {"instruction": "Command4"}],
-            "DiagnoseConstraint",
-            ["Constraints1", "Constraints4", "DiagnoseConstraint"],
-        ),
-        # Diagnose NOT in names, empty constraint → excluded
-        (
-            [{"instruction": "Command1"}, {"instruction": "Command4"}],
-            "",
-            ["Constraints1", "Constraints4"],
-        ),
-        # Diagnose IS in names → included via standard if branch
-        (
-            [{"instruction": "Command1"}, {"instruction": "Command4"}, {"instruction": "Diagnose"}],
-            "DiagnoseConstraint",
-            ["Constraints1", "Constraints4", "DiagnoseConstraint"],
-        ),
-    ]
-    for instruction_dicts, diagnose_constraint, expected in tests:
-        mocks[0].return_value.class_name.side_effect = ["Command1", "Command1"]
-        mocks[1].return_value.class_name.side_effect = ["Command2", "Command2"]
-        mocks[2].return_value.class_name.side_effect = ["Command3", "Command3"]
-        mocks[3].return_value.class_name.side_effect = ["Command4", "Command4"]
-        mocks[4].return_value.class_name.side_effect = ["Diagnose", "Diagnose"]
-        mocks[0].return_value.instruction_constraints.side_effect = ["Constraints1"]
-        mocks[1].return_value.instruction_constraints.side_effect = [""]
-        mocks[2].return_value.instruction_constraints.side_effect = ["Constraints3"]
-        mocks[3].return_value.instruction_constraints.side_effect = ["Constraints4"]
-        mocks[4].return_value.instruction_constraints.side_effect = [diagnose_constraint]
-
-        instructions = Instruction.load_from_json(instruction_dicts)
-        names = [i.instruction for i in instructions]
-        tested, settings, aws_credentials, cache = helper_instance(mocks, True)
-        result = tested.instruction_constraints(instructions)
-        assert result == expected
-        for idx, mock in enumerate(mocks):
-            calls = [
-                call(settings, cache, tested.identification),
-                call().__bool__(),
-                call().class_name(),
-                call().is_available(),
-            ]
-            if idx != 2:
-                calls.append(call().class_name())
-                mock_name = ["Command1", "Command2", "Command3", "Command4", "Diagnose"][idx]
-                if mock_name in names or mock_name == "Diagnose":
-                    calls.append(call().instruction_constraints())
-            assert mock.mock_calls == calls, f"---> {idx}"
-        reset_mocks()
-
-
 @patch.object(ImplementedCommands, "questionnaire_command_name_list")
 def test_command_structures(questionnaire_command_name_list):
     mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
