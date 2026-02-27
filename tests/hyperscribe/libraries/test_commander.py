@@ -1998,6 +1998,42 @@ def test_existing_commands_to_instructions(schema_key2instruction):
     assert schema_key2instruction.mock_calls == calls
     reset_mocks()
 
+    # commands with unrecognized schema keys (e.g. privateNotes) are skipped
+    current_commands = [
+        Command(id="uuid1", schema_key="canvas_command_X"),
+        Command(id="uuid2", schema_key="privateNotes"),
+        Command(id="uuid3", schema_key="canvas_command_Y"),
+    ]
+    schema_key2instruction.side_effect = [
+        {"canvas_command_X": "theInstructionX", "canvas_command_Y": "theInstructionY"},
+    ]
+
+    result = tested.existing_commands_to_instructions(current_commands, [])
+    expected = [
+        Instruction(
+            uuid="uuid1",
+            index=0,
+            instruction="theInstructionX",
+            information="",
+            is_new=False,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="uuid3",
+            index=2,
+            instruction="theInstructionY",
+            information="",
+            is_new=False,
+            is_updated=False,
+            previous_information="",
+        ),
+    ]
+    assert result == expected
+    calls = [call()]
+    assert schema_key2instruction.mock_calls == calls
+    reset_mocks()
+
     # updated instructions
     current_commands = [
         Command(
