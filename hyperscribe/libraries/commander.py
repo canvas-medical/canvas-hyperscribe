@@ -458,7 +458,9 @@ class Commander(BaseProtocol):
         pre_initialized = ImplementedCommands.pre_initialized()
 
         for index, command in enumerate(current_commands):
-            instruction_type = mapping[command.schema_key]
+            instruction_type = mapping.get(command.schema_key)
+            if instruction_type is None:
+                continue
             instruction_uuid = str(command.id)
             information = ""
 
