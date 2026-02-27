@@ -52,7 +52,7 @@
           "beatPerMinute": 7
         },
         "oxygenSaturation": {
-          "percent": null
+          "percent": 0
         }
       }
     ]

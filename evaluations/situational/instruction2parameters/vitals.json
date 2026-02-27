@@ -34,7 +34,7 @@
           "beatPerMinute": 0
         },
         "oxygenSaturation": {
-          "percent": null
+          "percent": 0
         }
       }
     ]
