@@ -127,6 +127,7 @@ class BasePrescription(Base):
             "",
             "Based on this information, what are the quantity to dispense and the number of refills in order to "
             f"fulfill the {command.days_supply} supply days?",
+            "If the quantity to dispense is NOT explicitly mentioned in the comment, set quantityToDispense to null.",
             "",
             "The exact quantities and refill have to also take into account that "
             f"{self.cache.demographic__str__(False)}.",
@@ -140,10 +141,9 @@ class BasePrescription(Base):
             json.dumps(
                 [
                     {
-                        "quantityToDispense": -1,
+                        "quantityToDispense": None,
                         "refills": -1,
                         "discreteQuantity": True,
-                        "noteToPharmacist": "",
                         "informationToPatient": "",
                     },
                 ],
@@ -157,16 +157,17 @@ class BasePrescription(Base):
             "",
         ]
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-            quantity = Decimal(response[0]["quantityToDispense"])
+            raw_quantity = response[0]["quantityToDispense"]
             is_discrete = response[0]["discreteQuantity"]
 
-            # For discrete quantities (tablets, capsules, etc.), use integer format
-            # For continuous quantities (liquids, creams, etc.), use decimal format
-            if is_discrete:
-                command.quantity_to_dispense = Decimal(int(quantity))
-            else:
-                command.quantity_to_dispense = quantity.quantize(Decimal("0.01"))
+            if raw_quantity is not None:
+                quantity = Decimal(raw_quantity)
+                # For discrete quantities (tablets, capsules, etc.), use integer format
+                # For continuous quantities (liquids, creams, etc.), use decimal format
+                if is_discrete:
+                    command.quantity_to_dispense = Decimal(int(quantity))
+                else:
+                    command.quantity_to_dispense = quantity.quantize(Decimal("0.01"))
 
             command.refills = int(response[0]["refills"])
-            command.note_to_pharmacist = response[0]["noteToPharmacist"]
             command.sig = response[0]["informationToPatient"]
