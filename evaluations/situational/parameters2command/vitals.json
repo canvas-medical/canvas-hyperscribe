@@ -50,6 +50,9 @@
         },
         "respirationRate": {
           "beatPerMinute": 7
+        },
+        "oxygenSaturation": {
+          "percent": null
         }
       }
     ]

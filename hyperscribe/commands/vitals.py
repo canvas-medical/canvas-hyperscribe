@@ -61,6 +61,11 @@ class Vitals(Base):
                     "respiration_rate",
                     instruction.parameters["respirationRate"]["beatPerMinute"],
                 ),
+                oxygen_saturation=self.valid_or_none(
+                    VitalsCommand,
+                    "oxygen_saturation",
+                    instruction.parameters["oxygenSaturation"]["percent"],
+                ),
                 note_uuid=self.identification.note_uuid,
             ),
         )
@@ -74,6 +79,7 @@ class Vitals(Base):
             "bloodPressure": {"systolicPressure": None, "diastolicPressure": None},
             "pulseRate": {"beatPerMinute": None},
             "respirationRate": {"beatPerMinute": None},
+            "oxygenSaturation": {"percent": None},
         }
 
     def command_parameters_schemas(self) -> list[dict]:
@@ -167,6 +173,17 @@ class Vitals(Base):
                             "required": ["beatPerMinute"],
                             "additionalProperties": False,
                         },
+                        "oxygenSaturation": {
+                            "type": "object",
+                            "properties": {
+                                "percent": {
+                                    "type": ["integer", "null"],
+                                    "description": "Oxygen saturation percentage",
+                                },
+                            },
+                            "required": ["percent"],
+                            "additionalProperties": False,
+                        },
                     },
                     "required": [
                         "height",
@@ -176,6 +193,7 @@ class Vitals(Base):
                         "bloodPressure",
                         "pulseRate",
                         "respirationRate",
+                        "oxygenSaturation",
                     ],
                     "additionalProperties": False,
                 },
@@ -185,7 +203,7 @@ class Vitals(Base):
     def instruction_description(self) -> str:
         return (
             "Vital sign measurements (height, weight, waist circumference, "
-            "temperature, blood pressure, pulse rate, respiration rate). "
+            "temperature, blood pressure, pulse rate, respiration rate, oxygen saturation). "
             "All measurements should be combined in one instruction."
         )
 
