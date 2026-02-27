@@ -64,11 +64,10 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 - Prefer `NamedTuple` or plain classes over raw dictionaries and tuples. Named fields help humans, tools, and type checkers alike.
 
 ### Type Annotations
-- Mypy strict mode is enforced. All function signatures must have full type annotations including return types.
+- Mypy strict mode is enforced (see `mypy.ini`). Tests opt out via `# mypy: allow-untyped-defs` at file top.
 - Use PEP 604 union syntax: `str | None`, not `Optional[str]`.
 - Use lowercase generics: `list[str]`, `dict[str, str]`, not `List`, `Dict`.
 - Use `from __future__ import annotations` when forward references are needed.
-- Tests opt out via `# mypy: allow-untyped-defs` at file top.
 
 ### Naming
 - Classes: `PascalCase` (`LlmOpenai`, `InstructionWithCommand`)
@@ -83,28 +82,23 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 - Use `raise NotImplementedError` in base classes for abstract methods (no `abc.ABC`).
 - Use factory classmethods for construction: `from_dictionary()`, `load_from_json()`, `add_parameters()`.
 - Standard return variable: build up a `result` variable and return it at the end.
-- **No optional/default parameters.** When calls commonly use the same values, create an explicit wrapper:
+- **No optional/default parameters.** Create explicit wrappers instead (see "Explicit over implicit" in Design Principles):
   ```python
   @classmethod
   def standard_detector(cls) -> TimestampAnomalyDetector:
       return cls(cls.STANDARD_CONSECUTIVE_IDENTICAL, cls.STANDARD_WORD_DURATION)
   ```
-  Mutable default arguments (`def f(x={})`) are especially dangerous.
 
 ### Style
-- Line length: 120 characters.
 - f-strings everywhere. No `.format()` or `%` formatting. Be consistent -- don't mix f-strings and concatenation in the same context.
 - Walrus operator (`:=`) for conditional extraction: `if response := chatter.single_conversation(...):`
 - Dict merge with `|` operator: `return { ... } | extras`
 - `HTTPStatus` enum for HTTP status codes, never raw integers.
 - No docstrings (code is self-documenting through naming and types). Only inline `#` comments where logic is non-obvious.
-- No unnecessary f-strings (don't write `f"literal"` without interpolation).
-- Trailing comma on the last line of multi-line `()`, `[]`, `{}`.
 - Avoid magic values -- define named constants in `Constants`.
 - Use `Path` over strings for file system paths. `Path` offers an `open` method that is easier to mock.
 - Avoid recursive functions -- there is always a loop alternative in Python.
 - Prefer `while condition:` over `while True:` with a `break`.
-- Prefer integers over floats when precision matters (e.g., 0-10000 range instead of 0.00-100.00).
 
 ### Error Handling
 - Defensive `.get()` with defaults for dict access. But consider whether a missing key should crash -- silent `.get()` with a fallback can hide bugs.
@@ -124,7 +118,7 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 
 **Database isolation is a hard architectural constraint.** All database access must go through `LimitedCache`, loaded at the beginning of each cycle. Breaking this isolation makes it impossible to run the evaluation harness in a synthetic context. This is not a preference -- it is a structural requirement that the entire test/evaluation framework depends on.
 
-**Explicit over implicit.** No optional parameters, no default arguments, no lazy instantiation, no magic values, no `getattr`/`setattr`. Optional parameters hide information from the reader and contradict Python's "be explicit" mantra. When calls commonly use the same values, create a named wrapper (`standard_detector()`, `instanced()`, `registered()`). Mutable default arguments (`def f(x={})`) are especially dangerous.
+**Explicit over implicit.** No optional parameters, no default arguments, no lazy instantiation, no `getattr`/`setattr`. Optional parameters hide information from the reader and contradict Python's "be explicit" mantra. When calls commonly use the same values, create a named wrapper (`standard_detector()`, `instanced()`, `registered()`). Mutable default arguments (`def f(x={})`) are especially dangerous.
 
 **Centralize state in the class that owns it.** Logic that manages state should live in the class that owns that state. Stuck-session detection belongs in `StopAndGo.get()`, not in `CaptureView`. Recovery should be transparent -- called automatically on retrieval. Don't scatter state management across handlers.
 
