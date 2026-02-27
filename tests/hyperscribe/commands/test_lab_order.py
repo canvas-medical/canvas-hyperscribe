@@ -77,7 +77,7 @@ def test_staged_command_extract():
                 "fasting_status": True,
             },
             CodedItem(
-                label="test1/test2/test3: theComment (fasting: yes, diagnosis: diagnose1/diagnose2)",
+                label="test1/test2/test3 (fasting: yes, diagnosis: diagnose1/diagnose2)",
                 code="",
                 uuid="",
             ),
@@ -107,19 +107,19 @@ def test_staged_command_extract():
                 "diagnosis": [{"text": "diagnose1"}],
                 "fasting_status": False,
             },
-            CodedItem(label="test1: n/a (fasting: no, diagnosis: diagnose1)", code="", uuid=""),
+            CodedItem(label="test1 (fasting: no, diagnosis: diagnose1)", code="", uuid=""),
         ),
         (
             {"tests": [{"text": "test1"}], "comment": "", "diagnosis": [], "fasting_status": False},
-            CodedItem(label="test1: n/a (fasting: no, diagnosis: n/a)", code="", uuid=""),
+            CodedItem(label="test1 (fasting: no, diagnosis: n/a)", code="", uuid=""),
         ),
         (
             {"tests": [{"text": "test1"}], "comment": "", "diagnosis": [{"text": "diagnose1"}]},
-            CodedItem(label="test1: n/a (fasting: n/a, diagnosis: diagnose1)", code="", uuid=""),
+            CodedItem(label="test1 (fasting: n/a, diagnosis: diagnose1)", code="", uuid=""),
         ),
         (
             {"tests": [{"text": "test1"}], "comment": "", "diagnosis": "[]"},
-            CodedItem(label="test1: n/a (fasting: n/a, diagnosis: n/a)", code="", uuid=""),
+            CodedItem(label="test1 (fasting: n/a, diagnosis: n/a)", code="", uuid=""),
         ),
     ]
     for data, expected in tests:
@@ -146,10 +146,6 @@ def test_command_from_json(add_code2description, condition_from, lab_test_from, 
 
     tested = helper_instance()
 
-    comment = (
-        "A very long comment to see that it is truncated after 127 characters. "
-        "That is to go over the 127 characters, just in the middle of the sentence."
-    )
     arguments = {
         "uuid": "theUuid",
         "index": 7,
@@ -170,7 +166,6 @@ def test_command_from_json(add_code2description, condition_from, lab_test_from, 
                 {"conditionKeywords": "condition4", "ICD10": "icd4"},
             ],
             "fastingRequired": True,
-            "comment": comment,
         },
     }
 
@@ -197,8 +192,7 @@ def test_command_from_json(add_code2description, condition_from, lab_test_from, 
         lab_partner="uuidLab",
         ordering_provider_key="providerUuid",
         fasting_required=True,
-        comment="A very long comment to see that it is truncated after 127 characters. "
-        "That is to go over the 127 characters, just in the middle",
+        comment="",
         note_uuid="noteUuid",
         tests_order_codes=["code2", "code4"],
         diagnosis_codes=["icd1", "icd3"],
@@ -236,9 +230,9 @@ def test_command_from_json(add_code2description, condition_from, lab_test_from, 
 
     assert add_code2description.mock_calls == exp_calls
     calls = [
-        call(instruction, chatter, ["condition1", "condition2"], ["icd1", "icd2"], comment),
-        call(instruction, chatter, ["condition3"], ["icd3"], comment),
-        call(instruction, chatter, ["condition4"], ["icd4"], comment),
+        call(instruction, chatter, ["condition1", "condition2"], ["icd1", "icd2"], ""),
+        call(instruction, chatter, ["condition3"], ["icd3"], ""),
+        call(instruction, chatter, ["condition4"], ["icd4"], ""),
     ]
     assert condition_from.mock_calls == calls
     calls = [
@@ -248,7 +242,7 @@ def test_command_from_json(add_code2description, condition_from, lab_test_from, 
             tested.cache,
             "theLabPartner",
             ["lab1", "lab2"],
-            comment,
+            "",
             ["condition1", "condition4"],
         ),
         call(
@@ -257,7 +251,7 @@ def test_command_from_json(add_code2description, condition_from, lab_test_from, 
             tested.cache,
             "theLabPartner",
             ["lab3"],
-            comment,
+            "",
             ["condition1", "condition4"],
         ),
         call(
@@ -266,7 +260,7 @@ def test_command_from_json(add_code2description, condition_from, lab_test_from, 
             tested.cache,
             "theLabPartner",
             ["lab4"],
-            comment,
+            "",
             ["condition1", "condition4"],
         ),
     ]
@@ -283,7 +277,6 @@ def test_command_parameters():
         "labOrders": [],
         "conditions": [],
         "fastingRequired": "",
-        "comment": "",
     }
     assert result == expected
 
@@ -296,7 +289,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "b195d75d40c994afd9b80d1e69545261"
+    expected_hash = "fb1af4c81ea361ee3d57c9f63b902c45"
     assert schema_hash == expected_hash
 
     tests = [
@@ -306,7 +299,6 @@ def test_command_parameters_schemas():
                     "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "complete blood count,CBC"}],
                     "conditions": [],
                     "fastingRequired": False,
-                    "comment": "Routine check",
                 }
             ],
             "",
@@ -317,7 +309,6 @@ def test_command_parameters_schemas():
                     "labOrders": [{"labOrderName": "Lipid panel", "labOrderKeywords": "lipid,cholesterol"}],
                     "conditions": [{"conditionKeywords": "hyperlipidemia", "ICD10": "E78.5"}],
                     "fastingRequired": True,
-                    "comment": "Check lipid levels",
                 }
             ],
             "",
@@ -332,23 +323,19 @@ def test_command_parameters_schemas():
                     "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
                     "conditions": [],
                     "fastingRequired": False,
-                    "comment": "Routine",
                 },
                 {
                     "labOrders": [{"labOrderName": "CMP", "labOrderKeywords": "CMP"}],
                     "conditions": [],
                     "fastingRequired": False,
-                    "comment": "Routine",
                 },
             ],
             "[{'labOrders': [{'labOrderName': 'CBC', 'labOrderKeywords': 'CBC'}], "
             "'conditions': [], "
-            "'fastingRequired': False, "
-            "'comment': 'Routine'}, "
+            "'fastingRequired': False}, "
             "{'labOrders': [{'labOrderName': 'CMP', 'labOrderKeywords': 'CMP'}], "
             "'conditions': [], "
-            "'fastingRequired': False, "
-            "'comment': 'Routine'}] is too long",
+            "'fastingRequired': False}] is too long",
         ),
         (
             [
@@ -356,7 +343,6 @@ def test_command_parameters_schemas():
                     "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
                     "conditions": [],
                     "fastingRequired": False,
-                    "comment": "Routine",
                     "extra": "field",
                 }
             ],
@@ -367,7 +353,6 @@ def test_command_parameters_schemas():
                 {
                     "conditions": [],
                     "fastingRequired": False,
-                    "comment": "Routine",
                 }
             ],
             "'labOrders' is a required property, in path [0]",
@@ -377,7 +362,6 @@ def test_command_parameters_schemas():
                 {
                     "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
                     "fastingRequired": False,
-                    "comment": "Routine",
                 }
             ],
             "'conditions' is a required property, in path [0]",
@@ -387,7 +371,6 @@ def test_command_parameters_schemas():
                 {
                     "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
                     "conditions": [],
-                    "comment": "Routine",
                 }
             ],
             "'fastingRequired' is a required property, in path [0]",
@@ -395,20 +378,9 @@ def test_command_parameters_schemas():
         (
             [
                 {
-                    "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
-                    "conditions": [],
-                    "fastingRequired": False,
-                }
-            ],
-            "'comment' is a required property, in path [0]",
-        ),
-        (
-            [
-                {
                     "labOrders": [],
                     "conditions": [],
                     "fastingRequired": False,
-                    "comment": "Routine",
                 }
             ],
             "[] should be non-empty, in path [0, 'labOrders']",
@@ -419,7 +391,6 @@ def test_command_parameters_schemas():
                     "labOrders": [{"labOrderKeywords": "CBC"}],
                     "conditions": [],
                     "fastingRequired": False,
-                    "comment": "Routine",
                 }
             ],
             "'labOrderName' is a required property, in path [0, 'labOrders', 0]",
@@ -430,7 +401,6 @@ def test_command_parameters_schemas():
                     "labOrders": [{"labOrderName": "CBC"}],
                     "conditions": [],
                     "fastingRequired": False,
-                    "comment": "Routine",
                 }
             ],
             "'labOrderKeywords' is a required property, in path [0, 'labOrders', 0]",
@@ -441,7 +411,6 @@ def test_command_parameters_schemas():
                     "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC", "extra": "field"}],
                     "conditions": [],
                     "fastingRequired": False,
-                    "comment": "Routine",
                 }
             ],
             "Additional properties are not allowed ('extra' was unexpected), in path [0, 'labOrders', 0]",
@@ -452,7 +421,6 @@ def test_command_parameters_schemas():
                     "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
                     "conditions": [{"ICD10": "E78.5"}],
                     "fastingRequired": False,
-                    "comment": "Routine",
                 }
             ],
             "'conditionKeywords' is a required property, in path [0, 'conditions', 0]",
@@ -463,7 +431,6 @@ def test_command_parameters_schemas():
                     "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
                     "conditions": [{"conditionKeywords": "hyperlipidemia"}],
                     "fastingRequired": False,
-                    "comment": "Routine",
                 }
             ],
             "'ICD10' is a required property, in path [0, 'conditions', 0]",
