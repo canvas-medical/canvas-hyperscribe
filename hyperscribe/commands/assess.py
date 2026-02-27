@@ -33,13 +33,22 @@ class Assess(Base):
         if 0 <= (idx := instruction.parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
             condition_id = current[idx].uuid
             self.add_code2description(current[idx].uuid, current[idx].label)
+
+        # Get field values with template permission checks
+        background = self.resolve_field("background", instruction.parameters["rationale"], instruction, chatter)
+        narrative = self.resolve_field("narrative", instruction.parameters["assessment"], instruction, chatter)
+
+        # If neither field can be edited, skip this command
+        if background is None and narrative is None:
+            return None
+
         return InstructionWithCommand.add_command(
             instruction,
             AssessCommand(
                 condition_id=condition_id,
-                background=instruction.parameters["rationale"],
+                background=background or "",
                 status=Helper.enum_or_none(instruction.parameters["status"], AssessCommand.Status),
-                narrative=instruction.parameters["assessment"],
+                narrative=narrative or "",
                 note_uuid=self.identification.note_uuid,
             ),
         )
@@ -99,7 +108,10 @@ class Assess(Base):
     def instruction_description(self) -> str:
         text = ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()])
         return (
-            f"Today's assessment of a diagnosed condition ({text}). "
+            f"Today's assessment of an EXISTING condition already in the patient's chart ({text}). "
+            "Use this instruction whenever the provider discusses, evaluates, reviews, or mentions "
+            "any of these existing conditions during the visit — including current status, symptoms, "
+            "treatment response, or management plan related to the condition. "
             "There can be only one assessment per condition per instruction, and no instruction in the lack of."
         )
 

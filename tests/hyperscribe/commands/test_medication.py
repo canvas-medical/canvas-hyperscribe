@@ -202,8 +202,9 @@ def test_command_from_json(add_code2description, medication_details):
     assert chatter.mock_calls == []
     reset_mocks()
 
-    # empty keywords -- no FDB search, no LLM call
-    for empty_keywords in ["", "  ", " , , "]:
+    # empty keywords -- FDB search called with unsplit input, but no results expected
+    for empty_keywords, expected_expressions in [("", [""]), ("  ", ["  "]), (" , , ", [" ", " ", " "])]:
+        medication_details.side_effect = [[]]
         empty_arguments = {**arguments, "parameters": {"keywords": empty_keywords, "sig": "theSig"}}
         instruction_empty = InstructionWithParameters(**empty_arguments)
         result = tested.command_from_json(instruction_empty, chatter)
@@ -211,7 +212,8 @@ def test_command_from_json(add_code2description, medication_details):
         expected = InstructionWithCommand(**(empty_arguments | {"command": command}))
         assert result == expected
         assert add_code2description.mock_calls == []
-        assert medication_details.mock_calls == []
+        calls = [call(expected_expressions)]
+        assert medication_details.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
 

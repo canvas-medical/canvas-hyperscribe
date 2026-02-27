@@ -1257,10 +1257,13 @@ def test_detect_instructions_per_section(detect_sections, detect_instructions_fl
 @patch.object(Helper, "chatter")
 @patch.object(AudioInterpreter, "instruction_constraints")
 @patch.object(AudioInterpreter, "json_schema_instructions")
-def test_detect_instructions_flat(json_schema, instruction_constraints, chatter, memory_log):
+@patch.object(AudioInterpreter, "verify_condition_instructions")
+def test_detect_instructions_flat(verify_condition, json_schema, instruction_constraints, chatter, memory_log):
     mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
+        verify_condition.reset_mock()
+        verify_condition.side_effect = lambda result, *args: result
         json_schema.reset_mock()
         instruction_constraints.reset_mock()
         chatter.reset_mock()
@@ -1468,6 +1471,8 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             ]
         )
         assert mock.mock_calls == calls, f"---> {idx}"
+    calls = [call([{"information": "response2"}], mocks, chatter.return_value, system_prompt, "theJsonSchema")]
+    assert verify_condition.mock_calls == calls
     reset_mocks()
 
     # -- no known instruction + no constraint
@@ -1509,6 +1514,8 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     for idx, mock in enumerate(mocks):
         calls = [call.class_name(), call.class_name(), call.instruction_description()]
         assert mock.mock_calls == calls, f"---> {idx}"
+    calls = [call([{"information": "response1"}], mocks, chatter.return_value, system_prompt, "theJsonSchema")]
+    assert verify_condition.mock_calls == calls
     reset_mocks()
 
     # -- with known instructions
@@ -1592,6 +1599,20 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     for idx, mock in enumerate(mocks):
         calls = [call.class_name(), call.class_name(), call.instruction_description()]
         assert mock.mock_calls == calls, f"---> {idx}"
+    calls = [
+        call(
+            [
+                {"instruction": "theInstruction1", "uuid": "uuid1", "index": 0},
+                {"instruction": "theInstruction2", "uuid": "uuid2", "index": 1},
+                {"instruction": "changedInstruction3", "uuid": "uuid3", "index": 2},
+            ],
+            mocks,
+            chatter.return_value,
+            system_prompt,
+            "theJsonSchema",
+        )
+    ]
+    assert verify_condition.mock_calls == calls
     reset_mocks()
     # -- -- forgotten instructions (no constraints)
     tests = [
@@ -1664,6 +1685,28 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
         for idx, mock in enumerate(mocks):
             calls = [call.class_name(), call.class_name(), call.instruction_description()]
             assert mock.mock_calls == calls, f"---> {idx}"
+        calls = [
+            call(
+                [
+                    {"instruction": "theInstruction2", "uuid": "uuid2", "index": 1, "isNew": False, "isUpdated": False},
+                    {"instruction": "theInstruction3a", "uuid": "uuid3", "index": 2, "isNew": False, "isUpdated": True},
+                    {"instruction": "theInstruction4", "uuid": "uuid4", "index": 3, "isNew": True, "isUpdated": False},
+                    {
+                        "information": "the information 1",
+                        "instruction": "theInstruction1",
+                        "uuid": "uuid1",
+                        "index": 0,
+                        "isNew": False,
+                        "isUpdated": False,
+                    },
+                ],
+                mocks,
+                chatter.return_value,
+                system_prompt,
+                "theJsonSchema",
+            )
+        ]
+        assert verify_condition.mock_calls == calls
         reset_mocks()
 
 
@@ -2095,7 +2138,9 @@ def test_json_schema_instructions():
                 },
                 "information": {
                     "description": "all relevant information extracted from the discussion explaining and/or "
-                    "defining the instruction",
+                    "defining the instruction, written in clinical SOAP note style using first person "
+                    "or passive voice (e.g. 'Patient presents with...', 'Prescribing...', "
+                    "'Schedule follow-up in...') without referring to 'the clinician' or 'the provider'",
                     "type": "string",
                 },
                 "instruction": {"enum": ["Command1", "Command2"], "type": "string"},

@@ -30,6 +30,10 @@ class CloseGoal(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        progress = self.resolve_field("progress", instruction.parameters["progressAndBarriers"], instruction, chatter)
+        if progress is None:
+            return None
+
         goal_uuid = "0"
         if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             # TODO should be  goal_uuid = current[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
@@ -42,7 +46,7 @@ class CloseGoal(Base):
                 # TODO should be goal_id=goal_uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
                 goal_id=int(goal_uuid),
                 achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
-                progress=instruction.parameters["progressAndBarriers"],
+                progress=progress,
                 note_uuid=self.identification.note_uuid,
             ),
         )

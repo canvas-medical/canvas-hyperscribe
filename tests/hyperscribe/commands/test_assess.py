@@ -240,9 +240,11 @@ def test_instruction_description(current_conditions):
     current_conditions.side_effect = [conditions]
     result = tested.instruction_description()
     expected = (
-        "Today's assessment of a diagnosed condition (display1a, display2a, display3a). "
-        "There can be only one assessment per condition per instruction, "
-        "and no instruction in the lack of."
+        "Today's assessment of an EXISTING condition already in the patient's chart (display1a, display2a, display3a). "
+        "Use this instruction whenever the provider discusses, evaluates, reviews, or mentions "
+        "any of these existing conditions during the visit — including current status, symptoms, "
+        "treatment response, or management plan related to the condition. "
+        "There can be only one assessment per condition per instruction, and no instruction in the lack of."
     )
     assert result == expected
     calls = [call()]

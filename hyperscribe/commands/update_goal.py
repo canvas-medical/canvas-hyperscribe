@@ -29,6 +29,10 @@ class UpdateGoal(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        progress = self.resolve_field("progress", instruction.parameters["progressAndBarriers"], instruction, chatter)
+        if progress is None:
+            return None
+
         goal_uuid = ""
         if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             goal_uuid = current[idx].uuid
@@ -44,7 +48,7 @@ class UpdateGoal(Base):
                     UpdateGoalCommand.AchievementStatus,
                 ),
                 priority=Helper.enum_or_none(instruction.parameters["priority"], UpdateGoalCommand.Priority),
-                progress=instruction.parameters["progressAndBarriers"],
+                progress=progress,
                 note_uuid=self.identification.note_uuid,
             ),
         )

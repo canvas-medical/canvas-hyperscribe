@@ -32,21 +32,31 @@ class Diagnose(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Get field values with template permission checks
+        background = self.resolve_field("background", instruction.parameters["rationale"], instruction, chatter)
+        today_assessment = self.resolve_field(
+            "today_assessment", instruction.parameters["assessment"], instruction, chatter
+        )
+
+        # If neither field can be edited, skip this command
+        if background is None and today_assessment is None:
+            return None
+
         icd10_code = SelectorChat.condition_from(
             instruction,
             chatter,
             instruction.parameters["keywords"].split(","),
             instruction.parameters["ICD10"].split(","),
-            "\n".join([instruction.parameters["rationale"], "", instruction.parameters["assessment"]]),
+            "\n".join([background or "", "", today_assessment or ""]),
         )
         self.add_code2description(icd10_code.uuid, icd10_code.label)
         return InstructionWithCommand.add_command(
             instruction,
             DiagnoseCommand(
                 icd10_code=icd10_code.code,
-                background=instruction.parameters["rationale"],
+                background=background or "",
                 approximate_date_of_onset=Helper.str2date(instruction.parameters["onsetDate"]),
-                today_assessment=instruction.parameters["assessment"],
+                today_assessment=today_assessment or "",
                 note_uuid=self.identification.note_uuid,
             ),
         )
@@ -107,15 +117,12 @@ class Diagnose(Base):
 
     def instruction_description(self) -> str:
         return (
-            "Medical condition identified, diagnosed, or referenced as pertaining to the patient "
-            "by a provider. When available in the transcript, also include: "
-            "- all reasoning explicitly mentioned, "
-            "- current detailed assessment, and "
-            "- the approximate date of onset. "
-            "If a condition is discussed in relation to the patient's treatment or medications "
-            "(e.g., asking about a medication used for a specific condition), and that condition is not already "
-            "in the patient's chart, create a Diagnose instruction for it. "
-            "There is one and only one condition per instruction, "
+            "Medical condition identified by a provider; the necessary information to report includes: "
+            "- the medical condition itself, "
+            "- all reasoning explicitly mentioned in the transcript, "
+            "- current detailed assessment as mentioned in the transcript, and "
+            "- the approximate date of onset if mentioned in the transcript. "
+            "There is one and only one condition per instruction with all necessary information, "
             "and no instruction in the lack of."
         )
 

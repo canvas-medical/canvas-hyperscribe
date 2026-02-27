@@ -35,9 +35,17 @@ class UpdateDiagnose(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Get field values with template permission checks
+        background = self.resolve_field("background", instruction.parameters["rationale"], instruction, chatter)
+        narrative = self.resolve_field("narrative", instruction.parameters["assessment"], instruction, chatter)
+
+        # If neither field can be edited, skip this command
+        if background is None and narrative is None:
+            return None
+
         result = UpdateDiagnosisCommand(
-            background=instruction.parameters["rationale"],
-            narrative=instruction.parameters["assessment"],
+            background=background or "",
+            narrative=narrative or "",
             note_uuid=self.identification.note_uuid,
         )
         if (

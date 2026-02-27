@@ -135,10 +135,9 @@ def test_schema_prescription_dosage():
         (
             [
                 {
-                    "quantityToDispense": 10.5,
+                    "quantityToDispense": None,
                     "refills": 2,
                     "discreteQuantity": False,
-                    "noteToPharmacist": "Note",
                     "informationToPatient": "Take daily",
                 }
             ],
@@ -178,14 +177,6 @@ def test_schema_prescription_dosage():
                 }
             ],
             "Additional properties are not allowed ('other' was unexpected), in path [0]",
-        ),
-        (
-            [{"quantityToDispense": 0, "refills": 2, "discreteQuantity": True, "informationToPatient": "Take daily"}],
-            "0 is less than or equal to the minimum of 0.0, in path [0, 'quantityToDispense']",
-        ),
-        (
-            [{"quantityToDispense": -5, "refills": 2, "discreteQuantity": True, "informationToPatient": "Take daily"}],
-            "-5 is less than or equal to the minimum of 0.0, in path [0, 'quantityToDispense']",
         ),
         (
             [{"quantityToDispense": 10, "refills": -1, "discreteQuantity": True, "informationToPatient": "Take daily"}],
@@ -479,7 +470,7 @@ def test_schema_selector_assignee():
         ([{"type": "staff", "id": 1, "name": "theName"}], ""),
         ([{"type": "team", "id": 2, "name": "theName"}], ""),
         ([{"type": "role", "id": 3, "name": "theName"}], ""),
-        ([], ""),
+        ([], "[] should be non-empty"),
         (
             [{"type": "staff", "id": 1, "name": "name1"}, {"type": "team", "id": 2, "name": "name2"}],
             "[{'type': 'staff', 'id': 1, 'name': 'name1'}, {'type': 'team', 'id': 2, 'name': 'name2'}] is too long",
@@ -653,7 +644,7 @@ def test_get():
                 "required": ["type", "id", "name"],
                 "additionalProperties": False,
             },
-            "minItems": 0,
+            "minItems": 1,
             "maxItems": 1,
         },
         {

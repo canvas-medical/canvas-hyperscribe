@@ -63,6 +63,23 @@ JSON_SCHEMAS: dict[str, dict] = {
             "additionalProperties": False,
         },
     },
+    "template_enhanced_content": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 1,
+        "items": {
+            "type": "object",
+            "properties": {
+                "enhancedContent": {
+                    "type": "string",
+                    "description": "the enhanced content incorporating template instructions",
+                },
+            },
+            "required": ["enhancedContent"],
+            "additionalProperties": False,
+        },
+    },
     "generic_parameters": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "array",
@@ -75,9 +92,8 @@ JSON_SCHEMAS: dict[str, dict] = {
             "type": "object",
             "properties": {
                 "quantityToDispense": {
-                    "type": "number",
-                    "exclusiveMinimum": 0.0,
-                    "description": "the quantity to dispense",
+                    "type": ["number", "null"],
+                    "description": "the quantity to dispense, or null if not mentioned in the transcript",
                 },
                 "refills": {
                     "type": "integer",
@@ -91,10 +107,6 @@ JSON_SCHEMAS: dict[str, dict] = {
                     "(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier "
                     "description to determine this. Set to true for countable units, "
                     "false for measurable quantities.",
-                },
-                "noteToPharmacist": {
-                    "type": "string",
-                    "description": "the note to the pharmacist, as free text",
                 },
                 "informationToPatient": {
                     "type": "string",
@@ -227,7 +239,7 @@ JSON_SCHEMAS: dict[str, dict] = {
             "required": ["type", "id", "name"],
             "additionalProperties": False,
         },
-        "minItems": 0,
+        "minItems": 1,
         "maxItems": 1,
     },
     "voice_identification": {

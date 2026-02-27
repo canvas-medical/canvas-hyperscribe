@@ -58,12 +58,7 @@ class Task(Base):
             "",
             "```",
             "",
-            "Sort the following staff members, teams and roles "
-            "from most relevant to least, and return the first one. "
-            "Only return a match if the assignee description clearly refers "
-            "to a specific person, team, or role in the list. "
-            "If the description is generic (e.g. 'assistant', 'nurse', 'staff') "
-            "and does not clearly identify a specific entry, return an empty list.",
+            "Sort the following staff members, teams and roles from most relevant to least, and return the first one:",
             "",
             "\n".join(f" * {staff.label} (type: staff, id: {staff.uuid})" for staff in staffs),
             "\n".join(f" * {team.label} (type: team, id: {team.uuid})" for team in teams),
@@ -72,10 +67,6 @@ class Task(Base):
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
             json.dumps([{"type": "staff, team or role", "id": "the id, as int", "name": "the entity"}]),
-            "```",
-            "Or, if no clear match exists:",
-            "```json",
-            "[]",
             "```",
             "",
         ]
@@ -134,10 +125,18 @@ class Task(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Get field values with template permission checks
+        title = self.resolve_field("title", instruction.parameters["title"], instruction, chatter)
+        comment = self.resolve_field("comment", instruction.parameters["comment"], instruction, chatter)
+
+        # If neither field can be edited, skip this command
+        if title is None and comment is None:
+            return None
+
         result = TaskCommand(
-            title=instruction.parameters["title"],
+            title=title or "",
             due_date=Helper.str2date(instruction.parameters["dueDate"]),
-            comment=instruction.parameters["comment"],
+            comment=comment or "",
             note_uuid=self.identification.note_uuid,
         )
         if instruction.parameters["assignTo"]:
@@ -145,7 +144,7 @@ class Task(Base):
                 instruction,
                 chatter,
                 instruction.parameters["assignTo"],
-                instruction.parameters["comment"],
+                comment or "",
             )
 
         if instruction.parameters["labels"]:
@@ -153,7 +152,7 @@ class Task(Base):
                 instruction,
                 chatter,
                 instruction.parameters["labels"],
-                instruction.parameters["comment"],
+                comment or "",
             )
 
         return InstructionWithCommand.add_command(instruction, result)
@@ -207,15 +206,10 @@ class Task(Base):
 
     def instruction_description(self) -> str:
         return (
-            "A clinical work item or action to be completed, such as: "
-            "scheduling a follow-up appointment, reviewing lab results, "
-            "sending a referral fax, contacting a patient, "
-            "or completing prior authorization paperwork. "
-            "A task may optionally include a due date. "
-            "A task should only include an assignee if the clinician "
-            "explicitly names a specific person, team, or role. "
-            "There can be one and only one task per instruction, "
-            "and no instruction in the lack of."
+            "Specific task assigned to someone or a group at the healthcare facility, "
+            "including the speaking clinician. "
+            "A task might include a due date and a specific assignee. "
+            "There can be one and only one task per instruction, and no instruction in the lack of."
         )
 
     def instruction_constraints(self) -> str:

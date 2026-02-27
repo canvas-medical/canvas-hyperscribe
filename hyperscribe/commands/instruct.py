@@ -34,8 +34,18 @@ class Instruct(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Check if the comment field can be edited by plugins
+        if not self.can_edit_field("comment"):
+            return None
+
+        # Get the comment content with custom prompt processing
+        comment = self.command_from_json_custom_prompted(instruction.parameters["comment"], chatter)
+
+        # Fill template content if a template framework exists, or enhance with {add:} instructions
+        comment = self.fill_template_content(comment, "comment", instruction, chatter)
+
         result = InstructCommand(
-            comment=self.command_from_json_custom_prompted(instruction.parameters["comment"], chatter),
+            comment=comment,
             note_uuid=self.identification.note_uuid,
         )
         # retrieve existing instructions defined in Canvas Science
