@@ -33,13 +33,12 @@ class LabOrder(Base):
             list_diagnosis = []
 
         diagnosis = "/".join([diagnose for item in list_diagnosis if (diagnose := item.get("text"))]) or "n/a"
-        comment = data.get("comment") or "n/a"
         if tests := data.get("tests"):
             if not isinstance(tests, list):
                 return None  # <-- waiting for https://github.com/canvas-medical/canvas/issues/17567
             descriptions = "/".join([test for item in tests if (test := item.get("text"))])
             return CodedItem(
-                label=f"{descriptions}: {comment} (fasting: {fasting}, diagnosis: {diagnosis})",
+                label=f"{descriptions} (fasting: {fasting}, diagnosis: {diagnosis})",
                 code="",
                 uuid="",
             )
@@ -53,7 +52,7 @@ class LabOrder(Base):
         result = LabOrderCommand(
             ordering_provider_key=self.identification.provider_uuid,
             fasting_required=bool(instruction.parameters["fastingRequired"]),
-            comment=instruction.parameters["comment"][:127],  # <-- no more than 128 characters
+            comment="",
             note_uuid=self.identification.note_uuid,
             diagnosis_codes=[],
             tests_order_codes=[],
@@ -67,7 +66,7 @@ class LabOrder(Base):
                 chatter,
                 condition["conditionKeywords"].split(","),
                 condition["ICD10"].split(","),
-                instruction.parameters["comment"],
+                "",
             )
             if item.code:
                 conditions.append(item)
@@ -92,7 +91,7 @@ class LabOrder(Base):
                 self.cache,
                 lab_partner.label,
                 lab_order["labOrderKeywords"].split(","),
-                instruction.parameters["comment"],
+                "",
                 [c.label for c in conditions],
             )
             if item.code:
@@ -106,7 +105,6 @@ class LabOrder(Base):
             "labOrders": [],
             "conditions": [],
             "fastingRequired": "",
-            "comment": "",
         }
 
     def command_parameters_schemas(self) -> list[dict]:
@@ -171,13 +169,8 @@ class LabOrder(Base):
                             "type": "boolean",
                             "description": "Whether fasting is required prior to the lab test",
                         },
-                        "comment": {
-                            "type": "string",
-                            "description": "Rationale for the prescription as explicitly explained in the transcript",
-                            "maxLength": 128,
-                        },
                     },
-                    "required": ["labOrders", "conditions", "fastingRequired", "comment"],
+                    "required": ["labOrders", "conditions", "fastingRequired"],
                     "additionalProperties": False,
                 },
             }
