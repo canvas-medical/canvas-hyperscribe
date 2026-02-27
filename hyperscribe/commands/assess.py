@@ -120,7 +120,10 @@ class Assess(Base):
     def instruction_description(self) -> str:
         text = ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()])
         return (
-            f"Today's assessment of a diagnosed condition ({text}). "
+            f"Today's assessment of an EXISTING condition already in the patient's chart ({text}). "
+            "Use this instruction whenever the provider discusses, evaluates, reviews, or mentions "
+            "any of these existing conditions during the visit — including current status, symptoms, "
+            "treatment response, or management plan related to the condition. "
             "There can be only one assessment per condition per instruction, and no instruction in the lack of."
         )
 

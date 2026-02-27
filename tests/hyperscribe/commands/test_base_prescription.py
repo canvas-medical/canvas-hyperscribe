@@ -347,6 +347,7 @@ def test_set_medication_dosage(demographic):
         "",
         "Based on this information, what are the quantity to dispense and the number of refills in order "
         "to fulfill the 11 supply days?",
+        "If the quantity to dispense is NOT explicitly mentioned in the comment, set quantityToDispense to null.",
         "",
         "The exact quantities and refill have to also take into account that the patient has this demographic.",
         "",
@@ -356,11 +357,7 @@ def test_set_medication_dosage(demographic):
         "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
-        '[{"quantityToDispense": -1, '
-        '"refills": -1, '
-        '"discreteQuantity": true, '
-        '"noteToPharmacist": "", '
-        '"informationToPatient": ""}]',
+        '[{"quantityToDispense": null, "refills": -1, "discreteQuantity": true, "informationToPatient": ""}]',
         "```",
         "",
         "Your response must be a JSON Markdown block validated with the schema:",
@@ -368,13 +365,13 @@ def test_set_medication_dosage(demographic):
         '{"$schema": "http://json-schema.org/draft-07/schema#", '
         '"type": "array", '
         '"items": {"type": "object", "properties": {'
-        '"quantityToDispense": {"type": "number", "exclusiveMinimum": 0.0, "description": "the quantity to dispense"}, '
+        '"quantityToDispense": {"type": ["number", "null"], '
+        '"description": "the quantity to dispense, or null if not mentioned in the transcript"}, '
         '"refills": {"type": "integer", "minimum": 0, "description": "the refills allowed"}, '
         '"discreteQuantity": {"type": "boolean", "description": "whether the medication form is discrete '
         "(e.g., tablets, capsules, patches, suppositories) as opposed to continuous "
         "(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier description to determine this. "
         'Set to true for countable units, false for measurable quantities."}, '
-        '"noteToPharmacist": {"type": "string", "description": "the note to the pharmacist, as free text"}, '
         '"informationToPatient": {"type": "string", "minLength": 1, "description": "the information to the patient '
         "on how to use the medication, specifying the quantity, the form (e.g. tablets, drops, puffs, etc), "
         "the frequency and/or max daily frequency, and the route of use "
@@ -392,9 +389,8 @@ def test_set_medication_dosage(demographic):
                 "type": "object",
                 "properties": {
                     "quantityToDispense": {
-                        "type": "number",
-                        "exclusiveMinimum": 0.0,
-                        "description": "the quantity to dispense",
+                        "type": ["number", "null"],
+                        "description": "the quantity to dispense, or null if not mentioned in the transcript",
                     },
                     "refills": {
                         "type": "integer",
@@ -408,10 +404,6 @@ def test_set_medication_dosage(demographic):
                         "(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier "
                         "description to determine this. Set to true for countable units, "
                         "false for measurable quantities.",
-                    },
-                    "noteToPharmacist": {
-                        "type": "string",
-                        "description": "the note to the pharmacist, as free text",
                     },
                     "informationToPatient": {
                         "type": "string",
@@ -460,9 +452,8 @@ def test_set_medication_dosage(demographic):
                 days_supply=11,
                 fdb_code="code369",
                 type_to_dispense={"representative_ndc": "ndc1", "ncpdp_quantity_qualifier_code": "qualifier1"},
-                quantity_to_dispense=Decimal("8.3"),
+                quantity_to_dispense=Decimal("8.30"),
                 refills=3,
-                note_to_pharmacist="theNoteToPharmacist",
                 sig="theInformationToPatient",
             ),
         ),
@@ -473,9 +464,8 @@ def test_set_medication_dosage(demographic):
                 fdb_code="code985",
                 new_fdb_code="code369",
                 type_to_dispense={"representative_ndc": "ndc1", "ncpdp_quantity_qualifier_code": "qualifier1"},
-                quantity_to_dispense=Decimal("8.3"),
+                quantity_to_dispense=Decimal("8.30"),
                 refills=3,
-                note_to_pharmacist="theNoteToPharmacist",
                 sig="theInformationToPatient",
             ),
         ),
@@ -498,7 +488,6 @@ def test_set_medication_dosage(demographic):
                     "quantityToDispense": "8.3",
                     "refills": 3,
                     "discreteQuantity": False,
-                    "noteToPharmacist": "theNoteToPharmacist",
                     "informationToPatient": "theInformationToPatient",
                 },
             ],
@@ -521,7 +510,6 @@ def test_set_medication_dosage(demographic):
                 "quantityToDispense": "60",
                 "refills": 0,
                 "discreteQuantity": True,  # tablets are discrete
-                "noteToPharmacist": "Dispense 60 tablets",
                 "informationToPatient": "Take 2 tablets by mouth once daily",
             },
         ],
@@ -533,7 +521,6 @@ def test_set_medication_dosage(demographic):
         type_to_dispense={"representative_ndc": "ndc1", "ncpdp_quantity_qualifier_code": "qualifier1"},
         quantity_to_dispense=Decimal("60"),  # No .00 - integer format
         refills=0,
-        note_to_pharmacist="Dispense 60 tablets",
         sig="Take 2 tablets by mouth once daily",
     )
     assert command == expected
