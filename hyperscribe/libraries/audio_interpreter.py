@@ -461,7 +461,65 @@ class AudioInterpreter:
             user_prompt.append("Or provide a corrected version to follow the constraints if needed.")
             user_prompt.append("")
             result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
+
+        result = self.verify_condition_instructions(result, common_instructions, chatter, system_prompt, schema)
         return result
+
+    def verify_condition_instructions(
+        self,
+        result: list,
+        common_instructions: list[Base],
+        chatter: LlmBase,
+        system_prompt: list[str],
+        schema: dict,
+    ) -> list:
+        if not result:
+            return result
+
+        instruction_names = {item.class_name() for item in common_instructions}
+        has_diagnose = "Diagnose" in instruction_names
+        has_assess = "Assess" in instruction_names
+
+        if not has_diagnose and not has_assess:
+            return result
+
+        current_conditions = self.cache.current_conditions()
+        condition_labels = [condition.label for condition in current_conditions]
+
+        chatter.set_model_prompt(["```json", json.dumps(result), "```"])
+
+        user_prompt = [
+            "Review the transcript and your response.",
+            "",
+        ]
+        if condition_labels:
+            user_prompt.append(
+                "The following conditions are already in the patient's chart: " + ", ".join(condition_labels) + "."
+            )
+            user_prompt.append("")
+        user_prompt.append(
+            "Verify that every medical condition discussed, evaluated, or referenced in the transcript "
+            "has a corresponding instruction:"
+        )
+        if has_assess:
+            user_prompt.append(
+                " * For conditions already in the patient's chart -> there should be an 'Assess' instruction"
+            )
+        if has_diagnose:
+            user_prompt.append(
+                " * For NEW conditions not in the patient's chart -> there should be a 'Diagnose' instruction"
+            )
+        user_prompt.extend(
+            [
+                "",
+                "If any discussed conditions are missing instructions, add them.",
+                "Return the complete JSON with all instructions (existing and any newly added).",
+                "If no changes are needed, return the original JSON unchanged.",
+                "",
+            ]
+        )
+
+        return chatter.single_conversation(system_prompt, user_prompt, [schema], None)
 
     def create_sdk_command_parameters(self, instruction: Instruction) -> InstructionWithParameters | None:
         result: InstructionWithParameters | None = None
@@ -590,7 +648,9 @@ class AudioInterpreter:
             "information": {
                 "type": "string",
                 "description": "all relevant information extracted from the discussion explaining and/or "
-                "defining the instruction",
+                "defining the instruction, written in clinical SOAP note style using first person "
+                "or passive voice (e.g. 'Patient presents with...', 'Prescribing...', "
+                "'Schedule follow-up in...') without referring to 'the clinician' or 'the provider'",
             },
             "isNew": {"type": "boolean", "description": "the instruction is new to the discussion"},
             "isUpdated": {

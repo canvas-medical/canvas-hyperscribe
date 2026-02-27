@@ -131,8 +131,9 @@ class Prescription(BasePrescription):
             "suppliedDays": {
                 "type": "integer",
                 "exclusiveMinimum": 0,
-                "description": "Duration of the treatment in days either as mentioned, "
-                "or following the standard practices, at least 1",
+                "description": "Duration of the treatment in days. If explicitly stated in the transcript, "
+                "use that value. Otherwise, default to 30 days for standard medications "
+                "or 90 days for maintenance/chronic medications.",
             },
             "substitution": {
                 "type": "string",
