@@ -33,10 +33,8 @@ class UpdateGoal(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
-        progress = (
-            self.fill_template_content(instruction.parameters["progressAndBarriers"], "progress", instruction, chatter)
-            if self.can_edit_field("progress")
-            else ""
+        progress = self.fill_template_content(
+            instruction.parameters["progressAndBarriers"], "progress", instruction, chatter
         )
 
         goal_uuid = ""

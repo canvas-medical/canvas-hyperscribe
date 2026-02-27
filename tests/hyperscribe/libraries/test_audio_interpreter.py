@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import ANY, patch, MagicMock, call
 
 import pytest
 
@@ -137,7 +137,7 @@ def test___init__(command_list):
         # With walrus operator optimization, class_name() is called only once
         # (assigned via := in policy check) and reused for dict key
         calls = [
-            call(settings, cache, identification),
+            call(settings, cache, identification, ANY),
             call().__bool__(),
             call().class_name(),
             call().is_available(),
@@ -205,7 +205,7 @@ def test___init___with_template_filtering(command_list):
     assert command_list.mock_calls == calls
     for mock in mocks:
         calls = [
-            call(settings, cache, identification),
+            call(settings, cache, identification, ANY),
             call().__bool__(),
             call().class_name(),
             call().is_available(),
@@ -273,7 +273,7 @@ def test_common_instructions():
         assert result == expected
         for idx, mock in enumerate(mocks):
             calls = [
-                call(settings, cache, tested.identification),
+                call(settings, cache, tested.identification, ANY),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),
@@ -324,7 +324,7 @@ def test_instruction_constraints():
         assert result == expected
         for idx, mock in enumerate(mocks):
             calls = [
-                call(settings, cache, tested.identification),
+                call(settings, cache, tested.identification, ANY),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),
@@ -377,7 +377,7 @@ def test_command_structures(questionnaire_command_name_list):
         assert questionnaire_command_name_list.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
-                call(settings, cache, tested.identification),
+                call(settings, cache, tested.identification, ANY),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),
@@ -430,7 +430,7 @@ def test_command_schema(questionnaire_command_name_list):
         assert questionnaire_command_name_list.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
-                call(settings, cache, tested.identification),
+                call(settings, cache, tested.identification, ANY),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),
@@ -1101,7 +1101,7 @@ def test_detect_sections(json_schema, chatter, memory_log):
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
-            call(settings, cache, tested.identification),
+            call(settings, cache, tested.identification, ANY),
             call().__bool__(),
             call().class_name(),
             call().is_available(),
@@ -1529,7 +1529,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
-            call(settings, cache, tested.identification),
+            call(settings, cache, tested.identification, ANY),
             call().__bool__(),
             call().class_name(),
             call().is_available(),
@@ -2046,7 +2046,7 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
         assert progress.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
-                call(settings, cache, tested.identification),
+                call(settings, cache, tested.identification, ANY),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),
@@ -2142,7 +2142,7 @@ def test_update_questionnaire(chatter, memory_log):
         assert memory_log.mock_calls == calls
         for idx, mock in enumerate(command_mocks):
             calls = [
-                call(settings, cache, tested.identification),
+                call(settings, cache, tested.identification, ANY),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),

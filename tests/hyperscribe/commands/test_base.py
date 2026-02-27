@@ -496,67 +496,24 @@ def _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime):
 # -- can_edit_command ------------------------------------------------------
 
 
-def test_can_edit_command__no_template():
+@pytest.mark.parametrize(
+    "permissions,expected",
+    [
+        ({}, True),
+        ({BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}}, True),
+        ({BASE_CMD: {"plugin_can_edit": False, "field_permissions": []}}, False),
+        ({BASE_CMD: {"field_permissions": []}}, True),
+    ],
+)
+def test_can_edit_command(permissions, expected):
     tested = helper_instance()
     command_type = MagicMock(return_value=BASE_CMD)
     tested.command_type = command_type
-    load_permissions = MagicMock(return_value={})
+    load_permissions = MagicMock(return_value=permissions)
     tested.permissions.load_permissions = load_permissions
 
     result = tested.can_edit_command()
-    expected = True
-    assert result == expected
-
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
-
-
-def test_can_edit_command__allowed():
-    tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
-    tested.command_type = command_type
-    load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}})
-    tested.permissions.load_permissions = load_permissions
-
-    result = tested.can_edit_command()
-    expected = True
-    assert result == expected
-
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
-
-
-def test_can_edit_command__denied():
-    tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
-    tested.command_type = command_type
-    load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": False, "field_permissions": []}})
-    tested.permissions.load_permissions = load_permissions
-
-    result = tested.can_edit_command()
-    expected = False
-    assert result == expected
-
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
-
-
-def test_can_edit_command__missing_key_defaults_true():
-    tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
-    tested.command_type = command_type
-    load_permissions = MagicMock(return_value={BASE_CMD: {"field_permissions": []}})
-    tested.permissions.load_permissions = load_permissions
-
-    result = tested.can_edit_command()
-    expected = True
-    assert result == expected
+    assert result is expected
 
     calls = [call()]
     assert command_type.mock_calls == calls
@@ -567,148 +524,77 @@ def test_can_edit_command__missing_key_defaults_true():
 # -- can_edit_field --------------------------------------------------------
 
 
-def test_can_edit_field__no_template():
+@pytest.mark.parametrize(
+    "permissions,field_name,expected",
+    [
+        ({}, "narrative", True),
+        (
+            {
+                BASE_CMD: {
+                    "plugin_can_edit": False,
+                    "field_permissions": [{"field_name": "narrative", "plugin_can_edit": True}],
+                }
+            },
+            "narrative",
+            False,
+        ),
+        (
+            {
+                BASE_CMD: {
+                    "plugin_can_edit": True,
+                    "field_permissions": [
+                        {"field_name": "narrative", "plugin_can_edit": True},
+                        {"field_name": "background", "plugin_can_edit": False},
+                    ],
+                }
+            },
+            "narrative",
+            True,
+        ),
+        (
+            {
+                BASE_CMD: {
+                    "plugin_can_edit": True,
+                    "field_permissions": [
+                        {"field_name": "narrative", "plugin_can_edit": True},
+                        {"field_name": "background", "plugin_can_edit": False},
+                    ],
+                }
+            },
+            "background",
+            False,
+        ),
+        (
+            {BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}},
+            "some_other_field",
+            True,
+        ),
+        (
+            {BASE_CMD: {"plugin_can_edit": True, "field_permissions": [{"field_name": "narrative"}]}},
+            "narrative",
+            True,
+        ),
+        (
+            {BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}},
+            "any_field",
+            True,
+        ),
+        (
+            {BASE_CMD: {"plugin_can_edit": True, "field_permissions": [{"plugin_can_edit": True}]}},
+            "narrative",
+            True,
+        ),
+    ],
+)
+def test_can_edit_field(permissions, field_name, expected):
     tested = helper_instance()
     command_type = MagicMock(return_value=BASE_CMD)
     tested.command_type = command_type
-    load_permissions = MagicMock(return_value={})
+    load_permissions = MagicMock(return_value=permissions)
     tested.permissions.load_permissions = load_permissions
 
-    result = tested.can_edit_field("narrative")
-    expected = True
-    assert result == expected
-
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
-
-
-def test_can_edit_field__command_not_editable():
-    tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
-    tested.command_type = command_type
-    load_permissions = MagicMock(
-        return_value={
-            BASE_CMD: {
-                "plugin_can_edit": False,
-                "field_permissions": [{"field_name": "narrative", "plugin_can_edit": True}],
-            }
-        }
-    )
-    tested.permissions.load_permissions = load_permissions
-
-    result = tested.can_edit_field("narrative")
-    expected = False
-    assert result == expected
-
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
-
-
-def test_can_edit_field__field_allowed():
-    tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
-    tested.command_type = command_type
-    load_permissions = MagicMock(
-        return_value={
-            BASE_CMD: {
-                "plugin_can_edit": True,
-                "field_permissions": [
-                    {"field_name": "narrative", "plugin_can_edit": True},
-                    {"field_name": "background", "plugin_can_edit": False},
-                ],
-            }
-        }
-    )
-    tested.permissions.load_permissions = load_permissions
-
-    result = tested.can_edit_field("narrative")
-    expected = True
-    assert result == expected
-
-    result = tested.can_edit_field("background")
-    expected = False
-    assert result == expected
-
-    calls = [call(), call()]
-    assert command_type.mock_calls == calls
-    calls = [call(), call()]
-    assert load_permissions.mock_calls == calls
-
-
-def test_can_edit_field__no_specific_permission_inherits():
-    tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
-    tested.command_type = command_type
-    load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}})
-    tested.permissions.load_permissions = load_permissions
-
-    result = tested.can_edit_field("some_other_field")
-    expected = True
-    assert result == expected
-
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
-
-
-def test_can_edit_field__missing_key_defaults_true():
-    tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
-    tested.command_type = command_type
-    load_permissions = MagicMock(
-        return_value={
-            BASE_CMD: {
-                "plugin_can_edit": True,
-                "field_permissions": [{"field_name": "narrative"}],
-            }
-        }
-    )
-    tested.permissions.load_permissions = load_permissions
-
-    result = tested.can_edit_field("narrative")
-    expected = True
-    assert result == expected
-
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
-
-
-def test_can_edit_field__empty_field_permissions():
-    tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
-    tested.command_type = command_type
-    load_permissions = MagicMock(return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": []}})
-    tested.permissions.load_permissions = load_permissions
-
-    result = tested.can_edit_field("any_field")
-    expected = True
-    assert result == expected
-
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
-
-
-def test_can_edit_field__field_without_field_name():
-    tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
-    tested.command_type = command_type
-    load_permissions = MagicMock(
-        return_value={BASE_CMD: {"plugin_can_edit": True, "field_permissions": [{"plugin_can_edit": True}]}}
-    )
-    tested.permissions.load_permissions = load_permissions
-
-    result = tested.can_edit_field("narrative")
-    expected = True
-    assert result == expected
+    result = tested.can_edit_field(field_name)
+    assert result is expected
 
     calls = [call()]
     assert command_type.mock_calls == calls
@@ -920,13 +806,13 @@ def test_resolve_framework(mock_get_framework):
     tested = helper_instance()
 
     # returns cached framework when available
-    mock_get_framework.return_value = "Cached framework content"
+    mock_get_framework.side_effect = ["Cached framework content"]
     assert tested.resolve_framework("narrative") == "Cached framework content"
     assert mock_get_framework.mock_calls == [call("narrative")]
 
     # returns None when no framework
     mock_get_framework.reset_mock()
-    mock_get_framework.return_value = None
+    mock_get_framework.side_effect = [None]
     assert tested.resolve_framework("narrative") is None
     assert mock_get_framework.mock_calls == [call("narrative")]
 
@@ -1022,7 +908,7 @@ def test_fill_template_content_with_framework(
         "- Do not fabricate or invent clinical details",
         "- If a section is already filled, keep it as-is unless the transcript has updates",
         "",
-        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "Current date/time: 2025-11-04T04:55:21.012346+00:00",
         "",
     ]
     user_prompt = [
@@ -1098,7 +984,7 @@ def test_fill_template_content_strips_lit_markers(
         "- Do not fabricate or invent clinical details",
         "- If a section is already filled, keep it as-is unless the transcript has updates",
         "",
-        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "Current date/time: 2025-11-04T04:55:21.012346+00:00",
         "",
     ]
     user_prompt = [
@@ -1171,7 +1057,7 @@ def test_fill_template_content_with_framework_no_add_instructions(
         "- Do not fabricate or invent clinical details",
         "- If a section is already filled, keep it as-is unless the transcript has updates",
         "",
-        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "Current date/time: 2025-11-04T04:55:21.012346+00:00",
         "",
     ]
     user_prompt = [
@@ -1250,7 +1136,7 @@ def test_fill_template_content_llm_empty_falls_back(
         "- Do not fabricate or invent clinical details",
         "- If a section is already filled, keep it as-is unless the transcript has updates",
         "",
-        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "Current date/time: 2025-11-04T04:55:21.012346+00:00",
         "",
     ]
     user_prompt = [
@@ -1331,7 +1217,7 @@ def test_fill_template_content_uses_existing_structure(
         "- Do not fabricate or invent clinical details",
         "- If a section is already filled, keep it as-is unless the transcript has updates",
         "",
-        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "Current date/time: 2025-11-04T04:55:21.012346+00:00",
         "",
     ]
     user_prompt = [
@@ -1397,7 +1283,7 @@ def test_enhance_with_template_instructions(mock_json_schema, mock_demographic, 
         "- Maintain the existing style and tone of the content",
         "- If the requested information is not present in the transcript, do not add it",
         "",
-        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "Current date/time: 2025-11-04T04:55:21.012346+00:00",
         "",
     ]
     user_prompt = [
@@ -1460,7 +1346,7 @@ def test_enhance_with_template_instructions_llm_empty(mock_json_schema, mock_dem
         "- Maintain the existing style and tone of the content",
         "- If the requested information is not present in the transcript, do not add it",
         "",
-        f"Current date/time: {FIXED_DATE.isoformat()}",
+        "Current date/time: 2025-11-04T04:55:21.012346+00:00",
         "",
     ]
     user_prompt = [

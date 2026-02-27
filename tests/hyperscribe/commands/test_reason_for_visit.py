@@ -327,7 +327,7 @@ def test_instruction_constraints(existing_reason_for_visits):
         reset_mocks()
 
 
-@patch.object(ReasonForVisit, "can_edit_field", return_value=True)
+@patch.object(ReasonForVisit, "can_edit_field")
 @patch.object(LimitedCache, "existing_reason_for_visits")
 def test_is_available(existing_reason_for_visits, can_edit_field):
     def reset_mocks():
@@ -340,8 +340,18 @@ def test_is_available(existing_reason_for_visits, can_edit_field):
         CodedItem(uuid="theUuid3", label="display3", code="code3"),
     ]
 
-    # no structured RfV
+    # can_edit_field returns False
     tested = helper_instance(structured_rfv=False)
+    can_edit_field.side_effect = [False]
+    result = tested.is_available()
+    assert result is False
+    assert existing_reason_for_visits.mock_calls == []
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
+    reset_mocks()
+
+    # no structured RfV
+    can_edit_field.side_effect = [True]
     existing_reason_for_visits.side_effect = []
     result = tested.is_available()
     assert result is True
@@ -353,6 +363,7 @@ def test_is_available(existing_reason_for_visits, can_edit_field):
     # with structured RfV
     tested = helper_instance(structured_rfv=True)
     # -- no reason for visit defined
+    can_edit_field.side_effect = [True]
     existing_reason_for_visits.side_effect = [[]]
     result = tested.is_available()
     assert result is False
@@ -362,6 +373,7 @@ def test_is_available(existing_reason_for_visits, can_edit_field):
     assert can_edit_field.mock_calls == calls
     reset_mocks()
     # -- some reasons for visit defined
+    can_edit_field.side_effect = [True]
     existing_reason_for_visits.side_effect = [reason_for_visits]
     result = tested.is_available()
     assert result is True
@@ -370,14 +382,3 @@ def test_is_available(existing_reason_for_visits, can_edit_field):
     calls = [call("comment")]
     assert can_edit_field.mock_calls == calls
     reset_mocks()
-
-
-@patch.object(ReasonForVisit, "can_edit_field", return_value=False)
-def test_is_available__all_fields_locked(can_edit_field):
-    tested = helper_instance()
-    result = tested.is_available()
-    expected = False
-    assert result == expected
-
-    calls = [call("comment")]
-    assert can_edit_field.mock_calls == calls

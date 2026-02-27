@@ -320,11 +320,16 @@ def test_is_available(current_goals, can_edit_field):
 
 
 @patch.object(UpdateGoal, "can_edit_field", return_value=False)
-def test_is_available__all_fields_locked(can_edit_field):
+@patch.object(LimitedCache, "current_goals")
+def test_is_available__all_fields_locked(current_goals, can_edit_field):
     tested = helper_instance()
+    goals = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+    ]
+    current_goals.side_effect = [goals]
     result = tested.is_available()
-    expected = False
-    assert result == expected
+    assert result is False
 
     calls = [call("progress")]
     assert can_edit_field.mock_calls == calls
+    assert current_goals.mock_calls == []

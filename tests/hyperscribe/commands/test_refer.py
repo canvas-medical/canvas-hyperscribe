@@ -335,23 +335,14 @@ def test_is_available(can_edit_field):
     assert can_edit_field.mock_calls == calls
 
 
-@patch.object(Refer, "can_edit_field", return_value=False)
-def test_is_available__all_fields_locked(can_edit_field):
-    tested = helper_instance()
-    result = tested.is_available()
-    expected = False
-    assert result == expected
-
-    calls = [call("notes_to_specialist"), call("comment")]
-    assert can_edit_field.mock_calls == calls
-
-
 @patch.object(Refer, "can_edit_field")
-def test_is_available__partial_field_locked(can_edit_field):
+def test_is_available__on_field_locked(can_edit_field):
     tested = helper_instance()
     tests = [
         ([True, False], True),
         ([False, True], True),
+        ([False, False], False),
+        ([True, True], True),
     ]
     for side_effect, expected in tests:
         can_edit_field.side_effect = side_effect

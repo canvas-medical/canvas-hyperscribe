@@ -17,12 +17,18 @@ from hyperscribe.structures.settings import Settings
 
 
 class Base:
-    def __init__(self, settings: Settings, cache: LimitedCache, identification: IdentificationParameters):
+    def __init__(
+        self,
+        settings: Settings,
+        cache: LimitedCache,
+        identification: IdentificationParameters,
+        permissions: TemplatePermissions | None = None,
+    ):
         self.settings = settings
         self.identification = identification
         self.cache = cache
         self._arguments_code2description: dict[str, str] = {}
-        self.permissions = TemplatePermissions(identification.note_uuid)
+        self.permissions = permissions or TemplatePermissions(identification.note_uuid)
 
     @classmethod
     def class_name(cls) -> str:

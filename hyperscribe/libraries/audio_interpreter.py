@@ -4,6 +4,7 @@ from datetime import datetime
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.handlers.progress_display import ProgressDisplay
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
@@ -38,10 +39,11 @@ class AudioInterpreter:
         self.s3_credentials = s3_credentials
         self.identification = identification
         self.cache = cache
+        permissions = TemplatePermissions(identification.note_uuid)
         self._command_context = {
             class_name: instance
             for command_class in ImplementedCommands.command_list()
-            if (instance := command_class(settings, cache, identification))
+            if (instance := command_class(settings, cache, identification, permissions))
             and self.settings.commands_policy.is_allowed(class_name := instance.class_name())
             and instance.is_available()
             and instance.can_edit_command()
