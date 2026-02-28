@@ -166,6 +166,7 @@ def test_command_from_json(valid_or_none):
         99,  # blood_pressure_diastole
         111,  # pulse
         33,  # respiration_rate
+        95,  # oxygen_saturation
     ]
 
     arguments = {
@@ -184,6 +185,7 @@ def test_command_from_json(valid_or_none):
             "bloodPressure": {"systolicPressure": 5, "diastolicPressure": 6},
             "pulseRate": {"beatPerMinute": 7},
             "respirationRate": {"beatPerMinute": 8},
+            "oxygenSaturation": {"percent": 9},
         },
     }
     instruction = InstructionWithParameters(**arguments)
@@ -197,6 +199,7 @@ def test_command_from_json(valid_or_none):
         blood_pressure_diastole=99,
         pulse=111,
         respiration_rate=33,
+        oxygen_saturation=95,
         note_uuid="noteUuid",
     )
     expected = InstructionWithCommand(**(arguments | {"command": command}))
@@ -210,6 +213,7 @@ def test_command_from_json(valid_or_none):
         call(VitalsCommand, "blood_pressure_diastole", 6),
         call(VitalsCommand, "pulse", 7),
         call(VitalsCommand, "respiration_rate", 8),
+        call(VitalsCommand, "oxygen_saturation", 9),
     ]
     assert valid_or_none.mock_calls == calls
     assert chatter.mock_calls == []
@@ -227,6 +231,7 @@ def test_command_parameters():
         "bloodPressure": {"systolicPressure": None, "diastolicPressure": None},
         "pulseRate": {"beatPerMinute": None},
         "respirationRate": {"beatPerMinute": None},
+        "oxygenSaturation": {"percent": None},
     }
     assert result == expected
 
@@ -239,7 +244,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "5ab059e8d6ed14301a58a309b6cf77e4"
+    expected_hash = "18ea6c7b52722f6137b4b2441e8371ec"
     assert schema_hash == expected_hash
 
     tests = [
@@ -253,6 +258,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
                     "pulseRate": {"beatPerMinute": 72},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                 }
             ],
             "",
@@ -267,6 +273,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"systolicPressure": None, "diastolicPressure": None},
                     "pulseRate": {"beatPerMinute": None},
                     "respirationRate": {"beatPerMinute": None},
+                    "oxygenSaturation": {"percent": None},
                 }
             ],
             "",
@@ -285,6 +292,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
                     "pulseRate": {"beatPerMinute": 72},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                 },
                 {
                     "height": {"inches": 68},
@@ -294,6 +302,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"systolicPressure": 115, "diastolicPressure": 75},
                     "pulseRate": {"beatPerMinute": 70},
                     "respirationRate": {"beatPerMinute": 15},
+                    "oxygenSaturation": {"percent": 95},
                 },
             ],
             "[{'height': {'inches': 70}, "
@@ -302,14 +311,16 @@ def test_command_parameters_schemas():
             "'temperature': {'fahrenheit': 98}, "
             "'bloodPressure': {'systolicPressure': 120, 'diastolicPressure': 80}, "
             "'pulseRate': {'beatPerMinute': 72}, "
-            "'respirationRate': {'beatPerMinute': 16}}, "
+            "'respirationRate': {'beatPerMinute': 16}, "
+            "'oxygenSaturation': {'percent': 98}}, "
             "{'height': {'inches': 68}, "
             "'weight': {'pounds': 170}, "
             "'waistCircumference': {'centimeters': 90}, "
             "'temperature': {'fahrenheit': 99}, "
             "'bloodPressure': {'systolicPressure': 115, 'diastolicPressure': 75}, "
             "'pulseRate': {'beatPerMinute': 70}, "
-            "'respirationRate': {'beatPerMinute': 15}}] is too long",
+            "'respirationRate': {'beatPerMinute': 15}, "
+            "'oxygenSaturation': {'percent': 95}}] is too long",
         ),
         (
             [
@@ -321,6 +332,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
                     "pulseRate": {"beatPerMinute": 72},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                     "extra": "field",
                 }
             ],
@@ -335,6 +347,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
                     "pulseRate": {"beatPerMinute": 72},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                 }
             ],
             "'height' is a required property, in path [0]",
@@ -348,6 +361,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
                     "pulseRate": {"beatPerMinute": 72},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                 }
             ],
             "'weight' is a required property, in path [0]",
@@ -361,6 +375,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
                     "pulseRate": {"beatPerMinute": 72},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                 }
             ],
             "'waistCircumference' is a required property, in path [0]",
@@ -374,6 +389,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
                     "pulseRate": {"beatPerMinute": 72},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                 }
             ],
             "'temperature' is a required property, in path [0]",
@@ -387,6 +403,7 @@ def test_command_parameters_schemas():
                     "temperature": {"fahrenheit": 98},
                     "pulseRate": {"beatPerMinute": 72},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                 }
             ],
             "'bloodPressure' is a required property, in path [0]",
@@ -400,6 +417,7 @@ def test_command_parameters_schemas():
                     "temperature": {"fahrenheit": 98},
                     "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                 }
             ],
             "'pulseRate' is a required property, in path [0]",
@@ -413,9 +431,24 @@ def test_command_parameters_schemas():
                     "temperature": {"fahrenheit": 98},
                     "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
                     "pulseRate": {"beatPerMinute": 72},
+                    "oxygenSaturation": {"percent": 98},
                 }
             ],
             "'respirationRate' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                }
+            ],
+            "'oxygenSaturation' is a required property, in path [0]",
         ),
         (
             [
@@ -427,6 +460,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
                     "pulseRate": {"beatPerMinute": 72},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                 }
             ],
             "Additional properties are not allowed ('extra' was unexpected), in path [0, 'height']",
@@ -441,6 +475,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"systolicPressure": 120},
                     "pulseRate": {"beatPerMinute": 72},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                 }
             ],
             "'diastolicPressure' is a required property, in path [0, 'bloodPressure']",
@@ -455,6 +490,7 @@ def test_command_parameters_schemas():
                     "bloodPressure": {"diastolicPressure": 80},
                     "pulseRate": {"beatPerMinute": 72},
                     "respirationRate": {"beatPerMinute": 16},
+                    "oxygenSaturation": {"percent": 98},
                 }
             ],
             "'systolicPressure' is a required property, in path [0, 'bloodPressure']",
@@ -470,7 +506,7 @@ def test_instruction_description():
     result = tested.instruction_description()
     expected = (
         "Vital sign measurements (height, weight, waist circumference, temperature, blood pressure, pulse rate, "
-        "respiration rate). "
+        "respiration rate, oxygen saturation). "
         "All measurements should be combined in one instruction."
     )
     assert result == expected
@@ -491,7 +527,14 @@ def test_is_available():
 
 def test_valid_or_none():
     tested = Vitals
-    tests = [("height", 90, 90), ("height", 110, None), ("weight_lbs", 1000, 1000), ("weight_lbs", 2000, None)]
+    tests = [
+        ("height", 90, 90),
+        ("height", 110, None),
+        ("weight_lbs", 1000, 1000),
+        ("weight_lbs", 2000, None),
+        ("oxygen_saturation", 95, 95),
+        ("oxygen_saturation", 50, None),
+    ]
     for field, value, expected in tests:
         result = tested.valid_or_none(VitalsCommand, field, value)
         if expected is None:

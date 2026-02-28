@@ -32,6 +32,9 @@
         },
         "respirationRate": {
           "beatPerMinute": 0
+        },
+        "oxygenSaturation": {
+          "percent": 0
         }
       }
     ]
