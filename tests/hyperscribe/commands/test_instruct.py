@@ -19,6 +19,7 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 from hyperscribe.structures.medical_concept import MedicalConcept
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance(custom_prompts: list[CustomPrompt] = None) -> Instruct:
@@ -48,7 +49,7 @@ def helper_instance(custom_prompts: list[CustomPrompt] = None) -> Instruct:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return Instruct(settings, cache, identification)
+    return Instruct(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():

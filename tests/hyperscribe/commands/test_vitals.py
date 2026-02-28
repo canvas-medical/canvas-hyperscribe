@@ -15,6 +15,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> Vitals:
@@ -42,7 +43,7 @@ def helper_instance() -> Vitals:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return Vitals(settings, cache, identification)
+    return Vitals(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():

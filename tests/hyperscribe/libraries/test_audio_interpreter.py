@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from unittest.mock import ANY, patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call
 
 import pytest
 
@@ -29,8 +29,12 @@ from tests.helper import MockClass
 def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS3Credentials, LimitedCache]:
     def reset_mocks():
         command_list.reset_mocks()
+        template_permissions.reset_mock()
 
-    with patch.object(ImplementedCommands, "command_list") as command_list:
+    with (
+        patch.object(ImplementedCommands, "command_list") as command_list,
+        patch("hyperscribe.libraries.audio_interpreter.TemplatePermissions") as template_permissions,
+    ):
         settings = Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
             llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
@@ -60,6 +64,7 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
                 mocks[4].return_value.is_available.side_effect = [True]
 
         command_list.side_effect = [mocks]
+        template_permissions.side_effect = ["templatePermissionsInstance"]
 
         cache = LimitedCache("patientUuid", "providerUuid", {})
         cache._demographic = "thePatientDemographic"
@@ -72,17 +77,21 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
         instance = AudioInterpreter(settings, aws_s3, cache, identification)
         calls = [call()]
         assert command_list.mock_calls == calls
+        calls = [call("noteUuid")]
+        assert template_permissions.mock_calls == calls
         reset_mocks()
 
         return instance, settings, aws_s3, cache
 
 
+@patch("hyperscribe.libraries.audio_interpreter.TemplatePermissions")
 @patch.object(ImplementedCommands, "command_list")
-def test___init__(command_list):
+def test___init__(command_list, template_permissions):
     mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
         command_list.reset_mocks()
+        template_permissions.reset_mock()
         for item in mocks:
             item.reset_mock()
 
@@ -118,6 +127,7 @@ def test___init__(command_list):
     mocks[3].return_value.class_name.side_effect = ["CommandD", "CommandD"]
     mocks[4].return_value.class_name.side_effect = ["CommandE", "CommandE"]
     command_list.side_effect = [mocks]
+    template_permissions.side_effect = ["templatePermissionsInstance"]
 
     cache = LimitedCache("patientUuid", "providerUuid", {})
     identification = IdentificationParameters(
@@ -133,11 +143,13 @@ def test___init__(command_list):
     assert instance.cache == cache
     calls = [call()]
     assert command_list.mock_calls == calls
+    calls = [call("noteUuid")]
+    assert template_permissions.mock_calls == calls
     for idx, mock in enumerate(mocks):
         # With walrus operator optimization, class_name() is called only once
         # (assigned via := in policy check) and reused for dict key
         calls = [
-            call(settings, cache, identification, ANY),
+            call(settings, cache, identification, "templatePermissionsInstance"),
             call().__bool__(),
             call().class_name(),
             call().is_available(),
@@ -148,8 +160,9 @@ def test___init__(command_list):
     reset_mocks()
 
 
+@patch("hyperscribe.libraries.audio_interpreter.TemplatePermissions")
 @patch.object(ImplementedCommands, "command_list")
-def test___init___with_template_filtering(command_list):
+def test___init___with_template_filtering(command_list, template_permissions):
     """Test that commands locked by template permissions are excluded from _command_context."""
     mocks = [MagicMock(), MagicMock(), MagicMock()]
 
@@ -184,6 +197,7 @@ def test___init___with_template_filtering(command_list):
     mocks[1].return_value.class_name.side_effect = ["CommandB", "CommandB"]
     mocks[2].return_value.class_name.side_effect = ["CommandC", "CommandC"]
     command_list.side_effect = [mocks]
+    template_permissions.side_effect = ["templatePermissionsInstance"]
 
     cache = LimitedCache("patientUuid", "providerUuid", {})
     identification = IdentificationParameters(
@@ -203,9 +217,11 @@ def test___init___with_template_filtering(command_list):
 
     calls = [call()]
     assert command_list.mock_calls == calls
+    calls = [call("noteUuid")]
+    assert template_permissions.mock_calls == calls
     for mock in mocks:
         calls = [
-            call(settings, cache, identification, ANY),
+            call(settings, cache, identification, "templatePermissionsInstance"),
             call().__bool__(),
             call().class_name(),
             call().is_available(),
@@ -273,7 +289,7 @@ def test_common_instructions():
         assert result == expected
         for idx, mock in enumerate(mocks):
             calls = [
-                call(settings, cache, tested.identification, ANY),
+                call(settings, cache, tested.identification, "templatePermissionsInstance"),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),
@@ -324,7 +340,7 @@ def test_instruction_constraints():
         assert result == expected
         for idx, mock in enumerate(mocks):
             calls = [
-                call(settings, cache, tested.identification, ANY),
+                call(settings, cache, tested.identification, "templatePermissionsInstance"),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),
@@ -377,7 +393,7 @@ def test_command_structures(questionnaire_command_name_list):
         assert questionnaire_command_name_list.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
-                call(settings, cache, tested.identification, ANY),
+                call(settings, cache, tested.identification, "templatePermissionsInstance"),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),
@@ -430,7 +446,7 @@ def test_command_schema(questionnaire_command_name_list):
         assert questionnaire_command_name_list.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
-                call(settings, cache, tested.identification, ANY),
+                call(settings, cache, tested.identification, "templatePermissionsInstance"),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),
@@ -1101,7 +1117,7 @@ def test_detect_sections(json_schema, chatter, memory_log):
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
-            call(settings, cache, tested.identification, ANY),
+            call(settings, cache, tested.identification, "templatePermissionsInstance"),
             call().__bool__(),
             call().class_name(),
             call().is_available(),
@@ -1529,7 +1545,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
-            call(settings, cache, tested.identification, ANY),
+            call(settings, cache, tested.identification, "templatePermissionsInstance"),
             call().__bool__(),
             call().class_name(),
             call().is_available(),
@@ -2046,7 +2062,7 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
         assert progress.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
-                call(settings, cache, tested.identification, ANY),
+                call(settings, cache, tested.identification, "templatePermissionsInstance"),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),
@@ -2142,7 +2158,7 @@ def test_update_questionnaire(chatter, memory_log):
         assert memory_log.mock_calls == calls
         for idx, mock in enumerate(command_mocks):
             calls = [
-                call(settings, cache, tested.identification, ANY),
+                call(settings, cache, tested.identification, "templatePermissionsInstance"),
                 call().__bool__(),
                 call().class_name(),
                 call().is_available(),

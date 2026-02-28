@@ -22,13 +22,13 @@ class Base:
         settings: Settings,
         cache: LimitedCache,
         identification: IdentificationParameters,
-        permissions: TemplatePermissions | None = None,
+        permissions: TemplatePermissions,
     ):
         self.settings = settings
         self.identification = identification
         self.cache = cache
         self._arguments_code2description: dict[str, str] = {}
-        self.permissions = permissions or TemplatePermissions(identification.note_uuid)
+        self.permissions = permissions
 
     @classmethod
     def class_name(cls) -> str:

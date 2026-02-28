@@ -15,6 +15,7 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 from hyperscribe.structures.medication_cached import MedicationCached
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> Refill:
@@ -42,7 +43,7 @@ def helper_instance() -> Refill:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return Refill(settings, cache, identification)
+    return Refill(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():

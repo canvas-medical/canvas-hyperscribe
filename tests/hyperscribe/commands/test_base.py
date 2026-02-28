@@ -50,7 +50,7 @@ def helper_instance() -> Base:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return Base(settings, cache, identification)
+    return Base(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test___init__():
@@ -78,13 +78,13 @@ def test___init__():
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    tested = Base(settings, cache, identification)
+    permissions = TemplatePermissions("noteUuid")
+    tested = Base(settings, cache, identification, permissions)
     assert tested.settings == settings
     assert tested.identification == identification
     assert tested.cache == cache
     assert tested._arguments_code2description == {}
-    assert isinstance(tested.permissions, TemplatePermissions)
-    assert tested.permissions.note_uuid == "noteUuid"
+    assert tested.permissions is permissions
 
 
 def test_class_name():
