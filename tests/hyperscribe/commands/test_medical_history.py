@@ -18,6 +18,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> MedicalHistory:
@@ -45,12 +46,19 @@ def helper_instance() -> MedicalHistory:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return MedicalHistory(settings, cache, identification)
+    return MedicalHistory(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = MedicalHistory
     assert issubclass(tested, Base)
+
+
+def test_command_type():
+    tested = MedicalHistory
+    result = tested.command_type()
+    expected = "MedicalHistoryCommand"
+    assert result == expected
 
 
 def test_schema_key():

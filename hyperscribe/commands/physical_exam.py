@@ -8,6 +8,10 @@ from hyperscribe.libraries.constants import Constants
 
 class PhysicalExam(BaseQuestionnaire):
     @classmethod
+    def command_type(cls) -> str:
+        return "PhysicalExamCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_PHYSICAL_EXAM
 

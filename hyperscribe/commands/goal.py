@@ -11,6 +11,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Goal(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "GoalCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_GOAL
 
@@ -29,15 +33,27 @@ class Goal(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Get field values with template permission checks
+        goal_statement = (
+            self.fill_template_content(instruction.parameters["goal"], "goal_statement", instruction, chatter)
+            if self.can_edit_field("goal_statement")
+            else ""
+        )
+        progress = (
+            self.fill_template_content(instruction.parameters["progressAndBarriers"], "progress", instruction, chatter)
+            if self.can_edit_field("progress")
+            else ""
+        )
+
         return InstructionWithCommand.add_command(
             instruction,
             GoalCommand(
-                goal_statement=instruction.parameters["goal"],
+                goal_statement=goal_statement,
                 start_date=Helper.str2date(instruction.parameters["startDate"]),
                 due_date=Helper.str2date(instruction.parameters["dueDate"]),
                 achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
                 priority=Helper.enum_or_none(instruction.parameters["priority"], GoalCommand.Priority),
-                progress=instruction.parameters["progressAndBarriers"],
+                progress=progress,
                 note_uuid=self.identification.note_uuid,
             ),
         )
@@ -114,4 +130,4 @@ class Goal(Base):
         return result
 
     def is_available(self) -> bool:
-        return True
+        return any([self.can_edit_field(field) for field in ["goal_statement", "progress"]])

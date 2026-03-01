@@ -10,6 +10,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Plan(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "PlanCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_PLAN
 
@@ -28,10 +32,16 @@ class Plan(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Get the narrative content with custom prompt processing
+        narrative = self.command_from_json_custom_prompted(instruction.parameters["plan"], chatter)
+
+        # Fill template content if a template framework exists, or enhance with {add:} instructions
+        narrative = self.fill_template_content(narrative, "narrative", instruction, chatter)
+
         return InstructionWithCommand.add_command(
             instruction,
             PlanCommand(
-                narrative=self.command_from_json_custom_prompted(instruction.parameters["plan"], chatter),
+                narrative=narrative,
                 note_uuid=self.identification.note_uuid,
             ),
         )
@@ -77,4 +87,4 @@ class Plan(Base):
         return ""
 
     def is_available(self) -> bool:
-        return True
+        return self.can_edit_field("narrative")

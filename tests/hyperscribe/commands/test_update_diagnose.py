@@ -14,6 +14,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> UpdateDiagnose:
@@ -41,12 +42,19 @@ def helper_instance() -> UpdateDiagnose:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return UpdateDiagnose(settings, cache, identification)
+    return UpdateDiagnose(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = UpdateDiagnose
     assert issubclass(tested, Base)
+
+
+def test_command_type():
+    tested = UpdateDiagnose
+    result = tested.command_type()
+    expected = "UpdateDiagnosisCommand"
+    assert result == expected
 
 
 def test_schema_key():
@@ -403,10 +411,12 @@ def test_instruction_constraints(current_conditions):
     reset_mocks()
 
 
+@patch.object(UpdateDiagnose, "can_edit_field", return_value=True)
 @patch.object(LimitedCache, "current_conditions")
-def test_is_available(current_conditions):
+def test_is_available(current_conditions, can_edit_field):
     def reset_mocks():
         current_conditions.reset_mock()
+        can_edit_field.reset_mock()
 
     tested = helper_instance()
     conditions = [
@@ -419,6 +429,33 @@ def test_is_available(current_conditions):
         current_conditions.side_effect = [side_effect]
         result = tested.is_available()
         assert result is expected
+        calls = [call("background"), call("narrative")]
+        assert can_edit_field.mock_calls == calls
         calls = [call()]
         assert current_conditions.mock_calls == calls
         reset_mocks()
+
+
+@patch.object(UpdateDiagnose, "can_edit_field")
+@patch.object(LimitedCache, "current_conditions")
+def test_is_available__on_field_locked(current_conditions, can_edit_field):
+    tested = helper_instance()
+    conditions = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+    ]
+    tests = [
+        ([True, False], [call()], True),
+        ([False, True], [call()], True),
+        ([False, False], [], False),
+    ]
+    for side_effect, exp_calls, expected in tests:
+        can_edit_field.side_effect = side_effect
+        current_conditions.side_effect = [conditions]
+        result = tested.is_available()
+        assert result is expected
+
+        calls = [call("background"), call("narrative")]
+        assert can_edit_field.mock_calls == calls
+        assert current_conditions.mock_calls == exp_calls
+        can_edit_field.reset_mock()
+        current_conditions.reset_mock()

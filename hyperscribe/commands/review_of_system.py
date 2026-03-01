@@ -8,6 +8,10 @@ from hyperscribe.libraries.constants import Constants
 
 class ReviewOfSystem(BaseQuestionnaire):
     @classmethod
+    def command_type(cls) -> str:
+        return "ReviewOfSystemsCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_REVIEW_OF_SYSTEM
 

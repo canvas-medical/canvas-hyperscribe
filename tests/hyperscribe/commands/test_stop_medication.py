@@ -13,6 +13,7 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 from hyperscribe.structures.medication_cached import MedicationCached
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> StopMedication:
@@ -40,12 +41,19 @@ def helper_instance() -> StopMedication:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return StopMedication(settings, cache, identification)
+    return StopMedication(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = StopMedication
     assert issubclass(tested, Base)
+
+
+def test_command_type():
+    tested = StopMedication
+    result = tested.command_type()
+    expected = "StopMedicationCommand"
+    assert result == expected
 
 
 def test_schema_key():

@@ -13,6 +13,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> UpdateGoal:
@@ -40,12 +41,19 @@ def helper_instance() -> UpdateGoal:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return UpdateGoal(settings, cache, identification)
+    return UpdateGoal(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = UpdateGoal
     assert issubclass(tested, Base)
+
+
+def test_command_type():
+    tested = UpdateGoal
+    result = tested.command_type()
+    expected = "UpdateGoalCommand"
+    assert result == expected
 
 
 def test_schema_key():
@@ -287,10 +295,12 @@ def test_instruction_constraints(current_goals):
     reset_mocks()
 
 
+@patch.object(UpdateGoal, "can_edit_field", return_value=True)
 @patch.object(LimitedCache, "current_goals")
-def test_is_available(current_goals):
+def test_is_available(current_goals, can_edit_field):
     def reset_mocks():
         current_goals.reset_mock()
+        can_edit_field.reset_mock()
 
     tested = helper_instance()
     goals = [
@@ -303,6 +313,24 @@ def test_is_available(current_goals):
         current_goals.side_effect = [side_effect]
         result = tested.is_available()
         assert result is expected
+        calls = [call("progress")]
+        assert can_edit_field.mock_calls == calls
         calls = [call()]
         assert current_goals.mock_calls == calls
         reset_mocks()
+
+
+@patch.object(UpdateGoal, "can_edit_field", return_value=False)
+@patch.object(LimitedCache, "current_goals")
+def test_is_available__all_fields_locked(current_goals, can_edit_field):
+    tested = helper_instance()
+    goals = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+    ]
+    current_goals.side_effect = [goals]
+    result = tested.is_available()
+    assert result is False
+
+    calls = [call("progress")]
+    assert can_edit_field.mock_calls == calls
+    assert current_goals.mock_calls == []

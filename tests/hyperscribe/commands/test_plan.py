@@ -1,6 +1,6 @@
 from hashlib import md5
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.plan import PlanCommand
 
@@ -16,6 +16,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance(custom_prompts: list[CustomPrompt] = None) -> Plan:
@@ -45,12 +46,19 @@ def helper_instance(custom_prompts: list[CustomPrompt] = None) -> Plan:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return Plan(settings, cache, identification)
+    return Plan(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = Plan
     assert issubclass(tested, Base)
+
+
+def test_command_type():
+    tested = Plan
+    result = tested.command_type()
+    expected = "PlanCommand"
+    assert result == expected
 
 
 def test_schema_key():
@@ -190,7 +198,21 @@ def test_instruction_constraints():
     assert result == expected
 
 
-def test_is_available():
+@patch.object(Plan, "can_edit_field", return_value=True)
+def test_is_available(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
     assert result is True
+
+    calls = [call("narrative")]
+    assert can_edit_field.mock_calls == calls
+
+
+@patch.object(Plan, "can_edit_field", return_value=False)
+def test_is_available__all_fields_locked(can_edit_field):
+    tested = helper_instance()
+    result = tested.is_available()
+    assert result is False
+
+    calls = [call("narrative")]
+    assert can_edit_field.mock_calls == calls

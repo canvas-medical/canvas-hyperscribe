@@ -12,6 +12,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> RemoveAllergy:
@@ -39,12 +40,19 @@ def helper_instance() -> RemoveAllergy:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return RemoveAllergy(settings, cache, identification)
+    return RemoveAllergy(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = RemoveAllergy
     assert issubclass(tested, Base)
+
+
+def test_command_type():
+    tested = RemoveAllergy
+    result = tested.command_type()
+    expected = "RemoveAllergyCommand"
+    assert result == expected
 
 
 def test_schema_key():

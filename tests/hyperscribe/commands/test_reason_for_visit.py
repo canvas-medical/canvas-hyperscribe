@@ -13,6 +13,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance(structured_rfv: bool = False, custom_prompts: list[CustomPrompt] = None) -> ReasonForVisit:
@@ -42,12 +43,19 @@ def helper_instance(structured_rfv: bool = False, custom_prompts: list[CustomPro
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return ReasonForVisit(settings, cache, identification)
+    return ReasonForVisit(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = ReasonForVisit
     assert issubclass(tested, Base)
+
+
+def test_command_type():
+    tested = ReasonForVisit
+    result = tested.command_type()
+    expected = "ReasonForVisitCommand"
+    assert result == expected
 
 
 def test_schema_key():
@@ -320,10 +328,12 @@ def test_instruction_constraints(existing_reason_for_visits):
         reset_mocks()
 
 
+@patch.object(ReasonForVisit, "can_edit_field")
 @patch.object(LimitedCache, "existing_reason_for_visits")
-def test_is_available(existing_reason_for_visits):
+def test_is_available(existing_reason_for_visits, can_edit_field):
     def reset_mocks():
         existing_reason_for_visits.reset_mock()
+        can_edit_field.reset_mock()
 
     reason_for_visits = [
         CodedItem(uuid="theUuid1", label="display1", code="code1"),
@@ -331,27 +341,45 @@ def test_is_available(existing_reason_for_visits):
         CodedItem(uuid="theUuid3", label="display3", code="code3"),
     ]
 
-    # no structured RfV
+    # can_edit_field returns False
     tested = helper_instance(structured_rfv=False)
+    can_edit_field.side_effect = [False]
+    result = tested.is_available()
+    assert result is False
+    assert existing_reason_for_visits.mock_calls == []
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
+    reset_mocks()
+
+    # no structured RfV
+    can_edit_field.side_effect = [True]
     existing_reason_for_visits.side_effect = []
     result = tested.is_available()
     assert result is True
     assert existing_reason_for_visits.mock_calls == []
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
     reset_mocks()
 
     # with structured RfV
     tested = helper_instance(structured_rfv=True)
     # -- no reason for visit defined
+    can_edit_field.side_effect = [True]
     existing_reason_for_visits.side_effect = [[]]
     result = tested.is_available()
     assert result is False
     calls = [call()]
     assert existing_reason_for_visits.mock_calls == calls
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
     reset_mocks()
     # -- some reasons for visit defined
+    can_edit_field.side_effect = [True]
     existing_reason_for_visits.side_effect = [reason_for_visits]
     result = tested.is_available()
     assert result is True
     calls = [call()]
     assert existing_reason_for_visits.mock_calls == calls
+    calls = [call("comment")]
+    assert can_edit_field.mock_calls == calls
     reset_mocks()

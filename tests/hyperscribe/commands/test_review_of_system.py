@@ -11,6 +11,7 @@ from hyperscribe.structures.identification_parameters import IdentificationParam
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> ReviewOfSystem:
@@ -38,12 +39,19 @@ def helper_instance() -> ReviewOfSystem:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return ReviewOfSystem(settings, cache, identification)
+    return ReviewOfSystem(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = ReviewOfSystem
     assert issubclass(tested, Base)
+
+
+def test_command_type():
+    tested = ReviewOfSystem
+    result = tested.command_type()
+    expected = "ReviewOfSystemsCommand"
+    assert result == expected
 
 
 def test_schema_key():

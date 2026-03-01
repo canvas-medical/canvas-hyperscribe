@@ -11,6 +11,7 @@ from hyperscribe.structures.identification_parameters import IdentificationParam
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> StructuredAssessment:
@@ -38,12 +39,19 @@ def helper_instance() -> StructuredAssessment:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return StructuredAssessment(settings, cache, identification)
+    return StructuredAssessment(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = StructuredAssessment
     assert issubclass(tested, BaseQuestionnaire)
+
+
+def test_command_type():
+    tested = StructuredAssessment
+    result = tested.command_type()
+    expected = "StructuredAssessmentCommand"
+    assert result == expected
 
 
 def test_schema_key():

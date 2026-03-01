@@ -15,6 +15,7 @@ from hyperscribe.structures.medication_detail_quantity import MedicationDetailQu
 from hyperscribe.structures.medication_search import MedicationSearch
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> Prescription:
@@ -42,12 +43,19 @@ def helper_instance() -> Prescription:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return Prescription(settings, cache, identification)
+    return Prescription(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = Prescription
     assert issubclass(tested, BasePrescription)
+
+
+def test_command_type():
+    tested = Prescription
+    result = tested.command_type()
+    expected = "PrescribeCommand"
+    assert result == expected
 
 
 def test_schema_key():

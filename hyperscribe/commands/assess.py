@@ -11,6 +11,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class Assess(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "AssessCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_ASSESS
 
@@ -33,13 +37,26 @@ class Assess(Base):
         if 0 <= (idx := instruction.parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
             condition_id = current[idx].uuid
             self.add_code2description(current[idx].uuid, current[idx].label)
+
+        # Get field values with template permission checks
+        background = (
+            self.fill_template_content(instruction.parameters["rationale"], "background", instruction, chatter)
+            if self.can_edit_field("background")
+            else ""
+        )
+        narrative = (
+            self.fill_template_content(instruction.parameters["assessment"], "narrative", instruction, chatter)
+            if self.can_edit_field("narrative")
+            else ""
+        )
+
         return InstructionWithCommand.add_command(
             instruction,
             AssessCommand(
                 condition_id=condition_id,
-                background=instruction.parameters["rationale"],
+                background=background,
                 status=Helper.enum_or_none(instruction.parameters["status"], AssessCommand.Status),
-                narrative=instruction.parameters["assessment"],
+                narrative=narrative,
                 note_uuid=self.identification.note_uuid,
             ),
         )
@@ -110,4 +127,5 @@ class Assess(Base):
         return f"'{self.class_name()}' has to be related to one of the following conditions: {text}"
 
     def is_available(self) -> bool:
-        return bool(self.cache.current_conditions())
+        editable = any([self.can_edit_field(field) for field in ["background", "narrative"]])
+        return editable and bool(self.cache.current_conditions())

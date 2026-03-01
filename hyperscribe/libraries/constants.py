@@ -90,6 +90,12 @@ class Constants:
     SCHEMA_KEY_UPDATE_DIAGNOSE = "updateDiagnosis"
     SCHEMA_KEY_UPDATE_GOAL = "updateGoal"
     SCHEMA_KEY_VITALS = "vitals"
+    # Template permissions — shared cache prefix must match brigade_note_templates/template_cache.py.
+    # We bypass the plugin-scoped get_cache() (which auto-prefixes with the calling
+    # plugin's name) so that both plugins read/write the same cache keys.
+    TEMPLATE_SHARED_CACHE_PREFIX = "note_template_permissions"
+    # Cache key prefix (must match note_templates/utils/constants.py)
+    TEMPLATE_COMMAND_PERMISSIONS_KEY_PREFIX = "note_template_cmd_perms_"
     #
     CUSTOMER_IDENTIFIER = "CUSTOMER_IDENTIFIER"
     #

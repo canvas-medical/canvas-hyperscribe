@@ -16,6 +16,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> Goal:
@@ -43,12 +44,19 @@ def helper_instance() -> Goal:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return Goal(settings, cache, identification)
+    return Goal(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = Goal
     assert issubclass(tested, Base)
+
+
+def test_command_type():
+    tested = Goal
+    result = tested.command_type()
+    expected = "GoalCommand"
+    assert result == expected
 
 
 def test_schema_key():
@@ -405,7 +413,30 @@ def test_instruction_constraints(current_goals):
         reset_mocks()
 
 
-def test_is_available():
+@patch.object(Goal, "can_edit_field", return_value=True)
+def test_is_available(can_edit_field):
     tested = helper_instance()
     result = tested.is_available()
     assert result is True
+
+    calls = [call("goal_statement"), call("progress")]
+    assert can_edit_field.mock_calls == calls
+
+
+@patch.object(Goal, "can_edit_field")
+def test_is_available__on_field_locked(can_edit_field):
+    tested = helper_instance()
+    tests = [
+        ([True, False], True),
+        ([False, True], True),
+        ([False, False], False),
+        ([True, True], True),
+    ]
+    for side_effect, expected in tests:
+        can_edit_field.side_effect = side_effect
+        result = tested.is_available()
+        assert result is expected
+
+        calls = [call("goal_statement"), call("progress")]
+        assert can_edit_field.mock_calls == calls
+        can_edit_field.reset_mock()

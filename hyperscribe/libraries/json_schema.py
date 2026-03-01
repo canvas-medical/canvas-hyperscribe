@@ -63,6 +63,23 @@ JSON_SCHEMAS: dict[str, dict] = {
             "additionalProperties": False,
         },
     },
+    "template_enhanced_content": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 1,
+        "items": {
+            "type": "object",
+            "properties": {
+                "enhancedContent": {
+                    "type": "string",
+                    "description": "the enhanced content incorporating template instructions",
+                },
+            },
+            "required": ["enhancedContent"],
+            "additionalProperties": False,
+        },
+    },
     "generic_parameters": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "array",

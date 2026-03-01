@@ -21,6 +21,7 @@ from hyperscribe.structures.questionnaire import Questionnaire
 from hyperscribe.structures.response import Response
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> BaseQuestionnaire:
@@ -48,7 +49,7 @@ def helper_instance() -> BaseQuestionnaire:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return BaseQuestionnaire(settings, cache, identification)
+    return BaseQuestionnaire(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():

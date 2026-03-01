@@ -11,6 +11,7 @@ from hyperscribe.structures.identification_parameters import IdentificationParam
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> PhysicalExam:
@@ -38,12 +39,19 @@ def helper_instance() -> PhysicalExam:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return PhysicalExam(settings, cache, identification)
+    return PhysicalExam(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = PhysicalExam
     assert issubclass(tested, BaseQuestionnaire)
+
+
+def test_command_type():
+    tested = PhysicalExam
+    result = tested.command_type()
+    expected = "PhysicalExamCommand"
+    assert result == expected
 
 
 def test_schema_key():

@@ -11,6 +11,10 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 class FollowUp(Base):
     @classmethod
+    def command_type(cls) -> str:
+        return "FollowUpCommand"
+
+    @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_FOLLOW_UP
 

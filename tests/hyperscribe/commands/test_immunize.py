@@ -15,6 +15,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> Immunize:
@@ -42,12 +43,19 @@ def helper_instance() -> Immunize:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return Immunize(settings, cache, identification)
+    return Immunize(settings, cache, identification, TemplatePermissions("noteUuid"))
 
 
 def test_class():
     tested = Immunize
     assert issubclass(tested, Base)
+
+
+def test_command_type():
+    tested = Immunize
+    result = tested.command_type()
+    expected = "ImmunizeCommand"
+    assert result == expected
 
 
 def test_schema_key():
