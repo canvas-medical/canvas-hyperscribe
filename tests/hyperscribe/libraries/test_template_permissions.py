@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock, call, patch
 
-from hyperscribe.libraries import template_permissions
 from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
@@ -168,40 +167,32 @@ def test_shared_class_cache_single_load(mock_cache_getter):
     TemplatePermissions.PERMISSIONS.clear()
 
 
-def test_default_cache_getter_with_sdk_available():
-    original_get_cache_client = template_permissions._get_cache_client
-    try:
-        mock_cache = MagicMock()
-        template_permissions._get_cache_client = MagicMock(return_value=mock_cache)
+@patch("canvas_sdk.caching.client.get_cache")
+def test_default_cache_getter_with_sdk_available(mock_get_cache):
+    mock_cache = MagicMock()
+    mock_get_cache.return_value = mock_cache
 
-        tested = TemplatePermissions
-        result = tested.default_cache_getter()
-        expected = mock_cache
-        assert result == expected
+    result = TemplatePermissions.default_cache_getter()
+    assert result is mock_cache
 
-        calls = [call(driver="plugins", prefix="note_template_permissions")]
-        assert template_permissions._get_cache_client.mock_calls == calls
-    finally:
-        template_permissions._get_cache_client = original_get_cache_client
+    calls = [call(driver="plugins", prefix="note_template_permissions")]
+    assert mock_get_cache.mock_calls == calls
 
 
-def test_template_permissions_uses_default_cache_getter():
-    original_get_cache = template_permissions._get_cache_client
-    try:
-        mock_cache = MagicMock()
-        mock_cache.get.return_value = {"TestCommand": {"plugin_can_edit": True}}
-        template_permissions._get_cache_client = MagicMock(return_value=mock_cache)
+@patch("canvas_sdk.caching.client.get_cache")
+def test_template_permissions_uses_default_cache_getter(mock_get_cache):
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = {"TestCommand": {"plugin_can_edit": True}}
+    mock_get_cache.return_value = mock_cache
 
-        TemplatePermissions.PERMISSIONS.clear()
-        tested = TemplatePermissions("test-note-uuid")
-        result = tested.load_permissions()
-        expected = {"TestCommand": {"plugin_can_edit": True}}
-        assert result == expected
+    TemplatePermissions.PERMISSIONS.clear()
+    tested = TemplatePermissions("test-note-uuid")
+    result = tested.load_permissions()
+    expected = {"TestCommand": {"plugin_can_edit": True}}
+    assert result == expected
 
-        calls = [call(driver="plugins", prefix="note_template_permissions")]
-        assert template_permissions._get_cache_client.mock_calls == calls
-        calls = [call.get("note_template_cmd_perms_test-note-uuid", default={})]
-        assert mock_cache.mock_calls == calls
-    finally:
-        template_permissions._get_cache_client = original_get_cache
-        TemplatePermissions.PERMISSIONS.clear()
+    calls = [call(driver="plugins", prefix="note_template_permissions")]
+    assert mock_get_cache.call_args_list == calls
+    calls = [call.get("note_template_cmd_perms_test-note-uuid", default={})]
+    assert mock_cache.mock_calls == calls
+    TemplatePermissions.PERMISSIONS.clear()
