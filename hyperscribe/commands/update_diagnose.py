@@ -56,13 +56,13 @@ class UpdateDiagnose(Base):
             narrative=narrative,
             note_uuid=self.identification.note_uuid,
         )
-        if (
-            0
-            <= (idx := instruction.parameters["previousConditionIndex"])
-            < len(current := self.cache.current_conditions())
+        if matched := self.resolve_item_by_index(
+            self.cache.current_conditions(),
+            instruction.parameters["previousConditionIndex"],
+            instruction.parameters.get("previousCondition"),
         ):
-            result.condition_code = Helper.icd10_strip_dot(current[idx].code)
-            self.add_code2description(current[idx].uuid, current[idx].label)
+            result.condition_code = Helper.icd10_strip_dot(matched.code)
+            self.add_code2description(matched.uuid, matched.label)
 
         # retrieve existing conditions defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",") + instruction.parameters["ICD10"].split(",")

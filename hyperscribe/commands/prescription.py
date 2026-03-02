@@ -67,12 +67,17 @@ class Prescription(BasePrescription):
         if (
             "conditionIndex" in instruction.parameters
             and isinstance(instruction.parameters["conditionIndex"], int)
-            and 0 <= (idx := instruction.parameters["conditionIndex"]) < len(self.cache.current_conditions())
+            and (
+                matched := self.resolve_item_by_index(
+                    self.cache.current_conditions(),
+                    instruction.parameters["conditionIndex"],
+                    instruction.parameters.get("condition"),
+                )
+            )
         ):
-            targeted_condition = self.cache.current_conditions()[idx]
-            result.icd10_codes = [Helper.icd10_strip_dot(targeted_condition.code)]
-            condition = targeted_condition.label
-            self.add_code2description(targeted_condition.code, targeted_condition.label)
+            result.icd10_codes = [Helper.icd10_strip_dot(matched.code)]
+            condition = matched.label
+            self.add_code2description(matched.code, matched.label)
 
         # retrieve existing medications defined in Canvas Science
         search = MedicationSearch(

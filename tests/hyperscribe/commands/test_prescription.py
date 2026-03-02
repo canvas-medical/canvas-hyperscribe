@@ -200,11 +200,12 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
     # with condition
     tests = [
-        (1, "display2a", ["CODE45"], [call(), call()], [call("CODE45", "display2a"), call("code369", "labelB")]),
-        (2, "display3a", ["CODE9876"], [call(), call()], [call("CODE98.76", "display3a"), call("code369", "labelB")]),
-        (4, "", [], [call()], [call("code369", "labelB")]),
+        ("display2a", 1, "display2a", ["CODE45"], [call("CODE45", "display2a"), call("code369", "labelB")]),
+        ("display2a", 2, "display2a", ["CODE45"], [call("CODE45", "display2a"), call("code369", "labelB")]),
+        ("display2a", 4, "display2a", ["CODE45"], [call("CODE45", "display2a"), call("code369", "labelB")]),
+        ("nonexistent", 4, "", [], [call("code369", "labelB")]),
     ]
-    for idx, condition_label, condition_icd10, condition_calls, exp_calls in tests:
+    for condition_name, idx, condition_label, condition_icd10, exp_calls in tests:
         current_conditions.side_effect = [conditions, conditions]
         medications_from.side_effect = [[medication]]
 
@@ -223,7 +224,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
                 "suppliedDays": 11,
                 "substitution": "not_allowed",
                 "comment": "theComment",
-                "condition": "theCondition",
+                "condition": condition_name,
                 "conditionIndex": idx,
             },
         }
@@ -240,7 +241,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
             command.icd10_codes = condition_icd10
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected, f"----> {idx}"
-        assert current_conditions.mock_calls == condition_calls
+        assert current_conditions.mock_calls == [call()]
         calls = [
             call(
                 instruction,

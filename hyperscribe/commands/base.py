@@ -34,6 +34,31 @@ class Base:
     def class_name(cls) -> str:
         return cls.__name__
 
+    @staticmethod
+    def resolve_item_by_index(
+        items: list[CodedItem],
+        index: int,
+        name: str | None,
+    ) -> CodedItem | None:
+        """Resolve an item by index, falling back to name-based search on mismatch.
+
+        LLMs can return a correct name but wrong index (off-by-one counting errors).
+        When the index and name disagree, the name is more reliable.
+        """
+        if 0 <= index < len(items):
+            if not name or items[index].label == name:
+                return items[index]
+            log.warning(
+                f"Index {index} ({items[index].label}) does not match name ({name}), falling back to name-based lookup"
+            )
+
+        if name:
+            for item in items:
+                if item.label == name:
+                    return item
+
+        return None
+
     @classmethod
     def command_type(cls) -> str:
         raise NotImplementedError

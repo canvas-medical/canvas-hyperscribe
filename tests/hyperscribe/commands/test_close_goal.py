@@ -108,8 +108,13 @@ def test_command_from_json(add_code2description, current_goals):
         CodedItem(uuid="theUuid2", label="display2a", code="45"),
         CodedItem(uuid="theUuid3", label="display3a", code="9876"),
     ]
-    tests = [(1, 45), (2, 9876), (4, 0)]
-    for idx, exp_uuid in tests:
+    tests = [
+        ("display2a", 1, 45),
+        ("display2a", 2, 45),
+        ("display2a", 4, 45),
+        ("nonexistent", 4, 0),
+    ]
+    for goal_name, idx, exp_uuid in tests:
         current_goals.side_effect = [goals, goals]
         arguments = {
             "uuid": "theUuid",
@@ -120,7 +125,7 @@ def test_command_from_json(add_code2description, current_goals):
             "is_updated": True,
             "previous_information": "thePreviousInformation",
             "parameters": {
-                "goal": "display2a",
+                "goal": goal_name,
                 "goalIndex": idx,
                 "progressAndBarriers": "theProgressAndBarriers",
                 "status": "improving",
