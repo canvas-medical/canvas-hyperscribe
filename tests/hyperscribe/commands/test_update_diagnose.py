@@ -179,11 +179,12 @@ def test_command_from_json(add_code2description, current_conditions, search_cond
     tested = helper_instance()
 
     tests = [
-        (1, "CODE45", [call("theUuid2", "display2a"), call("code369", "labelB")]),
-        (2, "CODE9876", [call("theUuid3", "display3a"), call("code369", "labelB")]),
-        (4, None, [call("code369", "labelB")]),
+        ("display2a", 1, "CODE45", [call("theUuid2", "display2a"), call("code369", "labelB")]),
+        ("display2a", 2, "CODE45", [call("theUuid2", "display2a"), call("code369", "labelB")]),
+        ("display2a", 4, "CODE45", [call("theUuid2", "display2a"), call("code369", "labelB")]),
+        ("nonexistent", 4, None, [call("code369", "labelB")]),
     ]
-    for idx, exp_current_icd10, exp_calls in tests:
+    for condition_name, idx, exp_current_icd10, exp_calls in tests:
         arguments = {
             "uuid": "theUuid",
             "index": 7,
@@ -195,7 +196,7 @@ def test_command_from_json(add_code2description, current_conditions, search_cond
             "parameters": {
                 "keywords": "keyword1,keyword2,keyword3",
                 "ICD10": "ICD01,ICD02,ICD03",
-                "previousCondition": "theCondition",
+                "previousCondition": condition_name,
                 "previousConditionIndex": idx,
                 "rationale": "theRationale",
                 "assessment": "theAssessment",

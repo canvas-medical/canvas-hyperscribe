@@ -7,6 +7,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.structures.access_policy import AccessPolicy
+from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
@@ -173,6 +174,107 @@ def test_add_code2description():
         "code3": "description3",
     }
     assert tested._arguments_code2description == expected
+
+
+@pytest.mark.parametrize(
+    "items, index, name, expected_label",
+    [
+        # index matches name
+        (
+            [
+                CodedItem(uuid="uuid1", label="Condition A", code="A01"),
+                CodedItem(uuid="uuid2", label="Condition B", code="B02"),
+                CodedItem(uuid="uuid3", label="Condition C", code="C03"),
+            ],
+            1,
+            "Condition B",
+            "Condition B",
+        ),
+        # index and name mismatch — fallback to name
+        (
+            [
+                CodedItem(uuid="uuid1", label="Condition A", code="A01"),
+                CodedItem(uuid="uuid2", label="Condition B", code="B02"),
+                CodedItem(uuid="uuid3", label="Condition C", code="C03"),
+            ],
+            2,
+            "Condition B",
+            "Condition B",
+        ),
+        # index out of range — fallback to name
+        (
+            [
+                CodedItem(uuid="uuid1", label="Condition A", code="A01"),
+                CodedItem(uuid="uuid2", label="Condition B", code="B02"),
+            ],
+            5,
+            "Condition B",
+            "Condition B",
+        ),
+        # index valid, no name provided — trust index
+        (
+            [
+                CodedItem(uuid="uuid1", label="Condition A", code="A01"),
+                CodedItem(uuid="uuid2", label="Condition B", code="B02"),
+            ],
+            0,
+            None,
+            "Condition A",
+        ),
+        # index out of range, name not found — no match
+        (
+            [
+                CodedItem(uuid="uuid1", label="Condition A", code="A01"),
+            ],
+            5,
+            "Nonexistent",
+            None,
+        ),
+        # empty list — no match
+        ([], 0, "Condition A", None),
+        # negative index, name found — fallback to name
+        (
+            [
+                CodedItem(uuid="uuid1", label="Condition A", code="A01"),
+            ],
+            -1,
+            "Condition A",
+            "Condition A",
+        ),
+    ],
+)
+def test_resolve_item_by_index(items, index, name, expected_label):
+    result = Base.resolve_item_by_index(items, index, name)
+    if expected_label is None:
+        assert result is None
+    else:
+        assert result is not None
+        assert result.label == expected_label
+
+
+@patch("hyperscribe.commands.base.log")
+def test_resolve_item_by_index_logs_warning_on_out_of_range(mock_log):
+    items = [CodedItem(uuid="uuid1", label="Condition A", code="A01")]
+    result = Base.resolve_item_by_index(items, 5, "Condition A")
+    assert result is not None
+    assert result.label == "Condition A"
+    assert mock_log.mock_calls == [
+        call.warning("Index 5 out of range for 1 items, falling back to name-based lookup"),
+    ]
+
+
+@patch("hyperscribe.commands.base.log")
+def test_resolve_item_by_index_logs_warning_on_name_mismatch(mock_log):
+    items = [
+        CodedItem(uuid="uuid1", label="Condition A", code="A01"),
+        CodedItem(uuid="uuid2", label="Condition B", code="B02"),
+    ]
+    result = Base.resolve_item_by_index(items, 0, "Condition B")
+    assert result is not None
+    assert result.label == "Condition B"
+    assert mock_log.mock_calls == [
+        call.warning("Index 0 (Condition A) does not match name (Condition B), falling back to name-based lookup"),
+    ]
 
 
 @patch("hyperscribe.commands.base.InstructionWithSummary")

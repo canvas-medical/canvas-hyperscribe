@@ -38,9 +38,13 @@ class UpdateGoal(Base):
         )
 
         goal_uuid = ""
-        if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
-            goal_uuid = current[idx].uuid
-            self.add_code2description(current[idx].uuid, current[idx].label)
+        if matched := self.resolve_item_by_index(
+            self.cache.current_goals(),
+            instruction.parameters["goalIndex"],
+            instruction.parameters.get("goal"),
+        ):
+            goal_uuid = matched.uuid
+            self.add_code2description(matched.uuid, matched.label)
 
         return InstructionWithCommand.add_command(
             instruction,

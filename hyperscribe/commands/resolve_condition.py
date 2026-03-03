@@ -34,9 +34,13 @@ class ResolveCondition(Base):
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
         condition_id = ""
-        if 0 <= (idx := instruction.parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
-            condition_id = current[idx].uuid
-            self.add_code2description(current[idx].uuid, current[idx].label)
+        if matched := self.resolve_item_by_index(
+            self.cache.current_conditions(),
+            instruction.parameters["conditionIndex"],
+            instruction.parameters.get("condition"),
+        ):
+            condition_id = matched.uuid
+            self.add_code2description(matched.uuid, matched.label)
 
         return InstructionWithCommand.add_command(
             instruction,

@@ -130,11 +130,12 @@ def test_command_from_json(add_code2description, current_goals):
         CodedItem(uuid="theUuid3", label="display3a", code="9876"),
     ]
     tests = [
-        (1, "theUuid2", [call("theUuid2", "display2a")]),
-        (2, "theUuid3", [call("theUuid3", "display3a")]),
-        (4, "", []),
+        ("display2a", 1, "theUuid2", [call("theUuid2", "display2a")]),
+        ("display2a", 2, "theUuid2", [call("theUuid2", "display2a")]),
+        ("display2a", 4, "theUuid2", [call("theUuid2", "display2a")]),
+        ("nonexistent", 4, "", []),
     ]
-    for idx, exp_uuid, exp_calls in tests:
+    for goal_name, idx, exp_uuid, exp_calls in tests:
         current_goals.side_effect = [goals, goals]
         arguments = {
             "uuid": "theUuid",
@@ -145,7 +146,7 @@ def test_command_from_json(add_code2description, current_goals):
             "is_updated": True,
             "previous_information": "thePreviousInformation",
             "parameters": {
-                "goal": "display2a",
+                "goal": goal_name,
                 "goalIndex": idx,
                 "dueDate": "2025-02-03",
                 "status": "improving",
