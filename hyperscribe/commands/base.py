@@ -51,6 +51,8 @@ class Base:
             log.warning(
                 f"Index {index} ({items[index].label}) does not match name ({name}), falling back to name-based lookup"
             )
+        else:
+            log.warning(f"Index {index} out of range for {len(items)} items, falling back to name-based lookup")
 
         if name:
             for item in items:

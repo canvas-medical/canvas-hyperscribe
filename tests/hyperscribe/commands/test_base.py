@@ -252,6 +252,31 @@ def test_resolve_item_by_index(items, index, name, expected_label):
         assert result.label == expected_label
 
 
+@patch("hyperscribe.commands.base.log")
+def test_resolve_item_by_index_logs_warning_on_out_of_range(mock_log):
+    items = [CodedItem(uuid="uuid1", label="Condition A", code="A01")]
+    result = Base.resolve_item_by_index(items, 5, "Condition A")
+    assert result is not None
+    assert result.label == "Condition A"
+    assert mock_log.mock_calls == [
+        call.warning("Index 5 out of range for 1 items, falling back to name-based lookup"),
+    ]
+
+
+@patch("hyperscribe.commands.base.log")
+def test_resolve_item_by_index_logs_warning_on_name_mismatch(mock_log):
+    items = [
+        CodedItem(uuid="uuid1", label="Condition A", code="A01"),
+        CodedItem(uuid="uuid2", label="Condition B", code="B02"),
+    ]
+    result = Base.resolve_item_by_index(items, 0, "Condition B")
+    assert result is not None
+    assert result.label == "Condition B"
+    assert mock_log.mock_calls == [
+        call.warning("Index 0 (Condition A) does not match name (Condition B), falling back to name-based lookup"),
+    ]
+
+
 @patch("hyperscribe.commands.base.InstructionWithSummary")
 @patch.object(Base, "command_from_json")
 def test_command_from_json_with_summary(command_from_json, instruction_with_summary):
