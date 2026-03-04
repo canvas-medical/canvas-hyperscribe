@@ -125,6 +125,8 @@ class Constants:
     SECRET_TEXT_LLM_VENDOR = "VendorTextLLM"
     SECRET_NOTION_FEEDBACK_DATABASE_ID = "NotionFeedbackDatabaseId"
     SECRET_NOTION_API_KEY = "NotionAPIKey"
+    SECRET_MODALITY = "Modality"
+    MODALITY_SCRIBE = "scribe"
     SECRET_TRIAL_STAFFERS_LIST = "TrialStaffersList"
     # JSON credentials which take precedence over the secrets
     AWS_S3_CREDENTIALS_LOGS = "S3CredentialsLogs"
