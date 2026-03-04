@@ -45,7 +45,16 @@ class LlmOpenai(LlmBase):
         data = json.dumps(self.to_dict(False))
         self.memory_log.log("--- request begins:")
         self.memory_log.log(json.dumps(self.to_dict(True), indent=2))
-        request = requests_post(url, headers=headers, params={}, data=data, verify=True, timeout=None)
+        try:
+            request = requests_post(url, headers=headers, params={}, data=data, verify=True, timeout=None)
+        except Exception as exc:
+            self.memory_log.log(f"request error: {exc}")
+            self.memory_log.log("--- request ends ---")
+            return HttpResponse(
+                code=HTTPStatus.SERVICE_UNAVAILABLE.value,
+                response=f"Request failed: {exc}",
+                tokens=TokenCounts(prompt=0, generated=0),
+            )
         self.memory_log.log(f"status code: {request.status_code}")
         self.memory_log.log(request.text)
         self.memory_log.log("--- request ends ---")

@@ -377,9 +377,12 @@ class LimitedCache:
             for staff in Staff.objects.filter(active=True).order_by("last_name"):
                 label = f"{staff.first_name} {staff.last_name}"
                 if role := staff.top_clinical_role:
-                    role_type = StaffRole.RoleType(role.role_type).label
-                    domain = StaffRole.RoleDomain(role.domain).label
-                    label = f"{label} ({domain}/{role_type})"
+                    try:
+                        role_type = StaffRole.RoleType(role.role_type).label
+                        domain = StaffRole.RoleDomain(role.domain).label
+                        label = f"{label} ({domain}/{role_type})"
+                    except ValueError:
+                        pass
                 self._staff_members.append(CodedItem(uuid=str(staff.dbid), label=label, code=""))
         return self._staff_members
 
