@@ -3,7 +3,12 @@
   "plugin_version": "2026-01-26 v0.2.156 (main)",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
-  "url_permissions": [],
+  "url_permissions": [
+    {
+      "url": "https://esm.sh",
+      "permissions": ["SCRIPTS"]
+    }
+  ],
   "components": {
     "protocols": [
       {
@@ -113,6 +118,33 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.scribe.transcript_app:TranscriptApp",
+        "description": "Note application that displays the visit transcript",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.summary_app:SummaryApp",
+        "description": "Note application that displays the visit summary",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.scribe_view:ScribeView",
+        "description": "Serve the Scribe UI and static assets",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
       }
     ],
     "applications": [
@@ -131,6 +163,7 @@
     "views": []
   },
   "secrets": [
+    "Modality",
     "APISigningKey",
     "AudioHost",
     "AudioHostSharedSecret",
