@@ -233,6 +233,30 @@ def test_request(requests_post):
     assert memory_log.mock_calls == calls
     reset_mocks()
 
+    # network error (e.g. ChunkedEncodingError)
+    requests_post.side_effect = [ConnectionError("Response ended prematurely")]
+    result = tested.request()
+    assert result == HttpResponse(
+        code=503,
+        response="Request failed: Response ended prematurely",
+        tokens=TokenCounts(prompt=0, generated=0),
+    )
+    assert requests_post.mock_calls == calls_request_post
+    calls = [
+        call.log("--- request begins:"),
+        call.log(
+            "{"
+            '\n  "model": "theModel",'
+            '\n  "modalities": [\n    "text"\n  ],'
+            '\n  "messages": [],'
+            '\n  "temperature": 0.0\n}',
+        ),
+        call.log("request error: Response ended prematurely"),
+        call.log("--- request ends ---"),
+    ]
+    assert memory_log.mock_calls == calls
+    reset_mocks()
+
 
 @patch("hyperscribe.llms.llm_openai.requests_post")
 def test_audio_to_text(requests_post):

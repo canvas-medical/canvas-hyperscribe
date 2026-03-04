@@ -63,8 +63,33 @@ class HistoryOfPresentIllness(Base):
                     "properties": {
                         "narrative": {
                             "type": "string",
-                            "description": "Highlights of the patient's symptoms and "
-                            "surrounding events and observations, as free text",
+                            "description": (
+                                "History of present illness narrative in standard "
+                                "SOAP note style. "
+                                "Write from the patient's perspective using "
+                                "clinical charting language. "
+                                "Do NOT narrate what the clinician did "
+                                "(e.g. avoid 'The clinician discussed', "
+                                "'The provider reviewed'). "
+                                "Structure with the following sections, "
+                                "each on its own line:\n"
+                                "1. Opening line: the patient's name, age, "
+                                "and type of visit, along with known "
+                                "conditions and problems.\n"
+                                "2. Symptoms: a summary of the patient's "
+                                "reported symptoms, including aggravating "
+                                "and alleviating factors.\n"
+                                "3. Visit recap: a brief recap of the visit "
+                                "(e.g. 'During today's visit...').\n"
+                                "4. Conditions evaluated: a list of the "
+                                "conditions and problems that were evaluated.\n"
+                                "5. Patient discussion: key points discussed "
+                                "with the patient, including patient concerns, "
+                                "education provided, and patient understanding "
+                                "or agreement with the plan.\n"
+                                "Separate each section with a blank line "
+                                "for readability."
+                            ),
                         },
                     },
                     "required": ["narrative"],
@@ -75,7 +100,12 @@ class HistoryOfPresentIllness(Base):
 
     def instruction_description(self) -> str:
         result = (
-            "Highlights of the patient's symptoms and surrounding events and observations. "
+            "History of present illness narrative covering: "
+            "the patient's name, age, and visit type with known conditions; "
+            "a summary of reported symptoms including what makes them better or worse; "
+            "a recap of the visit (e.g. 'During today's visit...'); "
+            "the conditions and problems that were evaluated; "
+            "and key points discussed with the patient. "
             "There can be multiple highlights within an instruction, but only one such instruction in the "
             "whole discussion. "
             "So, if one was already found, simply update it by intelligently merging all key highlights."

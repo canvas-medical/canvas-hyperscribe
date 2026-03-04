@@ -1083,6 +1083,39 @@ def test_existing_staff_members(staff_db, top_clinical_role):
     reset_mocks()
 
 
+@patch.object(Staff, "top_clinical_role", new_callable=PropertyMock)
+@patch.object(Staff, "objects")
+def test_existing_staff_members__invalid_role_type(staff_db, top_clinical_role):
+    def reset_mocks():
+        staff_db.reset_mock()
+        top_clinical_role.reset_mock()
+
+    staff_db.filter.return_value.order_by.side_effect = [
+        [
+            Staff(dbid=1001, first_name="firstName1", last_name="lastName1"),
+            Staff(dbid=1002, first_name="firstName2", last_name="lastName2"),
+            Staff(dbid=1003, first_name="firstName3", last_name="lastName3"),
+        ],
+    ]
+    top_clinical_role.side_effect = [
+        StaffRole(domain="", role_type=""),
+        StaffRole(domain=StaffRole.RoleDomain("CLI"), role_type=StaffRole.RoleType("PROVIDER")),
+        StaffRole(domain="INVALID", role_type="INVALID"),
+    ]
+
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+    expected = [
+        CodedItem(uuid="1001", label="firstName1 lastName1", code=""),
+        CodedItem(uuid="1002", label="firstName2 lastName2 (Clinical/Provider)", code=""),
+        CodedItem(uuid="1003", label="firstName3 lastName3", code=""),
+    ]
+    result = tested.existing_staff_members()
+    assert result == expected
+    calls = [call.filter(active=True), call.filter().order_by("last_name")]
+    assert staff_db.mock_calls == calls
+    reset_mocks()
+
+
 @patch.object(TaskLabel, "objects")
 def test_existing_task_labels(task_label_db):
     def reset_mocks():

@@ -979,17 +979,14 @@ def test_fill_template_content__no_framework_no_instructions(
     chatter = MagicMock()
     instruction = make_instruction()
     tested = helper_instance()
-    mockresolve_framework.side_effect = [None]
-    mock_get_instructions.side_effect = [[]]
+    mockresolve_framework.return_value = None
+    mock_get_instructions.return_value = []
 
     result = tested.fill_template_content("generated", "narrative", instruction, chatter)
 
-    expected = "generated"
-    assert result == expected
-    exp_calls = [call("narrative")]
-    assert mockresolve_framework.mock_calls == exp_calls
-    exp_calls = [call("narrative")]
-    assert mock_get_instructions.mock_calls == exp_calls
+    assert result == "generated"
+    assert mockresolve_framework.mock_calls == [call("narrative")]
+    assert mock_get_instructions.mock_calls == [call("narrative")]
     assert mock_enhance.mock_calls == []
     assert chatter.mock_calls == []
 
@@ -1004,96 +1001,42 @@ def test_fill_template_content__no_framework_with_instructions(
     chatter = MagicMock()
     instruction = make_instruction()
     tested = helper_instance()
-    mockresolve_framework.side_effect = [None]
-    mock_get_instructions.side_effect = [["symptoms", "duration"]]
-    mock_enhance.side_effect = ["enhanced content"]
+    mockresolve_framework.return_value = None
+    mock_get_instructions.return_value = ["symptoms", "duration"]
+    mock_enhance.return_value = "enhanced content"
 
     result = tested.fill_template_content("generated", "narrative", instruction, chatter)
 
-    expected = "enhanced content"
-    assert result == expected
-    exp_calls = [call("narrative")]
-    assert mockresolve_framework.mock_calls == exp_calls
-    exp_calls = [call("narrative")]
-    assert mock_get_instructions.mock_calls == exp_calls
-    exp_calls = [call("generated", ["symptoms", "duration"], instruction, chatter)]
-    assert mock_enhance.mock_calls == exp_calls
+    assert result == "enhanced content"
+    assert mockresolve_framework.mock_calls == [call("narrative")]
+    assert mock_get_instructions.mock_calls == [call("narrative")]
+    assert mock_enhance.mock_calls == [call("generated", ["symptoms", "duration"], instruction, chatter)]
     assert chatter.mock_calls == []
 
 
-@patch("hyperscribe.commands.base.datetime", wraps=datetime)
-@patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.base.JsonSchema")
-@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "enhance_with_template_instructions")
 @patch.object(Base, "resolve_framework")
-def test_fill_template_content_with_framework(
-    mockresolve_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
+@patch.object(Base, "get_template_instructions")
+def test_fill_template_content_with_framework_no_lit_markers(
+    mock_get_instructions, mockresolve_framework, mock_enhance
 ):
+    """Framework without {lit:} markers and with add_instructions -> delegates to enhance."""
     chatter = MagicMock()
     instruction = make_instruction(information="Patient reports headache for 3 days.")
     tested = helper_instance()
-    mockresolve_framework.side_effect = ["Patient is a [AGE] year old [GENDER] presenting with [SYMPTOMS]."]
-    mock_get_instructions.side_effect = [["symptoms", "duration"]]
-    _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.side_effect = [
-        [{"enhancedContent": "Patient is a 45 year old male presenting with headache x3d."}]
-    ]
+    mockresolve_framework.return_value = "Patient is a [AGE] year old [GENDER] presenting with [SYMPTOMS]."
+    mock_get_instructions.return_value = ["symptoms", "duration"]
+    mock_enhance.return_value = "enhanced content"
 
     result = tested.fill_template_content("generated headache content", "narrative", instruction, chatter)
 
-    assert result == "Patient is a 45 year old male presenting with headache x3d."
+    assert result == "enhanced content"
     assert mockresolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
-    assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
-    assert mock_demographic.mock_calls == [call(False)]
-    assert mock_datetime.mock_calls == [call.now()]
-    system_prompt = [
-        "The conversation is in the context of a clinical encounter between "
-        "patient (theDemographic) and licensed healthcare provider.",
-        "",
-        "You are updating a medical note that has a specific structure with section headers.",
-        "Your task is to preserve this EXACT structure while updating the content.",
-        "",
-        "CRITICAL REQUIREMENTS:",
-        "- Keep ALL existing text from the original content - do NOT delete any lines",
-        "- Keep ALL section headers exactly as they appear",
-        "- Keep the same line breaks and paragraph structure",
-        "- Only ADD information from the transcript to fill in empty sections",
-        "- Do NOT convert the structured format into prose paragraphs",
-        "- Do NOT remove, delete, or merge any existing content",
-        "- Do not fabricate or invent clinical details",
-        "- If a section is already filled, keep it as-is unless the transcript has updates",
-        "",
-        "Current date/time: 2025-11-04T04:55:21.012346+00:00",
-        "",
+    assert mock_enhance.mock_calls == [
+        call("generated headache content", ["symptoms", "duration"], instruction, chatter)
     ]
-    user_prompt = [
-        "EXISTING STRUCTURED CONTENT (preserve this exact format):",
-        "```text",
-        "Patient is a [AGE] year old [GENDER] presenting with [SYMPTOMS].",
-        "```",
-        "",
-        "UPDATED INFORMATION from the transcript:",
-        "```text",
-        "generated headache content",
-        "```",
-        "\n\nThe template expects information about: symptoms, duration",
-        "",
-        "IMPORTANT: Keep ALL existing text from the original. Do NOT delete any lines.",
-        "Only fill in empty sections with information from the transcript.",
-        "Return the content with the EXACT same text, headers, and layout as the original.",
-        "",
-        "Your response must be a JSON Markdown block:",
-        "```json",
-        '[{"enhancedContent": "the structured content with same format as original"}]',
-        "```",
-        "",
-    ]
-    exp_calls = [
-        call.reset_prompts(),
-        call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
-    ]
-    assert chatter.mock_calls == exp_calls
+    assert chatter.mock_calls == []
 
 
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
@@ -1107,14 +1050,14 @@ def test_fill_template_content_strips_lit_markers(
     chatter = MagicMock()
     instruction = make_instruction(information="Patient memory concerns noted.")
     tested = helper_instance()
-    mockresolve_framework.side_effect = [
+    mockresolve_framework.return_value = (
         "Patient presenting for assessment.\n"
         "{lit:Current concerns with memory:}\n"
         "{lit:Current concerns with functioning:}"
-    ]
-    mock_get_instructions.side_effect = [[]]
+    )
+    mock_get_instructions.return_value = []
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.side_effect = [[{"enhancedContent": "filled content"}]]
+    chatter.single_conversation.return_value = [{"enhancedContent": "filled content"}]
 
     tested.fill_template_content("generated", "narrative", instruction, chatter)
 
@@ -1165,183 +1108,58 @@ def test_fill_template_content_strips_lit_markers(
         "```",
         "",
     ]
-    exp_calls = [
+    calls = [
         call.reset_prompts(),
         call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
     ]
-    assert chatter.mock_calls == exp_calls
+    assert chatter.mock_calls == calls
 
 
-@patch("hyperscribe.commands.base.datetime", wraps=datetime)
-@patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.base.JsonSchema")
-@patch.object(Base, "get_template_instructions")
 @patch.object(Base, "resolve_framework")
-def test_fill_template_content_with_framework_no_add_instructions(
-    mockresolve_framework, mock_get_instructions, mock_json_schema, mock_demographic, mock_datetime
-):
+@patch.object(Base, "get_template_instructions")
+def test_fill_template_content_with_framework_no_add_instructions(mock_get_instructions, mockresolve_framework):
+    """Framework without {lit:} markers and no add_instructions -> returns generated content."""
     chatter = MagicMock()
     tested = helper_instance()
-    mockresolve_framework.side_effect = ["Patient is presenting today."]
-    mock_get_instructions.side_effect = [[]]
-    _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.side_effect = [[{"enhancedContent": "Patient is presenting today with headache."}]]
+    mockresolve_framework.return_value = "Patient is presenting today."
+    mock_get_instructions.return_value = []
 
     instruction = make_instruction()
     result = tested.fill_template_content("generated", "narrative", instruction, chatter)
 
-    assert result == "Patient is presenting today with headache."
+    assert result == "generated"
     assert mockresolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
-    assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
-    assert mock_demographic.mock_calls == [call(False)]
-    assert mock_datetime.mock_calls == [call.now()]
-    system_prompt = [
-        "The conversation is in the context of a clinical encounter between "
-        "patient (theDemographic) and licensed healthcare provider.",
-        "",
-        "You are updating a medical note that has a specific structure with section headers.",
-        "Your task is to preserve this EXACT structure while updating the content.",
-        "",
-        "CRITICAL REQUIREMENTS:",
-        "- Keep ALL existing text from the original content - do NOT delete any lines",
-        "- Keep ALL section headers exactly as they appear",
-        "- Keep the same line breaks and paragraph structure",
-        "- Only ADD information from the transcript to fill in empty sections",
-        "- Do NOT convert the structured format into prose paragraphs",
-        "- Do NOT remove, delete, or merge any existing content",
-        "- Do not fabricate or invent clinical details",
-        "- If a section is already filled, keep it as-is unless the transcript has updates",
-        "",
-        "Current date/time: 2025-11-04T04:55:21.012346+00:00",
-        "",
-    ]
-    user_prompt = [
-        "EXISTING STRUCTURED CONTENT (preserve this exact format):",
-        "```text",
-        "Patient is presenting today.",
-        "```",
-        "",
-        "UPDATED INFORMATION from the transcript:",
-        "```text",
-        "generated",
-        "```",
-        "",
-        "",
-        "IMPORTANT: Keep ALL existing text from the original. Do NOT delete any lines.",
-        "Only fill in empty sections with information from the transcript.",
-        "Return the content with the EXACT same text, headers, and layout as the original.",
-        "",
-        "Your response must be a JSON Markdown block:",
-        "```json",
-        '[{"enhancedContent": "the structured content with same format as original"}]',
-        "```",
-        "",
-    ]
-    exp_calls = [
-        call.reset_prompts(),
-        call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
-    ]
-    assert chatter.mock_calls == exp_calls
+    assert chatter.mock_calls == []
 
 
-@pytest.mark.parametrize(
-    ("llm_response",),
-    [
-        pytest.param([], id="empty_response"),
-        pytest.param([{"enhancedContent": ""}], id="empty_content"),
-    ],
-)
-@patch("hyperscribe.commands.base.datetime", wraps=datetime)
-@patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.base.JsonSchema")
-@patch.object(Base, "get_template_instructions")
+@patch.object(Base, "enhance_with_template_instructions")
 @patch.object(Base, "resolve_framework")
-def test_fill_template_content_llm_empty_falls_back(
-    mockresolve_framework,
-    mock_get_instructions,
-    mock_json_schema,
-    mock_demographic,
-    mock_datetime,
-    llm_response,
+@patch.object(Base, "get_template_instructions")
+def test_fill_template_content_no_lit_with_instructions_delegates(
+    mock_get_instructions, mockresolve_framework, mock_enhance
 ):
+    """Framework without {lit:} but with add_instructions -> delegates to enhance."""
     chatter = MagicMock()
     tested = helper_instance()
-    mockresolve_framework.side_effect = ["Template structure here."]
-    mock_get_instructions.side_effect = [["symptoms"]]
-    _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.side_effect = [llm_response]
+    mockresolve_framework.return_value = "Template structure here."
+    mock_get_instructions.return_value = ["symptoms"]
+    mock_enhance.return_value = "enhanced content"
 
     instruction = make_instruction()
     result = tested.fill_template_content("generated content", "narrative", instruction, chatter)
 
-    assert result == "generated content"
+    assert result == "enhanced content"
     assert mockresolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
-    assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
-    assert mock_demographic.mock_calls == [call(False)]
-    assert mock_datetime.mock_calls == [call.now()]
-    system_prompt = [
-        "The conversation is in the context of a clinical encounter between "
-        "patient (theDemographic) and licensed healthcare provider.",
-        "",
-        "You are updating a medical note that has a specific structure with section headers.",
-        "Your task is to preserve this EXACT structure while updating the content.",
-        "",
-        "CRITICAL REQUIREMENTS:",
-        "- Keep ALL existing text from the original content - do NOT delete any lines",
-        "- Keep ALL section headers exactly as they appear",
-        "- Keep the same line breaks and paragraph structure",
-        "- Only ADD information from the transcript to fill in empty sections",
-        "- Do NOT convert the structured format into prose paragraphs",
-        "- Do NOT remove, delete, or merge any existing content",
-        "- Do not fabricate or invent clinical details",
-        "- If a section is already filled, keep it as-is unless the transcript has updates",
-        "",
-        "Current date/time: 2025-11-04T04:55:21.012346+00:00",
-        "",
-    ]
-    user_prompt = [
-        "EXISTING STRUCTURED CONTENT (preserve this exact format):",
-        "```text",
-        "Template structure here.",
-        "```",
-        "",
-        "UPDATED INFORMATION from the transcript:",
-        "```text",
-        "generated content",
-        "```",
-        "\n\nThe template expects information about: symptoms",
-        "",
-        "IMPORTANT: Keep ALL existing text from the original. Do NOT delete any lines.",
-        "Only fill in empty sections with information from the transcript.",
-        "Return the content with the EXACT same text, headers, and layout as the original.",
-        "",
-        "Your response must be a JSON Markdown block:",
-        "```json",
-        '[{"enhancedContent": "the structured content with same format as original"}]',
-        "```",
-        "",
-    ]
-    exp_calls = [
-        call.reset_prompts(),
-        call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
-    ]
-    assert chatter.mock_calls == exp_calls
+    assert mock_enhance.mock_calls == [call("generated content", ["symptoms"], instruction, chatter)]
+    assert chatter.mock_calls == []
 
 
-@patch("hyperscribe.commands.base.datetime", wraps=datetime)
-@patch.object(LimitedCache, "demographic__str__")
-@patch("hyperscribe.commands.base.JsonSchema")
-@patch.object(Base, "get_template_instructions")
 @patch.object(Base, "resolve_framework")
-def test_fill_template_content_uses_existing_structure(
-    mockresolve_framework,
-    mock_get_instructions,
-    mock_json_schema,
-    mock_demographic,
-    mock_datetime,
-):
+@patch.object(Base, "get_template_instructions")
+def test_fill_template_content_uses_existing_structure_no_lit(mock_get_instructions, mockresolve_framework):
+    """Framework with structured text but no {lit:} markers -> returns generated content."""
     chatter = MagicMock()
     structured_content = (
         "Patient Name is a 46 year old male presenting for assessment.\n\n"
@@ -1350,65 +1168,15 @@ def test_fill_template_content_uses_existing_structure(
     )
     instruction = make_instruction(information="Some prose from transcript")
     tested = helper_instance()
-    mockresolve_framework.side_effect = [structured_content]
-    mock_get_instructions.side_effect = [[]]
-    _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.side_effect = [[{"enhancedContent": "Updated structured content"}]]
+    mockresolve_framework.return_value = structured_content
+    mock_get_instructions.return_value = []
 
-    tested.fill_template_content("generated prose", "narrative", instruction, chatter)
+    result = tested.fill_template_content("generated prose", "narrative", instruction, chatter)
 
+    assert result == "generated prose"
     assert mockresolve_framework.mock_calls == [call("narrative")]
     assert mock_get_instructions.mock_calls == [call("narrative")]
-    assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
-    assert mock_demographic.mock_calls == [call(False)]
-    assert mock_datetime.mock_calls == [call.now()]
-    system_prompt = [
-        "The conversation is in the context of a clinical encounter between "
-        "patient (theDemographic) and licensed healthcare provider.",
-        "",
-        "You are updating a medical note that has a specific structure with section headers.",
-        "Your task is to preserve this EXACT structure while updating the content.",
-        "",
-        "CRITICAL REQUIREMENTS:",
-        "- Keep ALL existing text from the original content - do NOT delete any lines",
-        "- Keep ALL section headers exactly as they appear",
-        "- Keep the same line breaks and paragraph structure",
-        "- Only ADD information from the transcript to fill in empty sections",
-        "- Do NOT convert the structured format into prose paragraphs",
-        "- Do NOT remove, delete, or merge any existing content",
-        "- Do not fabricate or invent clinical details",
-        "- If a section is already filled, keep it as-is unless the transcript has updates",
-        "",
-        "Current date/time: 2025-11-04T04:55:21.012346+00:00",
-        "",
-    ]
-    user_prompt = [
-        "EXISTING STRUCTURED CONTENT (preserve this exact format):",
-        "```text",
-        structured_content,
-        "```",
-        "",
-        "UPDATED INFORMATION from the transcript:",
-        "```text",
-        "generated prose",
-        "```",
-        "",
-        "",
-        "IMPORTANT: Keep ALL existing text from the original. Do NOT delete any lines.",
-        "Only fill in empty sections with information from the transcript.",
-        "Return the content with the EXACT same text, headers, and layout as the original.",
-        "",
-        "Your response must be a JSON Markdown block:",
-        "```json",
-        '[{"enhancedContent": "the structured content with same format as original"}]',
-        "```",
-        "",
-    ]
-    exp_calls = [
-        call.reset_prompts(),
-        call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
-    ]
-    assert chatter.mock_calls == exp_calls
+    assert chatter.mock_calls == []
 
 
 # -- enhance_with_template_instructions ------------------------------------

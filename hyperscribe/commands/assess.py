@@ -33,6 +33,11 @@ class Assess(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
+        # Suppress commands for conditions not actually discussed
+        raw_assessment = instruction.parameters["assessment"]
+        if self.is_filler_narrative(raw_assessment):
+            return None
+
         condition_id: str | None = None
         if matched := self.resolve_item_by_index(
             self.cache.current_conditions(),
@@ -49,10 +54,12 @@ class Assess(Base):
             else ""
         )
         narrative = (
-            self.fill_template_content(instruction.parameters["assessment"], "narrative", instruction, chatter)
+            self.fill_template_content(raw_assessment, "narrative", instruction, chatter)
             if self.can_edit_field("narrative")
             else ""
         )
+        if narrative:
+            narrative = self.post_process_narrative(narrative)
 
         return InstructionWithCommand.add_command(
             instruction,
@@ -108,7 +115,19 @@ class Assess(Base):
                         },
                         "assessment": {
                             "type": "string",
-                            "description": "Today's assessment of the condition, as free text",
+                            "description": (
+                                "Today's assessment of the condition, structured with "
+                                "two labeled sections separated by a newline:\n"
+                                "Assessment: 1-3 sentences combining clinical symptoms "
+                                "with functional observations, "
+                                "summarizing the status, history, and any barriers "
+                                "to treatment.\n"
+                                "Plan: a direct, bulleted list of actions. "
+                                "Include specific barriers to care if mentioned "
+                                "in the transcript.\n"
+                                "Separate the Assessment and Plan sections "
+                                "with a blank line for readability."
+                            ),
                         },
                     },
                     "required": ["condition", "conditionIndex", "rationale", "status", "assessment"],
@@ -121,9 +140,12 @@ class Assess(Base):
         text = ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()])
         return (
             f"Today's assessment of an EXISTING condition already in the patient's chart ({text}). "
-            "Use this instruction whenever the provider discusses, evaluates, reviews, or mentions "
-            "any of these existing conditions during the visit — including current status, symptoms, "
+            "Use this instruction ONLY when the provider EXPLICITLY discusses, evaluates, reviews, or mentions "
+            "a specific existing condition during the visit — including current status, symptoms, "
             "treatment response, or management plan related to the condition. "
+            "Do NOT create an assessment for a condition that is not explicitly mentioned in the transcript. "
+            "If a condition is not discussed during the visit, do NOT generate any instruction for it. "
+            "Never produce filler text such as 'not discussed' or 'no update available'. "
             "There can be only one assessment per condition per instruction, and no instruction in the lack of."
         )
 
