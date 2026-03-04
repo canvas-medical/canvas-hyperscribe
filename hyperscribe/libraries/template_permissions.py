@@ -9,9 +9,6 @@ from logger import log
 
 from hyperscribe.libraries.constants import Constants
 
-from canvas_sdk.caching.base import Cache
-from canvas_sdk.caching.client import get_cache as _get_cache_client
-
 
 class TemplatePermissions:
     """Loads note-template edit permissions cached by the note_templates plugin.
@@ -23,8 +20,10 @@ class TemplatePermissions:
     PERMISSIONS: dict[str, dict[str, Any]] = {}
 
     @classmethod
-    def default_cache_getter(cls) -> Cache:
+    def default_cache_getter(cls) -> Any:
         """Default cache getter that uses a shared (non-plugin-scoped) cache prefix."""
+        from canvas_sdk.caching.client import get_cache as _get_cache_client
+
         return _get_cache_client(driver="plugins", prefix=Constants.TEMPLATE_SHARED_CACHE_PREFIX)
 
     def __init__(self, note_uuid: str) -> None:

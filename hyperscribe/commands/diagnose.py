@@ -47,6 +47,8 @@ class Diagnose(Base):
             if self.can_edit_field("today_assessment")
             else ""
         )
+        if today_assessment:
+            today_assessment = self.post_process_narrative(today_assessment)
 
         icd10_code = SelectorChat.condition_from(
             instruction,
@@ -112,8 +114,19 @@ class Diagnose(Base):
                         },
                         "assessment": {
                             "type": "string",
-                            "description": "Current assessment of the condition, as stated in the instruction, "
-                            "without the reasoning.",
+                            "description": (
+                                "Today's assessment of the condition, structured with "
+                                "two labeled sections separated by a newline:\n"
+                                "Assessment: 1-3 sentences combining clinical symptoms "
+                                "with functional observations, "
+                                "summarizing the status, history, and any barriers "
+                                "to treatment.\n"
+                                "Plan: a direct, bulleted list of actions. "
+                                "Include specific barriers to care if mentioned "
+                                "in the transcript.\n"
+                                "Separate the Assessment and Plan sections "
+                                "with a blank line for readability."
+                            ),
                             "minLength": 1,
                         },
                     },

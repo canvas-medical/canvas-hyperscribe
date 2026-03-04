@@ -1803,6 +1803,204 @@ def test_detect_instructions_flat(verify_condition, json_schema, instruction_con
         reset_mocks()
 
 
+def test_verify_condition_instructions__empty_result():
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    tested, settings, aws_s3, cache = helper_instance(mocks, False)
+    chatter = MagicMock()
+    common_instructions = [MagicMock(), MagicMock()]
+
+    result = tested.verify_condition_instructions([], common_instructions, chatter, ["system"], {"schema": True})
+    assert result == []
+    assert chatter.mock_calls == []
+
+
+def test_verify_condition_instructions__no_diagnose_or_assess():
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    tested, settings, aws_s3, cache = helper_instance(mocks, False)
+    chatter = MagicMock()
+
+    instr1 = MagicMock()
+    instr1.class_name.return_value = "Medication"
+    instr2 = MagicMock()
+    instr2.class_name.return_value = "HistoryOfPresentIllness"
+
+    original_result = [{"instruction": "Medication", "information": "some info"}]
+    result = tested.verify_condition_instructions(
+        original_result, [instr1, instr2], chatter, ["system"], {"schema": True}
+    )
+    assert result == original_result
+    assert chatter.mock_calls == []
+
+
+@patch.object(LimitedCache, "current_conditions")
+def test_verify_condition_instructions__with_assess_only(current_conditions):
+    from hyperscribe.structures.coded_item import CodedItem
+
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    tested, settings, aws_s3, cache = helper_instance(mocks, False)
+    chatter = MagicMock()
+
+    instr_assess = MagicMock()
+    instr_assess.class_name.return_value = "Assess"
+    instr_med = MagicMock()
+    instr_med.class_name.return_value = "Medication"
+
+    current_conditions.side_effect = [
+        [
+            CodedItem(uuid="uuid1", label="Hypertension", code="I10"),
+            CodedItem(uuid="uuid2", label="Diabetes", code="E11"),
+        ]
+    ]
+
+    original_result = [{"instruction": "Assess", "information": "blood pressure review"}]
+    llm_response = [{"instruction": "Assess", "information": "blood pressure review"}]
+    chatter.single_conversation.side_effect = [llm_response]
+
+    system_prompt = ["system prompt"]
+    schema = {"schema": True}
+    result = tested.verify_condition_instructions(
+        original_result, [instr_assess, instr_med], chatter, system_prompt, schema
+    )
+
+    assert result == llm_response
+    calls = [
+        call(["```json", '[{"instruction": "Assess", "information": "blood pressure review"}]', "```"]),
+    ]
+    assert chatter.set_model_prompt.mock_calls == calls
+    calls = [
+        call(
+            system_prompt,
+            [
+                "Review the transcript and your response.",
+                "",
+                "The following conditions are already in the patient's chart: Hypertension, Diabetes.",
+                "",
+                "Verify that every medical condition discussed, evaluated, or referenced in the transcript "
+                "has a corresponding instruction:",
+                " * For conditions already in the patient's chart -> there should be an 'Assess' instruction",
+                "",
+                "If any discussed conditions are missing instructions, add them.",
+                "Return the complete JSON with all instructions (existing and any newly added).",
+                "If no changes are needed, return the original JSON unchanged.",
+                "",
+            ],
+            [schema],
+            None,
+        ),
+    ]
+    assert chatter.single_conversation.mock_calls == calls
+    calls = [call()]
+    assert current_conditions.mock_calls == calls
+
+
+@patch.object(LimitedCache, "current_conditions")
+def test_verify_condition_instructions__with_diagnose_only(current_conditions):
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    tested, settings, aws_s3, cache = helper_instance(mocks, False)
+    chatter = MagicMock()
+
+    instr_diagnose = MagicMock()
+    instr_diagnose.class_name.return_value = "Diagnose"
+
+    current_conditions.side_effect = [[]]
+
+    original_result = [{"instruction": "Diagnose", "information": "new UTI"}]
+    llm_response = [{"instruction": "Diagnose", "information": "new UTI"}]
+    chatter.single_conversation.side_effect = [llm_response]
+
+    system_prompt = ["system prompt"]
+    schema = {"schema": True}
+    result = tested.verify_condition_instructions(original_result, [instr_diagnose], chatter, system_prompt, schema)
+
+    assert result == llm_response
+    calls = [
+        call(["```json", '[{"instruction": "Diagnose", "information": "new UTI"}]', "```"]),
+    ]
+    assert chatter.set_model_prompt.mock_calls == calls
+    calls = [
+        call(
+            system_prompt,
+            [
+                "Review the transcript and your response.",
+                "",
+                "Verify that every medical condition discussed, evaluated, or referenced in the transcript "
+                "has a corresponding instruction:",
+                " * For NEW conditions not in the patient's chart -> there should be a 'Diagnose' instruction",
+                "",
+                "If any discussed conditions are missing instructions, add them.",
+                "Return the complete JSON with all instructions (existing and any newly added).",
+                "If no changes are needed, return the original JSON unchanged.",
+                "",
+            ],
+            [schema],
+            None,
+        ),
+    ]
+    assert chatter.single_conversation.mock_calls == calls
+    calls = [call()]
+    assert current_conditions.mock_calls == calls
+
+
+@patch.object(LimitedCache, "current_conditions")
+def test_verify_condition_instructions__with_both_assess_and_diagnose(current_conditions):
+    from hyperscribe.structures.coded_item import CodedItem
+
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    tested, settings, aws_s3, cache = helper_instance(mocks, False)
+    chatter = MagicMock()
+
+    instr_assess = MagicMock()
+    instr_assess.class_name.return_value = "Assess"
+    instr_diagnose = MagicMock()
+    instr_diagnose.class_name.return_value = "Diagnose"
+
+    current_conditions.side_effect = [
+        [
+            CodedItem(uuid="uuid1", label="Alzheimer's disease", code="G30"),
+        ]
+    ]
+
+    original_result = [
+        {"instruction": "Assess", "information": "Alzheimer review"},
+        {"instruction": "Diagnose", "information": "new UTI"},
+    ]
+    llm_response = list(original_result)
+    chatter.single_conversation.side_effect = [llm_response]
+
+    system_prompt = ["system prompt"]
+    schema = {"schema": True}
+    result = tested.verify_condition_instructions(
+        original_result, [instr_assess, instr_diagnose], chatter, system_prompt, schema
+    )
+
+    assert result == llm_response
+    calls = [
+        call(
+            system_prompt,
+            [
+                "Review the transcript and your response.",
+                "",
+                "The following conditions are already in the patient's chart: Alzheimer's disease.",
+                "",
+                "Verify that every medical condition discussed, evaluated, or referenced in the transcript "
+                "has a corresponding instruction:",
+                " * For conditions already in the patient's chart -> there should be an 'Assess' instruction",
+                " * For NEW conditions not in the patient's chart -> there should be a 'Diagnose' instruction",
+                "",
+                "If any discussed conditions are missing instructions, add them.",
+                "Return the complete JSON with all instructions (existing and any newly added).",
+                "If no changes are needed, return the original JSON unchanged.",
+                "",
+            ],
+            [schema],
+            None,
+        ),
+    ]
+    assert chatter.single_conversation.mock_calls == calls
+    calls = [call()]
+    assert current_conditions.mock_calls == calls
+
+
 @patch("hyperscribe.libraries.audio_interpreter.datetime", wraps=datetime)
 @patch("hyperscribe.libraries.audio_interpreter.ProgressDisplay")
 @patch("hyperscribe.libraries.audio_interpreter.MemoryLog")

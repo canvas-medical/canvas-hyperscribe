@@ -225,6 +225,41 @@ class Base:
     def is_available(self) -> bool:
         raise NotImplementedError
 
+    _FILLER_PATTERNS = re.compile(
+        r"(?i)(?:was\s+)?not\s+(?:discussed|evaluated|addressed|reviewed|mentioned|assessed)"
+        r"|no\s+(?:explicit\s+)?(?:discussion|evaluation|assessment|review|mention)\s+(?:or\s+\w+\s+)?(?:of|during|regarding)"
+        r"|no\s+(?:assessment|update|evaluation)\s+(?:is\s+)?(?:available|provided|needed|necessary)"
+        r"|no\s+(?:status\s+)?update\s+(?:is\s+)?available"
+    )
+
+    @staticmethod
+    def is_filler_narrative(text: str) -> bool:
+        """Detect narratives indicating the condition was not actually discussed."""
+        return bool(Base._FILLER_PATTERNS.search(text))
+
+    @staticmethod
+    def post_process_narrative(text: str) -> str:
+        """Ensure the narrative contains both Assessment and Plan sections."""
+        has_assessment = bool(re.search(r"(?mi)^assessment\s*:", text))
+        has_plan = bool(re.search(r"(?mi)^plan\s*:", text))
+
+        if has_assessment and has_plan:
+            return text
+
+        if has_assessment and not has_plan:
+            return f"{text.rstrip()}\nPlan:"
+
+        if has_plan and not has_assessment:
+            plan_match = re.search(r"(?mi)^plan\s*:", text)
+            before_plan = text[: plan_match.start()].rstrip()  # type: ignore[union-attr]
+            from_plan = text[plan_match.start() :]  # type: ignore[union-attr]
+            if before_plan:
+                return f"Assessment: {before_plan}\n{from_plan}"
+            return f"Assessment:\n{from_plan}"
+
+        # Neither header present
+        return f"Assessment: {text.rstrip()}\nPlan:"
+
     # -- Template integration - begin ----------------------------------------
 
     def can_edit_command(self) -> bool:
@@ -322,6 +357,17 @@ class Base:
         if not framework:
             log.info(f"[TEMPLATE] No framework, enhancing with add_instructions: {add_instructions}")
             return self.enhance_with_template_instructions(generated_content, add_instructions, instruction, chatter)
+
+        # Only treat frameworks with {lit:} markers as real templates.
+        # Without markers, the framework is just pre-seeded default text
+        # and the template merge would discard the generated content.
+        if not re.search(r"\{lit:", framework):
+            log.info(f"[TEMPLATE] Framework has no {{lit:}} markers, treating as default text — skipping merge")
+            if add_instructions:
+                return self.enhance_with_template_instructions(
+                    generated_content, add_instructions, instruction, chatter
+                )
+            return generated_content
 
         # Strip {lit:} markers from framework — they declare protected text
         # in the cache but should not appear in the LLM prompt.
