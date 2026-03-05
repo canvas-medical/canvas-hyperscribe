@@ -3,12 +3,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from hyperscribe.scribe.errors import (
+from hyperscribe.scribe.backend import (
     ScribeNormalizationError,
     ScribeNoteGenerationError,
 )
-from hyperscribe.scribe.nabla.auth import NablaAuth
-from hyperscribe.scribe.nabla.client import NablaClient
+from hyperscribe.scribe.clients.nabla.auth import NablaAuth
+from hyperscribe.scribe.clients.nabla.client import NablaClient
 
 
 def _make_client() -> tuple[NablaClient, MagicMock]:
@@ -36,7 +36,8 @@ def _mock_error_response(status_code: int = 500) -> MagicMock:
 def test_generate_note_success():
     client, _ = _make_client()
     expected = {"title": "SOAP Note", "sections": []}
-    with patch("hyperscribe.scribe.nabla.client.requests.post", return_value=_mock_response(expected)) as mock_post:
+    target = "hyperscribe.scribe.clients.nabla.client.requests.post"
+    with patch(target, return_value=_mock_response(expected)) as mock_post:
         result = client.generate_note({"transcript": {}})
 
     assert result == expected
@@ -45,7 +46,7 @@ def test_generate_note_success():
 
 def test_generate_note_error():
     client, _ = _make_client()
-    with patch("hyperscribe.scribe.nabla.client.requests.post", return_value=_mock_error_response(500)):
+    with patch("hyperscribe.scribe.clients.nabla.client.requests.post", return_value=_mock_error_response(500)):
         with pytest.raises(ScribeNoteGenerationError, match="generate note failed"):
             client.generate_note({})
 
@@ -53,7 +54,8 @@ def test_generate_note_error():
 def test_generate_normalized_data_success():
     client, _ = _make_client()
     expected = {"conditions": [], "observations": []}
-    with patch("hyperscribe.scribe.nabla.client.requests.post", return_value=_mock_response(expected)) as mock_post:
+    target = "hyperscribe.scribe.clients.nabla.client.requests.post"
+    with patch(target, return_value=_mock_response(expected)) as mock_post:
         result = client.generate_normalized_data({"note": {}})
 
     assert result == expected
@@ -62,7 +64,7 @@ def test_generate_normalized_data_success():
 
 def test_generate_normalized_data_error():
     client, _ = _make_client()
-    with patch("hyperscribe.scribe.nabla.client.requests.post", return_value=_mock_error_response(503)):
+    with patch("hyperscribe.scribe.clients.nabla.client.requests.post", return_value=_mock_error_response(503)):
         with pytest.raises(ScribeNormalizationError, match="generate normalized data failed"):
             client.generate_normalized_data({})
 

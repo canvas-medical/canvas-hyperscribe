@@ -11,9 +11,8 @@ from urllib.parse import urlparse
 
 import websocket
 
-from hyperscribe.scribe.errors import ScribeTranscriptionError
-from hyperscribe.scribe.models import TranscriptItem
-from hyperscribe.scribe.nabla.auth import NablaAuth
+from hyperscribe.scribe.backend import ScribeTranscriptionError, TranscriptItem
+from hyperscribe.scribe.clients.nabla.auth import NablaAuth
 
 logger = logging.getLogger(__name__)
 

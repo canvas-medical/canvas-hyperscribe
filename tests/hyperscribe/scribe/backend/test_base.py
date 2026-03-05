@@ -1,10 +1,10 @@
 import pytest
 
-from hyperscribe.scribe.base import ScribeBackend
-from hyperscribe.scribe.models import (
+from hyperscribe.scribe.backend import (
     ClinicalNote,
     NormalizedData,
     PatientContext,
+    ScribeBackend,
     Transcript,
     TranscriptItem,
 )

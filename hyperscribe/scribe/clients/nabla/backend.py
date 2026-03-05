@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from hyperscribe.scribe.base import ScribeBackend
-from hyperscribe.scribe.errors import ScribeTranscriptionError
-from hyperscribe.scribe.models import (
+from hyperscribe.scribe.backend import (
     ClinicalNote,
     CodingEntry,
     Condition,
@@ -12,12 +10,14 @@ from hyperscribe.scribe.models import (
     NoteSection,
     Observation,
     PatientContext,
+    ScribeBackend,
+    ScribeTranscriptionError,
     Transcript,
     TranscriptItem,
 )
-from hyperscribe.scribe.nabla.auth import NablaAuth
-from hyperscribe.scribe.nabla.client import NablaClient
-from hyperscribe.scribe.nabla.ws_client import NablaWsClient
+from hyperscribe.scribe.clients.nabla.auth import NablaAuth
+from hyperscribe.scribe.clients.nabla.client import NablaClient
+from hyperscribe.scribe.clients.nabla.ws_client import NablaWsClient
 
 _SPEECH_LOCALE = "en-US"
 _NOTE_TEMPLATE = "SOAP"

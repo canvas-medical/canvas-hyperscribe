@@ -2,14 +2,14 @@ import json
 
 import pytest
 
-from hyperscribe.scribe.base import ScribeBackend
-from hyperscribe.scribe.errors import ScribeError
-from hyperscribe.scribe.models import (
+from hyperscribe.scribe.backend import (
     ClinicalNote,
     NormalizedData,
+    ScribeBackend,
+    ScribeError,
     Transcript,
 )
-from hyperscribe.scribe.registry import _REGISTRY, get_backend_from_secrets, register_backend
+from hyperscribe.scribe.backend.registry import _REGISTRY, get_backend_from_secrets, register_backend
 
 
 class _FakeBackend(ScribeBackend):
@@ -96,6 +96,6 @@ def test_get_backend_from_secrets_empty_vendor():
 
 
 def test_nabla_auto_registers():
-    import hyperscribe.scribe.nabla  # noqa: F401
+    import hyperscribe.scribe.clients.nabla  # noqa: F401
 
     assert "nabla" in _REGISTRY

@@ -2,23 +2,23 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from hyperscribe.scribe.base import ScribeBackend
-from hyperscribe.scribe.errors import ScribeTranscriptionError
-from hyperscribe.scribe.models import (
+from hyperscribe.scribe.backend import (
     ClinicalNote,
     CodingEntry,
     NormalizedData,
     NoteSection,
     PatientContext,
+    ScribeBackend,
+    ScribeTranscriptionError,
     Transcript,
     TranscriptItem,
 )
-from hyperscribe.scribe.nabla.backend import NablaBackend
+from hyperscribe.scribe.clients.nabla.backend import NablaBackend
 
 
 def _make_backend() -> tuple[NablaBackend, MagicMock, MagicMock]:
-    with patch("hyperscribe.scribe.nabla.backend.NablaAuth"):
-        with patch("hyperscribe.scribe.nabla.backend.NablaClient") as mock_client_cls:
+    with patch("hyperscribe.scribe.clients.nabla.backend.NablaAuth"):
+        with patch("hyperscribe.scribe.clients.nabla.backend.NablaClient") as mock_client_cls:
             backend = NablaBackend(region="us", client_id="cid", client_secret="secret")
             mock_rest_client = mock_client_cls.return_value
     return backend, mock_rest_client, MagicMock()
@@ -32,7 +32,7 @@ def test_nabla_backend_is_scribe_backend():
 def test_start_session():
     backend, _, _ = _make_backend()
     mock_ws = MagicMock()
-    with patch("hyperscribe.scribe.nabla.backend.NablaWsClient", return_value=mock_ws):
+    with patch("hyperscribe.scribe.clients.nabla.backend.NablaWsClient", return_value=mock_ws):
         backend.start_session()
 
     mock_ws.connect.assert_called_once()

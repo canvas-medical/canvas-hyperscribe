@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from hyperscribe.scribe.models import (
+from hyperscribe.scribe.backend.models import (
     ClinicalNote,
     NormalizedData,
     PatientContext,

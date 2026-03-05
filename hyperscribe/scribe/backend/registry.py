@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 
 from hyperscribe.libraries.constants import Constants
-from hyperscribe.scribe.base import ScribeBackend
-from hyperscribe.scribe.errors import ScribeError
+from hyperscribe.scribe.backend.base import ScribeBackend
+from hyperscribe.scribe.backend.errors import ScribeError
 
 _REGISTRY: dict[str, type[ScribeBackend]] = {}
 

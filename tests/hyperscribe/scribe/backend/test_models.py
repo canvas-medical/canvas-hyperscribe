@@ -1,6 +1,6 @@
 from tests.helper import is_dataclass
 
-from hyperscribe.scribe.models import (
+from hyperscribe.scribe.backend import (
     ClinicalNote,
     CodingEntry,
     Condition,

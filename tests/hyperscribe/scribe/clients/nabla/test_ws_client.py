@@ -4,10 +4,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 import websocket
 
-from hyperscribe.scribe.errors import ScribeTranscriptionError
-from hyperscribe.scribe.models import TranscriptItem
-from hyperscribe.scribe.nabla.auth import NablaAuth
-from hyperscribe.scribe.nabla.ws_client import NablaWsClient
+from hyperscribe.scribe.backend import ScribeTranscriptionError, TranscriptItem
+from hyperscribe.scribe.clients.nabla.auth import NablaAuth
+from hyperscribe.scribe.clients.nabla.ws_client import NablaWsClient
 
 
 def _make_ws_client() -> tuple[NablaWsClient, MagicMock]:
@@ -28,7 +27,8 @@ def test_connect():
     client, auth = _make_ws_client()
     mock_ws = MagicMock()
 
-    with patch("hyperscribe.scribe.nabla.ws_client.websocket.create_connection", return_value=mock_ws) as mock_create:
+    target = "hyperscribe.scribe.clients.nabla.ws_client.websocket.create_connection"
+    with patch(target, return_value=mock_ws) as mock_create:
         client.connect()
 
     mock_create.assert_called_once()
@@ -50,7 +50,7 @@ def test_connect_failure():
     client, _ = _make_ws_client()
 
     with patch(
-        "hyperscribe.scribe.nabla.ws_client.websocket.create_connection",
+        "hyperscribe.scribe.clients.nabla.ws_client.websocket.create_connection",
         side_effect=websocket.WebSocketException("connection refused"),
     ):
         with pytest.raises(ScribeTranscriptionError, match="Nabla WS connect failed"):

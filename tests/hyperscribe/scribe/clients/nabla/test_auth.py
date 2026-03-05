@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from hyperscribe.scribe.errors import ScribeAuthError
-from hyperscribe.scribe.nabla.auth import (
+from hyperscribe.scribe.backend import ScribeAuthError
+from hyperscribe.scribe.clients.nabla.auth import (
     NablaAuth,
 )
 
@@ -64,8 +64,8 @@ def test_refresh_token_success():
     mock_response.json.return_value = {"access_token": "fresh-token", "expires_in": 3600}
     mock_response.raise_for_status.return_value = None
 
-    with patch("hyperscribe.scribe.nabla.auth.requests.post", return_value=mock_response) as mock_post:
-        with patch("hyperscribe.scribe.nabla.auth.jwt.encode", return_value="jwt-assertion"):
+    with patch("hyperscribe.scribe.clients.nabla.auth.requests.post", return_value=mock_response) as mock_post:
+        with patch("hyperscribe.scribe.clients.nabla.auth.jwt.encode", return_value="jwt-assertion"):
             token = auth._refresh_token()
 
     assert token == "fresh-token"
@@ -82,8 +82,8 @@ def test_refresh_token_builds_correct_jwt():
     mock_response.json.return_value = {"access_token": "tok", "expires_in": 3600}
     mock_response.raise_for_status.return_value = None
 
-    with patch("hyperscribe.scribe.nabla.auth.requests.post", return_value=mock_response):
-        with patch("hyperscribe.scribe.nabla.auth.jwt.encode", return_value="jwt") as mock_encode:
+    with patch("hyperscribe.scribe.clients.nabla.auth.requests.post", return_value=mock_response):
+        with patch("hyperscribe.scribe.clients.nabla.auth.jwt.encode", return_value="jwt") as mock_encode:
             auth._refresh_token()
 
     jwt_payload = mock_encode.call_args.args[0]
@@ -101,7 +101,7 @@ def test_refresh_token_http_error():
     mock_response.status_code = 401
     mock_response.raise_for_status.side_effect = requests.HTTPError(response=mock_response)
 
-    with patch("hyperscribe.scribe.nabla.auth.requests.post", return_value=mock_response):
-        with patch("hyperscribe.scribe.nabla.auth.jwt.encode", return_value="jwt"):
+    with patch("hyperscribe.scribe.clients.nabla.auth.requests.post", return_value=mock_response):
+        with patch("hyperscribe.scribe.clients.nabla.auth.jwt.encode", return_value="jwt"):
             with pytest.raises(ScribeAuthError, match="Nabla auth failed"):
                 auth._refresh_token()

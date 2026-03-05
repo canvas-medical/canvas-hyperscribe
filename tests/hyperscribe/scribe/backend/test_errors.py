@@ -1,6 +1,6 @@
 import pytest
 
-from hyperscribe.scribe.errors import (
+from hyperscribe.scribe.backend import (
     ScribeAuthError,
     ScribeError,
     ScribeNormalizationError,

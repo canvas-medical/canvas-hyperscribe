@@ -6,7 +6,7 @@ from time import time
 import jwt
 import requests
 
-from hyperscribe.scribe.errors import ScribeAuthError
+from hyperscribe.scribe.backend import ScribeAuthError
 
 _NABLA_BASE_URLS: dict[str, str] = {
     "us": "https://us.nabla.com/api/server",

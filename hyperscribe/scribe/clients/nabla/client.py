@@ -4,11 +4,11 @@ from typing import Any
 
 import requests
 
-from hyperscribe.scribe.errors import (
+from hyperscribe.scribe.backend import (
     ScribeNormalizationError,
     ScribeNoteGenerationError,
 )
-from hyperscribe.scribe.nabla.auth import NablaAuth
+from hyperscribe.scribe.clients.nabla.auth import NablaAuth
 
 
 class NablaClient:
