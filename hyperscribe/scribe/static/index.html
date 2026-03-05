@@ -8,6 +8,33 @@
 </head>
 <body>
   <div id="app"></div>
+  <script>
+    // Capture the message port early, before module scripts load.
+    (function() {
+      var messagePort = null;
+
+      function sendResize() {
+        if (!messagePort) return;
+        var el = document.documentElement;
+        messagePort.postMessage({
+          type: 'RESIZE',
+          width: el.scrollWidth,
+          height: el.scrollHeight,
+        });
+      }
+
+      window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'INIT_CHANNEL' && event.ports && event.ports[0]) {
+          messagePort = event.ports[0];
+          messagePort.start();
+          sendResize();
+        }
+      });
+
+      var observer = new ResizeObserver(sendResize);
+      observer.observe(document.documentElement);
+    })();
+  </script>
   <script type="module">
     import { h, render } from 'https://esm.sh/preact@10.25.4';
     import { App } from '/plugin-io/api/hyperscribe/scribe/static/app.js';
