@@ -177,6 +177,10 @@ h2 { margin-bottom: 4px; }
   color: #444;
 }
 
+.transcript-entry.partial {
+  opacity: 0.6;
+}
+
 /* Summary */
 .summary-container {
   padding: 16px;
