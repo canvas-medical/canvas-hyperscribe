@@ -27,6 +27,7 @@ class Settings(NamedTuple):
     trial_staffers_policy: AccessPolicy
     cycle_transcript_overlap: int
     custom_prompts: list[CustomPrompt]
+    modality: str = "copilot"
 
     @classmethod
     def from_dictionary(cls, dictionary: dict) -> Settings:
@@ -89,6 +90,7 @@ class Settings(NamedTuple):
             custom_prompts=CustomPrompt.load_from_json_list(
                 json.loads(dictionary.get(Constants.SECRET_CUSTOM_PROMPTS) or "[]") or []
             ),
+            modality=dictionary.get(Constants.SECRET_MODALITY, "copilot"),
         )
 
     @classmethod

@@ -29,6 +29,7 @@ def test_class():
         "trial_staffers_policy": AccessPolicy,
         "cycle_transcript_overlap": int,
         "custom_prompts": list[CustomPrompt],
+        "modality": str,
     }
     assert is_namedtuple(tested, fields)
 
@@ -111,6 +112,7 @@ def test__from_dict_base(is_true, clamp_int):
                 "CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1","active":true},'
                 '{"command":"theCommand2","prompt":"thePrompt2","active":false},'
                 '{"command":"theCommand3","prompt":"thePrompt3"}]',
+                "Modality": "copilot",
             },
             False,
         )
@@ -134,6 +136,7 @@ def test__from_dict_base(is_true, clamp_int):
             staffers_policy=AccessPolicy(policy=staffers, items=["32", "47"]),
             trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=54,
+            modality="copilot",
         )
         assert result == expected
         calls = [call("rfv"), call("audit"), call("tuning"), call("commands"), call("staffers")]
@@ -262,6 +265,7 @@ def test_llm_audio_model():
             staffers_policy=AccessPolicy(policy=True, items=[]),
             trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=54,
+            modality="",
         )
         result = tested.llm_audio_model()
         assert result == expected, f"---> {vendor}"
