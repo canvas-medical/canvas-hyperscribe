@@ -1,5 +1,5 @@
 {
-  "sdk_version": "0.85.0",
+  "sdk_version": "0.109.0",
   "plugin_version": "2026-01-26 v0.2.156 (main)",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
@@ -120,8 +120,8 @@
         }
       },
       {
-        "class": "hyperscribe.scribe.transcript_app:TranscriptApp",
-        "description": "Note application that displays the visit transcript",
+        "class": "hyperscribe.scribe.application.transcript_app:ScribeApp",
+        "description": "Note application for Canvas Scribe with recording and transcript",
         "data_access": {
           "event": "",
           "read": [],
@@ -129,7 +129,7 @@
         }
       },
       {
-        "class": "hyperscribe.scribe.summary_app:SummaryApp",
+        "class": "hyperscribe.scribe.application.summary_app:SummaryApp",
         "description": "Note application that displays the visit summary",
         "data_access": {
           "event": "",
@@ -138,7 +138,7 @@
         }
       },
       {
-        "class": "hyperscribe.scribe.scribe_view:ScribeView",
+        "class": "hyperscribe.scribe.api.scribe_view:ScribeView",
         "description": "Serve the Scribe UI and static assets",
         "data_access": {
           "event": "",

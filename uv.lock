@@ -74,7 +74,7 @@ wheels = [
 
 [[package]]
 name = "canvas"
-version = "0.85.0"
+version = "0.109.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cookiecutter" },
@@ -93,6 +93,7 @@ dependencies = [
     { name = "jsonschema" },
     { name = "pathspec" },
     { name = "protobuf" },
+    { name = "psutil" },
     { name = "psycopg", extra = ["binary", "pool"] },
     { name = "pydantic" },
     { name = "pyjwt" },
@@ -104,13 +105,14 @@ dependencies = [
     { name = "restrictedpython" },
     { name = "sentry-sdk" },
     { name = "statsd" },
+    { name = "stripe" },
     { name = "typer" },
     { name = "typing-extensions" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/36/ed/cd53a487c970acbae8d24ff43abc9bf00606e042a16b07025e7bce2b6f41/canvas-0.85.0.tar.gz", hash = "sha256:3e0a783e279f9f58b779e4d1fc807c976e18c4feda7244577366457a245eb557", size = 2276399, upload-time = "2025-12-19T08:19:46.09Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6e/3d/3cdda87c8ec1e8ab45854cd26d2aebccbd872a1143c5c4ab1f4185a7cb99/canvas-0.109.0.tar.gz", hash = "sha256:6fdd90d40c0e751ffd82c4f8c7adf4279945d840187f81cca1458bf31a72237a", size = 2327761, upload-time = "2026-03-04T10:05:53.346Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/84/125e3e1034b8fc5d231c48fb4fe0805c466dc17d11e395af836c49da056b/canvas-0.85.0-py3-none-any.whl", hash = "sha256:5f83947d1867e8c55962114b9b6e5a69862c7c030ca306477a9e70ef21224d67", size = 2493525, upload-time = "2025-12-19T08:19:44.157Z" },
+    { url = "https://files.pythonhosted.org/packages/27/fa/73696423102fc20ca14c4e4f2e952ad7502c556dc89ae12e8ca241583b29/canvas-0.109.0-py3-none-any.whl", hash = "sha256:b4f740f4e4bc3da34c60490338ba9d0128005f4bee1d68a76edfcdf2c13fcf3d", size = 2611138, upload-time = "2026-03-04T10:05:51.271Z" },
 ]
 
 [package.optional-dependencies]
@@ -982,6 +984,22 @@ wheels = [
 ]
 
 [[package]]
+name = "psutil"
+version = "7.2.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/aa/c6/d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/psutil-7.2.2.tar.gz", hash = "sha256:0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372", size = 493740, upload-time = "2026-01-28T18:14:54.428Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/36/5ee6e05c9bd427237b11b3937ad82bb8ad2752d72c6969314590dd0c2f6e/psutil-7.2.2-cp36-abi3-macosx_10_9_x86_64.whl", hash = "sha256:ed0cace939114f62738d808fdcecd4c869222507e266e574799e9c0faa17d486", size = 129090, upload-time = "2026-01-28T18:15:22.168Z" },
+    { url = "https://files.pythonhosted.org/packages/80/c4/f5af4c1ca8c1eeb2e92ccca14ce8effdeec651d5ab6053c589b074eda6e1/psutil-7.2.2-cp36-abi3-macosx_11_0_arm64.whl", hash = "sha256:1a7b04c10f32cc88ab39cbf606e117fd74721c831c98a27dc04578deb0c16979", size = 129859, upload-time = "2026-01-28T18:15:23.795Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/70/5d8df3b09e25bce090399cf48e452d25c935ab72dad19406c77f4e828045/psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9", size = 155560, upload-time = "2026-01-28T18:15:25.976Z" },
+    { url = "https://files.pythonhosted.org/packages/63/65/37648c0c158dc222aba51c089eb3bdfa238e621674dc42d48706e639204f/psutil-7.2.2-cp36-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b0726cecd84f9474419d67252add4ac0cd9811b04d61123054b9fb6f57df6e9e", size = 156997, upload-time = "2026-01-28T18:15:27.794Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/13/125093eadae863ce03c6ffdbae9929430d116a246ef69866dad94da3bfbc/psutil-7.2.2-cp36-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:fd04ef36b4a6d599bbdb225dd1d3f51e00105f6d48a28f006da7f9822f2606d8", size = 148972, upload-time = "2026-01-28T18:15:29.342Z" },
+    { url = "https://files.pythonhosted.org/packages/04/78/0acd37ca84ce3ddffaa92ef0f571e073faa6d8ff1f0559ab1272188ea2be/psutil-7.2.2-cp36-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:b58fabe35e80b264a4e3bb23e6b96f9e45a3df7fb7eed419ac0e5947c61e47cc", size = 148266, upload-time = "2026-01-28T18:15:31.597Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/90/e2159492b5426be0c1fef7acba807a03511f97c5f86b3caeda6ad92351a7/psutil-7.2.2-cp37-abi3-win_amd64.whl", hash = "sha256:eb7e81434c8d223ec4a219b5fc1c47d0417b12be7ea866e24fb5ad6e84b3d988", size = 137737, upload-time = "2026-01-28T18:15:33.849Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/c7/7bb2e321574b10df20cbde462a94e2b71d05f9bbda251ef27d104668306a/psutil-7.2.2-cp37-abi3-win_arm64.whl", hash = "sha256:8c233660f575a5a89e6d4cb65d9f938126312bca76d8fe087b947b3a1aaac9ee", size = 134617, upload-time = "2026-01-28T18:15:36.514Z" },
+]
+
+[[package]]
 name = "psycopg"
 version = "3.3.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1535,6 +1553,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/27/29/05e9f50946f4cf2ed182726c60d9c0ae523bb3f180588c574dd9746de557/statsd-4.0.1.tar.gz", hash = "sha256:99763da81bfea8daf6b3d22d11aaccb01a8d0f52ea521daab37e758a4ca7d128", size = 27814, upload-time = "2022-11-06T14:17:36.194Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/d0/c9543b52c067a390ae6ae632d7fd1b97a35cdc8d69d40c0b7d334b326410/statsd-4.0.1-py2.py3-none-any.whl", hash = "sha256:c2676519927f7afade3723aca9ca8ea986ef5b059556a980a867721ca69df093", size = 13118, upload-time = "2022-11-06T14:17:34.258Z" },
+]
+
+[[package]]
+name = "stripe"
+version = "14.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6a/ec/0f17cff3f7c91b0215266959c5a2a96b0bf9f45ac041c50b99ad8f9b5047/stripe-14.4.0.tar.gz", hash = "sha256:ddaa06f5e38a582bef7e93e06fc304ba8ae3b4c0c2aac43da02c84926f05fa0a", size = 1472370, upload-time = "2026-02-25T17:52:40.905Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/38/09/fcecad01d76dbe027015dd559ec1b6dccfc319c2540991dde4b1de81ba34/stripe-14.4.0-py3-none-any.whl", hash = "sha256:357151a816cd0bb012d6cb29f108fae50b9f6eece8530d7bc31dfa90c9ceb84c", size = 2115405, upload-time = "2026-02-25T17:52:39.128Z" },
 ]
 
 [[package]]
