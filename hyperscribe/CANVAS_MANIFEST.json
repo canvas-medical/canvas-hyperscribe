@@ -145,6 +145,15 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.scribe.api.session_view:ScribeSessionView",
+        "description": "Scribe session management API",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
       }
     ],
     "applications": [
@@ -163,7 +172,6 @@
     "views": []
   },
   "secrets": [
-    "Modality",
     "APISigningKey",
     "AudioHost",
     "AudioHostSharedSecret",
@@ -183,8 +191,10 @@
     "KeyAudioLLM",
     "KeyTextLLM",
     "MaxWorkers",
+    "Modality",
     "NotionAPIKey",
     "NotionFeedbackDatabaseId",
+    "ScribeBackend",
     "StaffersList",
     "StaffersPolicy",
     "StructuredReasonForVisit",
