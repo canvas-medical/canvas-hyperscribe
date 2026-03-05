@@ -6,17 +6,17 @@ from canvas_sdk.events import Event
 from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.handlers.application import NoteApplication
 
-from hyperscribe.scribe.transcript_app import TranscriptApp
+from hyperscribe.scribe.application.summary_app import SummaryApp
 
 
 def test_class() -> None:
-    assert issubclass(TranscriptApp, NoteApplication)
-    assert issubclass(TranscriptApp, ActionButton)
+    assert issubclass(SummaryApp, NoteApplication)
+    assert issubclass(SummaryApp, ActionButton)
 
 
 def test_constants() -> None:
-    assert TranscriptApp.NAME == "Transcript"
-    assert TranscriptApp.IDENTIFIER == "hyperscribe__scribe_transcript"
+    assert SummaryApp.NAME == "Summary"
+    assert SummaryApp.IDENTIFIER == "hyperscribe__scribe_summary"
 
 
 def test_visible() -> None:
@@ -30,17 +30,17 @@ def test_visible() -> None:
     for modality, expected in tests:
         event = Event(EventRequest())
         secrets = {"Modality": modality}
-        tested = TranscriptApp(event, secrets)
+        tested = SummaryApp(event, secrets)
         assert tested.visible() is expected, f"modality={modality!r}"
 
 
 def test_visible_missing_secret() -> None:
     event = Event(EventRequest())
-    tested = TranscriptApp(event, {})
+    tested = SummaryApp(event, {})
     assert tested.visible() is False
 
 
-@patch("hyperscribe.scribe.transcript_app.LaunchModalEffect")
+@patch("hyperscribe.scribe.application.summary_app.LaunchModalEffect")
 def test_handle(launch_modal_effect: object) -> None:
     launch_modal_effect.return_value.apply.side_effect = [  # type: ignore[union-attr]
         Effect(type="LOG", payload="SomePayload")
@@ -48,15 +48,15 @@ def test_handle(launch_modal_effect: object) -> None:
     launch_modal_effect.TargetType.NOTE = "note"  # type: ignore[union-attr]
 
     event = Event(EventRequest(context='{"note_id":5481}'))
-    tested = TranscriptApp(event, {})
+    tested = SummaryApp(event, {})
     result = tested.handle()
 
     assert result == [Effect(type="LOG", payload="SomePayload")]
     assert launch_modal_effect.mock_calls == [  # type: ignore[union-attr]
         call(
-            url="/plugin-io/api/hyperscribe/scribe/app?note_dbid=5481&view=transcript",
+            url="/plugin-io/api/hyperscribe/scribe/app?note_dbid=5481&view=summary",
             target="note",
-            title="Transcript",
+            title="Summary",
         ),
         call().apply(),
     ]

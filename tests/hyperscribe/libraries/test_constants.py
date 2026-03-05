@@ -132,7 +132,9 @@ def test_constants():
         "SECRET_TEXT_LLM_VENDOR": "VendorTextLLM",
         "SECRET_NOTION_FEEDBACK_DATABASE_ID": "NotionFeedbackDatabaseId",
         "SECRET_NOTION_API_KEY": "NotionAPIKey",
+        "SECRET_MODALITY": "Modality",
         "SECRET_TRIAL_STAFFERS_LIST": "TrialStaffersList",
+        "MODALITY_SCRIBE": "scribe",
         #
         "AWS_S3_CREDENTIALS_LOGS": "S3CredentialsLogs",
         "AWS_S3_CREDENTIALS_TUNING": "S3CredentialsTuning",

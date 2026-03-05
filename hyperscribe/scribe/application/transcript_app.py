@@ -5,11 +5,11 @@ from canvas_sdk.handlers.application import NoteApplication
 from hyperscribe.libraries.constants import Constants
 
 
-class TranscriptApp(NoteApplication):
-    """Note application that displays the visit transcript."""
+class ScribeApp(NoteApplication):
+    """Note application for Canvas Scribe with recording and transcript."""
 
-    NAME = "Transcript"
-    IDENTIFIER = "hyperscribe__scribe_transcript"
+    NAME = "Scribe"
+    IDENTIFIER = "hyperscribe__scribe"
 
     def visible(self) -> bool:
         modality = self.secrets.get(Constants.SECRET_MODALITY, "").lower()
@@ -17,12 +17,12 @@ class TranscriptApp(NoteApplication):
 
     def handle(self) -> list[Effect]:
         note_id = self.context.get("note_id")
-        url = f"{Constants.PLUGIN_API_BASE_ROUTE}/scribe/app?note_dbid={note_id}&view=transcript"
+        url = f"{Constants.PLUGIN_API_BASE_ROUTE}/scribe/app?note_dbid={note_id}&view=scribe"
 
         return [
             LaunchModalEffect(
                 url=url,
                 target=LaunchModalEffect.TargetType.NOTE,
-                title="Transcript",
+                title="Scribe",
             ).apply()
         ]
