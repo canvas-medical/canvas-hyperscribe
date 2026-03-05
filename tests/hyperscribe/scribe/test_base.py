@@ -2,12 +2,11 @@ import pytest
 
 from hyperscribe.scribe.base import ScribeBackend
 from hyperscribe.scribe.models import (
-    AsyncJob,
     ClinicalNote,
     NormalizedData,
     PatientContext,
     Transcript,
-    TranscriptionStatus,
+    TranscriptItem,
 )
 
 
@@ -18,8 +17,8 @@ def test_scribe_backend_cannot_be_instantiated():
 
 def test_partial_implementation_fails():
     class Partial(ScribeBackend):
-        def transcribe(self, audio):
-            return Transcript()
+        def start_session(self) -> None:
+            pass
 
     with pytest.raises(TypeError, match="abstract method"):
         Partial()
@@ -27,32 +26,39 @@ def test_partial_implementation_fails():
 
 def test_complete_implementation_works():
     class Complete(ScribeBackend):
-        def transcribe(self, audio):
+        def start_session(self) -> None:
+            pass
+
+        def send_audio(self, audio: bytes) -> None:
+            pass
+
+        def get_transcript_updates(self) -> list[TranscriptItem]:
+            return []
+
+        def end_session(self) -> Transcript:
             return Transcript()
 
-        def transcribe_async_start(self, file_url):
-            return "job-1"
-
-        def transcribe_async_poll(self, job_id):
-            return AsyncJob(id=job_id, status=TranscriptionStatus.ONGOING)
-
-        def generate_note(self, transcript, *, patient_context=None):
+        def generate_note(
+            self,
+            transcript: Transcript,
+            *,
+            patient_context: PatientContext | None = None,
+        ) -> ClinicalNote:
             return ClinicalNote(title="test")
 
-        def generate_normalized_data(self, note):
+        def generate_normalized_data(self, note: ClinicalNote) -> NormalizedData:
             return NormalizedData()
 
     backend = Complete()
     assert isinstance(backend, ScribeBackend)
 
-    result = backend.transcribe(b"audio")
-    assert isinstance(result, Transcript)
+    backend.start_session()
+    backend.send_audio(b"audio")
+    updates = backend.get_transcript_updates()
+    assert updates == []
 
-    job_id = backend.transcribe_async_start("http://example.com/audio.wav")
-    assert job_id == "job-1"
-
-    poll = backend.transcribe_async_poll("job-1")
-    assert isinstance(poll, AsyncJob)
+    transcript = backend.end_session()
+    assert isinstance(transcript, Transcript)
 
     note = backend.generate_note(Transcript())
     assert isinstance(note, ClinicalNote)
@@ -63,19 +69,27 @@ def test_complete_implementation_works():
 
 def test_generate_note_accepts_patient_context():
     class WithContext(ScribeBackend):
-        def transcribe(self, audio):
+        def start_session(self) -> None:
+            pass
+
+        def send_audio(self, audio: bytes) -> None:
+            pass
+
+        def get_transcript_updates(self) -> list[TranscriptItem]:
+            return []
+
+        def end_session(self) -> Transcript:
             return Transcript()
 
-        def transcribe_async_start(self, file_url):
-            return "job-1"
-
-        def transcribe_async_poll(self, job_id):
-            return AsyncJob(id=job_id, status=TranscriptionStatus.ONGOING)
-
-        def generate_note(self, transcript, *, patient_context=None):
+        def generate_note(
+            self,
+            transcript: Transcript,
+            *,
+            patient_context: PatientContext | None = None,
+        ) -> ClinicalNote:
             return ClinicalNote(title=patient_context.name if patient_context else "none")
 
-        def generate_normalized_data(self, note):
+        def generate_normalized_data(self, note: ClinicalNote) -> NormalizedData:
             return NormalizedData()
 
     backend = WithContext()

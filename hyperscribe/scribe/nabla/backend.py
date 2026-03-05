@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from hyperscribe.scribe.base import ScribeBackend
+from hyperscribe.scribe.errors import ScribeTranscriptionError
 from hyperscribe.scribe.models import (
-    AsyncJob,
     ClinicalNote,
     CodingEntry,
     Condition,
@@ -14,10 +14,10 @@ from hyperscribe.scribe.models import (
     PatientContext,
     Transcript,
     TranscriptItem,
-    TranscriptionStatus,
 )
 from hyperscribe.scribe.nabla.auth import NablaAuth
 from hyperscribe.scribe.nabla.client import NablaClient
+from hyperscribe.scribe.nabla.ws_client import NablaWsClient
 
 _SPEECH_LOCALE = "en-US"
 _NOTE_TEMPLATE = "SOAP"
@@ -26,30 +26,37 @@ _NOTE_TEMPLATE = "SOAP"
 class NablaBackend(ScribeBackend):
     def __init__(self, *, region: str, client_id: str, client_secret: str) -> None:
         self._auth = NablaAuth(region=region, client_id=client_id, private_key=client_secret)
-        self._client = NablaClient(self._auth)
+        self._rest_client = NablaClient(self._auth)
+        self._ws_client: NablaWsClient | None = None
+        self._session_items: list[TranscriptItem] = []
 
-    def transcribe(self, audio: bytes) -> Transcript:
-        raw = self._client.transcribe_sync(audio, {"speech_locales": _SPEECH_LOCALE})
-        return self._parse_transcript(raw)
+    def start_session(self) -> None:
+        self._ws_client = NablaWsClient(auth=self._auth)
+        self._ws_client.connect()
+        self._session_items = []
 
-    def transcribe_async_start(self, file_url: str) -> str:
-        payload: dict[str, Any] = {
-            "file_url": file_url,
-            "speech_locales": [_SPEECH_LOCALE],
-        }
-        raw = self._client.transcribe_async_start(payload)
-        job_id: str = raw["id"]
-        return job_id
+    def send_audio(self, audio: bytes) -> None:
+        if self._ws_client is None:
+            raise ScribeTranscriptionError("No active session")
+        self._ws_client.send_audio_chunk(audio)
 
-    def transcribe_async_poll(self, job_id: str) -> AsyncJob | Transcript:
-        raw = self._client.transcribe_async_poll(job_id)
-        status = raw.get("status", "").lower()
-        if status == "succeeded":
-            return self._parse_transcript(raw)
-        return AsyncJob(
-            id=raw.get("id", job_id),
-            status=TranscriptionStatus(status) if status in ("ongoing", "failed") else TranscriptionStatus.ONGOING,
-        )
+    def get_transcript_updates(self) -> list[TranscriptItem]:
+        if self._ws_client is None:
+            return []
+        items = self._ws_client.drain_items()
+        self._session_items.extend(items)
+        return items
+
+    def end_session(self) -> Transcript:
+        if self._ws_client is None:
+            raise ScribeTranscriptionError("No active session")
+        self._ws_client.end()
+        remaining = self._ws_client.drain_items()
+        self._session_items.extend(remaining)
+        final_items = [item for item in self._session_items if item.is_final]
+        self._ws_client = None
+        self._session_items = []
+        return Transcript(items=final_items)
 
     def generate_note(
         self,
@@ -58,7 +65,7 @@ class NablaBackend(ScribeBackend):
         patient_context: PatientContext | None = None,
     ) -> ClinicalNote:
         payload = self._build_note_payload(transcript, patient_context)
-        raw = self._client.generate_note(payload)
+        raw = self._rest_client.generate_note(payload)
         return self._parse_note(raw)
 
     def generate_normalized_data(self, note: ClinicalNote) -> NormalizedData:
@@ -68,22 +75,8 @@ class NablaBackend(ScribeBackend):
                 "sections": [{"key": s.key, "title": s.title, "text": s.text} for s in note.sections],
             },
         }
-        raw = self._client.generate_normalized_data(payload)
+        raw = self._rest_client.generate_normalized_data(payload)
         return self._parse_normalized_data(raw)
-
-    @staticmethod
-    def _parse_transcript(raw: dict[str, Any]) -> Transcript:
-        items: list[TranscriptItem] = []
-        for item in raw.get("items", []):
-            items.append(
-                TranscriptItem(
-                    text=item.get("text", ""),
-                    speaker=item.get("speaker", ""),
-                    start_offset_ms=item.get("start_offset_ms", 0),
-                    end_offset_ms=item.get("end_offset_ms", 0),
-                )
-            )
-        return Transcript(items=items)
 
     @staticmethod
     def _parse_note(raw: dict[str, Any]) -> ClinicalNote:

@@ -3,25 +3,38 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from hyperscribe.scribe.models import (
-    AsyncJob,
     ClinicalNote,
     NormalizedData,
     PatientContext,
     Transcript,
+    TranscriptItem,
 )
 
 
 class ScribeBackend(ABC):
-    """A scribe backend handles: transcription, note generation, and structured data extraction."""
+    """A scribe backend handles: real-time transcription, note generation, and structured data extraction."""
 
     @abstractmethod
-    def transcribe(self, audio: bytes) -> Transcript: ...
+    def start_session(self) -> None:
+        """Open a transcription session (e.g., WebSocket connection)."""
+        ...
 
     @abstractmethod
-    def transcribe_async_start(self, file_url: str) -> str: ...
+    def send_audio(self, audio: bytes) -> None:
+        """Send a raw audio chunk to the backend."""
+        ...
 
     @abstractmethod
-    def transcribe_async_poll(self, job_id: str) -> AsyncJob | Transcript: ...
+    def get_transcript_updates(self) -> list[TranscriptItem]:
+        """Non-blocking drain of transcript items received since last call.
+        Returns both partial (is_final=False) and final (is_final=True) items."""
+        ...
+
+    @abstractmethod
+    def end_session(self) -> Transcript:
+        """Signal end of audio, wait for remaining items, close session.
+        Returns complete Transcript with only final items."""
+        ...
 
     @abstractmethod
     def generate_note(

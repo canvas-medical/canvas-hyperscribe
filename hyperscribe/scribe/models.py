@@ -1,13 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
-
-
-class TranscriptionStatus(Enum):
-    ONGOING = "ongoing"
-    FAILED = "failed"
-    SUCCEEDED = "succeeded"
 
 
 @dataclass(frozen=True)
@@ -16,17 +9,13 @@ class TranscriptItem:
     speaker: str
     start_offset_ms: int
     end_offset_ms: int
+    item_id: str = ""
+    is_final: bool = True
 
 
 @dataclass(frozen=True)
 class Transcript:
     items: list[TranscriptItem] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class AsyncJob:
-    id: str
-    status: TranscriptionStatus
 
 
 @dataclass(frozen=True)

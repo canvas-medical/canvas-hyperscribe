@@ -5,11 +5,9 @@ import pytest
 from hyperscribe.scribe.base import ScribeBackend
 from hyperscribe.scribe.errors import ScribeError
 from hyperscribe.scribe.models import (
-    AsyncJob,
     ClinicalNote,
     NormalizedData,
     Transcript,
-    TranscriptionStatus,
 )
 from hyperscribe.scribe.registry import _REGISTRY, get_backend_from_secrets, register_backend
 
@@ -18,16 +16,19 @@ class _FakeBackend(ScribeBackend):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
-    def transcribe(self, audio, *, speech_locales):
+    def start_session(self):
+        pass
+
+    def send_audio(self, audio_webm):
+        pass
+
+    def get_transcript_updates(self):
+        return []
+
+    def end_session(self):
         return Transcript()
 
-    def transcribe_async_start(self, file_url, *, speech_locales):
-        return "job-1"
-
-    def transcribe_async_poll(self, job_id):
-        return AsyncJob(id=job_id, status=TranscriptionStatus.ONGOING)
-
-    def generate_note(self, transcript, *, template, locale, patient_context=None):
+    def generate_note(self, transcript, *, patient_context=None):
         return ClinicalNote(title="fake")
 
     def generate_normalized_data(self, note):

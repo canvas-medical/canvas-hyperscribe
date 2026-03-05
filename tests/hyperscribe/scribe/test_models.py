@@ -1,7 +1,6 @@
 from tests.helper import is_dataclass
 
 from hyperscribe.scribe.models import (
-    AsyncJob,
     ClinicalNote,
     CodingEntry,
     Condition,
@@ -11,14 +10,7 @@ from hyperscribe.scribe.models import (
     PatientContext,
     Transcript,
     TranscriptItem,
-    TranscriptionStatus,
 )
-
-
-def test_transcription_status_values():
-    assert TranscriptionStatus.ONGOING.value == "ongoing"
-    assert TranscriptionStatus.FAILED.value == "failed"
-    assert TranscriptionStatus.SUCCEEDED.value == "succeeded"
 
 
 def test_transcript_item_fields():
@@ -29,16 +21,33 @@ def test_transcript_item_fields():
             "speaker": "str",
             "start_offset_ms": "int",
             "end_offset_ms": "int",
+            "item_id": "str",
+            "is_final": "bool",
         },
     )
 
 
+def test_transcript_item_defaults():
+    item = TranscriptItem(text="hi", speaker="patient", start_offset_ms=0, end_offset_ms=100)
+    assert item.item_id == ""
+    assert item.is_final is True
+
+
+def test_transcript_item_with_new_fields():
+    item = TranscriptItem(
+        text="hello",
+        speaker="practitioner",
+        start_offset_ms=0,
+        end_offset_ms=500,
+        item_id="item-1",
+        is_final=False,
+    )
+    assert item.item_id == "item-1"
+    assert item.is_final is False
+
+
 def test_transcript_fields():
     assert is_dataclass(Transcript, {"items": "list[TranscriptItem]"})
-
-
-def test_async_job_fields():
-    assert is_dataclass(AsyncJob, {"id": "str", "status": "TranscriptionStatus"})
 
 
 def test_note_section_fields():

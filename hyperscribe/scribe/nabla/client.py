@@ -7,7 +7,6 @@ import requests
 from hyperscribe.scribe.errors import (
     ScribeNormalizationError,
     ScribeNoteGenerationError,
-    ScribeTranscriptionError,
 )
 from hyperscribe.scribe.nabla.auth import NablaAuth
 
@@ -20,51 +19,6 @@ class NablaClient:
         return {
             "Authorization": f"Bearer {self._auth.get_access_token()}",
         }
-
-    def transcribe_sync(self, audio: bytes, params: dict[str, Any]) -> dict[str, Any]:
-        try:
-            response = requests.post(
-                f"{self._auth.base_url}/v1/copilot-api/server/transcribe",
-                headers=self._headers(),
-                files={"audio": ("audio.wav", audio, "audio/wav")},
-                data=params,
-                timeout=120,
-            )
-            response.raise_for_status()
-        except requests.RequestException as exc:
-            status = getattr(exc.response, "status_code", 0) if hasattr(exc, "response") else 0
-            raise ScribeTranscriptionError(f"Nabla transcribe failed: {exc}", status_code=status) from exc
-        result: dict[str, Any] = response.json()
-        return result
-
-    def transcribe_async_start(self, payload: dict[str, Any]) -> dict[str, Any]:
-        try:
-            response = requests.post(
-                f"{self._auth.base_url}/v1/copilot-api/server/transcribe-async",
-                headers={**self._headers(), "Content-Type": "application/json"},
-                json=payload,
-                timeout=30,
-            )
-            response.raise_for_status()
-        except requests.RequestException as exc:
-            status = getattr(exc.response, "status_code", 0) if hasattr(exc, "response") else 0
-            raise ScribeTranscriptionError(f"Nabla async transcribe start failed: {exc}", status_code=status) from exc
-        result: dict[str, Any] = response.json()
-        return result
-
-    def transcribe_async_poll(self, job_id: str) -> dict[str, Any]:
-        try:
-            response = requests.get(
-                f"{self._auth.base_url}/v1/copilot-api/server/transcribe-async/{job_id}",
-                headers=self._headers(),
-                timeout=30,
-            )
-            response.raise_for_status()
-        except requests.RequestException as exc:
-            status = getattr(exc.response, "status_code", 0) if hasattr(exc, "response") else 0
-            raise ScribeTranscriptionError(f"Nabla async transcribe poll failed: {exc}", status_code=status) from exc
-        result: dict[str, Any] = response.json()
-        return result
 
     def generate_note(self, payload: dict[str, Any]) -> dict[str, Any]:
         try:
