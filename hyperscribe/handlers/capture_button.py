@@ -41,7 +41,7 @@ class CaptureButton(ActionButton):
 
     def visible(self) -> bool:
         settings = Settings.from_dictionary(self.secrets)
-        if settings.is_tuning:
+        if settings.is_tuning or settings.modality == Constants.MODALITY_SCRIBE:
             return False
 
         # DO NOT USE "CurrentStateChangeEvent" model. The view is too expensive.
