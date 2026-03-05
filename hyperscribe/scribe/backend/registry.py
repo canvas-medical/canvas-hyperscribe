@@ -20,7 +20,7 @@ def get_backend_from_secrets(secrets: dict[str, str]) -> ScribeBackend:
     and passes the remaining fields as **kwargs to the backend constructor.
     """
     raw = secrets.get(Constants.SECRET_SCRIBE_BACKEND, "{}")
-    config = json.loads(raw) if isinstance(raw, str) else raw
+    config = json.loads(raw, strict=False) if isinstance(raw, str) else raw
     vendor = config.pop("vendor", "").lower()
     backend_cls = _REGISTRY.get(vendor)
     if backend_cls is None:

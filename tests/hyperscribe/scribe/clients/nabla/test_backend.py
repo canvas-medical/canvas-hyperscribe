@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from hyperscribe.scribe.backend import (
     ClinicalNote,
     CodingEntry,
@@ -9,138 +7,52 @@ from hyperscribe.scribe.backend import (
     NoteSection,
     PatientContext,
     ScribeBackend,
-    ScribeTranscriptionError,
     Transcript,
     TranscriptItem,
 )
 from hyperscribe.scribe.clients.nabla.backend import NablaBackend
 
 
-def _make_backend() -> tuple[NablaBackend, MagicMock, MagicMock]:
-    with patch("hyperscribe.scribe.clients.nabla.backend.NablaAuth"):
+def _make_backend() -> tuple[NablaBackend, MagicMock]:
+    with patch("hyperscribe.scribe.clients.nabla.backend.NablaAuth") as mock_auth_cls:
         with patch("hyperscribe.scribe.clients.nabla.backend.NablaClient") as mock_client_cls:
+            mock_auth = mock_auth_cls.return_value
+            mock_auth.base_url = "https://us.api.nabla.com"
+            mock_auth.get_access_token.return_value = "test-backend-token"
+            mock_auth.get_user_tokens.return_value = ("user-access-token", "user-refresh-token")
             backend = NablaBackend(client_id="cid", client_secret="secret")
             mock_rest_client = mock_client_cls.return_value
-    return backend, mock_rest_client, MagicMock()
+    return backend, mock_rest_client
 
 
-def test_nabla_backend_is_scribe_backend():
-    backend, _, _ = _make_backend()
+def test_nabla_backend_is_scribe_backend() -> None:
+    backend, _ = _make_backend()
     assert isinstance(backend, ScribeBackend)
 
 
-def test_start_session():
-    backend, _, _ = _make_backend()
-    mock_ws = MagicMock()
-    with patch("hyperscribe.scribe.clients.nabla.backend.NablaWsClient", return_value=mock_ws):
-        backend.start_session()
+def test_get_transcription_config() -> None:
+    backend, _ = _make_backend()
+    config = backend.get_transcription_config(user_external_id="staff-key")
 
-    mock_ws.connect.assert_called_once()
-    assert backend._ws_client is mock_ws
-
-
-def test_send_audio():
-    backend, _, _ = _make_backend()
-    mock_ws = MagicMock()
-    backend._ws_client = mock_ws
-
-    backend.send_audio(b"raw-audio")
-
-    mock_ws.send_audio_chunk.assert_called_once_with(b"raw-audio")
+    assert config["vendor"] == "nabla"
+    assert config["ws_url"] == "wss://us.api.nabla.com/v1/core/user/transcribe-ws?nabla-api-version=2025-05-21"
+    assert config["access_token"] == "user-access-token"
+    assert config["refresh_token"] == "user-refresh-token"
+    assert config["sample_rate"] == 16000
+    assert config["encoding"] == "PCM_S16LE"
+    assert config["speech_locales"] == ["ENGLISH_US"]
+    assert config["stream_id"] == "stream1"
 
 
-def test_send_audio_no_session():
-    backend, _, _ = _make_backend()
-    with pytest.raises(ScribeTranscriptionError, match="No active session"):
-        backend.send_audio(b"audio-data")
+def test_get_transcription_config_calls_user_tokens() -> None:
+    backend, _ = _make_backend()
+    backend.get_transcription_config(user_external_id="staff-key")
+
+    backend._auth.get_user_tokens.assert_called_once_with("staff-key")
 
 
-def test_get_transcript_updates():
-    backend, _, _ = _make_backend()
-    mock_ws = MagicMock()
-    items = [
-        TranscriptItem(
-            text="hello",
-            speaker="patient",
-            start_offset_ms=0,
-            end_offset_ms=100,
-            item_id="i1",
-        ),
-        TranscriptItem(
-            text="hi",
-            speaker="practitioner",
-            start_offset_ms=100,
-            end_offset_ms=200,
-            item_id="i2",
-            is_final=False,
-        ),
-    ]
-    mock_ws.drain_items.return_value = items
-    backend._ws_client = mock_ws
-
-    result = backend.get_transcript_updates()
-
-    assert result == items
-    assert backend._session_items == items
-
-
-def test_get_transcript_updates_no_session():
-    backend, _, _ = _make_backend()
-    assert backend.get_transcript_updates() == []
-
-
-def test_end_session():
-    backend, _, _ = _make_backend()
-    mock_ws = MagicMock()
-    backend._ws_client = mock_ws
-    backend._session_items = [
-        TranscriptItem(
-            text="partial",
-            speaker="patient",
-            start_offset_ms=0,
-            end_offset_ms=50,
-            item_id="i1",
-            is_final=False,
-        ),
-        TranscriptItem(
-            text="final1",
-            speaker="patient",
-            start_offset_ms=0,
-            end_offset_ms=100,
-            item_id="i2",
-            is_final=True,
-        ),
-    ]
-    mock_ws.drain_items.return_value = [
-        TranscriptItem(
-            text="final2",
-            speaker="practitioner",
-            start_offset_ms=100,
-            end_offset_ms=200,
-            item_id="i3",
-            is_final=True,
-        ),
-    ]
-
-    result = backend.end_session()
-
-    mock_ws.end.assert_called_once()
-    assert isinstance(result, Transcript)
-    assert len(result.items) == 2
-    assert result.items[0].text == "final1"
-    assert result.items[1].text == "final2"
-    assert backend._ws_client is None
-    assert backend._session_items == []
-
-
-def test_end_session_no_session():
-    backend, _, _ = _make_backend()
-    with pytest.raises(ScribeTranscriptionError, match="No active session"):
-        backend.end_session()
-
-
-def test_generate_note():
-    backend, mock_rest_client, _ = _make_backend()
+def test_generate_note() -> None:
+    backend, mock_rest_client = _make_backend()
     mock_rest_client.generate_note.return_value = {
         "title": "SOAP Note",
         "sections": [
@@ -163,8 +75,8 @@ def test_generate_note():
     assert len(payload["transcript"]["items"]) == 1
 
 
-def test_generate_note_with_patient_context():
-    backend, mock_rest_client, _ = _make_backend()
+def test_generate_note_with_patient_context() -> None:
+    backend, mock_rest_client = _make_backend()
     mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
 
     ctx = PatientContext(
@@ -180,8 +92,8 @@ def test_generate_note_with_patient_context():
     assert payload["patient_context"]["encounter_diagnoses"][0]["code"] == "R51"
 
 
-def test_generate_note_without_patient_context():
-    backend, mock_rest_client, _ = _make_backend()
+def test_generate_note_without_patient_context() -> None:
+    backend, mock_rest_client = _make_backend()
     mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
 
     backend.generate_note(Transcript())
@@ -190,8 +102,8 @@ def test_generate_note_without_patient_context():
     assert "patient_context" not in payload
 
 
-def test_generate_normalized_data():
-    backend, mock_rest_client, _ = _make_backend()
+def test_generate_normalized_data() -> None:
+    backend, mock_rest_client = _make_backend()
     mock_rest_client.generate_normalized_data.return_value = {
         "conditions": [
             {
@@ -230,14 +142,14 @@ def test_generate_normalized_data():
     assert len(payload["note"]["sections"]) == 1
 
 
-def test_parse_note_empty():
+def test_parse_note_empty() -> None:
     result = NablaBackend._parse_note({})
     assert isinstance(result, ClinicalNote)
     assert result.title == ""
     assert result.sections == []
 
 
-def test_parse_normalized_data_empty():
+def test_parse_normalized_data_empty() -> None:
     result = NablaBackend._parse_normalized_data({})
     assert isinstance(result, NormalizedData)
     assert result.conditions == []
