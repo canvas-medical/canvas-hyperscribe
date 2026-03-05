@@ -11,14 +11,12 @@ from hyperscribe.scribe.backend import (
     Observation,
     PatientContext,
     ScribeBackend,
-    ScribeTranscriptionError,
     Transcript,
-    TranscriptItem,
 )
 from hyperscribe.scribe.clients.nabla.auth import NablaAuth
 from hyperscribe.scribe.clients.nabla.client import NablaClient
-from hyperscribe.scribe.clients.nabla.ws_client import NablaWsClient
 
+_NABLA_API_VERSION = "2025-05-21"
 _SPEECH_LOCALE = "en-US"
 _NOTE_TEMPLATE = "SOAP"
 
@@ -27,36 +25,20 @@ class NablaBackend(ScribeBackend):
     def __init__(self, *, client_id: str, client_secret: str) -> None:
         self._auth = NablaAuth(client_id=client_id, private_key=client_secret)
         self._rest_client = NablaClient(self._auth)
-        self._ws_client: NablaWsClient | None = None
-        self._session_items: list[TranscriptItem] = []
 
-    def start_session(self) -> None:
-        self._ws_client = NablaWsClient(auth=self._auth)
-        self._ws_client.connect()
-        self._session_items = []
-
-    def send_audio(self, audio: bytes) -> None:
-        if self._ws_client is None:
-            raise ScribeTranscriptionError("No active session")
-        self._ws_client.send_audio_chunk(audio)
-
-    def get_transcript_updates(self) -> list[TranscriptItem]:
-        if self._ws_client is None:
-            return []
-        items = self._ws_client.drain_items()
-        self._session_items.extend(items)
-        return items
-
-    def end_session(self) -> Transcript:
-        if self._ws_client is None:
-            raise ScribeTranscriptionError("No active session")
-        self._ws_client.end()
-        remaining = self._ws_client.drain_items()
-        self._session_items.extend(remaining)
-        final_items = [item for item in self._session_items if item.is_final]
-        self._ws_client = None
-        self._session_items = []
-        return Transcript(items=final_items)
+    def get_transcription_config(self, *, user_external_id: str = "") -> dict[str, Any]:
+        access_token, refresh_token = self._auth.get_user_tokens(user_external_id)
+        hostname = self._auth.base_url.split("://", 1)[-1].split("/", 1)[0]
+        return {
+            "vendor": "nabla",
+            "ws_url": f"wss://{hostname}/v1/core/user/transcribe-ws?nabla-api-version={_NABLA_API_VERSION}",
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "sample_rate": 16000,
+            "encoding": "PCM_S16LE",
+            "speech_locales": ["ENGLISH_US"],
+            "stream_id": "stream1",
+        }
 
     def generate_note(
         self,
