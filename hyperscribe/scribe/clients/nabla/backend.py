@@ -24,8 +24,8 @@ _NOTE_TEMPLATE = "SOAP"
 
 
 class NablaBackend(ScribeBackend):
-    def __init__(self, *, region: str, client_id: str, client_secret: str) -> None:
-        self._auth = NablaAuth(region=region, client_id=client_id, private_key=client_secret)
+    def __init__(self, *, client_id: str, client_secret: str) -> None:
+        self._auth = NablaAuth(client_id=client_id, private_key=client_secret)
         self._rest_client = NablaClient(self._auth)
         self._ws_client: NablaWsClient | None = None
         self._session_items: list[TranscriptItem] = []

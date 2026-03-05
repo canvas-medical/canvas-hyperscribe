@@ -8,10 +8,7 @@ import requests
 
 from hyperscribe.scribe.backend import ScribeAuthError
 
-_NABLA_BASE_URLS: dict[str, str] = {
-    "us": "https://us.nabla.com/api/server",
-    "eu": "https://eu.nabla.com/api/server",
-}
+_BASE_URL = "https://us.nabla.com/api/server"
 
 _TOKEN_REFRESH_MARGIN_SECONDS = 60
 _JWT_EXPIRY_SECONDS = 300
@@ -19,7 +16,6 @@ _JWT_EXPIRY_SECONDS = 300
 
 @dataclass
 class NablaAuth:
-    region: str
     client_id: str
     private_key: str
     _access_token: str = field(default="", init=False, repr=False)
@@ -27,10 +23,7 @@ class NablaAuth:
 
     @property
     def base_url(self) -> str:
-        url = _NABLA_BASE_URLS.get(self.region.lower())
-        if url is None:
-            raise ScribeAuthError(f"Unknown Nabla region: {self.region!r}")
-        return url
+        return _BASE_URL
 
     def get_access_token(self) -> str:
         if self._access_token and time() < self._token_expires_at - _TOKEN_REFRESH_MARGIN_SECONDS:

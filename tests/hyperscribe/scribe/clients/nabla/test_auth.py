@@ -9,29 +9,13 @@ from hyperscribe.scribe.clients.nabla.auth import (
 )
 
 
-def test_base_url_us():
-    auth = NablaAuth(region="us", client_id="cid", private_key="pk")
+def test_base_url():
+    auth = NablaAuth(client_id="cid", private_key="pk")
     assert auth.base_url == "https://us.nabla.com/api/server"
-
-
-def test_base_url_eu():
-    auth = NablaAuth(region="eu", client_id="cid", private_key="pk")
-    assert auth.base_url == "https://eu.nabla.com/api/server"
-
-
-def test_base_url_case_insensitive():
-    auth = NablaAuth(region="US", client_id="cid", private_key="pk")
-    assert auth.base_url == "https://us.nabla.com/api/server"
-
-
-def test_base_url_unknown_region():
-    auth = NablaAuth(region="mars", client_id="cid", private_key="pk")
-    with pytest.raises(ScribeAuthError, match="Unknown Nabla region"):
-        _ = auth.base_url
 
 
 def test_get_access_token_refreshes_on_first_call():
-    auth = NablaAuth(region="us", client_id="cid", private_key="pk")
+    auth = NablaAuth(client_id="cid", private_key="pk")
     with patch.object(auth, "_refresh_token", return_value="tok-1") as mock_refresh:
         token = auth.get_access_token()
     assert token == "tok-1"
@@ -39,7 +23,7 @@ def test_get_access_token_refreshes_on_first_call():
 
 
 def test_get_access_token_returns_cached():
-    auth = NablaAuth(region="us", client_id="cid", private_key="pk")
+    auth = NablaAuth(client_id="cid", private_key="pk")
     auth._access_token = "cached-token"
     auth._token_expires_at = time() + 600
     with patch.object(auth, "_refresh_token") as mock_refresh:
@@ -49,7 +33,7 @@ def test_get_access_token_returns_cached():
 
 
 def test_get_access_token_refreshes_when_near_expiry():
-    auth = NablaAuth(region="us", client_id="cid", private_key="pk")
+    auth = NablaAuth(client_id="cid", private_key="pk")
     auth._access_token = "old-token"
     auth._token_expires_at = time() + 10  # within margin
     with patch.object(auth, "_refresh_token", return_value="new-token") as mock_refresh:
@@ -59,7 +43,7 @@ def test_get_access_token_refreshes_when_near_expiry():
 
 
 def test_refresh_token_success():
-    auth = NablaAuth(region="us", client_id="cid", private_key="pk")
+    auth = NablaAuth(client_id="cid", private_key="pk")
     mock_response = MagicMock()
     mock_response.json.return_value = {"access_token": "fresh-token", "expires_in": 3600}
     mock_response.raise_for_status.return_value = None
@@ -77,7 +61,7 @@ def test_refresh_token_success():
 
 
 def test_refresh_token_builds_correct_jwt():
-    auth = NablaAuth(region="us", client_id="my-client", private_key="pk")
+    auth = NablaAuth(client_id="my-client", private_key="pk")
     mock_response = MagicMock()
     mock_response.json.return_value = {"access_token": "tok", "expires_in": 3600}
     mock_response.raise_for_status.return_value = None
@@ -94,7 +78,7 @@ def test_refresh_token_builds_correct_jwt():
 
 
 def test_refresh_token_http_error():
-    auth = NablaAuth(region="us", client_id="cid", private_key="pk")
+    auth = NablaAuth(client_id="cid", private_key="pk")
     import requests
 
     mock_response = MagicMock()

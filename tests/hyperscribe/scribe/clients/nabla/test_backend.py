@@ -19,7 +19,7 @@ from hyperscribe.scribe.clients.nabla.backend import NablaBackend
 def _make_backend() -> tuple[NablaBackend, MagicMock, MagicMock]:
     with patch("hyperscribe.scribe.clients.nabla.backend.NablaAuth"):
         with patch("hyperscribe.scribe.clients.nabla.backend.NablaClient") as mock_client_cls:
-            backend = NablaBackend(region="us", client_id="cid", client_secret="secret")
+            backend = NablaBackend(client_id="cid", client_secret="secret")
             mock_rest_client = mock_client_cls.return_value
     return backend, mock_rest_client, MagicMock()
 
