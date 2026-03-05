@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import pytest
 
@@ -13,29 +14,20 @@ from hyperscribe.scribe.backend.registry import _REGISTRY, get_backend_from_secr
 
 
 class _FakeBackend(ScribeBackend):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: str) -> None:
         self.kwargs = kwargs
 
-    def start_session(self):
-        pass
+    def get_transcription_config(self) -> dict[str, Any]:
+        return {"vendor": "fake"}
 
-    def send_audio(self, audio_webm):
-        pass
-
-    def get_transcript_updates(self):
-        return []
-
-    def end_session(self):
-        return Transcript()
-
-    def generate_note(self, transcript, *, patient_context=None):
+    def generate_note(self, transcript: Transcript, *, patient_context: object = None) -> ClinicalNote:
         return ClinicalNote(title="fake")
 
-    def generate_normalized_data(self, note):
+    def generate_normalized_data(self, note: ClinicalNote) -> NormalizedData:
         return NormalizedData()
 
 
-def test_register_backend():
+def test_register_backend() -> None:
     original = dict(_REGISTRY)
     try:
         register_backend("TestVendor", _FakeBackend)
@@ -45,7 +37,7 @@ def test_register_backend():
         _REGISTRY.update(original)
 
 
-def test_get_backend_from_secrets_returns_backend():
+def test_get_backend_from_secrets_returns_backend() -> None:
     original = dict(_REGISTRY)
     try:
         register_backend("fake", _FakeBackend)
@@ -60,7 +52,7 @@ def test_get_backend_from_secrets_returns_backend():
         _REGISTRY.update(original)
 
 
-def test_get_backend_from_secrets_case_insensitive():
+def test_get_backend_from_secrets_case_insensitive() -> None:
     original = dict(_REGISTRY)
     try:
         register_backend("fake", _FakeBackend)
@@ -74,7 +66,7 @@ def test_get_backend_from_secrets_case_insensitive():
         _REGISTRY.update(original)
 
 
-def test_get_backend_from_secrets_unknown_vendor():
+def test_get_backend_from_secrets_unknown_vendor() -> None:
     secrets = {
         "ScribeBackend": json.dumps({"vendor": "nonexistent"}),
     }
@@ -82,12 +74,12 @@ def test_get_backend_from_secrets_unknown_vendor():
         get_backend_from_secrets(secrets)
 
 
-def test_get_backend_from_secrets_missing_secret():
+def test_get_backend_from_secrets_missing_secret() -> None:
     with pytest.raises(ScribeError, match="Unknown scribe vendor"):
         get_backend_from_secrets({})
 
 
-def test_get_backend_from_secrets_empty_vendor():
+def test_get_backend_from_secrets_empty_vendor() -> None:
     secrets = {
         "ScribeBackend": json.dumps({"vendor": ""}),
     }
@@ -95,7 +87,21 @@ def test_get_backend_from_secrets_empty_vendor():
         get_backend_from_secrets(secrets)
 
 
-def test_nabla_auto_registers():
+def test_get_backend_from_secrets_control_characters_in_json() -> None:
+    original = dict(_REGISTRY)
+    try:
+        register_backend("fake", _FakeBackend)
+        # Simulate a secret with literal newlines inside a value (e.g. PEM key)
+        raw = '{"vendor": "fake", "client_secret": "-----BEGIN KEY-----\\nABC\\n-----END KEY-----\\n"}'
+        secrets = {"ScribeBackend": raw}
+        backend = get_backend_from_secrets(secrets)
+        assert isinstance(backend, _FakeBackend)
+    finally:
+        _REGISTRY.clear()
+        _REGISTRY.update(original)
+
+
+def test_nabla_auto_registers() -> None:
     import hyperscribe.scribe.clients.nabla  # noqa: F401
 
     assert "nabla" in _REGISTRY
