@@ -47,6 +47,7 @@ class Constants:
     VENDOR_ANTHROPIC = "Anthropic"
     VENDOR_ELEVEN_LABS = "ElevenLabs"
     VENDOR_GOOGLE = "Google"
+    VENDOR_NABLA = "Nabla"
     VENDOR_OPENAI = "OpenAI"
     VENDOR_NOTION_API_VERSION = "2022-06-28"
     VENDOR_NOTION_API_BASE_URL = "https://api.notion.com/v1/pages"
@@ -124,6 +125,7 @@ class Constants:
     SECRET_TEXT_LLM_KEY = "KeyTextLLM"
     SECRET_TEXT_LLM_VENDOR = "VendorTextLLM"
     SECRET_NOTION_FEEDBACK_DATABASE_ID = "NotionFeedbackDatabaseId"
+    SECRET_SCRIBE_BACKEND = "ScribeBackend"  # JSON: {"vendor": "nabla", "region": "us", ...}
     SECRET_NOTION_API_KEY = "NotionAPIKey"
     SECRET_MODALITY = "Modality"
     MODALITY_SCRIBE = "scribe"
