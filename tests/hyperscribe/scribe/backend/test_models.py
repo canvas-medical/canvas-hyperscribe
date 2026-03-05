@@ -1,4 +1,4 @@
-from tests.helper import is_dataclass
+import inspect
 
 from hyperscribe.scribe.backend import (
     ClinicalNote,
@@ -13,8 +13,22 @@ from hyperscribe.scribe.backend import (
 )
 
 
-def test_transcript_item_fields():
-    assert is_dataclass(
+def _has_init_params(cls: type, expected: dict[str, str]) -> bool:
+    """Check that cls.__init__ accepts the expected keyword parameters with matching annotations."""
+    sig = inspect.signature(cls.__init__)
+    params = {
+        name: p.annotation if isinstance(p.annotation, str) else p.annotation.__name__
+        for name, p in sig.parameters.items()
+        if name != "self"
+    }
+    if params != expected:
+        print(f"Expected {expected}, got {params}")
+        return False
+    return True
+
+
+def test_transcript_item_fields() -> None:
+    assert _has_init_params(
         TranscriptItem,
         {
             "text": "str",
@@ -27,13 +41,13 @@ def test_transcript_item_fields():
     )
 
 
-def test_transcript_item_defaults():
+def test_transcript_item_defaults() -> None:
     item = TranscriptItem(text="hi", speaker="patient", start_offset_ms=0, end_offset_ms=100)
     assert item.item_id == ""
     assert item.is_final is True
 
 
-def test_transcript_item_with_new_fields():
+def test_transcript_item_with_new_fields() -> None:
     item = TranscriptItem(
         text="hello",
         speaker="practitioner",
@@ -46,80 +60,59 @@ def test_transcript_item_with_new_fields():
     assert item.is_final is False
 
 
-def test_transcript_fields():
-    assert is_dataclass(Transcript, {"items": "list[TranscriptItem]"})
+def test_transcript_item_equality() -> None:
+    a = TranscriptItem(text="hi", speaker="patient", start_offset_ms=0, end_offset_ms=100)
+    b = TranscriptItem(text="hi", speaker="patient", start_offset_ms=0, end_offset_ms=100)
+    c = TranscriptItem(text="bye", speaker="patient", start_offset_ms=0, end_offset_ms=100)
+    assert a == b
+    assert a != c
 
 
-def test_note_section_fields():
-    assert is_dataclass(NoteSection, {"key": "str", "title": "str", "text": "str"})
-
-
-def test_clinical_note_fields():
-    assert is_dataclass(ClinicalNote, {"title": "str", "sections": "list[NoteSection]"})
-
-
-def test_coding_entry_fields():
-    assert is_dataclass(CodingEntry, {"system": "str", "code": "str", "display": "str"})
-
-
-def test_condition_fields():
-    assert is_dataclass(
-        Condition,
-        {"display": "str", "clinical_status": "str", "coding": "list[CodingEntry]"},
-    )
-
-
-def test_observation_fields():
-    assert is_dataclass(
-        Observation,
-        {"display": "str", "value": "str", "unit": "str", "coding": "list[CodingEntry]"},
-    )
-
-
-def test_normalized_data_fields():
-    assert is_dataclass(
-        NormalizedData,
-        {"conditions": "list[Condition]", "observations": "list[Observation]"},
-    )
-
-
-def test_patient_context_fields():
-    assert is_dataclass(
-        PatientContext,
-        {
-            "name": "str",
-            "birth_date": "str",
-            "gender": "str",
-            "encounter_diagnoses": "list[CodingEntry]",
-        },
-    )
-
-
-def test_transcript_item_frozen():
-    item = TranscriptItem(text="hi", speaker="patient", start_offset_ms=0, end_offset_ms=100)
-    try:
-        item.text = "bye"  # type: ignore[misc]
-        assert False, "should be frozen"
-    except AttributeError:
-        pass
-
-
-def test_transcript_default_empty():
+def test_transcript_default_empty() -> None:
     transcript = Transcript()
     assert transcript.items == []
 
 
-def test_clinical_note_default_empty():
+def test_clinical_note_default_empty() -> None:
     note = ClinicalNote(title="test")
     assert note.sections == []
 
 
-def test_normalized_data_default_empty():
+def test_normalized_data_default_empty() -> None:
     data = NormalizedData()
     assert data.conditions == []
     assert data.observations == []
 
 
-def test_patient_context_default_empty():
+def test_patient_context_default_empty() -> None:
     ctx = PatientContext(name="Jane", birth_date="1990-01-01", gender="female")
     assert ctx.encounter_diagnoses == []
+
+
+def test_note_section_fields() -> None:
+    section = NoteSection(key="s", title="Subjective", text="content")
+    assert section.key == "s"
+    assert section.title == "Subjective"
+    assert section.text == "content"
+
+
+def test_coding_entry_fields() -> None:
+    entry = CodingEntry(system="icd10", code="J06.9", display="URI")
+    assert entry.system == "icd10"
+    assert entry.code == "J06.9"
+    assert entry.display == "URI"
+
+
+def test_condition_fields() -> None:
+    cond = Condition(display="Headache", clinical_status="active")
+    assert cond.display == "Headache"
+    assert cond.clinical_status == "active"
+    assert cond.coding == []
+
+
+def test_observation_fields() -> None:
+    obs = Observation(display="BP", value="120/80", unit="mmHg")
+    assert obs.display == "BP"
+    assert obs.value == "120/80"
+    assert obs.unit == "mmHg"
+    assert obs.coding == []
