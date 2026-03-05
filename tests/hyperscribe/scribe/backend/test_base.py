@@ -1,5 +1,3 @@
-from typing import Any
-
 import pytest
 
 from hyperscribe.scribe.backend import (
@@ -8,27 +6,37 @@ from hyperscribe.scribe.backend import (
     PatientContext,
     ScribeBackend,
     Transcript,
+    TranscriptItem,
 )
 
 
-def test_scribe_backend_cannot_be_instantiated() -> None:
+def test_scribe_backend_cannot_be_instantiated():
     with pytest.raises(TypeError, match="abstract method"):
         ScribeBackend()
 
 
-def test_partial_implementation_fails() -> None:
+def test_partial_implementation_fails():
     class Partial(ScribeBackend):
-        def get_transcription_config(self) -> dict[str, Any]:
-            return {}
+        def start_session(self) -> None:
+            pass
 
     with pytest.raises(TypeError, match="abstract method"):
         Partial()
 
 
-def test_complete_implementation_works() -> None:
+def test_complete_implementation_works():
     class Complete(ScribeBackend):
-        def get_transcription_config(self) -> dict[str, Any]:
-            return {"vendor": "test", "ws_url": "wss://example.com"}
+        def start_session(self) -> None:
+            pass
+
+        def send_audio(self, audio: bytes) -> None:
+            pass
+
+        def get_transcript_updates(self) -> list[TranscriptItem]:
+            return []
+
+        def end_session(self) -> Transcript:
+            return Transcript()
 
         def generate_note(
             self,
@@ -44,9 +52,13 @@ def test_complete_implementation_works() -> None:
     backend = Complete()
     assert isinstance(backend, ScribeBackend)
 
-    config = backend.get_transcription_config()
-    assert isinstance(config, dict)
-    assert config["vendor"] == "test"
+    backend.start_session()
+    backend.send_audio(b"audio")
+    updates = backend.get_transcript_updates()
+    assert updates == []
+
+    transcript = backend.end_session()
+    assert isinstance(transcript, Transcript)
 
     note = backend.generate_note(Transcript())
     assert isinstance(note, ClinicalNote)
@@ -55,10 +67,19 @@ def test_complete_implementation_works() -> None:
     assert isinstance(normalized, NormalizedData)
 
 
-def test_generate_note_accepts_patient_context() -> None:
+def test_generate_note_accepts_patient_context():
     class WithContext(ScribeBackend):
-        def get_transcription_config(self) -> dict[str, Any]:
-            return {}
+        def start_session(self) -> None:
+            pass
+
+        def send_audio(self, audio: bytes) -> None:
+            pass
+
+        def get_transcript_updates(self) -> list[TranscriptItem]:
+            return []
+
+        def end_session(self) -> Transcript:
+            return Transcript()
 
         def generate_note(
             self,
