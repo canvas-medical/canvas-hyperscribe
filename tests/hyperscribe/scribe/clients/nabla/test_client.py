@@ -15,7 +15,7 @@ def _make_client() -> tuple[NablaClient, MagicMock]:
     auth = MagicMock(spec=NablaAuth)
     auth.base_url = "https://us.nabla.com/api/server"
     auth.get_access_token.return_value = "test-token"
-    return NablaClient(auth), auth
+    return NablaClient(auth, api_version="2025-05-21"), auth
 
 
 def _mock_response(json_data: dict, status_code: int = 200) -> MagicMock:
@@ -41,7 +41,8 @@ def test_generate_note_success():
         result = client.generate_note({"transcript": {}})
 
     assert result == expected
-    assert "generate-note" in mock_post.call_args.args[0]
+    url = mock_post.call_args.args[0]
+    assert "/v1/core/server/generate-note" in url
 
 
 def test_generate_note_error():
@@ -59,7 +60,8 @@ def test_generate_normalized_data_success():
         result = client.generate_normalized_data({"note": {}})
 
     assert result == expected
-    assert "generate-normalized-data" in mock_post.call_args.args[0]
+    url = mock_post.call_args.args[0]
+    assert "/v1/core/server/generate-normalized-data" in url
 
 
 def test_generate_normalized_data_error():
@@ -73,4 +75,4 @@ def test_headers_include_bearer_token():
     client, auth = _make_client()
     auth.get_access_token.return_value = "my-token"
     headers = client._headers()
-    assert headers == {"Authorization": "Bearer my-token"}
+    assert headers == {"Authorization": "Bearer my-token", "nabla-api-version": "2025-05-21"}

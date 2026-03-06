@@ -35,7 +35,7 @@ def test_get_transcription_config() -> None:
     config = backend.get_transcription_config(user_external_id="staff-key")
 
     assert config["vendor"] == "nabla"
-    assert config["ws_url"] == "wss://us.api.nabla.com/v1/core/user/transcribe-ws?nabla-api-version=2025-05-21"
+    assert config["ws_url"] == "wss://us.api.nabla.com/v1/core/user/transcribe-ws?nabla-api-version=2026-02-20"
     assert config["access_token"] == "user-access-token"
     assert config["refresh_token"] == "user-refresh-token"
     assert config["sample_rate"] == 16000
@@ -70,9 +70,10 @@ def test_generate_note() -> None:
     assert result.sections[0].key == "subjective"
 
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "SOAP"
-    assert payload["locale"] == "en-US"
-    assert len(payload["transcript"]["items"]) == 1
+    assert payload["note_template"] == "GENERIC_SOAP"
+    assert payload["note_locale"] == "ENGLISH_US"
+    assert len(payload["transcript_items"]) == 1
+    assert payload["transcript_items"][0]["speaker_type"] == "patient"
 
 
 def test_generate_note_with_patient_context() -> None:
@@ -147,6 +148,21 @@ def test_parse_note_empty() -> None:
     assert isinstance(result, ClinicalNote)
     assert result.title == ""
     assert result.sections == []
+
+
+def test_parse_note_nested() -> None:
+    raw = {
+        "note": {
+            "title": "SOAP Note",
+            "sections": [{"key": "subjective", "title": "Subjective", "text": "Headache."}],
+        },
+        "locale": "ENGLISH_US",
+        "template": "GENERIC_SOAP",
+    }
+    result = NablaBackend._parse_note(raw)
+    assert result.title == "SOAP Note"
+    assert len(result.sections) == 1
+    assert result.sections[0].key == "subjective"
 
 
 def test_parse_normalized_data_empty() -> None:
