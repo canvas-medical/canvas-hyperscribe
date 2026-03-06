@@ -15,18 +15,20 @@ function formatTime(ms) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function RecordingBanner() {
+function RecordingBanner({ paused }) {
   return html`
-    <div class="recording-banner">
+    <div class="recording-banner ${paused ? 'paused' : ''}">
       <span class="recording-dot"></span>
-      <span>Recording in progress</span>
+      <span>${paused ? 'Paused' : 'Recording in progress'}</span>
     </div>
   `;
 }
 
 function TranscriptEntry({ speaker, start_offset_ms, text, is_final }) {
-  const isProvider = speaker.toLowerCase().includes('provider') || speaker.toLowerCase().includes('doctor');
+  const s = (speaker || '').toUpperCase();
+  const isProvider = s === 'DOCTOR' || s.includes('PROVIDER') || s.includes('DOCTOR');
   const role = isProvider ? 'provider' : 'patient';
+  const label = isProvider ? 'Provider' : s === 'PATIENT' ? 'Patient' : speaker || 'Speaker';
   const initial = isProvider ? 'Dr' : 'Pt';
   const time = formatTime(start_offset_ms);
 
@@ -35,7 +37,7 @@ function TranscriptEntry({ speaker, start_offset_ms, text, is_final }) {
       <div class="entry-avatar ${role}">${initial}</div>
       <div class="entry-content">
         <div class="entry-meta">
-          <span class="entry-speaker">${speaker}</span>
+          <span class="entry-speaker">${label}</span>
           <span class="entry-time">${time}</span>
         </div>
         <p class="entry-text">${text}</p>
@@ -59,15 +61,18 @@ function cleanupAudio(audioCtxRef, streamRef, workletNodeRef) {
   }
 }
 
-export function Scribe({ noteDbid }) {
-  const [recording, setRecording] = useState(false);
+export function Scribe({ noteId, onFinish, saved, saveError }) {
+  const [status, setStatus] = useState('idle');
   const [entries, setEntries] = useState([]);
   const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const clientRef = useRef(null);
   const audioCtxRef = useRef(null);
   const streamRef = useRef(null);
   const workletNodeRef = useRef(null);
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
 
   const handleTranscriptItem = useCallback((item) => {
     setEntries(prev => {
@@ -87,8 +92,7 @@ export function Scribe({ noteDbid }) {
 
     let config;
     try {
-      const configUrl = noteDbid ? `${API_BASE}/config?note_dbid=${noteDbid}` : `${API_BASE}/config`;
-      const res = await fetch(configUrl, { cache: 'no-store' });
+      const res = await fetch(`${API_BASE}/config`, { cache: 'no-store' });
       config = await res.json();
       if (config.error) {
         setError(config.error);
@@ -151,10 +155,24 @@ export function Scribe({ noteDbid }) {
       return;
     }
 
-    setRecording(true);
+    setStatus('recording');
   }, [handleTranscriptItem]);
 
-  const stopRecording = useCallback(() => {
+  const pauseRecording = useCallback(() => {
+    if (audioCtxRef.current) {
+      audioCtxRef.current.suspend();
+    }
+    setStatus('paused');
+  }, []);
+
+  const resumeRecording = useCallback(() => {
+    if (audioCtxRef.current) {
+      audioCtxRef.current.resume();
+    }
+    setStatus('recording');
+  }, []);
+
+  const finishRecording = useCallback(async () => {
     cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
 
     if (clientRef.current) {
@@ -162,9 +180,38 @@ export function Scribe({ noteDbid }) {
       clientRef.current = null;
     }
 
-    setRecording(false);
-  }, []);
+    setStatus('idle');
+    if (onFinish) {
+      setSaving(true);
+      await onFinish(entriesRef.current);
+      setSaving(false);
+    }
+  }, [onFinish]);
 
+  // Load cached transcript on mount.
+  useEffect(() => {
+    if (!noteId) return;
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch(`${API_BASE}/transcript?note_id=${noteId}`, { cache: 'no-store' });
+        if (!res.ok) {
+          console.error('Failed to load transcript:', res.status, res.statusText);
+          return;
+        }
+        const data = await res.json();
+        if (!cancelled && data.items && data.items.length > 0) {
+          setEntries(data.items);
+        }
+      } catch (err) {
+        console.error('Failed to load transcript:', err);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [noteId]);
+
+  // Cleanup on unmount.
   useEffect(() => {
     return () => {
       cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
@@ -175,34 +222,47 @@ export function Scribe({ noteDbid }) {
     };
   }, []);
 
-  const handleToggle = () => {
-    if (recording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
-  };
+  const isActive = status === 'recording' || status === 'paused';
 
   return html`
     <div class="scribe-container">
-      ${recording && html`<${RecordingBanner} />`}
+      ${isActive && html`<${RecordingBanner} paused=${status === 'paused'} />`}
       <div class="scribe-header">
         <h2>Scribe</h2>
       </div>
       ${error && html`<p class="error">${error}</p>`}
-      <div class="record-area">
-        <button
-          class="record-btn ${recording ? 'recording' : ''}"
-          onClick=${handleToggle}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            ${recording
-              ? html`<rect x="6" y="6" width="12" height="12" rx="2" />`
-              : html`<circle cx="12" cy="12" r="8" />`}
-          </svg>
-        </button>
-        <span class="record-label">${recording ? 'Recording...' : 'Tap to record'}</span>
-      </div>
+      ${status === 'idle' && html`
+        <div class="record-area">
+          <button class="record-btn" onClick=${startRecording}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="8" />
+            </svg>
+          </button>
+          <span class="record-label">Tap to record</span>
+        </div>
+      `}
+      ${isActive && html`
+        <div class="control-buttons">
+          ${status === 'recording'
+            ? html`<button class="control-btn" onClick=${pauseRecording} title="Pause">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="5" width="4" height="14" rx="1" />
+                  <rect x="14" y="5" width="4" height="14" rx="1" />
+                </svg>
+              </button>`
+            : html`<button class="control-btn" onClick=${resumeRecording} title="Resume">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="6,4 20,12 6,20" />
+                </svg>
+              </button>`}
+          <button class="finish-btn" onClick=${finishRecording}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Finish
+          </button>
+        </div>
+      `}
       ${entries.length > 0 && html`
         <div class="transcript-list">
           ${entries.map((entry, i) => html`
@@ -210,7 +270,10 @@ export function Scribe({ noteDbid }) {
           `)}
         </div>
       `}
-      ${!recording && entries.length === 0 && !error && html`
+      ${saving && html`<p class="generating-message">Saving transcript...</p>`}
+      ${saveError && html`<p class="error">${saveError}</p>`}
+      ${saved && html`<p class="saved-message">Recording saved. Open Summary to view the note.</p>`}
+      ${status === 'idle' && entries.length === 0 && !error && !saving && !saved && !saveError && html`
         <p class="transcript-placeholder">Transcript content will appear here.</p>
       `}
     </div>

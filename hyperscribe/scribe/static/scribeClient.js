@@ -126,7 +126,7 @@ class NablaScribeClient {
         this.onTranscriptItem({
           item_id: msg.id || '',
           text: msg.text || '',
-          speaker: msg.speaker || '',
+          speaker: msg.speaker_type || msg.speaker || '',
           start_offset_ms: msg.start_offset_ms || 0,
           end_offset_ms: msg.end_offset_ms || 0,
           is_final: msg.is_final !== false,

@@ -13,18 +13,19 @@ from hyperscribe.scribe.backend import (
     ScribeBackend,
     Transcript,
 )
+from logger import log
 from hyperscribe.scribe.clients.nabla.auth import NablaAuth
 from hyperscribe.scribe.clients.nabla.client import NablaClient
 
-_NABLA_API_VERSION = "2025-05-21"
-_SPEECH_LOCALE = "en-US"
-_NOTE_TEMPLATE = "SOAP"
+_NABLA_API_VERSION = "2026-02-20"
+_NOTE_LOCALE = "ENGLISH_US"
+_NOTE_TEMPLATE = "GENERIC_SOAP"
 
 
 class NablaBackend(ScribeBackend):
     def __init__(self, *, client_id: str, client_secret: str) -> None:
         self._auth = NablaAuth(client_id=client_id, private_key=client_secret)
-        self._rest_client = NablaClient(self._auth)
+        self._rest_client = NablaClient(self._auth, api_version=_NABLA_API_VERSION)
 
     def get_transcription_config(self, *, user_external_id: str = "") -> dict[str, Any]:
         access_token, refresh_token = self._auth.get_user_tokens(user_external_id)
@@ -38,6 +39,7 @@ class NablaBackend(ScribeBackend):
             "encoding": "PCM_S16LE",
             "speech_locales": ["ENGLISH_US"],
             "stream_id": "stream1",
+            "split_by_sentence": True,
         }
 
     def generate_note(
@@ -48,6 +50,7 @@ class NablaBackend(ScribeBackend):
     ) -> ClinicalNote:
         payload = self._build_note_payload(transcript, patient_context)
         raw = self._rest_client.generate_note(payload)
+        log.info(f"Nabla generate_note response keys: {list(raw.keys())}")
         return self._parse_note(raw)
 
     def generate_normalized_data(self, note: ClinicalNote) -> NormalizedData:
@@ -62,8 +65,10 @@ class NablaBackend(ScribeBackend):
 
     @staticmethod
     def _parse_note(raw: dict[str, Any]) -> ClinicalNote:
+        # The note content may be nested under a "note" key (API >= 2026-02-20).
+        note_data = raw.get("note", raw)
         sections: list[NoteSection] = []
-        for section in raw.get("sections", []):
+        for section in note_data.get("sections", []):
             sections.append(
                 NoteSection(
                     key=section.get("key", ""),
@@ -71,7 +76,7 @@ class NablaBackend(ScribeBackend):
                     text=section.get("text", ""),
                 )
             )
-        return ClinicalNote(title=raw.get("title", ""), sections=sections)
+        return ClinicalNote(title=note_data.get("title", ""), sections=sections)
 
     @staticmethod
     def _parse_normalized_data(raw: dict[str, Any]) -> NormalizedData:
@@ -112,19 +117,17 @@ class NablaBackend(ScribeBackend):
         patient_context: PatientContext | None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
-            "transcript": {
-                "items": [
-                    {
-                        "text": item.text,
-                        "speaker": item.speaker,
-                        "start_offset_ms": item.start_offset_ms,
-                        "end_offset_ms": item.end_offset_ms,
-                    }
-                    for item in transcript.items
-                ],
-            },
+            "transcript_items": [
+                {
+                    "text": item.text,
+                    "speaker_type": item.speaker or "UNSPECIFIED",
+                    "start_offset_ms": item.start_offset_ms,
+                    "end_offset_ms": item.end_offset_ms,
+                }
+                for item in transcript.items
+            ],
             "note_template": _NOTE_TEMPLATE,
-            "locale": _SPEECH_LOCALE,
+            "note_locale": _NOTE_LOCALE,
         }
         if patient_context is not None:
             payload["patient_context"] = {
