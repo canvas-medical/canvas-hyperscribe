@@ -1,4 +1,5 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
+import { useState, useEffect } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SubjectiveSection } from '/plugin-io/api/hyperscribe/scribe/static/subjective-section.js';
 import { ObjectiveSection } from '/plugin-io/api/hyperscribe/scribe/static/objective-section.js';
@@ -6,34 +7,95 @@ import { AssessmentPlanSection } from '/plugin-io/api/hyperscribe/scribe/static/
 
 const html = htm.bind(h);
 
-// Mock data — will be replaced with real data from the API
-const MOCK_DATA = {
-  subjective: `Patient is a 40-year-old female presenting with a two-week history of recurrent right-sided headaches. Headaches worsen in the afternoon and are associated with photosensitivity and occasional nausea. Denies visual changes, aura, or recent trauma. Reports partial relief with over-the-counter ibuprofen, though headaches recur daily.`,
-  objective: [
-    'General: Alert, oriented, in no acute distress',
-    'HEENT: No tenderness over sinuses, no papilledema on fundoscopic exam',
-    'Neuro: Cranial nerves II-XII intact, no focal deficits, normal gait',
-    'Vitals: BP 122/78, HR 72, Temp 98.6\u00B0F',
-  ],
-  assessmentAndPlan: {
-    diagnosis: 'Migraine without aura (G43.009)',
-    items: [
-      'Start sumatriptan 50mg PO at onset of headache, may repeat x1 after 2 hours if needed. Max 200mg/24hrs.',
-      'Order MRI brain without contrast to rule out structural etiology',
-      'Refer to neurology (Dr. Patel) for comprehensive headache evaluation',
-    ],
-  },
-};
+const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
-export function Summary({ noteDbid }) {
+function renderSection(section) {
+  const key = section.key.toLowerCase();
+
+  if (key.includes('assessment') || key.includes('plan')) {
+    const lines = section.text.split('\n').filter(Boolean);
+    const diagnosis = lines[0] || '';
+    const items = lines.slice(1);
+    return html`<${AssessmentPlanSection}
+      key=${section.key}
+      diagnosis=${diagnosis}
+      items=${items}
+    />`;
+  }
+
+  if (key.includes('objective')) {
+    const items = section.text.split('\n').filter(Boolean);
+    return html`<${ObjectiveSection} key=${section.key} items=${items} />`;
+  }
+
+  // subjective or fallback
+  return html`<${SubjectiveSection} key=${section.key} text=${section.text} />`;
+}
+
+export function Summary({ noteId }) {
+  const [noteData, setNoteData] = useState(null);
+  const [generating, setGenerating] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function generateNote() {
+      try {
+        const res = await fetch(`${API_BASE}/generate-note`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note_id: noteId }),
+        });
+        if (cancelled) return;
+        const data = await res.json();
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setNoteData(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError('Failed to generate note');
+        }
+      } finally {
+        if (!cancelled) {
+          setGenerating(false);
+        }
+      }
+    }
+
+    generateNote();
+    return () => { cancelled = true; };
+  }, [noteId]);
+
+  if (generating) {
+    return html`
+      <div class="summary-container">
+        <p class="generating-message">Generating summary...</p>
+      </div>
+    `;
+  }
+
+  if (error) {
+    return html`
+      <div class="summary-container">
+        <p class="error">${error}</p>
+      </div>
+    `;
+  }
+
+  if (!noteData) {
+    return html`
+      <div class="summary-container">
+        <p class="generating-message">No summary available.</p>
+      </div>
+    `;
+  }
+
   return html`
     <div class="summary-container">
-      <${SubjectiveSection} text=${MOCK_DATA.subjective} />
-      <${ObjectiveSection} items=${MOCK_DATA.objective} />
-      <${AssessmentPlanSection}
-        diagnosis=${MOCK_DATA.assessmentAndPlan.diagnosis}
-        items=${MOCK_DATA.assessmentAndPlan.items}
-      />
+      ${noteData.sections.map(renderSection)}
     </div>
   `;
 }

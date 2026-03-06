@@ -22,17 +22,17 @@ class ScribeView(SimpleAPI):
 
     @api.get("/app")
     def get_app(self) -> list[Union[Response, Effect]]:
-        note_dbid = self.request.query_params.get("note_dbid", "")
+        note_id = self.request.query_params.get("note_id", "")
         view = self.request.query_params.get("view", "")
-        if not note_dbid or not view:
+        if not note_id or not view:
             return [
                 HTMLResponse(
-                    "<html><body>Error: note_dbid and view are required</body></html>",
+                    "<html><body>Error: note_id and view are required</body></html>",
                     status_code=HTTPStatus.BAD_REQUEST,
                 )
             ]
 
-        html = render_to_string("scribe/static/index.html", {"note_dbid": note_dbid, "view": view})
+        html = render_to_string("scribe/static/index.html", {"note_id": note_id, "view": view})
         return [HTMLResponse(html)]
 
     @api.get("/static/<filename>")

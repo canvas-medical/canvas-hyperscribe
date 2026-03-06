@@ -4,9 +4,12 @@ import json
 from http import HTTPStatus
 from typing import Any, Union
 
+from logger import log
+
+from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import JSONResponse, Response
-from canvas_sdk.handlers.simple_api import Credentials, SimpleAPI, api
+from canvas_sdk.handlers.simple_api import SessionCredentials, SimpleAPI, StaffSessionAuthMixin, api
 
 from hyperscribe.scribe.backend import (
     ClinicalNote,
@@ -21,20 +24,39 @@ from hyperscribe.scribe.backend import (
 )
 
 
-def _get_provider_key(note_dbid: str) -> str:
-    """Look up the provider key (external ID) from a note's database ID."""
-    from canvas_sdk.v1.data.note import Note
-
-    try:
-        return str(Note.objects.values_list("provider__id", flat=True).get(dbid=int(note_dbid)))
-    except (Note.DoesNotExist, ValueError, TypeError):
-        return ""
-
-
 def _get_backend(secrets: dict[str, str]) -> ScribeBackend:
     import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
 
     return get_backend_from_secrets(secrets)
+
+
+_CACHE_KEY_PREFIX = "scribe_transcript:"
+
+
+def _save_transcript_to_cache(note_id: str, items: list[dict[str, Any]]) -> None:
+    key = f"{_CACHE_KEY_PREFIX}{note_id}"
+    log.info(f"cache save: key={key} items={len(items)}")
+    try:
+        cache = get_cache()
+        cache.set(key, json.dumps(items))
+        log.info(f"cache save OK: key={key}")
+    except Exception:
+        log.exception(f"cache save FAILED: key={key}")
+
+
+def _load_transcript_from_cache(note_id: str) -> list[dict[str, Any]] | None:
+    key = f"{_CACHE_KEY_PREFIX}{note_id}"
+    log.info(f"cache load: key={key}")
+    try:
+        cache = get_cache()
+        raw = cache.get(key)
+        log.info(f"cache load result: key={key} found={raw is not None}")
+    except Exception:
+        log.exception(f"cache load FAILED: key={key}")
+        return None
+    if raw is None:
+        return None
+    return json.loads(raw)  # type: ignore[no-any-return]
 
 
 def _parse_transcript(data: dict[str, Any]) -> Transcript:
@@ -85,13 +107,15 @@ def _parse_note(data: dict[str, Any]) -> ClinicalNote:
     return ClinicalNote(title=str(data.get("title", "")), sections=sections)
 
 
-class ScribeSessionView(SimpleAPI):
+class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     """Scribe session management API."""
 
     PREFIX = "/scribe-session"
 
-    def authenticate(self, credentials: Credentials) -> bool:
-        return True
+    def authenticate(self, credentials: SessionCredentials) -> bool:
+        auth_result: bool = super().authenticate(credentials)
+        self._staff_id: str = credentials.logged_in_user["id"]
+        return auth_result
 
     @api.get("/config")
     def get_config(self) -> list[Union[Response, Effect]]:
@@ -99,13 +123,34 @@ class ScribeSessionView(SimpleAPI):
             backend = _get_backend(self.secrets)
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.BAD_REQUEST)]
-        note_dbid = self.request.query_params.get("note_dbid", [""])[0]
-        user_external_id = _get_provider_key(note_dbid) if note_dbid else ""
         try:
-            config = backend.get_transcription_config(user_external_id=user_external_id)
+            config = backend.get_transcription_config(user_external_id=self._staff_id)
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
         return [JSONResponse(config, status_code=HTTPStatus.OK)]
+
+    @api.get("/transcript")
+    def get_transcript(self) -> list[Union[Response, Effect]]:
+        note_id = self.request.query_params.get("note_id", "")
+        if not note_id:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        items = _load_transcript_from_cache(note_id)
+        if items is None:
+            return [JSONResponse({"items": []}, status_code=HTTPStatus.OK)]
+        return [JSONResponse({"items": items}, status_code=HTTPStatus.OK)]
+
+    @api.post("/save-transcript")
+    def post_save_transcript(self) -> list[Union[Response, Effect]]:
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_id = str(data.get("note_id", ""))
+        if not note_id:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        items = data.get("transcript", {}).get("items", [])
+        _save_transcript_to_cache(note_id, items)
+        return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
     @api.post("/generate-note")
     def post_generate_note(self) -> list[Union[Response, Effect]]:
@@ -117,7 +162,23 @@ class ScribeSessionView(SimpleAPI):
             data: dict[str, Any] = json.loads(self.request.body)
         except (json.JSONDecodeError, ValueError) as exc:
             return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
-        transcript = _parse_transcript(data.get("transcript", {}))
+
+        transcript_data = data.get("transcript", {})
+        transcript_items = transcript_data.get("items", [])
+
+        # If no transcript items in body, load from cache using note_id.
+        if not transcript_items:
+            note_id = str(data.get("note_id", ""))
+            if note_id:
+                cached_items = _load_transcript_from_cache(note_id)
+                if cached_items:
+                    transcript_items = cached_items
+                    transcript_data = {"items": transcript_items}
+
+        if not transcript_items:
+            return [JSONResponse({"error": "No transcript available"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        transcript = _parse_transcript(transcript_data)
         patient_context = _parse_patient_context(data)
         try:
             note = backend.generate_note(transcript, patient_context=patient_context)
