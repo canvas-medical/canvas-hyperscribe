@@ -226,6 +226,17 @@ h2 { margin-bottom: 4px; }
   opacity: 0.6;
 }
 
+.entry-avatar.listening {
+  background: #bbb;
+  font-size: 14px;
+  letter-spacing: -1px;
+}
+
+.listening-label {
+  font-style: italic;
+  color: #999 !important;
+}
+
 /* Summary */
 .summary-container {
   padding: 16px;
