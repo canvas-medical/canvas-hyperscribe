@@ -16,8 +16,11 @@ class SummaryApp(NoteApplication):
         return bool(modality == Constants.MODALITY_SCRIBE)
 
     def handle(self) -> list[Effect]:
-        note_id = self.context.get("note_id")
-        url = f"{Constants.PLUGIN_API_BASE_ROUTE}/scribe/app?note_dbid={note_id}&view=summary"
+        from canvas_sdk.v1.data.note import Note
+
+        note_dbid = self.context.get("note_id")
+        note_id = Note.objects.values_list("id", flat=True).get(dbid=note_dbid)
+        url = f"{Constants.PLUGIN_API_BASE_ROUTE}/scribe/app?note_id={note_id}&view=summary"
 
         return [
             LaunchModalEffect(

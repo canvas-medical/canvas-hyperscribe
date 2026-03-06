@@ -5,9 +5,12 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from canvas_sdk.effects.simple_api import JSONResponse
-from canvas_sdk.handlers.simple_api import Credentials, SimpleAPI
+from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin
 
-from hyperscribe.scribe.api.session_view import ScribeSessionView
+from hyperscribe.scribe.api.session_view import (
+    ScribeSessionView,
+    _CACHE_KEY_PREFIX,
+)
 from hyperscribe.scribe.backend import ScribeError
 from hyperscribe.scribe.backend.models import (
     ClinicalNote,
@@ -22,16 +25,18 @@ from hyperscribe.scribe.backend.models import (
 ScribeSessionView._ROUTES = {}
 
 
-def _helper_instance() -> ScribeSessionView:
+def _helper_instance(staff_id: str = "staff-key-abc") -> ScribeSessionView:
     event = SimpleNamespace(context={"method": "GET"})
     secrets: dict[str, str] = {"ScribeBackend": '{"vendor": "nabla", "client_id": "id", "client_secret": "secret"}'}
     environment: dict[str, str] = {}
     view = ScribeSessionView(event, secrets, environment)
     view._path_pattern = re.compile(r".*")
+    view._staff_id = staff_id
     return view
 
 
 def test_class() -> None:
+    assert issubclass(ScribeSessionView, StaffSessionAuthMixin)
     assert issubclass(ScribeSessionView, SimpleAPI)
 
 
@@ -41,15 +46,19 @@ def test_constants() -> None:
 
 def test_authenticate() -> None:
     view = _helper_instance()
-    assert view.authenticate(Credentials(SimpleNamespace())) is True
+    credentials = SimpleNamespace(logged_in_user={"id": "staff-123", "type": "Staff"})
+    # StaffSessionAuthMixin.authenticate checks type == "Staff"
+    with patch.object(StaffSessionAuthMixin, "authenticate", return_value=True):
+        result = view.authenticate(credentials)  # type: ignore[arg-type]
+    assert result is True
+    assert view._staff_id == "staff-123"
 
 
 # --- /config ---
 
 
-@patch("hyperscribe.scribe.api.session_view._get_provider_key", return_value="staff-key-abc")
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
-def test_get_config_success(get_backend: MagicMock, _get_key: MagicMock) -> None:
+def test_get_config_success(get_backend: MagicMock) -> None:
     mock_backend = MagicMock()
     mock_backend.get_transcription_config.return_value = {
         "vendor": "nabla",
@@ -59,8 +68,7 @@ def test_get_config_success(get_backend: MagicMock, _get_key: MagicMock) -> None
     }
     get_backend.return_value = mock_backend
 
-    view = _helper_instance()
-    view.request = SimpleNamespace(query_params={"note_dbid": ["42"]})
+    view = _helper_instance(staff_id="staff-key-abc")
     result = view.get_config()
 
     expected = [
@@ -74,25 +82,10 @@ def test_get_config_success(get_backend: MagicMock, _get_key: MagicMock) -> None
 
 
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
-def test_get_config_no_note_dbid(get_backend: MagicMock) -> None:
-    mock_backend = MagicMock()
-    mock_backend.get_transcription_config.return_value = {"vendor": "nabla"}
-    get_backend.return_value = mock_backend
-
-    view = _helper_instance()
-    view.request = SimpleNamespace(query_params={})
-    result = view.get_config()
-
-    assert result[0].status_code == HTTPStatus.OK
-    mock_backend.get_transcription_config.assert_called_once_with(user_external_id="")
-
-
-@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
 def test_get_config_unknown_vendor(get_backend: MagicMock) -> None:
     get_backend.side_effect = ScribeError("Unknown scribe vendor: 'bad'")
 
     view = _helper_instance()
-    view.request = SimpleNamespace(query_params={})
     result = view.get_config()
 
     expected = [JSONResponse({"error": "Unknown scribe vendor: 'bad'"}, status_code=HTTPStatus.BAD_REQUEST)]
@@ -106,11 +99,100 @@ def test_get_config_auth_error(get_backend: MagicMock) -> None:
     get_backend.return_value = mock_backend
 
     view = _helper_instance()
-    view.request = SimpleNamespace(query_params={})
     result = view.get_config()
 
     expected = [JSONResponse({"error": "Auth failed"}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
     assert result == expected
+
+
+# --- /transcript ---
+
+
+def _mock_cache() -> MagicMock:
+    """Create a dict-backed mock cache."""
+    store: dict[str, str] = {}
+    cache = MagicMock()
+    cache.set = lambda key, value, **kw: store.__setitem__(key, value)
+    cache.get = lambda key, default=None: store.get(key, default)
+    cache._store = store
+    return cache
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_get_transcript_success(mock_get_cache: MagicMock) -> None:
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    items = [{"text": "Hello", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 1000}]
+    cache._store[f"{_CACHE_KEY_PREFIX}55"] = json.dumps(items)
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "55"})
+    result = view.get_transcript()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"items": items}
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_get_transcript_empty(mock_get_cache: MagicMock) -> None:
+    mock_get_cache.return_value = _mock_cache()
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "999"})
+    result = view.get_transcript()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"items": []}
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_get_transcript_missing_note_id(mock_get_cache: MagicMock) -> None:
+    mock_get_cache.return_value = _mock_cache()
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={})
+    result = view.get_transcript()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+
+
+# --- /save-transcript ---
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_save_transcript_success(mock_get_cache: MagicMock) -> None:
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+
+    view = _helper_instance()
+    items = [{"text": "Hello", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 1000}]
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "42", "transcript": {"items": items}}))
+    result = view.post_save_transcript()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"status": "ok"}
+    assert json.loads(cache._store[f"{_CACHE_KEY_PREFIX}42"]) == items
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_save_transcript_missing_note_id(mock_get_cache: MagicMock) -> None:
+    mock_get_cache.return_value = _mock_cache()
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"transcript": {"items": []}}))
+    result = view.post_save_transcript()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_id" in json.loads(result[0].content)["error"]
+
+
+def test_save_transcript_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_save_transcript()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
 
 
 # --- /generate-note ---
@@ -152,6 +234,46 @@ def test_generate_note_success(get_backend: MagicMock) -> None:
     mock_backend.generate_note.assert_called_once()
 
 
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_note_from_cache(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    cached_items = [{"text": "I feel dizzy", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 1500}]
+    cache._store[f"{_CACHE_KEY_PREFIX}99"] = json.dumps(cached_items)
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="SOAP Note",
+        sections=[NoteSection(key="subjective", title="Subjective", text="Dizzy.")],
+    )
+    get_backend.return_value = mock_backend
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "99"}))
+    result = view.post_generate_note()
+
+    assert result[0].status_code == HTTPStatus.OK
+    mock_backend.generate_note.assert_called_once()
+    transcript_arg = mock_backend.generate_note.call_args.args[0]
+    assert len(transcript_arg.items) == 1
+    assert transcript_arg.items[0].text == "I feel dizzy"
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_note_no_transcript_no_cache(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
+    mock_get_cache.return_value = _mock_cache()
+    get_backend.return_value = MagicMock()
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "999"}))
+    result = view.post_generate_note()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "No transcript" in json.loads(result[0].content)["error"]
+
+
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
 def test_generate_note_with_patient_context(get_backend: MagicMock) -> None:
     mock_backend = MagicMock()
@@ -159,10 +281,11 @@ def test_generate_note_with_patient_context(get_backend: MagicMock) -> None:
     get_backend.return_value = mock_backend
 
     view = _helper_instance()
+    item = {"text": "hi", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 500}
     view.request = SimpleNamespace(
         body=json.dumps(
             {
-                "transcript": {"items": []},
+                "transcript": {"items": [item]},
                 "patient_context": {
                     "name": "Jane Doe",
                     "birth_date": "1990-01-01",
@@ -200,7 +323,8 @@ def test_generate_note_backend_error(get_backend: MagicMock) -> None:
     get_backend.return_value = mock_backend
 
     view = _helper_instance()
-    view.request = SimpleNamespace(body=json.dumps({"transcript": {"items": []}}))
+    item = {"text": "hi", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 500}
+    view.request = SimpleNamespace(body=json.dumps({"transcript": {"items": [item]}}))
     result = view.post_generate_note()
 
     expected = [JSONResponse({"error": "Note generation failed"}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
