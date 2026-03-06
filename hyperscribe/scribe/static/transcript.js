@@ -26,11 +26,28 @@ function RecordingBanner({ paused }) {
 
 function TranscriptEntry({ speaker, start_offset_ms, text, is_final }) {
   const s = (speaker || '').toUpperCase();
+  const isUnspecified = !s || s === 'UNSPECIFIED';
   const isProvider = s === 'DOCTOR' || s.includes('PROVIDER') || s.includes('DOCTOR');
+  const time = formatTime(start_offset_ms);
+
+  if (!is_final && isUnspecified) {
+    return html`
+      <div class="transcript-entry partial">
+        <div class="entry-avatar listening">...</div>
+        <div class="entry-content">
+          <div class="entry-meta">
+            <span class="entry-speaker listening-label">Listening</span>
+            <span class="entry-time">${time}</span>
+          </div>
+          <p class="entry-text">${text}</p>
+        </div>
+      </div>
+    `;
+  }
+
   const role = isProvider ? 'provider' : 'patient';
   const label = isProvider ? 'Provider' : s === 'PATIENT' ? 'Patient' : speaker || 'Speaker';
   const initial = isProvider ? 'Dr' : 'Pt';
-  const time = formatTime(start_offset_ms);
 
   return html`
     <div class="transcript-entry ${is_final ? '' : 'partial'}">
@@ -174,9 +191,10 @@ export function Scribe({ noteId, onFinish, saved, saveError }) {
 
   const finishRecording = useCallback(async () => {
     cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
+    setStatus('finishing');
 
     if (clientRef.current) {
-      clientRef.current.end();
+      await clientRef.current.end();
       clientRef.current = null;
     }
 
@@ -262,6 +280,9 @@ export function Scribe({ noteId, onFinish, saved, saveError }) {
             Finish
           </button>
         </div>
+      `}
+      ${status === 'finishing' && html`
+        <p class="generating-message">Finalizing transcript...</p>
       `}
       ${entries.length > 0 && html`
         <div class="transcript-list">
