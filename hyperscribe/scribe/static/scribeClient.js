@@ -86,16 +86,31 @@ class NablaScribeClient {
   }
 
   /**
-   * Signal end of audio stream and close connection.
+   * Signal end of audio stream and wait for the server to flush final
+   * transcript items and close the connection.
+   * @returns {Promise<void>}
    */
-  end() {
-    if (!this._ws) return;
-
-    if (this._ws.readyState === WebSocket.OPEN) {
-      this._ws.send(JSON.stringify({ type: 'END' }));
+  async end() {
+    if (!this._ws || this._ws.readyState !== WebSocket.OPEN) {
+      this._ws = null;
+      return;
     }
-    this._ws.close();
-    this._ws = null;
+
+    this._ws.send(JSON.stringify({ type: 'END' }));
+
+    // Poll until the server closes the connection (max ~5s).
+    for (let i = 0; i < 50; i++) {
+      if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+        await new Promise((r) => setTimeout(r, 100));
+      } else {
+        break;
+      }
+    }
+
+    if (this._ws) {
+      this._ws.close();
+      this._ws = null;
+    }
   }
 
   /** @private */
