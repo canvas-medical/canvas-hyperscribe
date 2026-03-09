@@ -3,6 +3,7 @@ from __future__ import annotations
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal
 from hyperscribe.scribe.commands.base import CommandParser
 from hyperscribe.scribe.commands.hpi import HpiParser
+from hyperscribe.scribe.commands.medication_statement import MedicationParser
 from hyperscribe.scribe.commands.plan import PlanParser
 from hyperscribe.scribe.commands.rfv import RfvParser
 from hyperscribe.scribe.commands.vitals import VitalsParser
@@ -12,6 +13,7 @@ _SECTION_PARSERS: dict[str, CommandParser] = {
     "history_of_present_illness": HpiParser(),
     "plan": PlanParser(),
     "vitals": VitalsParser(),
+    "current_medications": MedicationParser(),
 }
 
 
@@ -25,8 +27,7 @@ def extract_commands(note: ClinicalNote) -> list[CommandProposal]:
         text = section.text.strip()
         if not text:
             continue
-        proposal = parser.extract(text)
-        if proposal is not None:
+        for proposal in parser.extract_all(text):
             proposal.section_key = section.key.lower()
             proposals.append(proposal)
     return proposals

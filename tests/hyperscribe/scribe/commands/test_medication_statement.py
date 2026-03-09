@@ -1,10 +1,5 @@
-from unittest.mock import MagicMock, patch
-
-from django.db.models import QuerySet
-
 from canvas_sdk.commands.constants import CodeSystems
 
-from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.medication_statement import (
     MedicationParser,
     _parse_medication_lines,
@@ -94,28 +89,8 @@ def test_build_with_string_fdb_code() -> None:
     cmd = parser.build(
         {"medication_text": "Lisinopril 10mg", "fdb_code": "12345"},
         "note-uuid",
-        "cmd-uuid",
     )
     assert cmd.fdb_code == "12345"
-    assert cmd.note_uuid == "note-uuid"
-
-
-def test_build_with_dict_fdb_code_structured() -> None:
-    """When data has a dict fdb_code with FDB system (from recommender), extract the plain code string."""
-    parser = MedicationParser()
-    cmd = parser.build(
-        {
-            "medication_text": "Lisinopril 10mg Tablet",
-            "fdb_code": {
-                "system": "http://www.fdbhealth.com/",
-                "code": "d00350",
-                "display": "Lisinopril 10mg Tablet",
-            },
-        },
-        "note-uuid",
-        "cmd-uuid",
-    )
-    assert cmd.fdb_code == "d00350"
     assert cmd.note_uuid == "note-uuid"
 
 
@@ -128,7 +103,6 @@ def test_build_with_dict_fdb_code_unstructured() -> None:
             "fdb_code": _unstructured_coding("Lisinopril 10mg"),
         },
         "note-uuid",
-        "cmd-uuid",
     )
     assert isinstance(cmd.fdb_code, dict)
     assert cmd.fdb_code["system"] == CodeSystems.UNSTRUCTURED
@@ -138,7 +112,7 @@ def test_build_with_dict_fdb_code_unstructured() -> None:
 def test_build_without_fdb_code_falls_back_to_unstructured() -> None:
     """When data has no fdb_code, build creates UNSTRUCTURED coding."""
     parser = MedicationParser()
-    cmd = parser.build({"medication_text": "Some unknown med"}, "note-uuid", "cmd-uuid")
+    cmd = parser.build({"medication_text": "Some unknown med"}, "note-uuid")
     assert isinstance(cmd.fdb_code, dict)
     assert cmd.fdb_code["system"] == CodeSystems.UNSTRUCTURED
     assert cmd.fdb_code["display"] == "Some unknown med"
@@ -147,138 +121,6 @@ def test_build_without_fdb_code_falls_back_to_unstructured() -> None:
 
 def test_build_empty_medication_text() -> None:
     parser = MedicationParser()
-    cmd = parser.build({"medication_text": ""}, "note-uuid", "cmd-uuid")
+    cmd = parser.build({"medication_text": ""}, "note-uuid")
     assert isinstance(cmd.fdb_code, dict)
     assert cmd.fdb_code["system"] == CodeSystems.UNSTRUCTURED
-
-
-def test_build_with_sig() -> None:
-    parser = MedicationParser()
-    cmd = parser.build(
-        {"medication_text": "Lisinopril 10mg", "sig": "Take 1 tablet daily"},
-        "note-uuid",
-        "cmd-uuid",
-    )
-    assert cmd.sig == "Take 1 tablet daily"
-
-
-def test_build_without_sig_defaults_to_none() -> None:
-    parser = MedicationParser()
-    cmd = parser.build({"medication_text": "Lisinopril 10mg"}, "note-uuid", "cmd-uuid")
-    assert cmd.sig is None
-
-
-def test_build_empty_sig_defaults_to_none() -> None:
-    parser = MedicationParser()
-    cmd = parser.build(
-        {"medication_text": "Lisinopril 10mg", "sig": ""},
-        "note-uuid",
-        "cmd-uuid",
-    )
-    assert cmd.sig is None
-
-
-# --- annotate_duplicates ---
-
-
-@patch("hyperscribe.scribe.commands.medication_statement.MedicationCoding")
-def test_annotate_duplicates_match(
-    mock_coding_cls: MagicMock,
-) -> None:
-    mock_patient = MagicMock()
-    mock_patient.id = "patient-key"
-    mock_note = MagicMock()
-    mock_note.patient = mock_patient
-
-    # Use spec=QuerySet so calling nonexistent methods (e.g. .committed()) raises AttributeError.
-    mock_qs = MagicMock(spec=QuerySet)
-    mock_qs.values_list.return_value = ["Lisinopril 10mg Tablet"]
-    mock_coding_cls.objects.filter.return_value = mock_qs
-
-    proposals = [
-        CommandProposal(
-            command_type="medication_statement", display="Lisinopril 10mg", data={"medication_text": "Lisinopril 10mg"}
-        ),
-        CommandProposal(
-            command_type="medication_statement", display="Metformin 500mg", data={"medication_text": "Metformin 500mg"}
-        ),
-        CommandProposal(command_type="hpi", display="Pain", data={"narrative": "Pain"}),
-    ]
-    MedicationParser().annotate_duplicates(proposals, mock_note)
-
-    assert proposals[0].already_documented is True
-    assert proposals[1].already_documented is False
-    assert proposals[2].already_documented is False
-
-    mock_coding_cls.objects.filter.assert_called_once_with(
-        medication__patient=mock_patient,
-        medication__status="active",
-    )
-    mock_qs.values_list.assert_called_once_with("display", flat=True)
-
-
-def test_annotate_duplicates_no_medications() -> None:
-    mock_note = MagicMock()
-    proposals = [
-        CommandProposal(command_type="hpi", display="Pain", data={"narrative": "Pain"}),
-    ]
-    MedicationParser().annotate_duplicates(proposals, mock_note)
-    assert proposals[0].already_documented is False
-
-
-@patch("hyperscribe.scribe.commands.medication_statement.MedicationCoding")
-def test_annotate_duplicates_no_patient(
-    mock_coding_cls: MagicMock,
-) -> None:
-    mock_note = MagicMock()
-    mock_note.patient = None
-
-    proposals = [
-        CommandProposal(
-            command_type="medication_statement", display="Lisinopril", data={"medication_text": "Lisinopril"}
-        ),
-    ]
-    MedicationParser().annotate_duplicates(proposals, mock_note)
-    assert proposals[0].already_documented is False
-
-
-def _make_med_command() -> MagicMock:
-    cmd = MagicMock()
-    cmd.command_uuid = "00000000-0000-0000-0000-000000000001"
-    cmd.note_uuid = "00000000-0000-0000-0000-000000000aaa"
-    return cmd
-
-
-def test_pending_metadata_flag_off_returns_none() -> None:
-    cmd = _make_med_command()
-    proposal = {"data": {"alert_facility": True}}
-    assert MedicationParser().pending_metadata(cmd, proposal, feature_flags={}) is None
-    assert MedicationParser().pending_metadata(cmd, proposal, feature_flags=None) is None
-    assert (
-        MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": False})
-        is None
-    )
-
-
-def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
-    cmd = _make_med_command()
-    proposal = {"data": {"alert_facility": True}}
-    result = MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
-    assert result == {
-        "command_uuid": cmd.command_uuid,
-        "command_type": "medication_statement",
-        "note_uuid": cmd.note_uuid,
-        "metadata": {"alert_facility": "Yes"},
-    }
-
-
-def test_pending_metadata_flag_on_alert_falsy_defaults_to_no() -> None:
-    cmd = _make_med_command()
-    for proposal in (
-        {"data": {"alert_facility": False}},
-        {"data": {}},
-        None,
-    ):
-        result = MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
-        assert result is not None
-        assert result["metadata"] == {"alert_facility": "No"}
