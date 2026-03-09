@@ -105,6 +105,44 @@ def test_display_is_full_text() -> None:
     assert proposals[0].display == long_text
 
 
+def test_routes_current_medications_multiple() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(
+                key="current_medications",
+                title="Current Medications",
+                text="- Lisinopril 10mg\n- Metformin 500mg\n- Atorvastatin 20mg",
+            )
+        ],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 3
+    assert all(p.command_type == "medication_statement" for p in proposals)
+    assert all(p.section_key == "current_medications" for p in proposals)
+    assert proposals[0].display == "Lisinopril 10mg"
+    assert proposals[1].display == "Metformin 500mg"
+    assert proposals[2].display == "Atorvastatin 20mg"
+
+
+def test_routes_current_medications_single() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="current_medications", title="Meds", text="Ibuprofen 400mg")],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "medication_statement"
+
+
+def test_current_medications_empty_skipped() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="current_medications", title="Meds", text="   ")],
+    )
+    assert extract_commands(note) == []
+
+
 def test_full_multiple_sections_note() -> None:
     note = ClinicalNote(
         title="Note",
@@ -114,8 +152,9 @@ def test_full_multiple_sections_note() -> None:
             NoteSection(key="vitals", title="Vitals", text="BP 130/85"),
             NoteSection(key="assessment", title="Assessment", text="Migraine."),
             NoteSection(key="plan", title="Plan", text="Start sumatriptan 50mg."),
+            NoteSection(key="current_medications", title="Meds", text="- Aspirin 81mg"),
         ],
     )
     proposals = extract_commands(note)
     types = [p.command_type for p in proposals]
-    assert types == ["rfv", "hpi", "vitals", "plan"]
+    assert types == ["rfv", "hpi", "vitals", "plan", "medication_statement"]
