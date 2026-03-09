@@ -402,3 +402,112 @@ def test_generate_normalized_data_backend_error(get_backend: MagicMock) -> None:
 
     expected = [JSONResponse({"error": "Normalization failed"}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
     assert result == expected
+
+
+# --- /extract-commands ---
+
+
+def test_extract_commands_success() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note": {
+                    "title": "Note",
+                    "sections": [
+                        {"key": "chief_complaint", "title": "Chief Complaint", "text": "Back pain for 3 weeks."},
+                        {"key": "history_of_present_illness", "title": "HPI", "text": "Radiates to left leg."},
+                        {"key": "plan", "title": "Plan", "text": "Start naproxen. Order MRI."},
+                    ],
+                }
+            }
+        )
+    )
+    result = view.post_extract_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    commands = data["commands"]
+    types = [c["command_type"] for c in commands]
+    assert types == ["rfv", "hpi", "plan"]
+    assert commands[0]["data"]["comment"] == "Back pain for 3 weeks."
+    assert commands[1]["data"]["narrative"] == "Radiates to left leg."
+    assert commands[2]["data"]["narrative"] == "Start naproxen. Order MRI."
+    assert all(c["selected"] is True for c in commands)
+
+
+def test_extract_commands_empty_note() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note": {"title": "Empty", "sections": []}}))
+    result = view.post_extract_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["commands"] == []
+
+
+def test_extract_commands_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_extract_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+# --- /insert-commands ---
+
+
+@patch("hyperscribe.scribe.api.session_view.build_effects")
+def test_insert_commands_success(mock_build: MagicMock) -> None:
+    mock_effect_1 = MagicMock()
+    mock_effect_2 = MagicMock()
+    mock_build.return_value = [mock_effect_1, mock_effect_2]
+
+    view = _helper_instance()
+    commands = [
+        {"command_type": "hpi", "data": {"narrative": "Back pain"}},
+        {"command_type": "plan", "data": {"narrative": "Start naproxen"}},
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_insert_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["inserted"] == 2
+    assert len(result) == 3  # JSONResponse + 2 effects
+    assert result[1] is mock_effect_1
+    assert result[2] is mock_effect_2
+    mock_build.assert_called_once_with(commands, "note-uuid-123")
+
+
+@patch("hyperscribe.scribe.api.session_view.build_effects")
+def test_insert_commands_empty(mock_build: MagicMock) -> None:
+    mock_build.return_value = []
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": []}))
+    result = view.post_insert_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["inserted"] == 0
+    assert len(result) == 1
+
+
+def test_insert_commands_missing_note_uuid() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"commands": []}))
+    result = view.post_insert_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_uuid" in json.loads(result[0].content)["error"]
+
+
+def test_insert_commands_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_insert_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]

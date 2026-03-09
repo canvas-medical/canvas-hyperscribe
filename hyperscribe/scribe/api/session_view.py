@@ -11,23 +11,19 @@ from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SessionCredentials, SimpleAPI, StaffSessionAuthMixin, api
 
+import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
 from hyperscribe.scribe.backend import (
     ClinicalNote,
+    CodingEntry,
     NoteSection,
     PatientContext,
-    CodingEntry,
-    ScribeBackend,
     ScribeError,
     Transcript,
     TranscriptItem,
     get_backend_from_secrets,
 )
-
-
-def _get_backend(secrets: dict[str, str]) -> ScribeBackend:
-    import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
-
-    return get_backend_from_secrets(secrets)
+from hyperscribe.scribe.commands.builder import build_effects
+from hyperscribe.scribe.commands.extractor import extract_commands
 
 
 _CACHE_KEY_PREFIX = "scribe_transcript:"
@@ -120,7 +116,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.get("/config")
     def get_config(self) -> list[Union[Response, Effect]]:
         try:
-            backend = _get_backend(self.secrets)
+            backend = get_backend_from_secrets(self.secrets)
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.BAD_REQUEST)]
         try:
@@ -155,7 +151,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.post("/generate-note")
     def post_generate_note(self) -> list[Union[Response, Effect]]:
         try:
-            backend = _get_backend(self.secrets)
+            backend = get_backend_from_secrets(self.secrets)
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.BAD_REQUEST)]
         try:
@@ -197,7 +193,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.post("/generate-normalized-data")
     def post_generate_normalized_data(self) -> list[Union[Response, Effect]]:
         try:
-            backend = _get_backend(self.secrets)
+            backend = get_backend_from_secrets(self.secrets)
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.BAD_REQUEST)]
         try:
@@ -233,3 +229,41 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 status_code=HTTPStatus.OK,
             )
         ]
+
+    @api.post("/extract-commands")
+    def post_extract_commands(self) -> list[Union[Response, Effect]]:
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note = _parse_note(data.get("note", {}))
+        proposals = extract_commands(note)
+        return [
+            JSONResponse(
+                {
+                    "commands": [
+                        {
+                            "command_type": p.command_type,
+                            "display": p.display,
+                            "data": p.data,
+                            "selected": p.selected,
+                        }
+                        for p in proposals
+                    ],
+                },
+                status_code=HTTPStatus.OK,
+            )
+        ]
+
+    @api.post("/insert-commands")
+    def post_insert_commands(self) -> list[Union[Response, Effect]]:
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_uuid = str(data.get("note_uuid", ""))
+        if not note_uuid:
+            return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        commands = data.get("commands", [])
+        effects = build_effects(commands, note_uuid)
+        return [JSONResponse({"inserted": len(effects)}, status_code=HTTPStatus.OK), *effects]
