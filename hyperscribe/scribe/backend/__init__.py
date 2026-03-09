@@ -9,6 +9,7 @@ from hyperscribe.scribe.backend.errors import (
 from hyperscribe.scribe.backend.models import (
     ClinicalNote,
     CodingEntry,
+    CommandProposal,
     Condition,
     NormalizedData,
     NoteSection,
@@ -22,6 +23,7 @@ from hyperscribe.scribe.backend.registry import get_backend_from_secrets, regist
 __all__ = [
     "ClinicalNote",
     "CodingEntry",
+    "CommandProposal",
     "Condition",
     "NormalizedData",
     "NoteSection",
