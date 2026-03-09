@@ -348,77 +348,7 @@ h2 { margin-bottom: 4px; }
   padding: 16px;
 }
 
-/* Commands */
-.commands-container {
-  margin-top: 24px;
-}
-
-.commands-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.commands-title {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: #5856d6;
-}
-
-.commands-count {
-  font-size: 12px;
-  color: #999;
-}
-
-.commands-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.command-item {
-  display: flex;
-  gap: 10px;
-  padding: 12px;
-  background: #fff;
-  border: 1px solid #e8e8ec;
-  border-radius: 8px;
-  transition: opacity 0.2s;
-}
-
-.command-item.deselected {
-  opacity: 0.45;
-}
-
-.command-checkbox {
-  flex-shrink: 0;
-  display: flex;
-  align-items: flex-start;
-  padding-top: 2px;
-}
-
-.command-checkbox input {
-  width: 16px;
-  height: 16px;
-  accent-color: #5856d6;
-  cursor: pointer;
-}
-
-.command-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.command-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-
+/* Command type badges */
 .command-type-badge {
   font-size: 11px;
   font-weight: 700;
@@ -427,43 +357,38 @@ h2 { margin-bottom: 4px; }
   color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  flex-shrink: 0;
 }
 
 .badge-rfv { background: #f5a623; }
 .badge-hpi { background: #5856d6; }
 .badge-plan { background: #34a853; }
+.badge-vitals { background: #e8563a; }
 
-.command-display {
-  font-size: 13px;
-  line-height: 1.5;
-  color: #555;
-  word-break: break-word;
-}
+/* Inline command rows */
+.command-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; cursor: pointer; }
+.command-row:hover:not(.editing) { background: #f5f5ff; }
+.command-row-text { font-size: 14px; line-height: 1.6; color: #333; flex: 1; }
+.command-row.editing { flex-direction: column; cursor: default; padding: 8px; background: #fafaff; border: 1px solid #e8e8ec; border-radius: 6px; }
+.command-row-textarea { width: 100%; min-height: 80px; padding: 8px; font-family: inherit; font-size: 14px; line-height: 1.6; border: 1px solid #ddd; border-radius: 4px; resize: vertical; margin-top: 6px; }
+.command-row-textarea:focus { outline: none; border-color: #5856d6; }
+.command-row-actions { display: flex; gap: 8px; margin-top: 6px; }
 
-.command-textarea {
-  width: 100%;
-  min-height: 80px;
-  padding: 8px;
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #333;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  resize: vertical;
-  margin-top: 4px;
-}
-
-.command-textarea:focus {
-  outline: none;
-  border-color: #5856d6;
-}
-
-.command-edit-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 6px;
-}
+/* Inline vitals rows */
+.vitals-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; cursor: pointer; }
+.vitals-row:hover:not(.editing) { background: #f5f5ff; }
+.vitals-row.editing { flex-direction: column; cursor: default; padding: 8px; background: #fafaff; border: 1px solid #e8e8ec; border-radius: 6px; }
+.vitals-values { display: flex; flex-wrap: wrap; gap: 6px 14px; flex: 1; font-size: 14px; line-height: 1.6; color: #333; }
+.vitals-item strong { font-weight: 600; color: #555; margin-right: 2px; }
+.vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-top: 6px; }
+.vitals-field { display: flex; align-items: center; gap: 4px; }
+.vitals-bp { grid-column: span 2; }
+.vitals-bp-inputs { display: flex; align-items: center; gap: 2px; }
+.vitals-bp-slash { font-weight: 600; color: #888; }
+.vitals-label { font-size: 12px; font-weight: 600; color: #888; min-width: 42px; }
+.vitals-input { width: 64px; padding: 4px 6px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; text-align: right; }
+.vitals-input:focus { outline: none; border-color: #5856d6; }
+.vitals-unit { font-size: 12px; color: #999; }
 
 .insert-btn {
   display: block;
