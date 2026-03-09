@@ -30,5 +30,9 @@ class CommandParser(ABC):
             data={self.data_field: text},
         )
 
+    def extract_all(self, text: str) -> list[CommandProposal]:
+        proposal = self.extract(text)
+        return [proposal] if proposal is not None else []
+
     @abstractmethod
     def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand: ...

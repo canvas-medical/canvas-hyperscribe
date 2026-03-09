@@ -32,3 +32,34 @@ def test_extract_default_for_text_field() -> None:
     assert proposal.data == {"narrative": "Hello world"}
     assert proposal.display == "Hello world"
     assert proposal.selected is True
+
+
+def test_extract_all_default_wraps_extract() -> None:
+    """extract_all wraps a non-None extract result in a list."""
+
+    class SimpleParser(CommandParser):
+        command_type = "simple"
+        data_field = "narrative"
+
+        def build(self, data: dict, note_uuid: str):  # type: ignore[override]
+            pass
+
+    proposals = SimpleParser().extract_all("Hello world")
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "simple"
+    assert proposals[0].data == {"narrative": "Hello world"}
+
+
+def test_extract_all_returns_empty_when_extract_returns_none() -> None:
+    """extract_all returns empty list when extract returns None."""
+
+    class NoneParser(CommandParser):
+        command_type = "none_type"
+
+        def extract(self, text: str):  # type: ignore[override]
+            return None
+
+        def build(self, data: dict, note_uuid: str):  # type: ignore[override]
+            pass
+
+    assert NoneParser().extract_all("anything") == []

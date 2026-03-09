@@ -11,6 +11,11 @@ from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SessionCredentials, SimpleAPI, StaffSessionAuthMixin, api
 
+from canvas_sdk.v1.data.medication import Medication, MedicationCoding, Status
+from canvas_sdk.v1.data.note import Note
+
+from hyperscribe.libraries.canvas_science import CanvasScience
+
 import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
 from hyperscribe.scribe.backend import (
     ClinicalNote,
@@ -22,6 +27,7 @@ from hyperscribe.scribe.backend import (
     TranscriptItem,
     get_backend_from_secrets,
 )
+from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.builder import build_effects
 from hyperscribe.scribe.commands.extractor import extract_commands
 
@@ -101,6 +107,31 @@ def _parse_note(data: dict[str, Any]) -> ClinicalNote:
         for s in data.get("sections", [])
     ]
     return ClinicalNote(title=str(data.get("title", "")), sections=sections)
+
+
+def _annotate_medication_duplicates(proposals: list[CommandProposal], note_uuid: str) -> None:
+    """Mark medication proposals that already exist in the patient's active medications."""
+    med_proposals = [p for p in proposals if p.command_type == "medication_statement"]
+    if not med_proposals:
+        return
+    try:
+        note = Note.objects.select_related("patient").get(id=note_uuid)
+    except Note.DoesNotExist:
+        return
+    patient = note.patient
+    if patient is None:
+        return
+    active_meds = Medication.objects.for_patient(patient.id).filter(status=Status.ACTIVE)
+    coding_qs = MedicationCoding.objects.filter(medication__in=active_meds)
+    active_labels = {c.display.lower() for c in coding_qs if c.display}
+    for proposal in med_proposals:
+        med_text = proposal.data.get("medication_text", "").lower()
+        if not med_text:
+            continue
+        for label in active_labels:
+            if med_text in label or label in med_text:
+                proposal.already_documented = True
+                break
 
 
 class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
@@ -238,6 +269,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
         note = _parse_note(data.get("note", {}))
         proposals = extract_commands(note)
+        note_uuid = str(data.get("note_uuid", ""))
+        if note_uuid:
+            _annotate_medication_duplicates(proposals, note_uuid)
         return [
             JSONResponse(
                 {
@@ -248,6 +282,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                             "data": p.data,
                             "selected": p.selected,
                             "section_key": p.section_key,
+                            "already_documented": p.already_documented,
                         }
                         for p in proposals
                     ],
@@ -268,3 +303,18 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         commands = data.get("commands", [])
         effects = build_effects(commands, note_uuid)
         return [JSONResponse({"inserted": len(effects)}, status_code=HTTPStatus.OK), *effects]
+
+    @api.get("/search-medications")
+    def get_search_medications(self) -> list[Union[Response, Effect]]:
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        results = CanvasScience.medication_details([query])
+        return [
+            JSONResponse(
+                {
+                    "results": [{"fdb_code": r.fdb_code, "description": r.description} for r in results],
+                },
+                status_code=HTTPStatus.OK,
+            )
+        ]

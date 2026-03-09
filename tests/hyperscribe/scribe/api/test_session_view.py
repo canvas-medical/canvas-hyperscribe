@@ -10,11 +10,13 @@ from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin
 from hyperscribe.scribe.api.session_view import (
     ScribeSessionView,
     _CACHE_KEY_PREFIX,
+    _annotate_medication_duplicates,
 )
 from hyperscribe.scribe.backend import ScribeError
 from hyperscribe.scribe.backend.models import (
     ClinicalNote,
     CodingEntry,
+    CommandProposal,
     Condition,
     NormalizedData,
     NoteSection,
@@ -441,6 +443,7 @@ def test_extract_commands_success() -> None:
     assert commands[3]["data"]["narrative"] == "Start naproxen. Order MRI."
     assert commands[3]["section_key"] == "plan"
     assert all(c["selected"] is True for c in commands)
+    assert all(c["already_documented"] is False for c in commands)
 
 
 def test_extract_commands_empty_note() -> None:
@@ -518,3 +521,165 @@ def test_insert_commands_invalid_json() -> None:
 
     assert result[0].status_code == HTTPStatus.BAD_REQUEST
     assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+# --- _annotate_medication_duplicates ---
+
+
+@patch("hyperscribe.scribe.api.session_view.MedicationCoding")
+@patch("hyperscribe.scribe.api.session_view.Medication")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_annotate_medication_duplicates_match(
+    mock_note_cls: MagicMock,
+    mock_med_cls: MagicMock,
+    mock_coding_cls: MagicMock,
+) -> None:
+    mock_patient = MagicMock()
+    mock_patient.id = "patient-key"
+    mock_note = MagicMock()
+    mock_note.patient = mock_patient
+    mock_note_cls.objects.select_related.return_value.get.return_value = mock_note
+
+    mock_med_qs = MagicMock()
+    mock_med_cls.objects.for_patient.return_value.filter.return_value = mock_med_qs
+
+    mock_coding = MagicMock()
+    mock_coding.display = "Lisinopril 10mg Tablet"
+    mock_coding_cls.objects.filter.return_value = [mock_coding]
+
+    med_data_1 = {"medication_text": "Lisinopril 10mg"}
+    med_data_2 = {"medication_text": "Metformin 500mg"}
+    proposals = [
+        CommandProposal(
+            command_type="medication_statement",
+            display="Lisinopril 10mg",
+            data=med_data_1,
+        ),
+        CommandProposal(
+            command_type="medication_statement",
+            display="Metformin 500mg",
+            data=med_data_2,
+        ),
+        CommandProposal(command_type="hpi", display="Pain", data={"narrative": "Pain"}),
+    ]
+    _annotate_medication_duplicates(proposals, "note-uuid")
+
+    assert proposals[0].already_documented is True  # substring match
+    assert proposals[1].already_documented is False
+    assert proposals[2].already_documented is False  # non-medication untouched
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_annotate_medication_duplicates_note_not_found(mock_note_cls: MagicMock) -> None:
+    # Set DoesNotExist to a real exception class so `except Note.DoesNotExist` works
+    mock_note_cls.DoesNotExist = type("DoesNotExist", (Exception,), {})
+    mock_note_cls.objects.select_related.return_value.get.side_effect = mock_note_cls.DoesNotExist
+
+    proposals = [
+        CommandProposal(
+            command_type="medication_statement",
+            display="Lisinopril",
+            data={"medication_text": "Lisinopril"},
+        ),
+    ]
+    _annotate_medication_duplicates(proposals, "nonexistent-uuid")
+    assert proposals[0].already_documented is False
+
+
+def test_annotate_medication_duplicates_no_medications() -> None:
+    proposals = [
+        CommandProposal(command_type="hpi", display="Pain", data={"narrative": "Pain"}),
+    ]
+    _annotate_medication_duplicates(proposals, "note-uuid")
+    assert proposals[0].already_documented is False
+
+
+@patch("hyperscribe.scribe.api.session_view._annotate_medication_duplicates")
+def test_extract_commands_with_note_uuid_triggers_annotation(mock_annotate: MagicMock) -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note": {
+                    "title": "Note",
+                    "sections": [{"key": "chief_complaint", "title": "CC", "text": "Pain."}],
+                },
+                "note_uuid": "note-uuid-123",
+            }
+        )
+    )
+    view.post_extract_commands()
+    mock_annotate.assert_called_once()
+    assert mock_annotate.call_args.args[1] == "note-uuid-123"
+
+
+@patch("hyperscribe.scribe.api.session_view._annotate_medication_duplicates")
+def test_extract_commands_without_note_uuid_skips_annotation(mock_annotate: MagicMock) -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note": {
+                    "title": "Note",
+                    "sections": [{"key": "chief_complaint", "title": "CC", "text": "Pain."}],
+                },
+            }
+        )
+    )
+    view.post_extract_commands()
+    mock_annotate.assert_not_called()
+
+
+# --- /search-medications ---
+
+
+@patch("hyperscribe.scribe.api.session_view.CanvasScience.medication_details")
+def test_search_medications_success(mock_details: MagicMock) -> None:
+    from hyperscribe.structures.medication_detail import MedicationDetail
+
+    mock_details.return_value = [
+        MedicationDetail(fdb_code="12345", description="Lisinopril 10mg Tablet", quantities=[]),
+        MedicationDetail(fdb_code="67890", description="Lisinopril 20mg Tablet", quantities=[]),
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"query": "Lisinopril"})
+    result = view.get_search_medications()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert len(data["results"]) == 2
+    assert data["results"][0]["fdb_code"] == "12345"
+    assert data["results"][0]["description"] == "Lisinopril 10mg Tablet"
+    mock_details.assert_called_once_with(["Lisinopril"])
+
+
+@patch("hyperscribe.scribe.api.session_view.CanvasScience.medication_details")
+def test_search_medications_no_results(mock_details: MagicMock) -> None:
+    mock_details.return_value = []
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"query": "xyznonexistent"})
+    result = view.get_search_medications()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["results"] == []
+
+
+def test_search_medications_empty_query() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"query": ""})
+    result = view.get_search_medications()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["results"] == []
+
+
+def test_search_medications_missing_query() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={})
+    result = view.get_search_medications()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["results"] == []
