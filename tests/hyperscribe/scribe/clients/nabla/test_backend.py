@@ -70,7 +70,7 @@ def test_generate_note() -> None:
     assert result.sections[0].key == "subjective"
 
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "GENERIC_SOAP"
+    assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS"
     assert payload["note_locale"] == "ENGLISH_US"
     assert len(payload["transcript_items"]) == 1
     assert payload["transcript_items"][0]["speaker_type"] == "patient"

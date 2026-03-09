@@ -309,6 +309,10 @@ h2 { margin-bottom: 4px; }
   margin-bottom: 12px;
 }
 
+.subsection { margin-bottom: 12px; }
+.subsection:last-child { margin-bottom: 0; }
+.subsection-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 4px; text-transform: uppercase; }
+
 .section-textarea {
   width: 100%;
   min-height: 120px;
@@ -342,4 +346,152 @@ h2 { margin-bottom: 4px; }
   font-weight: 600;
   font-size: 14px;
   padding: 16px;
+}
+
+/* Commands */
+.commands-container {
+  margin-top: 24px;
+}
+
+.commands-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.commands-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #5856d6;
+}
+
+.commands-count {
+  font-size: 12px;
+  color: #999;
+}
+
+.commands-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.command-item {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e8e8ec;
+  border-radius: 8px;
+  transition: opacity 0.2s;
+}
+
+.command-item.deselected {
+  opacity: 0.45;
+}
+
+.command-checkbox {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+}
+
+.command-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: #5856d6;
+  cursor: pointer;
+}
+
+.command-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.command-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.command-type-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.badge-rfv { background: #f5a623; }
+.badge-hpi { background: #5856d6; }
+.badge-plan { background: #34a853; }
+
+.command-display {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #555;
+  word-break: break-word;
+}
+
+.command-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  resize: vertical;
+  margin-top: 4px;
+}
+
+.command-textarea:focus {
+  outline: none;
+  border-color: #5856d6;
+}
+
+.command-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.insert-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #5856d6;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.insert-btn:hover:not(:disabled) {
+  background: #4a48c4;
+}
+
+.insert-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.insert-success {
+  text-align: center;
+  color: #34a853;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 12px;
 }
