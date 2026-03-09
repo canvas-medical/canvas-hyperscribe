@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 
 class TranscriptItem:
     def __init__(
@@ -94,6 +96,21 @@ class NormalizedData:
     ) -> None:
         self.conditions: list[Condition] = conditions if conditions is not None else []
         self.observations: list[Observation] = observations if observations is not None else []
+
+
+class CommandProposal:
+    def __init__(
+        self,
+        *,
+        command_type: str,
+        display: str,
+        data: dict[str, Any],
+        selected: bool = True,
+    ) -> None:
+        self.command_type = command_type
+        self.display = display
+        self.data = data
+        self.selected = selected
 
 
 class PatientContext:
