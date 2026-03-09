@@ -247,6 +247,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                             "display": p.display,
                             "data": p.data,
                             "selected": p.selected,
+                            "section_key": p.section_key,
                         }
                         for p in proposals
                     ],
