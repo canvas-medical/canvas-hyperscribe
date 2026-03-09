@@ -65,9 +65,7 @@ class VitalsParser(CommandParser):
             return None
         return CommandProposal(command_type=self.command_type, display=text, data=data)
 
-    def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
-        bp_site_raw = data.get("blood_pressure_position_and_site")
-        bp_site = VitalsCommand.BloodPressureSite(bp_site_raw) if bp_site_raw is not None else None
+    def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand:
         return VitalsCommand(
             height=data.get("height"),
             weight_lbs=data.get("weight_lbs"),
@@ -77,8 +75,5 @@ class VitalsParser(CommandParser):
             pulse=data.get("pulse"),
             respiration_rate=data.get("respiration_rate"),
             oxygen_saturation=data.get("oxygen_saturation"),
-            blood_pressure_position_and_site=bp_site,
-            note=data.get("note"),
             note_uuid=note_uuid,
-            command_uuid=command_uuid,
         )

@@ -4,31 +4,27 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
-const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
-const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+const TYPE_LABELS = {
+  rfv: 'RFV',
+  hpi: 'HPI',
+  plan: 'Plan',
+};
 
 const DATA_FIELD = {
   rfv: 'comment',
   hpi: 'narrative',
   plan: 'narrative',
-  lab_results: 'narrative',
-  imaging_results: 'narrative',
 };
 
-export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {
+export function CommandRow({ command, commandIndex, onEdit }) {
   const field = DATA_FIELD[command.command_type];
-  const isNew = onDelete && !command.display;
-  const [editing, setEditing] = useState(isNew);
-  useEffect(() => {
-    onEditingChange?.(commandIndex, editing);
-    return () => onEditingChange?.(commandIndex, false);
-  }, [editing, commandIndex]);
+  const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(field ? (command.data[field] || '') : '');
   const textareaRef = useRef(null);
 
   useEffect(() => {
     if (editing && textareaRef.current) {
-      textareaRef.current.focus({ preventScroll: true });
+      textareaRef.current.focus();
     }
   }, [editing]);
 
@@ -38,10 +34,6 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly, 
   };
 
   const handleCancel = () => {
-    if (isNew) {
-      onDelete(commandIndex);
-      return;
-    }
     setValue(field ? (command.data[field] || '') : '');
     setEditing(false);
   };
@@ -52,31 +44,33 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly, 
     }
   };
 
-  if (editing && !readOnly) {
+  if (editing) {
     return html`
       <div class="command-row editing">
+        <span class="command-type-badge badge-${command.command_type}">
+          ${TYPE_LABELS[command.command_type] || command.command_type}
+        </span>
         <textarea
           ref=${textareaRef}
           class="command-row-textarea"
-          rows=${command.command_type === 'hpi' ? 10 : undefined}
           value=${value}
           onInput=${(e) => setValue(e.target.value)}
           onKeyDown=${handleKeyDown}
         />
         <div class="command-row-actions">
-          <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
-          <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
+          <button class="edit-btn" onClick=${handleSave}>Save</button>
+          <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
         </div>
       </div>
     `;
   }
 
   return html`
-    <div class="command-row" onClick=${() => !readOnly && setEditing(true)}>
-      ${command.display
-        ? html`<span class="command-row-text">${command.display}</span>`
-        : !readOnly && html`<span class="command-row-placeholder">Tap to enter text</span>`
-      }
+    <div class="command-row" onClick=${() => setEditing(true)}>
+      <span class="command-type-badge badge-${command.command_type}">
+        ${TYPE_LABELS[command.command_type] || command.command_type}
+      </span>
+      <span class="command-row-text">${command.display}</span>
     </div>
   `;
 }

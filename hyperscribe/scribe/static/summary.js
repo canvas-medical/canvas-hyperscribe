@@ -2,7 +2,6 @@ import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect, useCallback } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
-import { CommandsSection } from '/plugin-io/api/hyperscribe/scribe/static/commands-section.js';
 
 const html = htm.bind(h);
 
@@ -17,12 +16,28 @@ const SOAP_GROUPS = [
   { title: 'PLAN', keys: new Set(['plan', 'prescription', 'appointments']) },
 ];
 
-function renderSoapGroups(sections) {
+function buildCommandBySectionKey(commands) {
+  const map = {};
+  commands.forEach((cmd, index) => {
+    if (cmd.section_key) {
+      map[cmd.section_key] = { command: cmd, index };
+    }
+  });
+  return map;
+}
+
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
       if (matching.length === 0) return null;
-      return html`<${SoapGroup} key=${group.title} title=${group.title} sections=${matching} />`;
+      return html`<${SoapGroup}
+        key=${group.title}
+        title=${group.title}
+        sections=${matching}
+        commandBySectionKey=${commandBySectionKey}
+        onEditCommand=${onEditCommand}
+      />`;
     })
     .filter(Boolean);
 }
@@ -100,30 +115,25 @@ export function Summary({ noteId }) {
     return () => { cancelled = true; };
   }, [noteData]);
 
-  const handleToggle = useCallback((index) => {
-    setCommands(prev => prev.map((cmd, i) =>
-      i === index ? { ...cmd, selected: !cmd.selected } : cmd
-    ));
-  }, []);
-
   const handleEdit = useCallback((index, newData) => {
     setCommands(prev => prev.map((cmd, i) => {
       if (i !== index) return cmd;
+      if (cmd.command_type === 'vitals') {
+        return { ...cmd, data: newData };
+      }
       const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
       const text = newData[field] || '';
-      const display = text.length > 80 ? text.slice(0, 77) + '...' : text;
-      return { ...cmd, data: newData, display };
+      return { ...cmd, data: newData, display: text };
     }));
   }, []);
 
   const handleInsert = useCallback(async () => {
     setInserting(true);
     try {
-      const selected = commands.filter(c => c.selected);
       const res = await fetch(`${API_BASE}/insert-commands`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_uuid: noteId, commands: selected }),
+        body: JSON.stringify({ note_uuid: noteId, commands }),
       });
       const data = await res.json();
       if (data.error) {
@@ -162,19 +172,23 @@ export function Summary({ noteId }) {
     `;
   }
 
+  const commandBySectionKey = buildCommandBySectionKey(commands);
+
   return html`
     <div class="summary-container">
-      ${renderSoapGroups(noteData.sections)}
+      ${renderSoapGroups(noteData.sections, commandBySectionKey, handleEdit)}
       ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
-      ${commands.length > 0 && html`
-        <${CommandsSection}
-          commands=${commands}
-          onToggle=${handleToggle}
-          onEdit=${handleEdit}
-          onInsert=${handleInsert}
-          inserting=${inserting}
-          inserted=${inserted}
-        />
+      ${!extracting && commands.length > 0 && !inserted && html`
+        <button
+          class="insert-btn"
+          onClick=${handleInsert}
+          disabled=${inserting}
+        >
+          ${inserting ? 'Inserting...' : `Insert ${commands.length} Command${commands.length !== 1 ? 's' : ''} into Note`}
+        </button>
+      `}
+      ${inserted && html`
+        <p class="insert-success">Commands inserted into note.</p>
       `}
     </div>
   `;

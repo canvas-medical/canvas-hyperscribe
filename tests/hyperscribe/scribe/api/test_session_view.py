@@ -417,6 +417,7 @@ def test_extract_commands_success() -> None:
                     "sections": [
                         {"key": "chief_complaint", "title": "Chief Complaint", "text": "Back pain for 3 weeks."},
                         {"key": "history_of_present_illness", "title": "HPI", "text": "Radiates to left leg."},
+                        {"key": "vitals", "title": "Vitals", "text": "BP 120/80, HR 72"},
                         {"key": "plan", "title": "Plan", "text": "Start naproxen. Order MRI."},
                     ],
                 }
@@ -429,10 +430,16 @@ def test_extract_commands_success() -> None:
     data = json.loads(result[0].content)
     commands = data["commands"]
     types = [c["command_type"] for c in commands]
-    assert types == ["rfv", "hpi", "plan"]
+    assert types == ["rfv", "hpi", "vitals", "plan"]
     assert commands[0]["data"]["comment"] == "Back pain for 3 weeks."
+    assert commands[0]["section_key"] == "chief_complaint"
     assert commands[1]["data"]["narrative"] == "Radiates to left leg."
-    assert commands[2]["data"]["narrative"] == "Start naproxen. Order MRI."
+    assert commands[1]["section_key"] == "history_of_present_illness"
+    assert commands[2]["data"]["blood_pressure_systole"] == 120
+    assert commands[2]["data"]["pulse"] == 72
+    assert commands[2]["section_key"] == "vitals"
+    assert commands[3]["data"]["narrative"] == "Start naproxen. Order MRI."
+    assert commands[3]["section_key"] == "plan"
     assert all(c["selected"] is True for c in commands)
 
 
