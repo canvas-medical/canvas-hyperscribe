@@ -247,7 +247,6 @@ h2 { margin-bottom: 4px; }
   border-radius: 8px;
   border: 1px solid #e8e8ec;
   margin-bottom: 16px;
-  overflow: hidden;
 }
 
 .section-header {
@@ -256,6 +255,7 @@ h2 { margin-bottom: 4px; }
   justify-content: space-between;
   padding: 10px 16px;
   background: #fafaff;
+  border-radius: 8px 8px 0 0;
 }
 
 .section-title {
@@ -389,6 +389,27 @@ h2 { margin-bottom: 4px; }
 .vitals-input { width: 64px; padding: 4px 6px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; text-align: right; }
 .vitals-input:focus { outline: none; border-color: #5856d6; }
 .vitals-unit { font-size: 12px; color: #999; }
+
+/* Medication rows */
+.badge-medication { background: #007aff; }
+.medication-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; }
+.medication-row:hover:not(.editing):not(.documented) { background: #f5f5ff; }
+.medication-row.documented { opacity: 0.55; cursor: default; }
+.medication-row.editing { flex-wrap: wrap; cursor: default; padding: 8px; background: #fafaff; border: 1px solid #e8e8ec; border-radius: 6px; }
+.medication-row.deselected { opacity: 0.45; }
+.medication-row-text { font-size: 14px; line-height: 1.6; color: #333; }
+.medication-checkbox { cursor: pointer; flex-shrink: 0; }
+.medication-row-input { width: 100%; padding: 4px 8px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; }
+.medication-row-input:focus { outline: none; border-color: #5856d6; }
+.medication-documented-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #e8e8ec; color: #888; white-space: nowrap; }
+.medication-unstructured-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #fff3e0; color: #e65100; white-space: nowrap; }
+.medication-structured-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #e8f5e9; color: #2e7d32; white-space: nowrap; }
+.medication-search-wrapper { position: relative; flex: 1; min-width: 0; }
+.medication-search-spinner { font-size: 12px; color: #888; font-style: italic; margin-top: 2px; display: block; }
+.medication-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; margin-top: 2px; }
+.medication-search-result { padding: 8px 10px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+.medication-search-result:last-child { border-bottom: none; }
+.medication-search-result:hover { background: #f5f5ff; }
 
 .insert-btn {
   display: block;

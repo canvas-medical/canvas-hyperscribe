@@ -20,13 +20,16 @@ function buildCommandBySectionKey(commands) {
   const map = {};
   commands.forEach((cmd, index) => {
     if (cmd.section_key) {
-      map[cmd.section_key] = { command: cmd, index };
+      if (!map[cmd.section_key]) {
+        map[cmd.section_key] = [];
+      }
+      map[cmd.section_key].push({ command: cmd, index });
     }
   });
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onToggleCommand) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -37,6 +40,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand) {
         sections=${matching}
         commandBySectionKey=${commandBySectionKey}
         onEditCommand=${onEditCommand}
+        onToggleCommand=${onToggleCommand}
       />`;
     })
     .filter(Boolean);
@@ -95,7 +99,7 @@ export function Summary({ noteId }) {
         const res = await fetch(`${API_BASE}/extract-commands`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ note: noteData }),
+          body: JSON.stringify({ note: noteData, note_uuid: noteId }),
         });
         if (cancelled) return;
         const data = await res.json();
@@ -121,19 +125,29 @@ export function Summary({ noteId }) {
       if (cmd.command_type === 'vitals') {
         return { ...cmd, data: newData };
       }
+      if (cmd.command_type === 'medication_statement') {
+        return { ...cmd, data: newData, display: newData.medication_text || '' };
+      }
       const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
       const text = newData[field] || '';
       return { ...cmd, data: newData, display: text };
     }));
   }, []);
 
+  const handleToggle = useCallback((index, selected) => {
+    setCommands(prev => prev.map((cmd, i) =>
+      i === index ? { ...cmd, selected } : cmd
+    ));
+  }, []);
+
   const handleInsert = useCallback(async () => {
     setInserting(true);
+    const insertable = commands.filter(c => !c.already_documented && c.selected !== false);
     try {
       const res = await fetch(`${API_BASE}/insert-commands`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_uuid: noteId, commands }),
+        body: JSON.stringify({ note_uuid: noteId, commands: insertable }),
       });
       const data = await res.json();
       if (data.error) {
@@ -176,17 +190,20 @@ export function Summary({ noteId }) {
 
   return html`
     <div class="summary-container">
-      ${renderSoapGroups(noteData.sections, commandBySectionKey, handleEdit)}
+      ${renderSoapGroups(noteData.sections, commandBySectionKey, handleEdit, handleToggle)}
       ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
-      ${!extracting && commands.length > 0 && !inserted && html`
-        <button
-          class="insert-btn"
-          onClick=${handleInsert}
-          disabled=${inserting}
-        >
-          ${inserting ? 'Inserting...' : `Insert ${commands.length} Command${commands.length !== 1 ? 's' : ''} into Note`}
-        </button>
-      `}
+      ${(() => {
+        const insertableCount = commands.filter(c => !c.already_documented && c.selected !== false).length;
+        return !extracting && insertableCount > 0 && !inserted && html`
+          <button
+            class="insert-btn"
+            onClick=${handleInsert}
+            disabled=${inserting}
+          >
+            ${inserting ? 'Inserting...' : `Insert ${insertableCount} Command${insertableCount !== 1 ? 's' : ''} into Note`}
+          </button>
+        `;
+      })()}
       ${inserted && html`
         <p class="insert-success">Commands inserted into note.</p>
       `}

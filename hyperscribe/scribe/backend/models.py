@@ -107,12 +107,14 @@ class CommandProposal:
         data: dict[str, Any],
         selected: bool = True,
         section_key: str = "",
+        already_documented: bool = False,
     ) -> None:
         self.command_type = command_type
         self.display = display
         self.data = data
         self.selected = selected
         self.section_key = section_key
+        self.already_documented = already_documented
 
 
 class PatientContext:
