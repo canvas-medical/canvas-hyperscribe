@@ -8,12 +8,12 @@ const html = htm.bind(h);
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
 const SOAP_GROUPS = [
-  { title: 'SUBJECTIVE', keys: new Set(['chief_complaint', 'history_of_present_illness',
+  { title: 'SUBJECTIVE', color: 'subjective', keys: new Set(['chief_complaint', 'history_of_present_illness',
     'past_medical_history', 'past_surgical_history', 'past_obstetric_history',
     'family_history', 'social_history', 'allergies', 'current_medications', 'immunizations']) },
-  { title: 'OBJECTIVE', keys: new Set(['vitals', 'physical_exam', 'lab_results', 'imaging_results']) },
-  { title: 'ASSESSMENT', keys: new Set(['assessment']) },
-  { title: 'PLAN', keys: new Set(['plan', 'prescription', 'appointments']) },
+  { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'physical_exam', 'lab_results', 'imaging_results']) },
+  { title: 'ASSESSMENT', color: 'assessment', keys: new Set(['assessment']) },
+  { title: 'PLAN', color: 'plan', keys: new Set(['plan', 'prescription', 'appointments']) },
 ];
 
 function buildCommandBySectionKey(commands) {
@@ -38,6 +38,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onToggle
       return html`<${SoapGroup}
         key=${group.title}
         title=${group.title}
+        groupColor=${group.color}
         sections=${matching}
         commandBySectionKey=${commandBySectionKey}
         onEditCommand=${onEditCommand}
@@ -250,29 +251,39 @@ export function Summary({ noteId }) {
     .map((cmd, index) => ({ command: cmd, index }))
     .filter(entry => entry.command.section_key === '_ad_hoc');
 
+  const insertableCount = commands.filter(c => !c.already_documented && c.selected !== false && c.display).length;
+  const showFooter = !extracting && (insertableCount > 0 || inserted);
+
   return html`
     <div class="summary-container">
-      ${renderSoapGroups(noteData.sections, commandBySectionKey, handleEdit, handleToggle, {
-        adHocCommands,
-        assignees,
-        onAddTask: handleAddTask,
-        onAddOrder: handleAddOrder,
-      })}
-      ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
-      ${(() => {
-        const insertableCount = commands.filter(c => !c.already_documented && c.selected !== false && c.display).length;
-        return !extracting && insertableCount > 0 && !inserted && html`
-          <button
-            class="insert-btn"
-            onClick=${handleInsert}
-            disabled=${inserting}
-          >
-            ${inserting ? 'Inserting...' : `Insert ${insertableCount} Command${insertableCount !== 1 ? 's' : ''} into Note`}
-          </button>
-        `;
-      })()}
-      ${inserted && html`
-        <p class="insert-success">Commands inserted into note.</p>
+      <div class="summary-header">
+        <span class="summary-header-title">Canvas Scribe</span>
+        <span class="summary-header-status">Ready for Review</span>
+      </div>
+      <div class="summary-body">
+        ${renderSoapGroups(noteData.sections, commandBySectionKey, handleEdit, handleToggle, {
+          adHocCommands,
+          assignees,
+          onAddTask: handleAddTask,
+          onAddOrder: handleAddOrder,
+        })}
+        ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
+      </div>
+      ${showFooter && html`
+        <div class="summary-footer">
+          ${!inserted && html`
+            <button
+              class="insert-btn"
+              onClick=${handleInsert}
+              disabled=${inserting}
+            >
+              ${inserting ? 'Inserting...' : `Insert ${insertableCount} Command${insertableCount !== 1 ? 's' : ''} into Note`}
+            </button>
+          `}
+          ${inserted && html`
+            <p class="insert-success">Commands inserted into note.</p>
+          `}
+        </div>
       `}
     </div>
   `;
