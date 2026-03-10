@@ -105,7 +105,8 @@ def test_display_is_full_text() -> None:
     assert proposals[0].display == long_text
 
 
-def test_routes_current_medications_multiple() -> None:
+def test_current_medications_only_chart_review() -> None:
+    """Medications produce only a chart_review, not individual medication_statement commands."""
     note = ClinicalNote(
         title="Note",
         sections=[
@@ -117,22 +118,8 @@ def test_routes_current_medications_multiple() -> None:
         ],
     )
     proposals = extract_commands(note)
-    assert len(proposals) == 3
-    assert all(p.command_type == "medication_statement" for p in proposals)
-    assert all(p.section_key == "current_medications" for p in proposals)
-    assert proposals[0].display == "Lisinopril 10mg"
-    assert proposals[1].display == "Metformin 500mg"
-    assert proposals[2].display == "Atorvastatin 20mg"
-
-
-def test_routes_current_medications_single() -> None:
-    note = ClinicalNote(
-        title="Note",
-        sections=[NoteSection(key="current_medications", title="Meds", text="Ibuprofen 400mg")],
-    )
-    proposals = extract_commands(note)
     assert len(proposals) == 1
-    assert proposals[0].command_type == "medication_statement"
+    assert proposals[0].command_type == "chart_review"
 
 
 def test_current_medications_empty_skipped() -> None:
@@ -157,4 +144,118 @@ def test_full_multiple_sections_note() -> None:
     )
     proposals = extract_commands(note)
     types = [p.command_type for p in proposals]
-    assert types == ["rfv", "hpi", "vitals", "plan", "medication_statement"]
+    assert types == ["rfv", "hpi", "vitals", "plan", "chart_review"]
+
+
+def test_routes_history_sections_to_history_review() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="past_medical_history", title="PMH", text="Hypertension"),
+            NoteSection(key="past_surgical_history", title="PSH", text="Appendectomy 2010"),
+            NoteSection(key="past_obstetric_history", title="POH", text="G2P2"),
+            NoteSection(key="family_history", title="FH", text="Father had diabetes"),
+            NoteSection(key="social_history", title="SH", text="Non-smoker"),
+        ],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "history_review"
+    assert proposals[0].section_key == "_history_review"
+    assert len(proposals[0].data["sections"]) == 5
+    assert proposals[0].display == "PMH | PSH | POH | FH | SH"
+
+
+def test_history_review_partial_sections() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="past_medical_history", title="PMH", text="Hypertension"),
+            NoteSection(key="social_history", title="SH", text="Non-smoker"),
+        ],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "history_review"
+    assert len(proposals[0].data["sections"]) == 2
+
+
+def test_history_review_empty_text_skipped() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="past_medical_history", title="PMH", text=""),
+            NoteSection(key="family_history", title="FH", text="   "),
+        ],
+    )
+    assert extract_commands(note) == []
+
+
+def test_history_review_combined_with_other_commands() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="chief_complaint", title="CC", text="Chest pain"),
+            NoteSection(key="history_of_present_illness", title="HPI", text="Onset yesterday."),
+            NoteSection(key="past_medical_history", title="PMH", text="Hypertension"),
+            NoteSection(key="family_history", title="FH", text="Heart disease"),
+            NoteSection(key="plan", title="Plan", text="Order ECG."),
+        ],
+    )
+    proposals = extract_commands(note)
+    types = [p.command_type for p in proposals]
+    assert types == ["rfv", "hpi", "plan", "history_review"]
+
+
+def test_routes_chart_sections_to_chart_review() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="current_medications", title="Meds", text="- Lisinopril 10mg"),
+            NoteSection(key="allergies", title="Allergies", text="Penicillin (rash)"),
+            NoteSection(key="immunizations", title="Immunizations", text="Flu 2025"),
+        ],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "chart_review"
+    assert proposals[0].section_key == "_chart_review"
+    assert len(proposals[0].data["sections"]) == 3
+    assert proposals[0].display == "Meds | Allergies | Immunizations"
+
+
+def test_chart_review_partial_sections() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="allergies", title="Allergies", text="NKDA"),
+        ],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "chart_review"
+    assert len(proposals[0].data["sections"]) == 1
+
+
+def test_chart_review_empty_text_skipped() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="allergies", title="Allergies", text=""),
+            NoteSection(key="immunizations", title="Immunizations", text="   "),
+        ],
+    )
+    assert extract_commands(note) == []
+
+
+def test_allergies_only_chart_review() -> None:
+    """Allergies produce only a chart_review, not individual allergy commands."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="allergies", title="Allergies", text="- Penicillin (rash)\n- Sulfa drugs (hives)"),
+        ],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "chart_review"
