@@ -683,3 +683,43 @@ def test_search_medications_missing_query() -> None:
     assert result[0].status_code == HTTPStatus.OK
     data = json.loads(result[0].content)
     assert data["results"] == []
+
+
+# --- /assignees ---
+
+
+@patch("hyperscribe.scribe.api.session_view.Team")
+@patch("hyperscribe.scribe.api.session_view.Staff")
+def test_get_assignees_success(mock_staff_cls: MagicMock, mock_team_cls: MagicMock) -> None:
+    mock_staff_cls.objects.filter.return_value.order_by.return_value.values.return_value = [
+        {"dbid": 1, "first_name": "Jane", "last_name": "Doe"},
+        {"dbid": 2, "first_name": "John", "last_name": "Smith"},
+    ]
+    mock_team_cls.objects.all.return_value.order_by.return_value.values.return_value = [
+        {"dbid": 10, "name": "Nursing"},
+    ]
+
+    view = _helper_instance()
+    result = view.get_assignees()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assignees = data["assignees"]
+    assert len(assignees) == 3
+    assert assignees[0] == {"type": "staff", "id": 1, "label": "Jane Doe"}
+    assert assignees[1] == {"type": "staff", "id": 2, "label": "John Smith"}
+    assert assignees[2] == {"type": "team", "id": 10, "label": "Nursing"}
+
+
+@patch("hyperscribe.scribe.api.session_view.Team")
+@patch("hyperscribe.scribe.api.session_view.Staff")
+def test_get_assignees_empty(mock_staff_cls: MagicMock, mock_team_cls: MagicMock) -> None:
+    mock_staff_cls.objects.filter.return_value.order_by.return_value.values.return_value = []
+    mock_team_cls.objects.all.return_value.order_by.return_value.values.return_value = []
+
+    view = _helper_instance()
+    result = view.get_assignees()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["assignees"] == []
