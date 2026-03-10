@@ -21,6 +21,7 @@ export function App({ noteId, view, providerName, providerPhotoUrl, patientName 
         body: JSON.stringify({
           note_id: noteId,
           transcript: { items: entries },
+          finalized: true,
         }),
       });
       const data = await res.json();
