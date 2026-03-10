@@ -430,7 +430,7 @@ export function Summary({ noteId }) {
               onClick=${handleInsert}
               disabled=${inserting}
             >
-              ${inserting ? 'Inserting...' : `Insert ${insertableCount} Command${insertableCount !== 1 ? 's' : ''} into Note`}
+              ${inserting ? 'Approving...' : 'Approve'}
             </button>
           `}
           ${inserted && html`
