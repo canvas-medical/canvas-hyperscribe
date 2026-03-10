@@ -86,6 +86,7 @@ export function Scribe({ noteId, providerName, providerPhotoUrl, patientName, on
   const [entries, setEntries] = useState([]);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [finalized, setFinalized] = useState(false);
 
   const clientRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -106,21 +107,18 @@ export function Scribe({ noteId, providerName, providerPhotoUrl, patientName, on
     });
   }, []);
 
-  const startRecording = useCallback(async () => {
-    setError(null);
-    setEntries([]);
-
+  const connectAndRecord = useCallback(async () => {
     let config;
     try {
       const res = await fetch(`${API_BASE}/config`, { cache: 'no-store' });
       config = await res.json();
       if (config.error) {
         setError(config.error);
-        return;
+        return false;
       }
     } catch (err) {
       setError('Failed to get transcription config');
-      return;
+      return false;
     }
 
     let client;
@@ -131,7 +129,7 @@ export function Scribe({ noteId, providerName, providerPhotoUrl, patientName, on
       await client.connect();
     } catch (err) {
       setError('Failed to connect to transcription service');
-      return;
+      return false;
     }
     clientRef.current = client;
 
@@ -144,7 +142,7 @@ export function Scribe({ noteId, providerName, providerPhotoUrl, patientName, on
       setError('Microphone access denied');
       client.end();
       clientRef.current = null;
-      return;
+      return false;
     }
     streamRef.current = stream;
 
@@ -172,42 +170,73 @@ export function Scribe({ noteId, providerName, providerPhotoUrl, patientName, on
       client.end();
       clientRef.current = null;
       cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
-      return;
+      return false;
     }
 
-    setStatus('recording');
+    return true;
   }, [handleTranscriptItem]);
 
-  const pauseRecording = useCallback(() => {
-    if (audioCtxRef.current) {
-      audioCtxRef.current.suspend();
+  const disconnectAll = useCallback(async () => {
+    cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
+    if (clientRef.current) {
+      const client = clientRef.current;
+      clientRef.current = null;
+      client.onError = () => {};
+      client.onEnd = () => {};
+      await client.end();
+      client.onTranscriptItem = () => {};
     }
-    setStatus('paused');
   }, []);
 
-  const resumeRecording = useCallback(() => {
-    if (audioCtxRef.current) {
-      audioCtxRef.current.resume();
+  const saveTranscriptToCache = useCallback(async () => {
+    if (!noteId || entriesRef.current.length === 0) return;
+    try {
+      await fetch(`${API_BASE}/save-transcript`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          note_id: noteId,
+          transcript: { items: entriesRef.current },
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to save transcript to cache:', err);
     }
-    setStatus('recording');
-  }, []);
+  }, [noteId]);
+
+  const startRecording = useCallback(async () => {
+    setError(null);
+    setEntries([]);
+    const ok = await connectAndRecord();
+    if (ok) setStatus('recording');
+  }, [connectAndRecord]);
+
+  const pauseRecording = useCallback(async () => {
+    setStatus('paused');
+    await saveTranscriptToCache();
+    await disconnectAll();
+  }, [saveTranscriptToCache, disconnectAll]);
+
+  const resumeRecording = useCallback(async () => {
+    setError(null);
+    const ok = await connectAndRecord();
+    if (ok) {
+      setStatus('recording');
+    } else {
+      setStatus('paused');
+    }
+  }, [connectAndRecord]);
 
   const finishRecording = useCallback(async () => {
-    cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
     setStatus('finishing');
-
-    if (clientRef.current) {
-      await clientRef.current.end();
-      clientRef.current = null;
-    }
-
+    await disconnectAll();
     setStatus('idle');
     if (onFinish) {
       setSaving(true);
       await onFinish(entriesRef.current);
       setSaving(false);
     }
-  }, [onFinish]);
+  }, [onFinish, disconnectAll]);
 
   // Load cached transcript on mount.
   useEffect(() => {
@@ -223,6 +252,9 @@ export function Scribe({ noteId, providerName, providerPhotoUrl, patientName, on
         const data = await res.json();
         if (!cancelled && data.items && data.items.length > 0) {
           setEntries(data.items);
+        }
+        if (!cancelled && data.finalized) {
+          setFinalized(true);
         }
       } catch (err) {
         console.error('Failed to load transcript:', err);
@@ -249,7 +281,7 @@ export function Scribe({ noteId, providerName, providerPhotoUrl, patientName, on
     <div class="scribe-container">
       ${isActive && html`<${RecordingBanner} paused=${status === 'paused'} />`}
       ${error && html`<p class="error">${error}</p>`}
-      ${status === 'idle' && html`
+      ${status === 'idle' && !finalized && html`
         <div class="record-area">
           <button class="record-btn" onClick=${startRecording}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -300,7 +332,7 @@ export function Scribe({ noteId, providerName, providerPhotoUrl, patientName, on
       ${saving && html`<p class="generating-message">Saving transcript...</p>`}
       ${saveError && html`<p class="error">${saveError}</p>`}
       ${saved && html`<p class="saved-message">Recording saved. Open Summary to view the note.</p>`}
-      ${status === 'idle' && entries.length === 0 && !error && !saving && !saved && !saveError && html`
+      ${status === 'idle' && entries.length === 0 && !finalized && !error && !saving && !saved && !saveError && html`
         <p class="transcript-placeholder">Transcript content will appear here.</p>
       `}
     </div>

@@ -119,14 +119,14 @@ def test_get_transcript_success(mock_get_cache: MagicMock) -> None:
     cache = _mock_cache()
     mock_get_cache.return_value = cache
     items = [{"text": "Hello", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 1000}]
-    cache._store[f"{_CACHE_KEY_PREFIX}55"] = json.dumps(items)
+    cache._store[f"{_CACHE_KEY_PREFIX}55"] = json.dumps({"items": items, "finalized": True})
 
     view = _helper_instance()
     view.request = SimpleNamespace(query_params={"note_id": "55"})
     result = view.get_transcript()
 
     assert result[0].status_code == HTTPStatus.OK
-    assert json.loads(result[0].content) == {"items": items}
+    assert json.loads(result[0].content) == {"items": items, "finalized": True}
 
 
 @patch("hyperscribe.scribe.api.session_view.get_cache")
@@ -138,7 +138,7 @@ def test_get_transcript_empty(mock_get_cache: MagicMock) -> None:
     result = view.get_transcript()
 
     assert result[0].status_code == HTTPStatus.OK
-    assert json.loads(result[0].content) == {"items": []}
+    assert json.loads(result[0].content) == {"items": [], "finalized": False}
 
 
 @patch("hyperscribe.scribe.api.session_view.get_cache")
@@ -167,7 +167,7 @@ def test_save_transcript_success(mock_get_cache: MagicMock) -> None:
 
     assert result[0].status_code == HTTPStatus.OK
     assert json.loads(result[0].content) == {"status": "ok"}
-    assert json.loads(cache._store[f"{_CACHE_KEY_PREFIX}42"]) == items
+    assert json.loads(cache._store[f"{_CACHE_KEY_PREFIX}42"]) == {"items": items, "finalized": False}
 
 
 @patch("hyperscribe.scribe.api.session_view.get_cache")
@@ -236,7 +236,7 @@ def test_generate_note_from_cache(get_backend: MagicMock, mock_get_cache: MagicM
     cache = _mock_cache()
     mock_get_cache.return_value = cache
     cached_items = [{"text": "I feel dizzy", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 1500}]
-    cache._store[f"{_CACHE_KEY_PREFIX}99"] = json.dumps(cached_items)
+    cache._store[f"{_CACHE_KEY_PREFIX}99"] = json.dumps({"items": cached_items, "finalized": True})
 
     mock_backend = MagicMock()
     mock_backend.generate_note.return_value = ClinicalNote(
