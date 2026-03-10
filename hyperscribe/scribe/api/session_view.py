@@ -38,18 +38,18 @@ from hyperscribe.scribe.commands.extractor import extract_commands
 _CACHE_KEY_PREFIX = "scribe_transcript:"
 
 
-def _save_transcript_to_cache(note_id: str, items: list[dict[str, Any]]) -> None:
+def _save_transcript_to_cache(note_id: str, items: list[dict[str, Any]], *, finalized: bool = False) -> None:
     key = f"{_CACHE_KEY_PREFIX}{note_id}"
-    log.info(f"cache save: key={key} items={len(items)}")
+    log.info(f"cache save: key={key} items={len(items)} finalized={finalized}")
     try:
         cache = get_cache()
-        cache.set(key, json.dumps(items))
+        cache.set(key, json.dumps({"items": items, "finalized": finalized}))
         log.info(f"cache save OK: key={key}")
     except Exception:
         log.exception(f"cache save FAILED: key={key}")
 
 
-def _load_transcript_from_cache(note_id: str) -> list[dict[str, Any]] | None:
+def _load_transcript_from_cache(note_id: str) -> dict[str, Any] | None:
     key = f"{_CACHE_KEY_PREFIX}{note_id}"
     log.info(f"cache load: key={key}")
     try:
@@ -61,7 +61,11 @@ def _load_transcript_from_cache(note_id: str) -> list[dict[str, Any]] | None:
         return None
     if raw is None:
         return None
-    return json.loads(raw)  # type: ignore[no-any-return]
+    data = json.loads(raw)
+    # Backwards compat: old cache entries are bare lists of items.
+    if isinstance(data, list):
+        return {"items": data, "finalized": False}
+    return data  # type: ignore[no-any-return]
 
 
 def _parse_transcript(data: dict[str, Any]) -> Transcript:
@@ -160,10 +164,10 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "")
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        items = _load_transcript_from_cache(note_id)
-        if items is None:
-            return [JSONResponse({"items": []}, status_code=HTTPStatus.OK)]
-        return [JSONResponse({"items": items}, status_code=HTTPStatus.OK)]
+        data = _load_transcript_from_cache(note_id)
+        if data is None:
+            return [JSONResponse({"items": [], "finalized": False}, status_code=HTTPStatus.OK)]
+        return [JSONResponse(data, status_code=HTTPStatus.OK)]
 
     @api.post("/save-transcript")
     def post_save_transcript(self) -> list[Union[Response, Effect]]:
@@ -175,7 +179,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         items = data.get("transcript", {}).get("items", [])
-        _save_transcript_to_cache(note_id, items)
+        finalized = bool(data.get("finalized", False))
+        _save_transcript_to_cache(note_id, items, finalized=finalized)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
     @api.post("/generate-note")
@@ -196,9 +201,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not transcript_items:
             note_id = str(data.get("note_id", ""))
             if note_id:
-                cached_items = _load_transcript_from_cache(note_id)
-                if cached_items:
-                    transcript_items = cached_items
+                cached_data = _load_transcript_from_cache(note_id)
+                if cached_data:
+                    transcript_items = cached_data["items"]
                     transcript_data = {"items": transcript_items}
 
         if not transcript_items:
