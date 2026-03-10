@@ -4,14 +4,7 @@ import re
 from typing import Any
 
 from canvas_sdk.commands.base import _BaseCommand
-from canvas_sdk.commands.commands.allergy import (
-    Allergen,
-    AllergenType,
-    AllergyCommand,
-)
-from canvas_sdk.v1.data import AllergyIntoleranceCoding
-from canvas_sdk.v1.data.medication import Status
-from canvas_sdk.v1.data.note import Note
+from canvas_sdk.commands.commands.allergy import Allergen, AllergenType, AllergyCommand
 
 from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.base import CommandParser
@@ -60,37 +53,7 @@ class AllergyParser(CommandParser):
             for line in _parse_allergy_lines(text)
         ]
 
-    def annotate_duplicates(self, proposals: list[CommandProposal], note: Note) -> None:
-        allergy_proposals = [p for p in proposals if p.command_type == self.command_type]
-        if not allergy_proposals:
-            return
-        patient = note.patient
-        if patient is None:
-            return
-        active_labels = set(
-            AllergyIntoleranceCoding.objects.filter(
-                allergy_intolerance__patient=patient,
-                allergy_intolerance__status=Status.ACTIVE,
-            ).values_list("display", flat=True)
-        )
-        active_labels_lower = {label.lower() for label in active_labels if label}
-        for proposal in allergy_proposals:
-            allergy_text = proposal.data.get("allergy_text", "").lower()
-            if not allergy_text:
-                continue
-            for label in active_labels_lower:
-                if allergy_text in label or label in allergy_text:
-                    proposal.already_documented = True
-                    break
-
-    def validate(self, data: dict[str, Any]) -> list[str]:
-        errors: list[str] = []
-        narrative = data.get("reaction") or data.get("allergy_text") or ""
-        if len(narrative) > 512:
-            errors.append("Reaction exceeds 512 characters")
-        return errors
-
-    def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
+    def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand:
         allergy_text = str(data.get("allergy_text", ""))
         concept_id = data.get("concept_id")
         concept_id_type = data.get("concept_id_type")
@@ -102,13 +65,8 @@ class AllergyParser(CommandParser):
                 concept_type=AllergenType(int(concept_id_type or 1)),
             )
 
-        raw_severity = data.get("severity")
-        severity = AllergyCommand.Severity(raw_severity) if raw_severity in {"mild", "moderate", "severe"} else None
-
         return AllergyCommand(
             allergy=allergen,
-            narrative=(data.get("reaction") or allergy_text)[:512],
-            severity=severity,
+            narrative=allergy_text,
             note_uuid=note_uuid,
-            command_uuid=command_uuid,
         )

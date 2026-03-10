@@ -4,9 +4,6 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
-const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
-const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
-
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
@@ -18,21 +15,14 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {
-  const [editing, setEditing] = useState(!command.display);
-  useEffect(() => {
-    onEditingChange?.(commandIndex, editing);
-    return () => onEditingChange?.(commandIndex, false);
-  }, [editing, commandIndex]);
+export function AllergyRow({ command, commandIndex, onEdit, onToggle }) {
+  const [editing, setEditing] = useState(false);
   const [query, setQuery] = useState(command.data.allergy_text || '');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [searched, setSearched] = useState(false);
   const [selectedConceptId, setSelectedConceptId] = useState(command.data.concept_id || null);
   const [selectedConceptIdType, setSelectedConceptIdType] = useState(command.data.concept_id_type || null);
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.allergy_text || '');
-  const [reaction, setReaction] = useState(command.data.reaction || '');
-  const [severity, setSeverity] = useState(command.data.severity || '');
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -40,7 +30,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly, 
 
   useEffect(() => {
     if (editing && inputRef.current) {
-      inputRef.current.focus({ preventScroll: true });
+      inputRef.current.focus();
     }
   }, [editing]);
 
@@ -50,7 +40,6 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly, 
     const handler = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setResults([]);
-        setSearched(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -60,7 +49,6 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly, 
   const doSearch = useCallback(async (q) => {
     if (!q || q.length < 2) {
       setResults([]);
-      setSearched(false);
       return;
     }
     setSearching(true);
@@ -75,7 +63,6 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly, 
       setResults([]);
     } finally {
       setSearching(false);
-      setSearched(true);
     }
   }, []);
 
@@ -96,7 +83,6 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly, 
     setSelectedDisplay(result.description);
     setQuery(result.description);
     setResults([]);
-    setSearched(false);
   };
 
   const handleSave = () => {
@@ -105,24 +91,16 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly, 
       allergy_text: selectedDisplay,
       concept_id: selectedConceptId,
       concept_id_type: selectedConceptIdType,
-      reaction,
-      severity: severity || null,
     };
     onEdit(commandIndex, newData);
     setEditing(false);
   };
 
   const handleCancel = () => {
-    if (!command.display) {
-      onDelete(commandIndex);
-      return;
-    }
     setQuery(command.data.allergy_text || '');
     setSelectedConceptId(command.data.concept_id || null);
     setSelectedConceptIdType(command.data.concept_id_type || null);
     setSelectedDisplay(command.data.allergy_text || '');
-    setReaction(command.data.reaction || '');
-    setSeverity(command.data.severity || '');
     setResults([]);
     setEditing(false);
   };
@@ -137,104 +115,85 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly, 
     }
   };
 
+  const handleToggle = (e) => {
+    e.stopPropagation();
+    onToggle(commandIndex, !command.selected);
+  };
+
   // Already documented — non-clickable, dimmed.
   if (command.already_documented) {
-    const docDetails = [];
-    if (command.data.reaction) docDetails.push(command.data.reaction);
-    if (command.data.severity) docDetails.push(command.data.severity);
     return html`
       <div class="allergy-row documented">
-        <div class="order-view">
-          <div class="order-view-name">${command.display}</div>
-          ${docDetails.length > 0 && html`<div class="order-view-sig">${docDetails.join(' · ')}</div>`}
-        </div>
+        <span class="command-type-badge badge-allergy">Allergy</span>
+        <span class="allergy-row-text">${command.display}</span>
+        <span class="allergy-documented-badge">Already in chart</span>
       </div>
     `;
   }
 
   // Edit mode with search.
-  if (editing && !readOnly) {
+  if (editing) {
     return html`
       <div class="allergy-row editing" ref=${containerRef}>
-        <div class="history-form">
-          <div class="history-form-field" style="position: relative;">
-            <label class="history-form-label">Allergy</label>
-            <input
-              ref=${inputRef}
-              type="text"
-              class="history-form-input"
-              value=${query}
-              onInput=${handleInput}
-              onKeyDown=${handleKeyDown}
-              placeholder="Search allergies..."
-            />
-            ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
-            ${results.length > 0 && html`
-              <div class="history-search-dropdown">
-                ${results.map(r => html`
-                  <div
-                    key=${r.concept_id}
-                    class="history-search-result"
-                    onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
-                  >
-                    ${r.description}
-                  </div>
-                `)}
-              </div>
-            `}
-            ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-              <div class="history-search-dropdown">
-                <div class="history-search-result search-no-results">No allergies found</div>
-              </div>
-            `}
-          </div>
-          <div class="history-form-field">
-            <label class="history-form-label">Reaction</label>
-            <input
-              type="text"
-              class="history-form-input"
-              maxLength=512
-              value=${reaction}
-              onInput=${(e) => setReaction(e.target.value)}
-              onKeyDown=${handleKeyDown}
-              placeholder="e.g. rash, hives"
-            />
-            <div class="char-counter${reaction.length > 460 ? reaction.length > 512 ? ' over-limit' : ' near-limit' : ''}">${reaction.length} / 512</div>
-          </div>
-          <div class="history-form-field">
-            <label class="history-form-label">Severity</label>
-            <div class="allergy-severity">
-              ${['mild', 'moderate', 'severe'].map(s => html`
-                <button
-                  key=${s}
-                  type="button"
-                  class="allergy-severity-btn${severity === s ? ' active-' + s : ''}"
-                  onClick=${() => setSeverity(severity === s ? '' : s)}
-                >${s[0].toUpperCase() + s.slice(1)}</button>
+        <input
+          type="checkbox"
+          class="allergy-checkbox"
+          checked=${command.selected !== false}
+          onClick=${handleToggle}
+        />
+        <span class="command-type-badge badge-allergy">Allergy</span>
+        <div class="allergy-search-wrapper">
+          <input
+            ref=${inputRef}
+            type="text"
+            class="allergy-row-input"
+            value=${query}
+            onInput=${handleInput}
+            onKeyDown=${handleKeyDown}
+            placeholder="Search allergies..."
+          />
+          ${searching && html`<span class="allergy-search-spinner">Searching...</span>`}
+          ${results.length > 0 && html`
+            <div class="allergy-search-dropdown">
+              ${results.map(r => html`
+                <div
+                  key=${r.concept_id}
+                  class="allergy-search-result"
+                  onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
+                >
+                  ${r.description}
+                </div>
               `)}
             </div>
-          </div>
-          <div class="questionnaire-form-actions">
-            <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
-            <button type="button" class="form-btn form-btn-save" disabled=${reaction.length > 512} onClick=${handleSave}>Save</button>
-          </div>
+          `}
+        </div>
+        ${selectedConceptId && html`
+          <span class="allergy-structured-badge">Coded</span>
+        `}
+        <div class="command-row-actions">
+          <button class="edit-btn" onClick=${handleSave}>Save</button>
+          <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
         </div>
       </div>
     `;
   }
 
   // View mode.
-  const details = [];
-  if (command.data.reaction) details.push(command.data.reaction);
-  if (command.data.severity) details.push(command.data.severity);
-
   return html`
-    <div class="allergy-row"
-         onClick=${() => !readOnly && setEditing(true)}>
-      <div class="order-view">
-        <div class="order-view-name">${command.display}</div>
-        ${details.length > 0 && html`<div class="order-view-sig">${details.join(' · ')}</div>`}
-      </div>
+    <div class="allergy-row${command.selected === false ? ' deselected' : ''}"
+         onClick=${() => setEditing(true)}>
+      <input
+        type="checkbox"
+        class="allergy-checkbox"
+        checked=${command.selected !== false}
+        onClick=${handleToggle}
+      />
+      <span class="command-type-badge badge-allergy">Allergy</span>
+      <span class="allergy-row-text">${command.display}</span>
+      ${isStructured
+        ? html`<span class="allergy-structured-badge">Coded</span>`
+        : html`<span class="allergy-unstructured-badge">Unstructured</span>`
+      }
     </div>
   `;
 }

@@ -11,6 +11,7 @@ from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 
+from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.v1.data.medication import Medication, MedicationCoding, Status
 from canvas_sdk.v1.data.note import Note
 from canvas_sdk.v1.data.staff import Staff
@@ -312,6 +313,31 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             JSONResponse(
                 {
                     "results": [{"fdb_code": r.fdb_code, "description": r.description} for r in results],
+                },
+                status_code=HTTPStatus.OK,
+            )
+        ]
+
+    @api.get("/search-allergies")
+    def get_search_allergies(self) -> list[Union[Response, Effect]]:
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        results = CanvasScience.search_allergy(
+            [query],
+            [AllergenType.ALLERGEN_GROUP, AllergenType.MEDICATION, AllergenType.INGREDIENT],
+        )
+        return [
+            JSONResponse(
+                {
+                    "results": [
+                        {
+                            "concept_id": r.concept_id_value,
+                            "description": r.concept_id_description,
+                            "concept_id_type": r.concept_id_type,
+                        }
+                        for r in results
+                    ],
                 },
                 status_code=HTTPStatus.OK,
             )

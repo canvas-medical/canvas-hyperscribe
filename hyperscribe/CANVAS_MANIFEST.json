@@ -166,7 +166,20 @@
         "show_in_panel": false
       }
     ],
-    "commands": [],
+    "commands": [
+      {
+        "name": "HistoryReview",
+        "label": "History Review",
+        "schema_key": "historyReview",
+        "section": "history"
+      },
+      {
+        "name": "ChartReview",
+        "label": "Chart Review",
+        "schema_key": "chartReview",
+        "section": "objective"
+      }
+    ],
     "content": [],
     "effects": [],
     "views": []

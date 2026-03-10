@@ -1,10 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-from django.db.models import QuerySet
+from canvas_sdk.commands.commands.allergy import Allergen, AllergenType
 
-from canvas_sdk.commands.commands.allergy import Allergen, AllergenType, AllergyCommand
-
-from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.allergy import AllergyParser
 
 
@@ -55,14 +52,12 @@ def test_build_with_concept_id() -> None:
     with patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_cmd:
         inst = MagicMock()
         mock_cmd.return_value = inst
-        result = parser.build(data, "note-uuid", "cmd-uuid")
+        result = parser.build(data, "note-uuid")
 
     mock_cmd.assert_called_once_with(
         allergy=Allergen(concept_id=12345, concept_type=AllergenType(1)),
         narrative="Penicillin (rash)",
-        severity=None,
         note_uuid="note-uuid",
-        command_uuid="cmd-uuid",
     )
     assert result is inst
 
@@ -77,14 +72,12 @@ def test_build_without_concept_id() -> None:
     with patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_cmd:
         inst = MagicMock()
         mock_cmd.return_value = inst
-        result = parser.build(data, "note-uuid", "cmd-uuid")
+        result = parser.build(data, "note-uuid")
 
     mock_cmd.assert_called_once_with(
         allergy=None,
         narrative="Penicillin (rash)",
-        severity=None,
         note_uuid="note-uuid",
-        command_uuid="cmd-uuid",
     )
     assert result is inst
 
@@ -95,138 +88,10 @@ def test_build_missing_fields_defaults() -> None:
     with patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_cmd:
         inst = MagicMock()
         mock_cmd.return_value = inst
-        parser.build(data, "note-uuid", "cmd-uuid")
+        parser.build(data, "note-uuid")
 
     mock_cmd.assert_called_once_with(
         allergy=None,
         narrative="",
-        severity=None,
         note_uuid="note-uuid",
-        command_uuid="cmd-uuid",
     )
-
-
-def test_build_with_severity_and_reaction() -> None:
-    parser = AllergyParser()
-    data = {
-        "allergy_text": "Penicillin",
-        "concept_id": None,
-        "concept_id_type": None,
-        "reaction": "rash and hives",
-        "severity": "severe",
-    }
-    with patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_cmd:
-        inst = MagicMock()
-        mock_cmd.return_value = inst
-        mock_cmd.Severity = AllergyCommand.Severity
-        result = parser.build(data, "note-uuid", "cmd-uuid")
-
-    mock_cmd.assert_called_once_with(
-        allergy=None,
-        narrative="rash and hives",
-        severity=AllergyCommand.Severity.SEVERE,
-        note_uuid="note-uuid",
-        command_uuid="cmd-uuid",
-    )
-    assert result is inst
-
-
-def test_build_reaction_takes_precedence_over_allergy_text() -> None:
-    parser = AllergyParser()
-    data = {
-        "allergy_text": "Penicillin",
-        "concept_id": None,
-        "concept_id_type": None,
-        "reaction": "anaphylaxis",
-    }
-    with patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_cmd:
-        inst = MagicMock()
-        mock_cmd.return_value = inst
-        mock_cmd.Severity = AllergyCommand.Severity
-        parser.build(data, "note-uuid", "cmd-uuid")
-
-    mock_cmd.assert_called_once_with(
-        allergy=None,
-        narrative="anaphylaxis",
-        severity=None,
-        note_uuid="note-uuid",
-        command_uuid="cmd-uuid",
-    )
-
-
-def test_build_invalid_severity_ignored() -> None:
-    parser = AllergyParser()
-    data = {
-        "allergy_text": "Penicillin",
-        "concept_id": None,
-        "concept_id_type": None,
-        "severity": "extreme",
-    }
-    with patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_cmd:
-        inst = MagicMock()
-        mock_cmd.return_value = inst
-        mock_cmd.Severity = AllergyCommand.Severity
-        parser.build(data, "note-uuid", "cmd-uuid")
-
-    mock_cmd.assert_called_once_with(
-        allergy=None,
-        narrative="Penicillin",
-        severity=None,
-        note_uuid="note-uuid",
-        command_uuid="cmd-uuid",
-    )
-
-
-# --- annotate_duplicates ---
-
-
-@patch("hyperscribe.scribe.commands.allergy.AllergyIntoleranceCoding")
-def test_annotate_duplicates_match(
-    mock_coding_cls: MagicMock,
-) -> None:
-    mock_patient = MagicMock()
-    mock_patient.id = "patient-key"
-    mock_note = MagicMock()
-    mock_note.patient = mock_patient
-
-    # Use spec=QuerySet so calling nonexistent methods (e.g. .committed()) raises AttributeError.
-    mock_qs = MagicMock(spec=QuerySet)
-    mock_qs.values_list.return_value = ["Penicillin G"]
-    mock_coding_cls.objects.filter.return_value = mock_qs
-
-    proposals = [
-        CommandProposal(command_type="allergy", display="Penicillin", data={"allergy_text": "Penicillin"}),
-        CommandProposal(command_type="allergy", display="Sulfa drugs", data={"allergy_text": "Sulfa drugs"}),
-        CommandProposal(command_type="hpi", display="Pain", data={"narrative": "Pain"}),
-    ]
-    AllergyParser().annotate_duplicates(proposals, mock_note)
-
-    assert proposals[0].already_documented is True  # substring match
-    assert proposals[1].already_documented is False
-    assert proposals[2].already_documented is False  # non-allergy untouched
-
-    mock_coding_cls.objects.filter.assert_called_once()
-    mock_qs.values_list.assert_called_once_with("display", flat=True)
-
-
-def test_annotate_duplicates_no_allergies() -> None:
-    mock_note = MagicMock()
-    proposals = [
-        CommandProposal(command_type="hpi", display="Pain", data={"narrative": "Pain"}),
-    ]
-    AllergyParser().annotate_duplicates(proposals, mock_note)
-    assert proposals[0].already_documented is False
-
-
-@patch("hyperscribe.scribe.commands.allergy.AllergyIntoleranceCoding")
-def test_annotate_duplicates_no_patient(
-    mock_coding_cls: MagicMock,
-) -> None:
-    mock_note = MagicMock()
-    mock_note.patient = None
-
-    proposals = [
-        CommandProposal(command_type="allergy", display="Penicillin", data={"allergy_text": "Penicillin"}),
-    ]
-    AllergyParser().annotate_duplicates(proposals, mock_note)
-    assert proposals[0].already_documented is False
