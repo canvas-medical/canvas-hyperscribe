@@ -16,7 +16,7 @@ const DATA_FIELD = {
   plan: 'narrative',
 };
 
-export function CommandRow({ command, commandIndex, onEdit }) {
+export function CommandRow({ command, commandIndex, onEdit, onToggle }) {
   const field = DATA_FIELD[command.command_type];
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(field ? (command.data[field] || '') : '');
@@ -65,11 +65,21 @@ export function CommandRow({ command, commandIndex, onEdit }) {
     `;
   }
 
+  const handleToggle = (e) => {
+    e.stopPropagation();
+    if (onToggle) onToggle(commandIndex, e.target.checked);
+  };
+
   return html`
-    <div class="command-row" onClick=${() => setEditing(true)}>
-      <span class="command-type-badge badge-${command.command_type}">
-        ${TYPE_LABELS[command.command_type] || command.command_type}
-      </span>
+    <div class="command-row${command.selected === false ? ' deselected' : ''}" onClick=${() => setEditing(true)}>
+      ${onToggle && html`
+        <input
+          type="checkbox"
+          class="command-checkbox"
+          checked=${command.selected !== false}
+          onClick=${handleToggle}
+        />
+      `}
       <span class="command-row-text">${command.display}</span>
     </div>
   `;

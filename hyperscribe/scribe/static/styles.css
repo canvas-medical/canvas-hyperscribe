@@ -239,23 +239,62 @@ h2 { margin-bottom: 4px; }
 
 /* Summary */
 .summary-container {
-  padding: 16px;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e2e2e8;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8ec;
+}
+
+.summary-header-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #111;
+}
+
+.summary-header-status {
+  font-size: 13px;
+  font-weight: 500;
+  color: #888;
+  margin-left: auto;
+}
+
+.summary-body {
+  padding: 24px;
+}
+
+.summary-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e8e8ec;
+  background: #fafaff;
 }
 
 .summary-section {
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e8e8ec;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+}
+
+.summary-section:last-child {
+  margin-bottom: 0;
 }
 
 .section-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  background: #fafaff;
-  border-radius: 8px 8px 0 0;
+  gap: 8px;
+  padding: 0 0 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e8e8ec;
 }
 
 .section-title {
@@ -264,6 +303,51 @@ h2 { margin-bottom: 4px; }
   letter-spacing: 0.5px;
   color: #5856d6;
 }
+
+/* Content blocks with colored border per command type */
+.content-block {
+  position: relative;
+  background: #fff;
+  border: 1.5px solid #e8e8ec;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.content-block.has-badge {
+  padding-top: 20px;
+}
+
+.content-block:last-child {
+  margin-bottom: 0;
+}
+
+.content-block-badge {
+  position: absolute;
+  top: -9px;
+  right: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 10px;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  line-height: 1.4;
+}
+
+.content-block--rfv { border-color: #f5a623; }
+.content-block--hpi { border-color: #5856d6; }
+.content-block--plan_cmd { border-color: #34a853; }
+.content-block--vitals { border-color: #e8563a; }
+.content-block--medication { border-color: #007aff; }
+.content-block--task { border-color: #8e44ad; }
+.content-block--prescribe { border-color: #e8563a; }
+.content-block--lab_order { border-color: #007aff; }
+.content-block--imaging_order { border-color: #34a853; }
+
+/* Subsection titles (gray section labels) */
+.subsection-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 8px; text-transform: uppercase; }
 
 .edit-btn {
   padding: 4px 12px;
@@ -281,7 +365,7 @@ h2 { margin-bottom: 4px; }
 }
 
 .section-body {
-  padding: 16px 20px;
+  padding: 0;
 }
 
 .section-text {
@@ -309,9 +393,8 @@ h2 { margin-bottom: 4px; }
   margin-bottom: 12px;
 }
 
-.subsection { margin-bottom: 12px; }
+.subsection { margin-bottom: 16px; }
 .subsection:last-child { margin-bottom: 0; }
-.subsection-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 4px; text-transform: uppercase; }
 
 .section-textarea {
   width: 100%;
@@ -348,6 +431,9 @@ h2 { margin-bottom: 4px; }
   padding: 16px;
 }
 
+/* Command checkbox (shared by CommandRow, VitalsRow, etc.) */
+.command-checkbox { cursor: pointer; flex-shrink: 0; }
+
 /* Command type badges */
 .command-type-badge {
   font-size: 11px;
@@ -369,6 +455,7 @@ h2 { margin-bottom: 4px; }
 .command-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; cursor: pointer; }
 .command-row:hover:not(.editing) { background: #f5f5ff; }
 .command-row-text { font-size: 14px; line-height: 1.6; color: #333; flex: 1; }
+.command-row.deselected { opacity: 0.45; }
 .command-row.editing { flex-direction: column; cursor: default; padding: 8px; background: #fafaff; border: 1px solid #e8e8ec; border-radius: 6px; }
 .command-row-textarea { width: 100%; min-height: 80px; padding: 8px; font-family: inherit; font-size: 14px; line-height: 1.6; border: 1px solid #ddd; border-radius: 4px; resize: vertical; margin-top: 6px; }
 .command-row-textarea:focus { outline: none; border-color: #5856d6; }
@@ -377,6 +464,7 @@ h2 { margin-bottom: 4px; }
 /* Inline vitals rows */
 .vitals-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; cursor: pointer; }
 .vitals-row:hover:not(.editing) { background: #f5f5ff; }
+.vitals-row.deselected { opacity: 0.45; }
 .vitals-row.editing { flex-direction: column; cursor: default; padding: 8px; background: #fafaff; border: 1px solid #e8e8ec; border-radius: 6px; }
 .vitals-values { display: flex; flex-wrap: wrap; gap: 6px 14px; flex: 1; font-size: 14px; line-height: 1.6; color: #333; }
 .vitals-item strong { font-weight: 600; color: #555; margin-right: 2px; }
@@ -471,7 +559,7 @@ h2 { margin-bottom: 4px; }
 .insert-btn {
   display: block;
   width: 100%;
-  padding: 12px;
+  padding: 14px;
   border: none;
   border-radius: 8px;
   background: #5856d6;
