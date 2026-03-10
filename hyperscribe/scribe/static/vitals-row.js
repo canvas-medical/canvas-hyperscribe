@@ -31,7 +31,7 @@ function formatVitalsDisplay(data) {
 
 export { formatVitalsDisplay };
 
-export function VitalsRow({ command, commandIndex, onEdit, onToggle }) {
+export function VitalsRow({ command, commandIndex, onEdit }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ ...command.data });
 
@@ -132,21 +132,8 @@ export function VitalsRow({ command, commandIndex, onEdit, onToggle }) {
     }
   });
 
-  const handleToggle = (e) => {
-    e.stopPropagation();
-    if (onToggle) onToggle(commandIndex, e.target.checked);
-  };
-
   return html`
-    <div class="vitals-row${command.selected === false ? ' deselected' : ''}" onClick=${() => setEditing(true)}>
-      ${onToggle && html`
-        <input
-          type="checkbox"
-          class="command-checkbox"
-          checked=${command.selected !== false}
-          onClick=${handleToggle}
-        />
-      `}
+    <div class="vitals-row" onClick=${() => setEditing(true)}>
       <div class="vitals-values">${items}</div>
     </div>
   `;
