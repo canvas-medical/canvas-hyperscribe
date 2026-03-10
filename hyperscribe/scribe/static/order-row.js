@@ -47,7 +47,7 @@ function buildDisplay(type, data) {
   return '';
 }
 
-export function OrderRow({ command, commandIndex, onEdit, onToggle }) {
+export function OrderRow({ command, commandIndex, onEdit, onDelete }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   const [activeTab, setActiveTab] = useState(command.command_type || 'prescribe');
@@ -149,7 +149,8 @@ export function OrderRow({ command, commandIndex, onEdit, onToggle }) {
 
   const handleCancel = () => {
     if (isNew) {
-      onToggle(commandIndex, false);
+      onDelete(commandIndex);
+      return;
     }
     setEditing(false);
   };
@@ -253,6 +254,7 @@ export function OrderRow({ command, commandIndex, onEdit, onToggle }) {
             <div class="command-row-actions">
               <button class="edit-btn" onClick=${handleSave}>Save</button>
               <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
+              <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
             </div>
           </div>
         </div>
@@ -263,13 +265,7 @@ export function OrderRow({ command, commandIndex, onEdit, onToggle }) {
   // View mode.
   const badgeLabel = BADGE_LABELS[command.command_type] || 'Order';
   return html`
-    <div class="order-row${command.selected === false ? ' deselected' : ''}" onClick=${() => setEditing(true)}>
-      <input
-        type="checkbox"
-        class="medication-checkbox"
-        checked=${command.selected !== false}
-        onClick=${(e) => { e.stopPropagation(); onToggle(commandIndex, e.target.checked); }}
-      />
+    <div class="order-row" onClick=${() => setEditing(true)}>
       <span class="command-type-badge badge-${command.command_type}">${badgeLabel}</span>
       <span class="command-row-text">${command.display}</span>
     </div>
