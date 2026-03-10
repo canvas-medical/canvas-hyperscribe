@@ -16,7 +16,7 @@ function addDays(days) {
   return d.toISOString().split('T')[0];
 }
 
-export function TaskRow({ command, commandIndex, onEdit, onToggle, assignees }) {
+export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees }) {
   const [editing, setEditing] = useState(!command.display);
   const [title, setTitle] = useState(command.data.title || '');
   const [dueDate, setDueDate] = useState(command.data.due_date || '');
@@ -41,8 +41,8 @@ export function TaskRow({ command, commandIndex, onEdit, onToggle, assignees }) 
 
   const handleCancel = () => {
     if (!command.display) {
-      // New unsaved task — deselect it to effectively remove
-      onToggle(commandIndex, false);
+      onDelete(commandIndex);
+      return;
     }
     setTitle(command.data.title || '');
     setDueDate(command.data.due_date || '');
@@ -125,6 +125,7 @@ export function TaskRow({ command, commandIndex, onEdit, onToggle, assignees }) 
           <div class="command-row-actions">
             <button class="edit-btn" onClick=${handleSave} disabled=${!title.trim()}>Save</button>
             <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
+            <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
           </div>
         </div>
       </div>
@@ -137,13 +138,7 @@ export function TaskRow({ command, commandIndex, onEdit, onToggle, assignees }) 
   if (aLabel) parts.push(aLabel);
 
   return html`
-    <div class="task-row${command.selected === false ? ' deselected' : ''}" onClick=${() => setEditing(true)}>
-      <input
-        type="checkbox"
-        class="medication-checkbox"
-        checked=${command.selected !== false}
-        onClick=${(e) => { e.stopPropagation(); onToggle(commandIndex, e.target.checked); }}
-      />
+    <div class="task-row" onClick=${() => setEditing(true)}>
       <span class="command-type-badge badge-task">Task</span>
       <span class="command-row-text">${parts[0]}</span>
       ${command.data.due_date && html`<span class="task-meta-badge">${formatDate(command.data.due_date)}</span>`}

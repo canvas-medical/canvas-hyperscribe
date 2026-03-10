@@ -80,6 +80,6 @@ class MedicationParser(CommandParser):
             )
         return MedicationStatementCommand(
             fdb_code=fdb_code,
-            sig=None,
+            sig=data.get("sig") or None,
             note_uuid=note_uuid,
         )
