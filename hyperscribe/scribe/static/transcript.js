@@ -24,10 +24,11 @@ function RecordingBanner({ paused }) {
   `;
 }
 
-function TranscriptEntry({ speaker, start_offset_ms, text, is_final }) {
+function TranscriptEntry({ speaker, start_offset_ms, text, is_final, providerName, providerPhotoUrl, patientName }) {
   const s = (speaker || '').toUpperCase();
   const isUnspecified = !s || s === 'UNSPECIFIED';
   const isProvider = s === 'DOCTOR' || s.includes('PROVIDER') || s.includes('DOCTOR');
+  const isPatient = s === 'PATIENT' || s.includes('PATIENT');
   const time = formatTime(start_offset_ms);
 
   if (!is_final && isUnspecified) {
@@ -45,13 +46,15 @@ function TranscriptEntry({ speaker, start_offset_ms, text, is_final }) {
     `;
   }
 
-  const role = isProvider ? 'provider' : 'patient';
-  const label = isProvider ? 'Provider' : s === 'PATIENT' ? 'Patient' : speaker || 'Speaker';
-  const initial = isProvider ? 'Dr' : 'Pt';
+  const role = isProvider ? 'provider' : isPatient ? 'patient' : 'unspecified';
+  const label = isProvider ? (providerName || 'Provider') : isPatient ? (patientName || 'Patient') : 'Unspecified';
+  const initial = isProvider ? 'Dr' : isPatient ? 'Pt' : '?';
 
   return html`
     <div class="transcript-entry ${is_final ? '' : 'partial'}">
-      <div class="entry-avatar ${role}">${initial}</div>
+      ${isProvider && providerPhotoUrl
+        ? html`<img class="entry-avatar-img" src=${providerPhotoUrl} alt=${label} />`
+        : html`<div class="entry-avatar ${role}">${initial}</div>`}
       <div class="entry-content">
         <div class="entry-meta">
           <span class="entry-speaker">${label}</span>
@@ -78,7 +81,7 @@ function cleanupAudio(audioCtxRef, streamRef, workletNodeRef) {
   }
 }
 
-export function Scribe({ noteId, onFinish, saved, saveError }) {
+export function Scribe({ noteId, providerName, providerPhotoUrl, patientName, onFinish, saved, saveError }) {
   const [status, setStatus] = useState('idle');
   const [entries, setEntries] = useState([]);
   const [error, setError] = useState(null);
@@ -245,9 +248,6 @@ export function Scribe({ noteId, onFinish, saved, saveError }) {
   return html`
     <div class="scribe-container">
       ${isActive && html`<${RecordingBanner} paused=${status === 'paused'} />`}
-      <div class="scribe-header">
-        <h2>Scribe</h2>
-      </div>
       ${error && html`<p class="error">${error}</p>`}
       ${status === 'idle' && html`
         <div class="record-area">
@@ -287,7 +287,13 @@ export function Scribe({ noteId, onFinish, saved, saveError }) {
       ${entries.length > 0 && html`
         <div class="transcript-list">
           ${entries.map((entry, i) => html`
-            <${TranscriptEntry} key=${entry.item_id || i} ...${entry} />
+            <${TranscriptEntry}
+              key=${entry.item_id || i}
+              ...${entry}
+              providerName=${providerName}
+              providerPhotoUrl=${providerPhotoUrl}
+              patientName=${patientName}
+            />
           `)}
         </div>
       `}

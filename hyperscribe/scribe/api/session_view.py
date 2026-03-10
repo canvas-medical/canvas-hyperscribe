@@ -9,7 +9,7 @@ from logger import log
 from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import JSONResponse, Response
-from canvas_sdk.handlers.simple_api import SessionCredentials, SimpleAPI, StaffSessionAuthMixin, api
+from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 
 from canvas_sdk.v1.data.medication import Medication, MedicationCoding, Status
 from canvas_sdk.v1.data.note import Note
@@ -141,11 +141,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
     PREFIX = "/scribe-session"
 
-    def authenticate(self, credentials: SessionCredentials) -> bool:
-        auth_result: bool = super().authenticate(credentials)
-        self._staff_id: str = credentials.logged_in_user["id"]
-        return auth_result
-
     @api.get("/config")
     def get_config(self) -> list[Union[Response, Effect]]:
         try:
@@ -153,7 +148,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.BAD_REQUEST)]
         try:
-            config = backend.get_transcription_config(user_external_id=self._staff_id)
+            staff_id = self.request.headers.get("canvas-logged-in-user-id")
+            config = backend.get_transcription_config(user_external_id=staff_id)
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
         return [JSONResponse(config, status_code=HTTPStatus.OK)]
