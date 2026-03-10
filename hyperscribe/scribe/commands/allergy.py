@@ -4,7 +4,11 @@ import re
 from typing import Any
 
 from canvas_sdk.commands.base import _BaseCommand
-from canvas_sdk.commands.commands.allergy import Allergen, AllergenType, AllergyCommand
+from canvas_sdk.commands.commands.allergy import (
+    Allergen,
+    AllergenType,
+    AllergyCommand,
+)
 
 from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.base import CommandParser
@@ -65,8 +69,12 @@ class AllergyParser(CommandParser):
                 concept_type=AllergenType(int(concept_id_type or 1)),
             )
 
+        raw_severity = data.get("severity")
+        severity = AllergyCommand.Severity(raw_severity) if raw_severity in {"mild", "moderate", "severe"} else None
+
         return AllergyCommand(
             allergy=allergen,
-            narrative=allergy_text,
+            narrative=data.get("reaction") or allergy_text,
+            severity=severity,
             note_uuid=note_uuid,
         )
