@@ -33,7 +33,11 @@ def _helper_instance(staff_id: str = "staff-key-abc") -> ScribeSessionView:
     environment: dict[str, str] = {}
     view = ScribeSessionView(event, secrets, environment)
     view._path_pattern = re.compile(r".*")
-    view._staff_id = staff_id
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": staff_id},
+        query_params={},
+        body=b"",
+    )
     return view
 
 
@@ -44,16 +48,6 @@ def test_class() -> None:
 
 def test_constants() -> None:
     assert ScribeSessionView.PREFIX == "/scribe-session"
-
-
-def test_authenticate() -> None:
-    view = _helper_instance()
-    credentials = SimpleNamespace(logged_in_user={"id": "staff-123", "type": "Staff"})
-    # StaffSessionAuthMixin.authenticate checks type == "Staff"
-    with patch.object(StaffSessionAuthMixin, "authenticate", return_value=True):
-        result = view.authenticate(credentials)  # type: ignore[arg-type]
-    assert result is True
-    assert view._staff_id == "staff-123"
 
 
 # --- /config ---
