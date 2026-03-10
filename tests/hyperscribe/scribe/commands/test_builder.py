@@ -14,6 +14,18 @@ def test_build_effects_routes_all_types() -> None:
         {"command_type": "prescribe", "data": {"fdb_code": "123", "sig": "daily"}},
         {"command_type": "lab_order", "data": {"comment": "CBC"}},
         {"command_type": "imaging_order", "data": {"comment": "MRI", "priority": "Routine"}},
+        {
+            "command_type": "history_review",
+            "data": {"sections": [{"key": "past_medical_history", "title": "PMH", "text": "HTN"}]},
+        },
+        {
+            "command_type": "chart_review",
+            "data": {"sections": [{"key": "allergies", "title": "Allergies", "text": "NKDA"}]},
+        },
+        {
+            "command_type": "allergy",
+            "data": {"allergy_text": "Penicillin", "concept_id": None, "concept_id_type": None},
+        },
     ]
     with (
         patch("hyperscribe.scribe.commands.rfv.ReasonForVisitCommand") as mock_rfv,
@@ -25,15 +37,32 @@ def test_build_effects_routes_all_types() -> None:
         patch("hyperscribe.scribe.commands.prescription.PrescribeCommand") as mock_rx,
         patch("hyperscribe.scribe.commands.lab_order.LabOrderCommand") as mock_lab,
         patch("hyperscribe.scribe.commands.imaging_order.ImagingOrderCommand") as mock_img,
+        patch("hyperscribe.scribe.commands.history_review.CustomCommand") as mock_history,
+        patch("hyperscribe.scribe.commands.chart_review.CustomCommand") as mock_chart,
+        patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_allergy,
     ):
-        for mock in [mock_rfv, mock_hpi, mock_plan, mock_vitals, mock_med, mock_task, mock_rx, mock_lab, mock_img]:
+        all_mocks = [
+            mock_rfv,
+            mock_hpi,
+            mock_plan,
+            mock_vitals,
+            mock_med,
+            mock_task,
+            mock_rx,
+            mock_lab,
+            mock_img,
+            mock_history,
+            mock_chart,
+            mock_allergy,
+        ]
+        for mock in all_mocks:
             inst = MagicMock()
             inst.originate.return_value = f"{mock._mock_name}_effect"
             mock.return_value = inst
 
         effects = build_effects(proposals, "note-uuid")
 
-    assert len(effects) == 9
+    assert len(effects) == 12
     mock_rfv.assert_called_once()
     mock_hpi.assert_called_once()
     mock_vitals.assert_called_once()
@@ -43,6 +72,9 @@ def test_build_effects_routes_all_types() -> None:
     mock_rx.assert_called_once()
     mock_lab.assert_called_once()
     mock_img.assert_called_once()
+    mock_history.assert_called_once()
+    mock_chart.assert_called_once()
+    mock_allergy.assert_called_once()
 
 
 def test_build_effects_unknown_type_skipped() -> None:

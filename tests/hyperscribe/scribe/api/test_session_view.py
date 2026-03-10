@@ -679,6 +679,73 @@ def test_search_medications_missing_query() -> None:
     assert data["results"] == []
 
 
+# --- /search-allergies ---
+
+
+@patch("hyperscribe.scribe.api.session_view.CanvasScience.search_allergy")
+def test_search_allergies_success(mock_search: MagicMock) -> None:
+    from hyperscribe.structures.allergy_detail import AllergyDetail
+
+    mock_search.return_value = [
+        AllergyDetail(
+            concept_id_value=100,
+            concept_id_description="Penicillin",
+            concept_type="Allergen Group",
+            concept_id_type=1,
+        ),
+        AllergyDetail(
+            concept_id_value=200,
+            concept_id_description="Amoxicillin",
+            concept_type="Medication",
+            concept_id_type=2,
+        ),
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"query": "penicillin"})
+    result = view.get_search_allergies()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert len(data["results"]) == 2
+    assert data["results"][0]["concept_id"] == 100
+    assert data["results"][0]["description"] == "Penicillin"
+    assert data["results"][0]["concept_id_type"] == 1
+    assert data["results"][1]["concept_id"] == 200
+    mock_search.assert_called_once()
+
+
+@patch("hyperscribe.scribe.api.session_view.CanvasScience.search_allergy")
+def test_search_allergies_no_results(mock_search: MagicMock) -> None:
+    mock_search.return_value = []
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"query": "xyznonexistent"})
+    result = view.get_search_allergies()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["results"] == []
+
+
+def test_search_allergies_empty_query() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"query": ""})
+    result = view.get_search_allergies()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["results"] == []
+
+
+def test_search_allergies_missing_query() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={})
+    result = view.get_search_allergies()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["results"] == []
+
+
 # --- /assignees ---
 
 

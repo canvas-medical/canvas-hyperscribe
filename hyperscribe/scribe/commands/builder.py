@@ -4,7 +4,10 @@ from typing import Any
 
 from canvas_sdk.effects import Effect
 
+from hyperscribe.scribe.commands.allergy import AllergyParser
 from hyperscribe.scribe.commands.base import CommandParser
+from hyperscribe.scribe.commands.chart_review import ChartReviewParser
+from hyperscribe.scribe.commands.history_review import HistoryReviewParser
 from hyperscribe.scribe.commands.hpi import HpiParser
 from hyperscribe.scribe.commands.imaging_order import ImagingOrderParser
 from hyperscribe.scribe.commands.lab_order import LabOrderParser
@@ -16,6 +19,9 @@ from hyperscribe.scribe.commands.task import TaskParser
 from hyperscribe.scribe.commands.vitals import VitalsParser
 
 _BUILDERS: dict[str, CommandParser] = {
+    "allergy": AllergyParser(),
+    "chart_review": ChartReviewParser(),
+    "history_review": HistoryReviewParser(),
     "hpi": HpiParser(),
     "imaging_order": ImagingOrderParser(),
     "lab_order": LabOrderParser(),
