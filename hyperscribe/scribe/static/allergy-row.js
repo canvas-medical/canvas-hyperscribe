@@ -15,14 +15,16 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function AllergyRow({ command, commandIndex, onEdit, onToggle }) {
-  const [editing, setEditing] = useState(false);
+export function AllergyRow({ command, commandIndex, onEdit, onDelete }) {
+  const [editing, setEditing] = useState(!command.display);
   const [query, setQuery] = useState(command.data.allergy_text || '');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedConceptId, setSelectedConceptId] = useState(command.data.concept_id || null);
   const [selectedConceptIdType, setSelectedConceptIdType] = useState(command.data.concept_id_type || null);
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.allergy_text || '');
+  const [reaction, setReaction] = useState(command.data.reaction || '');
+  const [severity, setSeverity] = useState(command.data.severity || '');
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -91,16 +93,24 @@ export function AllergyRow({ command, commandIndex, onEdit, onToggle }) {
       allergy_text: selectedDisplay,
       concept_id: selectedConceptId,
       concept_id_type: selectedConceptIdType,
+      reaction,
+      severity: severity || null,
     };
     onEdit(commandIndex, newData);
     setEditing(false);
   };
 
   const handleCancel = () => {
+    if (!command.display) {
+      onDelete(commandIndex);
+      return;
+    }
     setQuery(command.data.allergy_text || '');
     setSelectedConceptId(command.data.concept_id || null);
     setSelectedConceptIdType(command.data.concept_id_type || null);
     setSelectedDisplay(command.data.allergy_text || '');
+    setReaction(command.data.reaction || '');
+    setSeverity(command.data.severity || '');
     setResults([]);
     setEditing(false);
   };
@@ -113,11 +123,6 @@ export function AllergyRow({ command, commandIndex, onEdit, onToggle }) {
     if (e.key === 'Escape') {
       handleCancel();
     }
-  };
-
-  const handleToggle = (e) => {
-    e.stopPropagation();
-    onToggle(commandIndex, !command.selected);
   };
 
   // Already documented — non-clickable, dimmed.
@@ -135,12 +140,6 @@ export function AllergyRow({ command, commandIndex, onEdit, onToggle }) {
   if (editing) {
     return html`
       <div class="allergy-row editing" ref=${containerRef}>
-        <input
-          type="checkbox"
-          class="allergy-checkbox"
-          checked=${command.selected !== false}
-          onClick=${handleToggle}
-        />
         <span class="command-type-badge badge-allergy">Allergy</span>
         <div class="allergy-search-wrapper">
           <input
@@ -170,9 +169,28 @@ export function AllergyRow({ command, commandIndex, onEdit, onToggle }) {
         ${selectedConceptId && html`
           <span class="allergy-structured-badge">Coded</span>
         `}
+        <input
+          type="text"
+          class="allergy-row-input"
+          value=${reaction}
+          onInput=${(e) => setReaction(e.target.value)}
+          onKeyDown=${handleKeyDown}
+          placeholder="Reaction (e.g. rash, hives)"
+        />
+        <div class="allergy-severity">
+          ${['mild', 'moderate', 'severe'].map(s => html`
+            <button
+              key=${s}
+              type="button"
+              class="task-quick-btn${severity === s ? ' active' : ''}"
+              onClick=${() => setSeverity(severity === s ? '' : s)}
+            >${s[0].toUpperCase() + s.slice(1)}</button>
+          `)}
+        </div>
         <div class="command-row-actions">
           <button class="edit-btn" onClick=${handleSave}>Save</button>
           <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
+          <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
         </div>
       </div>
     `;
@@ -180,16 +198,12 @@ export function AllergyRow({ command, commandIndex, onEdit, onToggle }) {
 
   // View mode.
   return html`
-    <div class="allergy-row${command.selected === false ? ' deselected' : ''}"
+    <div class="allergy-row"
          onClick=${() => setEditing(true)}>
-      <input
-        type="checkbox"
-        class="allergy-checkbox"
-        checked=${command.selected !== false}
-        onClick=${handleToggle}
-      />
       <span class="command-type-badge badge-allergy">Allergy</span>
       <span class="allergy-row-text">${command.display}</span>
+      ${command.data.reaction && html`<span class="allergy-reaction-text">${command.data.reaction}</span>`}
+      ${command.data.severity && html`<span class="allergy-severity-badge severity-${command.data.severity}">${command.data.severity}</span>`}
       ${isStructured
         ? html`<span class="allergy-structured-badge">Coded</span>`
         : html`<span class="allergy-unstructured-badge">Unstructured</span>`

@@ -6,7 +6,7 @@ import { SoapGroup } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.j
 const html = htm.bind(h);
 
 // ── DEV_MOCK: set to true to bypass backend and render all command types ──
-const DEV_MOCK = false;
+const DEV_MOCK = true;
 
 const DEV_MOCK_NOTE = {
   title: 'Mock Visit Note',
@@ -75,7 +75,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onToggleCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -89,7 +89,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onToggle
         sections=${matching}
         commandBySectionKey=${commandBySectionKey}
         onEditCommand=${onEditCommand}
-        onToggleCommand=${onToggleCommand}
+        onDeleteCommand=${onDeleteCommand}
         adHocCommands=${isPlan ? adHocCommands : isObjective ? objectiveAdHocCommands : null}
         assignees=${isPlan ? assignees : null}
         onAddTask=${isPlan ? onAddTask : null}
@@ -275,10 +275,8 @@ export function Summary({ noteId }) {
     }));
   }, []);
 
-  const handleToggle = useCallback((index, selected) => {
-    setCommands(prev => prev.map((cmd, i) =>
-      i === index ? { ...cmd, selected } : cmd
-    ));
+  const handleDelete = useCallback((index) => {
+    setCommands(prev => prev.filter((_, i) => i !== index));
   }, []);
 
   const handleAddTask = useCallback(() => {
@@ -307,7 +305,7 @@ export function Summary({ noteId }) {
     setCommands(prev => [...prev, {
       command_type: 'medication_statement',
       display: '',
-      data: { medication_text: '', fdb_code: null },
+      data: { medication_text: '', fdb_code: null, sig: '' },
       selected: true,
       section_key: '_objective_ad_hoc',
       already_documented: false,
@@ -318,7 +316,7 @@ export function Summary({ noteId }) {
     setCommands(prev => [...prev, {
       command_type: 'allergy',
       display: '',
-      data: { allergy_text: '', concept_id: null, concept_id_type: null },
+      data: { allergy_text: '', concept_id: null, concept_id_type: null, reaction: '', severity: null },
       selected: true,
       section_key: '_objective_ad_hoc',
       already_documented: false,
@@ -327,7 +325,7 @@ export function Summary({ noteId }) {
 
   const handleInsert = useCallback(async () => {
     setInserting(true);
-    const insertable = commands.filter(c => !c.already_documented && c.selected !== false && c.display);
+    const insertable = commands.filter(c => !c.already_documented && c.display);
     try {
       const res = await fetch(`${API_BASE}/insert-commands`, {
         method: 'POST',
@@ -407,17 +405,13 @@ export function Summary({ noteId }) {
     .map((cmd, index) => ({ command: cmd, index }))
     .filter(entry => entry.command.section_key === '_objective_ad_hoc');
 
-  const insertableCount = commands.filter(c => !c.already_documented && c.selected !== false && c.display).length;
+  const insertableCount = commands.filter(c => !c.already_documented && c.display).length;
   const showFooter = !extracting && (insertableCount > 0 || inserted);
 
   return html`
     <div class="summary-container">
-      <div class="summary-header">
-        <span class="summary-header-title">Canvas Scribe</span>
-        <span class="summary-header-status">Ready for Review</span>
-      </div>
       <div class="summary-body">
-        ${renderSoapGroups(noteData.sections, commandBySectionKey, handleEdit, handleToggle, {
+        ${renderSoapGroups(noteData.sections, commandBySectionKey, handleEdit, handleDelete, {
           adHocCommands,
           objectiveAdHocCommands,
           assignees,

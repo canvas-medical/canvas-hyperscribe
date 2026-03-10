@@ -15,8 +15,8 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function MedicationRow({ command, commandIndex, onEdit, onToggle }) {
-  const [editing, setEditing] = useState(false);
+export function MedicationRow({ command, commandIndex, onEdit, onDelete }) {
+  const [editing, setEditing] = useState(!command.display);
   const [query, setQuery] = useState(command.data.medication_text || '');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -24,6 +24,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onToggle }) {
     typeof command.data.fdb_code === 'string' ? command.data.fdb_code : null
   );
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.medication_text || '');
+  const [sig, setSig] = useState(command.data.sig || '');
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -85,7 +86,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onToggle }) {
   };
 
   const handleSave = () => {
-    const newData = { ...command.data, medication_text: selectedDisplay };
+    const newData = { ...command.data, medication_text: selectedDisplay, sig };
     if (selectedFdb) {
       newData.fdb_code = selectedFdb;
     } else {
@@ -96,9 +97,14 @@ export function MedicationRow({ command, commandIndex, onEdit, onToggle }) {
   };
 
   const handleCancel = () => {
+    if (!command.display) {
+      onDelete(commandIndex);
+      return;
+    }
     setQuery(command.data.medication_text || '');
     setSelectedFdb(typeof command.data.fdb_code === 'string' ? command.data.fdb_code : null);
     setSelectedDisplay(command.data.medication_text || '');
+    setSig(command.data.sig || '');
     setResults([]);
     setEditing(false);
   };
@@ -111,11 +117,6 @@ export function MedicationRow({ command, commandIndex, onEdit, onToggle }) {
     if (e.key === 'Escape') {
       handleCancel();
     }
-  };
-
-  const handleToggle = (e) => {
-    e.stopPropagation();
-    onToggle(commandIndex, !command.selected);
   };
 
   // Already documented — non-clickable, dimmed.
@@ -133,12 +134,6 @@ export function MedicationRow({ command, commandIndex, onEdit, onToggle }) {
   if (editing) {
     return html`
       <div class="medication-row editing" ref=${containerRef}>
-        <input
-          type="checkbox"
-          class="medication-checkbox"
-          checked=${command.selected !== false}
-          onClick=${handleToggle}
-        />
         <span class="command-type-badge badge-medication">Med</span>
         <div class="medication-search-wrapper">
           <input
@@ -168,9 +163,18 @@ export function MedicationRow({ command, commandIndex, onEdit, onToggle }) {
         ${selectedFdb && html`
           <span class="medication-structured-badge">FDB: ${selectedFdb}</span>
         `}
+        <input
+          type="text"
+          class="medication-row-input"
+          value=${sig}
+          onInput=${(e) => setSig(e.target.value)}
+          onKeyDown=${handleKeyDown}
+          placeholder="Sig (e.g. Take 1 tablet daily)"
+        />
         <div class="command-row-actions">
           <button class="edit-btn" onClick=${handleSave}>Save</button>
           <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
+          <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
         </div>
       </div>
     `;
@@ -178,16 +182,11 @@ export function MedicationRow({ command, commandIndex, onEdit, onToggle }) {
 
   // View mode.
   return html`
-    <div class="medication-row${command.selected === false ? ' deselected' : ''}"
+    <div class="medication-row"
          onClick=${() => setEditing(true)}>
-      <input
-        type="checkbox"
-        class="medication-checkbox"
-        checked=${command.selected !== false}
-        onClick=${handleToggle}
-      />
       <span class="command-type-badge badge-medication">Med</span>
       <span class="medication-row-text">${command.display}</span>
+      ${command.data.sig && html`<span class="medication-sig-text">${command.data.sig}</span>`}
       ${isStructured
         ? html`<span class="medication-structured-badge">FDB: ${command.data.fdb_code}</span>`
         : html`<span class="medication-unstructured-badge">Unstructured</span>`

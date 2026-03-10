@@ -4,7 +4,7 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
-export function HistoryReviewRow({ command, commandIndex, onEdit, onToggle }) {
+export function HistoryReviewRow({ command, commandIndex, onEdit }) {
   const sections = (command.data && command.data.sections) || [];
   const [editing, setEditing] = useState(false);
   const [drafts, setDrafts] = useState(sections.map(s => s.text || ''));
@@ -33,11 +33,6 @@ export function HistoryReviewRow({ command, commandIndex, onEdit, onToggle }) {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') handleCancel();
-  };
-
-  const handleToggle = (e) => {
-    e.stopPropagation();
-    if (onToggle) onToggle(commandIndex, e.target.checked);
   };
 
   if (editing) {
@@ -69,17 +64,9 @@ export function HistoryReviewRow({ command, commandIndex, onEdit, onToggle }) {
 
   return html`
     <div
-      class="history-review-row${command.selected === false ? ' deselected' : ''}"
+      class="history-review-row"
       onClick=${() => setEditing(true)}
     >
-      ${onToggle && html`
-        <input
-          type="checkbox"
-          class="command-checkbox"
-          checked=${command.selected !== false}
-          onClick=${handleToggle}
-        />
-      `}
       <div>
         ${sections.map((s, i) => html`
           <div key=${s.key}>
