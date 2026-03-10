@@ -3,8 +3,10 @@ from typing import Union
 
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import HTMLResponse, Response
-from canvas_sdk.handlers.simple_api import Credentials, SimpleAPI, api
+from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 from canvas_sdk.templates import render_to_string
+from canvas_sdk.v1.data.note import Note
+from canvas_sdk.v1.data.staff import Staff
 
 CONTENT_TYPES: dict[str, str] = {
     "js": "text/javascript",
@@ -12,13 +14,10 @@ CONTENT_TYPES: dict[str, str] = {
 }
 
 
-class ScribeView(SimpleAPI):
+class ScribeView(StaffSessionAuthMixin, SimpleAPI):
     """Serve the Scribe UI and static assets."""
 
     PREFIX = "/scribe"
-
-    def authenticate(self, credentials: Credentials) -> bool:
-        return True
 
     @api.get("/app")
     def get_app(self) -> list[Union[Response, Effect]]:
@@ -32,7 +31,23 @@ class ScribeView(SimpleAPI):
                 )
             ]
 
-        html = render_to_string("scribe/static/index.html", {"note_id": note_id, "view": view})
+        staff_id = self.request.headers.get("canvas-logged-in-user-id")
+        provider = Staff.objects.get(id=staff_id)
+        provider_name = provider.credentialed_name
+
+        note = Note.objects.select_related("patient").get(id=note_id)
+        patient_name = note.patient.full_name
+
+        html = render_to_string(
+            "scribe/static/index.html",
+            {
+                "note_id": note_id,
+                "view": view,
+                "provider_name": provider_name,
+                "provider_photo_url": provider.photo_url,
+                "patient_name": patient_name,
+            },
+        )
         return [HTMLResponse(html)]
 
     @api.get("/static/<filename>")
