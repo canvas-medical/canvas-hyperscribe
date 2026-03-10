@@ -11,7 +11,19 @@ const html = htm.bind(h);
 const NARRATIVE_SECTIONS = new Set(['chief_complaint', 'history_of_present_illness', 'plan']);
 const ORDER_TYPES = new Set(['prescribe', 'lab_order', 'imaging_order']);
 
-export function SoapGroup({ title, sections, commandBySectionKey, onEditCommand, onToggleCommand, adHocCommands, assignees, onAddTask, onAddOrder }) {
+const COMMAND_BADGE = {
+  rfv: { label: 'RFV', color: 'rfv' },
+  hpi: { label: 'HPI', color: 'hpi' },
+  plan: { label: 'Plan', color: 'plan_cmd' },
+  vitals: { label: 'Vitals', color: 'vitals' },
+  medication_statement: { label: 'Med', color: 'medication' },
+  task: { label: 'Task', color: 'task' },
+  prescribe: { label: 'Rx', color: 'prescribe' },
+  lab_order: { label: 'Lab', color: 'lab_order' },
+  imaging_order: { label: 'Imaging', color: 'imaging_order' },
+};
+
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onToggleCommand, adHocCommands, assignees, onAddTask, onAddOrder }) {
   return html`
     <div class="summary-section">
       <div class="section-header">
@@ -21,38 +33,62 @@ export function SoapGroup({ title, sections, commandBySectionKey, onEditCommand,
         ${sections.map(s => {
           const key = s.key.toLowerCase();
           const cmds = commandBySectionKey && commandBySectionKey[key];
+
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
             const entry = cmds[0];
-            return html`<${CommandRow}
-              key=${key}
-              command=${entry.command}
-              commandIndex=${entry.index}
-              onEdit=${onEditCommand}
-            />`;
+            const badge = COMMAND_BADGE[entry.command.command_type] || { label: entry.command.command_type, color: 'rfv' };
+            return html`
+              <div class="subsection" key=${s.key}>
+                <div class="subsection-title">${s.title}</div>
+                <div class="content-block has-badge content-block--${badge.color}">
+                  <span class="content-block-badge badge-${entry.command.command_type}">${badge.label}</span>
+                  <${CommandRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onToggle=${onToggleCommand}
+                  />
+                </div>
+              </div>
+            `;
           }
+
           if (cmds && key === 'vitals') {
             const entry = cmds[0];
-            return html`<${VitalsRow}
-              key=${key}
-              command=${entry.command}
-              commandIndex=${entry.index}
-              onEdit=${onEditCommand}
-            />`;
+            return html`
+              <div class="subsection" key=${s.key}>
+                <div class="subsection-title">${s.title}</div>
+                <div class="content-block has-badge content-block--vitals">
+                  <span class="content-block-badge badge-vitals">Vitals</span>
+                  <${VitalsRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onToggle=${onToggleCommand}
+                  />
+                </div>
+              </div>
+            `;
           }
+
           if (cmds && key === 'current_medications') {
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
-                ${cmds.map(entry => html`<${MedicationRow}
-                  key=${entry.index}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onToggle=${onToggleCommand}
-                />`)}
+                ${cmds.map(entry => html`
+                  <div class="content-block content-block--medication" key=${entry.index}>
+                    <${MedicationRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditCommand}
+                      onToggle=${onToggleCommand}
+                    />
+                  </div>
+                `)}
               </div>
             `;
           }
+
           return html`
             <div class="subsection" key=${s.key}>
               <div class="subsection-title">${s.title}</div>
@@ -60,32 +96,36 @@ export function SoapGroup({ title, sections, commandBySectionKey, onEditCommand,
             </div>
           `;
         })}
-        ${adHocCommands && adHocCommands.length > 0 && html`
-          <div class="subsection">
-            ${adHocCommands.map(entry => {
-              if (entry.command.command_type === 'task') {
-                return html`<${TaskRow}
-                  key=${entry.index}
+        ${adHocCommands && adHocCommands.map(entry => {
+          const type = entry.command.command_type;
+          const badge = COMMAND_BADGE[type] || { label: type, color: 'task' };
+          if (type === 'task') {
+            return html`
+              <div class="content-block content-block--${badge.color}" key=${entry.index}>
+                <${TaskRow}
                   command=${entry.command}
                   commandIndex=${entry.index}
                   onEdit=${onEditCommand}
                   onToggle=${onToggleCommand}
                   assignees=${assignees}
-                />`;
-              }
-              if (ORDER_TYPES.has(entry.command.command_type)) {
-                return html`<${OrderRow}
-                  key=${entry.index}
+                />
+              </div>
+            `;
+          }
+          if (ORDER_TYPES.has(type)) {
+            return html`
+              <div class="content-block content-block--${badge.color}" key=${entry.index}>
+                <${OrderRow}
                   command=${entry.command}
                   commandIndex=${entry.index}
                   onEdit=${onEditCommand}
                   onToggle=${onToggleCommand}
-                />`;
-              }
-              return null;
-            })}
-          </div>
-        `}
+                />
+              </div>
+            `;
+          }
+          return null;
+        })}
         ${onAddTask && html`
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${onAddTask}>+ Task</button>
