@@ -1,10 +1,12 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { CommandRow } from '/plugin-io/api/hyperscribe/scribe/static/command-row.js';
+import { AllergyRow } from '/plugin-io/api/hyperscribe/scribe/static/allergy-row.js';
 import { MedicationRow } from '/plugin-io/api/hyperscribe/scribe/static/medication-row.js';
 import { VitalsRow } from '/plugin-io/api/hyperscribe/scribe/static/vitals-row.js';
 import { TaskRow } from '/plugin-io/api/hyperscribe/scribe/static/task-row.js';
 import { OrderRow } from '/plugin-io/api/hyperscribe/scribe/static/order-row.js';
+import { HistoryReviewRow } from '/plugin-io/api/hyperscribe/scribe/static/history-review-row.js';
 
 const html = htm.bind(h);
 
@@ -21,17 +23,60 @@ const COMMAND_BADGE = {
   prescribe: { label: 'Rx', color: 'prescribe' },
   lab_order: { label: 'Lab', color: 'lab_order' },
   imaging_order: { label: 'Imaging', color: 'imaging_order' },
+  allergy: { label: 'Allergy', color: 'allergy' },
+  history_review: { label: 'History Review', color: 'history_review' },
+  chart_review: { label: 'Chart Review', color: 'chart_review' },
 };
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onToggleCommand, adHocCommands, assignees, onAddTask, onAddOrder }) {
+// Map group title → review command section key + label
+const REVIEW_COMMANDS = {
+  HISTORY: { sectionKey: '_history_review', label: 'History Review', color: 'history_review' },
+  OBJECTIVE: { sectionKey: '_chart_review', label: 'Chart Review', color: 'chart_review' },
+};
+
+function getCoveredKeys(commandBySectionKey) {
+  const covered = new Set();
+  for (const { sectionKey } of Object.values(REVIEW_COMMANDS)) {
+    const cmds = commandBySectionKey && commandBySectionKey[sectionKey];
+    if (cmds && cmds.length > 0) {
+      for (const sec of cmds[0].command.data.sections || []) {
+        covered.add(sec.key);
+      }
+    }
+  }
+  return covered;
+}
+
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onToggleCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy }) {
+  const coveredKeys = getCoveredKeys(commandBySectionKey);
+
   return html`
     <div class="summary-section">
       <div class="section-header">
         <span class="section-title">${title}</span>
       </div>
       <div class="section-body">
+        ${(() => {
+          const review = REVIEW_COMMANDS[title];
+          if (!review) return null;
+          const cmds = commandBySectionKey && commandBySectionKey[review.sectionKey];
+          if (!cmds || cmds.length === 0) return null;
+          const entry = cmds[0];
+          return html`
+            <div class="content-block has-badge content-block--${review.color}">
+              <span class="content-block-badge badge-${review.color}">${review.label}</span>
+              <${HistoryReviewRow}
+                command=${entry.command}
+                commandIndex=${entry.index}
+                onEdit=${onEditCommand}
+                onToggle=${onToggleCommand}
+              />
+            </div>
+          `;
+        })()}
         ${sections.map(s => {
           const key = s.key.toLowerCase();
+          if (coveredKeys.has(key)) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
 
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
@@ -89,6 +134,24 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             `;
           }
 
+          if (cmds && key === 'allergies') {
+            return html`
+              <div class="subsection" key=${s.key}>
+                <div class="subsection-title">${s.title}</div>
+                ${cmds.map(entry => html`
+                  <div class="content-block content-block--allergy" key=${entry.index}>
+                    <${AllergyRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditCommand}
+                      onToggle=${onToggleCommand}
+                    />
+                  </div>
+                `)}
+              </div>
+            `;
+          }
+
           return html`
             <div class="subsection" key=${s.key}>
               <div class="subsection-title">${s.title}</div>
@@ -99,6 +162,30 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         ${adHocCommands && adHocCommands.map(entry => {
           const type = entry.command.command_type;
           const badge = COMMAND_BADGE[type] || { label: type, color: 'task' };
+          if (type === 'medication_statement') {
+            return html`
+              <div class="content-block content-block--medication" key=${entry.index}>
+                <${MedicationRow}
+                  command=${entry.command}
+                  commandIndex=${entry.index}
+                  onEdit=${onEditCommand}
+                  onToggle=${onToggleCommand}
+                />
+              </div>
+            `;
+          }
+          if (type === 'allergy') {
+            return html`
+              <div class="content-block content-block--allergy" key=${entry.index}>
+                <${AllergyRow}
+                  command=${entry.command}
+                  commandIndex=${entry.index}
+                  onEdit=${onEditCommand}
+                  onToggle=${onToggleCommand}
+                />
+              </div>
+            `;
+          }
           if (type === 'task') {
             return html`
               <div class="content-block content-block--${badge.color}" key=${entry.index}>
@@ -126,6 +213,12 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           }
           return null;
         })}
+        ${onAddMedication && html`
+          <div class="ad-hoc-buttons">
+            <button type="button" class="ad-hoc-btn" onClick=${onAddMedication}>+ Medication</button>
+            <button type="button" class="ad-hoc-btn" onClick=${onAddAllergy}>+ Allergy</button>
+          </div>
+        `}
         ${onAddTask && html`
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${onAddTask}>+ Task</button>
