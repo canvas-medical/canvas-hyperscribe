@@ -29,11 +29,12 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onToggleCommand) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onToggleCommand, { adHocCommands, assignees, onAddTask, onAddOrder } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
-      if (matching.length === 0) return null;
+      const isPlan = group.title === 'PLAN';
+      if (matching.length === 0 && !isPlan) return null;
       return html`<${SoapGroup}
         key=${group.title}
         title=${group.title}
@@ -41,6 +42,10 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onToggle
         commandBySectionKey=${commandBySectionKey}
         onEditCommand=${onEditCommand}
         onToggleCommand=${onToggleCommand}
+        adHocCommands=${isPlan ? adHocCommands : null}
+        assignees=${isPlan ? assignees : null}
+        onAddTask=${isPlan ? onAddTask : null}
+        onAddOrder=${isPlan ? onAddOrder : null}
       />`;
     })
     .filter(Boolean);
@@ -54,6 +59,7 @@ export function Summary({ noteId }) {
   const [extracting, setExtracting] = useState(false);
   const [inserting, setInserting] = useState(false);
   const [inserted, setInserted] = useState(false);
+  const [assignees, setAssignees] = useState([]);
 
   // Generate note on mount.
   useEffect(() => {
@@ -119,14 +125,45 @@ export function Summary({ noteId }) {
     return () => { cancelled = true; };
   }, [noteData]);
 
-  const handleEdit = useCallback((index, newData) => {
+  // Fetch assignees for task assignment.
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchAssignees() {
+      try {
+        const res = await fetch(`${API_BASE}/assignees`, { cache: 'no-store' });
+        if (cancelled) return;
+        const data = await res.json();
+        if (data.assignees) setAssignees(data.assignees);
+      } catch (err) {
+        console.error('Failed to fetch assignees:', err);
+      }
+    }
+    fetchAssignees();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleEdit = useCallback((index, newData, newType) => {
     setCommands(prev => prev.map((cmd, i) => {
       if (i !== index) return cmd;
-      if (cmd.command_type === 'vitals') {
+      const type = newType || cmd.command_type;
+      if (type === 'vitals') {
         return { ...cmd, data: newData };
       }
-      if (cmd.command_type === 'medication_statement') {
+      if (type === 'medication_statement') {
         return { ...cmd, data: newData, display: newData.medication_text || '' };
+      }
+      if (type === 'task') {
+        return { ...cmd, data: newData, display: newData.title || '' };
+      }
+      if (type === 'prescribe') {
+        return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '' };
+      }
+      if (type === 'lab_order') {
+        return { ...cmd, command_type: type, data: newData, display: newData.comment || '' };
+      }
+      if (type === 'imaging_order') {
+        const parts = [newData.comment, newData.priority].filter(Boolean);
+        return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
       }
       const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
       const text = newData[field] || '';
@@ -140,9 +177,31 @@ export function Summary({ noteId }) {
     ));
   }, []);
 
+  const handleAddTask = useCallback(() => {
+    setCommands(prev => [...prev, {
+      command_type: 'task',
+      display: '',
+      data: { title: '', due_date: null, assign_to: null },
+      selected: true,
+      section_key: '_ad_hoc',
+      already_documented: false,
+    }]);
+  }, []);
+
+  const handleAddOrder = useCallback(() => {
+    setCommands(prev => [...prev, {
+      command_type: 'prescribe',
+      display: '',
+      data: {},
+      selected: true,
+      section_key: '_ad_hoc',
+      already_documented: false,
+    }]);
+  }, []);
+
   const handleInsert = useCallback(async () => {
     setInserting(true);
-    const insertable = commands.filter(c => !c.already_documented && c.selected !== false);
+    const insertable = commands.filter(c => !c.already_documented && c.selected !== false && c.display);
     try {
       const res = await fetch(`${API_BASE}/insert-commands`, {
         method: 'POST',
@@ -187,13 +246,21 @@ export function Summary({ noteId }) {
   }
 
   const commandBySectionKey = buildCommandBySectionKey(commands);
+  const adHocCommands = commands
+    .map((cmd, index) => ({ command: cmd, index }))
+    .filter(entry => entry.command.section_key === '_ad_hoc');
 
   return html`
     <div class="summary-container">
-      ${renderSoapGroups(noteData.sections, commandBySectionKey, handleEdit, handleToggle)}
+      ${renderSoapGroups(noteData.sections, commandBySectionKey, handleEdit, handleToggle, {
+        adHocCommands,
+        assignees,
+        onAddTask: handleAddTask,
+        onAddOrder: handleAddOrder,
+      })}
       ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
       ${(() => {
-        const insertableCount = commands.filter(c => !c.already_documented && c.selected !== false).length;
+        const insertableCount = commands.filter(c => !c.already_documented && c.selected !== false && c.display).length;
         return !extracting && insertableCount > 0 && !inserted && html`
           <button
             class="insert-btn"

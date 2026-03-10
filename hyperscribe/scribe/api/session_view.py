@@ -13,6 +13,8 @@ from canvas_sdk.handlers.simple_api import SessionCredentials, SimpleAPI, StaffS
 
 from canvas_sdk.v1.data.medication import Medication, MedicationCoding, Status
 from canvas_sdk.v1.data.note import Note
+from canvas_sdk.v1.data.staff import Staff
+from canvas_sdk.v1.data.team import Team
 
 from hyperscribe.libraries.canvas_science import CanvasScience
 
@@ -318,3 +320,18 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 status_code=HTTPStatus.OK,
             )
         ]
+
+    @api.get("/assignees")
+    def get_assignees(self) -> list[Union[Response, Effect]]:
+        """Return a merged list of active staff members and teams for task assignment."""
+        assignees: list[dict[str, Any]] = []
+        for s in (
+            Staff.objects.filter(active=True)
+            .order_by("last_name", "first_name")
+            .values("dbid", "first_name", "last_name")
+        ):
+            label = f"{s['first_name']} {s['last_name']}".strip()
+            assignees.append({"type": "staff", "id": s["dbid"], "label": label})
+        for t in Team.objects.all().order_by("name").values("dbid", "name"):
+            assignees.append({"type": "team", "id": t["dbid"], "label": t["name"]})
+        return [JSONResponse({"assignees": assignees}, status_code=HTTPStatus.OK)]
