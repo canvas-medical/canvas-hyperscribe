@@ -1,0 +1,40 @@
+.debug-container { padding: 16px; font-size: 13px; }
+.debug-header {
+  display: flex; align-items: center; gap: 12px;
+  padding-bottom: 12px; border-bottom: 1px solid #e5e7eb; margin-bottom: 16px;
+}
+.debug-header-title { font-weight: 600; font-size: 15px; }
+.debug-note-id { color: #6b7280; font-family: monospace; font-size: 12px; }
+.debug-header-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.debug-section { margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+.debug-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: #f9fafb; border-bottom: 1px solid #e5e7eb;
+}
+.debug-section-title { font-weight: 600; }
+.debug-section-actions { display: flex; gap: 6px; }
+
+.debug-json {
+  padding: 12px 14px; margin: 0;
+  font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 11px;
+  white-space: pre-wrap; word-break: break-all;
+  max-height: 400px; overflow-y: auto;
+  background: #fff; color: #374151;
+}
+.debug-textarea {
+  width: 100%; min-height: 200px; padding: 12px 14px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 11px;
+  border: none; border-bottom: 1px solid #e5e7eb;
+  resize: vertical; outline: none;
+}
+.debug-edit-actions { display: flex; gap: 6px; padding: 8px 14px; background: #f9fafb; }
+
+.debug-btn {
+  padding: 4px 10px; font-size: 12px; border-radius: 4px;
+  border: 1px solid #d1d5db; background: #fff; color: #374151;
+  cursor: pointer;
+}
+.debug-btn:hover { background: #f3f4f6; }
+.debug-btn-danger { color: #dc2626; border-color: #fca5a5; }
+.debug-btn-danger:hover { background: #fef2f2; }

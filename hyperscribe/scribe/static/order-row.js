@@ -47,7 +47,7 @@ function buildDisplay(type, data) {
   return '';
 }
 
-export function OrderRow({ command, commandIndex, onEdit, onDelete }) {
+export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   const [activeTab, setActiveTab] = useState(command.command_type || 'prescribe');
@@ -265,7 +265,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete }) {
   // View mode.
   const badgeLabel = BADGE_LABELS[command.command_type] || 'Order';
   return html`
-    <div class="order-row" onClick=${() => setEditing(true)}>
+    <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
       <span class="command-type-badge badge-${command.command_type}">${badgeLabel}</span>
       <span class="command-row-text">${command.display}</span>
     </div>

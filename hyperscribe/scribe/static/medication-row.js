@@ -15,7 +15,7 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function MedicationRow({ command, commandIndex, onEdit, onDelete }) {
+export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
   const [editing, setEditing] = useState(!command.display);
   const [query, setQuery] = useState(command.data.medication_text || '');
   const [results, setResults] = useState([]);
@@ -183,7 +183,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete }) {
   // View mode.
   return html`
     <div class="medication-row"
-         onClick=${() => setEditing(true)}>
+         onClick=${() => !readOnly && setEditing(true)}>
       <span class="command-type-badge badge-medication">Med</span>
       <span class="medication-row-text">${command.display}</span>
       ${command.data.sig && html`<span class="medication-sig-text">${command.data.sig}</span>`}

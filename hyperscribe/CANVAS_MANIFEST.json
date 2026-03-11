@@ -138,6 +138,15 @@
         }
       },
       {
+        "class": "hyperscribe.scribe.application.debug_cache_app:ScribeCacheApp",
+        "description": "Debug cache for the canvas scribe application.",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
         "class": "hyperscribe.scribe.api.scribe_view:ScribeView",
         "description": "Serve the Scribe UI and static assets",
         "data_access": {
