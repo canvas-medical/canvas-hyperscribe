@@ -375,6 +375,24 @@ def test_generate_note_no_transcript_no_cache(get_backend: MagicMock, mock_get_c
     assert "No transcript" in json.loads(result[0].content)["error"]
 
 
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_note_rejects_non_finalized_transcript(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    cache._store[f"{_CACHE_KEY_PREFIX}42"] = json.dumps(
+        {"items": [{"text": "hi", "speaker": "patient"}], "finalized": False}
+    )
+    get_backend.return_value = MagicMock()
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "42"}))
+    result = view.post_generate_note()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "still in progress" in json.loads(result[0].content)["error"]
+
+
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
 def test_generate_note_with_patient_context(get_backend: MagicMock) -> None:
     mock_backend = MagicMock()
