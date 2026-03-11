@@ -383,6 +383,11 @@ export function Summary({ noteId }) {
       } else {
         setApproved(true);
         saveSummaryToCache(noteData, commands, true);
+        // Close the modal via the Canvas message channel.
+        const port = window.__canvasPort && window.__canvasPort();
+        if (port) {
+          port.postMessage({ type: 'CLOSE_MODAL' });
+        }
       }
     } catch (err) {
       setError('Failed to insert commands');
