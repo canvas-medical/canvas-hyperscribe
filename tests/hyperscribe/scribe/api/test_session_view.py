@@ -11,6 +11,7 @@ from hyperscribe.scribe.api.session_view import (
     ScribeSessionView,
     _CACHE_KEY_PREFIX,
     _SUMMARY_CACHE_KEY_PREFIX,
+    _match_conditions_to_sections,
 )
 from hyperscribe.scribe.backend import ScribeError
 from hyperscribe.scribe.backend.models import (
@@ -494,6 +495,10 @@ def test_generate_normalized_data_success(get_backend: MagicMock) -> None:
     assert response_data["conditions"][0]["coding"][0]["code"] == "R51"
     assert len(response_data["observations"]) == 1
     assert response_data["observations"][0]["value"] == "120/80"
+    # section_conditions: "subjective" mentions "Headache"
+    assert "section_conditions" in response_data
+    assert "subjective" in response_data["section_conditions"]
+    assert response_data["section_conditions"]["subjective"][0]["display"] == "Headache"
 
 
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
@@ -520,6 +525,89 @@ def test_generate_normalized_data_backend_error(get_backend: MagicMock) -> None:
 
     expected = [JSONResponse({"error": "Normalization failed"}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
     assert result == expected
+
+
+# --- _match_conditions_to_sections ---
+
+
+def test_match_conditions_assessment_plan_gets_all() -> None:
+    """Assessment/plan sections receive all conditions regardless of text."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="assessment_and_plan", title="A&P", text="Manage conditions."),
+            NoteSection(key="plan", title="Plan", text="Follow up."),
+        ],
+    )
+    headache_coding = [CodingEntry(system="ICD-10", code="R51", display="Headache")]
+    htn_coding = [CodingEntry(system="ICD-10", code="I10", display="Essential hypertension")]
+    conditions = [
+        Condition(display="Headache", clinical_status="active", coding=headache_coding),
+        Condition(display="Hypertension", clinical_status="active", coding=htn_coding),
+    ]
+    result = _match_conditions_to_sections(note, conditions)
+    assert len(result["assessment_and_plan"]) == 2
+    assert len(result["plan"]) == 2
+
+
+def test_match_conditions_text_match() -> None:
+    """Non-plan sections only get conditions whose display matches the text."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="history_of_present_illness", title="HPI", text="Patient reports a headache for 3 days."),
+        ],
+    )
+    headache_coding = [CodingEntry(system="ICD-10", code="R51", display="Headache")]
+    htn_coding = [CodingEntry(system="ICD-10", code="I10", display="Essential hypertension")]
+    conditions = [
+        Condition(display="Headache", clinical_status="active", coding=headache_coding),
+        Condition(display="Hypertension", clinical_status="active", coding=htn_coding),
+    ]
+    result = _match_conditions_to_sections(note, conditions)
+    assert len(result["history_of_present_illness"]) == 1
+    assert result["history_of_present_illness"][0]["display"] == "Headache"
+    assert result["history_of_present_illness"][0]["coding"][0]["code"] == "R51"
+
+
+def test_match_conditions_case_insensitive() -> None:
+    """Matching is case-insensitive."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="subjective", title="Subjective", text="SEVERE HEADACHE reported.")],
+    )
+    conditions = [
+        Condition(display="headache", clinical_status="active", coding=[]),
+    ]
+    result = _match_conditions_to_sections(note, conditions)
+    assert "subjective" in result
+    assert result["subjective"][0]["display"] == "headache"
+
+
+def test_match_conditions_empty_section_text() -> None:
+    """Sections with empty text produce no entries (unless assessment/plan)."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="review_of_systems", title="ROS", text="")],
+    )
+    conditions = [
+        Condition(display="Headache", clinical_status="active", coding=[]),
+    ]
+    result = _match_conditions_to_sections(note, conditions)
+    assert "review_of_systems" not in result
+
+
+def test_match_conditions_no_conditions() -> None:
+    """When there are no conditions, all sections produce empty result."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="assessment_and_plan", title="A&P", text="Plan here."),
+            NoteSection(key="subjective", title="Subjective", text="Pain."),
+        ],
+    )
+    result = _match_conditions_to_sections(note, [])
+    assert result == {}
 
 
 # --- /extract-commands ---

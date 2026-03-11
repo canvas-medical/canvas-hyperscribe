@@ -21,6 +21,7 @@ import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
 from hyperscribe.scribe.backend import (
     ClinicalNote,
     CodingEntry,
+    Condition,
     NoteSection,
     PatientContext,
     ScribeError,
@@ -35,6 +36,37 @@ from hyperscribe.scribe.recommendations import recommend_commands
 
 _CACHE_KEY_PREFIX = "scribe_transcript:"
 _SUMMARY_CACHE_KEY_PREFIX = "scribe_summary:"
+
+_PLAN_SECTION_KEYS = frozenset({"assessment_and_plan", "plan"})
+
+
+def _serialize_condition(condition: Condition) -> dict[str, Any]:
+    return {
+        "display": condition.display,
+        "clinical_status": condition.clinical_status,
+        "coding": [{"system": e.system, "code": e.code, "display": e.display} for e in condition.coding],
+    }
+
+
+def _match_conditions_to_sections(
+    note: ClinicalNote,
+    conditions: list[Condition],
+) -> dict[str, list[dict[str, Any]]]:
+    """Map each note section to its relevant conditions.
+
+    Assessment/plan sections get all conditions. Other sections get conditions
+    whose display text appears as a case-insensitive substring in the section text.
+    """
+    result: dict[str, list[dict[str, Any]]] = {}
+    for section in note.sections:
+        if section.key in _PLAN_SECTION_KEYS:
+            matched = conditions
+        else:
+            section_lower = section.text.lower()
+            matched = [c for c in conditions if c.display.lower() in section_lower]
+        if matched:
+            result[section.key] = [_serialize_condition(c) for c in matched]
+    return result
 
 
 def _save_transcript_to_cache(note_id: str, items: list[dict[str, Any]], *, finalized: bool = False) -> None:
@@ -311,14 +343,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         return [
             JSONResponse(
                 {
-                    "conditions": [
-                        {
-                            "display": c.display,
-                            "clinical_status": c.clinical_status,
-                            "coding": [{"system": e.system, "code": e.code, "display": e.display} for e in c.coding],
-                        }
-                        for c in result.conditions
-                    ],
+                    "conditions": [_serialize_condition(c) for c in result.conditions],
                     "observations": [
                         {
                             "display": o.display,
@@ -328,6 +353,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                         }
                         for o in result.observations
                     ],
+                    "section_conditions": _match_conditions_to_sections(note, result.conditions),
                 },
                 status_code=HTTPStatus.OK,
             )
