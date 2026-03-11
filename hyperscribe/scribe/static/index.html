@@ -31,6 +31,9 @@
         }
       });
 
+      // Expose for components that need to send messages (e.g. CLOSE_MODAL).
+      window.__canvasPort = function() { return messagePort; };
+
       var observer = new ResizeObserver(sendResize);
       observer.observe(document.documentElement);
     })();
