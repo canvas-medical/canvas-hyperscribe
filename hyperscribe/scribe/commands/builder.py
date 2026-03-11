@@ -5,6 +5,7 @@ from typing import Any
 
 from canvas_sdk.effects import Effect
 
+from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.allergy import AllergyParser
 from hyperscribe.scribe.commands.base import CommandParser
 from hyperscribe.scribe.commands.chart_review import ChartReviewParser
@@ -33,6 +34,14 @@ _BUILDERS: dict[str, CommandParser] = {
     "task": TaskParser(),
     "vitals": VitalsParser(),
 }
+
+
+def annotate_duplicates(proposals: list[CommandProposal], note_uuid: str) -> None:
+    """Delegate duplicate annotation to each command parser."""
+    if not note_uuid:
+        return
+    for builder in _BUILDERS.values():
+        builder.annotate_duplicates(proposals, note_uuid)
 
 
 def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> list[Effect]:
