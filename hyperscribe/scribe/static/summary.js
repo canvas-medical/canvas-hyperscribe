@@ -2,11 +2,12 @@ import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
+import { RecommendedGroup } from '/plugin-io/api/hyperscribe/scribe/static/recommended-group.js';
 
 const html = htm.bind(h);
 
-// ── DEV_MOCK: set to true to bypass backend and render all command types ──
-const DEV_MOCK = false;
+// ── DEV_MOCK: set to true to show a paste-box / mock-note picker instead of calling Nabla ──
+const DEV_MOCK = true;
 
 const DEV_MOCK_NOTE = {
   title: 'Mock Visit Note',
@@ -25,27 +26,6 @@ const DEV_MOCK_NOTE = {
   ],
 };
 
-const DEV_MOCK_COMMANDS = [
-  { command_type: 'rfv', display: 'Persistent right-sided headache for 3 days, rated 7/10, worse with screen exposure.', data: { comment: 'Persistent right-sided headache for 3 days, rated 7/10, worse with screen exposure.' }, selected: true, section_key: 'chief_complaint' },
-  { command_type: 'hpi', display: 'Patient reports a 3-day history of right-sided throbbing headache. Pain worsens with bright lights and prolonged screen use. Associated photophobia and intermittent nausea. Has been taking ibuprofen 400mg TID with minimal relief. Denies fever, neck stiffness, or recent head trauma.', data: { narrative: 'Patient reports a 3-day history of right-sided throbbing headache. Pain worsens with bright lights and prolonged screen use. Associated photophobia and intermittent nausea. Has been taking ibuprofen 400mg TID with minimal relief. Denies fever, neck stiffness, or recent head trauma.' }, selected: true, section_key: 'history_of_present_illness' },
-  { command_type: 'history_review', display: 'Past Medical History | Past Surgical History | Past Obstetric History | Family History | Social History', data: { sections: [
-    { key: 'past_medical_history', title: 'Past Medical History', text: 'Hypertension diagnosed 2018, well-controlled on lisinopril. Type 2 diabetes diagnosed 2020, managed with metformin. History of seasonal allergies.' },
-    { key: 'past_surgical_history', title: 'Past Surgical History', text: 'Appendectomy in 2010. Right knee arthroscopy in 2015.' },
-    { key: 'past_obstetric_history', title: 'Past Obstetric History', text: 'G2P2, both uncomplicated vaginal deliveries (2012, 2016). No gestational diabetes or preeclampsia.' },
-    { key: 'family_history', title: 'Family History', text: 'Father: Type 2 diabetes, coronary artery disease. Mother: Migraine headaches, hypothyroidism. Sister: Asthma.' },
-    { key: 'social_history', title: 'Social History', text: 'Non-smoker. Occasional alcohol use (1-2 drinks/week). Works as a software engineer. Exercises 3x/week. No recreational drug use.' },
-  ] }, selected: true, section_key: '_history_review' },
-  { command_type: 'chart_review', display: 'Current Medications | Allergies', data: { sections: [
-    { key: 'current_medications', title: 'Current Medications', text: '- Lisinopril 10mg daily\n- Metformin 500mg BID\n- Ibuprofen 400mg PRN' },
-    { key: 'allergies', title: 'Allergies', text: 'Penicillin (rash). Sulfa drugs (hives).' },
-  ] }, selected: true, section_key: '_chart_review' },
-  { command_type: 'vitals', display: 'BP 128/82, HR 76', data: { blood_pressure_systole: 128, blood_pressure_diastole: 82, pulse: 76, body_temperature: 98.6, respiratory_rate: 16, oxygen_saturation: 99 }, selected: true, section_key: 'vitals' },
-  { command_type: 'plan', display: 'Migraine without aura. Likely triggered by increased screen time and stress.\n\nStart sumatriptan 50mg at onset of migraine. Continue current medications. Lifestyle modifications: reduce screen time, ensure adequate hydration, regular sleep schedule.', data: { narrative: 'Migraine without aura. Likely triggered by increased screen time and stress.\n\nStart sumatriptan 50mg at onset of migraine. Continue current medications. Lifestyle modifications: reduce screen time, ensure adequate hydration, regular sleep schedule.' }, selected: true, section_key: 'assessment_and_plan' },
-  { command_type: 'prescribe', display: 'Sumatriptan 50mg', data: { medication_text: 'Sumatriptan 50mg', sig: 'Take 1 tablet at onset of migraine, may repeat after 2 hours', quantity: '9', refills: '2' }, selected: true, section_key: '_ad_hoc' },
-  { command_type: 'task', display: 'Follow up in 2 weeks', data: { title: 'Follow up in 2 weeks', due_date: null, assign_to: null }, selected: true, section_key: '_ad_hoc' },
-  { command_type: 'lab_order', display: 'CBC with differential', data: { comment: 'CBC with differential' }, selected: true, section_key: '_ad_hoc' },
-  { command_type: 'imaging_order', display: 'MRI Brain without contrast | Routine', data: { comment: 'MRI Brain without contrast', priority: 'Routine' }, selected: true, section_key: '_ad_hoc' },
-];
 // ── END DEV_MOCK ──
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
@@ -108,6 +88,8 @@ export function Summary({ noteId }) {
   const [inserting, setInserting] = useState(false);
   const [approved, setApproved] = useState(false);
   const [assignees, setAssignees] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
+  const [recommending, setRecommending] = useState(false);
   const [seedText, setSeedText] = useState('');
   const [seedError, setSeedError] = useState(null);
   const mockLoaded = useRef(false);
@@ -124,7 +106,7 @@ export function Summary({ noteId }) {
     }
   }, [noteId]);
 
-  // Load cached summary on mount, fall back to auto-generate.
+  // Generate note on mount (skip when DEV_MOCK — paste box handles it).
   useEffect(() => {
     if (DEV_MOCK) return;
     let cancelled = false;
@@ -195,10 +177,10 @@ export function Summary({ noteId }) {
     }
   }, [noteId]);
 
-  // Extract commands once note is available (skip when mock data was loaded directly).
+  // Extract commands once note is available.
   useEffect(() => {
     if (!noteData) return;
-    if (mockLoaded.current) return;
+
     let cancelled = false;
 
     async function extractCommands() {
@@ -226,6 +208,38 @@ export function Summary({ noteId }) {
     }
 
     extractCommands();
+    return () => { cancelled = true; };
+  }, [noteData]);
+
+  // Fetch LLM-based recommendations in parallel with extract-commands.
+  useEffect(() => {
+    if (!noteData) return;
+
+    let cancelled = false;
+
+    async function fetchRecommendations() {
+      setRecommending(true);
+      try {
+        const res = await fetch(`${API_BASE}/recommend-commands`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note: noteData, note_uuid: noteId }),
+        });
+        if (cancelled) return;
+        const data = await res.json();
+        if (data.commands) {
+          setRecommendations(data.commands);
+        }
+      } catch (err) {
+        console.error('Failed to fetch recommendations:', err);
+      } finally {
+        if (!cancelled) {
+          setRecommending(false);
+        }
+      }
+    }
+
+    fetchRecommendations();
     return () => { cancelled = true; };
   }, [noteData]);
 
@@ -282,9 +296,7 @@ export function Summary({ noteId }) {
   }, [seedText, noteId]);
 
   const handleUseMock = useCallback(() => {
-    mockLoaded.current = true;
     setNoteData(DEV_MOCK_NOTE);
-    setCommands(DEV_MOCK_COMMANDS);
     setGenerating(false);
   }, []);
 
@@ -374,6 +386,24 @@ export function Summary({ noteId }) {
     }]);
   }, [approved]);
 
+  const handleEditRecommendation = useCallback((index, newData, newType) => {
+    setRecommendations(prev => prev.map((cmd, i) => {
+      if (i !== index) return cmd;
+      const type = newType || cmd.command_type;
+      if (type === 'medication_statement') {
+        return { ...cmd, data: newData, display: newData.medication_text || '' };
+      }
+      if (type === 'allergy') {
+        return { ...cmd, data: newData, display: newData.allergy_text || '' };
+      }
+      return { ...cmd, data: newData };
+    }));
+  }, []);
+
+  const handleDeleteRecommendation = useCallback((index) => {
+    setRecommendations(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
   const handleAddAllergy = useCallback(() => {
     if (approved) return;
     setCommands(prev => [...prev, {
@@ -389,11 +419,13 @@ export function Summary({ noteId }) {
   const handleInsert = useCallback(async () => {
     setInserting(true);
     const insertable = commands.filter(c => !c.already_documented && c.display);
+    const approvedRecs = recommendations.filter(c => !c.already_documented && c.display);
+    const allInsertable = [...insertable, ...approvedRecs];
     try {
       const res = await fetch(`${API_BASE}/insert-commands`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_uuid: noteId, commands: insertable }),
+        body: JSON.stringify({ note_uuid: noteId, commands: allInsertable }),
       });
       const data = await res.json();
       if (data.error) {
@@ -412,7 +444,7 @@ export function Summary({ noteId }) {
     } finally {
       setInserting(false);
     }
-  }, [commands, noteId, noteData, saveSummaryToCache]);
+  }, [commands, recommendations, noteId, noteData, saveSummaryToCache]);
 
   if (DEV_MOCK && generating) {
     return html`
@@ -478,7 +510,8 @@ export function Summary({ noteId }) {
     .map((cmd, index) => ({ command: cmd, index }))
     .filter(entry => entry.command.section_key === '_objective_ad_hoc');
 
-  const insertableCount = commands.filter(c => !c.already_documented && c.display).length;
+  const insertableCount = commands.filter(c => !c.already_documented && c.display).length
+    + recommendations.filter(c => !c.already_documented && c.display).length;
   const showFooter = !extracting && !approved && (insertableCount > 0);
 
   return html`
@@ -495,6 +528,14 @@ export function Summary({ noteId }) {
           readOnly: approved,
         })}
         ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
+        ${recommending && html`<p class="generating-message">Finding recommendations...</p>`}
+        ${!recommending && recommendations.length > 0 && html`
+          <${RecommendedGroup}
+            recommendations=${recommendations}
+            onEditCommand=${handleEditRecommendation}
+            onDeleteCommand=${handleDeleteRecommendation}
+          />
+        `}
       </div>
       ${showFooter && html`
         <div class="summary-footer">

@@ -65,11 +65,17 @@ class MedicationParser(CommandParser):
         raw_fdb = data.get("fdb_code")
         fdb_code: str | Coding
         if isinstance(raw_fdb, dict):
-            fdb_code = Coding(
-                system=str(raw_fdb.get("system", CodeSystems.UNSTRUCTURED)),
-                code=str(raw_fdb.get("code", "")),
-                display=str(raw_fdb.get("display", medication_text)),
-            )
+            system = str(raw_fdb.get("system", CodeSystems.UNSTRUCTURED))
+            if system != CodeSystems.UNSTRUCTURED:
+                # Structured FDB medication — pass the plain code string
+                # (matches how the copilot flow sets fdb_code).
+                fdb_code = str(raw_fdb.get("code", ""))
+            else:
+                fdb_code = Coding(
+                    system=CodeSystems.UNSTRUCTURED,
+                    code=str(raw_fdb.get("code", "")),
+                    display=str(raw_fdb.get("display", medication_text)),
+                )
         elif raw_fdb:
             fdb_code = str(raw_fdb)
         else:
