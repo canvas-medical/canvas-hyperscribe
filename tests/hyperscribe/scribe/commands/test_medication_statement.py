@@ -1,5 +1,8 @@
+from unittest.mock import MagicMock, patch
+
 from canvas_sdk.commands.constants import CodeSystems
 
+from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.medication_statement import (
     MedicationParser,
     _parse_medication_lines,
@@ -171,3 +174,83 @@ def test_build_empty_sig_defaults_to_none() -> None:
         "cmd-uuid",
     )
     assert cmd.sig is None
+
+
+# --- annotate_duplicates ---
+
+
+@patch("hyperscribe.scribe.commands.medication_statement.MedicationCoding")
+@patch("hyperscribe.scribe.commands.medication_statement.Medication")
+@patch("hyperscribe.scribe.commands.medication_statement.Note")
+def test_annotate_duplicates_match(
+    mock_note_cls: MagicMock,
+    mock_med_cls: MagicMock,
+    mock_coding_cls: MagicMock,
+) -> None:
+    mock_patient = MagicMock()
+    mock_patient.id = "patient-key"
+    mock_note = MagicMock()
+    mock_note.patient = mock_patient
+    mock_note_cls.objects.select_related.return_value.get.return_value = mock_note
+
+    mock_coding = MagicMock()
+    mock_coding.display = "Lisinopril 10mg Tablet"
+    mock_coding_cls.objects.filter.return_value = [mock_coding]
+
+    proposals = [
+        CommandProposal(
+            command_type="medication_statement", display="Lisinopril 10mg", data={"medication_text": "Lisinopril 10mg"}
+        ),
+        CommandProposal(
+            command_type="medication_statement", display="Metformin 500mg", data={"medication_text": "Metformin 500mg"}
+        ),
+        CommandProposal(command_type="hpi", display="Pain", data={"narrative": "Pain"}),
+    ]
+    MedicationParser().annotate_duplicates(proposals, "note-uuid")
+
+    assert proposals[0].already_documented is True
+    assert proposals[1].already_documented is False
+    assert proposals[2].already_documented is False
+
+
+@patch("hyperscribe.scribe.commands.medication_statement.Note")
+def test_annotate_duplicates_note_not_found(mock_note_cls: MagicMock) -> None:
+    mock_note_cls.DoesNotExist = type("DoesNotExist", (Exception,), {})
+    mock_note_cls.objects.select_related.return_value.get.side_effect = mock_note_cls.DoesNotExist
+
+    proposals = [
+        CommandProposal(
+            command_type="medication_statement", display="Lisinopril", data={"medication_text": "Lisinopril"}
+        ),
+    ]
+    MedicationParser().annotate_duplicates(proposals, "nonexistent-uuid")
+    assert proposals[0].already_documented is False
+
+
+def test_annotate_duplicates_no_medications() -> None:
+    proposals = [
+        CommandProposal(command_type="hpi", display="Pain", data={"narrative": "Pain"}),
+    ]
+    MedicationParser().annotate_duplicates(proposals, "note-uuid")
+    assert proposals[0].already_documented is False
+
+
+@patch("hyperscribe.scribe.commands.medication_statement.MedicationCoding")
+@patch("hyperscribe.scribe.commands.medication_statement.Medication")
+@patch("hyperscribe.scribe.commands.medication_statement.Note")
+def test_annotate_duplicates_no_patient(
+    mock_note_cls: MagicMock,
+    mock_med_cls: MagicMock,
+    mock_coding_cls: MagicMock,
+) -> None:
+    mock_note = MagicMock()
+    mock_note.patient = None
+    mock_note_cls.objects.select_related.return_value.get.return_value = mock_note
+
+    proposals = [
+        CommandProposal(
+            command_type="medication_statement", display="Lisinopril", data={"medication_text": "Lisinopril"}
+        ),
+    ]
+    MedicationParser().annotate_duplicates(proposals, "note-uuid")
+    assert proposals[0].already_documented is False

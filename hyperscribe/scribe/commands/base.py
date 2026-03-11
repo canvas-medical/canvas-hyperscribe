@@ -34,5 +34,8 @@ class CommandParser(ABC):
         proposal = self.extract(text)
         return [proposal] if proposal is not None else []
 
+    def annotate_duplicates(self, proposals: list[CommandProposal], note_uuid: str) -> None:
+        """Mark proposals that already exist in the patient's chart. Override per command type."""
+
     @abstractmethod
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand: ...
