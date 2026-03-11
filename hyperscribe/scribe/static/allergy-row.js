@@ -15,7 +15,7 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function AllergyRow({ command, commandIndex, onEdit, onDelete }) {
+export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
   const [editing, setEditing] = useState(!command.display);
   const [query, setQuery] = useState(command.data.allergy_text || '');
   const [results, setResults] = useState([]);
@@ -199,7 +199,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete }) {
   // View mode.
   return html`
     <div class="allergy-row"
-         onClick=${() => setEditing(true)}>
+         onClick=${() => !readOnly && setEditing(true)}>
       <span class="command-type-badge badge-allergy">Allergy</span>
       <span class="allergy-row-text">${command.display}</span>
       ${command.data.reaction && html`<span class="allergy-reaction-text">${command.data.reaction}</span>`}

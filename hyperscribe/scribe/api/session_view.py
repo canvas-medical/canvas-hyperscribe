@@ -36,6 +36,7 @@ from hyperscribe.scribe.commands.extractor import extract_commands
 
 
 _CACHE_KEY_PREFIX = "scribe_transcript:"
+_SUMMARY_CACHE_KEY_PREFIX = "scribe_summary:"
 
 
 def _save_transcript_to_cache(note_id: str, items: list[dict[str, Any]], *, finalized: bool = False) -> None:
@@ -66,6 +67,31 @@ def _load_transcript_from_cache(note_id: str) -> dict[str, Any] | None:
     if isinstance(data, list):
         return {"items": data, "finalized": False}
     return data  # type: ignore[no-any-return]
+
+
+def _save_summary_to_cache(
+    note_id: str, note_data: dict[str, Any], commands: list[dict[str, Any]], *, approved: bool = False
+) -> None:
+    key = f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}"
+    log.info(f"summary cache save: key={key} approved={approved}")
+    try:
+        cache = get_cache()
+        cache.set(key, json.dumps({"note": note_data, "commands": commands, "approved": approved}))
+    except Exception:
+        log.exception(f"summary cache save FAILED: key={key}")
+
+
+def _load_summary_from_cache(note_id: str) -> dict[str, Any] | None:
+    key = f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}"
+    try:
+        cache = get_cache()
+        raw = cache.get(key)
+    except Exception:
+        log.exception(f"summary cache load FAILED: key={key}")
+        return None
+    if raw is None:
+        return None
+    return json.loads(raw)  # type: ignore[no-any-return]
 
 
 def _parse_transcript(data: dict[str, Any]) -> Transcript:
@@ -146,6 +172,40 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
     PREFIX = "/scribe-session"
 
+    @api.get("/debug-cache")
+    def get_debug_cache(self) -> list[Union[Response, Effect]]:
+        note_id = self.request.query_params.get("note_id", "")
+        if not note_id:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        transcript = _load_transcript_from_cache(note_id)
+        summary = _load_summary_from_cache(note_id)
+        return [
+            JSONResponse(
+                {
+                    "transcript": transcript,
+                    "summary": summary,
+                },
+                status_code=HTTPStatus.OK,
+            )
+        ]
+
+    @api.delete("/debug-cache")
+    def delete_debug_cache(self) -> list[Union[Response, Effect]]:
+        note_id = self.request.query_params.get("note_id", "")
+        if not note_id:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        key_type = self.request.query_params.get("type", "all")
+        try:
+            cache = get_cache()
+            if key_type in ("all", "transcript"):
+                cache.delete(f"{_CACHE_KEY_PREFIX}{note_id}")
+            if key_type in ("all", "summary"):
+                cache.delete(f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}")
+        except Exception:
+            log.exception(f"debug cache delete FAILED: note_id={note_id}")
+            return [JSONResponse({"error": "Cache delete failed"}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
+        return [JSONResponse({"status": "ok", "deleted": key_type}, status_code=HTTPStatus.OK)]
+
     @api.get("/config")
     def get_config(self) -> list[Union[Response, Effect]]:
         try:
@@ -181,6 +241,31 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         items = data.get("transcript", {}).get("items", [])
         finalized = bool(data.get("finalized", False))
         _save_transcript_to_cache(note_id, items, finalized=finalized)
+        return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
+
+    @api.get("/summary")
+    def get_summary(self) -> list[Union[Response, Effect]]:
+        note_id = self.request.query_params.get("note_id", "")
+        if not note_id:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        data = _load_summary_from_cache(note_id)
+        if data is None:
+            return [JSONResponse({"note": None, "commands": [], "approved": False}, status_code=HTTPStatus.OK)]
+        return [JSONResponse(data, status_code=HTTPStatus.OK)]
+
+    @api.post("/save-summary")
+    def post_save_summary(self) -> list[Union[Response, Effect]]:
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_id = str(data.get("note_id", ""))
+        if not note_id:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_data = data.get("note", {})
+        commands = data.get("commands", [])
+        approved = bool(data.get("approved", False))
+        _save_summary_to_cache(note_id, note_data, commands, approved=approved)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
     @api.post("/generate-note")

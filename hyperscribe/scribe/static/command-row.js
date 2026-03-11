@@ -16,7 +16,7 @@ const DATA_FIELD = {
   plan: 'narrative',
 };
 
-export function CommandRow({ command, commandIndex, onEdit }) {
+export function CommandRow({ command, commandIndex, onEdit, readOnly }) {
   const field = DATA_FIELD[command.command_type];
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(field ? (command.data[field] || '') : '');
@@ -66,7 +66,7 @@ export function CommandRow({ command, commandIndex, onEdit }) {
   }
 
   return html`
-    <div class="command-row" onClick=${() => setEditing(true)}>
+    <div class="command-row" onClick=${() => !readOnly && setEditing(true)}>
       <span class="command-row-text">${command.display}</span>
     </div>
   `;

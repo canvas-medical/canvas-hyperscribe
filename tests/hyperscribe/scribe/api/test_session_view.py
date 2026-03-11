@@ -10,6 +10,7 @@ from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin
 from hyperscribe.scribe.api.session_view import (
     ScribeSessionView,
     _CACHE_KEY_PREFIX,
+    _SUMMARY_CACHE_KEY_PREFIX,
     _annotate_medication_duplicates,
 )
 from hyperscribe.scribe.backend import ScribeError
@@ -110,6 +111,7 @@ def _mock_cache() -> MagicMock:
     cache = MagicMock()
     cache.set = lambda key, value, **kw: store.__setitem__(key, value)
     cache.get = lambda key, default=None: store.get(key, default)
+    cache.delete = lambda key: store.pop(key, None)
     cache._store = store
     return cache
 
@@ -189,6 +191,109 @@ def test_save_transcript_invalid_json() -> None:
 
     assert result[0].status_code == HTTPStatus.BAD_REQUEST
     assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+# --- /summary ---
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_get_summary_success(mock_get_cache: MagicMock) -> None:
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    summary_data = {
+        "note": {"title": "SOAP", "sections": [{"key": "cc", "title": "CC", "text": "Pain"}]},
+        "commands": [{"command_type": "rfv", "data": {"comment": "Pain"}}],
+        "approved": True,
+    }
+    cache._store[f"{_SUMMARY_CACHE_KEY_PREFIX}55"] = json.dumps(summary_data)
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "55"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == summary_data
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_get_summary_empty(mock_get_cache: MagicMock) -> None:
+    mock_get_cache.return_value = _mock_cache()
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "999"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"note": None, "commands": [], "approved": False}
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_get_summary_missing_note_id(mock_get_cache: MagicMock) -> None:
+    mock_get_cache.return_value = _mock_cache()
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+
+
+# --- /save-summary ---
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_save_summary_success(mock_get_cache: MagicMock) -> None:
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+
+    view = _helper_instance()
+    note = {"title": "SOAP", "sections": []}
+    commands = [{"command_type": "hpi", "data": {"narrative": "Pain"}}]
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "42", "note": note, "commands": commands, "approved": True})
+    )
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"status": "ok"}
+    stored = json.loads(cache._store[f"{_SUMMARY_CACHE_KEY_PREFIX}42"])
+    assert stored == {"note": note, "commands": commands, "approved": True}
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_save_summary_missing_note_id(mock_get_cache: MagicMock) -> None:
+    mock_get_cache.return_value = _mock_cache()
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note": {}, "commands": []}))
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_id" in json.loads(result[0].content)["error"]
+
+
+def test_save_summary_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_save_summary_defaults(mock_get_cache: MagicMock) -> None:
+    """When approved is not provided, it defaults to False."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "10", "note": {}, "commands": []}))
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    stored = json.loads(cache._store[f"{_SUMMARY_CACHE_KEY_PREFIX}10"])
+    assert stored["approved"] is False
 
 
 # --- /generate-note ---

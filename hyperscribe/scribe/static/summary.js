@@ -6,7 +6,7 @@ import { SoapGroup } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.j
 const html = htm.bind(h);
 
 // ── DEV_MOCK: set to true to bypass backend and render all command types ──
-const DEV_MOCK = true;
+const DEV_MOCK = false;
 
 const DEV_MOCK_NOTE = {
   title: 'Mock Visit Note',
@@ -72,7 +72,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -93,6 +93,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddOrder=${isPlan ? onAddOrder : null}
         onAddMedication=${isObjective ? onAddMedication : null}
         onAddAllergy=${isObjective ? onAddAllergy : null}
+        readOnly=${readOnly}
       />`;
     })
     .filter(Boolean);
@@ -105,18 +106,49 @@ export function Summary({ noteId }) {
   const [commands, setCommands] = useState([]);
   const [extracting, setExtracting] = useState(false);
   const [inserting, setInserting] = useState(false);
-  const [inserted, setInserted] = useState(false);
+  const [approved, setApproved] = useState(false);
   const [assignees, setAssignees] = useState([]);
   const [seedText, setSeedText] = useState('');
   const [seedError, setSeedError] = useState(null);
   const mockLoaded = useRef(false);
 
-  // Generate note on mount (skip when DEV_MOCK — paste box handles it).
+  const saveSummaryToCache = useCallback(async (note, cmds, isApproved) => {
+    try {
+      await fetch(`${API_BASE}/save-summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note_id: noteId, note, commands: cmds, approved: isApproved }),
+      });
+    } catch (err) {
+      console.error('Failed to save summary to cache:', err);
+    }
+  }, [noteId]);
+
+  // Load cached summary on mount, fall back to generate-note if not cached.
   useEffect(() => {
     if (DEV_MOCK) return;
     let cancelled = false;
 
-    async function generateNote() {
+    async function loadOrGenerate() {
+      // Try loading from cache first.
+      try {
+        const cacheRes = await fetch(`${API_BASE}/summary?note_id=${encodeURIComponent(noteId)}`);
+        if (!cancelled) {
+          const cached = await cacheRes.json();
+          if (cached.note) {
+            mockLoaded.current = true; // Skip extract-commands effect.
+            setNoteData(cached.note);
+            setCommands(cached.commands || []);
+            setApproved(Boolean(cached.approved));
+            setGenerating(false);
+            return;
+          }
+        }
+      } catch (err) {
+        // Cache miss or error — fall through to generate.
+      }
+
+      // No cached summary — generate from transcript.
       try {
         const res = await fetch(`${API_BASE}/generate-note`, {
           method: 'POST',
@@ -141,7 +173,7 @@ export function Summary({ noteId }) {
       }
     }
 
-    generateNote();
+    loadOrGenerate();
     return () => { cancelled = true; };
   }, [noteId]);
 
@@ -163,6 +195,8 @@ export function Summary({ noteId }) {
         const data = await res.json();
         if (data.commands) {
           setCommands(data.commands);
+          // Save initial summary to cache.
+          saveSummaryToCache(noteData, data.commands, false);
         }
       } catch (err) {
         console.error('Failed to extract commands:', err);
@@ -237,46 +271,57 @@ export function Summary({ noteId }) {
   }, []);
 
   const handleEdit = useCallback((index, newData, newType) => {
-    setCommands(prev => prev.map((cmd, i) => {
-      if (i !== index) return cmd;
-      const type = newType || cmd.command_type;
-      if (type === 'history_review' || type === 'chart_review') {
-        const display = (newData.sections || []).map(s => s.title).join(' | ');
-        return { ...cmd, data: newData, display };
-      }
-      if (type === 'vitals') {
-        return { ...cmd, data: newData };
-      }
-      if (type === 'medication_statement') {
-        return { ...cmd, data: newData, display: newData.medication_text || '' };
-      }
-      if (type === 'allergy') {
-        return { ...cmd, data: newData, display: newData.allergy_text || '' };
-      }
-      if (type === 'task') {
-        return { ...cmd, data: newData, display: newData.title || '' };
-      }
-      if (type === 'prescribe') {
-        return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '' };
-      }
-      if (type === 'lab_order') {
-        return { ...cmd, command_type: type, data: newData, display: newData.comment || '' };
-      }
-      if (type === 'imaging_order') {
-        const parts = [newData.comment, newData.priority].filter(Boolean);
-        return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
-      }
-      const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
-      const text = newData[field] || '';
-      return { ...cmd, data: newData, display: text };
-    }));
-  }, []);
+    if (approved) return;
+    setCommands(prev => {
+      const updated = prev.map((cmd, i) => {
+        if (i !== index) return cmd;
+        const type = newType || cmd.command_type;
+        if (type === 'history_review' || type === 'chart_review') {
+          const display = (newData.sections || []).map(s => s.title).join(' | ');
+          return { ...cmd, data: newData, display };
+        }
+        if (type === 'vitals') {
+          return { ...cmd, data: newData };
+        }
+        if (type === 'medication_statement') {
+          return { ...cmd, data: newData, display: newData.medication_text || '' };
+        }
+        if (type === 'allergy') {
+          return { ...cmd, data: newData, display: newData.allergy_text || '' };
+        }
+        if (type === 'task') {
+          return { ...cmd, data: newData, display: newData.title || '' };
+        }
+        if (type === 'prescribe') {
+          return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '' };
+        }
+        if (type === 'lab_order') {
+          return { ...cmd, command_type: type, data: newData, display: newData.comment || '' };
+        }
+        if (type === 'imaging_order') {
+          const parts = [newData.comment, newData.priority].filter(Boolean);
+          return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
+        }
+        const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
+        const text = newData[field] || '';
+        return { ...cmd, data: newData, display: text };
+      });
+      saveSummaryToCache(noteData, updated, false);
+      return updated;
+    });
+  }, [approved, noteData, saveSummaryToCache]);
 
   const handleDelete = useCallback((index) => {
-    setCommands(prev => prev.filter((_, i) => i !== index));
-  }, []);
+    if (approved) return;
+    setCommands(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      saveSummaryToCache(noteData, updated, false);
+      return updated;
+    });
+  }, [approved, noteData, saveSummaryToCache]);
 
   const handleAddTask = useCallback(() => {
+    if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'task',
       display: '',
@@ -285,9 +330,10 @@ export function Summary({ noteId }) {
       section_key: '_ad_hoc',
       already_documented: false,
     }]);
-  }, []);
+  }, [approved]);
 
   const handleAddOrder = useCallback(() => {
+    if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'prescribe',
       display: '',
@@ -296,9 +342,10 @@ export function Summary({ noteId }) {
       section_key: '_ad_hoc',
       already_documented: false,
     }]);
-  }, []);
+  }, [approved]);
 
   const handleAddMedication = useCallback(() => {
+    if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'medication_statement',
       display: '',
@@ -307,9 +354,10 @@ export function Summary({ noteId }) {
       section_key: '_objective_ad_hoc',
       already_documented: false,
     }]);
-  }, []);
+  }, [approved]);
 
   const handleAddAllergy = useCallback(() => {
+    if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'allergy',
       display: '',
@@ -318,7 +366,7 @@ export function Summary({ noteId }) {
       section_key: '_objective_ad_hoc',
       already_documented: false,
     }]);
-  }, []);
+  }, [approved]);
 
   const handleInsert = useCallback(async () => {
     setInserting(true);
@@ -333,14 +381,15 @@ export function Summary({ noteId }) {
       if (data.error) {
         setError(data.error);
       } else {
-        setInserted(true);
+        setApproved(true);
+        saveSummaryToCache(noteData, commands, true);
       }
     } catch (err) {
       setError('Failed to insert commands');
     } finally {
       setInserting(false);
     }
-  }, [commands, noteId]);
+  }, [commands, noteId, noteData, saveSummaryToCache]);
 
   if (DEV_MOCK && generating) {
     return html`
@@ -403,7 +452,7 @@ export function Summary({ noteId }) {
     .filter(entry => entry.command.section_key === '_objective_ad_hoc');
 
   const insertableCount = commands.filter(c => !c.already_documented && c.display).length;
-  const showFooter = !extracting && (insertableCount > 0 || inserted);
+  const showFooter = !extracting && !approved && (insertableCount > 0);
 
   return html`
     <div class="summary-container">
@@ -412,27 +461,23 @@ export function Summary({ noteId }) {
           adHocCommands,
           objectiveAdHocCommands,
           assignees,
-          onAddTask: handleAddTask,
-          onAddOrder: handleAddOrder,
-          onAddMedication: handleAddMedication,
-          onAddAllergy: handleAddAllergy,
+          onAddTask: approved ? null : handleAddTask,
+          onAddOrder: approved ? null : handleAddOrder,
+          onAddMedication: approved ? null : handleAddMedication,
+          onAddAllergy: approved ? null : handleAddAllergy,
+          readOnly: approved,
         })}
         ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
       </div>
       ${showFooter && html`
         <div class="summary-footer">
-          ${!inserted && html`
-            <button
-              class="insert-btn"
-              onClick=${handleInsert}
-              disabled=${inserting}
-            >
-              ${inserting ? 'Approving...' : 'Approve'}
-            </button>
-          `}
-          ${inserted && html`
-            <p class="insert-success">Moved into the note</p>
-          `}
+          <button
+            class="insert-btn"
+            onClick=${handleInsert}
+            disabled=${inserting}
+          >
+            ${inserting ? 'Approving...' : 'Approve'}
+          </button>
         </div>
       `}
     </div>

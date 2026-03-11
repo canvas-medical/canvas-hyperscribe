@@ -16,7 +16,7 @@ function addDays(days) {
   return d.toISOString().split('T')[0];
 }
 
-export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees }) {
+export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, readOnly }) {
   const [editing, setEditing] = useState(!command.display);
   const [title, setTitle] = useState(command.data.title || '');
   const [dueDate, setDueDate] = useState(command.data.due_date || '');
@@ -138,7 +138,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees }) 
   if (aLabel) parts.push(aLabel);
 
   return html`
-    <div class="task-row" onClick=${() => setEditing(true)}>
+    <div class="task-row" onClick=${() => !readOnly && setEditing(true)}>
       <span class="command-type-badge badge-task">Task</span>
       <span class="command-row-text">${parts[0]}</span>
       ${command.data.due_date && html`<span class="task-meta-badge">${formatDate(command.data.due_date)}</span>`}
