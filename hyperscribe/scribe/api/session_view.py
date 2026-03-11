@@ -33,6 +33,7 @@ from hyperscribe.scribe.backend import (
 from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.builder import build_effects
 from hyperscribe.scribe.commands.extractor import extract_commands
+from hyperscribe.scribe.recommendations import recommend_commands
 
 
 _CACHE_KEY_PREFIX = "scribe_transcript:"
@@ -368,6 +369,53 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
         note = _parse_note(data.get("note", {}))
         proposals = extract_commands(note)
+        note_uuid = str(data.get("note_uuid", ""))
+        if note_uuid:
+            _annotate_medication_duplicates(proposals, note_uuid)
+        return [
+            JSONResponse(
+                {
+                    "commands": [
+                        {
+                            "command_type": p.command_type,
+                            "display": p.display,
+                            "data": p.data,
+                            "selected": p.selected,
+                            "section_key": p.section_key,
+                            "already_documented": p.already_documented,
+                        }
+                        for p in proposals
+                    ],
+                },
+                status_code=HTTPStatus.OK,
+            )
+        ]
+
+    @api.post("/recommend-commands")
+    def post_recommend_commands(self) -> list[Union[Response, Effect]]:
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        api_key = self.secrets.get("AnthropicAPIKey", "")
+        if not api_key:
+            return [
+                JSONResponse(
+                    {"error": "AnthropicAPIKey secret is not configured"},
+                    status_code=HTTPStatus.BAD_REQUEST,
+                )
+            ]
+        note = _parse_note(data.get("note", {}))
+        try:
+            proposals = recommend_commands(note, api_key)
+        except Exception:
+            log.exception("recommend_commands failed")
+            return [
+                JSONResponse(
+                    {"error": "Recommendation generation failed"},
+                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+            ]
         note_uuid = str(data.get("note_uuid", ""))
         if note_uuid:
             _annotate_medication_duplicates(proposals, note_uuid)

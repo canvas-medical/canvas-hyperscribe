@@ -9,7 +9,7 @@ from canvas_sdk.clients.llms.libraries import LlmAnthropic
 from canvas_sdk.commands.commands.allergy import AllergenType
 
 from hyperscribe.libraries.canvas_science import CanvasScience
-from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
+from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import AllergyRecommendationList
 
@@ -31,37 +31,29 @@ def _build_user_prompt(sections: list[NoteSection]) -> str:
     return "\n\n".join(parts)
 
 
-def _resolve_allergy(keywords: str, cache: dict[str, dict[str, int] | None] | None = None) -> dict[str, int] | None:
+def _resolve_allergy(keywords: str) -> dict[str, int] | None:
     """Search CanvasScience for the best allergy match using the keyword list."""
-    if cache is None:
-        cache = {}
     for keyword in keywords.split(","):
         keyword = keyword.strip()
         if not keyword:
             continue
-        key = keyword.lower()
-        if key not in cache:
-            results = CanvasScience.search_allergy(
-                [keyword],
-                [AllergenType.ALLERGEN_GROUP, AllergenType.MEDICATION, AllergenType.INGREDIENT],
-            )
-            cache[key] = (
-                {"concept_id": results[0].concept_id_value, "concept_id_type": results[0].concept_id_type}
-                if results
-                else None
-            )
-        if cache[key] is not None:
-            return cache[key]
+        results = CanvasScience.search_allergy(
+            [keyword],
+            [AllergenType.ALLERGEN_GROUP, AllergenType.MEDICATION, AllergenType.INGREDIENT],
+        )
+        if results:
+            return {
+                "concept_id": results[0].concept_id_value,
+                "concept_id_type": results[0].concept_id_type,
+            }
     return None
 
 
 class AllergyRecommender(BaseRecommender):
-    def recommend(
-        self, note: ClinicalNote, client: LlmAnthropic, transcript: Transcript | None = None
-    ) -> list[CommandProposal]:
+    def recommend(self, note: ClinicalNote, client: LlmAnthropic) -> list[CommandProposal]:
         all_keys = [s.key for s in note.sections]
         log.info(f"AllergyRecommender: note section keys={all_keys}, filtering by {_RELEVANT_KEYS}")
-        sections = [s for s in note.sections if s.key.lower() in _RELEVANT_KEYS and s.text.strip()]
+        sections = [s for s in note.sections if s.key in _RELEVANT_KEYS and s.text.strip()]
         if not sections:
             log.info("AllergyRecommender: no matching sections, skipping")
             return []
@@ -87,10 +79,9 @@ class AllergyRecommender(BaseRecommender):
             log.exception(f"Failed to parse allergy LLM response: {response.response}")
             return []
 
-        lookup_cache: dict[str, dict[str, int] | None] = {}
         proposals: list[CommandProposal] = []
         for allergy in parsed.allergies:
-            resolved = _resolve_allergy(allergy.keywords, lookup_cache)
+            resolved = _resolve_allergy(allergy.keywords)
             concept_id: int | None = None
             concept_id_type: int | None = None
             if resolved:

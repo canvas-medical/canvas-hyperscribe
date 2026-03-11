@@ -95,6 +95,25 @@ def test_build_with_string_fdb_code() -> None:
     assert cmd.note_uuid == "note-uuid"
 
 
+def test_build_with_dict_fdb_code_structured() -> None:
+    """When data has a dict fdb_code with FDB system (from recommender), extract the plain code string."""
+    parser = MedicationParser()
+    cmd = parser.build(
+        {
+            "medication_text": "Lisinopril 10mg Tablet",
+            "fdb_code": {
+                "system": "http://www.fdbhealth.com/",
+                "code": "d00350",
+                "display": "Lisinopril 10mg Tablet",
+            },
+        },
+        "note-uuid",
+        "cmd-uuid",
+    )
+    assert cmd.fdb_code == "d00350"
+    assert cmd.note_uuid == "note-uuid"
+
+
 def test_build_with_dict_fdb_code_unstructured() -> None:
     """When data has a dict fdb_code (from extraction), build converts to Coding."""
     parser = MedicationParser()
