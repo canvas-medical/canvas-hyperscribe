@@ -56,7 +56,7 @@ def test_build() -> None:
     }
     with patch("hyperscribe.scribe.commands.vitals.VitalsCommand") as mock_cmd:
         mock_cmd.return_value = MagicMock()
-        parser.build(data, "note-uuid-789")
+        parser.build(data, "note-uuid-789", "cmd-uuid")
 
     mock_cmd.assert_called_once_with(
         height=None,
@@ -68,4 +68,5 @@ def test_build() -> None:
         respiration_rate=16,
         oxygen_saturation=98,
         note_uuid="note-uuid-789",
+        command_uuid="cmd-uuid",
     )

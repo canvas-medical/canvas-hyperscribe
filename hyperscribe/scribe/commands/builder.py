@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from canvas_sdk.effects import Effect
@@ -41,6 +42,11 @@ def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> list[Effec
         builder = _BUILDERS.get(proposal.get("command_type", ""))
         if builder is None:
             continue
-        command = builder.build(proposal.get("data", {}), note_uuid)
+        command = builder.build(proposal.get("data", {}), note_uuid, str(uuid.uuid4()))
         effects.append(command.originate())
+        try:
+            # some commands cannot be commited, i.e. CustomCommands.
+            effects.append(command.commit())
+        except Exception:
+            pass
     return effects

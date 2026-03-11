@@ -62,7 +62,7 @@ def test_build_effects_routes_all_types() -> None:
 
         effects = build_effects(proposals, "note-uuid")
 
-    assert len(effects) == 12
+    assert len(effects) == 24
     mock_rfv.assert_called_once()
     mock_hpi.assert_called_once()
     mock_vitals.assert_called_once()
