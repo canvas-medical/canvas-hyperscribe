@@ -124,19 +124,19 @@ export function Summary({ noteId }) {
     }
   }, [noteId]);
 
-  // Load cached summary on mount, fall back to generate-note if not cached.
+  // Load cached summary on mount, fall back to auto-generate.
   useEffect(() => {
     if (DEV_MOCK) return;
     let cancelled = false;
 
     async function loadOrGenerate() {
-      // Try loading from cache first.
+      // Try cache first.
       try {
         const cacheRes = await fetch(`${API_BASE}/summary?note_id=${encodeURIComponent(noteId)}`);
         if (!cancelled) {
           const cached = await cacheRes.json();
           if (cached.note) {
-            mockLoaded.current = true; // Skip extract-commands effect.
+            mockLoaded.current = true;
             setNoteData(cached.note);
             setCommands(cached.commands || []);
             setApproved(Boolean(cached.approved));
@@ -145,10 +145,10 @@ export function Summary({ noteId }) {
           }
         }
       } catch (err) {
-        // Cache miss or error — fall through to generate.
+        // Cache miss — fall through to generate.
       }
 
-      // No cached summary — generate from transcript.
+      // No cached summary — try generating automatically.
       try {
         const res = await fetch(`${API_BASE}/generate-note`, {
           method: 'POST',
@@ -163,18 +163,36 @@ export function Summary({ noteId }) {
           setNoteData(data);
         }
       } catch (err) {
-        if (!cancelled) {
-          setError('Failed to generate note');
-        }
+        if (!cancelled) setError('Failed to generate note');
       } finally {
-        if (!cancelled) {
-          setGenerating(false);
-        }
+        if (!cancelled) setGenerating(false);
       }
     }
 
     loadOrGenerate();
     return () => { cancelled = true; };
+  }, [noteId]);
+
+  const handleGenerate = useCallback(async () => {
+    setGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/generate-note`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note_id: noteId }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setNoteData(data);
+      }
+    } catch (err) {
+      setError('Failed to generate note');
+    } finally {
+      setGenerating(false);
+    }
   }, [noteId]);
 
   // Extract commands once note is available (skip when mock data was loaded directly).
@@ -424,18 +442,10 @@ export function Summary({ noteId }) {
     `;
   }
 
-  if (generating) {
+  if (generating && !noteData) {
     return html`
       <div class="summary-container">
-        <p class="generating-message">Generating summary...</p>
-      </div>
-    `;
-  }
-
-  if (error) {
-    return html`
-      <div class="summary-container">
-        <p class="error">${error}</p>
+        <p class="generating-message">Loading...</p>
       </div>
     `;
   }
@@ -443,7 +453,19 @@ export function Summary({ noteId }) {
   if (!noteData) {
     return html`
       <div class="summary-container">
-        <p class="generating-message">No summary available.</p>
+        <div class="summary-empty">
+          <p class="summary-empty-description">
+            Generate a structured summary from your recorded transcript. This will create a SOAP note with recommended commands you can review before adding to the chart.
+          </p>
+          <button
+            class="generate-btn"
+            onClick=${handleGenerate}
+            disabled=${generating}
+          >
+            ${generating ? 'Generating...' : 'Generate Summary'}
+          </button>
+          ${error && html`<p class="summary-empty-error">${error}</p>`}
+        </div>
       </div>
     `;
   }
