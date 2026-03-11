@@ -10,6 +10,7 @@ class SummaryApp(NoteApplication):
 
     NAME = "Summary"
     IDENTIFIER = "hyperscribe__scribe_summary"
+    PRIORITY = 1
 
     def visible(self) -> bool:
         modality = self.secrets.get(Constants.SECRET_MODALITY, "").lower()
