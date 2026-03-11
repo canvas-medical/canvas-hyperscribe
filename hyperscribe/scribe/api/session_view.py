@@ -12,8 +12,6 @@ from canvas_sdk.effects.simple_api import JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 
 from canvas_sdk.commands.commands.allergy import AllergenType
-from canvas_sdk.v1.data.medication import Medication, MedicationCoding, Status
-from canvas_sdk.v1.data.note import Note
 from canvas_sdk.v1.data.staff import Staff
 from canvas_sdk.v1.data.team import Team
 
@@ -30,8 +28,7 @@ from hyperscribe.scribe.backend import (
     TranscriptItem,
     get_backend_from_secrets,
 )
-from hyperscribe.scribe.backend.models import CommandProposal
-from hyperscribe.scribe.commands.builder import build_effects
+from hyperscribe.scribe.commands.builder import annotate_duplicates, build_effects
 from hyperscribe.scribe.commands.extractor import extract_commands
 from hyperscribe.scribe.recommendations import recommend_commands
 
@@ -141,31 +138,6 @@ def _parse_note(data: dict[str, Any]) -> ClinicalNote:
         for s in data.get("sections", [])
     ]
     return ClinicalNote(title=str(data.get("title", "")), sections=sections)
-
-
-def _annotate_medication_duplicates(proposals: list[CommandProposal], note_uuid: str) -> None:
-    """Mark medication proposals that already exist in the patient's active medications."""
-    med_proposals = [p for p in proposals if p.command_type == "medication_statement"]
-    if not med_proposals:
-        return
-    try:
-        note = Note.objects.select_related("patient").get(id=note_uuid)
-    except Note.DoesNotExist:
-        return
-    patient = note.patient
-    if patient is None:
-        return
-    active_meds = Medication.objects.for_patient(patient.id).filter(status=Status.ACTIVE)
-    coding_qs = MedicationCoding.objects.filter(medication__in=active_meds)
-    active_labels = {c.display.lower() for c in coding_qs if c.display}
-    for proposal in med_proposals:
-        med_text = proposal.data.get("medication_text", "").lower()
-        if not med_text:
-            continue
-        for label in active_labels:
-            if med_text in label or label in med_text:
-                proposal.already_documented = True
-                break
 
 
 class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
@@ -370,8 +342,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note = _parse_note(data.get("note", {}))
         proposals = extract_commands(note)
         note_uuid = str(data.get("note_uuid", ""))
-        if note_uuid:
-            _annotate_medication_duplicates(proposals, note_uuid)
+        annotate_duplicates(proposals, note_uuid)
         return [
             JSONResponse(
                 {
@@ -417,8 +388,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
         note_uuid = str(data.get("note_uuid", ""))
-        if note_uuid:
-            _annotate_medication_duplicates(proposals, note_uuid)
+        annotate_duplicates(proposals, note_uuid)
         return [
             JSONResponse(
                 {
