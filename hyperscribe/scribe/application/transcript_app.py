@@ -10,6 +10,7 @@ class ScribeApp(NoteApplication):
 
     NAME = "Scribe"
     IDENTIFIER = "hyperscribe__scribe"
+    PRIORITY = 1
 
     def visible(self) -> bool:
         modality = self.secrets.get(Constants.SECRET_MODALITY, "").lower()
