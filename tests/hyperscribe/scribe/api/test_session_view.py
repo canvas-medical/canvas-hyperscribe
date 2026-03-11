@@ -907,3 +907,134 @@ def test_get_assignees_empty(mock_staff_cls: MagicMock, mock_team_cls: MagicMock
     assert result[0].status_code == HTTPStatus.OK
     data = json.loads(result[0].content)
     assert data["assignees"] == []
+
+
+# --- /recommend-commands ---
+
+
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+def test_recommend_commands_success(mock_recommend: MagicMock) -> None:
+    mock_recommend.return_value = [
+        CommandProposal(
+            command_type="medication_statement",
+            display="Lisinopril 10mg",
+            data={"medication_text": "Lisinopril 10mg", "fdb_code": None, "sig": "Take daily"},
+            section_key="_recommended",
+        ),
+        CommandProposal(
+            command_type="allergy",
+            display="Penicillin",
+            data={
+                "allergy_text": "Penicillin",
+                "concept_id": 100,
+                "concept_id_type": 1,
+                "reaction": "rash",
+                "severity": "moderate",
+            },
+            section_key="_recommended",
+        ),
+    ]
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note": {
+                    "title": "Note",
+                    "sections": [
+                        {"key": "current_medications", "title": "Current Medications", "text": "Lisinopril 10mg daily"},
+                        {"key": "allergies", "title": "Allergies", "text": "Penicillin (rash)"},
+                    ],
+                },
+            }
+        )
+    )
+    result = view.post_recommend_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert len(data["commands"]) == 2
+    assert data["commands"][0]["command_type"] == "medication_statement"
+    assert data["commands"][0]["section_key"] == "_recommended"
+    assert data["commands"][1]["command_type"] == "allergy"
+    mock_recommend.assert_called_once()
+
+
+def test_recommend_commands_missing_api_key() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note": {"title": "Note", "sections": []}}))
+    result = view.post_recommend_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    data = json.loads(result[0].content)
+    assert "AnthropicAPIKey" in data["error"]
+
+
+def test_recommend_commands_invalid_json() -> None:
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_recommend_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+def test_recommend_commands_backend_error(mock_recommend: MagicMock) -> None:
+    mock_recommend.side_effect = Exception("LLM failure")
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note": {"title": "Note", "sections": []}}))
+    result = view.post_recommend_commands()
+
+    assert result[0].status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+    data = json.loads(result[0].content)
+    assert "failed" in data["error"].lower()
+
+
+@patch("hyperscribe.scribe.api.session_view._annotate_medication_duplicates")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+def test_recommend_commands_with_note_uuid_triggers_annotation(
+    mock_recommend: MagicMock,
+    mock_annotate: MagicMock,
+) -> None:
+    mock_recommend.return_value = [
+        CommandProposal(
+            command_type="medication_statement",
+            display="Lisinopril 10mg",
+            data={"medication_text": "Lisinopril 10mg"},
+            section_key="_recommended",
+        ),
+    ]
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note": {"title": "Note", "sections": []},
+                "note_uuid": "note-uuid-456",
+            }
+        )
+    )
+    view.post_recommend_commands()
+    mock_annotate.assert_called_once()
+    assert mock_annotate.call_args.args[1] == "note-uuid-456"
+
+
+@patch("hyperscribe.scribe.api.session_view._annotate_medication_duplicates")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+def test_recommend_commands_without_note_uuid_skips_annotation(
+    mock_recommend: MagicMock,
+    mock_annotate: MagicMock,
+) -> None:
+    mock_recommend.return_value = []
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note": {"title": "Note", "sections": []}}))
+    view.post_recommend_commands()
+    mock_annotate.assert_not_called()

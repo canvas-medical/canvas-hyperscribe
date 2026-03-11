@@ -6,6 +6,12 @@ const html = htm.bind(h);
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
+const FDB_SYSTEM = 'http://www.fdbhealth.com/';
+
+/** True when fdb_code is a resolved Coding dict (not UNSTRUCTURED, not null). */
+function isFdbStructured(fdb) {
+  return fdb != null && typeof fdb === 'object' && fdb.system !== 'UNSTRUCTURED';
+}
 
 function useDebounce(fn, delay) {
   const timer = useRef(null);
@@ -21,14 +27,14 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedFdb, setSelectedFdb] = useState(
-    typeof command.data.fdb_code === 'string' ? command.data.fdb_code : null
+    isFdbStructured(command.data.fdb_code) ? command.data.fdb_code : null
   );
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.medication_text || '');
   const [sig, setSig] = useState(command.data.sig || '');
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
-  const isStructured = typeof command.data.fdb_code === 'string';
+  const isStructured = isFdbStructured(command.data.fdb_code);
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -79,7 +85,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   };
 
   const handleSelect = (result) => {
-    setSelectedFdb(result.fdb_code);
+    setSelectedFdb({ system: FDB_SYSTEM, code: result.fdb_code, display: result.description });
     setSelectedDisplay(result.description);
     setQuery(result.description);
     setResults([]);
@@ -102,7 +108,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
       return;
     }
     setQuery(command.data.medication_text || '');
-    setSelectedFdb(typeof command.data.fdb_code === 'string' ? command.data.fdb_code : null);
+    setSelectedFdb(isFdbStructured(command.data.fdb_code) ? command.data.fdb_code : null);
     setSelectedDisplay(command.data.medication_text || '');
     setSig(command.data.sig || '');
     setResults([]);
@@ -161,7 +167,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
           `}
         </div>
         ${selectedFdb && html`
-          <span class="medication-structured-badge">FDB: ${selectedFdb}</span>
+          <span class="medication-structured-badge">FDB: ${selectedFdb.code}</span>
         `}
         <input
           type="text"
@@ -188,7 +194,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
       <span class="medication-row-text">${command.display}</span>
       ${command.data.sig && html`<span class="medication-sig-text">${command.data.sig}</span>`}
       ${isStructured
-        ? html`<span class="medication-structured-badge">FDB: ${command.data.fdb_code}</span>`
+        ? html`<span class="medication-structured-badge">FDB: ${command.data.fdb_code.code}</span>`
         : html`<span class="medication-unstructured-badge">Unstructured</span>`
       }
     </div>
