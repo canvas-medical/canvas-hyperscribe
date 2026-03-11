@@ -431,7 +431,7 @@ export function Summary({ noteId }) {
             </button>
           `}
           ${inserted && html`
-            <p class="insert-success">Commands inserted into note.</p>
+            <p class="insert-success">Moved into the note</p>
           `}
         </div>
       `}
