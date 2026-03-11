@@ -79,7 +79,6 @@ class MedicationRecommender(BaseRecommender):
             fdb_code: dict[str, str] | None = None
             display = med.medication_name
             if resolved:
-                log.info(f"################################################### Found medication: {resolved}")
                 fdb_code = {
                     "system": CodeSystems.FDB,
                     "code": resolved["fdb_code"],
@@ -99,5 +98,4 @@ class MedicationRecommender(BaseRecommender):
                     section_key="_recommended",
                 )
             )
-        log.info(f" ############################################### Recommended medications: {len(proposals)}")
         return proposals

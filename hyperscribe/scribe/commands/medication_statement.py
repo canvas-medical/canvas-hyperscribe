@@ -6,6 +6,8 @@ from typing import Any
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.commands.commands.medication_statement import MedicationStatementCommand
 from canvas_sdk.commands.constants import CodeSystems, Coding
+from canvas_sdk.v1.data.medication import Medication, MedicationCoding
+from canvas_sdk.v1.data.note import Note
 
 from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.base import CommandParser
@@ -59,6 +61,29 @@ class MedicationParser(CommandParser):
             )
             for line in _parse_medication_lines(text)
         ]
+
+    def annotate_duplicates(self, proposals: list[CommandProposal], note_uuid: str) -> None:
+        med_proposals = [p for p in proposals if p.command_type == self.command_type]
+        if not med_proposals:
+            return
+        try:
+            note = Note.objects.select_related("patient").get(id=note_uuid)
+        except Note.DoesNotExist:
+            return
+        patient = note.patient
+        if patient is None:
+            return
+        active_meds = Medication.objects.active().for_patient(patient.id)
+        coding_qs = MedicationCoding.objects.filter(medication__in=active_meds)
+        active_labels = {c.display.lower() for c in coding_qs if c.display}
+        for proposal in med_proposals:
+            med_text = proposal.data.get("medication_text", "").lower()
+            if not med_text:
+                continue
+            for label in active_labels:
+                if med_text in label or label in med_text:
+                    proposal.already_documented = True
+                    break
 
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         medication_text = str(data.get("medication_text", ""))
