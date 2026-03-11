@@ -25,7 +25,7 @@ def test_build_full() -> None:
         mock_cmd.Substitutions.ALLOWED = "ALLOWED"
         mock_cmd.Substitutions.NOT_ALLOWED = "NOT_ALLOWED"
         mock_cmd.return_value = MagicMock()
-        parser.build(data, "note-uuid")
+        parser.build(data, "note-uuid", "cmd-uuid")
 
     call_kwargs = mock_cmd.call_args.kwargs
     assert call_kwargs["fdb_code"] == "12345"
@@ -46,7 +46,7 @@ def test_build_substitutions_not_allowed() -> None:
         mock_cmd.Substitutions.ALLOWED = "ALLOWED"
         mock_cmd.Substitutions.NOT_ALLOWED = "NOT_ALLOWED"
         mock_cmd.return_value = MagicMock()
-        parser.build(data, "note-uuid")
+        parser.build(data, "note-uuid", "cmd-uuid")
 
     assert mock_cmd.call_args.kwargs["substitutions"] == "NOT_ALLOWED"
 
@@ -56,7 +56,7 @@ def test_build_minimal() -> None:
     with patch("hyperscribe.scribe.commands.prescription.PrescribeCommand") as mock_cmd:
         mock_cmd.Substitutions = MagicMock()
         mock_cmd.return_value = MagicMock()
-        parser.build({}, "note-uuid")
+        parser.build({}, "note-uuid", "cmd-uuid")
 
     call_kwargs = mock_cmd.call_args.kwargs
     assert call_kwargs["fdb_code"] is None
@@ -74,6 +74,6 @@ def test_build_invalid_quantity_ignored() -> None:
     with patch("hyperscribe.scribe.commands.prescription.PrescribeCommand") as mock_cmd:
         mock_cmd.Substitutions = MagicMock()
         mock_cmd.return_value = MagicMock()
-        parser.build(data, "note-uuid")
+        parser.build(data, "note-uuid", "cmd-uuid")
 
     assert mock_cmd.call_args.kwargs["quantity_to_dispense"] is None

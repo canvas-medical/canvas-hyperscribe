@@ -28,7 +28,7 @@ def test_build_full() -> None:
         "due_date": "2026-03-15",
         "assign_to": {"to": "staff", "id": 42},
     }
-    cmd = parser.build(data, "note-uuid-123")
+    cmd = parser.build(data, "note-uuid-123", "cmd-uuid")
 
     assert cmd.title == "Order blood work"
     assert cmd.due_date == date(2026, 3, 15)
@@ -40,7 +40,7 @@ def test_build_full() -> None:
 
 def test_build_no_assignee_no_due_date() -> None:
     parser = TaskParser()
-    cmd = parser.build({"title": "Call patient"}, "note-uuid")
+    cmd = parser.build({"title": "Call patient"}, "note-uuid", "cmd-uuid")
 
     assert cmd.title == "Call patient"
     assert cmd.due_date is None
@@ -53,7 +53,7 @@ def test_build_team_assignee() -> None:
         "title": "Review labs",
         "assign_to": {"to": "team", "id": 7},
     }
-    cmd = parser.build(data, "note-uuid")
+    cmd = parser.build(data, "note-uuid", "cmd-uuid")
 
     assert cmd.assign_to is not None
     assert cmd.assign_to["to"] == AssigneeType("team")
@@ -62,7 +62,7 @@ def test_build_team_assignee() -> None:
 
 def test_build_empty_data_defaults() -> None:
     parser = TaskParser()
-    cmd = parser.build({}, "note-uuid")
+    cmd = parser.build({}, "note-uuid", "cmd-uuid")
 
     assert cmd.title == ""
     assert cmd.due_date is None

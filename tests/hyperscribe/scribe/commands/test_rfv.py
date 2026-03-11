@@ -17,15 +17,15 @@ def test_build() -> None:
     parser = RfvParser()
     with patch("hyperscribe.scribe.commands.rfv.ReasonForVisitCommand") as mock_cmd:
         mock_cmd.return_value = MagicMock()
-        parser.build({"comment": "Lower back pain."}, "note-uuid-456")
+        parser.build({"comment": "Lower back pain."}, "note-uuid-456", "cmd-uuid")
 
-    mock_cmd.assert_called_once_with(comment="Lower back pain.", note_uuid="note-uuid-456")
+    mock_cmd.assert_called_once_with(comment="Lower back pain.", note_uuid="note-uuid-456", command_uuid="cmd-uuid")
 
 
 def test_build_missing_data_defaults() -> None:
     parser = RfvParser()
     with patch("hyperscribe.scribe.commands.rfv.ReasonForVisitCommand") as mock_cmd:
         mock_cmd.return_value = MagicMock()
-        parser.build({}, "note-uuid")
+        parser.build({}, "note-uuid", "cmd-uuid")
 
-    mock_cmd.assert_called_once_with(comment="", note_uuid="note-uuid")
+    mock_cmd.assert_called_once_with(comment="", note_uuid="note-uuid", command_uuid="cmd-uuid")

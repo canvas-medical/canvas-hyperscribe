@@ -60,7 +60,7 @@ class MedicationParser(CommandParser):
             for line in _parse_medication_lines(text)
         ]
 
-    def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand:
+    def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         medication_text = str(data.get("medication_text", ""))
         raw_fdb = data.get("fdb_code")
         fdb_code: str | Coding
@@ -82,4 +82,5 @@ class MedicationParser(CommandParser):
             fdb_code=fdb_code,
             sig=data.get("sig") or None,
             note_uuid=note_uuid,
+            command_uuid=command_uuid,
         )
