@@ -37,6 +37,8 @@ def test_build_effects_routes_all_types() -> None:
         patch("hyperscribe.scribe.commands.prescription.PrescribeCommand") as mock_rx,
         patch("hyperscribe.scribe.commands.lab_order.LabOrderCommand") as mock_lab,
         patch("hyperscribe.scribe.commands.imaging_order.ImagingOrderCommand") as mock_img,
+        patch("hyperscribe.scribe.commands.history_review.render_to_string", return_value=""),
+        patch("hyperscribe.scribe.commands.chart_review.render_to_string", return_value=""),
         patch("hyperscribe.scribe.commands.history_review.CustomCommand") as mock_history,
         patch("hyperscribe.scribe.commands.chart_review.CustomCommand") as mock_chart,
         patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_allergy,
