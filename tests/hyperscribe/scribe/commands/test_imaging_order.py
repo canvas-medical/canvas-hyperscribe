@@ -16,7 +16,7 @@ def test_build_routine() -> None:
         mock_cmd.Priority.ROUTINE = "ROUTINE"
         mock_cmd.Priority.URGENT = "URGENT"
         mock_cmd.return_value = MagicMock()
-        parser.build(data, "note-uuid")
+        parser.build(data, "note-uuid", "cmd-uuid")
 
     call_kwargs = mock_cmd.call_args.kwargs
     assert call_kwargs["comment"] == "MRI lumbar spine"
@@ -32,7 +32,7 @@ def test_build_urgent() -> None:
         mock_cmd.Priority.ROUTINE = "ROUTINE"
         mock_cmd.Priority.URGENT = "URGENT"
         mock_cmd.return_value = MagicMock()
-        parser.build(data, "note-uuid")
+        parser.build(data, "note-uuid", "cmd-uuid")
 
     assert mock_cmd.call_args.kwargs["priority"] == "URGENT"
 
@@ -43,7 +43,7 @@ def test_build_no_priority() -> None:
     with patch("hyperscribe.scribe.commands.imaging_order.ImagingOrderCommand") as mock_cmd:
         mock_cmd.Priority = MagicMock()
         mock_cmd.return_value = MagicMock()
-        parser.build(data, "note-uuid")
+        parser.build(data, "note-uuid", "cmd-uuid")
 
     assert mock_cmd.call_args.kwargs["priority"] is None
 
@@ -53,7 +53,7 @@ def test_build_empty_data() -> None:
     with patch("hyperscribe.scribe.commands.imaging_order.ImagingOrderCommand") as mock_cmd:
         mock_cmd.Priority = MagicMock()
         mock_cmd.return_value = MagicMock()
-        parser.build({}, "note-uuid")
+        parser.build({}, "note-uuid", "cmd-uuid")
 
     call_kwargs = mock_cmd.call_args.kwargs
     assert call_kwargs["comment"] is None
