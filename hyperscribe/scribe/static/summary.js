@@ -21,9 +21,7 @@ const DEV_MOCK_NOTE = {
     { key: 'allergies', title: 'Allergies', text: 'Penicillin (rash). Sulfa drugs (hives).' },
     { key: 'current_medications', title: 'Current Medications', text: '- Lisinopril 10mg daily\n- Metformin 500mg BID\n- Ibuprofen 400mg PRN' },
     { key: 'vitals', title: 'Vitals', text: 'BP 128/82, HR 76, Temp 98.6F, RR 16, SpO2 99%' },
-    { key: 'physical_exam', title: 'Physical Exam', text: 'General: Alert, oriented, no acute distress. HEENT: PERRL, no papilledema. Neck: Supple, no meningismus. Neuro: CN II-XII intact, motor and sensory intact bilaterally, reflexes 2+ symmetric.' },
-    { key: 'assessment', title: 'Assessment', text: 'Migraine without aura. Likely triggered by increased screen time and stress.' },
-    { key: 'plan', title: 'Plan', text: 'Start sumatriptan 50mg at onset of migraine. Continue current medications. Lifestyle modifications: reduce screen time, ensure adequate hydration, regular sleep schedule.' },
+    { key: 'assessment_and_plan', title: 'Assessment & Plan', text: 'Migraine without aura. Likely triggered by increased screen time and stress.\n\nStart sumatriptan 50mg at onset of migraine. Continue current medications. Lifestyle modifications: reduce screen time, ensure adequate hydration, regular sleep schedule.' },
   ],
 };
 
@@ -42,7 +40,7 @@ const DEV_MOCK_COMMANDS = [
     { key: 'allergies', title: 'Allergies', text: 'Penicillin (rash). Sulfa drugs (hives).' },
   ] }, selected: true, section_key: '_chart_review' },
   { command_type: 'vitals', display: 'BP 128/82, HR 76', data: { blood_pressure_systole: 128, blood_pressure_diastole: 82, pulse: 76, body_temperature: 98.6, respiratory_rate: 16, oxygen_saturation: 99 }, selected: true, section_key: 'vitals' },
-  { command_type: 'plan', display: 'Start sumatriptan 50mg at onset of migraine. Continue current medications. Lifestyle modifications: reduce screen time, ensure adequate hydration, regular sleep schedule.', data: { narrative: 'Start sumatriptan 50mg at onset of migraine. Continue current medications. Lifestyle modifications: reduce screen time, ensure adequate hydration, regular sleep schedule.' }, selected: true, section_key: 'plan' },
+  { command_type: 'plan', display: 'Migraine without aura. Likely triggered by increased screen time and stress.\n\nStart sumatriptan 50mg at onset of migraine. Continue current medications. Lifestyle modifications: reduce screen time, ensure adequate hydration, regular sleep schedule.', data: { narrative: 'Migraine without aura. Likely triggered by increased screen time and stress.\n\nStart sumatriptan 50mg at onset of migraine. Continue current medications. Lifestyle modifications: reduce screen time, ensure adequate hydration, regular sleep schedule.' }, selected: true, section_key: 'assessment_and_plan' },
   { command_type: 'prescribe', display: 'Sumatriptan 50mg', data: { medication_text: 'Sumatriptan 50mg', sig: 'Take 1 tablet at onset of migraine, may repeat after 2 hours', quantity: '9', refills: '2' }, selected: true, section_key: '_ad_hoc' },
   { command_type: 'task', display: 'Follow up in 2 weeks', data: { title: 'Follow up in 2 weeks', due_date: null, assign_to: null }, selected: true, section_key: '_ad_hoc' },
   { command_type: 'lab_order', display: 'CBC with differential', data: { comment: 'CBC with differential' }, selected: true, section_key: '_ad_hoc' },
@@ -56,10 +54,9 @@ const SOAP_GROUPS = [
   { title: 'SUBJECTIVE', color: 'subjective', keys: new Set(['chief_complaint', 'history_of_present_illness']) },
   { title: 'HISTORY', color: 'history', keys: new Set(['past_medical_history', 'past_surgical_history',
     'past_obstetric_history', 'family_history', 'social_history']) },
-  { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'physical_exam', 'lab_results', 'imaging_results',
+  { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'lab_results', 'imaging_results',
     'current_medications', 'allergies', 'immunizations']) },
-  { title: 'ASSESSMENT', color: 'assessment', keys: new Set(['assessment']) },
-  { title: 'PLAN', color: 'plan', keys: new Set(['plan', 'prescription', 'appointments']) },
+  { title: 'PLAN', color: 'plan', keys: new Set(['plan', 'assessment_and_plan', 'prescription', 'appointments']) },
 ];
 
 function buildCommandBySectionKey(commands) {

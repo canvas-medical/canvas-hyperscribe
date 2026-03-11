@@ -46,12 +46,17 @@ def test_routes_vitals() -> None:
     assert proposals[0].section_key == "vitals"
 
 
-def test_assessment_section_skipped() -> None:
+def test_assessment_and_plan_routed_to_plan() -> None:
     note = ClinicalNote(
         title="Note",
-        sections=[NoteSection(key="assessment", title="Assessment", text="Lumbar disc herniation.")],
+        sections=[
+            NoteSection(key="assessment_and_plan", title="Assessment & Plan", text="Migraine. Start sumatriptan.")
+        ],
     )
-    assert extract_commands(note) == []
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "plan"
+    assert proposals[0].section_key == "assessment_and_plan"
 
 
 def test_physical_exam_skipped() -> None:
@@ -137,8 +142,7 @@ def test_full_multiple_sections_note() -> None:
             NoteSection(key="chief_complaint", title="CC", text="Headaches for two weeks."),
             NoteSection(key="history_of_present_illness", title="HPI", text="Mostly right-sided."),
             NoteSection(key="vitals", title="Vitals", text="BP 130/85"),
-            NoteSection(key="assessment", title="Assessment", text="Migraine."),
-            NoteSection(key="plan", title="Plan", text="Start sumatriptan 50mg."),
+            NoteSection(key="assessment_and_plan", title="Assessment & Plan", text="Migraine. Start sumatriptan 50mg."),
             NoteSection(key="current_medications", title="Meds", text="- Aspirin 81mg"),
         ],
     )
