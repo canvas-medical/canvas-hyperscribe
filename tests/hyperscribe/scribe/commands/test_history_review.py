@@ -1,78 +1,60 @@
 from unittest.mock import MagicMock, patch
 
-from hyperscribe.scribe.commands.history_review import HistoryReviewParser, _sections_to_html
+from hyperscribe.scribe.commands.history_review import HistoryReviewParser, _prepare_sections
 
 
-def test_sections_to_html_multiple() -> None:
-    sections = [
-        {"key": "past_medical_history", "title": "Past Medical History", "text": "Hypertension"},
-        {"key": "family_history", "title": "Family History", "text": "Father had diabetes"},
-    ]
-    html = _sections_to_html(sections)
-    assert "<h4>Past Medical History</h4>" in html
-    assert "<p>Hypertension</p>" in html
-    assert "<hr>" in html
-    assert "<h4>Family History</h4>" in html
-    assert "<p>Father had diabetes</p>" in html
+def test_prepare_sections_uses_title() -> None:
+    sections = [{"key": "family_history", "title": "Family History", "text": "Father had diabetes"}]
+    result = _prepare_sections(sections)
+    assert result == [{"title": "Family History", "text": "Father had diabetes"}]
 
 
-def test_sections_to_html_single() -> None:
-    sections = [{"key": "social_history", "title": "Social History", "text": "Non-smoker"}]
-    html = _sections_to_html(sections)
-    assert "<h4>Social History</h4>" in html
-    assert "<p>Non-smoker</p>" in html
-    assert "<hr>" not in html
+def test_prepare_sections_falls_back_to_title_map() -> None:
+    sections = [{"key": "past_medical_history", "text": "Hypertension"}]
+    result = _prepare_sections(sections)
+    assert result == [{"title": "Past Medical History", "text": "Hypertension"}]
 
 
-def test_sections_to_html_empty() -> None:
-    assert _sections_to_html([]) == ""
+def test_prepare_sections_empty() -> None:
+    assert _prepare_sections([]) == []
 
 
-def test_build_generates_html() -> None:
+@patch("hyperscribe.scribe.commands.history_review.render_to_string")
+def test_build_renders_template(mock_render: MagicMock) -> None:
+    mock_render.return_value = "<h4>Past Medical History</h4><p>HTN</p>"
     parser = HistoryReviewParser()
-    data = {
-        "sections": [
-            {"key": "past_medical_history", "title": "Past Medical History", "text": "Hypertension"},
-            {"key": "social_history", "title": "Social History", "text": "Non-smoker"},
-        ]
-    }
+    data = {"sections": [{"key": "past_medical_history", "title": "Past Medical History", "text": "HTN"}]}
+
     with patch("hyperscribe.scribe.commands.history_review.CustomCommand") as mock_cmd:
         mock_cmd.return_value = MagicMock()
         parser.build(data, "note-uuid-123", "cmd-uuid")
 
-    mock_cmd.assert_called_once()
-    call_kwargs = mock_cmd.call_args[1]
-    assert call_kwargs["schema_key"] == "historyReview"
-    assert call_kwargs["note_uuid"] == "note-uuid-123"
-    assert "<h4>Past Medical History</h4>" in call_kwargs["content"]
-    assert "<h4>Social History</h4>" in call_kwargs["content"]
+    mock_render.assert_called_once_with(
+        "scribe/templates/review_sections.html",
+        {"sections": [{"title": "Past Medical History", "text": "HTN"}]},
+    )
+    mock_cmd.assert_called_once_with(
+        schema_key="historyReview",
+        content="<h4>Past Medical History</h4><p>HTN</p>",
+        note_uuid="note-uuid-123",
+        command_uuid="cmd-uuid",
+    )
 
 
-def test_build_empty_sections() -> None:
+@patch("hyperscribe.scribe.commands.history_review.render_to_string")
+def test_build_empty_sections(mock_render: MagicMock) -> None:
+    mock_render.return_value = ""
     parser = HistoryReviewParser()
+
     with patch("hyperscribe.scribe.commands.history_review.CustomCommand") as mock_cmd:
         mock_cmd.return_value = MagicMock()
         parser.build({"sections": []}, "note-uuid", "cmd-uuid")
 
-    mock_cmd.assert_called_once()
+    mock_render.assert_called_once_with(
+        "scribe/templates/review_sections.html",
+        {"sections": []},
+    )
     assert mock_cmd.call_args[1]["content"] == ""
-
-
-def test_build_single_section() -> None:
-    parser = HistoryReviewParser()
-    data = {
-        "sections": [
-            {"key": "family_history", "title": "Family History", "text": "Mother had asthma"},
-        ]
-    }
-    with patch("hyperscribe.scribe.commands.history_review.CustomCommand") as mock_cmd:
-        mock_cmd.return_value = MagicMock()
-        parser.build(data, "note-uuid", "cmd-uuid")
-
-    content = mock_cmd.call_args[1]["content"]
-    assert "<h4>Family History</h4>" in content
-    assert "<p>Mother had asthma</p>" in content
-    assert "<hr>" not in content
 
 
 def test_extract_raises() -> None:
