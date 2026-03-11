@@ -19,7 +19,7 @@ from hyperscribe.scribe.clients.nabla.client import NablaClient
 
 _NABLA_API_VERSION = "2026-02-20"
 _NOTE_LOCALE = "ENGLISH_US"
-_NOTE_TEMPLATE = "GENERIC_MULTIPLE_SECTIONS"
+_NOTE_TEMPLATE = "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
 
 
 class NablaBackend(ScribeBackend):

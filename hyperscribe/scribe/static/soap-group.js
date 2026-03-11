@@ -10,7 +10,7 @@ import { HistoryReviewRow } from '/plugin-io/api/hyperscribe/scribe/static/histo
 
 const html = htm.bind(h);
 
-const NARRATIVE_SECTIONS = new Set(['chief_complaint', 'history_of_present_illness', 'plan']);
+const NARRATIVE_SECTIONS = new Set(['chief_complaint', 'history_of_present_illness', 'plan', 'assessment_and_plan']);
 const ORDER_TYPES = new Set(['prescribe', 'lab_order', 'imaging_order']);
 
 const COMMAND_BADGE = {
