@@ -669,3 +669,23 @@ h2 { margin-bottom: 4px; }
 }
 .dev-seed-textarea:focus { outline: none; border-color: #5856d6; }
 .dev-seed-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* ── Summary empty state ── */
+.summary-empty {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 48px 24px; text-align: center;
+}
+.summary-empty-description {
+  color: #6b7280; font-size: 13px; line-height: 1.5;
+  max-width: 360px; margin-bottom: 20px;
+}
+.generate-btn {
+  padding: 10px 20px; font-size: 14px; font-weight: 500;
+  color: #fff; background: #2563eb; border: none; border-radius: 8px;
+  cursor: pointer;
+}
+.generate-btn:hover { background: #1d4ed8; }
+.generate-btn:disabled { opacity: 0.6; cursor: default; }
+.summary-empty-error {
+  color: #dc2626; font-size: 12px; margin-top: 12px;
+}
