@@ -31,11 +31,12 @@ class ChartReviewParser(CommandParser):
     command_type = "chart_review"
     data_field = None
 
-    def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand:
+    def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         sections: list[dict[str, str]] = data.get("sections", [])
         html = _sections_to_html(sections)
         return CustomCommand(
             schema_key="chartReview",
             content=html,
             note_uuid=note_uuid,
+            command_uuid=command_uuid,
         )

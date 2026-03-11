@@ -65,7 +65,7 @@ class VitalsParser(CommandParser):
             return None
         return CommandProposal(command_type=self.command_type, display=text, data=data)
 
-    def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand:
+    def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         return VitalsCommand(
             height=data.get("height"),
             weight_lbs=data.get("weight_lbs"),
@@ -76,4 +76,5 @@ class VitalsParser(CommandParser):
             respiration_rate=data.get("respiration_rate"),
             oxygen_saturation=data.get("oxygen_saturation"),
             note_uuid=note_uuid,
+            command_uuid=command_uuid,
         )

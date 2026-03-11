@@ -52,13 +52,14 @@ def test_build_with_concept_id() -> None:
     with patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_cmd:
         inst = MagicMock()
         mock_cmd.return_value = inst
-        result = parser.build(data, "note-uuid")
+        result = parser.build(data, "note-uuid", "cmd-uuid")
 
     mock_cmd.assert_called_once_with(
         allergy=Allergen(concept_id=12345, concept_type=AllergenType(1)),
         narrative="Penicillin (rash)",
         severity=None,
         note_uuid="note-uuid",
+        command_uuid="cmd-uuid",
     )
     assert result is inst
 
@@ -73,13 +74,14 @@ def test_build_without_concept_id() -> None:
     with patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_cmd:
         inst = MagicMock()
         mock_cmd.return_value = inst
-        result = parser.build(data, "note-uuid")
+        result = parser.build(data, "note-uuid", "cmd-uuid")
 
     mock_cmd.assert_called_once_with(
         allergy=None,
         narrative="Penicillin (rash)",
         severity=None,
         note_uuid="note-uuid",
+        command_uuid="cmd-uuid",
     )
     assert result is inst
 
@@ -90,13 +92,14 @@ def test_build_missing_fields_defaults() -> None:
     with patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_cmd:
         inst = MagicMock()
         mock_cmd.return_value = inst
-        parser.build(data, "note-uuid")
+        parser.build(data, "note-uuid", "cmd-uuid")
 
     mock_cmd.assert_called_once_with(
         allergy=None,
         narrative="",
         severity=None,
         note_uuid="note-uuid",
+        command_uuid="cmd-uuid",
     )
 
 
@@ -113,13 +116,14 @@ def test_build_with_severity_and_reaction() -> None:
         inst = MagicMock()
         mock_cmd.return_value = inst
         mock_cmd.Severity = AllergyCommand.Severity
-        result = parser.build(data, "note-uuid")
+        result = parser.build(data, "note-uuid", "cmd-uuid")
 
     mock_cmd.assert_called_once_with(
         allergy=None,
         narrative="rash and hives",
         severity=AllergyCommand.Severity.SEVERE,
         note_uuid="note-uuid",
+        command_uuid="cmd-uuid",
     )
     assert result is inst
 
@@ -136,13 +140,14 @@ def test_build_reaction_takes_precedence_over_allergy_text() -> None:
         inst = MagicMock()
         mock_cmd.return_value = inst
         mock_cmd.Severity = AllergyCommand.Severity
-        parser.build(data, "note-uuid")
+        parser.build(data, "note-uuid", "cmd-uuid")
 
     mock_cmd.assert_called_once_with(
         allergy=None,
         narrative="anaphylaxis",
         severity=None,
         note_uuid="note-uuid",
+        command_uuid="cmd-uuid",
     )
 
 
@@ -158,11 +163,12 @@ def test_build_invalid_severity_ignored() -> None:
         inst = MagicMock()
         mock_cmd.return_value = inst
         mock_cmd.Severity = AllergyCommand.Severity
-        parser.build(data, "note-uuid")
+        parser.build(data, "note-uuid", "cmd-uuid")
 
     mock_cmd.assert_called_once_with(
         allergy=None,
         narrative="Penicillin",
         severity=None,
         note_uuid="note-uuid",
+        command_uuid="cmd-uuid",
     )

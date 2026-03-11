@@ -57,7 +57,7 @@ class AllergyParser(CommandParser):
             for line in _parse_allergy_lines(text)
         ]
 
-    def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand:
+    def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         allergy_text = str(data.get("allergy_text", ""))
         concept_id = data.get("concept_id")
         concept_id_type = data.get("concept_id_type")
@@ -77,4 +77,5 @@ class AllergyParser(CommandParser):
             narrative=data.get("reaction") or allergy_text,
             severity=severity,
             note_uuid=note_uuid,
+            command_uuid=command_uuid,
         )

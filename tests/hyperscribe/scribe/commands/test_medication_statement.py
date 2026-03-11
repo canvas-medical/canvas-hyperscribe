@@ -89,6 +89,7 @@ def test_build_with_string_fdb_code() -> None:
     cmd = parser.build(
         {"medication_text": "Lisinopril 10mg", "fdb_code": "12345"},
         "note-uuid",
+        "cmd-uuid",
     )
     assert cmd.fdb_code == "12345"
     assert cmd.note_uuid == "note-uuid"
@@ -103,6 +104,7 @@ def test_build_with_dict_fdb_code_unstructured() -> None:
             "fdb_code": _unstructured_coding("Lisinopril 10mg"),
         },
         "note-uuid",
+        "cmd-uuid",
     )
     assert isinstance(cmd.fdb_code, dict)
     assert cmd.fdb_code["system"] == CodeSystems.UNSTRUCTURED
@@ -112,7 +114,7 @@ def test_build_with_dict_fdb_code_unstructured() -> None:
 def test_build_without_fdb_code_falls_back_to_unstructured() -> None:
     """When data has no fdb_code, build creates UNSTRUCTURED coding."""
     parser = MedicationParser()
-    cmd = parser.build({"medication_text": "Some unknown med"}, "note-uuid")
+    cmd = parser.build({"medication_text": "Some unknown med"}, "note-uuid", "cmd-uuid")
     assert isinstance(cmd.fdb_code, dict)
     assert cmd.fdb_code["system"] == CodeSystems.UNSTRUCTURED
     assert cmd.fdb_code["display"] == "Some unknown med"
@@ -121,7 +123,7 @@ def test_build_without_fdb_code_falls_back_to_unstructured() -> None:
 
 def test_build_empty_medication_text() -> None:
     parser = MedicationParser()
-    cmd = parser.build({"medication_text": ""}, "note-uuid")
+    cmd = parser.build({"medication_text": ""}, "note-uuid", "cmd-uuid")
     assert isinstance(cmd.fdb_code, dict)
     assert cmd.fdb_code["system"] == CodeSystems.UNSTRUCTURED
 
@@ -131,13 +133,14 @@ def test_build_with_sig() -> None:
     cmd = parser.build(
         {"medication_text": "Lisinopril 10mg", "sig": "Take 1 tablet daily"},
         "note-uuid",
+        "cmd-uuid",
     )
     assert cmd.sig == "Take 1 tablet daily"
 
 
 def test_build_without_sig_defaults_to_none() -> None:
     parser = MedicationParser()
-    cmd = parser.build({"medication_text": "Lisinopril 10mg"}, "note-uuid")
+    cmd = parser.build({"medication_text": "Lisinopril 10mg"}, "note-uuid", "cmd-uuid")
     assert cmd.sig is None
 
 
@@ -146,5 +149,6 @@ def test_build_empty_sig_defaults_to_none() -> None:
     cmd = parser.build(
         {"medication_text": "Lisinopril 10mg", "sig": ""},
         "note-uuid",
+        "cmd-uuid",
     )
     assert cmd.sig is None
