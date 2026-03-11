@@ -206,16 +206,15 @@ export function Scribe({ noteId, providerName, providerPhotoUrl, patientName, on
 
   const startRecording = useCallback(async () => {
     setError(null);
-    setEntries([]);
     const ok = await connectAndRecord();
     if (ok) setStatus('recording');
   }, [connectAndRecord]);
 
   const pauseRecording = useCallback(async () => {
     setStatus('paused');
-    await saveTranscriptToCache();
     await disconnectAll();
-  }, [saveTranscriptToCache, disconnectAll]);
+    await saveTranscriptToCache();
+  }, [disconnectAll, saveTranscriptToCache]);
 
   const resumeRecording = useCallback(async () => {
     setError(null);
