@@ -52,7 +52,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -74,6 +74,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddMedication=${isObjective ? onAddMedication : null}
         onAddAllergy=${isObjective ? onAddAllergy : null}
         readOnly=${readOnly}
+        sectionConditions=${sectionConditions}
       />`;
     })
     .filter(Boolean);
@@ -90,6 +91,7 @@ export function Summary({ noteId }) {
   const [assignees, setAssignees] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [recommending, setRecommending] = useState(false);
+  const [sectionConditions, setSectionConditions] = useState({});
   const [seedText, setSeedText] = useState('');
   const [seedError, setSeedError] = useState(null);
   const mockLoaded = useRef(false);
@@ -240,6 +242,33 @@ export function Summary({ noteId }) {
     }
 
     fetchRecommendations();
+    return () => { cancelled = true; };
+  }, [noteData]);
+
+  // Fetch normalized data (ICD-10 codes per section) in parallel.
+  useEffect(() => {
+    if (!noteData) return;
+
+    let cancelled = false;
+
+    async function fetchNormalizedData() {
+      try {
+        const res = await fetch(`${API_BASE}/generate-normalized-data`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note: noteData }),
+        });
+        if (cancelled) return;
+        const data = await res.json();
+        if (data.section_conditions) {
+          setSectionConditions(data.section_conditions);
+        }
+      } catch (err) {
+        console.error('Failed to fetch normalized data:', err);
+      }
+    }
+
+    fetchNormalizedData();
     return () => { cancelled = true; };
   }, [noteData]);
 
@@ -526,6 +555,7 @@ export function Summary({ noteId }) {
           onAddMedication: approved ? null : handleAddMedication,
           onAddAllergy: approved ? null : handleAddAllergy,
           readOnly: approved,
+          sectionConditions,
         })}
         ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
         ${recommending && html`<p class="generating-message">Finding recommendations...</p>`}

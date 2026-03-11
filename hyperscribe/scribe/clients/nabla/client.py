@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import requests
+from logger import log
 
 from hyperscribe.scribe.backend import (
     ScribeNormalizationError,
@@ -51,13 +52,17 @@ class NablaClient:
         return result
 
     def generate_normalized_data(self, payload: dict[str, Any]) -> dict[str, Any]:
+        url = f"{self._auth.base_url}/v1/core/server/generate-normalized-data"
+        log.info(f"Nabla POST {url}")
         try:
             response = requests.post(
-                f"{self._auth.base_url}/v1/core/server/generate-normalized-data",
+                url,
                 headers={**self._headers(), "Content-Type": "application/json"},
                 json=payload,
                 timeout=120,
             )
+            log.info(f"Nabla generate_normalized_data status={response.status_code}")
+            log.info(f"Nabla generate_normalized_data body={response.text[:2000]}")
             response.raise_for_status()
         except requests.RequestException as exc:
             status = getattr(exc.response, "status_code", 0) if hasattr(exc, "response") else 0
