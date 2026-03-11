@@ -58,9 +58,14 @@ class NablaBackend(ScribeBackend):
             "note": {
                 "title": note.title,
                 "sections": [{"key": s.key, "title": s.title, "text": s.text} for s in note.sections],
+                "locale": _NOTE_LOCALE,
+                "template": _NOTE_TEMPLATE,
             },
         }
+        log.info(f"Nabla generate_normalized_data request payload: {payload}")
         raw = self._rest_client.generate_normalized_data(payload)
+        log.info(f"Nabla generate_normalized_data response keys: {list(raw.keys())}")
+        log.info(f"Nabla generate_normalized_data response: {raw}")
         return self._parse_normalized_data(raw)
 
     @staticmethod
@@ -79,13 +84,36 @@ class NablaBackend(ScribeBackend):
         return ClinicalNote(title=note_data.get("title", ""), sections=sections)
 
     @staticmethod
+    def _parse_coding_entry(entry: Any) -> CodingEntry:
+        """Parse a coding entry that may be a dict or a string."""
+        if isinstance(entry, dict):
+            return CodingEntry(
+                system=entry.get("system", ""),
+                code=entry.get("code", ""),
+                display=entry.get("display", ""),
+            )
+        # Nabla may return coding as plain strings (e.g. "ICD-10:R51").
+        text = str(entry)
+        if ":" in text:
+            system, code = text.split(":", 1)
+            return CodingEntry(system=system.strip(), code=code.strip(), display="")
+        return CodingEntry(system="", code=text, display="")
+
+    @staticmethod
+    def _normalize_coding(raw_coding: Any) -> list[Any]:
+        """Ensure coding is always a list (Nabla may return a single dict)."""
+        if isinstance(raw_coding, list):
+            return raw_coding
+        if isinstance(raw_coding, dict):
+            return [raw_coding]
+        return []
+
+    @staticmethod
     def _parse_normalized_data(raw: dict[str, Any]) -> NormalizedData:
         conditions: list[Condition] = []
         for cond in raw.get("conditions", []):
-            coding = [
-                CodingEntry(system=c.get("system", ""), code=c.get("code", ""), display=c.get("display", ""))
-                for c in cond.get("coding", [])
-            ]
+            entries = NablaBackend._normalize_coding(cond.get("coding"))
+            coding = [NablaBackend._parse_coding_entry(c) for c in entries]
             conditions.append(
                 Condition(
                     display=cond.get("display", ""),
@@ -96,10 +124,8 @@ class NablaBackend(ScribeBackend):
 
         observations: list[Observation] = []
         for obs in raw.get("observations", []):
-            coding = [
-                CodingEntry(system=c.get("system", ""), code=c.get("code", ""), display=c.get("display", ""))
-                for c in obs.get("coding", [])
-            ]
+            entries = NablaBackend._normalize_coding(obs.get("coding"))
+            coding = [NablaBackend._parse_coding_entry(c) for c in entries]
             observations.append(
                 Observation(
                     display=obs.get("display", ""),

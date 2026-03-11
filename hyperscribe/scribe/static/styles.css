@@ -361,6 +361,12 @@ h2 { margin-bottom: 4px; }
 /* Subsection titles (gray section labels) */
 .subsection-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 8px; text-transform: uppercase; }
 
+/* ICD-10 codes inside plan/assessment content blocks */
+.icd-codes { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e8e8ec; }
+.icd-condition { font-size: 13px; line-height: 1.4; color: #333; }
+.icd-condition-name { color: #555; }
+.icd-code-badge { font-weight: 600; color: #4338ca; margin-left: 2px; }
+
 .edit-btn {
   padding: 4px 12px;
   font-size: 13px;

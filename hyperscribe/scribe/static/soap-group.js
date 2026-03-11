@@ -11,6 +11,7 @@ import { HistoryReviewRow } from '/plugin-io/api/hyperscribe/scribe/static/histo
 const html = htm.bind(h);
 
 const NARRATIVE_SECTIONS = new Set(['chief_complaint', 'history_of_present_illness', 'plan', 'assessment_and_plan']);
+const PLAN_SECTIONS = new Set(['plan', 'assessment_and_plan']);
 const ORDER_TYPES = new Set(['prescribe', 'lab_order', 'imaging_order']);
 
 const COMMAND_BADGE = {
@@ -47,7 +48,25 @@ function getCoveredKeys(commandBySectionKey) {
   return covered;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly }) {
+function renderConditionCodes(conditions) {
+  if (!conditions || conditions.length === 0) return null;
+  return html`
+    <div class="icd-codes">
+      ${conditions.map(c => {
+        const codes = (c.coding || []).filter(code => code.code);
+        if (codes.length === 0) return null;
+        const name = c.display || codes[0].display || '';
+        return codes.map(code => html`
+          <div class="icd-condition" key=${code.code}>
+            ${name && html`<span class="icd-condition-name">${name} — </span>`}<span class="icd-code-badge">${code.code}</span>
+          </div>
+        `);
+      })}
+    </div>
+  `;
+}
+
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   return html`
@@ -78,10 +97,12 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const key = s.key.toLowerCase();
           if (coveredKeys.has(key)) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
+          const codes = sectionConditions && sectionConditions[key];
 
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
             const entry = cmds[0];
             const badge = COMMAND_BADGE[entry.command.command_type] || { label: entry.command.command_type, color: 'rfv' };
+            const showCodes = PLAN_SECTIONS.has(key);
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
@@ -93,6 +114,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onEdit=${onEditCommand}
                     readOnly=${readOnly}
                   />
+                  ${showCodes && renderConditionCodes(codes)}
                 </div>
               </div>
             `;
