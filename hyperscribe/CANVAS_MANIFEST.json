@@ -194,6 +194,7 @@
     "views": []
   },
   "secrets": [
+    "AnthropicAPIKey",
     "APISigningKey",
     "AudioHost",
     "AudioHostSharedSecret",
