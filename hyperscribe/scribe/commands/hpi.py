@@ -12,8 +12,9 @@ class HpiParser(CommandParser):
     command_type = "hpi"
     data_field = "narrative"
 
-    def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand:
+    def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         return HistoryOfPresentIllnessCommand(
             narrative=str(data.get("narrative", "")),
             note_uuid=note_uuid,
+            command_uuid=command_uuid,
         )

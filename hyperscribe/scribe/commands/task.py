@@ -13,7 +13,7 @@ class TaskParser(CommandParser):
     command_type = "task"
     data_field = "title"
 
-    def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand:
+    def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         assign_to: TaskAssigner | None = None
         raw_assign = data.get("assign_to")
         if raw_assign and raw_assign.get("to"):
@@ -32,4 +32,5 @@ class TaskParser(CommandParser):
             due_date=due_date,
             assign_to=assign_to,
             note_uuid=note_uuid,
+            command_uuid=command_uuid,
         )

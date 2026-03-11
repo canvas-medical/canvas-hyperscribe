@@ -16,7 +16,7 @@ class PrescriptionParser(CommandParser):
     def extract(self, text: str) -> None:
         return None
 
-    def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand:
+    def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         quantity = None
         raw_qty = data.get("quantity_to_dispense")
         if raw_qty is not None and raw_qty != "":
@@ -41,4 +41,5 @@ class PrescriptionParser(CommandParser):
             substitutions=substitutions,
             note_to_pharmacist=data.get("note_to_pharmacist") or None,
             note_uuid=note_uuid,
+            command_uuid=command_uuid,
         )

@@ -15,7 +15,7 @@ class ImagingOrderParser(CommandParser):
     def extract(self, text: str) -> None:
         return None
 
-    def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand:
+    def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         priority = None
         raw_priority = data.get("priority")
         if raw_priority == "Routine":
@@ -27,4 +27,5 @@ class ImagingOrderParser(CommandParser):
             comment=data.get("comment") or None,
             priority=priority,
             note_uuid=note_uuid,
+            command_uuid=command_uuid,
         )

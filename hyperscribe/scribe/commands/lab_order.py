@@ -12,8 +12,9 @@ class LabOrderParser(CommandParser):
     command_type = "lab_order"
     data_field = "comment"
 
-    def build(self, data: dict[str, Any], note_uuid: str) -> _BaseCommand:
+    def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         return LabOrderCommand(
             comment=data.get("comment") or None,
             note_uuid=note_uuid,
+            command_uuid=command_uuid,
         )

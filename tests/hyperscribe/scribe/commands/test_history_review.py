@@ -38,7 +38,7 @@ def test_build_generates_html() -> None:
     }
     with patch("hyperscribe.scribe.commands.history_review.CustomCommand") as mock_cmd:
         mock_cmd.return_value = MagicMock()
-        parser.build(data, "note-uuid-123")
+        parser.build(data, "note-uuid-123", "cmd-uuid")
 
     mock_cmd.assert_called_once()
     call_kwargs = mock_cmd.call_args[1]
@@ -52,7 +52,7 @@ def test_build_empty_sections() -> None:
     parser = HistoryReviewParser()
     with patch("hyperscribe.scribe.commands.history_review.CustomCommand") as mock_cmd:
         mock_cmd.return_value = MagicMock()
-        parser.build({"sections": []}, "note-uuid")
+        parser.build({"sections": []}, "note-uuid", "cmd-uuid")
 
     mock_cmd.assert_called_once()
     assert mock_cmd.call_args[1]["content"] == ""
@@ -67,7 +67,7 @@ def test_build_single_section() -> None:
     }
     with patch("hyperscribe.scribe.commands.history_review.CustomCommand") as mock_cmd:
         mock_cmd.return_value = MagicMock()
-        parser.build(data, "note-uuid")
+        parser.build(data, "note-uuid", "cmd-uuid")
 
     content = mock_cmd.call_args[1]["content"]
     assert "<h4>Family History</h4>" in content
