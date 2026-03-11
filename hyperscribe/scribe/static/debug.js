@@ -6,6 +6,7 @@ const html = htm.bind(h);
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const CSS_URL = '/plugin-io/api/hyperscribe/scribe/static/debug.css';
 
+// Inject debug stylesheet once.
 if (!document.querySelector(`link[href="${CSS_URL}"]`)) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
@@ -13,223 +14,154 @@ if (!document.querySelector(`link[href="${CSS_URL}"]`)) {
   document.head.appendChild(link);
 }
 
-function FieldRow({ name, value, type }) {
-  const isJson = type === 'json';
-  const isBool = type === 'bool';
-  const isEmpty = value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0) || (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0);
-  const [expanded, setExpanded] = useState(false);
-
-  let display;
-  if (isEmpty) {
-    display = html`<span class="debug-field-empty">—</span>`;
-  } else if (isBool) {
-    display = html`<span class="debug-field-bool ${value ? 'true' : 'false'}">${value ? 'true' : 'false'}</span>`;
-  } else if (isJson) {
-    const preview = Array.isArray(value) ? `[${value.length} items]` : `{${Object.keys(value).length} keys}`;
-    display = html`
-      <span class="debug-field-json-toggle" onClick=${() => setExpanded(!expanded)}>
-        ${expanded ? '▼' : '▶'} ${preview}
-      </span>
-      ${expanded && html`<pre class="debug-field-json">${JSON.stringify(value, null, 2)}</pre>`}
-    `;
-  } else {
-    display = html`<span class="debug-field-text">${String(value)}</span>`;
-  }
-
-  return html`
-    <div class="debug-field-row">
-      <span class="debug-field-name">${name}</span>
-      <div class="debug-field-value">${display}</div>
-    </div>
-  `;
-}
-
-function ModelSection({ title, modelType, data, onDelete, onSave, fields, readOnly }) {
+function CacheSection({ title, data, onSave, onDelete }) {
   const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState('');
+  const [text, setText] = useState('');
 
   const handleEdit = () => {
-    // Build editable object from fields (exclude updated_at).
-    const obj = {};
-    for (const f of fields) {
-      if (f.key === 'updated_at') continue;
-      obj[f.key] = data ? data[f.key] : (f.type === 'json' ? (f.key === 'items' || f.key === 'events' ? [] : {}) : f.type === 'bool' ? false : '');
-    }
-    setEditText(JSON.stringify(obj, null, 2));
+    setText(JSON.stringify(data, null, 2));
     setEditing(true);
   };
 
   const handleSave = () => {
     try {
-      const parsed = JSON.parse(editText);
-      onSave(modelType, parsed);
+      const parsed = JSON.parse(text);
+      onSave(parsed);
       setEditing(false);
     } catch (e) {
       alert('Invalid JSON: ' + e.message);
     }
   };
 
-  if (!data && !editing) {
-    return html`
-      <div class="debug-section">
-        <div class="debug-section-header">
-          <span class="debug-section-title">${title}</span>
-          ${!readOnly && html`<div class="debug-section-actions">
-            <button class="debug-btn" onClick=${handleEdit}>Create</button>
-          </div>`}
-        </div>
-        <div class="debug-field-list">
-          <div class="debug-field-row"><span class="debug-field-empty" style="padding: 4px 0;">No record</span></div>
-        </div>
-      </div>
-    `;
-  }
-
   return html`
     <div class="debug-section">
       <div class="debug-section-header">
         <span class="debug-section-title">${title}</span>
-        ${!readOnly && html`<div class="debug-section-actions">
-          ${!editing && html`<button class="debug-btn" onClick=${handleEdit}>Edit</button>`}
+        <div class="debug-section-actions">
+          ${!editing && data && html`<button class="debug-btn" onClick=${handleEdit}>Edit</button>`}
           ${data && html`<button class="debug-btn debug-btn-danger" onClick=${onDelete}>Delete</button>`}
-        </div>`}
+        </div>
       </div>
       ${editing ? html`
         <textarea
           class="debug-textarea"
-          value=${editText}
-          onInput=${(e) => setEditText(e.target.value)}
+          value=${text}
+          onInput=${(e) => setText(e.target.value)}
         />
         <div class="debug-edit-actions">
-          <button class="debug-btn debug-btn-save" onClick=${handleSave}>Save</button>
+          <button class="debug-btn" onClick=${handleSave}>Save</button>
           <button class="debug-btn" onClick=${() => setEditing(false)}>Cancel</button>
         </div>
       ` : html`
-        <div class="debug-field-list">
-          ${fields.map(f => html`
-            <${FieldRow} key=${f.name} name=${f.name} value=${data[f.key]} type=${f.type} />
-          `)}
-        </div>
+        <pre class="debug-json">${data ? JSON.stringify(data, null, 2) : 'Empty'}</pre>
       `}
     </div>
   `;
 }
 
-const TRANSCRIPT_FIELDS = [
-  { key: 'items', name: 'items', type: 'json' },
-  { key: 'finalized', name: 'finalized', type: 'bool' },
-  { key: 'provider_id', name: 'provider_id', type: 'text' },
-  { key: 'updated_at', name: 'updated_at', type: 'text' },
-];
-
-const SUMMARY_FIELDS = [
-  { key: 'note_data', name: 'note_data', type: 'json' },
-  { key: 'commands', name: 'commands', type: 'json' },
-  { key: 'recommendations', name: 'recommendations', type: 'json' },
-  { key: 'unmatched_conditions', name: 'unmatched_conditions', type: 'json' },
-  { key: 'diagnosis_suggestions', name: 'diagnosis_suggestions', type: 'json' },
-  { key: 'approved', name: 'approved', type: 'bool' },
-  { key: 'selected_template_name', name: 'selected_template_name', type: 'text' },
-  { key: 'mode', name: 'mode', type: 'text' },
-  { key: 'raw_response', name: 'raw_response', type: 'json' },
-  { key: 'updated_at', name: 'updated_at', type: 'text' },
-];
-
-const AUDIT_FIELDS = [
-  { key: 'events', name: 'events', type: 'json' },
-  { key: 'updated_at', name: 'updated_at', type: 'text' },
-];
-
 export function Debug({ noteId }) {
-  const [data, setData] = useState(null);
+  const [cache, setCache] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const load = useCallback(async () => {
+  const loadCache = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`${API_BASE}/debug-cache?note_id=${encodeURIComponent(noteId)}`);
-      const json = await res.json();
-      if (json.error) setError(json.error);
-      else setData(json);
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setCache(data);
+      }
     } catch (err) {
-      setError('Failed to load models');
+      setError('Failed to load cache');
     } finally {
       setLoading(false);
     }
   }, [noteId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadCache(); }, [loadCache]);
 
-  const handleDelete = useCallback(async (type) => {
+  const handleDeleteType = useCallback(async (type) => {
     try {
       const res = await fetch(
         `${API_BASE}/debug-cache?note_id=${encodeURIComponent(noteId)}&type=${type}`,
         { method: 'DELETE' },
       );
-      const json = await res.json();
-      if (json.error) setError(json.error);
-      else load();
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        loadCache();
+      }
     } catch (err) {
-      setError('Delete failed');
+      setError('Failed to delete cache');
     }
-  }, [noteId, load]);
+  }, [noteId, loadCache]);
 
-  const handleSave = useCallback(async (modelType, fields) => {
+  const handleDeleteAll = useCallback(() => handleDeleteType('all'), [handleDeleteType]);
+
+  const handleSaveTranscript = useCallback(async (parsed) => {
     try {
-      const res = await fetch(`${API_BASE}/debug-cache`, {
-        method: 'PUT',
+      const items = parsed.items || parsed;
+      const finalized = parsed.finalized ?? false;
+      await fetch(`${API_BASE}/save-transcript`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: noteId, type: modelType, fields }),
+        body: JSON.stringify({ note_id: noteId, transcript: { items }, finalized }),
       });
-      const json = await res.json();
-      if (json.error) setError(json.error);
-      else load();
+      loadCache();
     } catch (err) {
-      setError('Save failed');
+      setError('Failed to save transcript');
     }
-  }, [noteId, load]);
+  }, [noteId, loadCache]);
+
+  const handleSaveSummary = useCallback(async (parsed) => {
+    try {
+      await fetch(`${API_BASE}/save-summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          note_id: noteId,
+          note: parsed.note || {},
+          commands: parsed.commands || [],
+          approved: parsed.approved ?? false,
+        }),
+      });
+      loadCache();
+    } catch (err) {
+      setError('Failed to save summary');
+    }
+  }, [noteId, loadCache]);
 
   if (loading) {
-    return html`<div class="debug-container"><p>Loading models...</p></div>`;
+    return html`<div class="debug-container"><p>Loading cache...</p></div>`;
   }
 
   return html`
     <div class="debug-container">
       <div class="debug-header">
-        <span class="debug-header-title">Scribe Models</span>
-        <span class="debug-note-id">note: ${noteId}${data && data.note_dbid ? ` (dbid: ${data.note_dbid})` : ''}</span>
+        <span class="debug-header-title">Cache Debug</span>
+        <span class="debug-note-id">note: ${noteId}</span>
         <div class="debug-header-actions">
-          <button class="debug-btn" onClick=${load}>Refresh</button>
-          <button class="debug-btn debug-btn-danger" onClick=${() => handleDelete('all')}>Delete All</button>
+          <button class="debug-btn" onClick=${loadCache}>Refresh</button>
+          <button class="debug-btn debug-btn-danger" onClick=${handleDeleteAll}>Delete All</button>
         </div>
       </div>
       ${error && html`<p class="error">${error}</p>`}
-      <${ModelSection}
-        title="ScribeTranscript"
-        modelType="transcript"
-        data=${data && data.transcript}
-        fields=${TRANSCRIPT_FIELDS}
-        onDelete=${() => handleDelete('transcript')}
-        onSave=${handleSave}
+      <${CacheSection}
+        title="Transcript"
+        data=${cache && cache.transcript}
+        onSave=${handleSaveTranscript}
+        onDelete=${() => handleDeleteType('transcript')}
       />
-      <${ModelSection}
-        title="ScribeSummary"
-        modelType="summary"
-        data=${data && data.summary}
-        fields=${SUMMARY_FIELDS}
-        onDelete=${() => handleDelete('summary')}
-        onSave=${handleSave}
-      />
-      <${ModelSection}
-        title="ScribeAuditLog"
-        modelType="audit_log"
-        data=${data && data.audit_log}
-        fields=${AUDIT_FIELDS}
-        onDelete=${() => handleDelete('audit_log')}
-        onSave=${handleSave}
-        readOnly=${true}
+      <${CacheSection}
+        title="Summary"
+        data=${cache && cache.summary}
+        onSave=${handleSaveSummary}
+        onDelete=${() => handleDeleteType('summary')}
       />
     </div>
   `;

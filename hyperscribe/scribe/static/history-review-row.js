@@ -4,7 +4,7 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
-export function HistoryReviewRow({ command, commandIndex, onEdit }) {
+export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly }) {
   const sections = (command.data && command.data.sections) || [];
   const [editing, setEditing] = useState(false);
   const [drafts, setDrafts] = useState(sections.map(s => s.text || ''));
@@ -65,7 +65,7 @@ export function HistoryReviewRow({ command, commandIndex, onEdit }) {
   return html`
     <div
       class="history-review-row"
-      onClick=${() => setEditing(true)}
+      onClick=${() => !readOnly && setEditing(true)}
     >
       <div>
         ${sections.map((s, i) => html`

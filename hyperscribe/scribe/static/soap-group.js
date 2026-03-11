@@ -47,7 +47,7 @@ function getCoveredKeys(commandBySectionKey) {
   return covered;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   return html`
@@ -69,6 +69,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 command=${entry.command}
                 commandIndex=${entry.index}
                 onEdit=${onEditCommand}
+                readOnly=${readOnly}
               />
             </div>
           `;
@@ -90,6 +91,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     command=${entry.command}
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
+                    readOnly=${readOnly}
                   />
                 </div>
               </div>
@@ -107,6 +109,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     command=${entry.command}
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
+                    readOnly=${readOnly}
                   />
                 </div>
               </div>
@@ -124,6 +127,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       commandIndex=${entry.index}
                       onEdit=${onEditCommand}
                       onDelete=${onDeleteCommand}
+                      readOnly=${readOnly}
                     />
                   </div>
                 `)}
@@ -142,6 +146,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       commandIndex=${entry.index}
                       onEdit=${onEditCommand}
                       onDelete=${onDeleteCommand}
+                      readOnly=${readOnly}
                     />
                   </div>
                 `)}
@@ -192,6 +197,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   onEdit=${onEditCommand}
                   onDelete=${onDeleteCommand}
                   assignees=${assignees}
+                  readOnly=${readOnly}
                 />
               </div>
             `;
@@ -204,6 +210,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   commandIndex=${entry.index}
                   onEdit=${onEditCommand}
                   onDelete=${onDeleteCommand}
+                  readOnly=${readOnly}
                 />
               </div>
             `;

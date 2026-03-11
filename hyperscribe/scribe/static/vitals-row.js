@@ -31,7 +31,7 @@ function formatVitalsDisplay(data) {
 
 export { formatVitalsDisplay };
 
-export function VitalsRow({ command, commandIndex, onEdit }) {
+export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ ...command.data });
 
@@ -133,7 +133,7 @@ export function VitalsRow({ command, commandIndex, onEdit }) {
   });
 
   return html`
-    <div class="vitals-row" onClick=${() => setEditing(true)}>
+    <div class="vitals-row" onClick=${() => !readOnly && setEditing(true)}>
       <div class="vitals-values">${items}</div>
     </div>
   `;

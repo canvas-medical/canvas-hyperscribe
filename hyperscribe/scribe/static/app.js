@@ -3,6 +3,7 @@ import { useState, useCallback } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { Scribe } from '/plugin-io/api/hyperscribe/scribe/static/transcript.js';
 import { Summary } from '/plugin-io/api/hyperscribe/scribe/static/summary.js';
+import { Debug } from '/plugin-io/api/hyperscribe/scribe/static/debug.js';
 
 const html = htm.bind(h);
 
@@ -37,6 +38,10 @@ export function App({ noteId, view, providerName, providerPhotoUrl, patientName 
 
   if (view === 'summary') {
     return html`<${Summary} noteId=${noteId} />`;
+  }
+
+  if (view === 'debug') {
+    return html`<${Debug} noteId=${noteId} />`;
   }
 
   if (view === 'scribe') {

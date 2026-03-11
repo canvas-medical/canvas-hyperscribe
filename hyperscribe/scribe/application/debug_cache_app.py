@@ -3,18 +3,18 @@ from canvas_sdk.effects.launch_modal import LaunchModalEffect
 from canvas_sdk.handlers.application import NoteApplication
 
 from hyperscribe.libraries.constants import Constants
-from hyperscribe.scribe.application.transcript_app import is_debug_visible
 
 
 class ScribeCacheApp(NoteApplication):
     """Note application for Canvas Scribe with recording and transcript."""
 
-    NAME = "Models"
+    NAME = "Cache"
     IDENTIFIER = "hyperscribe__scribe_cache"
     PRIORITY = 1
 
     def visible(self) -> bool:
-        return is_debug_visible(self.secrets, self.event)
+        modality = self.secrets.get(Constants.SECRET_MODALITY, "").lower()
+        return bool(modality == Constants.MODALITY_SCRIBE)
 
     def handle(self) -> list[Effect]:
         from canvas_sdk.v1.data.note import Note
