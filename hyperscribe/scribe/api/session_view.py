@@ -283,16 +283,26 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         transcript_items = transcript_data.get("items", [])
 
         # If no transcript items in body, load from cache using note_id.
-        if not transcript_items:
-            note_id = str(data.get("note_id", ""))
-            if note_id:
-                cached_data = _load_transcript_from_cache(note_id)
-                if cached_data:
-                    transcript_items = cached_data["items"]
-                    transcript_data = {"items": transcript_items}
+        note_id = str(data.get("note_id", ""))
+        cached_data: dict[str, Any] | None = None
+        if not transcript_items and note_id:
+            cached_data = _load_transcript_from_cache(note_id)
+            if cached_data:
+                transcript_items = cached_data["items"]
+                transcript_data = {"items": transcript_items}
 
         if not transcript_items:
             return [JSONResponse({"error": "No transcript available"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        # Only allow generation from finalized transcripts.
+        is_finalized = (cached_data or {}).get("finalized", False) if not data.get("transcript") else True
+        if not is_finalized:
+            return [
+                JSONResponse(
+                    {"error": "Transcript is still in progress. Finish recording before generating a summary."},
+                    status_code=HTTPStatus.BAD_REQUEST,
+                )
+            ]
 
         transcript = _parse_transcript(transcript_data)
         patient_context = _parse_patient_context(data)
