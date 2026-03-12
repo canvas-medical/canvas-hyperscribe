@@ -28,6 +28,8 @@ class Settings(NamedTuple):
     cycle_transcript_overlap: int
     custom_prompts: list[CustomPrompt]
     modality: str = "copilot"
+    # PILOT: remove scribe_pilot_staffers when scribe pilot ends
+    scribe_pilot_staffers: list[str] = []
 
     @classmethod
     def from_dictionary(cls, dictionary: dict) -> Settings:
@@ -91,6 +93,10 @@ class Settings(NamedTuple):
                 json.loads(dictionary.get(Constants.SECRET_CUSTOM_PROMPTS) or "[]") or []
             ),
             modality=dictionary.get(Constants.SECRET_MODALITY, "copilot"),
+            # PILOT: remove scribe_pilot_staffers when scribe pilot ends
+            scribe_pilot_staffers=cls.list_from(
+                dictionary.get(Constants.SECRET_SCRIBE_PILOT_STAFFERS)
+            ),
         )
 
     @classmethod
@@ -110,6 +116,19 @@ class Settings(NamedTuple):
         if isinstance(string, str):
             return sorted(re.findall(r"[a-zA-Z0-9]+", string))
         return []
+
+    # PILOT: remove is_scribe_modality when scribe pilot ends; callers should
+    #        revert to checking `settings.modality == Constants.MODALITY_SCRIBE`
+    def is_scribe_modality(self, staff_id: str) -> bool:
+        """True when this staff member should use scribe mode.
+
+        Scribe mode applies when:
+        - the global modality is set to "scribe", OR
+        - the staff member's id is in the scribe_pilot_staffers list.
+        """
+        if self.modality == Constants.MODALITY_SCRIBE:
+            return True
+        return staff_id in self.scribe_pilot_staffers
 
     def llm_audio_model(self) -> str:
         result = Constants.OPENAI_CHAT_AUDIO

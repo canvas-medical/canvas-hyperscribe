@@ -218,6 +218,7 @@
     "NotionAPIKey",
     "NotionFeedbackDatabaseId",
     "ScribeBackend",
+    "ScribePilotStaffers",
     "StaffersList",
     "StaffersPolicy",
     "StructuredReasonForVisit",

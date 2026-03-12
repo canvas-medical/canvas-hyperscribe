@@ -29,10 +29,6 @@ class TranscriptButton(ActionButton):
 
     def visible(self) -> bool:
         settings = Settings.from_dictionary(self.secrets)
-
-        if settings.modality == Constants.MODALITY_SCRIBE:
-            return False
-
         staff_id = self.context.get("user", {}).get("id", "")
 
         # PILOT: replace is_scribe_modality with `settings.modality == Constants.MODALITY_SCRIBE`
