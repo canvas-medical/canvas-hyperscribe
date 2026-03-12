@@ -4,6 +4,8 @@ from http import HTTPStatus
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from django.db.models import QuerySet
+
 from canvas_sdk.effects.simple_api import JSONResponse
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin
 
@@ -896,13 +898,20 @@ def test_search_allergies_missing_query() -> None:
 @patch("hyperscribe.scribe.api.session_view.Team")
 @patch("hyperscribe.scribe.api.session_view.Staff")
 def test_get_assignees_success(mock_staff_cls: MagicMock, mock_team_cls: MagicMock) -> None:
-    mock_staff_cls.objects.filter.return_value.order_by.return_value.values.return_value = [
+    staff_qs = MagicMock(spec=QuerySet)
+    staff_qs.order_by.return_value = MagicMock(spec=QuerySet)
+    staff_qs.order_by.return_value.values.return_value = [
         {"dbid": 1, "first_name": "Jane", "last_name": "Doe"},
         {"dbid": 2, "first_name": "John", "last_name": "Smith"},
     ]
-    mock_team_cls.objects.all.return_value.order_by.return_value.values.return_value = [
+    mock_staff_cls.objects.filter.return_value = staff_qs
+
+    team_qs = MagicMock(spec=QuerySet)
+    team_qs.order_by.return_value = MagicMock(spec=QuerySet)
+    team_qs.order_by.return_value.values.return_value = [
         {"dbid": 10, "name": "Nursing"},
     ]
+    mock_team_cls.objects.all.return_value = team_qs
 
     view = _helper_instance()
     result = view.get_assignees()
@@ -919,8 +928,15 @@ def test_get_assignees_success(mock_staff_cls: MagicMock, mock_team_cls: MagicMo
 @patch("hyperscribe.scribe.api.session_view.Team")
 @patch("hyperscribe.scribe.api.session_view.Staff")
 def test_get_assignees_empty(mock_staff_cls: MagicMock, mock_team_cls: MagicMock) -> None:
-    mock_staff_cls.objects.filter.return_value.order_by.return_value.values.return_value = []
-    mock_team_cls.objects.all.return_value.order_by.return_value.values.return_value = []
+    staff_qs = MagicMock(spec=QuerySet)
+    staff_qs.order_by.return_value = MagicMock(spec=QuerySet)
+    staff_qs.order_by.return_value.values.return_value = []
+    mock_staff_cls.objects.filter.return_value = staff_qs
+
+    team_qs = MagicMock(spec=QuerySet)
+    team_qs.order_by.return_value = MagicMock(spec=QuerySet)
+    team_qs.order_by.return_value.values.return_value = []
+    mock_team_cls.objects.all.return_value = team_qs
 
     view = _helper_instance()
     result = view.get_assignees()

@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+from django.db.models import QuerySet
+
 from canvas_sdk.commands.commands.allergy import Allergen, AllergenType, AllergyCommand
 
 from hyperscribe.scribe.backend.models import CommandProposal
@@ -187,7 +189,10 @@ def test_annotate_duplicates_match(
     mock_note = MagicMock()
     mock_note.patient = mock_patient
 
-    mock_coding_cls.objects.filter.return_value.committed.return_value.values_list.return_value = ["Penicillin G"]
+    # Use spec=QuerySet so calling nonexistent methods (e.g. .committed()) raises AttributeError.
+    mock_qs = MagicMock(spec=QuerySet)
+    mock_qs.values_list.return_value = ["Penicillin G"]
+    mock_coding_cls.objects.filter.return_value = mock_qs
 
     proposals = [
         CommandProposal(command_type="allergy", display="Penicillin", data={"allergy_text": "Penicillin"}),
@@ -199,6 +204,9 @@ def test_annotate_duplicates_match(
     assert proposals[0].already_documented is True  # substring match
     assert proposals[1].already_documented is False
     assert proposals[2].already_documented is False  # non-allergy untouched
+
+    mock_coding_cls.objects.filter.assert_called_once()
+    mock_qs.values_list.assert_called_once_with("display", flat=True)
 
 
 def test_annotate_duplicates_no_allergies() -> None:
