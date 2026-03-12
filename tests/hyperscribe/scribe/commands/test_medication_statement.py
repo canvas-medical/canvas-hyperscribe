@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+from django.db.models import QuerySet
+
 from canvas_sdk.commands.constants import CodeSystems
 
 from hyperscribe.scribe.backend.models import CommandProposal
@@ -188,7 +190,10 @@ def test_annotate_duplicates_match(
     mock_note = MagicMock()
     mock_note.patient = mock_patient
 
-    mock_coding_cls.objects.filter.return_value.values_list.return_value = ["Lisinopril 10mg Tablet"]
+    # Use spec=QuerySet so calling nonexistent methods (e.g. .committed()) raises AttributeError.
+    mock_qs = MagicMock(spec=QuerySet)
+    mock_qs.values_list.return_value = ["Lisinopril 10mg Tablet"]
+    mock_coding_cls.objects.filter.return_value = mock_qs
 
     proposals = [
         CommandProposal(
@@ -204,6 +209,12 @@ def test_annotate_duplicates_match(
     assert proposals[0].already_documented is True
     assert proposals[1].already_documented is False
     assert proposals[2].already_documented is False
+
+    mock_coding_cls.objects.filter.assert_called_once_with(
+        medication__patient=mock_patient,
+        medication__status="active",
+    )
+    mock_qs.values_list.assert_called_once_with("display", flat=True)
 
 
 def test_annotate_duplicates_no_medications() -> None:
