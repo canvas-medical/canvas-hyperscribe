@@ -30,3 +30,15 @@ class AllergyRecommendationList(BaseModelLlmJson):
         default_factory=list,
         description="List of allergies extracted from the clinical note",
     )
+
+
+class DiagnosisSuggestion(BaseModelLlmJson):
+    condition_text: str = Field(description="The original condition text")
+    icd10_codes: list[str] = Field(description="2-3 ICD-10 codes (e.g. R519, G43009)")
+
+
+class DiagnosisSuggestionList(BaseModelLlmJson):
+    suggestions: list[DiagnosisSuggestion] = Field(
+        default_factory=list,
+        description="List of diagnosis suggestions per condition",
+    )

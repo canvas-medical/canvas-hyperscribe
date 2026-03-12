@@ -40,6 +40,7 @@ from hyperscribe.scribe.backend import (
 from hyperscribe.scribe.commands.builder import annotate_duplicates, build_effects
 from hyperscribe.scribe.commands.extractor import extract_commands
 from hyperscribe.scribe.recommendations import recommend_commands
+from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
 
 
 def _format_icd10_code(raw: str) -> str:
@@ -450,6 +451,35 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             )
         ]
 
+    @api.post("/suggest-diagnoses")
+    def post_suggest_diagnoses(self) -> list[Union[Response, Effect]]:
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        conditions = data.get("conditions", [])
+        if not conditions or not isinstance(conditions, list):
+            return [JSONResponse({"suggestions": {}}, status_code=HTTPStatus.OK)]
+        api_key = self.secrets.get("AnthropicAPIKey", "")
+        if not api_key:
+            return [
+                JSONResponse(
+                    {"error": "AnthropicAPIKey secret is not configured"},
+                    status_code=HTTPStatus.BAD_REQUEST,
+                )
+            ]
+        try:
+            suggestions = suggest_diagnoses(conditions, api_key)
+        except Exception:
+            log.exception("suggest_diagnoses failed")
+            return [
+                JSONResponse(
+                    {"error": "Diagnosis suggestion failed"},
+                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+            ]
+        return [JSONResponse({"suggestions": suggestions}, status_code=HTTPStatus.OK)]
+
     @api.post("/insert-commands")
     def post_insert_commands(self) -> list[Union[Response, Effect]]:
         try:
@@ -574,6 +604,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             chosen = icd10 or codings[0]
             results.append(
                 {
+                    "condition_id": str(c.id),
                     "code": chosen.code,
                     "formatted_code": _format_icd10_code(chosen.code),
                     "display": chosen.display or c.clinical_status,
