@@ -187,7 +187,13 @@
         "label": "Chart Review",
         "schema_key": "chartReview",
         "section": "objective"
-      }
+      },
+      {
+        "name": "ReviewOfSystems",
+        "label": "Review Of Systems",
+        "schema_key": "reviewOfSystems",
+        "section": "subjective"
+      }	
     ],
     "content": [],
     "effects": [],
