@@ -41,15 +41,15 @@ class CaptureButton(ActionButton):
 
     def visible(self) -> bool:
         settings = Settings.from_dictionary(self.secrets)
-        if settings.is_tuning or settings.modality == Constants.MODALITY_SCRIBE:
+        staff_id = self.context.get("user", {}).get("id", "")
+        # PILOT: replace is_scribe_modality with `settings.modality == Constants.MODALITY_SCRIBE`
+        if settings.is_tuning or settings.is_scribe_modality(staff_id):
             return False
 
         # DO NOT USE "CurrentStateChangeEvent" model. The view is too expensive.
         # It performs a max on id grouped by note for all notes, regardless of the note filter.
         if not Helper.editable_note(self.event.context["note_id"]):
             return False
-
-        staff_id = self.context.get("user", {}).get("id", "")
         visibility = False
         if settings.staffers_policy.is_allowed(staff_id):
             visibility = True
