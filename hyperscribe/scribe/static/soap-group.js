@@ -323,11 +323,39 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${s.title}</div>
                   ${cmds.filter(e => e.command.command_type === 'diagnose').map(entry => {
+                    const hasCode = !!entry.command.data.icd10_code;
+                    const isAccepted = hasCode && entry.command.data.accepted;
+                    const isIncomplete = !hasCode;
                     const header = entry.command.data.condition_header || '';
-                    const suggestions = (!entry.command.data.icd10_code && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
+                    const suggestions = (!hasCode && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
+
+                    let btnLabel, btnClass;
+                    if (isIncomplete) {
+                      btnLabel = 'Incomplete';
+                      btnClass = 'recommendation-accept-btn incomplete';
+                    } else if (isAccepted) {
+                      btnLabel = 'Accepted';
+                      btnClass = 'recommendation-accept-btn accepted';
+                    } else {
+                      btnLabel = 'Accept';
+                      btnClass = 'recommendation-accept-btn';
+                    }
+
                     return html`
-                      <div class="content-block has-badge content-block--diagnose" key=${entry.index}>
-                        <span class="content-block-badge badge-diagnose">Dx</span>
+                      <div class="content-block content-block--diagnose recommendation-block${isAccepted ? ' accepted' : ''}" key=${entry.index}>
+                        ${!readOnly && html`
+                          <div class="recommendation-actions">
+                            <button
+                              type="button"
+                              class=${btnClass}
+                              onClick=${() => !isIncomplete && onEditCommand(entry.index, {
+                                ...entry.command.data,
+                                accepted: !entry.command.data.accepted,
+                              }, 'diagnose')}
+                              disabled=${isIncomplete}
+                            >${btnLabel}</button>
+                          </div>
+                        `}
                         <${DiagnoseRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
