@@ -12,25 +12,36 @@ def test_constants() -> None:
     assert SummaryApp.IDENTIFIER == "hyperscribe__scribe_summary"
 
 
-def test_visible() -> None:
-    tests = [
-        ("scribe", True),
-        ("Scribe", True),
-        ("SCRIBE", True),
-        ("hyperscribe", False),
-        ("", False),
-    ]
-    for modality, expected in tests:
-        event = Event(EventRequest())
-        secrets = {"Modality": modality}
-        tested = SummaryApp(event, secrets)
-        assert tested.visible() is expected, f"modality={modality!r}"
+@patch("hyperscribe.scribe.application.summary_app.Settings")
+def test_visible(mock_settings_cls: MagicMock) -> None:
+    mock_settings = MagicMock()
+    mock_settings_cls.from_dictionary.return_value = mock_settings
+
+    # scribe modality for this staff → visible
+    mock_settings.is_scribe_modality.return_value = True
+    event = Event(EventRequest(context='{"user": {"id": "staff1"}}'))
+    tested = SummaryApp(event, {"Modality": "scribe"})
+    assert tested.visible() is True
+    mock_settings.is_scribe_modality.assert_called_with("staff1")
+
+    # not scribe modality for this staff → not visible
+    mock_settings.is_scribe_modality.return_value = False
+    event = Event(EventRequest(context='{"user": {"id": "staff2"}}'))
+    tested = SummaryApp(event, {"Modality": "copilot"})
+    assert tested.visible() is False
+    mock_settings.is_scribe_modality.assert_called_with("staff2")
 
 
-def test_visible_missing_secret() -> None:
+@patch("hyperscribe.scribe.application.summary_app.Settings")
+def test_visible_missing_user_context(mock_settings_cls: MagicMock) -> None:
+    mock_settings = MagicMock()
+    mock_settings_cls.from_dictionary.return_value = mock_settings
+    mock_settings.is_scribe_modality.return_value = False
+
     event = Event(EventRequest())
     tested = SummaryApp(event, {})
     assert tested.visible() is False
+    mock_settings.is_scribe_modality.assert_called_with("")
 
 
 @patch("canvas_sdk.v1.data.note.Note")
