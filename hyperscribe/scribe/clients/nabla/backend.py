@@ -176,15 +176,15 @@ class NablaBackend(ScribeBackend):
         patient_context: PatientContext | None,
     ) -> dict[str, Any]:
         ros_custom_instructions = (
-            "Include ROS at the end of this section and add positive and negative symptoms as mentioned. "
-            "ROS"
-            "General:"
-            "Skin:"
-            "HEENT:"
-            "Cardiovascular:"
-            "Respiratory:"
-            "Gastrointestinal:"
-            "Genitourinary:"
+            "Include ROS at the end of this section and add positive and negative symptoms as mentioned.\n"
+            "ROS\n"
+            "General:\n"
+            "Skin:\n"
+            "HEENT:\n"
+            "Cardiovascular:\n"
+            "Respiratory:\n"
+            "Gastrointestinal:\n"
+            "Genitourinary:\n"
             "Musculoskeletal:"
         )
 

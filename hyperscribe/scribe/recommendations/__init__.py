@@ -15,19 +15,21 @@ _RECOMMENDERS: list[BaseRecommender] = [MedicationRecommender(), AllergyRecommen
 _MODEL = "claude-sonnet-4-5-20250929"
 
 
-def recommend_commands(note: ClinicalNote, api_key: str) -> list[CommandProposal]:
-    """Run all recommenders against the clinical note and return proposals."""
-    settings = LlmSettingsAnthropic(
+def _make_settings(api_key: str) -> LlmSettingsAnthropic:
+    return LlmSettingsAnthropic(
         api_key=api_key,
         model=_MODEL,
         temperature=0.0,
         max_tokens=4096,
     )
-    client = LlmAnthropic(settings)
 
+
+def recommend_commands(note: ClinicalNote, api_key: str) -> list[CommandProposal]:
+    """Run all recommenders against the clinical note and return proposals."""
     proposals: list[CommandProposal] = []
     for recommender in _RECOMMENDERS:
         try:
+            client = LlmAnthropic(_make_settings(api_key))
             proposals.extend(recommender.recommend(note, client))
         except Exception:
             log.exception(f"Recommender {type(recommender).__name__} failed")

@@ -20,6 +20,7 @@ class NablaAuth:
         self.private_key = private_key
         self._access_token: str = ""
         self._token_expires_at: float = 0.0
+        self._session = requests.Session()
 
     @property
     def base_url(self) -> str:
@@ -42,7 +43,7 @@ class NablaAuth:
         headers = {"Authorization": f"Bearer {backend_token}"}
         find_url = f"{_BASE_URL}/v1/core/server/users/find_by_external_id/{external_id}"
         try:
-            response = requests.get(find_url, headers=headers, timeout=30)
+            response = self._session.get(find_url, headers=headers, timeout=30)
         except requests.RequestException as exc:
             raise ScribeAuthError(f"Nabla user lookup failed: {exc}") from exc
 
@@ -51,7 +52,7 @@ class NablaAuth:
 
         create_url = f"{_BASE_URL}/v1/core/server/users"
         try:
-            response = requests.post(
+            response = self._session.post(
                 create_url,
                 headers=headers,
                 json={"external_id": external_id},
@@ -69,7 +70,7 @@ class NablaAuth:
         backend_token = self.get_access_token()
         url = f"{_BASE_URL}/v1/core/server/jwt/authenticate/{user_id}"
         try:
-            response = requests.post(
+            response = self._session.post(
                 url,
                 headers={"Authorization": f"Bearer {backend_token}"},
                 timeout=30,
@@ -95,7 +96,7 @@ class NablaAuth:
             algorithm="RS256",
         )
         try:
-            response = requests.post(
+            response = self._session.post(
                 _TOKEN_URL,
                 json={
                     "grant_type": "client_credentials",

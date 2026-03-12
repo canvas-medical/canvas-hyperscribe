@@ -11,6 +11,8 @@ from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 
+from django.db.models import Q
+
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
@@ -631,15 +633,17 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     def get_ordering_providers(self) -> list[Union[Response, Effect]]:
         """Return active staff who are prescribers, optionally filtered by search term."""
         query = self.request.query_params.get("query", "").strip()
-        prescriber_staff_ids = StaffRole.objects.filter(
-            role_type=StaffRole.RoleType.PROVIDER,
-            domain__in=StaffRole.RoleDomain.clinical_domains(),
-        ).values_list("staff_id", flat=True)
-        qs = Staff.objects.filter(active=True, pk__in=prescriber_staff_ids).order_by("last_name", "first_name")
+        qs = (
+            Staff.objects.filter(
+                active=True,
+                staffrole__role_type=StaffRole.RoleType.PROVIDER,
+                staffrole__domain__in=StaffRole.RoleDomain.clinical_domains(),
+            )
+            .distinct()
+            .order_by("last_name", "first_name")
+        )
         if query:
-            first_matches = set(qs.filter(first_name__icontains=query).values_list("pk", flat=True)[:50])
-            last_matches = set(qs.filter(last_name__icontains=query).values_list("pk", flat=True)[:50])
-            qs = qs.filter(pk__in=first_matches | last_matches)
+            qs = qs.filter(Q(first_name__icontains=query) | Q(last_name__icontains=query))
         providers = [{"id": str(s.id), "label": s.credentialed_name} for s in qs[:50]]
         return [JSONResponse({"providers": providers}, status_code=HTTPStatus.OK)]
 
