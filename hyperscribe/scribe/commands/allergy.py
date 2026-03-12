@@ -71,9 +71,7 @@ class AllergyParser(CommandParser):
             AllergyIntoleranceCoding.objects.filter(
                 allergy_intolerance__patient=patient,
                 allergy_intolerance__status=Status.ACTIVE,
-            )
-            .committed()
-            .values_list("display", flat=True)
+            ).values_list("display", flat=True)
         )
         active_labels_lower = {label.lower() for label in active_labels if label}
         for proposal in allergy_proposals:
