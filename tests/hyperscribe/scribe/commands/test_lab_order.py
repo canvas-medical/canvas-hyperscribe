@@ -23,15 +23,41 @@ def test_build() -> None:
     parser = LabOrderParser()
     with patch("hyperscribe.scribe.commands.lab_order.LabOrderCommand") as mock_cmd:
         mock_cmd.return_value = MagicMock()
-        parser.build({"comment": "CBC with differential"}, "note-uuid", "cmd-uuid")
+        parser.build(
+            {
+                "lab_partner": "partner-uuid",
+                "tests_order_codes": ["CBC", "BMP"],
+                "diagnosis_codes": ["E11.9"],
+                "fasting_required": True,
+                "comment": "CBC with differential",
+            },
+            "note-uuid",
+            "cmd-uuid",
+        )
 
-    mock_cmd.assert_called_once_with(comment="CBC with differential", note_uuid="note-uuid", command_uuid="cmd-uuid")
+    mock_cmd.assert_called_once_with(
+        lab_partner="partner-uuid",
+        tests_order_codes=["CBC", "BMP"],
+        diagnosis_codes=["E11.9"],
+        fasting_required=True,
+        comment="CBC with differential",
+        note_uuid="note-uuid",
+        command_uuid="cmd-uuid",
+    )
 
 
-def test_build_empty_comment() -> None:
+def test_build_empty() -> None:
     parser = LabOrderParser()
     with patch("hyperscribe.scribe.commands.lab_order.LabOrderCommand") as mock_cmd:
         mock_cmd.return_value = MagicMock()
         parser.build({}, "note-uuid", "cmd-uuid")
 
-    mock_cmd.assert_called_once_with(comment=None, note_uuid="note-uuid", command_uuid="cmd-uuid")
+    mock_cmd.assert_called_once_with(
+        lab_partner=None,
+        tests_order_codes=[],
+        diagnosis_codes=[],
+        fasting_required=False,
+        comment=None,
+        note_uuid="note-uuid",
+        command_uuid="cmd-uuid",
+    )
