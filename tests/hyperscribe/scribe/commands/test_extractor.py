@@ -24,6 +24,41 @@ def test_routes_hpi() -> None:
     assert proposals[0].section_key == "history_of_present_illness"
 
 
+def test_routes_review_of_systems() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(
+                key="review_of_systems",
+                title="Review of Systems",
+                text="General: No fever.\nSkin: No rash.\nHEENT: Normal.",
+            )
+        ],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "ros"
+    assert proposals[0].section_key == "_ros"
+    secs = proposals[0].data["sections"]
+    assert len(secs) == 3
+    assert secs[0]["title"] == "General"
+    assert secs[0]["text"] == "No fever."
+    assert secs[1]["title"] == "Skin"
+    assert secs[2]["title"] == "HEENT"
+    assert proposals[0].display == "General | Skin | HEENT"
+
+
+def test_ros_fallback_no_system_headers() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="review_of_systems", title="Review of Systems", text="All systems negative.")],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].data["sections"][0]["title"] == "Review of Systems"
+    assert proposals[0].data["sections"][0]["text"] == "All systems negative."
+
+
 def test_routes_plan() -> None:
     note = ClinicalNote(
         title="Note",

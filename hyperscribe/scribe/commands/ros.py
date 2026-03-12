@@ -15,8 +15,7 @@ class RosParser(CommandParser):
 
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         sections = [{"title": s.get("title", ""), "text": s.get("text", "")} for s in data.get("sections", [])]
-        html = render_to_string("scribe/templates/ros_sections.html", {"sections": sections}) or ""
-        html = html.encode("ascii", "xmlcharrefreplace").decode("ascii")
+        html = render_to_string("scribe/templates/ros_sections.html", {"sections": sections})
         return CustomCommand(
             schema_key="reviewOfSystems",
             content=html,

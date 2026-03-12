@@ -52,6 +52,70 @@ def _extract_history_review(note: ClinicalNote) -> CommandProposal | None:
     )
 
 
+def _parse_ros_subsections(text: str) -> list[dict[str, str]]:
+    """Parse ROS text into subsections by system header (e.g. 'General:', 'Skin:')."""
+    sections: list[dict[str, str]] = []
+    current_title = ""
+    current_lines: list[str] = []
+
+    for raw_line in text.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            continue
+        # Strip leading bullet markers.
+        cleaned = line.lstrip("-*\u2022").strip()
+        # Check if this line is a system header like "General: ..."
+        if ":" in cleaned:
+            label, _, rest = cleaned.partition(":")
+            # A system header has a short label (1-3 words, no bullets in the rest as first char).
+            words = label.split()
+            if 1 <= len(words) <= 3 and label[0].isupper():
+                # Flush previous section.
+                if current_title:
+                    sections.append(
+                        {
+                            "key": current_title.lower().replace(" ", "_"),
+                            "title": current_title,
+                            "text": "\n".join(current_lines).strip(),
+                        }
+                    )
+                current_title = label.strip()
+                current_lines = [rest.strip()] if rest.strip() else []
+                continue
+        current_lines.append(line)
+
+    if current_title:
+        sections.append(
+            {
+                "key": current_title.lower().replace(" ", "_"),
+                "title": current_title,
+                "text": "\n".join(current_lines).strip(),
+            }
+        )
+    return sections
+
+
+def _extract_ros(note: ClinicalNote) -> CommandProposal | None:
+    """Extract review_of_systems section into an ROS command with per-system subsections."""
+    ros_section = next(
+        (s for s in note.sections if s.key.lower() == "review_of_systems" and s.text.strip()),
+        None,
+    )
+    if ros_section is None:
+        return None
+    subsections = _parse_ros_subsections(ros_section.text)
+    if not subsections:
+        # Fall back to a single section if no system headers were detected.
+        subsections = [{"key": "review_of_systems", "title": "Review of Systems", "text": ros_section.text.strip()}]
+    display = " | ".join(s["title"] for s in subsections)
+    return CommandProposal(
+        command_type="ros",
+        display=display,
+        data={"sections": subsections},
+        section_key="_ros",
+    )
+
+
 def _extract_chart_review(note: ClinicalNote) -> CommandProposal | None:
     """Combine chart review sections into one Chart Review command."""
     sections = [
@@ -83,6 +147,10 @@ def extract_commands(note: ClinicalNote) -> list[CommandProposal]:
         for proposal in parser.extract_all(text):
             proposal.section_key = section.key.lower()
             proposals.append(proposal)
+
+    ros_proposal = _extract_ros(note)
+    if ros_proposal is not None:
+        proposals.append(ros_proposal)
 
     history_proposal = _extract_history_review(note)
     if history_proposal is not None:

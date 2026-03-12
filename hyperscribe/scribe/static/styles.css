@@ -348,6 +348,7 @@ h2 { margin-bottom: 4px; }
 
 .content-block--rfv { border-color: #f5a623; }
 .content-block--hpi { border-color: #052B49; }
+.content-block--ros { border-color: #6366f1; }
 .content-block--plan_cmd { border-color: #34a853; }
 .content-block--vitals { border-color: #e8563a; }
 .content-block--medication { border-color: #007aff; }
@@ -361,7 +362,14 @@ h2 { margin-bottom: 4px; }
 /* Subsection titles (gray section labels) */
 .subsection-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 8px; text-transform: uppercase; }
 
-/* ICD-10 codes inside plan/assessment content blocks */
+/* Structured A&P problem blocks */
+.ap-problem { margin-bottom: 12px; }
+.ap-problem:last-child { margin-bottom: 0; }
+.ap-problem-title { font-size: 14px; font-weight: 700; color: #333; line-height: 1.4; margin-bottom: 4px; }
+.ap-icd-code { font-size: 12px; font-weight: 600; color: #6b7280; }
+.ap-problem-body { font-size: 14px; line-height: 1.6; color: #444; white-space: pre-line; }
+
+/* ICD-10 codes list at bottom of plan/assessment */
 .icd-codes { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e8e8ec; }
 .icd-condition { font-size: 13px; line-height: 1.4; color: #333; }
 .icd-condition-name { color: #555; }
@@ -481,6 +489,7 @@ h2 { margin-bottom: 4px; }
 
 .badge-rfv { background: #f5a623; }
 .badge-hpi { background: #052B49; }
+.badge-ros { background: #6366f1; }
 .badge-plan { background: #34a853; }
 .badge-vitals { background: #e8563a; }
 .badge-history_review { background: #059669; }
