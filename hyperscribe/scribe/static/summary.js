@@ -7,7 +7,7 @@ import { RecommendedGroup } from '/plugin-io/api/hyperscribe/scribe/static/recom
 const html = htm.bind(h);
 
 // ── DEV_MOCK: set to true to show a paste-box / mock-note picker instead of calling Nabla ──
-const DEV_MOCK = true;
+const DEV_MOCK = false;
 
 const DEV_MOCK_NOTE = {
   title: 'Mock Visit Note',
@@ -31,7 +31,7 @@ const DEV_MOCK_NOTE = {
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
 const SOAP_GROUPS = [
-  { title: 'SUBJECTIVE', color: 'subjective', keys: new Set(['chief_complaint', 'history_of_present_illness']) },
+  { title: 'SUBJECTIVE', color: 'subjective', keys: new Set(['chief_complaint', 'history_of_present_illness', 'review_of_systems']) },
   { title: 'HISTORY', color: 'history', keys: new Set(['past_medical_history', 'past_surgical_history',
     'past_obstetric_history', 'family_history', 'social_history']) },
   { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'lab_results', 'imaging_results',
@@ -339,7 +339,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       const updated = prev.map((cmd, i) => {
         if (i !== index) return cmd;
         const type = newType || cmd.command_type;
-        if (type === 'history_review' || type === 'chart_review') {
+        if (type === 'history_review' || type === 'chart_review' || type === 'ros') {
           const display = (newData.sections || []).map(s => s.title).join(' | ');
           return { ...cmd, data: newData, display };
         }

@@ -17,6 +17,7 @@ from hyperscribe.scribe.commands.medication_statement import MedicationParser
 from hyperscribe.scribe.commands.plan import PlanParser
 from hyperscribe.scribe.commands.prescription import PrescriptionParser
 from hyperscribe.scribe.commands.rfv import RfvParser
+from hyperscribe.scribe.commands.ros import RosParser
 from hyperscribe.scribe.commands.task import TaskParser
 from hyperscribe.scribe.commands.vitals import VitalsParser
 
@@ -31,6 +32,7 @@ _BUILDERS: dict[str, CommandParser] = {
     "plan": PlanParser(),
     "prescribe": PrescriptionParser(),
     "rfv": RfvParser(),
+    "ros": RosParser(),
     "task": TaskParser(),
     "vitals": VitalsParser(),
 }

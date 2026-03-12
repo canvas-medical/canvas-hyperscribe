@@ -72,13 +72,14 @@ def _match_conditions_to_sections(
     """
     result: dict[str, list[dict[str, Any]]] = {}
     for section in note.sections:
-        if section.key in _PLAN_SECTION_KEYS:
+        key = section.key.lower()
+        if key in _PLAN_SECTION_KEYS:
             matched = conditions
         else:
             section_lower = section.text.lower()
             matched = [c for c in conditions if c.display.lower() in section_lower]
         if matched:
-            result[section.key] = [_serialize_condition(c) for c in matched]
+            result[key] = [_serialize_condition(c) for c in matched]
     return result
 
 
