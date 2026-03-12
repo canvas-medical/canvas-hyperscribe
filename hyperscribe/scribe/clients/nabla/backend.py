@@ -13,7 +13,6 @@ from hyperscribe.scribe.backend import (
     ScribeBackend,
     Transcript,
 )
-from logger import log
 from hyperscribe.scribe.clients.nabla.auth import NablaAuth
 from hyperscribe.scribe.clients.nabla.client import NablaClient
 
@@ -50,22 +49,25 @@ class NablaBackend(ScribeBackend):
     ) -> ClinicalNote:
         payload = self._build_note_payload(transcript, patient_context)
         raw = self._rest_client.generate_note(payload)
-        log.info(f"Nabla generate_note response keys: {list(raw.keys())}")
         return self._parse_note(raw)
+
+    # Section keys that we synthesize locally and Nabla does not recognise.
+    _LOCAL_ONLY_KEYS: frozenset[str] = frozenset({"review_of_systems"})
 
     def generate_normalized_data(self, note: ClinicalNote) -> NormalizedData:
         payload: dict[str, Any] = {
             "note": {
                 "title": note.title,
-                "sections": [{"key": s.key, "title": s.title, "text": s.text} for s in note.sections],
+                "sections": [
+                    {"key": s.key, "title": s.title, "text": s.text}
+                    for s in note.sections
+                    if s.key not in self._LOCAL_ONLY_KEYS
+                ],
                 "locale": _NOTE_LOCALE,
                 "template": _NOTE_TEMPLATE,
             },
         }
-        log.info(f"Nabla generate_normalized_data request payload: {payload}")
         raw = self._rest_client.generate_normalized_data(payload)
-        log.info(f"Nabla generate_normalized_data response keys: {list(raw.keys())}")
-        log.info(f"Nabla generate_normalized_data response: {raw}")
         return self._parse_normalized_data(raw)
 
     @staticmethod
@@ -74,14 +76,45 @@ class NablaBackend(ScribeBackend):
         note_data = raw.get("note", raw)
         sections: list[NoteSection] = []
         for section in note_data.get("sections", []):
-            sections.append(
-                NoteSection(
-                    key=section.get("key", ""),
-                    title=section.get("title", ""),
-                    text=section.get("text", ""),
-                )
-            )
+            key = section.get("key", "")
+            title = section.get("title", "")
+            text = section.get("text", "")
+
+            if key.lower() == "history_of_present_illness":
+                hpi_text, ros_text = NablaBackend._split_ros(text)
+                sections.append(NoteSection(key=key, title=title, text=hpi_text))
+                if ros_text:
+                    sections.append(
+                        NoteSection(
+                            key="review_of_systems",
+                            title="Review of Systems",
+                            text=ros_text,
+                        )
+                    )
+            else:
+                sections.append(NoteSection(key=key, title=title, text=text))
+
         return ClinicalNote(title=note_data.get("title", ""), sections=sections)
+
+    @staticmethod
+    def _normalize_marker(line: str) -> str:
+        """Strip bullet prefixes (-, *, •) and trailing colons/whitespace."""
+        s = line.strip()
+        if s.startswith(("-", "*", "\u2022")):
+            s = s[1:].strip()
+        return s.rstrip(":").strip().lower()
+
+    @staticmethod
+    def _split_ros(text: str) -> tuple[str, str]:
+        """Split ROS block from HPI text. Returns (hpi_text, ros_text)."""
+        lines = text.split("\n")
+        for i, line in enumerate(lines):
+            marker = NablaBackend._normalize_marker(line)
+            if marker == "ros" or marker == "review of systems":
+                hpi_part = "\n".join(lines[:i]).rstrip()
+                ros_part = "\n".join(lines[i + 1 :]).strip()
+                return hpi_part, ros_part
+        return text, ""
 
     @staticmethod
     def _parse_coding_entry(entry: Any) -> CodingEntry:
@@ -142,6 +175,19 @@ class NablaBackend(ScribeBackend):
         transcript: Transcript,
         patient_context: PatientContext | None,
     ) -> dict[str, Any]:
+        ros_custom_instructions = (
+            "Include ROS at the end of this section and add positive and negative symptoms as mentioned. "
+            "ROS"
+            "General:"
+            "Skin:"
+            "HEENT:"
+            "Cardiovascular:"
+            "Respiratory:"
+            "Gastrointestinal:"
+            "Genitourinary:"
+            "Musculoskeletal:"
+        )
+
         payload: dict[str, Any] = {
             "transcript_items": [
                 {
@@ -154,6 +200,13 @@ class NablaBackend(ScribeBackend):
             ],
             "note_template": _NOTE_TEMPLATE,
             "note_locale": _NOTE_LOCALE,
+            "note_sections_customization": [
+                {"section_key": "ASSESSMENT_AND_PLAN", "style": "BULLET_POINTS", "split_by_problem": True},
+                {
+                    "section_key": "HISTORY_OF_PRESENT_ILLNESS",
+                    "custom_instruction": ros_custom_instructions,
+                },
+            ],
         }
         if patient_context is not None:
             payload["patient_context"] = {
