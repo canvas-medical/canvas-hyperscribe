@@ -787,6 +787,7 @@ def test_search_medications_success(mock_details: MagicMock) -> None:
     assert len(data["results"]) == 2
     assert data["results"][0]["fdb_code"] == "12345"
     assert data["results"][0]["description"] == "Lisinopril 10mg Tablet"
+    assert data["results"][0]["quantities"] == []
     mock_details.assert_called_once_with(["Lisinopril"])
 
 
