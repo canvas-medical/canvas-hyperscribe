@@ -26,6 +26,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   const [query, setQuery] = useState(command.data.medication_text || '');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
   const [selectedFdb, setSelectedFdb] = useState(
     isFdbStructured(command.data.fdb_code) ? command.data.fdb_code : null
   );
@@ -57,6 +58,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   const doSearch = useCallback(async (q) => {
     if (!q || q.length < 2) {
       setResults([]);
+      setSearched(false);
       return;
     }
     setSearching(true);
@@ -71,6 +73,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
       setResults([]);
     } finally {
       setSearching(false);
+      setSearched(true);
     }
   }, []);
 
@@ -89,6 +92,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     setSelectedDisplay(result.description);
     setQuery(result.description);
     setResults([]);
+    setSearched(false);
   };
 
   const handleSave = () => {
@@ -163,6 +167,11 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
                   ${r.description}
                 </div>
               `)}
+            </div>
+          `}
+          ${!searching && searched && results.length === 0 && query.length >= 2 && html`
+            <div class="medication-search-dropdown">
+              <div class="medication-search-result search-no-results">No medications found</div>
             </div>
           `}
         </div>
