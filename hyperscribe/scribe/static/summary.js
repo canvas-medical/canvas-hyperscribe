@@ -2,7 +2,7 @@ import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
-import { RecommendedGroup } from '/plugin-io/api/hyperscribe/scribe/static/recommended-group.js';
+
 
 const html = htm.bind(h);
 
@@ -52,7 +52,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -79,6 +79,10 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         noteId=${noteId}
         staffId=${staffId}
         staffName=${staffName}
+        recommendations=${isObjective ? recommendations : null}
+        onEditRecommendation=${isObjective ? onEditRecommendation : null}
+        onDeleteRecommendation=${isObjective ? onDeleteRecommendation : null}
+        onAcceptRecommendation=${isObjective ? onAcceptRecommendation : null}
       />`;
     })
     .filter(Boolean);
@@ -429,13 +433,19 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       if (i !== index) return cmd;
       const type = newType || cmd.command_type;
       if (type === 'medication_statement') {
-        return { ...cmd, data: newData, display: newData.medication_text || '' };
+        return { ...cmd, data: newData, display: newData.medication_text || '', accepted: true };
       }
       if (type === 'allergy') {
-        return { ...cmd, data: newData, display: newData.allergy_text || '' };
+        return { ...cmd, data: newData, display: newData.allergy_text || '', accepted: true };
       }
-      return { ...cmd, data: newData };
+      return { ...cmd, data: newData, accepted: true };
     }));
+  }, []);
+
+  const handleAcceptRecommendation = useCallback((index) => {
+    setRecommendations(prev => prev.map((cmd, i) =>
+      i === index ? { ...cmd, accepted: !cmd.accepted } : cmd
+    ));
   }, []);
 
   const handleDeleteRecommendation = useCallback((index) => {
@@ -457,8 +467,8 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   const handleInsert = useCallback(async () => {
     setInserting(true);
     const insertable = commands.filter(c => !c.already_documented && c.display);
-    const approvedRecs = recommendations.filter(c => !c.already_documented && c.display);
-    const allInsertable = [...insertable, ...approvedRecs];
+    const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
+    const allInsertable = [...insertable, ...acceptedRecs];
     try {
       const res = await fetch(`${API_BASE}/insert-commands`, {
         method: 'POST',
@@ -549,7 +559,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     .filter(entry => entry.command.section_key === '_objective_ad_hoc');
 
   const insertableCount = commands.filter(c => !c.already_documented && c.display).length
-    + recommendations.filter(c => !c.already_documented && c.display).length;
+    + recommendations.filter(c => c.accepted && !c.already_documented && c.display).length;
   const showFooter = !extracting && !approved && (insertableCount > 0);
 
   return html`
@@ -569,16 +579,13 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
           noteId,
           staffId,
           staffName,
+          recommendations,
+          onEditRecommendation: handleEditRecommendation,
+          onDeleteRecommendation: handleDeleteRecommendation,
+          onAcceptRecommendation: handleAcceptRecommendation,
         })}
         ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
         ${recommending && html`<p class="generating-message">Finding recommendations...</p>`}
-        ${!recommending && recommendations.length > 0 && html`
-          <${RecommendedGroup}
-            recommendations=${recommendations}
-            onEditCommand=${handleEditRecommendation}
-            onDeleteCommand=${handleDeleteRecommendation}
-          />
-        `}
       </div>
       ${showFooter && html`
         <div class="summary-footer">
