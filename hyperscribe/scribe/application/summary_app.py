@@ -13,6 +13,10 @@ class SummaryApp(NoteApplication):
     IDENTIFIER = "hyperscribe__scribe_summary"
     PRIORITY = 1
 
+    def open_by_default(self) -> bool:
+        # this can always return true, since it will be overridden by transcript_app due to its higher priority
+        return True
+
     def visible(self) -> bool:
         # PILOT: revert to `self.secrets.get(Constants.SECRET_MODALITY, "").lower() == Constants.MODALITY_SCRIBE`
         settings = Settings.from_dictionary(self.secrets)

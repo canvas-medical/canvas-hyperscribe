@@ -12,7 +12,7 @@ from canvas_sdk.effects.simple_api import JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 
 from canvas_sdk.commands.commands.allergy import AllergenType
-from canvas_sdk.v1.data.condition import Condition as ConditionModel, ConditionCoding
+from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from canvas_sdk.v1.data.note import Note
 from canvas_sdk.v1.data.patient import PatientAddress
@@ -547,11 +547,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not patient_id:
             return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         conditions = (
-            ConditionModel.objects
-            .active()
-            .for_patient(patient_id)
-            .prefetch_related("codings")
-            .order_by("-onset_date")
+            ConditionModel.objects.active().for_patient(patient_id).prefetch_related("codings").order_by("-onset_date")
         )
         results = []
         for c in conditions:
@@ -563,12 +559,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 None,
             )
             chosen = icd10 or codings[0]
-            results.append({
-                "code": chosen.code,
-                "formatted_code": _format_icd10_code(chosen.code),
-                "display": chosen.display or c.clinical_status,
-                "system": chosen.system,
-            })
+            results.append(
+                {
+                    "code": chosen.code,
+                    "formatted_code": _format_icd10_code(chosen.code),
+                    "display": chosen.display or c.clinical_status,
+                    "system": chosen.system,
+                }
+            )
         return [JSONResponse({"conditions": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-diagnoses")
@@ -578,9 +576,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         try:
-            resp = science_http.get_json(
-                f"/search/condition/?query={query}&limit=25"
-            )
+            resp = science_http.get_json(f"/search/condition/?query={query}&limit=25")
             data = resp.json() or {}
         except Exception:
             log.exception("Diagnosis search failed")
@@ -604,9 +600,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         try:
-            resp = science_http.get_json(
-                f"/parse-templates/imaging-reports/?query={query}&limit=25"
-            )
+            resp = science_http.get_json(f"/parse-templates/imaging-reports/?query={query}&limit=25")
             data = resp.json() or {}
         except Exception:
             log.exception("Imaging search failed")
@@ -626,27 +620,16 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     def get_ordering_providers(self) -> list[Union[Response, Effect]]:
         """Return active staff who are prescribers, optionally filtered by search term."""
         query = self.request.query_params.get("query", "").strip()
-        prescriber_staff_ids = (
-            StaffRole.objects
-            .filter(
-                role_type=StaffRole.RoleType.PROVIDER,
-                domain__in=StaffRole.RoleDomain.clinical_domains(),
-            )
-            .values_list("staff_id", flat=True)
-        )
-        qs = (
-            Staff.objects
-            .filter(active=True, pk__in=prescriber_staff_ids)
-            .order_by("last_name", "first_name")
-        )
+        prescriber_staff_ids = StaffRole.objects.filter(
+            role_type=StaffRole.RoleType.PROVIDER,
+            domain__in=StaffRole.RoleDomain.clinical_domains(),
+        ).values_list("staff_id", flat=True)
+        qs = Staff.objects.filter(active=True, pk__in=prescriber_staff_ids).order_by("last_name", "first_name")
         if query:
             first_matches = set(qs.filter(first_name__icontains=query).values_list("pk", flat=True)[:50])
             last_matches = set(qs.filter(last_name__icontains=query).values_list("pk", flat=True)[:50])
             qs = qs.filter(pk__in=first_matches | last_matches)
-        providers = [
-            {"id": str(s.id), "label": s.credentialed_name}
-            for s in qs[:50]
-        ]
+        providers = [{"id": str(s.id), "label": s.credentialed_name} for s in qs[:50]]
         return [JSONResponse({"providers": providers}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-imaging-centers")
@@ -662,10 +645,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "").strip()
         if patient_id:
             patient_zip = (
-                PatientAddress.objects
-                .filter(patient__id=patient_id)
-                .values_list("postal_code", flat=True)
-                .first()
+                PatientAddress.objects.filter(patient__id=patient_id).values_list("postal_code", flat=True).first()
             )
             if patient_zip:
                 zip_codes = [patient_zip]
@@ -673,11 +653,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             try:
                 note = Note.objects.select_related("location").get(id=note_id)
                 if note.location:
-                    loc_zip = (
-                        note.location.addresses
-                        .values_list("postal_code", flat=True)
-                        .first()
-                    )
+                    loc_zip = note.location.addresses.values_list("postal_code", flat=True).first()
                     if loc_zip:
                         zip_codes = [loc_zip]
             except Note.DoesNotExist:
@@ -722,17 +698,19 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 desc_parts.append(f"Fax: {fax}")
             if address:
                 desc_parts.append(f"Address: {address}")
-            results.append({
-                "name": name,
-                "description": " ".join(desc_parts),
-                "data": {
-                    "first_name": first,
-                    "last_name": last,
-                    "specialty": specialty,
-                    "practice_name": practice,
-                    "business_fax": fax,
-                    "business_phone": phone,
-                    "business_address": address,
-                },
-            })
+            results.append(
+                {
+                    "name": name,
+                    "description": " ".join(desc_parts),
+                    "data": {
+                        "first_name": first,
+                        "last_name": last,
+                        "specialty": specialty,
+                        "practice_name": practice,
+                        "business_fax": fax,
+                        "business_phone": phone,
+                        "business_address": address,
+                    },
+                }
+            )
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]

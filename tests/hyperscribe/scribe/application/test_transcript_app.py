@@ -51,7 +51,7 @@ def test_visible_missing_user_context(mock_settings_cls: MagicMock) -> None:
     mock_settings.is_scribe_modality.assert_called_with("")
 
 
-@patch("canvas_sdk.v1.data.note.Note")
+@patch("hyperscribe.scribe.application.transcript_app.Note")
 @patch("hyperscribe.scribe.application.transcript_app.LaunchModalEffect")
 def test_handle(launch_modal_effect: object, mock_note: MagicMock) -> None:
     launch_modal_effect.return_value.apply.side_effect = [  # type: ignore[union-attr]
