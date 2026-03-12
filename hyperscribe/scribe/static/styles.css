@@ -527,7 +527,7 @@ h2 { margin-bottom: 4px; }
 .medication-documented-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #e8e8ec; color: #888; white-space: nowrap; }
 .medication-unstructured-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #fff3e0; color: #e65100; white-space: nowrap; }
 .medication-structured-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #e8f5e9; color: #2e7d32; white-space: nowrap; }
-.medication-search-wrapper { position: relative; flex: 1; min-width: 0; }
+.medication-search-wrapper { position: relative; flex: 1; min-width: 0; max-width: 500px; }
 .medication-search-spinner { font-size: 12px; color: #888; font-style: italic; margin-top: 2px; display: block; }
 .medication-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; margin-top: 2px; }
 .medication-search-result { padding: 8px 10px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
@@ -603,9 +603,9 @@ h2 { margin-bottom: 4px; }
 .order-textarea { width: 100%; min-height: 60px; padding: 6px 8px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
 .order-textarea:focus { outline: none; border-color: #052B49; }
 .order-rx-form { display: flex; flex-direction: column; gap: 6px; }
-.order-rx-row { display: flex; gap: 6px; align-items: center; }
+.order-rx-row { display: flex; gap: 6px; align-items: center; max-width: 500px; }
 /* Labeled field: [Label|Input] */
-.labeled-field { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+.labeled-field { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; max-width: 500px; }
 .labeled-field:focus-within { border-color: #052B49; }
 .labeled-field-label { padding: 5px 8px; font-size: 12px; font-weight: 600; color: #888; background: #f5f5f8; border-right: 1px solid #ddd; white-space: nowrap; display: flex; align-items: center; }
 .labeled-field-input { flex: 1; padding: 5px 8px; font-family: inherit; font-size: 13px; border: none; outline: none; min-width: 0; }

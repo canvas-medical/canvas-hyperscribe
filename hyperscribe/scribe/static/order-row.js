@@ -338,14 +338,17 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
             ${activeTab === 'prescribe' && html`
               <div class="order-rx-form">
                 <div class="medication-search-wrapper">
-                  <input
-                    ref=${medInputRef}
-                    type="text"
-                    class="order-input"
-                    value=${medQuery}
-                    onInput=${handleMedInput}
-                    placeholder="Search medications..."
-                  />
+                  <div class="labeled-field" style="width:100%">
+                    <span class="labeled-field-label">Medication</span>
+                    <input
+                      ref=${medInputRef}
+                      type="text"
+                      class="labeled-field-input"
+                      value=${medQuery}
+                      onInput=${handleMedInput}
+                      placeholder="Search medications..."
+                    />
+                  </div>
                   ${medSearching && html`<span class="medication-search-spinner">Searching...</span>`}
                   ${medResults.length > 0 && html`
                     <div class="medication-search-dropdown">
@@ -366,32 +369,34 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 </div>
                 ${selectedFdb && html`<span class="medication-structured-badge">FDB: ${selectedFdb}</span>`}
                 <div class="order-rx-row">
-                  <div class="labeled-field">
+                  <div class="labeled-field" style="flex:1">
                     <span class="labeled-field-label">Qty</span>
-                    <input class="labeled-field-input labeled-field-narrow" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" />
+                    <input class="labeled-field-input" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" />
                   </div>
-                  <div class="labeled-field">
+                  <div class="labeled-field" style="flex:1">
                     <span class="labeled-field-label">Days</span>
-                    <input class="labeled-field-input labeled-field-narrow" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" />
+                    <input class="labeled-field-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" />
                   </div>
-                  <div class="labeled-field">
+                  <div class="labeled-field" style="flex:1">
                     <span class="labeled-field-label">Refills</span>
-                    <input class="labeled-field-input labeled-field-narrow" type="number" value=${refills} onInput=${(e) => setRefills(e.target.value)} min="0" />
+                    <input class="labeled-field-input" type="number" value=${refills} onInput=${(e) => setRefills(e.target.value)} min="0" />
                   </div>
-                  <label class="order-checkbox-label">
-                    <input type="checkbox" checked=${substitutions} onChange=${(e) => setSubstitutions(e.target.checked)} />
-                    Sub
-                  </label>
                 </div>
                 <div class="order-rx-row">
                   <div class="labeled-field" style="flex:1">
                     <span class="labeled-field-label">Sig</span>
                     <input class="labeled-field-input" type="text" value=${sig} onInput=${(e) => setSig(e.target.value)} />
                   </div>
+                </div>
+                <div class="order-rx-row">
                   <div class="labeled-field" style="flex:1">
                     <span class="labeled-field-label">Note to Pharmacist</span>
                     <input class="labeled-field-input" type="text" value=${noteToPharmacist} onInput=${(e) => setNoteToPharmacist(e.target.value)} />
                   </div>
+                </div>
+                <div class="order-rx-row">
+                  <button type="button" class="task-quick-btn${substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(true)}>Substitutions Allowed</button>
+                  <button type="button" class="task-quick-btn${!substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(false)}>Substitutions Not Allowed</button>
                 </div>
               </div>
             `}
