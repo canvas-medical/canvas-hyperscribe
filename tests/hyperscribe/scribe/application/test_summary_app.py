@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, call, patch
 
+from django.db.models import QuerySet
+
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
@@ -51,14 +53,16 @@ def test_handle(launch_modal_effect: object, mock_note: MagicMock) -> None:
         Effect(type="LOG", payload="SomePayload")
     ]
     launch_modal_effect.TargetType.NOTE = "note"  # type: ignore[union-attr]
-    mock_note.objects.values_list.return_value.get.return_value = "uuid-5481"
+    mock_qs = MagicMock(spec=QuerySet)
+    mock_qs.get.return_value = "uuid-5481"
+    mock_note.objects.values_list.return_value = mock_qs
 
     event = Event(EventRequest(context='{"note_id":5481}'))
     tested = SummaryApp(event, {})
     result = tested.handle()
 
     assert result == [Effect(type="LOG", payload="SomePayload")]
-    mock_note.objects.values_list.return_value.get.assert_called_once_with(dbid=5481)
+    mock_qs.get.assert_called_once_with(dbid=5481)
     assert launch_modal_effect.mock_calls == [  # type: ignore[union-attr]
         call(
             url="/plugin-io/api/hyperscribe/scribe/app?note_id=uuid-5481&view=summary",
