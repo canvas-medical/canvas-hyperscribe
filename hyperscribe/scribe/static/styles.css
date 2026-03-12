@@ -359,6 +359,45 @@ h2 { margin-bottom: 4px; }
 .content-block--history_review { border-color: #6ee7b7; }
 .content-block--chart_review { border-color: #93c5fd; }
 
+/* Recommendation accept/reject */
+.recommendation-block {
+  position: relative;
+  opacity: 0.5;
+  transition: border-color 0.2s ease, opacity 0.2s ease;
+}
+.recommendation-block.accepted,
+.recommendation-block:has(.editing) {
+  opacity: 1;
+}
+.recommendation-block.accepted {
+  border-color: #22c55e;
+}
+.recommendation-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+}
+.recommendation-accept-btn {
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.recommendation-accept-btn:hover {
+  background: #e5e7eb;
+}
+.recommendation-accept-btn.accepted {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
 /* Subsection titles (gray section labels) */
 .subsection-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 8px; text-transform: uppercase; }
 
