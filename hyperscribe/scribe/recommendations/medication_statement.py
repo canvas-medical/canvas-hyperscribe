@@ -31,15 +31,20 @@ def _build_user_prompt(sections: list[NoteSection]) -> str:
     return "\n\n".join(parts)
 
 
-def _resolve_medication(keywords: str) -> dict[str, str] | None:
+def _resolve_medication(keywords: str, cache: dict[str, dict[str, str] | None] | None = None) -> dict[str, str] | None:
     """Search CanvasScience for the best medication match using the keyword list."""
+    if cache is None:
+        cache = {}
     for keyword in keywords.split(","):
         keyword = keyword.strip()
         if not keyword:
             continue
-        results = CanvasScience.medication_details([keyword])
-        if results:
-            return {"fdb_code": results[0].fdb_code, "description": results[0].description}
+        key = keyword.lower()
+        if key not in cache:
+            results = CanvasScience.medication_details([keyword])
+            cache[key] = {"fdb_code": results[0].fdb_code, "description": results[0].description} if results else None
+        if cache[key] is not None:
+            return cache[key]
     return None
 
 
@@ -73,9 +78,10 @@ class MedicationRecommender(BaseRecommender):
             log.exception(f"Failed to parse medication LLM response: {response.response}")
             return []
 
+        lookup_cache: dict[str, dict[str, str] | None] = {}
         proposals: list[CommandProposal] = []
         for med in parsed.medications:
-            resolved = _resolve_medication(med.keywords)
+            resolved = _resolve_medication(med.keywords, lookup_cache)
             fdb_code: dict[str, str] | None = None
             display = med.medication_name
             if resolved:

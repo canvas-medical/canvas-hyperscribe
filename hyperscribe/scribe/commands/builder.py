@@ -4,6 +4,7 @@ import uuid
 from typing import Any
 
 from canvas_sdk.effects import Effect
+from canvas_sdk.v1.data.note import Note
 
 from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.allergy import AllergyParser
@@ -42,8 +43,12 @@ def annotate_duplicates(proposals: list[CommandProposal], note_uuid: str) -> Non
     """Delegate duplicate annotation to each command parser."""
     if not note_uuid:
         return
+    try:
+        note = Note.objects.select_related("patient").get(id=note_uuid)
+    except Note.DoesNotExist:
+        return
     for builder in _BUILDERS.values():
-        builder.annotate_duplicates(proposals, note_uuid)
+        builder.annotate_duplicates(proposals, note)
 
 
 def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> list[Effect]:

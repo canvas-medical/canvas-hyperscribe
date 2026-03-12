@@ -42,7 +42,7 @@ def test_refresh_token_success() -> None:
     mock_response.json.return_value = {"access_token": "fresh-token", "expires_in": 3600}
     mock_response.raise_for_status.return_value = None
 
-    with patch("hyperscribe.scribe.clients.nabla.auth.requests.post", return_value=mock_response) as mock_post:
+    with patch.object(auth._session, "post", return_value=mock_response) as mock_post:
         with patch("hyperscribe.scribe.clients.nabla.auth.jwt.encode", return_value="jwt-assertion"):
             token = auth._refresh_token()
 
@@ -64,7 +64,7 @@ def test_refresh_token_builds_correct_jwt() -> None:
     mock_response.json.return_value = {"access_token": "tok", "expires_in": 3600}
     mock_response.raise_for_status.return_value = None
 
-    with patch("hyperscribe.scribe.clients.nabla.auth.requests.post", return_value=mock_response):
+    with patch.object(auth._session, "post", return_value=mock_response):
         with patch("hyperscribe.scribe.clients.nabla.auth.jwt.encode", return_value="jwt") as mock_encode:
             auth._refresh_token()
 
@@ -81,7 +81,7 @@ def test_refresh_token_http_error() -> None:
     mock_response.status_code = 401
     mock_response.raise_for_status.side_effect = requests_lib.HTTPError(response=mock_response)
 
-    with patch("hyperscribe.scribe.clients.nabla.auth.requests.post", return_value=mock_response):
+    with patch.object(auth._session, "post", return_value=mock_response):
         with patch("hyperscribe.scribe.clients.nabla.auth.jwt.encode", return_value="jwt"):
             with pytest.raises(ScribeAuthError, match="Nabla auth failed"):
                 auth._refresh_token()
@@ -99,7 +99,7 @@ def test_get_or_create_user_found() -> None:
     mock_response.status_code = 200
     mock_response.json.return_value = {"id": "nabla-user-123"}
 
-    with patch("hyperscribe.scribe.clients.nabla.auth.requests.get", return_value=mock_response) as mock_get:
+    with patch.object(auth._session, "get", return_value=mock_response) as mock_get:
         user_id = auth._get_or_create_user("staff-key-abc")
 
     assert user_id == "nabla-user-123"
@@ -119,8 +119,8 @@ def test_get_or_create_user_creates_when_not_found() -> None:
     create_response.json.return_value = {"id": "new-user-456"}
     create_response.raise_for_status.return_value = None
 
-    with patch("hyperscribe.scribe.clients.nabla.auth.requests.get", return_value=find_response):
-        with patch("hyperscribe.scribe.clients.nabla.auth.requests.post", return_value=create_response) as mock_post:
+    with patch.object(auth._session, "get", return_value=find_response):
+        with patch.object(auth._session, "post", return_value=create_response) as mock_post:
             user_id = auth._get_or_create_user("staff-key-xyz")
 
     assert user_id == "new-user-456"
@@ -139,8 +139,8 @@ def test_get_or_create_user_create_failure() -> None:
     create_response.status_code = 500
     create_response.raise_for_status.side_effect = requests_lib.HTTPError(response=create_response)
 
-    with patch("hyperscribe.scribe.clients.nabla.auth.requests.get", return_value=find_response):
-        with patch("hyperscribe.scribe.clients.nabla.auth.requests.post", return_value=create_response):
+    with patch.object(auth._session, "get", return_value=find_response):
+        with patch.object(auth._session, "post", return_value=create_response):
             with pytest.raises(ScribeAuthError, match="Nabla user creation failed"):
                 auth._get_or_create_user("bad-user")
 
@@ -155,7 +155,7 @@ def test_authenticate_user_success() -> None:
     mock_response.json.return_value = {"access_token": "user-at", "refresh_token": "user-rt"}
     mock_response.raise_for_status.return_value = None
 
-    with patch("hyperscribe.scribe.clients.nabla.auth.requests.post", return_value=mock_response) as mock_post:
+    with patch.object(auth._session, "post", return_value=mock_response) as mock_post:
         access_token, refresh_token = auth._authenticate_user("nabla-user-123")
 
     assert access_token == "user-at"
@@ -172,7 +172,7 @@ def test_authenticate_user_failure() -> None:
     mock_response.status_code = 401
     mock_response.raise_for_status.side_effect = requests_lib.HTTPError(response=mock_response)
 
-    with patch("hyperscribe.scribe.clients.nabla.auth.requests.post", return_value=mock_response):
+    with patch.object(auth._session, "post", return_value=mock_response):
         with pytest.raises(ScribeAuthError, match="Nabla user auth failed"):
             auth._authenticate_user("bad-user-id")
 

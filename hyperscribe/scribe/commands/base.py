@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from canvas_sdk.commands.base import _BaseCommand
 
 from hyperscribe.scribe.backend.models import CommandProposal
+
+if TYPE_CHECKING:
+    from canvas_sdk.v1.data.note import Note
 
 
 class CommandParser(ABC):
@@ -34,7 +37,7 @@ class CommandParser(ABC):
         proposal = self.extract(text)
         return [proposal] if proposal is not None else []
 
-    def annotate_duplicates(self, proposals: list[CommandProposal], note_uuid: str) -> None:
+    def annotate_duplicates(self, proposals: list[CommandProposal], note: Note) -> None:
         """Mark proposals that already exist in the patient's chart. Override per command type."""
 
     @abstractmethod
