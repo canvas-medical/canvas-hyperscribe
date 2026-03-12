@@ -191,8 +191,10 @@ function renderStructuredAssessment(text, conditions) {
   return html`<div>${problemEls}${codeEls}</div>`;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
+
+  console.log("############################: ", recommendations)
 
   return html`
     <div class="summary-section">
@@ -220,7 +222,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         })()}
         ${sections.map(s => {
           const key = s.key.toLowerCase();
-          if (coveredKeys.has(key)) return null;
+          const hasRecsForKey = recommendations && recommendations.length > 0 &&
+            ((key === 'current_medications' && recommendations.some(r => r.command_type === 'medication_statement')) ||
+             (key === 'allergies' && recommendations.some(r => r.command_type === 'allergy')));
+          if (coveredKeys.has(key) && !hasRecsForKey) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
           const codes = sectionConditions && sectionConditions[key];
 
@@ -273,42 +278,90 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             `;
           }
 
-          if (cmds && key === 'current_medications') {
-            return html`
-              <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${s.title}</div>
-                ${cmds.map(entry => html`
-                  <div class="content-block content-block--medication" key=${entry.index}>
-                    <${MedicationRow}
-                      command=${entry.command}
-                      commandIndex=${entry.index}
-                      onEdit=${onEditCommand}
-                      onDelete=${onDeleteCommand}
-                      readOnly=${readOnly}
-                    />
-                  </div>
-                `)}
-              </div>
-            `;
+          if (key === 'current_medications') {
+            const medRecs = (recommendations || [])
+              .map((cmd, i) => ({ command: cmd, index: i }))
+              .filter(e => e.command.command_type === 'medication_statement');
+            if (cmds || medRecs.length > 0) {
+              return html`
+                <div class="subsection" key=${s.key}>
+                  <div class="subsection-title">${s.title}</div>
+                  ${(cmds || []).map(entry => html`
+                    <div class="content-block content-block--medication" key=${entry.index}>
+                      <${MedicationRow}
+                        command=${entry.command}
+                        commandIndex=${entry.index}
+                        onEdit=${onEditCommand}
+                        onDelete=${onDeleteCommand}
+                        readOnly=${readOnly}
+                      />
+                    </div>
+                  `)}
+                  ${medRecs.map(entry => {
+                    const isAccepted = entry.command.accepted || entry.command.already_documented;
+                    return html`
+                    <div class="content-block content-block--medication recommendation-block${isAccepted ? ' accepted' : ''}" key=${'rec-med-' + entry.index}>
+                      <div class="recommendation-actions">
+                        ${entry.command.already_documented
+                          ? html`<span class="recommendation-accept-btn accepted">Already in chart</span>`
+                          : !readOnly && html`<button type="button" class="recommendation-accept-btn${entry.command.accepted ? ' accepted' : ''}" onClick=${() => onAcceptRecommendation(entry.index)}>${entry.command.accepted ? 'Accepted' : 'Accept'}</button>`
+                        }
+                      </div>
+                      <${MedicationRow}
+                        command=${entry.command}
+                        commandIndex=${entry.index}
+                        onEdit=${onEditRecommendation}
+                        readOnly=${readOnly || entry.command.already_documented}
+                      />
+                    </div>
+                    `;
+                  })}
+                </div>
+              `;
+            }
           }
 
-          if (cmds && key === 'allergies') {
-            return html`
-              <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${s.title}</div>
-                ${cmds.map(entry => html`
-                  <div class="content-block content-block--allergy" key=${entry.index}>
-                    <${AllergyRow}
-                      command=${entry.command}
-                      commandIndex=${entry.index}
-                      onEdit=${onEditCommand}
-                      onDelete=${onDeleteCommand}
-                      readOnly=${readOnly}
-                    />
-                  </div>
-                `)}
-              </div>
-            `;
+          if (key === 'allergies') {
+            const allergyRecs = (recommendations || [])
+              .map((cmd, i) => ({ command: cmd, index: i }))
+              .filter(e => e.command.command_type === 'allergy');
+            if (cmds || allergyRecs.length > 0) {
+              return html`
+                <div class="subsection" key=${s.key}>
+                  <div class="subsection-title">${s.title}</div>
+                  ${(cmds || []).map(entry => html`
+                    <div class="content-block content-block--allergy" key=${entry.index}>
+                      <${AllergyRow}
+                        command=${entry.command}
+                        commandIndex=${entry.index}
+                        onEdit=${onEditCommand}
+                        onDelete=${onDeleteCommand}
+                        readOnly=${readOnly}
+                      />
+                    </div>
+                  `)}
+                  ${allergyRecs.map(entry => {
+                    const isAccepted = entry.command.accepted || entry.command.already_documented;
+                    return html`
+                    <div class="content-block content-block--allergy recommendation-block${isAccepted ? ' accepted' : ''}" key=${'rec-allergy-' + entry.index}>
+                      <div class="recommendation-actions">
+                        ${entry.command.already_documented
+                          ? html`<span class="recommendation-accept-btn accepted">Already in chart</span>`
+                          : !readOnly && html`<button type="button" class="recommendation-accept-btn${entry.command.accepted ? ' accepted' : ''}" onClick=${() => onAcceptRecommendation(entry.index)}>${entry.command.accepted ? 'Accepted' : 'Accept'}</button>`
+                        }
+                      </div>
+                      <${AllergyRow}
+                        command=${entry.command}
+                        commandIndex=${entry.index}
+                        onEdit=${onEditRecommendation}
+                        readOnly=${readOnly || entry.command.already_documented}
+                      />
+                    </div>
+                    `;
+                  })}
+                </div>
+              `;
+            }
           }
 
           return html`
