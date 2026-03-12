@@ -64,17 +64,18 @@ def test_recommend_commands_creates_client_with_settings(mock_llm_cls: MagicMock
     ):
         recommend_commands(_make_note(), "my-api-key")
 
-    mock_llm_cls.assert_called_once()
-    settings = mock_llm_cls.call_args.args[0]
-    assert settings.api_key == "my-api-key"
-    assert settings.temperature == 0.0
-    assert settings.max_tokens == 4096
+    # Each recommender gets its own client instance
+    assert mock_llm_cls.call_count == 2
+    for call in mock_llm_cls.call_args_list:
+        settings = call.args[0]
+        assert settings.api_key == "my-api-key"
+        assert settings.temperature == 0.0
+        assert settings.max_tokens == 4096
 
 
 @patch("hyperscribe.scribe.recommendations.LlmAnthropic")
 def test_recommend_commands_handles_recommender_exception(mock_llm_cls: MagicMock) -> None:
-    mock_client = MagicMock()
-    mock_llm_cls.return_value = mock_client
+    mock_llm_cls.return_value = MagicMock()
 
     allergy_proposal = CommandProposal(
         command_type="allergy",

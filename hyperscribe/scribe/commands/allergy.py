@@ -9,7 +9,7 @@ from canvas_sdk.commands.commands.allergy import (
     AllergenType,
     AllergyCommand,
 )
-from canvas_sdk.v1.data import AllergyIntolerance, AllergyIntoleranceCoding
+from canvas_sdk.v1.data import AllergyIntoleranceCoding
 from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.note import Note
 
@@ -60,25 +60,27 @@ class AllergyParser(CommandParser):
             for line in _parse_allergy_lines(text)
         ]
 
-    def annotate_duplicates(self, proposals: list[CommandProposal], note_uuid: str) -> None:
+    def annotate_duplicates(self, proposals: list[CommandProposal], note: Note) -> None:
         allergy_proposals = [p for p in proposals if p.command_type == self.command_type]
         if not allergy_proposals:
-            return
-        try:
-            note = Note.objects.select_related("patient").get(id=note_uuid)
-        except Note.DoesNotExist:
             return
         patient = note.patient
         if patient is None:
             return
-        active_allergies = AllergyIntolerance.objects.committed().for_patient(patient.id).filter(status=Status.ACTIVE)
-        coding_qs = AllergyIntoleranceCoding.objects.filter(allergy_intolerance__in=active_allergies)
-        active_labels = {c.display.lower() for c in coding_qs if c.display}
+        active_labels = set(
+            AllergyIntoleranceCoding.objects.filter(
+                allergy_intolerance__patient=patient,
+                allergy_intolerance__status=Status.ACTIVE,
+            )
+            .committed()
+            .values_list("display", flat=True)
+        )
+        active_labels_lower = {label.lower() for label in active_labels if label}
         for proposal in allergy_proposals:
             allergy_text = proposal.data.get("allergy_text", "").lower()
             if not allergy_text:
                 continue
-            for label in active_labels:
+            for label in active_labels_lower:
                 if allergy_text in label or label in allergy_text:
                     proposal.already_documented = True
                     break

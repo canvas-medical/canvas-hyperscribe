@@ -15,6 +15,7 @@ class NablaClient:
     def __init__(self, auth: NablaAuth, *, api_version: str) -> None:
         self._auth = auth
         self._api_version = api_version
+        self._session = requests.Session()
 
     def _headers(self) -> dict[str, str]:
         return {
@@ -36,7 +37,7 @@ class NablaClient:
 
     def generate_note(self, payload: dict[str, Any]) -> dict[str, Any]:
         try:
-            response = requests.post(
+            response = self._session.post(
                 f"{self._auth.base_url}/v1/core/server/generate-note",
                 headers={**self._headers(), "Content-Type": "application/json"},
                 json=payload,
@@ -53,7 +54,7 @@ class NablaClient:
     def generate_normalized_data(self, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self._auth.base_url}/v1/core/server/generate-normalized-data"
         try:
-            response = requests.post(
+            response = self._session.post(
                 url,
                 headers={**self._headers(), "Content-Type": "application/json"},
                 json=payload,
