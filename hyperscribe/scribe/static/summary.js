@@ -52,7 +52,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -76,12 +76,15 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         readOnly=${readOnly}
         sectionConditions=${sectionConditions}
         patientId=${patientId}
+        noteId=${noteId}
+        staffId=${staffId}
+        staffName=${staffName}
       />`;
     })
     .filter(Boolean);
 }
 
-export function Summary({ noteId, patientId }) {
+export function Summary({ noteId, patientId, staffId, staffName }) {
   const [noteData, setNoteData] = useState(null);
   const [generating, setGenerating] = useState(true);
   const [error, setError] = useState(null);
@@ -364,7 +367,7 @@ export function Summary({ noteId, patientId }) {
           return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || '' };
         }
         if (type === 'imaging_order') {
-          const parts = [newData.comment, newData.priority].filter(Boolean);
+          const parts = [newData.image_display, newData.additional_details, newData.comment, newData.priority].filter(Boolean);
           return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
         }
         const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
@@ -563,6 +566,9 @@ export function Summary({ noteId, patientId }) {
           readOnly: approved,
           sectionConditions,
           patientId,
+          noteId,
+          staffId,
+          staffName,
         })}
         ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
         ${recommending && html`<p class="generating-message">Finding recommendations...</p>`}

@@ -638,6 +638,14 @@ h2 { margin-bottom: 4px; }
 .ad-hoc-buttons { display: flex; gap: 8px; padding: 8px 0 0; margin-top: 4px; border-top: 1px dashed #e8e8ec; }
 .ad-hoc-btn { padding: 6px 14px; font-size: 13px; font-weight: 600; color: #052B49; background: #fff; border: 1px dashed #052B49; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
 .ad-hoc-btn:hover { background: #f5f5ff; border-style: solid; }
+.imaging-search-wrapper { position: relative; flex: 1; min-width: 0; max-width: 500px; }
+.imaging-search-spinner { font-size: 12px; color: #888; font-style: italic; margin-top: 2px; display: block; }
+.imaging-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; margin-top: 2px; }
+.imaging-search-result { padding: 8px 10px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+.imaging-search-result:last-child { border-bottom: none; }
+.imaging-search-result:hover { background: #f5f5ff; }
+.imaging-center-name { font-weight: 500; }
+.imaging-center-desc { font-size: 11px; color: #666; margin-top: 2px; }
 
 .insert-btn {
   display: inline-block;
