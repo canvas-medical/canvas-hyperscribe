@@ -399,6 +399,16 @@ h2 { margin-bottom: 4px; }
   border-color: #86efac;
   color: #166534;
 }
+.recommendation-accept-btn.incomplete {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+  cursor: default;
+}
+.recommendation-accept-btn:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
 
 /* Subsection titles (gray section labels) */
 .subsection-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 8px; text-transform: uppercase; }
