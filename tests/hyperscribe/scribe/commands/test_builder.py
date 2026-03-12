@@ -26,6 +26,14 @@ def test_build_effects_routes_all_types() -> None:
             "command_type": "allergy",
             "data": {"allergy_text": "Penicillin", "concept_id": None, "concept_id_type": None},
         },
+        {
+            "command_type": "diagnose",
+            "data": {"icd10_code": "G43.009", "today_assessment": "Start sumatriptan"},
+        },
+        {
+            "command_type": "assess",
+            "data": {"condition_id": "cond-uuid", "narrative": "Stable"},
+        },
     ]
     with (
         patch("hyperscribe.scribe.commands.rfv.ReasonForVisitCommand") as mock_rfv,
@@ -42,6 +50,8 @@ def test_build_effects_routes_all_types() -> None:
         patch("hyperscribe.scribe.commands.history_review.CustomCommand") as mock_history,
         patch("hyperscribe.scribe.commands.chart_review.CustomCommand") as mock_chart,
         patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_allergy,
+        patch("hyperscribe.scribe.commands.diagnose.DiagnoseCommand") as mock_diagnose,
+        patch("hyperscribe.scribe.commands.assess.AssessCommand") as mock_assess,
     ):
         all_mocks = [
             mock_rfv,
@@ -56,6 +66,8 @@ def test_build_effects_routes_all_types() -> None:
             mock_history,
             mock_chart,
             mock_allergy,
+            mock_diagnose,
+            mock_assess,
         ]
         for mock in all_mocks:
             inst = MagicMock()
@@ -64,7 +76,7 @@ def test_build_effects_routes_all_types() -> None:
 
         effects = build_effects(proposals, "note-uuid")
 
-    assert len(effects) == 24
+    assert len(effects) == 28
     mock_rfv.assert_called_once()
     mock_hpi.assert_called_once()
     mock_vitals.assert_called_once()
@@ -77,6 +89,8 @@ def test_build_effects_routes_all_types() -> None:
     mock_history.assert_called_once()
     mock_chart.assert_called_once()
     mock_allergy.assert_called_once()
+    mock_diagnose.assert_called_once()
+    mock_assess.assert_called_once()
 
 
 def test_build_effects_unknown_type_skipped() -> None:

@@ -358,6 +358,8 @@ h2 { margin-bottom: 4px; }
 .content-block--imaging_order { border-color: #34a853; }
 .content-block--history_review { border-color: #6ee7b7; }
 .content-block--chart_review { border-color: #93c5fd; }
+.content-block--diagnose { border-color: #10b981; }
+.content-block--assess { border-color: #10b981; }
 
 /* Recommendation accept/reject */
 .recommendation-block {
@@ -533,6 +535,8 @@ h2 { margin-bottom: 4px; }
 .badge-vitals { background: #e8563a; }
 .badge-history_review { background: #059669; }
 .badge-chart_review { background: #2563eb; }
+.badge-diagnose { background: #10b981; }
+.badge-assess { background: #10b981; }
 
 /* Inline command rows */
 .command-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; cursor: pointer; white-space: pre-line; }
@@ -770,3 +774,46 @@ h2 { margin-bottom: 4px; }
 .summary-empty-error {
   color: #dc2626; font-size: 12px; margin-top: 12px;
 }
+
+/* Diagnose row (per-condition A&P block) */
+.diagnose-row { padding: 4px 0; }
+.diagnose-row-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.diagnose-row-title { font-size: 14px; font-weight: 700; color: #333; flex: 1; line-height: 1.4; }
+.diagnose-search-btn { padding: 2px 10px; font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; border: 1px dashed #059669; border-radius: 10px; cursor: pointer; }
+.diagnose-search-btn:hover { background: #d1fae5; border-style: solid; }
+.diagnose-delete-btn { width: 20px; height: 20px; border: none; background: none; color: #999; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0; }
+.diagnose-delete-btn:hover { background: #fef2f2; color: #e55; }
+.diagnose-search-area { position: relative; margin-bottom: 6px; }
+.diagnose-search-input { width: 100%; padding: 6px 8px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; }
+.diagnose-search-input:focus { outline: none; border-color: #059669; }
+.diagnose-search-spinner { font-size: 12px; color: #888; font-style: italic; margin-top: 2px; display: block; }
+.diagnose-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; margin-top: 2px; }
+.diagnose-search-result { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+.diagnose-search-result:last-child { border-bottom: none; }
+.diagnose-search-result:hover { background: #f5fff9; }
+.diagnose-result-display { flex: 1; }
+.diagnose-result-code { font-size: 11px; font-weight: 600; color: #059669; margin-left: 8px; white-space: nowrap; }
+.diagnose-icd-prefix { font-size: 12px; font-weight: 700; color: #059669; margin-right: 2px; }
+.diagnose-icd-prefix.clickable { cursor: pointer; }
+.diagnose-icd-prefix.clickable:hover { text-decoration: underline; }
+.diagnose-suggestions { margin-top: 6px; }
+.diagnose-suggestions-label { font-size: 11px; font-weight: 600; color: #888; margin-bottom: 4px; }
+.diagnose-suggestions-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.diagnose-row-body { font-size: 14px; line-height: 1.6; color: #444; white-space: pre-line; padding: 2px 0; }
+.diagnose-row-body.editable { cursor: pointer; border-radius: 4px; padding: 4px 6px; }
+.diagnose-row-body.editable:hover { background: #f5fff9; }
+.diagnose-body-line { min-height: 1.4em; }
+.diagnose-body-empty { color: #aaa; font-style: italic; }
+.diagnose-edit-area { margin-top: 4px; }
+.diagnose-textarea { width: 100%; min-height: 80px; padding: 8px; font-family: inherit; font-size: 14px; line-height: 1.6; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
+.diagnose-textarea:focus { outline: none; border-color: #059669; }
+
+/* Suggested codings + unmatched condition chips below A&P blocks */
+.ap-suggested-codes { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e8e8ec; }
+.ap-suggested-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.ap-suggested-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ap-suggested-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; font-size: 12px; font-weight: 500; color: #052B49; background: #f0f4ff; border: 1px solid #93c5fd; border-radius: 14px; cursor: pointer; transition: all 0.15s; }
+.ap-suggested-chip:hover { background: #dbeafe; border-color: #2563eb; }
+
+/* Add condition inline search */
+.ap-add-condition-area { position: relative; margin-top: 4px; }

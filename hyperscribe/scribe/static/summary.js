@@ -1,8 +1,7 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
-import { SoapGroup } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
-
+import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
 
 const html = htm.bind(h);
 
@@ -52,7 +51,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -83,6 +82,9 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onEditRecommendation=${isObjective ? onEditRecommendation : null}
         onDeleteRecommendation=${isObjective ? onDeleteRecommendation : null}
         onAcceptRecommendation=${isObjective ? onAcceptRecommendation : null}
+        onAddCondition=${isPlan ? onAddCondition : null}
+        unmatchedConditions=${isPlan ? unmatchedConditions : null}
+        diagnosisSuggestions=${isPlan ? diagnosisSuggestions : null}
       />`;
     })
     .filter(Boolean);
@@ -100,9 +102,12 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   const [recommendations, setRecommendations] = useState([]);
   const [recommending, setRecommending] = useState(false);
   const [sectionConditions, setSectionConditions] = useState({});
+  const [unmatchedConditions, setUnmatchedConditions] = useState([]);
+  const [diagnosisSuggestions, setDiagnosisSuggestions] = useState({});
   const [seedText, setSeedText] = useState('');
   const [seedError, setSeedError] = useState(null);
   const mockLoaded = useRef(false);
+  const suggestionsFetched = useRef(false);
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved) => {
     try {
@@ -280,6 +285,102 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     return () => { cancelled = true; };
   }, [noteData]);
 
+  // Split A&P plan command into per-condition diagnose commands once normalized data arrives.
+  const apSplitDone = useRef(false);
+  useEffect(() => {
+    if (!sectionConditions || !commands.length || apSplitDone.current) return;
+    const apIdx = commands.findIndex(c =>
+      c.command_type === 'plan' && (c.section_key === 'assessment_and_plan' || c.section_key === 'plan')
+    );
+    if (apIdx === -1) return;
+    const apCmd = commands[apIdx];
+    const codes = sectionConditions['assessment_and_plan'] || sectionConditions['plan'] || [];
+    const blocks = parseAPBlocks(apCmd.data.narrative);
+    if (blocks.length === 0) return;
+
+    const diagnoseCommands = blocks.map(block => {
+      const matched = matchCondition(block.header, codes);
+      const icd = matched && (matched.coding || []).find(c => c.code);
+      return {
+        command_type: 'diagnose',
+        display: icd ? (icd.display || matched.display || block.header) : block.header,
+        data: {
+          icd10_code: icd ? icd.code : null,
+          icd10_display: icd ? (icd.display || matched.display || '') : '',
+          condition_header: block.header,
+          today_assessment: block.body.join('\n'),
+        },
+        selected: true,
+        section_key: apCmd.section_key,
+        already_documented: false,
+      };
+    });
+
+    // Track which sectionConditions were NOT matched to any A&P block.
+    const matchedSet = new Set();
+    blocks.forEach(block => {
+      const m = matchCondition(block.header, codes);
+      if (m) matchedSet.add(m);
+    });
+    setUnmatchedConditions((codes || []).filter(c => !matchedSet.has(c)));
+
+    apSplitDone.current = true;
+    setCommands(prev => [
+      ...prev.slice(0, apIdx),
+      ...diagnoseCommands,
+      ...prev.slice(apIdx + 1),
+    ]);
+  }, [sectionConditions, commands]);
+
+  // Compute unmatched conditions when commands are loaded from cache (apSplit won't run).
+  const unmatchedComputedFromCache = useRef(false);
+  useEffect(() => {
+    if (unmatchedComputedFromCache.current || apSplitDone.current) return;
+    if (!sectionConditions || !commands.length) return;
+    const hasDiagnose = commands.some(c => c.command_type === 'diagnose');
+    const hasPlan = commands.some(c =>
+      c.command_type === 'plan' && ['assessment_and_plan', 'plan'].includes(c.section_key)
+    );
+    // Cache path: diagnose commands exist but no plan command to split.
+    if (!hasDiagnose || hasPlan) return;
+    unmatchedComputedFromCache.current = true;
+
+    const codes = sectionConditions['assessment_and_plan'] || sectionConditions['plan'] || [];
+    if (!codes.length) return;
+    const matchedSet = new Set();
+    commands.filter(c => c.command_type === 'diagnose').forEach(c => {
+      const m = matchCondition(c.data.condition_header || '', codes);
+      if (m) matchedSet.add(m);
+    });
+    setUnmatchedConditions(codes.filter(c => !matchedSet.has(c)));
+  }, [sectionConditions, commands]);
+
+  // Fetch LLM suggestions for diagnose blocks that have no ICD code.
+  useEffect(() => {
+    if (suggestionsFetched.current) return;
+    const hasDiagnose = commands.some(c => c.command_type === 'diagnose');
+    if (!hasDiagnose) return;
+    // Wait for apSplit OR cache-loaded diagnose commands (no plan command left).
+    const hasPlan = commands.some(c =>
+      c.command_type === 'plan' && ['assessment_and_plan', 'plan'].includes(c.section_key)
+    );
+    if (hasPlan) return;  // Still waiting for split.
+    const unmatchedHeaders = commands
+      .filter(c => c.command_type === 'diagnose' && !c.data.icd10_code)
+      .map(c => c.data.condition_header)
+      .filter(Boolean);
+    if (!unmatchedHeaders.length) return;
+    suggestionsFetched.current = true;
+    fetch(`${API_BASE}/suggest-diagnoses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conditions: unmatchedHeaders }),
+    })
+      .then(r => r.json())
+      .then(data => { if (data.suggestions) setDiagnosisSuggestions(data.suggestions); })
+      .catch(err => console.error('Diagnosis suggestion failed:', err));
+  }, [commands]);
+
   // Fetch assignees for task assignment.
   useEffect(() => {
     let cancelled = false;
@@ -374,6 +475,10 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
           const parts = [newData.image_display, newData.additional_details, newData.comment, newData.priority].filter(Boolean);
           return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
         }
+        if (type === 'diagnose') {
+          const display = newData.icd10_display || newData.condition_header || cmd.display;
+          return { ...cmd, command_type: type, data: newData, display };
+        }
         const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
         const text = newData[field] || '';
         return { ...cmd, data: newData, display: text };
@@ -464,11 +569,78 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     }]);
   }, [approved]);
 
+  const handleAddCondition = useCallback((icd10Code, icd10Display) => {
+    if (approved) return;
+    const apKey = commands.find(c =>
+      c.command_type === 'diagnose' && ['assessment_and_plan', 'plan'].includes(c.section_key)
+    )?.section_key || 'assessment_and_plan';
+
+    const newCmd = {
+      command_type: 'diagnose',
+      display: icd10Display || '',
+      data: {
+        icd10_code: icd10Code || null,
+        icd10_display: icd10Display || '',
+        condition_header: icd10Display || '',
+        today_assessment: '',
+      },
+      selected: true,
+      section_key: apKey,
+      already_documented: false,
+    };
+
+    setCommands(prev => {
+      const lastApIdx = prev.reduce((acc, c, i) =>
+        c.command_type === 'diagnose' && ['assessment_and_plan', 'plan'].includes(c.section_key) ? i : acc, -1);
+      return lastApIdx === -1 ? [...prev, newCmd] : [...prev.slice(0, lastApIdx + 1), newCmd, ...prev.slice(lastApIdx + 1)];
+    });
+
+    if (icd10Code) {
+      setUnmatchedConditions(prev => prev.filter(c => !(c.coding || []).some(cd => cd.code === icd10Code)));
+    }
+  }, [approved, commands]);
+
   const handleInsert = useCallback(async () => {
     setInserting(true);
     const insertable = commands.filter(c => !c.already_documented && c.display);
     const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
-    const allInsertable = [...insertable, ...acceptedRecs];
+    let allInsertable = [...insertable, ...acceptedRecs];
+
+    // Convert diagnose commands: match against patient conditions to decide assess vs diagnose.
+    // Skip diagnose commands with no ICD code (provider didn't select one).
+    try {
+      const condRes = await fetch(
+        `${API_BASE}/patient-conditions?patient_id=${encodeURIComponent(patientId)}`
+      );
+      const condData = await condRes.json();
+      const patientConditions = condData.conditions || [];
+
+      allInsertable = allInsertable
+        .filter(c => c.command_type !== 'diagnose' || c.data.icd10_code)
+        .map(c => {
+          if (c.command_type !== 'diagnose') return c;
+          const code = (c.data.icd10_code || '').replace('.', '').toUpperCase();
+          const match = patientConditions.find(pc => {
+            const pcCode = (pc.code || '').replace('.', '').toUpperCase();
+            return pcCode === code;
+          });
+          if (match) {
+            return {
+              ...c,
+              command_type: 'assess',
+              data: {
+                condition_id: match.condition_id,
+                narrative: c.data.today_assessment || '',
+                background: c.data.background || null,
+                status: null,
+              },
+            };
+          }
+          return c;
+        });
+    } catch (err) {
+      console.error('Failed to fetch patient conditions for assess check:', err);
+    }
     try {
       const res = await fetch(`${API_BASE}/insert-commands`, {
         method: 'POST',
@@ -583,6 +755,9 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
           onEditRecommendation: handleEditRecommendation,
           onDeleteRecommendation: handleDeleteRecommendation,
           onAcceptRecommendation: handleAcceptRecommendation,
+          onAddCondition: approved ? null : handleAddCondition,
+          unmatchedConditions,
+          diagnosisSuggestions,
         })}
         ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
         ${recommending && html`<p class="generating-message">Finding recommendations...</p>`}
