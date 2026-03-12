@@ -31,21 +31,27 @@ def _build_user_prompt(sections: list[NoteSection]) -> str:
     return "\n\n".join(parts)
 
 
-def _resolve_allergy(keywords: str) -> dict[str, int] | None:
+def _resolve_allergy(keywords: str, cache: dict[str, dict[str, int] | None] | None = None) -> dict[str, int] | None:
     """Search CanvasScience for the best allergy match using the keyword list."""
+    if cache is None:
+        cache = {}
     for keyword in keywords.split(","):
         keyword = keyword.strip()
         if not keyword:
             continue
-        results = CanvasScience.search_allergy(
-            [keyword],
-            [AllergenType.ALLERGEN_GROUP, AllergenType.MEDICATION, AllergenType.INGREDIENT],
-        )
-        if results:
-            return {
-                "concept_id": results[0].concept_id_value,
-                "concept_id_type": results[0].concept_id_type,
-            }
+        key = keyword.lower()
+        if key not in cache:
+            results = CanvasScience.search_allergy(
+                [keyword],
+                [AllergenType.ALLERGEN_GROUP, AllergenType.MEDICATION, AllergenType.INGREDIENT],
+            )
+            cache[key] = (
+                {"concept_id": results[0].concept_id_value, "concept_id_type": results[0].concept_id_type}
+                if results
+                else None
+            )
+        if cache[key] is not None:
+            return cache[key]
     return None
 
 
@@ -79,9 +85,10 @@ class AllergyRecommender(BaseRecommender):
             log.exception(f"Failed to parse allergy LLM response: {response.response}")
             return []
 
+        lookup_cache: dict[str, dict[str, int] | None] = {}
         proposals: list[CommandProposal] = []
         for allergy in parsed.allergies:
-            resolved = _resolve_allergy(allergy.keywords)
+            resolved = _resolve_allergy(allergy.keywords, lookup_cache)
             concept_id: int | None = None
             concept_id_type: int | None = None
             if resolved:
