@@ -188,9 +188,7 @@ def test_annotate_duplicates_match(
     mock_note = MagicMock()
     mock_note.patient = mock_patient
 
-    mock_coding_cls.objects.filter.return_value.committed.return_value.values_list.return_value = [
-        "Lisinopril 10mg Tablet"
-    ]
+    mock_coding_cls.objects.filter.return_value.values_list.return_value = ["Lisinopril 10mg Tablet"]
 
     proposals = [
         CommandProposal(

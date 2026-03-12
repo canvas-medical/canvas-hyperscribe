@@ -59,7 +59,7 @@ class AllergyRecommender(BaseRecommender):
     def recommend(self, note: ClinicalNote, client: LlmAnthropic) -> list[CommandProposal]:
         all_keys = [s.key for s in note.sections]
         log.info(f"AllergyRecommender: note section keys={all_keys}, filtering by {_RELEVANT_KEYS}")
-        sections = [s for s in note.sections if s.key in _RELEVANT_KEYS and s.text.strip()]
+        sections = [s for s in note.sections if s.key.lower() in _RELEVANT_KEYS and s.text.strip()]
         if not sections:
             log.info("AllergyRecommender: no matching sections, skipping")
             return []
