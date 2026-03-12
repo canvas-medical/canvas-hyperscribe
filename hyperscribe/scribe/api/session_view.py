@@ -12,8 +12,12 @@ from canvas_sdk.effects.simple_api import JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 
 from canvas_sdk.commands.commands.allergy import AllergenType
+from canvas_sdk.v1.data.condition import Condition as ConditionModel, ConditionCoding
+from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from canvas_sdk.v1.data.staff import Staff
 from canvas_sdk.v1.data.team import Team
+
+from canvas_sdk.utils.http import science_http
 
 from hyperscribe.libraries.canvas_science import CanvasScience
 
@@ -32,6 +36,13 @@ from hyperscribe.scribe.backend import (
 from hyperscribe.scribe.commands.builder import annotate_duplicates, build_effects
 from hyperscribe.scribe.commands.extractor import extract_commands
 from hyperscribe.scribe.recommendations import recommend_commands
+
+
+def _format_icd10_code(raw: str) -> str:
+    code = raw.strip().upper()
+    if len(code) > 3:
+        return code[:3] + "." + code[3:]
+    return code
 
 
 _CACHE_KEY_PREFIX = "scribe_transcript:"
@@ -487,6 +498,31 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             )
         ]
 
+    @api.get("/lab-partners")
+    def get_lab_partners(self) -> list[Union[Response, Effect]]:
+        """Return active lab partners."""
+        partners = [
+            {"id": str(p["id"]), "name": p["name"]}
+            for p in LabPartner.objects.filter(active=True).order_by("name").values("id", "name")
+        ]
+        return [JSONResponse({"lab_partners": partners}, status_code=HTTPStatus.OK)]
+
+    @api.get("/lab-partner-tests")
+    def get_lab_partner_tests(self) -> list[Union[Response, Effect]]:
+        """Return tests for a lab partner, optionally filtered by search query."""
+        partner_id = self.request.query_params.get("partner_id", "").strip()
+        if not partner_id:
+            return [JSONResponse({"error": "partner_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        query = self.request.query_params.get("query", "").strip()
+        qs = LabPartnerTest.objects.filter(lab_partner__id=partner_id).order_by("order_name")
+        if query:
+            qs = qs.filter(order_name__icontains=query)
+        tests = [
+            {"order_code": t["order_code"], "order_name": t["order_name"]}
+            for t in qs.values("order_code", "order_name")[:50]
+        ]
+        return [JSONResponse({"tests": tests}, status_code=HTTPStatus.OK)]
+
     @api.get("/assignees")
     def get_assignees(self) -> list[Union[Response, Effect]]:
         """Return a merged list of active staff members and teams for task assignment."""
@@ -501,3 +537,60 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         for t in Team.objects.all().order_by("name").values("dbid", "name"):
             assignees.append({"type": "team", "id": t["dbid"], "label": t["name"]})
         return [JSONResponse({"assignees": assignees}, status_code=HTTPStatus.OK)]
+
+    @api.get("/patient-conditions")
+    def get_patient_conditions(self) -> list[Union[Response, Effect]]:
+        """Return committed, non-entered-in-error conditions for a patient."""
+        patient_id = self.request.query_params.get("patient_id", "").strip()
+        if not patient_id:
+            return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        conditions = (
+            ConditionModel.objects
+            .active()
+            .for_patient(patient_id)
+            .prefetch_related("codings")
+            .order_by("-onset_date")
+        )
+        results = []
+        for c in conditions:
+            codings = list(c.codings.all())
+            if not codings:
+                continue
+            icd10 = next(
+                (coding for coding in codings if "icd" in (coding.system or "").lower()),
+                None,
+            )
+            chosen = icd10 or codings[0]
+            results.append({
+                "code": chosen.code,
+                "formatted_code": _format_icd10_code(chosen.code),
+                "display": chosen.display or c.clinical_status,
+                "system": chosen.system,
+            })
+        return [JSONResponse({"conditions": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/search-diagnoses")
+    def get_search_diagnoses(self) -> list[Union[Response, Effect]]:
+        """Search ICD-10 diagnosis codes via the science service."""
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        try:
+            resp = science_http.get_json(
+                f"/search/condition/?query={query}&limit=25"
+            )
+            data = resp.json() or {}
+        except Exception:
+            log.exception("Diagnosis search failed")
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        sorted_results = sorted(data.get("results", []), key=lambda r: r.get("score", 0), reverse=True)
+        results = [
+            {
+                "code": r["icd10_code"],
+                "display": r.get("icd10_text", ""),
+                "formatted_code": _format_icd10_code(r["icd10_code"]),
+            }
+            for r in sorted_results
+            if r.get("icd10_code")
+        ]
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]

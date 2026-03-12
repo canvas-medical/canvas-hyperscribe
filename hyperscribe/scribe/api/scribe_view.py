@@ -46,6 +46,7 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
                 "provider_name": provider_name,
                 "provider_photo_url": provider.photo_url,
                 "patient_name": patient_name,
+                "patient_id": str(note.patient.id),
             },
         )
         return [HTMLResponse(html)]

@@ -20,6 +20,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
   const [query, setQuery] = useState(command.data.allergy_text || '');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
   const [selectedConceptId, setSelectedConceptId] = useState(command.data.concept_id || null);
   const [selectedConceptIdType, setSelectedConceptIdType] = useState(command.data.concept_id_type || null);
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.allergy_text || '');
@@ -51,6 +52,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
   const doSearch = useCallback(async (q) => {
     if (!q || q.length < 2) {
       setResults([]);
+      setSearched(false);
       return;
     }
     setSearching(true);
@@ -65,6 +67,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
       setResults([]);
     } finally {
       setSearching(false);
+      setSearched(true);
     }
   }, []);
 
@@ -85,6 +88,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
     setSelectedDisplay(result.description);
     setQuery(result.description);
     setResults([]);
+    setSearched(false);
   };
 
   const handleSave = () => {
@@ -163,6 +167,11 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
                   ${r.description}
                 </div>
               `)}
+            </div>
+          `}
+          ${!searching && searched && results.length === 0 && query.length >= 2 && html`
+            <div class="allergy-search-dropdown">
+              <div class="allergy-search-result search-no-results">No allergies found</div>
             </div>
           `}
         </div>
