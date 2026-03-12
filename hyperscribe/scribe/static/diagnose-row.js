@@ -156,14 +156,6 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
             onClick=${() => setEditingCode(true)}
           >Add ICD-10</button>
         `}
-        ${!readOnly && html`
-          <button
-            type="button"
-            class="diagnose-delete-btn"
-            onClick=${() => onDelete(commandIndex)}
-            title="Remove condition"
-          >\u00d7</button>
-        `}
       </div>
 
       ${editingCode && !readOnly && html`
