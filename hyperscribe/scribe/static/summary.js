@@ -477,7 +477,8 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
         }
         if (type === 'diagnose') {
           const display = newData.icd10_display || newData.condition_header || cmd.display;
-          return { ...cmd, command_type: type, data: newData, display };
+          const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
+          return { ...cmd, command_type: type, data: { ...newData, accepted }, display };
         }
         const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
         const text = newData[field] || '';
@@ -583,6 +584,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
         icd10_display: icd10Display || '',
         condition_header: icd10Display || '',
         today_assessment: '',
+        accepted: !!icd10Code,
       },
       selected: true,
       section_key: apKey,
@@ -616,7 +618,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       const patientConditions = condData.conditions || [];
 
       allInsertable = allInsertable
-        .filter(c => c.command_type !== 'diagnose' || c.data.icd10_code)
+        .filter(c => c.command_type !== 'diagnose' || (c.data.icd10_code && c.data.accepted))
         .map(c => {
           if (c.command_type !== 'diagnose') return c;
           const code = (c.data.icd10_code || '').replace('.', '').toUpperCase();
@@ -730,7 +732,10 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     .map((cmd, index) => ({ command: cmd, index }))
     .filter(entry => entry.command.section_key === '_objective_ad_hoc');
 
-  const insertableCount = commands.filter(c => !c.already_documented && c.display).length
+  const insertableCount = commands.filter(c => {
+    if (c.command_type === 'diagnose') return c.data.icd10_code && c.data.accepted && c.display;
+    return !c.already_documented && c.display;
+  }).length
     + recommendations.filter(c => c.accepted && !c.already_documented && c.display).length;
   const showFooter = !extracting && !approved && (insertableCount > 0);
 
