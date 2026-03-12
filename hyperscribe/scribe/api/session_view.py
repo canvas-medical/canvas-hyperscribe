@@ -467,14 +467,24 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         results = CanvasScience.medication_details([query])
-        return [
-            JSONResponse(
-                {
-                    "results": [{"fdb_code": r.fdb_code, "description": r.description} for r in results],
-                },
-                status_code=HTTPStatus.OK,
-            )
+        serialized = [
+            {
+                "fdb_code": r.fdb_code,
+                "description": r.description,
+                "quantities": [
+                    {
+                        "quantity": q.quantity,
+                        "representative_ndc": q.representative_ndc,
+                        "clinical_quantity_description": q.clinical_quantity_description,
+                        "ncpdp_quantity_qualifier_code": q.ncpdp_quantity_qualifier_code,
+                        "ncpdp_quantity_qualifier_description": q.ncpdp_quantity_qualifier_description,
+                    }
+                    for q in r.quantities
+                ],
+            }
+            for r in results
         ]
+        return [JSONResponse({"results": serialized}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-allergies")
     def get_search_allergies(self) -> list[Union[Response, Effect]]:

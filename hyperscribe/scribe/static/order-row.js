@@ -7,6 +7,150 @@ const html = htm.bind(h);
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
+// Full NCPDP clinical quantity descriptions
+const CLINICAL_QUANTITY_DESCRIPTIONS = [
+  { code: 'C48473', label: 'Ampule' },
+  { code: 'C62412', label: 'Applicator' },
+  { code: 'C78783', label: 'Applicatorful' },
+  { code: 'C48474', label: 'Bag' },
+  { code: 'C48475', label: 'Bar' },
+  { code: 'C53495', label: 'Bead' },
+  { code: 'C54564', label: 'Blister' },
+  { code: 'C53498', label: 'Block' },
+  { code: 'C48476', label: 'Bolus' },
+  { code: 'C48477', label: 'Bottle' },
+  { code: 'C48478', label: 'Box' },
+  { code: 'C48479', label: 'Can' },
+  { code: 'C62413', label: 'Canister' },
+  { code: 'C64696', label: 'Caplet' },
+  { code: 'C48480', label: 'Capsule' },
+  { code: 'C54702', label: 'Carton' },
+  { code: 'C48481', label: 'Cartridge' },
+  { code: 'C62414', label: 'Case' },
+  { code: 'C69093', label: 'Cassette' },
+  { code: 'C48484', label: 'Container' },
+  { code: 'C48489', label: 'Cylinder' },
+  { code: 'C16830', label: 'Device' },
+  { code: 'C48490', label: 'Disk' },
+  { code: 'C62417', label: 'Dose Pack' },
+  { code: 'C96265', label: 'Dual Pack' },
+  { code: 'C64933', label: 'Each' },
+  { code: 'C53499', label: 'Film' },
+  { code: 'C48494', label: 'Fluid Ounce' },
+  { code: 'C101680', label: 'French' },
+  { code: 'C48580', label: 'Gallon' },
+  { code: 'C48155', label: 'Gram' },
+  { code: 'C69124', label: 'Gum' },
+  { code: 'C48499', label: 'Implant' },
+  { code: 'C48501', label: 'Inhalation' },
+  { code: 'C62275', label: 'Inhaler' },
+  { code: 'C62418', label: 'Inhaler Refill' },
+  { code: 'C62276', label: 'Insert' },
+  { code: 'C67283', label: 'Intravenous Bag' },
+  { code: 'C28252', label: 'Kilogram' },
+  { code: 'C48504', label: 'Kit' },
+  { code: 'C120263', label: 'Lancet' },
+  { code: 'C48505', label: 'Liter' },
+  { code: 'C48506', label: 'Lozenge' },
+  { code: 'C48491', label: 'Metric Drop' },
+  { code: 'C48512', label: 'Milliequivalent' },
+  { code: 'C28253', label: 'Milligram' },
+  { code: 'C28254', label: 'Milliliter' },
+  { code: 'C28251', label: 'Millimeter' },
+  { code: 'C71204', label: 'Nebule' },
+  { code: 'C100052', label: 'Needle Free Injection' },
+  { code: 'C69086', label: 'Ocular System' },
+  { code: 'C48519', label: 'Ounce' },
+  { code: 'C48520', label: 'Package' },
+  { code: 'C48521', label: 'Packet' },
+  { code: 'C65032', label: 'Pad' },
+  { code: 'C82484', label: 'Paper' },
+  { code: 'C48524', label: 'Patch' },
+  { code: 'C120216', label: 'Pen Needle' },
+  { code: 'C48529', label: 'Pint' },
+  { code: 'C48530', label: 'Pouch' },
+  { code: 'C48531', label: 'Pound' },
+  { code: 'C97717', label: 'Pre-filled Pen Syringe' },
+  { code: 'C65060', label: 'Puff' },
+  { code: 'C111984', label: 'Pump' },
+  { code: 'C48534', label: 'Quart' },
+  { code: 'C62609', label: 'Ring' },
+  { code: 'C71324', label: 'Sachet' },
+  { code: 'C48536', label: 'Scoopful' },
+  { code: 'C53502', label: 'Sponge' },
+  { code: 'C48537', label: 'Spray' },
+  { code: 'C53503', label: 'Stick' },
+  { code: 'C48538', label: 'Strip' },
+  { code: 'C48539', label: 'Suppository' },
+  { code: 'C53504', label: 'Swab' },
+  { code: 'C48540', label: 'Syringe' },
+  { code: 'C48541', label: 'Tablespoon' },
+  { code: 'C48542', label: 'Tablet' },
+  { code: 'C62421', label: 'Tabminder' },
+  { code: 'C48543', label: 'Tampon' },
+  { code: 'C48544', label: 'Teaspoon' },
+  { code: 'C54704', label: 'Tray' },
+  { code: 'C48548', label: 'Troche' },
+  { code: 'C48549', label: 'Tube' },
+  { code: 'C38046', label: 'Unspecified' },
+  { code: 'C48551', label: 'Vial' },
+  { code: 'C48552', label: 'Wafer' },
+];
+
+/** Encode a clinical quantity option into a unique value string */
+function encodeClinicalQuantity(representativeNdc, erxQuantity, qualifierCode) {
+  return `${representativeNdc || ''}|${erxQuantity}|${qualifierCode}`;
+}
+
+/** Decode an encoded clinical quantity value back into its parts */
+function decodeClinicalQuantity(encoded) {
+  const [representative_ndc, erx_quantity, ncpdp_quantity_qualifier_code] = encoded.split('|');
+  return { representative_ndc, erx_quantity: Number(erx_quantity), ncpdp_quantity_qualifier_code };
+}
+
+/** Build type-to-dispense options from a medication's quantities */
+function buildTypeToDispenseOptions(quantities) {
+  if (!quantities || quantities.length === 0) {
+    return CLINICAL_QUANTITY_DESCRIPTIONS.map(q => ({
+      value: encodeClinicalQuantity('', 1, q.code),
+      label: q.label,
+      representative_ndc: '',
+      ncpdp_quantity_qualifier_code: q.code,
+    }));
+  }
+  const options = [];
+  for (const q of quantities) {
+    options.push({
+      value: encodeClinicalQuantity(q.representative_ndc, q.quantity, q.ncpdp_quantity_qualifier_code),
+      label: q.clinical_quantity_description || q.ncpdp_quantity_qualifier_description,
+      representative_ndc: q.representative_ndc,
+      ncpdp_quantity_qualifier_code: q.ncpdp_quantity_qualifier_code,
+    });
+    if (
+      q.clinical_quantity_description &&
+      q.ncpdp_quantity_qualifier_description &&
+      q.clinical_quantity_description !== q.ncpdp_quantity_qualifier_description
+    ) {
+      options.push({
+        value: encodeClinicalQuantity(q.representative_ndc, 1, q.ncpdp_quantity_qualifier_code),
+        label: q.ncpdp_quantity_qualifier_description,
+        representative_ndc: q.representative_ndc,
+        ncpdp_quantity_qualifier_code: q.ncpdp_quantity_qualifier_code,
+      });
+    }
+  }
+  // Deduplicate by lowercase label, keep shortest labels first.
+  const seen = new Set();
+  return options
+    .sort((a, b) => a.label.length - b.label.length)
+    .filter(o => {
+      const key = o.label.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 const ORDER_TABS = [
   { key: 'prescribe', label: 'Rx' },
   { key: 'lab_order', label: 'Lab' },
@@ -32,7 +176,10 @@ function buildDisplay(type, data) {
     const parts = [];
     if (data.medication_text) parts.push(data.medication_text);
     if (data.sig) parts.push(`Sig: ${data.sig}`);
-    if (data.quantity_to_dispense) parts.push(`Qty: ${data.quantity_to_dispense}`);
+    if (data.quantity_to_dispense) {
+      const typeLabel = data.type_to_dispense_label || '';
+      parts.push(`Qty: ${data.quantity_to_dispense}${typeLabel ? ` x ${typeLabel}` : ''}`);
+    }
     if (data.days_supply) parts.push(`${data.days_supply}d supply`);
     if (data.refills) parts.push(`${data.refills} refill${data.refills > 1 ? 's' : ''}`);
     return parts.join(' | ') || '';
@@ -69,10 +216,12 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [medSearching, setMedSearching] = useState(false);
   const [medSearched, setMedSearched] = useState(false);
   const [selectedFdb, setSelectedFdb] = useState(command.data.fdb_code || null);
+  const [medQuantities, setMedQuantities] = useState(() => buildTypeToDispenseOptions([]));
   const [selectedMedDisplay, setSelectedMedDisplay] = useState(command.data.medication_text || '');
   const [sig, setSig] = useState(command.data.sig || '');
   const [daysSupply, setDaysSupply] = useState(command.data.days_supply || '');
   const [quantity, setQuantity] = useState(command.data.quantity_to_dispense || '');
+  const [typeToDispense, setTypeToDispense] = useState(command.data.type_to_dispense || '');
   const [refills, setRefills] = useState(command.data.refills || '');
   const [substitutions, setSubstitutions] = useState(command.data.substitutions !== 'not_allowed');
   const [noteToPharmacist, setNoteToPharmacist] = useState(command.data.note_to_pharmacist || '');
@@ -460,6 +609,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     const val = e.target.value;
     setMedQuery(val);
     setSelectedFdb(null);
+    setMedQuantities(buildTypeToDispenseOptions([]));
     setSelectedMedDisplay(val);
     debouncedMedSearch(val);
   };
@@ -470,18 +620,30 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setMedQuery(result.description);
     setMedResults([]);
     setMedSearched(false);
+    const options = buildTypeToDispenseOptions(result.quantities || []);
+    setMedQuantities(options);
+    if (options.length === 1) {
+      setTypeToDispense(options[0].value);
+    } else {
+      setTypeToDispense('');
+    }
   };
 
   const handleSave = () => {
     let data = {};
     if (activeTab === 'prescribe') {
       if (!selectedMedDisplay.trim()) return;
+      const selectedQty = medQuantities.find(q => q.value === typeToDispense);
+      const decoded = typeToDispense ? decodeClinicalQuantity(typeToDispense) : null;
       data = {
         fdb_code: selectedFdb || null,
         medication_text: selectedMedDisplay,
         sig,
         days_supply: daysSupply ? Number(daysSupply) : null,
         quantity_to_dispense: quantity ? Number(quantity) : null,
+        type_to_dispense: decoded ? decoded.ncpdp_quantity_qualifier_code : null,
+        type_to_dispense_label: selectedQty ? selectedQty.label : null,
+        representative_ndc: decoded ? decoded.representative_ndc : null,
         refills: refills ? Number(refills) : null,
         substitutions: substitutions ? 'allowed' : 'not_allowed',
         note_to_pharmacist: noteToPharmacist || null,
@@ -578,9 +740,18 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 </div>
                 ${selectedFdb && html`<span class="medication-structured-badge">FDB: ${selectedFdb}</span>`}
                 <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
+                  <div class="labeled-field" style="flex:2">
                     <span class="labeled-field-label">Qty</span>
-                    <input class="labeled-field-input" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" />
+                    <div style="display:flex;align-items:center;gap:4px">
+                      <input class="labeled-field-input" style="flex:0 0 60px" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" />
+                      <span style="font-size:12px;color:#666">x</span>
+                      <select class="labeled-field-input" style="flex:1;min-width:120px" value=${typeToDispense} onChange=${(e) => setTypeToDispense(e.target.value)}>
+                        <option value="">—</option>
+                        ${medQuantities.map(o => html`
+                          <option key=${o.value} value=${o.value}>${o.label}</option>
+                        `)}
+                      </select>
+                    </div>
                   </div>
                   <div class="labeled-field" style="flex:1">
                     <span class="labeled-field-label">Days</span>

@@ -187,12 +187,14 @@ def test_command_from_json(
             MedicationDetailQuantity(
                 quantity="7",
                 representative_ndc="ndc1",
+                clinical_quantity_description="clinicalDescription1",
                 ncpdp_quantity_qualifier_code="qualifier1",
                 ncpdp_quantity_qualifier_description="description1",
             ),
             MedicationDetailQuantity(
                 quantity="3",
                 representative_ndc="ndc2",
+                clinical_quantity_description="clinicalDescription2",
                 ncpdp_quantity_qualifier_code="qualifier2",
                 ncpdp_quantity_qualifier_description="description2",
             ),

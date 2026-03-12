@@ -173,12 +173,14 @@ def test_medical_concept(get_attempts):
                             {
                                 "erx_quantity": "7",
                                 "representative_ndc": "ndc1",
+                                "clinical_quantity_description": "clinicalDescription1",
                                 "erx_ncpdp_script_quantity_qualifier_code": "qualifier1",
                                 "erx_ncpdp_script_quantity_qualifier_description": "description1",
                             },
                             {
                                 "erx_quantity": "3",
                                 "representative_ndc": "ndc2",
+                                "clinical_quantity_description": "clinicalDescription2",
                                 "erx_ncpdp_script_quantity_qualifier_code": "qualifier2",
                                 "erx_ncpdp_script_quantity_qualifier_description": "description2",
                             },
@@ -194,6 +196,7 @@ def test_medical_concept(get_attempts):
                             {
                                 "erx_quantity": "6",
                                 "representative_ndc": "ndc3",
+                                "clinical_quantity_description": "clinicalDescription3",
                                 "erx_ncpdp_script_quantity_qualifier_code": "qualifier3",
                                 "erx_ncpdp_script_quantity_qualifier_description": "description3",
                             },
@@ -210,12 +213,14 @@ def test_medical_concept(get_attempts):
                         MedicationDetailQuantity(
                             quantity="7",
                             representative_ndc="ndc1",
+                            clinical_quantity_description="clinicalDescription1",
                             ncpdp_quantity_qualifier_code="qualifier1",
                             ncpdp_quantity_qualifier_description="description1",
                         ),
                         MedicationDetailQuantity(
                             quantity="3",
                             representative_ndc="ndc2",
+                            clinical_quantity_description="clinicalDescription2",
                             ncpdp_quantity_qualifier_code="qualifier2",
                             ncpdp_quantity_qualifier_description="description2",
                         ),
@@ -229,6 +234,7 @@ def test_medical_concept(get_attempts):
                         MedicationDetailQuantity(
                             quantity="6",
                             representative_ndc="ndc3",
+                            clinical_quantity_description="clinicalDescription3",
                             ncpdp_quantity_qualifier_code="qualifier3",
                             ncpdp_quantity_qualifier_description="description3",
                         ),
