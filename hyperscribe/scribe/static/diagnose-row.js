@@ -4,9 +4,6 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
-const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
-const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
-
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
@@ -20,24 +17,16 @@ function useDebounce(fn, delay) {
 
 function formatIcdCode(raw) {
   if (!raw) return '';
-  const code = raw.replace(/\./g, '').trim().toUpperCase();
+  const code = raw.trim().toUpperCase();
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
-export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions, onAccept, onEditingChange }) {
+export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions }) {
   const data = command.data || {};
   const hasCode = !!data.icd10_code;
 
   const [editingCode, setEditingCode] = useState(!hasCode);
   const [editingText, setEditingText] = useState(false);
-  useEffect(() => {
-    onEditingChange?.(`${commandIndex}:code`, editingCode);
-    return () => onEditingChange?.(`${commandIndex}:code`, false);
-  }, [editingCode, commandIndex]);
-  useEffect(() => {
-    onEditingChange?.(`${commandIndex}:text`, editingText);
-    return () => onEditingChange?.(`${commandIndex}:text`, false);
-  }, [editingText, commandIndex]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -49,13 +38,13 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
 
   useEffect(() => {
     if (editingCode && inputRef.current) {
-      inputRef.current.focus({ preventScroll: true });
+      inputRef.current.focus();
     }
   }, [editingCode]);
 
   useEffect(() => {
     if (editingText && textareaRef.current) {
-      textareaRef.current.focus({ preventScroll: true });
+      textareaRef.current.focus();
     }
   }, [editingText]);
 
@@ -65,7 +54,6 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
     const handler = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setResults([]);
-        setSearched(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -103,16 +91,12 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   };
 
   const handleSelect = (result) => {
-    const display = result.display || result.description || '';
     const newData = {
       ...data,
       icd10_code: result.code,
-      icd10_display: display,
-      condition_header: display,
-      _original_header: data._original_header || data.condition_header || '',
-      accepted: true,
-      rejected: false,
+      icd10_display: result.display || result.description || '',
     };
+    const display = result.display || result.description || command.display;
     onEdit(commandIndex, newData, 'diagnose');
     setResults([]);
     setSearched(false);
@@ -122,15 +106,14 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
 
   const handleClearCode = () => {
     if (readOnly) return;
-    const originalHeader = command.data._original_header || data.condition_header || '';
-    const newData = { ...data, icd10_code: null, icd10_display: '', condition_header: originalHeader, accepted: false, rejected: false };
+    const newData = { ...data, icd10_code: null, icd10_display: '' };
     onEdit(commandIndex, newData, 'diagnose');
     setEditingCode(true);
     setQuery('');
   };
 
   const handleSaveAssessment = () => {
-    const newData = { ...data, today_assessment: assessment, accepted: true, rejected: false };
+    const newData = { ...data, today_assessment: assessment };
     onEdit(commandIndex, newData, 'diagnose');
     setEditingText(false);
   };
@@ -166,36 +149,52 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
     <div class="diagnose-row" ref=${containerRef}>
       <div class="diagnose-row-header">
         <span class="diagnose-row-title">${title}</span>
+        ${!hasCode && !editingCode && !readOnly && html`
+          <button
+            type="button"
+            class="diagnose-search-btn"
+            onClick=${() => setEditingCode(true)}
+          >Add ICD-10</button>
+        `}
+        ${!readOnly && html`
+          <button
+            type="button"
+            class="diagnose-delete-btn"
+            onClick=${() => onDelete(commandIndex)}
+            title="Remove condition"
+          >\u00d7</button>
+        `}
       </div>
 
       ${editingCode && !readOnly && html`
-        <div class="history-form-field" style="position: relative;">
+        <div class="diagnose-search-area">
           <input
             ref=${inputRef}
             type="text"
-            class="history-form-input"
+            class="diagnose-search-input"
             value=${query}
             onInput=${handleInput}
             onKeyDown=${handleKeyDown}
             placeholder="Search diagnosis..."
           />
-          ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
+          ${searching && html`<span class="diagnose-search-spinner">Searching...</span>`}
           ${results.length > 0 && html`
-            <div class="history-search-dropdown">
+            <div class="diagnose-search-dropdown">
               ${results.map(r => html`
                 <div
                   key=${r.code}
-                  class="history-search-result"
+                  class="diagnose-search-result"
                   onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
                 >
-                  ${r.code && html`<strong>${formatIcdCode(r.code)}</strong>`}${' '}${r.display || r.description}
+                  <span class="diagnose-result-display">${r.display || r.description}</span>
+                  ${r.code && html`<span class="diagnose-result-code">${formatIcdCode(r.code)}</span>`}
                 </div>
               `)}
             </div>
           `}
           ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-            <div class="history-search-dropdown">
-              <div class="history-search-result search-no-results">No diagnoses found</div>
+            <div class="diagnose-search-dropdown">
+              <div class="diagnose-search-result search-no-results">No diagnoses found</div>
             </div>
           `}
         </div>
@@ -212,9 +211,6 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
           ${!data.today_assessment && html`
             <div class="diagnose-body-empty">No assessment text</div>
           `}
-          ${(data.today_assessment || '').length > 2048 && html`
-            <div class="char-counter over-limit">${data.today_assessment.length} / 2048 — text must be shortened before approving</div>
-          `}
         </div>
       `}
 
@@ -222,33 +218,30 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
         <div class="diagnose-edit-area">
           <textarea
             ref=${textareaRef}
-            class="command-row-textarea"
-            maxLength=${2048}
+            class="diagnose-textarea"
             value=${assessment}
             onInput=${(e) => setAssessment(e.target.value)}
             onKeyDown=${handleTextKeyDown}
           />
-          <div class="char-counter${assessment.length > 1900 ? assessment.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${assessment.length} / 2048</div>
           <div class="command-row-actions">
-            <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancelAssessment}>Cancel</button>
-            <button type="button" class="form-btn form-btn-save" disabled=${assessment.length > 2048} onClick=${handleSaveAssessment}>Save</button>
+            <button class="edit-btn" onClick=${handleSaveAssessment}>Save</button>
+            <button class="edit-btn" onClick=${handleCancelAssessment}>Cancel</button>
           </div>
         </div>
       `}
 
       ${!hasCode && !readOnly && suggestions && suggestions.length > 0 && html`
         <div class="diagnose-suggestions">
-          <div class="history-form-label">Suggested codes</div>
-          <div class="diagnose-suggestions-list">
+          <div class="diagnose-suggestions-label">Suggested codes</div>
+          <div class="diagnose-suggestions-chips">
             ${suggestions.map(s => html`
               <button
                 key=${s.code}
                 type="button"
-                class="diagnose-suggestion-btn"
+                class="ap-suggested-chip"
                 onClick=${() => handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code })}
-              >
-                <strong>${s.formatted_code}</strong>${' '}${s.display}
-              </button>
+                title=${s.display}
+              >${s.formatted_code} ${s.display}</button>
             `)}
           </div>
         </div>

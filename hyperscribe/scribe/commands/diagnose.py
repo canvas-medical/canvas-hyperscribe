@@ -17,16 +17,10 @@ class DiagnoseParser(CommandParser):
     def extract(self, text: str) -> None:
         return None
 
-    def validate(self, data: dict[str, Any]) -> list[str]:
-        errors: list[str] = []
-        if len(data.get("today_assessment") or "") > 2048:
-            errors.append("Assessment text exceeds 2048 characters")
-        return errors
-
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         return DiagnoseCommand(
             icd10_code=data.get("icd10_code") or "",
-            today_assessment=(data.get("today_assessment") or "")[:2048],
+            today_assessment=data.get("today_assessment") or "",
             background=data.get("background") or "",
             note_uuid=note_uuid,
             command_uuid=command_uuid,

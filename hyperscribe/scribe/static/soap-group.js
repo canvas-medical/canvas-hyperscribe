@@ -1,4 +1,5 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
+import { useState, useRef, useCallback } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { CommandRow } from '/plugin-io/api/hyperscribe/scribe/static/command-row.js';
 import { AllergyRow } from '/plugin-io/api/hyperscribe/scribe/static/allergy-row.js';
@@ -7,6 +8,7 @@ import { VitalsRow } from '/plugin-io/api/hyperscribe/scribe/static/vitals-row.j
 import { TaskRow } from '/plugin-io/api/hyperscribe/scribe/static/task-row.js';
 import { OrderRow } from '/plugin-io/api/hyperscribe/scribe/static/order-row.js';
 import { HistoryReviewRow } from '/plugin-io/api/hyperscribe/scribe/static/history-review-row.js';
+import { DiagnoseRow } from '/plugin-io/api/hyperscribe/scribe/static/diagnose-row.js';
 
 const html = htm.bind(h);
 
@@ -19,6 +21,8 @@ const COMMAND_BADGE = {
   hpi: { label: 'HPI', color: 'hpi' },
   ros: { label: 'ROS', color: 'ros' },
   plan: { label: 'Plan', color: 'plan_cmd' },
+  diagnose: { label: 'Dx', color: 'diagnose' },
+  assess: { label: 'Assess', color: 'assess' },
   vitals: { label: 'Vitals', color: 'vitals' },
   medication_statement: { label: 'Med', color: 'medication' },
   task: { label: 'Task', color: 'task' },
@@ -58,7 +62,7 @@ function getCoveredKeys(commandBySectionKey) {
   return covered;
 }
 
-function parseAPBlocks(text) {
+export function parseAPBlocks(text) {
   if (!text) return [];
   const lines = text.split('\n');
   const blocks = [];
@@ -105,7 +109,7 @@ function wordOverlap(a, b) {
   return matches / Math.min(setA.size, wordsB.length);
 }
 
-function matchCondition(header, conditions) {
+export function matchCondition(header, conditions) {
   if (!conditions || !header) return null;
   const norm = header.toLowerCase();
 
@@ -191,10 +195,90 @@ function renderStructuredAssessment(text, conditions) {
   return html`<div>${problemEls}${codeEls}</div>`;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation }) {
-  const coveredKeys = getCoveredKeys(commandBySectionKey);
+const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
+const DEBOUNCE_MS = 300;
 
-  console.log("############################: ", recommendations)
+function AddConditionSearch({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const timer = useRef(null);
+  const containerRef = useRef(null);
+
+  const doSearch = useCallback(async (q) => {
+    if (!q || q.length < 2) { setResults([]); setSearched(false); return; }
+    setSearching(true);
+    try {
+      const res = await fetch(`${API_BASE}/search-diagnoses?query=${encodeURIComponent(q)}`);
+      const json = await res.json();
+      setResults(json.results || []);
+    } catch (err) {
+      console.error('Add condition search failed:', err);
+      setResults([]);
+    } finally {
+      setSearching(false);
+      setSearched(true);
+    }
+  }, []);
+
+  const handleInput = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => doSearch(val), DEBOUNCE_MS);
+  };
+
+  const handleSelect = (r) => {
+    onAdd(r.code, r.display);
+    setQuery('');
+    setResults([]);
+    setSearched(false);
+    setOpen(false);
+  };
+
+  if (!open) {
+    return html`<button type="button" class="ad-hoc-btn" onClick=${() => setOpen(true)}>+ Add Condition</button>`;
+  }
+
+  return html`
+    <div class="ap-add-condition-area" ref=${containerRef}>
+      <input
+        type="text"
+        class="diagnose-search-input"
+        value=${query}
+        onInput=${handleInput}
+        placeholder="Search ICD-10 diagnosis..."
+        autoFocus
+      />
+      ${searching && html`<span class="diagnose-search-spinner">Searching...</span>`}
+      ${results.length > 0 && html`
+        <div class="diagnose-search-dropdown">
+          ${results.map(r => html`
+            <div
+              key=${r.code}
+              class="diagnose-search-result"
+              onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
+            >
+              <span class="diagnose-result-display">${r.display}</span>
+              ${r.formatted_code && html`<span class="diagnose-result-code">${r.formatted_code}</span>`}
+            </div>
+          `)}
+        </div>
+      `}
+      ${!searching && searched && results.length === 0 && query.length >= 2 && html`
+        <div class="diagnose-search-dropdown">
+          <div class="diagnose-search-result search-no-results">No diagnoses found</div>
+        </div>
+      `}
+      <button type="button" class="edit-btn" style="margin-top: 4px;" onClick=${() => { setOpen(false); setQuery(''); setResults([]); }}>Cancel</button>
+    </div>
+  `;
+}
+
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
+  const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   return html`
     <div class="summary-section">
@@ -230,9 +314,64 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const codes = sectionConditions && sectionConditions[key];
 
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
+            const isPlan = PLAN_SECTIONS.has(key);
+            // If the A&P has been split into per-condition diagnose commands, render each as DiagnoseRow.
+            const hasDiagnoseCommands = isPlan && cmds.some(e => e.command.command_type === 'diagnose');
+            if (hasDiagnoseCommands) {
+              const unmatched = unmatchedConditions || [];
+              return html`
+                <div class="subsection" key=${s.key}>
+                  <div class="subsection-title">${s.title}</div>
+                  ${cmds.filter(e => e.command.command_type === 'diagnose').map(entry => {
+                    const header = entry.command.data.condition_header || '';
+                    const suggestions = (!entry.command.data.icd10_code && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
+                    return html`
+                      <div class="content-block has-badge content-block--diagnose" key=${entry.index}>
+                        <span class="content-block-badge badge-diagnose">Dx</span>
+                        <${DiagnoseRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                          suggestions=${suggestions}
+                        />
+                      </div>
+                    `;
+                  })}
+                  ${unmatched.length > 0 && html`
+                    <div class="ap-suggested-codes">
+                      <div class="ap-suggested-label">Other detected conditions</div>
+                      <div class="ap-suggested-chips">
+                        ${unmatched.map(c => {
+                          const codes = (c.coding || []).filter(cd => cd.code);
+                          const code = codes[0];
+                          if (!code) return null;
+                          const formatted = code.code.length > 3 ? code.code.slice(0, 3) + '.' + code.code.slice(3) : code.code;
+                          const display = c.display || code.display || formatted;
+                          return html`
+                            <button
+                              key=${code.code}
+                              type="button"
+                              class="ap-suggested-chip"
+                              onClick=${() => onAddCondition && onAddCondition(code.code, display)}
+                              title="Add ${display}"
+                            >${formatted} ${display}</button>
+                          `;
+                        })}
+                      </div>
+                    </div>
+                  `}
+                  ${onAddCondition && !readOnly && html`
+                    <div class="ad-hoc-buttons">
+                      <${AddConditionSearch} onAdd=${onAddCondition} />
+                    </div>
+                  `}
+                </div>
+              `;
+            }
             const entry = cmds[0];
             const badge = COMMAND_BADGE[entry.command.command_type] || { label: entry.command.command_type, color: 'rfv' };
-            const isPlan = PLAN_SECTIONS.has(key);
             const hasStructured = isPlan && codes && codes.length > 0;
             return html`
               <div class="subsection" key=${s.key}>
