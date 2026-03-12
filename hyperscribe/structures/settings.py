@@ -94,9 +94,7 @@ class Settings(NamedTuple):
             ),
             modality=dictionary.get(Constants.SECRET_MODALITY, "copilot"),
             # PILOT: remove scribe_pilot_staffers when scribe pilot ends
-            scribe_pilot_staffers=cls.list_from(
-                dictionary.get(Constants.SECRET_SCRIBE_PILOT_STAFFERS)
-            ),
+            scribe_pilot_staffers=cls.list_from(dictionary.get(Constants.SECRET_SCRIBE_PILOT_STAFFERS)),
         )
 
     @classmethod
