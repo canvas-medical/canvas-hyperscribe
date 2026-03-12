@@ -12,8 +12,14 @@ from canvas_sdk.effects.simple_api import JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 
 from canvas_sdk.commands.commands.allergy import AllergenType
-from canvas_sdk.v1.data.staff import Staff
+from canvas_sdk.v1.data.condition import Condition as ConditionModel, ConditionCoding
+from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
+from canvas_sdk.v1.data.note import Note
+from canvas_sdk.v1.data.patient import PatientAddress
+from canvas_sdk.v1.data.staff import Staff, StaffRole
 from canvas_sdk.v1.data.team import Team
+
+from canvas_sdk.utils.http import science_http
 
 from hyperscribe.libraries.canvas_science import CanvasScience
 
@@ -32,6 +38,13 @@ from hyperscribe.scribe.backend import (
 from hyperscribe.scribe.commands.builder import annotate_duplicates, build_effects
 from hyperscribe.scribe.commands.extractor import extract_commands
 from hyperscribe.scribe.recommendations import recommend_commands
+
+
+def _format_icd10_code(raw: str) -> str:
+    code = raw.strip().upper()
+    if len(code) > 3:
+        return code[:3] + "." + code[3:]
+    return code
 
 
 _CACHE_KEY_PREFIX = "scribe_transcript:"
@@ -487,6 +500,31 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             )
         ]
 
+    @api.get("/lab-partners")
+    def get_lab_partners(self) -> list[Union[Response, Effect]]:
+        """Return active lab partners."""
+        partners = [
+            {"id": str(p["id"]), "name": p["name"]}
+            for p in LabPartner.objects.filter(active=True).order_by("name").values("id", "name")
+        ]
+        return [JSONResponse({"lab_partners": partners}, status_code=HTTPStatus.OK)]
+
+    @api.get("/lab-partner-tests")
+    def get_lab_partner_tests(self) -> list[Union[Response, Effect]]:
+        """Return tests for a lab partner, optionally filtered by search query."""
+        partner_id = self.request.query_params.get("partner_id", "").strip()
+        if not partner_id:
+            return [JSONResponse({"error": "partner_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        query = self.request.query_params.get("query", "").strip()
+        qs = LabPartnerTest.objects.filter(lab_partner__id=partner_id).order_by("order_name")
+        if query:
+            qs = qs.filter(order_name__icontains=query)
+        tests = [
+            {"order_code": t["order_code"], "order_name": t["order_name"]}
+            for t in qs.values("order_code", "order_name")[:50]
+        ]
+        return [JSONResponse({"tests": tests}, status_code=HTTPStatus.OK)]
+
     @api.get("/assignees")
     def get_assignees(self) -> list[Union[Response, Effect]]:
         """Return a merged list of active staff members and teams for task assignment."""
@@ -501,3 +539,200 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         for t in Team.objects.all().order_by("name").values("dbid", "name"):
             assignees.append({"type": "team", "id": t["dbid"], "label": t["name"]})
         return [JSONResponse({"assignees": assignees}, status_code=HTTPStatus.OK)]
+
+    @api.get("/patient-conditions")
+    def get_patient_conditions(self) -> list[Union[Response, Effect]]:
+        """Return committed, non-entered-in-error conditions for a patient."""
+        patient_id = self.request.query_params.get("patient_id", "").strip()
+        if not patient_id:
+            return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        conditions = (
+            ConditionModel.objects
+            .active()
+            .for_patient(patient_id)
+            .prefetch_related("codings")
+            .order_by("-onset_date")
+        )
+        results = []
+        for c in conditions:
+            codings = list(c.codings.all())
+            if not codings:
+                continue
+            icd10 = next(
+                (coding for coding in codings if "icd" in (coding.system or "").lower()),
+                None,
+            )
+            chosen = icd10 or codings[0]
+            results.append({
+                "code": chosen.code,
+                "formatted_code": _format_icd10_code(chosen.code),
+                "display": chosen.display or c.clinical_status,
+                "system": chosen.system,
+            })
+        return [JSONResponse({"conditions": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/search-diagnoses")
+    def get_search_diagnoses(self) -> list[Union[Response, Effect]]:
+        """Search ICD-10 diagnosis codes via the science service."""
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        try:
+            resp = science_http.get_json(
+                f"/search/condition/?query={query}&limit=25"
+            )
+            data = resp.json() or {}
+        except Exception:
+            log.exception("Diagnosis search failed")
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        sorted_results = sorted(data.get("results", []), key=lambda r: r.get("score", 0), reverse=True)
+        results = [
+            {
+                "code": r["icd10_code"],
+                "display": r.get("icd10_text", ""),
+                "formatted_code": _format_icd10_code(r["icd10_code"]),
+            }
+            for r in sorted_results
+            if r.get("icd10_code")
+        ]
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/search-imaging")
+    def get_search_imaging(self) -> list[Union[Response, Effect]]:
+        """Search imaging codes via the science service."""
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        try:
+            resp = science_http.get_json(
+                f"/parse-templates/imaging-reports/?query={query}&limit=25"
+            )
+            data = resp.json() or {}
+        except Exception:
+            log.exception("Imaging search failed")
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        results = []
+        for r in data.get("results", []):
+            name = r.get("name")
+            if not name:
+                continue
+            code_system = r.get("code_system")
+            code = r.get("code")
+            display = f"{name} ({code_system}: {code})" if code_system or code else name
+            results.append({"value": code or name, "display": display})
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/ordering-providers")
+    def get_ordering_providers(self) -> list[Union[Response, Effect]]:
+        """Return active staff who are prescribers, optionally filtered by search term."""
+        query = self.request.query_params.get("query", "").strip()
+        prescriber_staff_ids = (
+            StaffRole.objects
+            .filter(
+                role_type=StaffRole.RoleType.PROVIDER,
+                domain__in=StaffRole.RoleDomain.clinical_domains(),
+            )
+            .values_list("staff_id", flat=True)
+        )
+        qs = (
+            Staff.objects
+            .filter(active=True, pk__in=prescriber_staff_ids)
+            .order_by("last_name", "first_name")
+        )
+        if query:
+            first_matches = set(qs.filter(first_name__icontains=query).values_list("pk", flat=True)[:50])
+            last_matches = set(qs.filter(last_name__icontains=query).values_list("pk", flat=True)[:50])
+            qs = qs.filter(pk__in=first_matches | last_matches)
+        providers = [
+            {"id": str(s.id), "label": s.credentialed_name}
+            for s in qs[:50]
+        ]
+        return [JSONResponse({"providers": providers}, status_code=HTTPStatus.OK)]
+
+    @api.get("/search-imaging-centers")
+    def get_search_imaging_centers(self) -> list[Union[Response, Effect]]:
+        """Search for radiology imaging centers via the science service."""
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+
+        # Resolve zip codes: patient address first, then note location as fallback.
+        zip_codes: list[str] = []
+        patient_id = self.request.query_params.get("patient_id", "").strip()
+        note_id = self.request.query_params.get("note_id", "").strip()
+        if patient_id:
+            patient_zip = (
+                PatientAddress.objects
+                .filter(patient__id=patient_id)
+                .values_list("postal_code", flat=True)
+                .first()
+            )
+            if patient_zip:
+                zip_codes = [patient_zip]
+        if not zip_codes and note_id:
+            try:
+                note = Note.objects.select_related("location").get(id=note_id)
+                if note.location:
+                    loc_zip = (
+                        note.location.addresses
+                        .values_list("postal_code", flat=True)
+                        .first()
+                    )
+                    if loc_zip:
+                        zip_codes = [loc_zip]
+            except Note.DoesNotExist:
+                pass
+
+        params = f"?search={query}&job_title__icontains=radiology"
+        if zip_codes:
+            params += f"&business_postal_code__in={','.join(zip_codes)}"
+        try:
+            resp = science_http.get_json(f"/contacts/{params}")
+            data = resp.json() or {}
+        except Exception:
+            log.exception("Imaging center search failed")
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        results = []
+        for c in data.get("results", []):
+            first = c.get("firstName", "")
+            last = c.get("lastName", "")
+            practice = c.get("practiceName", "")
+            specialty = c.get("specialty", "")
+            # Build display name matching Canvas convention.
+            parts = []
+            if first and first != "(TBD)":
+                parts.append(first)
+            if last and last != first:
+                parts.append(last)
+            if practice and practice != "(TBD)":
+                parts.append(f"({practice}),")
+            if specialty and specialty not in (first, last, practice):
+                parts.append(specialty)
+            if first == "(TBD)":
+                parts.append(first)
+            name = " ".join(parts).strip()
+            # Build description with contact details.
+            desc_parts = []
+            phone = c.get("businessPhone")
+            fax = c.get("businessFax")
+            address = c.get("businessAddress")
+            if phone:
+                desc_parts.append(f"Phone: {phone}")
+            if fax:
+                desc_parts.append(f"Fax: {fax}")
+            if address:
+                desc_parts.append(f"Address: {address}")
+            results.append({
+                "name": name,
+                "description": " ".join(desc_parts),
+                "data": {
+                    "first_name": first,
+                    "last_name": last,
+                    "specialty": specialty,
+                    "practice_name": practice,
+                    "business_fax": fax,
+                    "business_phone": phone,
+                    "business_address": address,
+                },
+            })
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]

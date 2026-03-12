@@ -52,7 +52,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -75,12 +75,16 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddAllergy=${isObjective ? onAddAllergy : null}
         readOnly=${readOnly}
         sectionConditions=${sectionConditions}
+        patientId=${patientId}
+        noteId=${noteId}
+        staffId=${staffId}
+        staffName=${staffName}
       />`;
     })
     .filter(Boolean);
 }
 
-export function Summary({ noteId }) {
+export function Summary({ noteId, patientId, staffId, staffName }) {
   const [noteData, setNoteData] = useState(null);
   const [generating, setGenerating] = useState(true);
   const [error, setError] = useState(null);
@@ -355,10 +359,15 @@ export function Summary({ noteId }) {
           return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '' };
         }
         if (type === 'lab_order') {
-          return { ...cmd, command_type: type, data: newData, display: newData.comment || '' };
+          const parts = [];
+          if (newData.lab_partner_name) parts.push(newData.lab_partner_name);
+          if (newData.test_names && newData.test_names.length) parts.push(newData.test_names.join(', '));
+          if (newData.comment) parts.push(newData.comment);
+          if (newData.fasting_required) parts.push('Fasting');
+          return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || '' };
         }
         if (type === 'imaging_order') {
-          const parts = [newData.comment, newData.priority].filter(Boolean);
+          const parts = [newData.image_display, newData.additional_details, newData.comment, newData.priority].filter(Boolean);
           return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
         }
         const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
@@ -556,6 +565,10 @@ export function Summary({ noteId }) {
           onAddAllergy: approved ? null : handleAddAllergy,
           readOnly: approved,
           sectionConditions,
+          patientId,
+          noteId,
+          staffId,
+          staffName,
         })}
         ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
         ${recommending && html`<p class="generating-message">Finding recommendations...</p>`}
