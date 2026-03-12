@@ -179,69 +179,46 @@ def test_build_invalid_severity_ignored() -> None:
 
 
 @patch("hyperscribe.scribe.commands.allergy.AllergyIntoleranceCoding")
-@patch("hyperscribe.scribe.commands.allergy.AllergyIntolerance")
-@patch("hyperscribe.scribe.commands.allergy.Note")
 def test_annotate_duplicates_match(
-    mock_note_cls: MagicMock,
-    mock_allergy_cls: MagicMock,
     mock_coding_cls: MagicMock,
 ) -> None:
     mock_patient = MagicMock()
     mock_patient.id = "patient-key"
     mock_note = MagicMock()
     mock_note.patient = mock_patient
-    mock_note_cls.objects.select_related.return_value.get.return_value = mock_note
 
-    mock_coding = MagicMock()
-    mock_coding.display = "Penicillin G"
-    mock_coding_cls.objects.filter.return_value = [mock_coding]
+    mock_coding_cls.objects.filter.return_value.committed.return_value.values_list.return_value = ["Penicillin G"]
 
     proposals = [
         CommandProposal(command_type="allergy", display="Penicillin", data={"allergy_text": "Penicillin"}),
         CommandProposal(command_type="allergy", display="Sulfa drugs", data={"allergy_text": "Sulfa drugs"}),
         CommandProposal(command_type="hpi", display="Pain", data={"narrative": "Pain"}),
     ]
-    AllergyParser().annotate_duplicates(proposals, "note-uuid")
+    AllergyParser().annotate_duplicates(proposals, mock_note)
 
     assert proposals[0].already_documented is True  # substring match
     assert proposals[1].already_documented is False
     assert proposals[2].already_documented is False  # non-allergy untouched
 
 
-@patch("hyperscribe.scribe.commands.allergy.Note")
-def test_annotate_duplicates_note_not_found(mock_note_cls: MagicMock) -> None:
-    mock_note_cls.DoesNotExist = type("DoesNotExist", (Exception,), {})
-    mock_note_cls.objects.select_related.return_value.get.side_effect = mock_note_cls.DoesNotExist
-
-    proposals = [
-        CommandProposal(command_type="allergy", display="Penicillin", data={"allergy_text": "Penicillin"}),
-    ]
-    AllergyParser().annotate_duplicates(proposals, "nonexistent-uuid")
-    assert proposals[0].already_documented is False
-
-
 def test_annotate_duplicates_no_allergies() -> None:
+    mock_note = MagicMock()
     proposals = [
         CommandProposal(command_type="hpi", display="Pain", data={"narrative": "Pain"}),
     ]
-    AllergyParser().annotate_duplicates(proposals, "note-uuid")
+    AllergyParser().annotate_duplicates(proposals, mock_note)
     assert proposals[0].already_documented is False
 
 
 @patch("hyperscribe.scribe.commands.allergy.AllergyIntoleranceCoding")
-@patch("hyperscribe.scribe.commands.allergy.AllergyIntolerance")
-@patch("hyperscribe.scribe.commands.allergy.Note")
 def test_annotate_duplicates_no_patient(
-    mock_note_cls: MagicMock,
-    mock_allergy_cls: MagicMock,
     mock_coding_cls: MagicMock,
 ) -> None:
     mock_note = MagicMock()
     mock_note.patient = None
-    mock_note_cls.objects.select_related.return_value.get.return_value = mock_note
 
     proposals = [
         CommandProposal(command_type="allergy", display="Penicillin", data={"allergy_text": "Penicillin"}),
     ]
-    AllergyParser().annotate_duplicates(proposals, "note-uuid")
+    AllergyParser().annotate_duplicates(proposals, mock_note)
     assert proposals[0].already_documented is False
