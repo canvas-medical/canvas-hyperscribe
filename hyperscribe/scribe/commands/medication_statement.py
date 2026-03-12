@@ -73,9 +73,7 @@ class MedicationParser(CommandParser):
             MedicationCoding.objects.filter(
                 medication__patient=patient,
                 medication__status="active",
-            )
-            .committed()
-            .values_list("display", flat=True)
+            ).values_list("display", flat=True)
         )
         active_labels_lower = {label.lower() for label in active_labels if label}
         for proposal in med_proposals:
