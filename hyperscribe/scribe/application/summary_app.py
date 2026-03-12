@@ -3,6 +3,7 @@ from canvas_sdk.effects.launch_modal import LaunchModalEffect
 from canvas_sdk.handlers.application import NoteApplication
 
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.structures.settings import Settings
 
 
 class SummaryApp(NoteApplication):
@@ -13,8 +14,10 @@ class SummaryApp(NoteApplication):
     PRIORITY = 1
 
     def visible(self) -> bool:
-        modality = self.secrets.get(Constants.SECRET_MODALITY, "").lower()
-        return bool(modality == Constants.MODALITY_SCRIBE)
+        # PILOT: revert to `self.secrets.get(Constants.SECRET_MODALITY, "").lower() == Constants.MODALITY_SCRIBE`
+        settings = Settings.from_dictionary(self.secrets)
+        staff_id = self.context.get("user", {}).get("id", "")
+        return settings.is_scribe_modality(staff_id)
 
     def handle(self) -> list[Effect]:
         from canvas_sdk.v1.data.note import Note
