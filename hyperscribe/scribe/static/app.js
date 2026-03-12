@@ -9,7 +9,7 @@ const html = htm.bind(h);
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
-export function App({ noteId, view, providerName, providerPhotoUrl, patientName }) {
+export function App({ noteId, view, providerName, providerPhotoUrl, patientName, patientId }) {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
@@ -37,7 +37,7 @@ export function App({ noteId, view, providerName, providerPhotoUrl, patientName 
   }, [noteId]);
 
   if (view === 'summary') {
-    return html`<${Summary} noteId=${noteId} />`;
+    return html`<${Summary} noteId=${noteId} patientId=${patientId} />`;
   }
 
   if (view === 'debug') {
