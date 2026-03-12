@@ -66,7 +66,7 @@ function renderConditionCodes(conditions) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   return html`
@@ -234,6 +234,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   onDelete=${onDeleteCommand}
                   readOnly=${readOnly}
                   patientId=${patientId}
+                  noteId=${noteId}
+                  staffId=${staffId}
+                  staffName=${staffName}
                 />
               </div>
             `;
