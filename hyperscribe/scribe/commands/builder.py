@@ -8,8 +8,10 @@ from canvas_sdk.v1.data.note import Note
 
 from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.allergy import AllergyParser
+from hyperscribe.scribe.commands.assess import AssessParser
 from hyperscribe.scribe.commands.base import CommandParser
 from hyperscribe.scribe.commands.chart_review import ChartReviewParser
+from hyperscribe.scribe.commands.diagnose import DiagnoseParser
 from hyperscribe.scribe.commands.history_review import HistoryReviewParser
 from hyperscribe.scribe.commands.hpi import HpiParser
 from hyperscribe.scribe.commands.imaging_order import ImagingOrderParser
@@ -24,7 +26,9 @@ from hyperscribe.scribe.commands.vitals import VitalsParser
 
 _BUILDERS: dict[str, CommandParser] = {
     "allergy": AllergyParser(),
+    "assess": AssessParser(),
     "chart_review": ChartReviewParser(),
+    "diagnose": DiagnoseParser(),
     "history_review": HistoryReviewParser(),
     "hpi": HpiParser(),
     "imaging_order": ImagingOrderParser(),
