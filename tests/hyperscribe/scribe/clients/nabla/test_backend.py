@@ -165,6 +165,106 @@ def test_parse_note_nested() -> None:
     assert result.sections[0].key == "subjective"
 
 
+def test_parse_note_splits_ros_from_hpi() -> None:
+    raw = {
+        "title": "Visit Note",
+        "sections": [
+            {
+                "key": "history_of_present_illness",
+                "title": "History of Present Illness",
+                "text": ("Patient reports headache for 3 days.\n\nROS\nGeneral: No fever.\nHEENT: Photophobia noted."),
+            },
+        ],
+    }
+    result = NablaBackend._parse_note(raw)
+    assert len(result.sections) == 2
+    assert result.sections[0].key == "history_of_present_illness"
+    assert result.sections[0].text == "Patient reports headache for 3 days."
+    assert result.sections[1].key == "review_of_systems"
+    assert result.sections[1].title == "Review of Systems"
+    assert "General: No fever." in result.sections[1].text
+    assert "HEENT: Photophobia noted." in result.sections[1].text
+
+
+def test_parse_note_splits_ros_full_phrase() -> None:
+    raw = {
+        "title": "Note",
+        "sections": [
+            {
+                "key": "history_of_present_illness",
+                "title": "HPI",
+                "text": "Onset yesterday.\n\nReview of Systems\nSkin: No rash.",
+            },
+        ],
+    }
+    result = NablaBackend._parse_note(raw)
+    assert len(result.sections) == 2
+    assert result.sections[0].text == "Onset yesterday."
+    assert result.sections[1].key == "review_of_systems"
+    assert "Skin: No rash." in result.sections[1].text
+
+
+def test_parse_note_splits_ros_bullet_with_colon() -> None:
+    """ROS marker as a bullet point with trailing colon should be detected."""
+    raw = {
+        "title": "Note",
+        "sections": [
+            {
+                "key": "history_of_present_illness",
+                "title": "HPI",
+                "text": (
+                    "- Burning sensation during urination\n"
+                    "- Denies rash\n"
+                    "- Review of systems:\n"
+                    "  - General: Sleeping well\n"
+                    "  - Skin: Denies rash"
+                ),
+            },
+        ],
+    }
+    result = NablaBackend._parse_note(raw)
+    assert len(result.sections) == 2
+    assert result.sections[0].key == "history_of_present_illness"
+    assert "Burning sensation" in result.sections[0].text
+    assert "Review of systems" not in result.sections[0].text
+    assert result.sections[1].key == "review_of_systems"
+    assert "General: Sleeping well" in result.sections[1].text
+
+
+def test_parse_note_no_ros_in_hpi() -> None:
+    raw = {
+        "title": "Note",
+        "sections": [
+            {
+                "key": "history_of_present_illness",
+                "title": "HPI",
+                "text": "Patient feeling well. No complaints.",
+            },
+        ],
+    }
+    result = NablaBackend._parse_note(raw)
+    assert len(result.sections) == 1
+    assert result.sections[0].key == "history_of_present_illness"
+    assert result.sections[0].text == "Patient feeling well. No complaints."
+
+
+def test_parse_note_ros_not_split_from_other_sections() -> None:
+    """ROS marker in non-HPI sections should not be split."""
+    raw = {
+        "title": "Note",
+        "sections": [
+            {
+                "key": "chief_complaint",
+                "title": "CC",
+                "text": "Headache.\nROS\nGeneral: Fatigue.",
+            },
+        ],
+    }
+    result = NablaBackend._parse_note(raw)
+    assert len(result.sections) == 1
+    assert result.sections[0].key == "chief_complaint"
+
+
 def test_parse_normalized_data_empty() -> None:
     result = NablaBackend._parse_normalized_data({})
     assert isinstance(result, NormalizedData)
