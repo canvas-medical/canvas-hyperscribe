@@ -16,6 +16,7 @@ from hyperscribe.scribe.backend import (
 from hyperscribe.scribe.clients.nabla.auth import NablaAuth
 from hyperscribe.scribe.clients.nabla.client import NablaClient
 
+
 _NABLA_API_VERSION = "2026-02-20"
 _NOTE_LOCALE = "ENGLISH_US"
 _NOTE_TEMPLATE = "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
@@ -110,7 +111,7 @@ class NablaBackend(ScribeBackend):
         lines = text.split("\n")
         for i, line in enumerate(lines):
             marker = NablaBackend._normalize_marker(line)
-            if marker == "ros" or marker == "review of systems":
+            if marker in ("ros", "review of systems", "review of systems (ros)"):
                 hpi_part = "\n".join(lines[:i]).rstrip()
                 ros_part = "\n".join(lines[i + 1 :]).strip()
                 return hpi_part, ros_part
@@ -175,8 +176,10 @@ class NablaBackend(ScribeBackend):
         transcript: Transcript,
         patient_context: PatientContext | None,
     ) -> dict[str, Any]:
-        ros_custom_instructions = (
-            "Include ROS at the end of this section and add positive and negative symptoms as mentioned.\n"
+        demographics = "Start this section with patient's name, age, gender, and [reason for visit as mentioned].\n"
+        hpi_custom_instructions = (
+            demographics
+            + "Include ROS at the end of this section and add positive and negative symptoms as mentioned.\n"
             "ROS\n"
             "General:\n"
             "Skin:\n"
@@ -201,10 +204,11 @@ class NablaBackend(ScribeBackend):
             "note_template": _NOTE_TEMPLATE,
             "note_locale": _NOTE_LOCALE,
             "note_sections_customization": [
-                {"section_key": "ASSESSMENT_AND_PLAN", "style": "PARAGRAPH", "split_by_problem": True},
+                {"section_key": "ASSESSMENT_AND_PLAN", "style": "BULLET_POINTS", "split_by_problem": True},
                 {
                     "section_key": "HISTORY_OF_PRESENT_ILLNESS",
-                    "custom_instruction": ros_custom_instructions,
+                    "style": "PARAGRAPH",
+                    "custom_instruction": hpi_custom_instructions,
                 },
             ],
         }
