@@ -145,55 +145,6 @@ function formatIcdCode(raw) {
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
-function getIcdCode(condition) {
-  if (!condition) return null;
-  for (const code of (condition.coding || [])) {
-    if (code.code) return formatIcdCode(code.code);
-  }
-  return null;
-}
-
-function renderStructuredAssessment(text, conditions) {
-  const blocks = parseAPBlocks(text);
-  if (blocks.length === 0) return null;
-
-  const matchedSet = new Set();
-  const problemEls = blocks.map((block, i) => {
-    const matched = matchCondition(block.header, conditions);
-    if (matched) matchedSet.add(matched);
-    const icd = getIcdCode(matched);
-    return html`
-      <div class="ap-problem" key=${i}>
-        ${block.header && html`
-          <div class="ap-problem-title">
-            ${block.header}${icd && html`${' '}<span class="ap-icd-code">(${icd})</span>`}
-          </div>
-        `}
-        ${block.body.length > 0 && html`
-          <div class="ap-problem-body">${block.body.join('\n')}</div>
-        `}
-      </div>
-    `;
-  });
-
-  // Show all ICD-10 codes at the bottom (including matched ones).
-  const codesWithIcd = (conditions || []).filter(c => (c.coding || []).some(code => code.code));
-  const codeEls = codesWithIcd.length > 0 && html`
-    <div class="icd-codes">
-      ${codesWithIcd.map(c => {
-        const codes = (c.coding || []).filter(code => code.code);
-        const name = c.display || (codes[0] && codes[0].display) || '';
-        return codes.map(code => html`
-          <div class="icd-condition" key=${code.code}>
-            ${name && html`<span class="icd-condition-name">${name} — </span>`}<span class="icd-code-badge">${formatIcdCode(code.code)}</span>
-          </div>
-        `);
-      })}
-    </div>
-  `;
-
-  return html`<div>${problemEls}${codeEls}</div>`;
-}
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -311,7 +262,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
              (key === 'allergies' && recommendations.some(r => r.command_type === 'allergy')));
           if (coveredKeys.has(key) && !hasRecsForKey) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
-          const codes = sectionConditions && sectionConditions[key];
 
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
             const isPlan = PLAN_SECTIONS.has(key);
@@ -400,29 +350,18 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             }
             const entry = cmds[0];
             const badge = COMMAND_BADGE[entry.command.command_type] || { label: entry.command.command_type, color: 'rfv' };
-            const hasStructured = isPlan && codes && codes.length > 0;
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
-                ${hasStructured
-                  ? html`
-                    <div class="content-block has-badge content-block--${badge.color}">
-                      <span class="content-block-badge badge-${entry.command.command_type}">${badge.label}</span>
-                      ${renderStructuredAssessment(s.text, codes)}
-                    </div>
-                  `
-                  : html`
-                    <div class="content-block has-badge content-block--${badge.color}">
-                      <span class="content-block-badge badge-${entry.command.command_type}">${badge.label}</span>
-                      <${CommandRow}
-                        command=${entry.command}
-                        commandIndex=${entry.index}
-                        onEdit=${onEditCommand}
-                        readOnly=${readOnly}
-                      />
-                    </div>
-                  `
-                }
+                <div class="content-block has-badge content-block--${badge.color}">
+                  <span class="content-block-badge badge-${entry.command.command_type}">${badge.label}</span>
+                  <${CommandRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    readOnly=${readOnly}
+                  />
+                </div>
               </div>
             `;
           }
