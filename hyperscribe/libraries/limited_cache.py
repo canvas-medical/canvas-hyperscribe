@@ -427,7 +427,11 @@ class LimitedCache:
             else:
                 sex_at_birth = "woman" if is_female else "man"
 
-            self._demographic = f"the patient is a {sex_at_birth}, born on {dob} (age {age_str})"
+            patient_name = f"{patient.first_name} {patient.last_name}".strip()
+            if obfuscate:
+                patient_name = "<NAME REDACTED>"
+            name_part = f"named {patient_name}, " if patient_name else ""
+            self._demographic = f"the patient is {name_part}a {sex_at_birth}, born on {dob} (age {age_str})"
 
             weight = (
                 Observation.objects.for_patient(self.patient_uuid)
