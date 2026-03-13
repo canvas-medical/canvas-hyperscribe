@@ -37,6 +37,7 @@ from hyperscribe.scribe.backend import (
     TranscriptItem,
     get_backend_from_secrets,
 )
+from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
 from hyperscribe.scribe.commands.builder import annotate_duplicates, build_effects
 from hyperscribe.scribe.commands.extractor import extract_commands
 from hyperscribe.scribe.recommendations import recommend_commands
@@ -52,8 +53,26 @@ def _format_icd10_code(raw: str) -> str:
 
 _CACHE_KEY_PREFIX = "scribe_transcript:"
 _SUMMARY_CACHE_KEY_PREFIX = "scribe_summary:"
+_PROGRESS_CACHE_KEY_PREFIX = "scribe_progress:"
 
 _PLAN_SECTION_KEYS = frozenset({"assessment_and_plan", "plan"})
+
+SUMMARY_STEPS = [
+    "Generating note",
+    "Structuring the note",
+    "Extracting commands",
+    "Generating recommendations",
+    "Suggesting diagnoses",
+]
+
+
+def _save_progress(note_id: str, step: int, total: int, label: str) -> None:
+    key = f"{_PROGRESS_CACHE_KEY_PREFIX}{note_id}"
+    try:
+        cache = get_cache()
+        cache.set(key, json.dumps({"step": step, "total": total, "label": label}))
+    except Exception:
+        log.exception(f"progress cache save FAILED: key={key}")
 
 
 def _serialize_condition(condition: Condition) -> dict[str, Any]:
@@ -117,13 +136,27 @@ def _load_transcript_from_cache(note_id: str) -> dict[str, Any] | None:
 
 
 def _save_summary_to_cache(
-    note_id: str, note_data: dict[str, Any], commands: list[dict[str, Any]], *, approved: bool = False
+    note_id: str,
+    note_data: dict[str, Any],
+    commands: list[dict[str, Any]],
+    *,
+    approved: bool = False,
+    recommendations: list[dict[str, Any]] | None = None,
+    unmatched_conditions: list[dict[str, Any]] | None = None,
+    diagnosis_suggestions: dict[str, Any] | None = None,
 ) -> None:
     key = f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}"
     log.info(f"summary cache save: key={key} approved={approved}")
     try:
         cache = get_cache()
-        cache.set(key, json.dumps({"note": note_data, "commands": commands, "approved": approved}))
+        payload: dict[str, Any] = {"note": note_data, "commands": commands, "approved": approved}
+        if recommendations is not None:
+            payload["recommendations"] = recommendations
+        if unmatched_conditions is not None:
+            payload["unmatched_conditions"] = unmatched_conditions
+        if diagnosis_suggestions is not None:
+            payload["diagnosis_suggestions"] = diagnosis_suggestions
+        cache.set(key, json.dumps(payload))
     except Exception:
         log.exception(f"summary cache save FAILED: key={key}")
 
@@ -289,6 +322,167 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         approved = bool(data.get("approved", False))
         _save_summary_to_cache(note_id, note_data, commands, approved=approved)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
+
+    @api.get("/summary-progress")
+    def get_summary_progress(self) -> list[Union[Response, Effect]]:
+        """Return current progress of the generate-summary pipeline."""
+        note_id = self.request.query_params.get("note_id", "")
+        key = f"{_PROGRESS_CACHE_KEY_PREFIX}{note_id}"
+        try:
+            cache = get_cache()
+            raw = cache.get(key)
+        except Exception:
+            raw = None
+        if raw is None:
+            return [JSONResponse({"step": -1, "total": 0, "label": ""}, status_code=HTTPStatus.OK)]
+        return [JSONResponse(json.loads(raw), status_code=HTTPStatus.OK)]
+
+    @api.post("/generate-summary")
+    def post_generate_summary(self) -> list[Union[Response, Effect]]:
+        """Run the full summary pipeline: note → commands → recommendations → diagnoses.
+
+        Returns the complete summary in one response and caches it.
+        """
+        try:
+            backend = get_backend_from_secrets(self.secrets)
+        except ScribeError as exc:
+            return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.BAD_REQUEST)]
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        note_id = str(data.get("note_id", ""))
+        if not note_id:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        total = len(SUMMARY_STEPS)
+
+        # ── Step 0: Generate note ──
+        _save_progress(note_id, 0, total, SUMMARY_STEPS[0])
+
+        transcript_data = data.get("transcript", {})
+        transcript_items = transcript_data.get("items", [])
+        cached_data: dict[str, Any] | None = None
+        if not transcript_items:
+            cached_data = _load_transcript_from_cache(note_id)
+            if cached_data:
+                transcript_items = cached_data["items"]
+                transcript_data = {"items": transcript_items}
+
+        if not transcript_items:
+            return [JSONResponse({"error": "No transcript available"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        is_finalized = (cached_data or {}).get("finalized", False) if not data.get("transcript") else True
+        if not is_finalized:
+            return [
+                JSONResponse(
+                    {"error": "Transcript is still in progress. Finish recording before generating a summary."},
+                    status_code=HTTPStatus.BAD_REQUEST,
+                )
+            ]
+
+        transcript = _parse_transcript(transcript_data)
+        patient_context = _parse_patient_context(data)
+        try:
+            note = backend.generate_note(transcript, patient_context=patient_context)
+        except ScribeError as exc:
+            return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
+
+        note_dict: dict[str, Any] = {
+            "title": note.title,
+            "sections": [{"key": s.key, "title": s.title, "text": s.text} for s in note.sections],
+        }
+
+        # ── Step 1: Generate normalized data ──
+        _save_progress(note_id, 1, total, SUMMARY_STEPS[1])
+        section_conditions: dict[str, list[dict[str, Any]]] = {}
+        try:
+            normalized = backend.generate_normalized_data(note)
+            section_conditions = _match_conditions_to_sections(note, normalized.conditions)
+        except Exception:
+            log.exception("generate_normalized_data failed (non-critical)")
+
+        # ── Step 2: Extract commands + A&P split ──
+        _save_progress(note_id, 2, total, SUMMARY_STEPS[2])
+        note_uuid = str(data.get("note_uuid", ""))
+        proposals = extract_commands(note)
+        annotate_duplicates(proposals, note_uuid)
+        commands_list: list[dict[str, Any]] = [
+            {
+                "command_type": p.command_type,
+                "display": p.display,
+                "data": p.data,
+                "selected": p.selected,
+                "section_key": p.section_key,
+                "already_documented": p.already_documented,
+            }
+            for p in proposals
+        ]
+        # A&P split: replace plan command with per-condition diagnose commands.
+        commands_list, unmatched_conditions = split_plan_into_diagnoses(commands_list, section_conditions)
+
+        # ── Step 3: Recommend commands ──
+        _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
+        recommendations_list: list[dict[str, Any]] = []
+        api_key = self.secrets.get("AnthropicAPIKey", "")
+        if api_key:
+            try:
+                rec_proposals = recommend_commands(note, api_key)
+                annotate_duplicates(rec_proposals, note_uuid)
+                recommendations_list = [
+                    {
+                        "command_type": p.command_type,
+                        "display": p.display,
+                        "data": p.data,
+                        "selected": p.selected,
+                        "section_key": p.section_key,
+                        "already_documented": p.already_documented,
+                    }
+                    for p in rec_proposals
+                ]
+            except Exception:
+                log.exception("recommend_commands failed (non-critical)")
+
+        # ── Step 4: Suggest diagnoses for unmatched blocks ──
+        _save_progress(note_id, 4, total, SUMMARY_STEPS[4])
+        diagnosis_suggestions: dict[str, Any] = {}
+        unmatched_headers = [
+            c["data"].get("condition_header", "")
+            for c in commands_list
+            if c.get("command_type") == "diagnose" and not c.get("data", {}).get("icd10_code")
+        ]
+        unmatched_headers = [h for h in unmatched_headers if h]
+        if unmatched_headers and api_key:
+            try:
+                diagnosis_suggestions = suggest_diagnoses(unmatched_headers, api_key)
+            except Exception:
+                log.exception("suggest_diagnoses failed (non-critical)")
+
+        # ── Save to cache ──
+        _save_summary_to_cache(
+            note_id,
+            note_dict,
+            commands_list,
+            approved=False,
+            recommendations=recommendations_list,
+            unmatched_conditions=unmatched_conditions,
+            diagnosis_suggestions=diagnosis_suggestions,
+        )
+
+        return [
+            JSONResponse(
+                {
+                    "note": note_dict,
+                    "commands": commands_list,
+                    "recommendations": recommendations_list,
+                    "section_conditions": section_conditions,
+                    "unmatched_conditions": unmatched_conditions,
+                    "diagnosis_suggestions": diagnosis_suggestions,
+                },
+                status_code=HTTPStatus.OK,
+            )
+        ]
 
     @api.post("/generate-note")
     def post_generate_note(self) -> list[Union[Response, Effect]]:
