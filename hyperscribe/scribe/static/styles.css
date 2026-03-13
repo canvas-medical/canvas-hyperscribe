@@ -360,6 +360,7 @@ h2 { margin-bottom: 4px; }
 .content-block--chart_review { border-color: #93c5fd; }
 .content-block--diagnose { border-color: #10b981; }
 .content-block--assess { border-color: #10b981; }
+.content-block--physical_exam { border-color: #14b8a6; }
 
 /* Recommendation accept/reject */
 .recommendation-block {
@@ -547,6 +548,7 @@ h2 { margin-bottom: 4px; }
 .badge-chart_review { background: #2563eb; }
 .badge-diagnose { background: #10b981; }
 .badge-assess { background: #10b981; }
+.badge-physical_exam { background: #14b8a6; }
 
 /* Inline command rows */
 .command-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; cursor: pointer; white-space: pre-line; }
@@ -868,3 +870,50 @@ h2 { margin-bottom: 4px; }
 
 /* Add condition inline search */
 .ap-add-condition-area { position: relative; margin-top: 4px; }
+
+/* Rx verification banner */
+.rx-verification-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
+  margin: 12px 8px;
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+}
+.rx-verification-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f59e0b;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: 700;
+}
+.rx-verification-text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #92400e;
+}
+.rx-verification-text strong { font-size: 14px; display: block; margin-bottom: 2px; }
+.rx-verification-text p { margin: 0; }
+.rx-verification-close {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: #f59e0b;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.rx-verification-close:hover { background: #d97706; }

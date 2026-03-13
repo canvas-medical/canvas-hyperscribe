@@ -8,7 +8,7 @@ from logger import log
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 
 from hyperscribe.libraries.canvas_science import CanvasScience
-from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
+from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import PrescriptionRecommendationList
 from hyperscribe.structures.medication_detail import MedicationDetail
@@ -18,8 +18,7 @@ _RELEVANT_KEYS = {"assessment_and_plan", "plan", "history_of_present_illness", "
 _SYSTEM_PROMPT = (
     "You are a clinical data extraction assistant. "
     "Extract only NEW prescriptions the provider intends to write from the clinical note sections below. "
-    "Do NOT include medications the patient is already taking, continuing, "
-    "or that are part of their medication history "
+    "Do NOT include medications the patient is already taking, continuing, or that are part of their medication history "
     "— those are medication statements, not new prescriptions. "
     "Only include medications that are being newly prescribed or started during this visit. "
     "For each prescription, provide the full medication name with strength/form, the sig (directions), "
@@ -55,9 +54,7 @@ def _resolve_prescription(
 
 
 class PrescriptionRecommender(BaseRecommender):
-    def recommend(
-        self, note: ClinicalNote, client: LlmAnthropic, transcript: Transcript | None = None
-    ) -> list[CommandProposal]:
+    def recommend(self, note: ClinicalNote, client: LlmAnthropic) -> list[CommandProposal]:
         all_keys = [s.key for s in note.sections]
         log.info(f"PrescriptionRecommender: note section keys={all_keys}, filtering by {_RELEVANT_KEYS}")
         sections = [s for s in note.sections if s.key.lower() in _RELEVANT_KEYS and s.text.strip()]
