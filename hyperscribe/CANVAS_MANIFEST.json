@@ -221,6 +221,7 @@
     "CommandsPolicy",
     "CustomPrompts",
     "CycleTranscriptOverlap",
+    "EnableCacheApp",
     "HierarchicalDetectionThreshold",
     "IsTuning",
     "KeyAudioLLM",
