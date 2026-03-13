@@ -1186,74 +1186,32 @@ def test_demographic__str__(observation_db, mock_date):
     mock_date.today.return_value = date(2025, 2, 5)
 
     tests = [
-        (
-            "F",
-            date(1941, 2, 7),
-            False,
-            "the patient is a elderly woman, born on February 07, 1941 (age 83) and weight 124.38 pounds",
-        ),
-        (
-            "F",
-            date(1941, 2, 7),
-            True,
-            "the patient is a elderly woman, born on <DOB REDACTED> (age 83) and weight 124.38 pounds",
-        ),
-        (
-            "F",
-            date(2000, 2, 7),
-            False,
-            "the patient is a woman, born on February 07, 2000 (age 24) and weight 124.38 pounds",
-        ),
-        (
-            "F",
-            date(2020, 2, 7),
-            False,
-            "the patient is a girl, born on February 07, 2020 (age 4) and weight 124.38 pounds",
-        ),
-        (
-            "F",
-            date(2024, 7, 2),
-            False,
-            "the patient is a baby girl, born on July 02, 2024 (age 7 months) and weight 124.38 pounds",
-        ),
-        (
-            "O",
-            date(1941, 2, 7),
-            False,
-            "the patient is a elderly man, born on February 07, 1941 (age 83) and weight 124.38 pounds",
-        ),
-        (
-            "O",
-            date(2000, 2, 7),
-            False,
-            "the patient is a man, born on February 07, 2000 (age 24) and weight 124.38 pounds",
-        ),
-        (
-            "O",
-            date(2020, 2, 7),
-            False,
-            "the patient is a boy, born on February 07, 2020 (age 4) and weight 124.38 pounds",
-        ),
-        (
-            "O",
-            date(2024, 7, 2),
-            False,
-            "the patient is a baby boy, born on July 02, 2024 (age 7 months) and weight 124.38 pounds",
-        ),
-        (
-            "O",
-            date(2024, 7, 2),
-            True,
-            "the patient is a baby boy, born on <DOB REDACTED> (age 7 months) and weight 124.38 pounds",
-        ),
+        ("F", date(1941, 2, 7), False, "elderly woman", "February 07, 1941", "83"),
+        ("F", date(1941, 2, 7), True, "elderly woman", "<DOB REDACTED>", "83"),
+        ("F", date(2000, 2, 7), False, "woman", "February 07, 2000", "24"),
+        ("F", date(2020, 2, 7), False, "girl", "February 07, 2020", "4"),
+        ("F", date(2024, 7, 2), False, "baby girl", "July 02, 2024", "7 months"),
+        ("O", date(1941, 2, 7), False, "elderly man", "February 07, 1941", "83"),
+        ("O", date(2000, 2, 7), False, "man", "February 07, 2000", "24"),
+        ("O", date(2020, 2, 7), False, "boy", "February 07, 2020", "4"),
+        ("O", date(2024, 7, 2), False, "baby boy", "July 02, 2024", "7 months"),
+        ("O", date(2024, 7, 2), True, "baby boy", "<DOB REDACTED>", "7 months"),
     ]
 
-    for sex_at_birth, birth_date, obfuscate, expected in tests:
+    for sex_at_birth, birth_date, obfuscate, sex_label, dob_str, age_str in tests:
         patient = factories.PatientFactory(sex_at_birth=sex_at_birth, birth_date=birth_date)
         observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
             Observation(units="oz", value="1990"),
         ]
         tested = LimitedCache(patient.id, "providerUuid", {})
+
+        patient_name = f"{patient.first_name} {patient.last_name}"
+        if obfuscate:
+            patient_name = "<NAME REDACTED>"
+        expected = (
+            f"the patient is named {patient_name}, a {sex_label}, "
+            f"born on {dob_str} (age {age_str}) and weight 124.38 pounds"
+        )
 
         result = tested.demographic__str__(obfuscate)
         assert result == expected, f" ---> {sex_at_birth} - {birth_date}"
@@ -1281,7 +1239,9 @@ def test_demographic__str__(observation_db, mock_date):
     observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [None]
     tested = LimitedCache(patient.id, "providerUuid", {})
     result = tested.demographic__str__(False)
-    expected = "the patient is a woman, born on February 07, 2000 (age 24)"
+    expected = (
+        f"the patient is named {patient.first_name} {patient.last_name}, a woman, born on February 07, 2000 (age 24)"
+    )
     assert result == expected
     assert tested._demographic == expected
     calls = [
@@ -1302,7 +1262,10 @@ def test_demographic__str__(observation_db, mock_date):
     ]
     tested = LimitedCache(patient.id, "providerUuid", {})
     result = tested.demographic__str__(False)
-    expected = "the patient is a woman, born on February 07, 2000 (age 24) and weight 125.00 pounds"
+    expected = (
+        f"the patient is named {patient.first_name} {patient.last_name},"
+        " a woman, born on February 07, 2000 (age 24) and weight 125.00 pounds"
+    )
     assert result == expected
     assert tested._demographic == expected
     calls = [
