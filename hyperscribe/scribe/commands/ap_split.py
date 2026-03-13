@@ -29,18 +29,6 @@ _STOP_WORDS = frozenset(
         "probable",
         "likely",
         "suspected",
-        "unspecified",
-        "specified",
-        "other",
-        "disorder",
-        "disease",
-        "syndrome",
-        "condition",
-        "type",
-        "acute",
-        "chronic",
-        "primary",
-        "secondary",
     }
 )
 
@@ -183,18 +171,7 @@ def split_plan_into_diagnoses(
     matched_set: set[int] = set()
 
     for block in blocks:
-        # Prefer exact match via Nabla's corresponding_note_problem field.
-        matched = next(
-            (
-                c
-                for c in codes
-                if c.get("corresponding_note_problem")
-                and c["corresponding_note_problem"].strip().lower() == block.header.strip().lower()
-            ),
-            None,
-        )
-        if not matched:
-            matched = match_condition(block.header, codes)
+        matched = match_condition(block.header, codes)
         icd: dict[str, Any] | None = None
         if matched:
             icd = next((cd for cd in (matched.get("coding") or []) if cd.get("code")), None)
@@ -216,7 +193,7 @@ def split_plan_into_diagnoses(
                     "icd10_display": icd10_display,
                     "condition_header": block.header,
                     "today_assessment": "\n".join(block.body),
-                    "accepted": False,
+                    "accepted": bool(icd),
                 },
                 section_key=ap_cmd.get("section_key", "assessment_and_plan"),
             )

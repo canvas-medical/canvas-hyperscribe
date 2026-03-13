@@ -825,5 +825,46 @@ h2 { margin-bottom: 4px; }
 .ap-suggested-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; font-size: 12px; font-weight: 500; color: #052B49; background: #f0f4ff; border: 1px solid #93c5fd; border-radius: 14px; cursor: pointer; transition: all 0.15s; }
 .ap-suggested-chip:hover { background: #dbeafe; border-color: #2563eb; }
 
+/* Progress stepper (shown during generate-summary) */
+.progress-stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 32px 24px;
+  max-width: 300px;
+  margin: 0 auto;
+}
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #aaa;
+  transition: color 0.2s, opacity 0.2s;
+}
+.progress-step.active {
+  color: #052B49;
+  font-weight: 600;
+}
+.progress-step.done {
+  color: #059669;
+}
+.progress-step-indicator {
+  width: 18px;
+  text-align: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.progress-step.active .progress-step-indicator {
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.progress-step-label {
+  line-height: 1.4;
+}
+
 /* Add condition inline search */
 .ap-add-condition-area { position: relative; margin-top: 4px; }
