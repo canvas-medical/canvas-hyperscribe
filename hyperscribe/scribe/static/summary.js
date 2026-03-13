@@ -38,6 +38,14 @@ const SOAP_GROUPS = [
   { title: 'PLAN', color: 'plan', keys: new Set(['plan', 'assessment_and_plan', 'prescription', 'appointments']) },
 ];
 
+const PROGRESS_STEPS = [
+  'Generating note',
+  'Structuring the note',
+  'Extracting commands',
+  'Generating recommendations',
+  'Suggesting diagnoses',
+];
+
 function buildCommandBySectionKey(commands) {
   const map = {};
   commands.forEach((cmd, index) => {
@@ -95,20 +103,16 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   const [generating, setGenerating] = useState(true);
   const [error, setError] = useState(null);
   const [commands, setCommands] = useState([]);
-  const [extracting, setExtracting] = useState(false);
   const [inserting, setInserting] = useState(false);
   const [approved, setApproved] = useState(false);
   const [assignees, setAssignees] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
-  const [recommending, setRecommending] = useState(false);
   const [sectionConditions, setSectionConditions] = useState({});
   const [unmatchedConditions, setUnmatchedConditions] = useState([]);
   const [diagnosisSuggestions, setDiagnosisSuggestions] = useState({});
+  const [progress, setProgress] = useState({ step: -1, total: 0, label: '' });
   const [seedText, setSeedText] = useState('');
   const [seedError, setSeedError] = useState(null);
-  const mockLoaded = useRef(false);
-  const cacheLoaded = useRef(false);
-  const suggestionsFetched = useRef(false);
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved) => {
     try {
@@ -122,7 +126,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     }
   }, [noteId]);
 
-  // Generate note on mount (skip when DEV_MOCK — paste box handles it).
+  // Load summary from cache or generate via single endpoint.
   useEffect(() => {
     if (DEV_MOCK) return;
     let cancelled = false;
@@ -134,11 +138,12 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
         if (!cancelled) {
           const cached = await cacheRes.json();
           if (cached.note) {
-            mockLoaded.current = true;
-            cacheLoaded.current = !!(cached.commands && cached.commands.length);
             setNoteData(cached.note);
             setCommands(cached.commands || []);
             setApproved(Boolean(cached.approved));
+            setRecommendations(cached.recommendations || []);
+            setUnmatchedConditions(cached.unmatched_conditions || []);
+            setDiagnosisSuggestions(cached.diagnosis_suggestions || {});
             setGenerating(false);
             return;
           }
@@ -147,22 +152,27 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
         // Cache miss — fall through to generate.
       }
 
-      // No cached summary — try generating automatically.
+      // No cached summary — call generate-summary (single endpoint).
       try {
-        const res = await fetch(`${API_BASE}/generate-note`, {
+        const res = await fetch(`${API_BASE}/generate-summary`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ note_id: noteId }),
+          body: JSON.stringify({ note_id: noteId, note_uuid: noteId }),
         });
         if (cancelled) return;
         const data = await res.json();
         if (data.error) {
           setError(data.error);
         } else {
-          setNoteData(data);
+          setNoteData(data.note);
+          setCommands(data.commands || []);
+          setRecommendations(data.recommendations || []);
+          setSectionConditions(data.section_conditions || {});
+          setUnmatchedConditions(data.unmatched_conditions || []);
+          setDiagnosisSuggestions(data.diagnosis_suggestions || {});
         }
       } catch (err) {
-        if (!cancelled) setError('Failed to generate note');
+        if (!cancelled) setError('Failed to generate summary');
       } finally {
         if (!cancelled) setGenerating(false);
       }
@@ -172,218 +182,49 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     return () => { cancelled = true; };
   }, [noteId]);
 
+  // Poll progress while generating.
+  useEffect(() => {
+    if (!generating || DEV_MOCK) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/summary-progress?note_id=${encodeURIComponent(noteId)}`);
+        const data = await res.json();
+        setProgress(data);
+      } catch (err) {
+        // Ignore polling errors.
+      }
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [generating, noteId]);
+
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/generate-note`, {
+      const res = await fetch(`${API_BASE}/generate-summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: noteId }),
+        body: JSON.stringify({ note_id: noteId, note_uuid: noteId }),
       });
       const data = await res.json();
       if (data.error) {
         setError(data.error);
       } else {
-        setNoteData(data);
+        setNoteData(data.note);
+        setCommands(data.commands || []);
+        setRecommendations(data.recommendations || []);
+        setSectionConditions(data.section_conditions || {});
+        setUnmatchedConditions(data.unmatched_conditions || []);
+        setDiagnosisSuggestions(data.diagnosis_suggestions || {});
       }
     } catch (err) {
-      setError('Failed to generate note');
+      setError('Failed to generate summary');
     } finally {
       setGenerating(false);
     }
   }, [noteId]);
 
-  // Extract commands once note is available (skip if loaded from cache).
-  useEffect(() => {
-    if (!noteData || cacheLoaded.current) return;
-
-    let cancelled = false;
-
-    async function extractCommands() {
-      setExtracting(true);
-      try {
-        const res = await fetch(`${API_BASE}/extract-commands`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ note: noteData, note_uuid: noteId }),
-        });
-        if (cancelled) return;
-        const data = await res.json();
-        if (data.commands) {
-          setCommands(data.commands);
-          // Save initial summary to cache.
-          saveSummaryToCache(noteData, data.commands, false);
-        }
-      } catch (err) {
-        console.error('Failed to extract commands:', err);
-      } finally {
-        if (!cancelled) {
-          setExtracting(false);
-        }
-      }
-    }
-
-    extractCommands();
-    return () => { cancelled = true; };
-  }, [noteData]);
-
-  // Fetch LLM-based recommendations in parallel with extract-commands.
-  useEffect(() => {
-    if (!noteData) return;
-
-    let cancelled = false;
-
-    async function fetchRecommendations() {
-      setRecommending(true);
-      try {
-        const res = await fetch(`${API_BASE}/recommend-commands`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ note: noteData, note_uuid: noteId }),
-        });
-        if (cancelled) return;
-        const data = await res.json();
-        if (data.commands) {
-          setRecommendations(data.commands);
-        }
-      } catch (err) {
-        console.error('Failed to fetch recommendations:', err);
-      } finally {
-        if (!cancelled) {
-          setRecommending(false);
-        }
-      }
-    }
-
-    fetchRecommendations();
-    return () => { cancelled = true; };
-  }, [noteData]);
-
-  // Fetch normalized data (ICD-10 codes per section) in parallel.
-  useEffect(() => {
-    if (!noteData) return;
-
-    let cancelled = false;
-
-    async function fetchNormalizedData() {
-      try {
-        const res = await fetch(`${API_BASE}/generate-normalized-data`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ note: noteData }),
-        });
-        if (cancelled) return;
-        const data = await res.json();
-        if (data.section_conditions) {
-          setSectionConditions(data.section_conditions);
-        }
-      } catch (err) {
-        console.error('Failed to fetch normalized data:', err);
-      }
-    }
-
-    fetchNormalizedData();
-    return () => { cancelled = true; };
-  }, [noteData]);
-
-  // Split A&P plan command into per-condition diagnose commands once normalized data arrives.
-  const apSplitDone = useRef(false);
-  useEffect(() => {
-    if (!sectionConditions || !commands.length || apSplitDone.current) return;
-    const apIdx = commands.findIndex(c =>
-      c.command_type === 'plan' && (c.section_key === 'assessment_and_plan' || c.section_key === 'plan')
-    );
-    if (apIdx === -1) return;
-    const apCmd = commands[apIdx];
-    const codes = sectionConditions['assessment_and_plan'] || sectionConditions['plan'] || [];
-    const blocks = parseAPBlocks(apCmd.data.narrative);
-    if (blocks.length === 0) return;
-
-    const diagnoseCommands = blocks.map(block => {
-      const matched = matchCondition(block.header, codes);
-      const icd = matched && (matched.coding || []).find(c => c.code);
-      return {
-        command_type: 'diagnose',
-        display: icd ? (icd.display || matched.display || block.header) : block.header,
-        data: {
-          icd10_code: icd ? icd.code : null,
-          icd10_display: icd ? (icd.display || matched.display || '') : '',
-          condition_header: block.header,
-          today_assessment: block.body.join('\n'),
-        },
-        selected: true,
-        section_key: apCmd.section_key,
-        already_documented: false,
-      };
-    });
-
-    // Track which sectionConditions were NOT matched to any A&P block.
-    const matchedSet = new Set();
-    blocks.forEach(block => {
-      const m = matchCondition(block.header, codes);
-      if (m) matchedSet.add(m);
-    });
-    setUnmatchedConditions((codes || []).filter(c => !matchedSet.has(c)));
-
-    apSplitDone.current = true;
-    setCommands(prev => [
-      ...prev.slice(0, apIdx),
-      ...diagnoseCommands,
-      ...prev.slice(apIdx + 1),
-    ]);
-  }, [sectionConditions, commands]);
-
-  // Compute unmatched conditions when commands are loaded from cache (apSplit won't run).
-  const unmatchedComputedFromCache = useRef(false);
-  useEffect(() => {
-    if (unmatchedComputedFromCache.current || apSplitDone.current) return;
-    if (!sectionConditions || !commands.length) return;
-    const hasDiagnose = commands.some(c => c.command_type === 'diagnose');
-    const hasPlan = commands.some(c =>
-      c.command_type === 'plan' && ['assessment_and_plan', 'plan'].includes(c.section_key)
-    );
-    // Cache path: diagnose commands exist but no plan command to split.
-    if (!hasDiagnose || hasPlan) return;
-    unmatchedComputedFromCache.current = true;
-
-    const codes = sectionConditions['assessment_and_plan'] || sectionConditions['plan'] || [];
-    if (!codes.length) return;
-    const matchedSet = new Set();
-    commands.filter(c => c.command_type === 'diagnose').forEach(c => {
-      const m = matchCondition(c.data.condition_header || '', codes);
-      if (m) matchedSet.add(m);
-    });
-    setUnmatchedConditions(codes.filter(c => !matchedSet.has(c)));
-  }, [sectionConditions, commands]);
-
-  // Fetch LLM suggestions for diagnose blocks that have no ICD code.
-  useEffect(() => {
-    if (suggestionsFetched.current) return;
-    const hasDiagnose = commands.some(c => c.command_type === 'diagnose');
-    if (!hasDiagnose) return;
-    // Wait for apSplit OR cache-loaded diagnose commands (no plan command left).
-    const hasPlan = commands.some(c =>
-      c.command_type === 'plan' && ['assessment_and_plan', 'plan'].includes(c.section_key)
-    );
-    if (hasPlan) return;  // Still waiting for split.
-    const unmatchedHeaders = commands
-      .filter(c => c.command_type === 'diagnose' && !c.data.icd10_code)
-      .map(c => c.data.condition_header)
-      .filter(Boolean);
-    if (!unmatchedHeaders.length) return;
-    suggestionsFetched.current = true;
-    fetch(`${API_BASE}/suggest-diagnoses`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conditions: unmatchedHeaders }),
-    })
-      .then(r => r.json())
-      .then(data => { if (data.suggestions) setDiagnosisSuggestions(data.suggestions); })
-      .catch(err => console.error('Diagnosis suggestion failed:', err));
-  }, [commands]);
-
-  // Fetch assignees for task assignment.
+  // Fetch assignees for task assignment (independent, small).
   useEffect(() => {
     let cancelled = false;
     async function fetchAssignees() {
@@ -400,6 +241,27 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     return () => { cancelled = true; };
   }, []);
 
+  // Compute unmatched conditions when loading from old cache format (no unmatched_conditions key).
+  useEffect(() => {
+    // Only run for cache loads where we have commands + sectionConditions but no unmatched_conditions.
+    if (!noteData || !commands.length || unmatchedConditions.length > 0) return;
+    if (!sectionConditions || !Object.keys(sectionConditions).length) return;
+    const hasDiagnose = commands.some(c => c.command_type === 'diagnose');
+    const hasPlan = commands.some(c =>
+      c.command_type === 'plan' && ['assessment_and_plan', 'plan'].includes(c.section_key)
+    );
+    if (!hasDiagnose || hasPlan) return;
+
+    const codes = sectionConditions['assessment_and_plan'] || sectionConditions['plan'] || [];
+    if (!codes.length) return;
+    const matchedSet = new Set();
+    commands.filter(c => c.command_type === 'diagnose').forEach(c => {
+      const m = matchCondition(c.data.condition_header || '', codes);
+      if (m) matchedSet.add(m);
+    });
+    setUnmatchedConditions(codes.filter(c => !matchedSet.has(c)));
+  }, [sectionConditions, commands, noteData, unmatchedConditions]);
+
   const handleSeedGenerate = useCallback(async () => {
     let items;
     try {
@@ -415,21 +277,26 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       await fetch(`${API_BASE}/save-transcript`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: noteId, transcript: { items } }),
+        body: JSON.stringify({ note_id: noteId, transcript: { items }, finalized: true }),
       });
-      const res = await fetch(`${API_BASE}/generate-note`, {
+      const res = await fetch(`${API_BASE}/generate-summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: noteId }),
+        body: JSON.stringify({ note_id: noteId, note_uuid: noteId }),
       });
       const data = await res.json();
       if (data.error) {
         setError(data.error);
       } else {
-        setNoteData(data);
+        setNoteData(data.note);
+        setCommands(data.commands || []);
+        setRecommendations(data.recommendations || []);
+        setSectionConditions(data.section_conditions || {});
+        setUnmatchedConditions(data.unmatched_conditions || []);
+        setDiagnosisSuggestions(data.diagnosis_suggestions || {});
       }
     } catch (err) {
-      setError('Failed to generate note');
+      setError('Failed to generate summary');
     } finally {
       setGenerating(false);
     }
@@ -701,7 +568,14 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   if (generating && !noteData) {
     return html`
       <div class="summary-container">
-        <p class="generating-message">Loading...</p>
+        <div class="progress-stepper">
+          ${PROGRESS_STEPS.map((label, i) => html`
+            <div class="progress-step ${i < progress.step ? 'done' : ''} ${i === progress.step ? 'active' : ''}" key=${i}>
+              <span class="progress-step-indicator">${i < progress.step ? '\u2713' : (i === progress.step ? '\u2022' : '')}</span>
+              <span class="progress-step-label">${label}</span>
+            </div>
+          `)}
+        </div>
       </div>
     `;
   }
@@ -739,7 +613,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     return !c.already_documented && c.display;
   }).length
     + recommendations.filter(c => c.accepted && !c.already_documented && c.display).length;
-  const showFooter = !extracting && !approved && (insertableCount > 0);
+  const showFooter = !approved && (insertableCount > 0);
 
   return html`
     <div class="summary-container">
@@ -766,8 +640,6 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
           unmatchedConditions,
           diagnosisSuggestions,
         })}
-        ${extracting && html`<p class="generating-message">Extracting commands...</p>`}
-        ${recommending && html`<p class="generating-message">Finding recommendations...</p>`}
       </div>
       ${showFooter && html`
         <div class="summary-footer">
