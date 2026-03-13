@@ -145,7 +145,7 @@ def test_command_from_json(add_code2description, current_conditions):
             condition_id=exp_uuid,
             background="theRationale",
             status=AssessCommand.Status.STABLE,
-            narrative="theAssessment",
+            narrative="Assessment: theAssessment\nPlan:",
             note_uuid="noteUuid",
         )
         expected = InstructionWithCommand(**(arguments | {"command": command}))
@@ -155,6 +155,108 @@ def test_command_from_json(add_code2description, current_conditions):
         assert add_code2description.mock_calls == exp_calls
         assert chatter.mock_calls == []
         reset_mocks()
+
+
+def test_is_filler_narrative():
+    tested = Base
+    filler_texts = [
+        "Depression screening was not discussed or evaluated during this visit.",
+        "This condition was not discussed during today's visit.",
+        "Hypertension was not evaluated at this appointment.",
+        "Not addressed during this encounter.",
+        "This condition was not reviewed during the visit.",
+        "Not mentioned in today's visit.",
+        "Anxiety was not assessed during today's visit.",
+        "No assessment is available for this condition.",
+        "No update available for this condition.",
+        "No evaluation is provided.",
+        "No status update is available.",
+        "No explicit discussion or evaluation of depressive symptoms during this visit.",
+        "No discussion of this condition during the visit.",
+        "No evaluation regarding anxiety was performed.",
+        "No explicit review of this condition during today's encounter.",
+    ]
+    for text in filler_texts:
+        assert tested.is_filler_narrative(text) is True, f"Expected filler: {text!r}"
+
+    real_texts = [
+        "Patient reports improved mood with current SSRI regimen.",
+        "Blood pressure well controlled at 128/82.",
+        "Assessment: Condition stable.\nPlan:\n- Continue current meds",
+        "Discussed treatment options with patient.",
+    ]
+    for text in real_texts:
+        assert tested.is_filler_narrative(text) is False, f"Expected real: {text!r}"
+
+
+@patch.object(LimitedCache, "current_conditions")
+def test_command_from_json__filler_suppressed(current_conditions):
+    chatter = MagicMock()
+    tested = helper_instance()
+    conditions = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+    ]
+    current_conditions.side_effect = [conditions]
+    arguments = {
+        "uuid": "theUuid",
+        "index": 7,
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "previous_information": "thePreviousInformation",
+        "parameters": {
+            "assessment": "Depression screening was not discussed or evaluated during this visit.",
+            "condition": "display1a",
+            "conditionIndex": 0,
+            "rationale": "theRationale",
+            "status": "stable",
+        },
+    }
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    assert result is None
+    assert current_conditions.mock_calls == []
+    assert chatter.mock_calls == []
+
+
+def test_post_process_narrative():
+    tested = Assess
+    tests = [
+        # Both sections present -- returned as-is
+        (
+            "Assessment: Condition is stable.\nPlan:\n- Continue current meds",
+            "Assessment: Condition is stable.\nPlan:\n- Continue current meds",
+        ),
+        # Only Assessment header -- Plan header appended
+        (
+            "Assessment: Patient improving with therapy.",
+            "Assessment: Patient improving with therapy.\nPlan:",
+        ),
+        # Only Plan header -- Assessment header prepended
+        (
+            "Some preamble text\nPlan:\n- Follow up in 2 weeks",
+            "Assessment: Some preamble text\nPlan:\n- Follow up in 2 weeks",
+        ),
+        # Only Plan header with no preceding text
+        (
+            "Plan:\n- Labs ordered",
+            "Assessment:\nPlan:\n- Labs ordered",
+        ),
+        # Neither header present -- both added
+        (
+            "Condition stable on current regimen",
+            "Assessment: Condition stable on current regimen\nPlan:",
+        ),
+        # Case-insensitive matching
+        (
+            "assessment: Doing well\nplan:\n- Continue",
+            "assessment: Doing well\nplan:\n- Continue",
+        ),
+    ]
+    for text, expected in tests:
+        result = tested.post_process_narrative(text)
+        assert result == expected
 
 
 def test_command_parameters():
@@ -190,7 +292,26 @@ def test_command_parameters_schemas(current_conditions):
                 "additionalProperties": False,
                 "properties": {
                     "assessment": {
-                        "description": "Today's assessment of the condition, as free text",
+                        "description": (
+                            "Today's assessment of the condition, "
+                            "structured with "
+                            "two labeled sections separated by a "
+                            "newline:\n"
+                            "Assessment: 1-3 sentences combining "
+                            "clinical symptoms "
+                            "with functional observations, "
+                            "summarizing the status, history, and "
+                            "any barriers "
+                            "to treatment.\n"
+                            "Plan: a direct, bulleted list of "
+                            "actions. "
+                            "Include specific barriers to care if "
+                            "mentioned "
+                            "in the transcript.\n"
+                            "Separate the Assessment and Plan "
+                            "sections "
+                            "with a blank line for readability."
+                        ),
                         "type": "string",
                     },
                     "condition": {
@@ -249,9 +370,14 @@ def test_instruction_description(current_conditions):
     current_conditions.side_effect = [conditions]
     result = tested.instruction_description()
     expected = (
-        "Today's assessment of a diagnosed condition (display1a, display2a, display3a). "
-        "There can be only one assessment per condition per instruction, "
-        "and no instruction in the lack of."
+        "Today's assessment of an EXISTING condition already in the patient's chart (display1a, display2a, display3a). "
+        "Use this instruction ONLY when the provider EXPLICITLY discusses, evaluates, reviews, or mentions "
+        "a specific existing condition during the visit — including current status, symptoms, "
+        "treatment response, or management plan related to the condition. "
+        "Do NOT create an assessment for a condition that is not explicitly mentioned in the transcript. "
+        "If a condition is not discussed during the visit, do NOT generate any instruction for it. "
+        "Never produce filler text such as 'not discussed' or 'no update available'. "
+        "There can be only one assessment per condition per instruction, and no instruction in the lack of."
     )
     assert result == expected
     calls = [call()]

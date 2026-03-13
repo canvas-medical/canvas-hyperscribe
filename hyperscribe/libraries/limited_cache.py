@@ -377,9 +377,12 @@ class LimitedCache:
             for staff in Staff.objects.filter(active=True).order_by("last_name"):
                 label = f"{staff.first_name} {staff.last_name}"
                 if role := staff.top_clinical_role:
-                    role_type = StaffRole.RoleType(role.role_type).label
-                    domain = StaffRole.RoleDomain(role.domain).label
-                    label = f"{label} ({domain}/{role_type})"
+                    try:
+                        role_type = StaffRole.RoleType(role.role_type).label
+                        domain = StaffRole.RoleDomain(role.domain).label
+                        label = f"{label} ({domain}/{role_type})"
+                    except ValueError:
+                        pass
                 self._staff_members.append(CodedItem(uuid=str(staff.dbid), label=label, code=""))
         return self._staff_members
 
@@ -424,7 +427,11 @@ class LimitedCache:
             else:
                 sex_at_birth = "woman" if is_female else "man"
 
-            self._demographic = f"the patient is a {sex_at_birth}, born on {dob} (age {age_str})"
+            patient_name = f"{patient.first_name} {patient.last_name}".strip()
+            if obfuscate:
+                patient_name = "<NAME REDACTED>"
+            name_part = f"named {patient_name}, " if patient_name else ""
+            self._demographic = f"the patient is {name_part}a {sex_at_birth}, born on {dob} (age {age_str})"
 
             weight = (
                 Observation.objects.for_patient(self.patient_uuid)
