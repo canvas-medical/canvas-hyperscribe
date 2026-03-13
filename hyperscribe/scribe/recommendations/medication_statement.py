@@ -18,7 +18,8 @@ _RELEVANT_KEYS = {"current_medications", "history_of_present_illness", "assessme
 _SYSTEM_PROMPT = (
     "You are a clinical data extraction assistant. "
     "Extract all medications mentioned in the clinical note sections below. "
-    "Include both currently prescribed medications and any new medications the provider plans to start. "
+    "Include medications the patient is currently taking or that were mentioned as part of their medication history. "
+    "Do NOT include medications that are being newly prescribed — only include existing/current medications. "
     "For each medication, provide the full name with strength, the sig (directions), "
     "and a comma-separated list of search keywords (synonyms, brand/generic names) for database lookup (max 5)."
 )
