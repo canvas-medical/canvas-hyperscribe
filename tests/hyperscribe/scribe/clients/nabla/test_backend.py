@@ -231,6 +231,34 @@ def test_parse_note_splits_ros_bullet_with_colon() -> None:
     assert "General: Sleeping well" in result.sections[1].text
 
 
+def test_parse_note_splits_ros_parenthetical_label() -> None:
+    """'Review of Systems (ROS):' paragraph-style marker should be detected."""
+    raw = {
+        "title": "Note",
+        "sections": [
+            {
+                "key": "history_of_present_illness",
+                "title": "HPI",
+                "text": (
+                    "Patient is a 78-year-old female presenting with urinary symptoms.\n"
+                    "\n"
+                    "Review of Systems (ROS):\n"
+                    "General: Afebrile, eating well.\n"
+                    "Genitourinary: Improved bladder control."
+                ),
+            },
+        ],
+    }
+    result = NablaBackend._parse_note(raw)
+    assert len(result.sections) == 2
+    assert result.sections[0].key == "history_of_present_illness"
+    assert "78-year-old female" in result.sections[0].text
+    assert "Review of Systems" not in result.sections[0].text
+    assert result.sections[1].key == "review_of_systems"
+    assert "General: Afebrile" in result.sections[1].text
+    assert "Genitourinary: Improved" in result.sections[1].text
+
+
 def test_parse_note_no_ros_in_hpi() -> None:
     raw = {
         "title": "Note",
