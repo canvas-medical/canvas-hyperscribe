@@ -107,6 +107,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   const [seedText, setSeedText] = useState('');
   const [seedError, setSeedError] = useState(null);
   const mockLoaded = useRef(false);
+  const cacheLoaded = useRef(false);
   const suggestionsFetched = useRef(false);
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved) => {
@@ -134,6 +135,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
           const cached = await cacheRes.json();
           if (cached.note) {
             mockLoaded.current = true;
+            cacheLoaded.current = !!(cached.commands && cached.commands.length);
             setNoteData(cached.note);
             setCommands(cached.commands || []);
             setApproved(Boolean(cached.approved));
@@ -192,9 +194,9 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     }
   }, [noteId]);
 
-  // Extract commands once note is available.
+  // Extract commands once note is available (skip if loaded from cache).
   useEffect(() => {
-    if (!noteData) return;
+    if (!noteData || cacheLoaded.current) return;
 
     let cancelled = false;
 
