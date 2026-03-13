@@ -189,11 +189,17 @@
         "section": "objective"
       },
       {
+        "name": "PhysicalExam",
+        "label": "Physical Exam",
+        "schema_key": "physicalExam",
+        "section": "objective"
+      },
+      {
         "name": "ReviewOfSystems",
         "label": "Review Of Systems",
         "schema_key": "reviewOfSystems",
         "section": "subjective"
-      }	
+      }
     ],
     "content": [],
     "effects": [],
