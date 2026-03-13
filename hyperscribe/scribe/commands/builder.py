@@ -17,6 +17,7 @@ from hyperscribe.scribe.commands.hpi import HpiParser
 from hyperscribe.scribe.commands.imaging_order import ImagingOrderParser
 from hyperscribe.scribe.commands.lab_order import LabOrderParser
 from hyperscribe.scribe.commands.medication_statement import MedicationParser
+from hyperscribe.scribe.commands.physical_exam import PhysicalExamParser
 from hyperscribe.scribe.commands.plan import PlanParser
 from hyperscribe.scribe.commands.prescription import PrescriptionParser
 from hyperscribe.scribe.commands.rfv import RfvParser
@@ -34,6 +35,7 @@ _BUILDERS: dict[str, CommandParser] = {
     "imaging_order": ImagingOrderParser(),
     "lab_order": LabOrderParser(),
     "medication_statement": MedicationParser(),
+    "physical_exam": PhysicalExamParser(),
     "plan": PlanParser(),
     "prescribe": PrescriptionParser(),
     "rfv": RfvParser(),

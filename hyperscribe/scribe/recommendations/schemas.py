@@ -32,6 +32,22 @@ class AllergyRecommendationList(BaseModelLlmJson):
     )
 
 
+class PrescriptionRecommendation(BaseModelLlmJson):
+    medication_name: str = Field(description="Full medication name including strength/form")
+    sig: str = Field(description="Directions/sig for the prescription")
+    days_supply: int | None = Field(default=None, description="Number of days supply")
+    quantity_to_dispense: str | None = Field(default=None, description="Quantity to dispense")
+    refills: int | None = Field(default=None, description="Number of refills")
+    keywords: str = Field(description="Comma-separated synonyms for searching (max 5)")
+
+
+class PrescriptionRecommendationList(BaseModelLlmJson):
+    prescriptions: list[PrescriptionRecommendation] = Field(
+        default_factory=list,
+        description="List of new prescriptions to be written",
+    )
+
+
 class DiagnosisSuggestion(BaseModelLlmJson):
     condition_text: str = Field(description="The original condition text")
     icd10_codes: list[str] = Field(description="2-3 ICD-10 codes (e.g. R519, G43009)")

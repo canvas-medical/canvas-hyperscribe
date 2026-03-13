@@ -116,6 +116,27 @@ def _extract_ros(note: ClinicalNote) -> CommandProposal | None:
     )
 
 
+def _extract_physical_exam(note: ClinicalNote) -> CommandProposal | None:
+    """Extract physical_exam section into a PE command with per-system subsections."""
+    pe_section = next(
+        (s for s in note.sections if s.key.lower() == "physical_exam" and s.text.strip()),
+        None,
+    )
+    if pe_section is None:
+        return None
+    subsections = _parse_ros_subsections(pe_section.text)
+    if not subsections:
+        # Fall back to a single section if no system headers were detected.
+        subsections = [{"key": "physical_exam", "title": "Physical Exam", "text": pe_section.text.strip()}]
+    display = " | ".join(s["title"] for s in subsections)
+    return CommandProposal(
+        command_type="physical_exam",
+        display=display,
+        data={"sections": subsections},
+        section_key="physical_exam",
+    )
+
+
 def _extract_chart_review(note: ClinicalNote) -> CommandProposal | None:
     """Combine chart review sections into one Chart Review command."""
     sections = [
@@ -151,6 +172,10 @@ def extract_commands(note: ClinicalNote) -> list[CommandProposal]:
     ros_proposal = _extract_ros(note)
     if ros_proposal is not None:
         proposals.append(ros_proposal)
+
+    pe_proposal = _extract_physical_exam(note)
+    if pe_proposal is not None:
+        proposals.append(pe_proposal)
 
     history_proposal = _extract_history_review(note)
     if history_proposal is not None:

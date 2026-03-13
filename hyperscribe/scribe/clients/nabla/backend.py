@@ -201,7 +201,7 @@ class NablaBackend(ScribeBackend):
             "note_template": _NOTE_TEMPLATE,
             "note_locale": _NOTE_LOCALE,
             "note_sections_customization": [
-                {"section_key": "ASSESSMENT_AND_PLAN", "style": "BULLET_POINTS", "split_by_problem": True},
+                {"section_key": "ASSESSMENT_AND_PLAN", "style": "PARAGRAPH", "split_by_problem": True},
                 {
                     "section_key": "HISTORY_OF_PRESENT_ILLNESS",
                     "custom_instruction": ros_custom_instructions,
