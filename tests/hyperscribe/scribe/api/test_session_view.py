@@ -10,8 +10,10 @@ from canvas_sdk.effects.simple_api import JSONResponse
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin
 
 from hyperscribe.scribe.api.session_view import (
+    SUMMARY_STEPS,
     ScribeSessionView,
     _CACHE_KEY_PREFIX,
+    _PROGRESS_CACHE_KEY_PREFIX,
     _SUMMARY_CACHE_KEY_PREFIX,
     _match_conditions_to_sections,
 )
@@ -1076,3 +1078,238 @@ def test_recommend_commands_without_note_uuid_calls_annotate_with_empty(
     view.post_recommend_commands()
     mock_annotate.assert_called_once()
     assert mock_annotate.call_args.args[1] == ""
+
+
+# --- /summary-progress ---
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_get_summary_progress_found(mock_get_cache: MagicMock) -> None:
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    cache._store[f"{_PROGRESS_CACHE_KEY_PREFIX}42"] = json.dumps(
+        {"step": 2, "total": 5, "label": "Extracting commands"}
+    )
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary_progress()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["step"] == 2
+    assert data["total"] == 5
+    assert data["label"] == "Extracting commands"
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+def test_get_summary_progress_not_found(mock_get_cache: MagicMock) -> None:
+    mock_get_cache.return_value = _mock_cache()
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "999"})
+    result = view.get_summary_progress()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["step"] == -1
+
+
+# --- /generate-summary ---
+
+
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_success(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+) -> None:
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    # Seed finalized transcript.
+    cache._store[f"{_CACHE_KEY_PREFIX}55"] = json.dumps(
+        {
+            "items": [{"text": "I have a headache", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 2000}],
+            "finalized": True,
+        }
+    )
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="SOAP Note",
+        sections=[
+            NoteSection(key="chief_complaint", title="CC", text="Headache."),
+            NoteSection(
+                key="assessment_and_plan",
+                title="A&P",
+                text="Migraine\n- Start sumatriptan",
+            ),
+        ],
+    )
+    mock_backend.generate_normalized_data.return_value = NormalizedData(
+        conditions=[
+            Condition(
+                display="Migraine",
+                clinical_status="active",
+                coding=[CodingEntry(system="ICD-10", code="G43", display="Migraine")],
+            )
+        ],
+        observations=[],
+    )
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = [
+        CommandProposal(
+            command_type="medication_statement",
+            display="Sumatriptan",
+            data={"medication_text": "Sumatriptan"},
+            section_key="_recommended",
+        ),
+    ]
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "55", "note_uuid": "55"}))
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["note"]["title"] == "SOAP Note"
+    assert len(data["commands"]) >= 1
+    # Plan should have been split into diagnose commands.
+    diagnose_cmds = [c for c in data["commands"] if c["command_type"] == "diagnose"]
+    assert len(diagnose_cmds) == 1
+    assert diagnose_cmds[0]["data"]["icd10_code"] == "G43"
+    assert len(data["recommendations"]) == 1
+    assert data["recommendations"][0]["command_type"] == "medication_statement"
+    # Summary should be saved to cache.
+    assert f"{_SUMMARY_CACHE_KEY_PREFIX}55" in cache._store
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_missing_note_id(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
+    mock_get_cache.return_value = _mock_cache()
+    get_backend.return_value = MagicMock()
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({}))
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_id" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_no_transcript(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
+    mock_get_cache.return_value = _mock_cache()
+    get_backend.return_value = MagicMock()
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "99"}))
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "No transcript" in json.loads(result[0].content)["error"]
+
+
+def test_generate_summary_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_backend_error(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    cache._store[f"{_CACHE_KEY_PREFIX}42"] = json.dumps(
+        {"items": [{"text": "hi", "speaker": "patient"}], "finalized": True}
+    )
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.side_effect = ScribeError("Note generation failed")
+    get_backend.return_value = mock_backend
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "42"}))
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert "Note generation failed" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_non_critical_failures(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_recommend: MagicMock,
+    _mock_annotate: MagicMock,
+) -> None:
+    """When non-critical steps fail, the response still includes what succeeded."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    cache._store[f"{_CACHE_KEY_PREFIX}77"] = json.dumps(
+        {"items": [{"text": "hi", "speaker": "patient"}], "finalized": True}
+    )
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="Note", sections=[NoteSection(key="chief_complaint", title="CC", text="Pain.")]
+    )
+    mock_backend.generate_normalized_data.side_effect = Exception("Normalized data failed")
+    get_backend.return_value = mock_backend
+    mock_recommend.side_effect = Exception("Recommend failed")
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "77", "note_uuid": "77"}))
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["note"]["title"] == "Note"
+    assert len(data["commands"]) >= 1
+    assert data["recommendations"] == []
+    assert data["diagnosis_suggestions"] == {}
+
+
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_writes_progress(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
+    """Progress cache is updated during the pipeline."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    cache._store[f"{_CACHE_KEY_PREFIX}88"] = json.dumps(
+        {"items": [{"text": "test", "speaker": "patient"}], "finalized": True}
+    )
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "88"}))
+    view.post_generate_summary()
+
+    # After completion, progress cache should have the last step written.
+    progress_key = f"{_PROGRESS_CACHE_KEY_PREFIX}88"
+    assert progress_key in cache._store
+    progress = json.loads(cache._store[progress_key])
+    assert progress["step"] == len(SUMMARY_STEPS) - 1
+    assert progress["total"] == len(SUMMARY_STEPS)
