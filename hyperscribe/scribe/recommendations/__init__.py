@@ -9,8 +9,9 @@ from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal
 from hyperscribe.scribe.recommendations.allergy import AllergyRecommender
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.medication_statement import MedicationRecommender
+from hyperscribe.scribe.recommendations.prescription import PrescriptionRecommender
 
-_RECOMMENDERS: list[BaseRecommender] = [MedicationRecommender(), AllergyRecommender()]
+_RECOMMENDERS: list[BaseRecommender] = [MedicationRecommender(), AllergyRecommender(), PrescriptionRecommender()]
 
 _MODEL = "claude-sonnet-4-5-20250929"
 

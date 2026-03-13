@@ -33,7 +33,7 @@ const SOAP_GROUPS = [
   { title: 'SUBJECTIVE', color: 'subjective', keys: new Set(['chief_complaint', 'history_of_present_illness', 'review_of_systems']) },
   { title: 'HISTORY', color: 'history', keys: new Set(['past_medical_history', 'past_surgical_history',
     'past_obstetric_history', 'family_history', 'social_history']) },
-  { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'lab_results', 'imaging_results',
+  { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'physical_exam', 'lab_results', 'imaging_results',
     'current_medications', 'allergies', 'immunizations']) },
   { title: 'PLAN', color: 'plan', keys: new Set(['plan', 'assessment_and_plan', 'prescription', 'appointments']) },
 ];
@@ -86,10 +86,10 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         noteId=${noteId}
         staffId=${staffId}
         staffName=${staffName}
-        recommendations=${isObjective ? recommendations : null}
-        onEditRecommendation=${isObjective ? onEditRecommendation : null}
-        onDeleteRecommendation=${isObjective ? onDeleteRecommendation : null}
-        onAcceptRecommendation=${isObjective ? onAcceptRecommendation : null}
+        recommendations=${(isObjective || isPlan) ? recommendations : null}
+        onEditRecommendation=${(isObjective || isPlan) ? onEditRecommendation : null}
+        onDeleteRecommendation=${(isObjective || isPlan) ? onDeleteRecommendation : null}
+        onAcceptRecommendation=${(isObjective || isPlan) ? onAcceptRecommendation : null}
         onAddCondition=${isPlan ? onAddCondition : null}
         unmatchedConditions=${isPlan ? unmatchedConditions : null}
         diagnosisSuggestions=${isPlan ? diagnosisSuggestions : null}
@@ -111,6 +111,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   const [unmatchedConditions, setUnmatchedConditions] = useState([]);
   const [diagnosisSuggestions, setDiagnosisSuggestions] = useState({});
   const [progress, setProgress] = useState({ step: -1, total: 0, label: '' });
+  const [prescriptionWarning, setPrescriptionWarning] = useState(false);
   const [seedText, setSeedText] = useState('');
   const [seedError, setSeedError] = useState(null);
 
@@ -413,6 +414,9 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       if (type === 'allergy') {
         return { ...cmd, data: newData, display: newData.allergy_text || '', accepted: true };
       }
+      if (type === 'prescribe') {
+        return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '', accepted: true };
+      }
       return { ...cmd, data: newData, accepted: true };
     }));
   }, []);
@@ -522,12 +526,16 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       if (data.error) {
         setError(data.error);
       } else {
+        const hasPrescriptions = allInsertable.some(c => c.command_type === 'prescribe');
         setApproved(true);
         saveSummaryToCache(noteData, commands, true);
-        // Close the modal via the Canvas message channel.
-        const port = window.__canvasPort && window.__canvasPort();
-        if (port) {
-          port.postMessage({ type: 'CLOSE_MODAL' });
+        if (hasPrescriptions) {
+          setPrescriptionWarning(true);
+        } else {
+          const port = window.__canvasPort && window.__canvasPort();
+          if (port) {
+            port.postMessage({ type: 'CLOSE_MODAL' });
+          }
         }
       }
     } catch (err) {
@@ -641,6 +649,19 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
           diagnosisSuggestions,
         })}
       </div>
+      ${prescriptionWarning && html`
+        <div class="rx-verification-banner">
+          <div class="rx-verification-icon">!</div>
+          <div class="rx-verification-text">
+            <strong>Prescriptions require verification</strong>
+            <p>Please go to the <strong>Note</strong> tab to review and sign prescriptions before they are sent.</p>
+          </div>
+          <button class="rx-verification-close" onClick=${() => {
+            const port = window.__canvasPort && window.__canvasPort();
+            if (port) port.postMessage({ type: 'CLOSE_MODAL' });
+          }}>I've reviewed — close</button>
+        </div>
+      `}
       ${showFooter && html`
         <div class="summary-footer">
           <button

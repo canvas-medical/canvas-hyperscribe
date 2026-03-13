@@ -94,10 +94,46 @@ def test_assessment_and_plan_routed_to_plan() -> None:
     assert proposals[0].section_key == "assessment_and_plan"
 
 
-def test_physical_exam_skipped() -> None:
+def test_physical_exam_with_subsections() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(
+                key="physical_exam",
+                title="Physical Exam",
+                text="General: Well-appearing\nLungs: CTA bilaterally\nHeart: RRR, no murmurs",
+            )
+        ],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "physical_exam"
+    assert proposals[0].section_key == "physical_exam"
+    secs = proposals[0].data["sections"]
+    assert len(secs) == 3
+    assert secs[0]["title"] == "General"
+    assert secs[0]["text"] == "Well-appearing"
+    assert secs[1]["title"] == "Lungs"
+    assert secs[2]["title"] == "Heart"
+    assert proposals[0].display == "General | Lungs | Heart"
+
+
+def test_physical_exam_fallback_no_headers() -> None:
     note = ClinicalNote(
         title="Note",
         sections=[NoteSection(key="physical_exam", title="Physical Exam", text="Normal gait.")],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "physical_exam"
+    assert proposals[0].data["sections"][0]["title"] == "Physical Exam"
+    assert proposals[0].data["sections"][0]["text"] == "Normal gait."
+
+
+def test_physical_exam_empty_skipped() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="physical_exam", title="Physical Exam", text="   ")],
     )
     assert extract_commands(note) == []
 
@@ -177,13 +213,14 @@ def test_full_multiple_sections_note() -> None:
             NoteSection(key="chief_complaint", title="CC", text="Headaches for two weeks."),
             NoteSection(key="history_of_present_illness", title="HPI", text="Mostly right-sided."),
             NoteSection(key="vitals", title="Vitals", text="BP 130/85"),
+            NoteSection(key="physical_exam", title="PE", text="General: Well-appearing"),
             NoteSection(key="assessment_and_plan", title="Assessment & Plan", text="Migraine. Start sumatriptan 50mg."),
             NoteSection(key="current_medications", title="Meds", text="- Aspirin 81mg"),
         ],
     )
     proposals = extract_commands(note)
     types = [p.command_type for p in proposals]
-    assert types == ["rfv", "hpi", "vitals", "plan", "chart_review"]
+    assert types == ["rfv", "hpi", "vitals", "plan", "physical_exam", "chart_review"]
 
 
 def test_routes_history_sections_to_history_review() -> None:

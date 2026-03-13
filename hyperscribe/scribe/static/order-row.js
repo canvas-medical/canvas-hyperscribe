@@ -216,7 +216,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [medSearching, setMedSearching] = useState(false);
   const [medSearched, setMedSearched] = useState(false);
   const [selectedFdb, setSelectedFdb] = useState(command.data.fdb_code || null);
-  const [medQuantities, setMedQuantities] = useState(() => buildTypeToDispenseOptions([]));
+  const [medQuantities, setMedQuantities] = useState(() => buildTypeToDispenseOptions(command.data.quantities || []));
   const [selectedMedDisplay, setSelectedMedDisplay] = useState(command.data.medication_text || '');
   const [sig, setSig] = useState(command.data.sig || '');
   const [daysSupply, setDaysSupply] = useState(command.data.days_supply || '');
@@ -1103,6 +1103,35 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
 
   // View mode.
   const badgeLabel = BADGE_LABELS[command.command_type] || 'Order';
+
+  if (command.command_type === 'prescribe' && command.display) {
+    const d = command.data;
+    const detailParts = [];
+    if (d.quantity_to_dispense) {
+      const typeLabel = d.type_to_dispense_label || '';
+      detailParts.push(`Qty: ${d.quantity_to_dispense}${typeLabel ? ` ${typeLabel}` : ''}`);
+    }
+    if (d.days_supply) detailParts.push(`${d.days_supply}d supply`);
+    if (d.refills != null && d.refills !== '') detailParts.push(`${d.refills} refill${d.refills > 1 ? 's' : ''}`);
+    const hasFdb = !!d.fdb_code;
+    return html`
+      <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
+        <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="command-type-badge badge-prescribe">Rx</span>
+            <span class="medication-row-text">${command.display}</span>
+            ${hasFdb
+              ? html`<span class="medication-structured-badge">Structured</span>`
+              : html`<span class="medication-unstructured-badge">Unstructured</span>`
+            }
+          </div>
+          ${d.sig && html`<span class="medication-sig-text" style="margin-left:4px">Sig: ${d.sig}</span>`}
+          ${detailParts.length > 0 && html`<span class="medication-sig-text" style="margin-left:4px">${detailParts.join(' · ')}</span>`}
+        </div>
+      </div>
+    `;
+  }
+
   return html`
     <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
       <span class="command-type-badge badge-${command.command_type}">${badgeLabel}</span>

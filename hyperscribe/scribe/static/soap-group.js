@@ -30,6 +30,7 @@ const COMMAND_BADGE = {
   lab_order: { label: 'Lab', color: 'lab_order' },
   imaging_order: { label: 'Imaging', color: 'imaging_order' },
   allergy: { label: 'Allergy', color: 'allergy' },
+  physical_exam: { label: 'PE', color: 'physical_exam' },
   history_review: { label: 'History Review', color: 'history_review' },
   chart_review: { label: 'Chart Review', color: 'chart_review' },
 };
@@ -259,7 +260,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const key = s.key.toLowerCase();
           const hasRecsForKey = recommendations && recommendations.length > 0 &&
             ((key === 'current_medications' && recommendations.some(r => r.command_type === 'medication_statement')) ||
-             (key === 'allergies' && recommendations.some(r => r.command_type === 'allergy')));
+             (key === 'allergies' && recommendations.some(r => r.command_type === 'allergy')) ||
+             (key === 'prescription' && recommendations.some(r => r.command_type === 'prescribe')));
           if (coveredKeys.has(key) && !hasRecsForKey) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
 
@@ -384,6 +386,24 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             `;
           }
 
+          if (cmds && key === 'physical_exam') {
+            const entry = cmds[0];
+            return html`
+              <div class="subsection" key=${s.key}>
+                <div class="subsection-title">${s.title}</div>
+                <div class="content-block has-badge content-block--physical_exam">
+                  <span class="content-block-badge badge-physical_exam">PE</span>
+                  <${HistoryReviewRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    readOnly=${readOnly}
+                  />
+                </div>
+              </div>
+            `;
+          }
+
           if (key === 'current_medications') {
             const medRecs = (recommendations || [])
               .map((cmd, i) => ({ command: cmd, index: i }))
@@ -469,6 +489,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               `;
             }
           }
+
+          // Suppress raw prescription text — Rx recs are rendered by the fallback IIFE below.
+          if (key === 'prescription') return null;
 
           return html`
             <div class="subsection" key=${s.key}>
@@ -561,6 +584,60 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <button type="button" class="ad-hoc-btn" onClick=${onAddAllergy}>+ Allergy</button>
           </div>
         `}
+        ${(() => {
+          // Render Rx recommendations in the PLAN group (raw prescription text is suppressed above).
+          if (title !== 'PLAN') return null;
+          const rxRecs = (recommendations || [])
+            .map((cmd, i) => ({ command: cmd, index: i }))
+            .filter(e => e.command.command_type === 'prescribe');
+          if (rxRecs.length === 0) return null;
+          return html`
+            <div class="subsection">
+              <div class="subsection-title">Prescriptions</div>
+              ${rxRecs.map(entry => {
+                const hasFdb = !!entry.command.data.fdb_code;
+                const isIncomplete = !hasFdb;
+                const isAccepted = !isIncomplete && (entry.command.accepted || entry.command.already_documented);
+
+                let btnLabel, btnClass;
+                if (entry.command.already_documented) {
+                  btnLabel = 'Already in chart';
+                  btnClass = 'recommendation-accept-btn accepted';
+                } else if (isIncomplete) {
+                  btnLabel = 'Incomplete';
+                  btnClass = 'recommendation-accept-btn incomplete';
+                } else if (entry.command.accepted) {
+                  btnLabel = 'Accepted';
+                  btnClass = 'recommendation-accept-btn accepted';
+                } else {
+                  btnLabel = 'Accept';
+                  btnClass = 'recommendation-accept-btn';
+                }
+
+                return html`
+                <div class="content-block content-block--prescribe recommendation-block${isAccepted ? ' accepted' : ''}" key=${'rec-rx-' + entry.index}>
+                  <div class="recommendation-actions">
+                    ${entry.command.already_documented
+                      ? html`<span class=${btnClass}>${btnLabel}</span>`
+                      : !readOnly && html`<button type="button" class=${btnClass} onClick=${() => !isIncomplete && onAcceptRecommendation(entry.index)} disabled=${isIncomplete}>${btnLabel}</button>`
+                    }
+                  </div>
+                  <${OrderRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditRecommendation}
+                    readOnly=${readOnly || entry.command.already_documented}
+                    patientId=${patientId}
+                    noteId=${noteId}
+                    staffId=${staffId}
+                    staffName=${staffName}
+                  />
+                </div>
+                `;
+              })}
+            </div>
+          `;
+        })()}
         ${onAddTask && html`
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${onAddTask}>+ Task</button>
