@@ -563,8 +563,7 @@ def test_command_parameters_schemas(current_medications):
                     },
                     "suppliedDays": {
                         "description": "Duration of the treatment in days. If explicitly stated in the transcript, "
-                        "use that value. Otherwise, default to 30 days for standard medications "
-                        "or 90 days for maintenance/chronic medications.",
+                        "use that value. Otherwise, default to 30 days.",
                         "exclusiveMinimum": 0,
                         "type": "integer",
                     },
