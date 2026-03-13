@@ -78,7 +78,6 @@ class CanvasScience:
                 if returned_class == MedicationDetail:
                     quantities: list[MedicationDetailQuantity] = []
                     for quantity in concept["clinical_quantities"]:
-                        log.info(f"########## {quantity}")
                         quantities.append(
                             MedicationDetailQuantity(
                                 quantity=quantity["erx_quantity"],
