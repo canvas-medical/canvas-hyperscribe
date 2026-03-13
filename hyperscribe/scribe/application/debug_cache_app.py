@@ -14,10 +14,7 @@ class ScribeCacheApp(NoteApplication):
     PRIORITY = 1
 
     def visible(self) -> bool:
-        # PILOT: revert to `self.secrets.get(Constants.SECRET_MODALITY, "").lower() == Constants.MODALITY_SCRIBE`
-        settings = Settings.from_dictionary(self.secrets)
-        staff_id = self.context.get("user", {}).get("id", "")
-        return settings.is_scribe_modality(staff_id)
+        return self.secrets.get("EnableCacheApp")
 
     def handle(self) -> list[Effect]:
         from canvas_sdk.v1.data.note import Note
