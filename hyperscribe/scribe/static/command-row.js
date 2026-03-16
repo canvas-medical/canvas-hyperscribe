@@ -4,12 +4,6 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
-const TYPE_LABELS = {
-  rfv: 'RFV',
-  hpi: 'HPI',
-  plan: 'Plan',
-};
-
 const DATA_FIELD = {
   rfv: 'comment',
   hpi: 'narrative',
@@ -47,9 +41,6 @@ export function CommandRow({ command, commandIndex, onEdit, readOnly }) {
   if (editing) {
     return html`
       <div class="command-row editing">
-        <span class="command-type-badge badge-${command.command_type}">
-          ${TYPE_LABELS[command.command_type] || command.command_type}
-        </span>
         <textarea
           ref=${textareaRef}
           class="command-row-textarea"
