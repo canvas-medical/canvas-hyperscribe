@@ -64,7 +64,7 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
   if (editing) {
     return html`
       <div class="vitals-row editing" onKeyDown=${handleKeyDown}>
-        <div class="subsection-title">Vitals</div>
+
         <div class="vitals-grid">
           ${VITALS_FIELDS.map(f => {
             if (f.pair) {
@@ -134,7 +134,6 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
 
   return html`
     <div class="vitals-row" onClick=${() => !readOnly && setEditing(true)}>
-      <div class="subsection-title">Vitals</div>
       <div class="vitals-values">${items}</div>
     </div>
   `;

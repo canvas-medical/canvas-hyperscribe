@@ -518,7 +518,7 @@ h2 { margin-bottom: 4px; }
 /* Inline vitals rows */
 .vitals-row { display: flex; align-items: flex-start; gap: 8px; padding: 4px; border-radius: 8px; cursor: pointer; }
 .vitals-row.deselected { opacity: 0.45; }
-.vitals-row.editing { flex-direction: column; cursor: default; padding: 8px; background: #fafaff; border: 1px solid #e8e8ec; border-radius: 6px; }
+.vitals-row.editing { flex-direction: column; cursor: default; }
 .vitals-values { display: flex; flex-wrap: wrap; gap: 6px 14px; flex: 1; font-size: 14px; line-height: 1.6; color: #333; }
 .vitals-item strong { font-weight: 600; color: #555; margin-right: 2px; }
 .vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-top: 6px; }
