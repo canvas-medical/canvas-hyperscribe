@@ -133,7 +133,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   if (command.already_documented) {
     return html`
       <div class="medication-row documented">
-        <span class="command-type-badge badge-medication">Med</span>
+        <div class="subsection-title">Med</div>
         <span class="medication-row-text">${command.display}</span>
         <span class="medication-documented-badge">Already in chart</span>
       </div>
@@ -144,7 +144,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   if (editing) {
     return html`
       <div class="medication-row editing" ref=${containerRef}>
-        <span class="command-type-badge badge-medication">Med</span>
+        <div class="subsection-title">Med</div>
         <div class="medication-search-wrapper">
           <input
             ref=${inputRef}
@@ -176,7 +176,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
           `}
         </div>
         ${selectedFdb && html`
-          <span class="medication-structured-badge">FDB: ${selectedFdb.code}</span>
+          <span class="medication-structured-badge">Coded</span>
         `}
         <input
           type="text"
@@ -199,11 +199,11 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   return html`
     <div class="medication-row"
          onClick=${() => !readOnly && setEditing(true)}>
-      <span class="command-type-badge badge-medication">Med</span>
+      <div class="subsection-title">Med</div>
       <span class="medication-row-text">${command.display}</span>
       ${command.data.sig && html`<span class="medication-sig-text">${command.data.sig}</span>`}
       ${isStructured
-        ? html`<span class="medication-structured-badge">FDB: ${command.data.fdb_code.code}</span>`
+        ? html`<span class="medication-structured-badge">Coded</span>`
         : html`<span class="medication-unstructured-badge">Unstructured</span>`
       }
     </div>
