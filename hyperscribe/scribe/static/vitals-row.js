@@ -70,11 +70,11 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
             if (f.pair) {
               return html`
                 <div class="vitals-field vitals-bp" key=${f.key}>
-                  <label class="vitals-label">${f.label}</label>
-                  <div class="vitals-bp-inputs">
+                  <div class="labeled-field">
+                    <span class="labeled-field-label">${f.label}</span>
                     <input
                       type="number"
-                      class="vitals-input"
+                      class="labeled-field-input labeled-field-narrow"
                       value=${draft[f.key] ?? ''}
                       onInput=${(e) => updateField(f.key, e.target.value)}
                       placeholder="sys"
@@ -82,7 +82,7 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
                     <span class="vitals-bp-slash">/</span>
                     <input
                       type="number"
-                      class="vitals-input"
+                      class="labeled-field-input labeled-field-narrow"
                       value=${draft[f.pair] ?? ''}
                       onInput=${(e) => updateField(f.pair, e.target.value)}
                       placeholder="dia"
@@ -94,14 +94,16 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
             }
             return html`
               <div class="vitals-field" key=${f.key}>
-                <label class="vitals-label">${f.label}</label>
-                <input
-                  type="number"
-                  step=${f.step || '1'}
-                  class="vitals-input"
-                  value=${draft[f.key] ?? ''}
-                  onInput=${(e) => updateField(f.key, e.target.value)}
-                />
+                <div class="labeled-field">
+                  <span class="labeled-field-label">${f.label}</span>
+                  <input
+                    type="number"
+                    step=${f.step || '1'}
+                    class="labeled-field-input labeled-field-narrow"
+                    value=${draft[f.key] ?? ''}
+                    onInput=${(e) => updateField(f.key, e.target.value)}
+                  />
+                </div>
                 <span class="vitals-unit">${f.unit}</span>
               </div>
             `;
