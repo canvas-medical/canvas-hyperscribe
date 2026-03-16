@@ -77,7 +77,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
   if (editing) {
     return html`
       <div class="task-row editing" onKeyDown=${handleKeyDown}>
-        <span class="command-type-badge badge-task">Task</span>
+        <div class="subsection-title">Task</div>
         <div class="task-form">
           <input
             ref=${titleRef}
@@ -139,7 +139,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
 
   return html`
     <div class="task-row" onClick=${() => !readOnly && setEditing(true)}>
-      <span class="command-type-badge badge-task">Task</span>
+      <div class="subsection-title">Task</div>
       <span class="command-row-text">${parts[0]}</span>
       ${command.data.due_date && html`<span class="task-meta-badge">${formatDate(command.data.due_date)}</span>`}
       ${aLabel && html`<span class="task-meta-badge">${aLabel}</span>`}

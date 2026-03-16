@@ -133,7 +133,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
   if (command.already_documented) {
     return html`
       <div class="allergy-row documented">
-        <span class="command-type-badge badge-allergy">Allergy</span>
+        <div class="subsection-title">Allergy</div>
         <span class="allergy-row-text">${command.display}</span>
         <span class="allergy-documented-badge">Already in chart</span>
       </div>
@@ -144,7 +144,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
   if (editing) {
     return html`
       <div class="allergy-row editing" ref=${containerRef}>
-        <span class="command-type-badge badge-allergy">Allergy</span>
+        <div class="subsection-title">Allergy</div>
         <div class="allergy-search-wrapper">
           <input
             ref=${inputRef}
@@ -209,7 +209,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
   return html`
     <div class="allergy-row"
          onClick=${() => !readOnly && setEditing(true)}>
-      <span class="command-type-badge badge-allergy">Allergy</span>
+      <div class="subsection-title">Allergy</div>
       <span class="allergy-row-text">${command.display}</span>
       ${command.data.reaction && html`<span class="allergy-reaction-text">${command.data.reaction}</span>`}
       ${command.data.severity && html`<span class="allergy-severity-badge severity-${command.data.severity}">${command.data.severity}</span>`}
