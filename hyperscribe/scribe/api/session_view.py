@@ -45,7 +45,7 @@ from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diag
 
 
 def _format_icd10_code(raw: str) -> str:
-    code = raw.strip().upper()
+    code = raw.strip().replace(".", "").upper()
     if len(code) > 3:
         return code[:3] + "." + code[3:]
     return code
