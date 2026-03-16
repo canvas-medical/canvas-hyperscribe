@@ -142,7 +142,7 @@ export function matchCondition(header, conditions) {
 }
 
 function formatIcdCode(raw) {
-  const code = raw.trim().toUpperCase();
+  const code = raw.replace(/\./g, '').trim().toUpperCase();
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
@@ -327,7 +327,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           const codes = (c.coding || []).filter(cd => cd.code);
                           const code = codes[0];
                           if (!code) return null;
-                          const formatted = code.code.length > 3 ? code.code.slice(0, 3) + '.' + code.code.slice(3) : code.code;
+                          const stripped = code.code.replace(/\./g, '');
+                          const formatted = stripped.length > 3 ? stripped.slice(0, 3) + '.' + stripped.slice(3) : stripped;
                           const display = c.display || code.display || formatted;
                           return html`
                             <button
