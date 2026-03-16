@@ -17,7 +17,7 @@ function useDebounce(fn, delay) {
 
 function formatIcdCode(raw) {
   if (!raw) return '';
-  const code = raw.trim().toUpperCase();
+  const code = raw.replace(/\./g, '').trim().toUpperCase();
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
