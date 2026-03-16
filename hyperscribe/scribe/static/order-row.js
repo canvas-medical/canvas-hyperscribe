@@ -1117,8 +1117,8 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     return html`
       <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
         <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+          <div class="subsection-title">Rx</div>
           <div style="display:flex;align-items:center;gap:8px">
-            <span class="command-type-badge badge-prescribe">Rx</span>
             <span class="medication-row-text">${command.display}</span>
             ${hasFdb
               ? html`<span class="medication-structured-badge">Structured</span>`
@@ -1134,7 +1134,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
 
   return html`
     <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
-      <span class="command-type-badge badge-${command.command_type}">${badgeLabel}</span>
+      <div class="subsection-title">${badgeLabel}</div>
       <span class="command-row-text">${command.display}</span>
     </div>
   `;
