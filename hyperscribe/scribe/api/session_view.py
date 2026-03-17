@@ -42,6 +42,10 @@ from hyperscribe.scribe.commands.builder import annotate_duplicates, build_effec
 from hyperscribe.scribe.commands.extractor import extract_commands
 from hyperscribe.scribe.recommendations import recommend_commands
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
+from hyperscribe.scribe.recommendations.interactions import (
+    check_recommendation_interactions,
+    check_single_medication_interactions,
+)
 
 
 def _format_icd10_code(raw: str) -> str:
@@ -144,6 +148,7 @@ def _save_summary_to_cache(
     recommendations: list[dict[str, Any]] | None = None,
     unmatched_conditions: list[dict[str, Any]] | None = None,
     diagnosis_suggestions: dict[str, Any] | None = None,
+    interaction_warnings: list[dict[str, Any]] | None = None,
 ) -> None:
     key = f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}"
     log.info(f"summary cache save: key={key} approved={approved}")
@@ -156,6 +161,8 @@ def _save_summary_to_cache(
             payload["unmatched_conditions"] = unmatched_conditions
         if diagnosis_suggestions is not None:
             payload["diagnosis_suggestions"] = diagnosis_suggestions
+        if interaction_warnings is not None:
+            payload["interaction_warnings"] = interaction_warnings
         cache.set(key, json.dumps(payload))
     except Exception:
         log.exception(f"summary cache save FAILED: key={key}")
@@ -320,7 +327,16 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_data = data.get("note", {})
         commands = data.get("commands", [])
         approved = bool(data.get("approved", False))
-        _save_summary_to_cache(note_id, note_data, commands, approved=approved)
+        _save_summary_to_cache(
+            note_id,
+            note_data,
+            commands,
+            approved=approved,
+            recommendations=data.get("recommendations"),
+            unmatched_conditions=data.get("unmatched_conditions"),
+            diagnosis_suggestions=data.get("diagnosis_suggestions"),
+            interaction_warnings=data.get("interaction_warnings"),
+        )
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
     @api.get("/summary-progress")
@@ -444,6 +460,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             except Exception:
                 log.exception("recommend_commands failed (non-critical)")
 
+        # ── Step 3b: Check medication interactions ──
+        interaction_warnings: list[dict[str, Any]] = []
+        if recommendations_list:
+            try:
+                interaction_warnings = check_recommendation_interactions(recommendations_list, note_uuid)
+            except Exception:
+                log.exception("interaction check failed (non-critical)")
+
         # ── Step 4: Suggest diagnoses for unmatched blocks ──
         _save_progress(note_id, 4, total, SUMMARY_STEPS[4])
         diagnosis_suggestions: dict[str, Any] = {}
@@ -468,6 +492,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             recommendations=recommendations_list,
             unmatched_conditions=unmatched_conditions,
             diagnosis_suggestions=diagnosis_suggestions,
+            interaction_warnings=interaction_warnings,
         )
 
         return [
@@ -479,6 +504,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     "section_conditions": section_conditions,
                     "unmatched_conditions": unmatched_conditions,
                     "diagnosis_suggestions": diagnosis_suggestions,
+                    "interaction_warnings": interaction_warnings,
                 },
                 status_code=HTTPStatus.OK,
             )
@@ -673,6 +699,33 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
         return [JSONResponse({"suggestions": suggestions}, status_code=HTTPStatus.OK)]
+
+    @api.get("/check-interactions")
+    def get_check_interactions(self) -> list[Union[Response, Effect]]:
+        """Check a single medication for drug-drug and drug-allergy interactions."""
+        fdb_code = self.request.query_params.get("fdb_code", "").strip() or None
+        medication_name = self.request.query_params.get("medication_name", "").strip()
+        note_id = self.request.query_params.get("note_id", "").strip()
+        if not note_id:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if not fdb_code and not medication_name:
+            return [
+                JSONResponse(
+                    {"drug_interactions": [], "allergy_interactions": [], "medication_display": ""},
+                    status_code=HTTPStatus.OK,
+                )
+            ]
+        try:
+            result = check_single_medication_interactions(fdb_code, medication_name, note_id)
+        except Exception:
+            log.exception("check_single_medication_interactions failed")
+            return [
+                JSONResponse(
+                    {"drug_interactions": [], "allergy_interactions": [], "medication_display": medication_name},
+                    status_code=HTTPStatus.OK,
+                )
+            ]
+        return [JSONResponse(result, status_code=HTTPStatus.OK)]
 
     @api.post("/insert-commands")
     def post_insert_commands(self) -> list[Union[Response, Effect]]:
