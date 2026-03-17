@@ -48,6 +48,28 @@ class PrescriptionRecommendationList(BaseModelLlmJson):
     )
 
 
+class ReferRecommendation(BaseModelLlmJson):
+    specialty: str = Field(description="Medical specialty for the referral (e.g. Cardiology, ENT, Dermatology)")
+    clinical_question: str | None = Field(
+        default=None,
+        description=(
+            "One of: 'Cognitive Assistance (Advice/Guidance)', "
+            "'Assistance with Ongoing Management', "
+            "'Specialized intervention', "
+            "'Diagnostic Uncertainty'"
+        ),
+    )
+    priority: str = Field(default="Routine", description="'Routine' or 'Urgent'")
+    reason: str | None = Field(default=None, description="Brief reason or notes for the referral")
+
+
+class ReferRecommendationList(BaseModelLlmJson):
+    referrals: list[ReferRecommendation] = Field(
+        default_factory=list,
+        description="List of referrals extracted from the clinical note",
+    )
+
+
 class DiagnosisSuggestion(BaseModelLlmJson):
     condition_text: str = Field(description="The original condition text")
     icd10_codes: list[str] = Field(description="2-3 ICD-10 codes (e.g. R519, G43009)")

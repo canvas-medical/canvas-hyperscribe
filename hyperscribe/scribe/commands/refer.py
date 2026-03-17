@@ -5,7 +5,6 @@ from typing import Any
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.commands.commands.refer import ReferCommand
 from canvas_sdk.commands.constants import ServiceProvider
-from canvas_sdk.effects import Effect
 
 from hyperscribe.scribe.commands.base import CommandParser
 
@@ -18,14 +17,6 @@ class ReferParser(CommandParser):
 
     def extract(self, text: str) -> None:
         return None
-
-    def validate(self, data: dict[str, Any]) -> list[str]:
-        errors: list[str] = []
-        if not data.get("notes_to_specialist"):
-            errors.append("Notes to specialist is required")
-        if not data.get("diagnosis_codes"):
-            errors.append("At least one indication is required")
-        return errors
 
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         priority = None
@@ -63,6 +54,3 @@ class ReferParser(CommandParser):
             note_uuid=note_uuid,
             command_uuid=command_uuid,
         )
-
-    def post_originate_effects(self, command: _BaseCommand, proposal: dict[str, Any] | None = None) -> list[Effect]:
-        return [command.sign()]

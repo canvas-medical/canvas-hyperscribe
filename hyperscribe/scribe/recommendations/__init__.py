@@ -10,8 +10,14 @@ from hyperscribe.scribe.recommendations.allergy import AllergyRecommender
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.medication_statement import MedicationRecommender
 from hyperscribe.scribe.recommendations.prescription import PrescriptionRecommender
+from hyperscribe.scribe.recommendations.refer import ReferRecommender
 
-_RECOMMENDERS: list[BaseRecommender] = [MedicationRecommender(), AllergyRecommender(), PrescriptionRecommender()]
+_RECOMMENDERS: list[BaseRecommender] = [
+    MedicationRecommender(),
+    AllergyRecommender(),
+    PrescriptionRecommender(),
+    ReferRecommender(),
+]
 
 _MODEL = "claude-sonnet-4-5-20250929"
 

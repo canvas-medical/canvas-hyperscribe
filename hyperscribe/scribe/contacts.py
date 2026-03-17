@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from canvas_sdk.v1.data import Note
-from canvas_sdk.v1.data.patient import PatientAddress
 from logger import log
 
 from canvas_sdk.utils.http import science_http
@@ -17,14 +15,16 @@ def _format_contact(c: dict[str, Any]) -> dict[str, Any]:
     specialty = c.get("specialty", "")
 
     parts: list[str] = []
-    if first:
+    if first and first != "(TBD)":
         parts.append(first)
     if last and last != first:
         parts.append(last)
-    if practice and practice != first:
+    if practice and practice != "(TBD)":
         parts.append(f"({practice}),")
     if specialty and specialty not in (first, last, practice):
         parts.append(specialty)
+    if first == "(TBD)":
+        parts.append(first)
     name = " ".join(parts).strip()
 
     desc_parts: list[str] = []
@@ -61,15 +61,10 @@ def search_refer_providers(
     if not query:
         return []
 
+    params = f"?search={query}"
+    if zip_codes:
+        params += f"&business_postal_code__in={','.join(zip_codes)}"
     try:
-        # Try zip-filtered first for local results, fall back to unfiltered.
-        if zip_codes:
-            params = f"?search={query}&business_postal_code__in={','.join(zip_codes)}"
-            resp = science_http.get_json(f"/contacts/{params}")
-            raw_results = (resp.json() or {}).get("results", [])
-            if raw_results:
-                return [_format_contact(c) for c in raw_results]
-        params = f"?search={query}"
         resp = science_http.get_json(f"/contacts/{params}")
         raw_results = (resp.json() or {}).get("results", [])
     except Exception:
@@ -77,24 +72,3 @@ def search_refer_providers(
         return []
 
     return [_format_contact(c) for c in raw_results]
-
-
-def resolve_zip_codes(patient_id: str = "", note_id: str = "") -> list[str]:
-    """Resolve zip codes from patient address or note location."""
-    zip_codes: list[str] = []
-    if patient_id:
-        patient_zip = (
-            PatientAddress.objects.filter(patient__id=patient_id).values_list("postal_code", flat=True).first()
-        )
-        if patient_zip:
-            zip_codes = [patient_zip]
-    if not zip_codes and note_id:
-        try:
-            note = Note.objects.select_related("location").get(id=note_id)
-            if note.location:
-                loc_zip = note.location.addresses.values_list("postal_code", flat=True).first()
-                if loc_zip:
-                    zip_codes = [loc_zip]
-        except Note.DoesNotExist:
-            pass
-    return zip_codes

@@ -1007,3 +1007,35 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 }
             )
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/search-refer-providers")
+    def get_search_refer_providers(self) -> list[Union[Response, Effect]]:
+        """Search for providers to refer to via the science service."""
+        from hyperscribe.scribe.contacts import search_refer_providers
+
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+
+        # Resolve zip codes: patient address first, then note location as fallback.
+        zip_codes: list[str] = []
+        patient_id = self.request.query_params.get("patient_id", "").strip()
+        note_id = self.request.query_params.get("note_id", "").strip()
+        if patient_id:
+            patient_zip = (
+                PatientAddress.objects.filter(patient__id=patient_id).values_list("postal_code", flat=True).first()
+            )
+            if patient_zip:
+                zip_codes = [patient_zip]
+        if not zip_codes and note_id:
+            try:
+                note = Note.objects.select_related("location").get(id=note_id)
+                if note.location:
+                    loc_zip = note.location.addresses.values_list("postal_code", flat=True).first()
+                    if loc_zip:
+                        zip_codes = [loc_zip]
+            except Note.DoesNotExist:
+                pass
+
+        results = search_refer_providers(query, zip_codes or None)
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]

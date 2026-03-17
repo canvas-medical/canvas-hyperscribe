@@ -7,7 +7,7 @@ from logger import log
 
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 
-from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
+from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection
 from hyperscribe.scribe.contacts import search_refer_providers
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import ReferRecommendationList
@@ -35,14 +35,12 @@ def _build_user_prompt(sections: list[NoteSection]) -> str:
 
 
 class ReferRecommender(BaseRecommender):
-    def __init__(self, zip_codes: list[str] | None = None) -> None:
-        self.zip_codes = zip_codes
-
-    def recommend(
-        self, note: ClinicalNote, client: LlmAnthropic, transcript: Transcript | None = None
-    ) -> list[CommandProposal]:
+    def recommend(self, note: ClinicalNote, client: LlmAnthropic) -> list[CommandProposal]:
+        all_keys = [s.key for s in note.sections]
+        log.info(f"ReferRecommender: note section keys={all_keys}, filtering by {_RELEVANT_KEYS}")
         sections = [s for s in note.sections if s.key.lower() in _RELEVANT_KEYS and s.text.strip()]
         if not sections:
+            log.info("ReferRecommender: no matching sections, skipping")
             return []
 
         client.reset_prompts()
@@ -65,15 +63,18 @@ class ReferRecommender(BaseRecommender):
         except Exception:
             log.exception(f"Failed to parse refer LLM response: {response.response}")
             return []
+
         proposals: list[CommandProposal] = []
         for ref in parsed.referrals:
             search_term = ref.specialty or ""
             if not search_term:
                 continue
 
-            results = search_refer_providers(search_term, self.zip_codes)
-            if results:
-                match = results[0]
+            results = search_refer_providers(search_term)
+            # Skip TBD placeholder contacts — they aren't real providers.
+            valid = [r for r in results if "(TBD)" not in (r.get("name") or "")]
+            if valid:
+                match = valid[0]
                 display = match["name"]
                 proposals.append(
                     CommandProposal(
@@ -90,6 +91,7 @@ class ReferRecommender(BaseRecommender):
                     )
                 )
             else:
+                log.info(f"ReferRecommender: no contacts found for '{search_term}', adding as incomplete")
                 proposals.append(
                     CommandProposal(
                         command_type="refer",
