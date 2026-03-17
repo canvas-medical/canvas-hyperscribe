@@ -115,12 +115,12 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   const [seedText, setSeedText] = useState('');
   const [seedError, setSeedError] = useState(null);
 
-  const saveSummaryToCache = useCallback(async (note, cmds, isApproved) => {
+  const saveSummaryToCache = useCallback(async (note, cmds, isApproved, extras = {}) => {
     try {
       await fetch(`${API_BASE}/save-summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: noteId, note, commands: cmds, approved: isApproved }),
+        body: JSON.stringify({ note_id: noteId, note, commands: cmds, approved: isApproved, ...extras }),
       });
     } catch (err) {
       console.error('Failed to save summary to cache:', err);
@@ -354,19 +354,19 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
         const text = newData[field] || '';
         return { ...cmd, data: newData, display: text };
       });
-      saveSummaryToCache(noteData, updated, false);
+      saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return updated;
     });
-  }, [approved, noteData, saveSummaryToCache]);
+  }, [approved, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
   const handleDelete = useCallback((index) => {
     if (approved) return;
     setCommands(prev => {
       const updated = prev.filter((_, i) => i !== index);
-      saveSummaryToCache(noteData, updated, false);
+      saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return updated;
     });
-  }, [approved, noteData, saveSummaryToCache]);
+  }, [approved, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
   const handleAddTask = useCallback(() => {
     if (approved) return;
@@ -528,7 +528,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       } else {
         const hasPrescriptions = allInsertable.some(c => c.command_type === 'prescribe');
         setApproved(true);
-        saveSummaryToCache(noteData, commands, true);
+        saveSummaryToCache(noteData, commands, true, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
         if (hasPrescriptions) {
           setPrescriptionWarning(true);
         } else {
@@ -543,7 +543,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     } finally {
       setInserting(false);
     }
-  }, [commands, recommendations, noteId, noteData, saveSummaryToCache]);
+  }, [commands, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions]);
 
   if (DEV_MOCK && generating) {
     return html`
