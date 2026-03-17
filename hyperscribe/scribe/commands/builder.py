@@ -20,6 +20,7 @@ from hyperscribe.scribe.commands.medication_statement import MedicationParser
 from hyperscribe.scribe.commands.physical_exam import PhysicalExamParser
 from hyperscribe.scribe.commands.plan import PlanParser
 from hyperscribe.scribe.commands.prescription import PrescriptionParser
+from hyperscribe.scribe.commands.refer import ReferParser
 from hyperscribe.scribe.commands.rfv import RfvParser
 from hyperscribe.scribe.commands.ros import RosParser
 from hyperscribe.scribe.commands.task import TaskParser
@@ -38,6 +39,7 @@ _BUILDERS: dict[str, CommandParser] = {
     "physical_exam": PhysicalExamParser(),
     "plan": PlanParser(),
     "prescribe": PrescriptionParser(),
+    "refer": ReferParser(),
     "rfv": RfvParser(),
     "ros": RosParser(),
     "task": TaskParser(),
