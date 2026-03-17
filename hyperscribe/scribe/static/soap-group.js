@@ -579,7 +579,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const hasFdb = !!entry.command.data.fdb_code;
                 const isIncomplete = !hasFdb;
                 const isAccepted = !isIncomplete && (entry.command.accepted || entry.command.already_documented);
-
                 let btnLabel, btnClass;
                 if (entry.command.already_documented) {
                   btnLabel = 'Already in chart';

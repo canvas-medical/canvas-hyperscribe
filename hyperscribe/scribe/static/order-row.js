@@ -205,6 +205,54 @@ function buildDisplay(type, data) {
   return '';
 }
 
+function InteractionWarningInline({ warning }) {
+  if (!warning) return null;
+  const drugInteractions = warning.drug_interactions || [];
+  const allergyInteractions = warning.allergy_interactions || [];
+  if (drugInteractions.length === 0 && allergyInteractions.length === 0) return null;
+
+  return html`
+    <div class="interaction-warning-banner">
+      <div class="interaction-warning-icon">!</div>
+      <div class="interaction-warning-body">
+        ${drugInteractions.length > 0 && html`
+          <div class="interaction-warning-section">
+            <strong>Drug-Drug Interactions</strong>
+            ${drugInteractions.map((d, i) => {
+              const sevText = String(d.severity_text || d.severityScreeningLevelText || d.severity || '');
+              const sevLower = sevText.toLowerCase();
+              const sevClass = sevLower.includes('contraindicated') ? 'severity-contraindicated'
+                : sevLower.includes('severe') ? 'severity-severe'
+                : sevLower.includes('moderate') ? 'severity-moderate'
+                : 'severity-mild';
+              const name = d.existing_medication_description || d.drugName || d.screenDrug2 || 'Unknown drug';
+              const label = sevLower.includes('moderate') ? 'Moderate'
+                : sevLower.includes('severe') ? 'Severe'
+                : sevLower.includes('contraindicated') ? 'Contraindicated'
+                : 'Warning';
+              return html`<div class="interaction-warning-item" key=${i}><span class="interaction-severity-badge ${sevClass}">${label}</span> <span class="interaction-drug-name">${name}</span></div>`;
+            })}
+          </div>
+        `}
+        ${allergyInteractions.length > 0 && html`
+          <div class="interaction-warning-section">
+            <strong>Drug-Allergy Interactions</strong>
+            ${allergyInteractions.map((a, i) => {
+              const concept = a.allergy_concept || {};
+              const allergen = concept.dam_allergen_concept_id_description || a.allergenName || 'Unknown allergen';
+              const rawIngredients = a.allergy_ingredients || a.ingredients || [];
+              const ingredients = rawIngredients.map(ing => ing.hierarchical_ingredient_code_description || ing.name || ing).filter(Boolean);
+              // Show only the first unique base ingredient to avoid noise.
+              const uniqueIngredients = [...new Set(ingredients)].slice(0, 3);
+              return html`<div class="interaction-warning-item" key=${i}><span class="interaction-severity-badge severity-allergy">Allergy</span> <span class="interaction-drug-name">${allergen}</span>${uniqueIngredients.length > 0 && html`<span class="interaction-ingredients"> (${uniqueIngredients.join(', ')})</span>`}</div>`;
+            })}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
 export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, noteId, staffId, staffName }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
@@ -225,6 +273,38 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [refills, setRefills] = useState(command.data.refills || '');
   const [substitutions, setSubstitutions] = useState(command.data.substitutions !== 'not_allowed');
   const [noteToPharmacist, setNoteToPharmacist] = useState(command.data.note_to_pharmacist || '');
+  const [interactionWarning, setInteractionWarning] = useState(null);
+  const [checkingInteractions, setCheckingInteractions] = useState(false);
+
+  const checkInteractions = useCallback(async (fdbCode, medName) => {
+    if (!noteId || (!fdbCode && !medName)) {
+      setInteractionWarning(null);
+      return;
+    }
+    setCheckingInteractions(true);
+    try {
+      const params = new URLSearchParams({ note_id: noteId });
+      if (fdbCode) params.set('fdb_code', fdbCode);
+      if (medName) params.set('medication_name', medName);
+      const res = await fetch(`${API_BASE}/check-interactions?${params}`);
+      const data = await res.json();
+      const hasDrug = (data.drug_interactions || []).length > 0;
+      const hasAllergy = (data.allergy_interactions || []).length > 0;
+      setInteractionWarning((hasDrug || hasAllergy) ? data : null);
+    } catch (err) {
+      console.error('Interaction check failed:', err);
+      setInteractionWarning(null);
+    } finally {
+      setCheckingInteractions(false);
+    }
+  }, [noteId]);
+
+  // Check interactions on mount if we already have a medication selected.
+  useEffect(() => {
+    if (command.command_type === 'prescribe' && (command.data.fdb_code || command.data.medication_text)) {
+      checkInteractions(command.data.fdb_code, command.data.medication_text);
+    }
+  }, []);
 
   // Lab state
   const [labPartners, setLabPartners] = useState([]);
@@ -574,14 +654,20 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     const handler = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setMedResults([]);
+        setMedSearched(false);
         setLabTestResults([]);
+        setLabTestSearched(false);
         setDiagResults([]);
+        setDiagSearched(false);
         setDiagFocused(false);
         setImagingResults([]);
+        setImagingSearched(false);
         setImagingDiagResults([]);
+        setImagingDiagSearched(false);
         setImagingDiagFocused(false);
         setProviderResults([]);
         setCenterResults([]);
+        setCenterSearched(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -627,6 +713,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     } else {
       setTypeToDispense('');
     }
+    checkInteractions(result.fdb_code, result.description);
   };
 
   const handleSave = () => {
@@ -1114,19 +1201,22 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     if (d.refills != null && d.refills !== '') detailParts.push(`${d.refills} refill${d.refills > 1 ? 's' : ''}`);
     const hasFdb = !!d.fdb_code;
     return html`
-      <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
-        <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
-          <div class="subsection-title">Rx</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="medication-row-text">${command.display}</span>
-            ${hasFdb
-              ? html`<span class="medication-structured-badge">Structured</span>`
-              : html`<span class="medication-unstructured-badge">Unstructured</span>`
-            }
+      <div>
+        <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+            <div class="subsection-title">Rx</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="medication-row-text">${command.display}</span>
+              ${hasFdb
+                ? html`<span class="medication-structured-badge">Structured</span>`
+                : html`<span class="medication-unstructured-badge">Unstructured</span>`
+              }
+            </div>
+            ${d.sig && html`<span class="medication-sig-text" style="margin-left:4px">Sig: ${d.sig}</span>`}
+            ${detailParts.length > 0 && html`<span class="medication-sig-text" style="margin-left:4px">${detailParts.join(' · ')}</span>`}
           </div>
-          ${d.sig && html`<span class="medication-sig-text" style="margin-left:4px">Sig: ${d.sig}</span>`}
-          ${detailParts.length > 0 && html`<span class="medication-sig-text" style="margin-left:4px">${detailParts.join(' · ')}</span>`}
         </div>
+        ${interactionWarning && html`<${InteractionWarningInline} warning=${interactionWarning} />`}
       </div>
     `;
   }
