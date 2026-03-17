@@ -14,7 +14,7 @@ const html = htm.bind(h);
 
 const NARRATIVE_SECTIONS = new Set(['chief_complaint', 'history_of_present_illness', 'plan', 'assessment_and_plan']);
 const PLAN_SECTIONS = new Set(['plan', 'assessment_and_plan']);
-const ORDER_TYPES = new Set(['prescribe', 'lab_order', 'imaging_order']);
+const ORDER_TYPES = new Set(['prescribe', 'lab_order', 'imaging_order', 'refer']);
 
 // Map group title → review command section key + label + position
 const REVIEW_COMMANDS = {
@@ -596,6 +596,61 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
 
                 return html`
                 <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}" key=${'rec-rx-' + entry.index}>
+                  <div class="recommendation-actions">
+                    ${entry.command.already_documented
+                      ? html`<span class=${btnClass}>${btnLabel}</span>`
+                      : !readOnly && html`<button type="button" class=${btnClass} onClick=${() => !isIncomplete && onAcceptRecommendation(entry.index)} disabled=${isIncomplete}>${btnLabel}</button>`
+                    }
+                  </div>
+                  <div class="recommendation-content">
+                    <${OrderRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditRecommendation}
+                      readOnly=${readOnly || entry.command.already_documented}
+                      patientId=${patientId}
+                      noteId=${noteId}
+                      staffId=${staffId}
+                      staffName=${staffName}
+                    />
+                  </div>
+                </div>
+                `;
+              })}
+            </div>
+          `;
+        })()}
+        ${(() => {
+          // Render Refer recommendations in the PLAN group.
+          if (title !== 'PLAN') return null;
+          const referRecs = (recommendations || [])
+            .map((cmd, i) => ({ command: cmd, index: i }))
+            .filter(e => e.command.command_type === 'refer');
+          if (referRecs.length === 0) return null;
+          return html`
+            <div class="subsection">
+              <div class="subsection-title">Referrals</div>
+              ${referRecs.map(entry => {
+                const hasProvider = !!entry.command.data.service_provider;
+                const isIncomplete = !hasProvider;
+                const isAccepted = !isIncomplete && (entry.command.accepted || entry.command.already_documented);
+                let btnLabel, btnClass;
+                if (entry.command.already_documented) {
+                  btnLabel = 'Already in chart';
+                  btnClass = 'recommendation-accept-btn accepted';
+                } else if (isIncomplete) {
+                  btnLabel = 'Incomplete';
+                  btnClass = 'recommendation-accept-btn incomplete';
+                } else if (entry.command.accepted) {
+                  btnLabel = 'Accepted';
+                  btnClass = 'recommendation-accept-btn accepted';
+                } else {
+                  btnLabel = 'Accept';
+                  btnClass = 'recommendation-accept-btn';
+                }
+
+                return html`
+                <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}${isIncomplete ? ' incomplete-code' : ''}" key=${'rec-refer-' + entry.index}>
                   <div class="recommendation-actions">
                     ${entry.command.already_documented
                       ? html`<span class=${btnClass}>${btnLabel}</span>`

@@ -345,6 +345,10 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
           const parts = [newData.image_display, newData.additional_details, newData.comment, newData.priority].filter(Boolean);
           return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
         }
+        if (type === 'refer') {
+          const parts = [newData.refer_to_display, newData.clinical_question, newData.priority].filter(Boolean);
+          return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral' };
+        }
         if (type === 'diagnose') {
           const display = newData.icd10_display || newData.condition_header || cmd.display;
           const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
@@ -416,6 +420,10 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       }
       if (type === 'prescribe') {
         return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '', accepted: true };
+      }
+      if (type === 'refer') {
+        const parts = [newData.refer_to_display, newData.clinical_question, newData.priority].filter(Boolean);
+        return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral', accepted: true };
       }
       return { ...cmd, data: newData, accepted: true };
     }));
