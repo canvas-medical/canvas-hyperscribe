@@ -43,6 +43,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
     const handler = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setResults([]);
+        setSearched(false);
       }
     };
     document.addEventListener('mousedown', handler);

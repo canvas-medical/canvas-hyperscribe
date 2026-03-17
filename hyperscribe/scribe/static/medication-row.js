@@ -49,6 +49,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     const handler = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setResults([]);
+        setSearched(false);
       }
     };
     document.addEventListener('mousedown', handler);
