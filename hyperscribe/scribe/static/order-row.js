@@ -738,7 +738,6 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     </div>
                   `}
                 </div>
-                ${selectedFdb && html`<span class="medication-structured-badge">FDB: ${selectedFdb}</span>`}
                 <div class="order-rx-row">
                   <div class="labeled-field" style="flex:2">
                     <span class="labeled-field-label">Qty</span>
