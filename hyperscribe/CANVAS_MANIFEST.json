@@ -163,6 +163,10 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.scribe.cron.storage:StorageCronTask",
+        "description": "A cron task that runs every monday at 3am that checks and extends storage."
       }
     ],
     "applications": [
