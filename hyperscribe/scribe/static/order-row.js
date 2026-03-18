@@ -1428,7 +1428,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     <span class="labeled-field-label">Notes to Specialist</span>
                     <textarea
                       class="labeled-field-input"
-                      rows="2"
+                      rows="4"
                       value=${referNotesToSpecialist}
                       onInput=${(e) => setReferNotesToSpecialist(e.target.value)}
                     />
@@ -1439,7 +1439,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     <span class="labeled-field-label">Comment</span>
                     <textarea
                       class="labeled-field-input"
-                      rows="2"
+                      rows="4"
                       value=${referComment}
                       onInput=${(e) => setReferComment(e.target.value)}
                     />
