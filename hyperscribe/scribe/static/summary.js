@@ -59,12 +59,13 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, onAddHistory, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
       const isPlan = group.title === 'PLAN';
       const isObjective = group.title === 'OBJECTIVE';
+      const isHistory = group.title === 'HISTORY';
       if (matching.length === 0 && !isPlan) return null;
       return html`<${SoapGroup}
         key=${group.title}
@@ -74,12 +75,13 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         commandBySectionKey=${commandBySectionKey}
         onEditCommand=${onEditCommand}
         onDeleteCommand=${onDeleteCommand}
-        adHocCommands=${isPlan ? adHocCommands : isObjective ? objectiveAdHocCommands : null}
+        adHocCommands=${isPlan ? adHocCommands : isObjective ? objectiveAdHocCommands : isHistory ? historyAdHocCommands : null}
         assignees=${isPlan ? assignees : null}
         onAddTask=${isPlan ? onAddTask : null}
         onAddOrder=${isPlan ? onAddOrder : null}
         onAddMedication=${isObjective ? onAddMedication : null}
         onAddAllergy=${isObjective ? onAddAllergy : null}
+        onAddHistory=${isHistory ? onAddHistory : null}
         readOnly=${readOnly}
         sectionConditions=${sectionConditions}
         patientId=${patientId}
@@ -349,6 +351,18 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
           const parts = [newData.refer_to_display, newData.clinical_question, newData.priority].filter(Boolean);
           return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral' };
         }
+        if (type === 'familyHistory') {
+          const parts = [newData.condition_display, newData.relative, newData.note].filter(Boolean);
+          return { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
+        }
+        if (type === 'medicalHistory') {
+          const parts = [newData.past_medical_history, newData.comments].filter(Boolean);
+          return { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
+        }
+        if (type === 'surgicalHistory') {
+          const parts = [newData.procedure_display, newData.comment].filter(Boolean);
+          return { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
+        }
         if (type === 'diagnose') {
           const display = newData.icd10_display || newData.condition_header || cmd.display;
           const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
@@ -392,6 +406,18 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       data: {},
       selected: true,
       section_key: '_ad_hoc',
+      already_documented: false,
+    }]);
+  }, [approved]);
+
+  const handleAddHistory = useCallback((commandType) => {
+    if (approved) return;
+    setCommands(prev => [...prev, {
+      command_type: commandType,
+      display: '',
+      data: {},
+      selected: true,
+      section_key: '_history_ad_hoc',
       already_documented: false,
     }]);
   }, [approved]);
@@ -485,7 +511,11 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
 
   const handleInsert = useCallback(async () => {
     setInserting(true);
-    const insertable = commands.filter(c => !c.already_documented && c.display);
+    const insertable = commands.filter(c => {
+      if (c.already_documented || !c.display) return false;
+      if (c.command_type === 'imaging_order' && !c.data.service_provider) return false;
+      return true;
+    });
     const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
     let allInsertable = [...insertable, ...acceptedRecs];
 
@@ -623,6 +653,9 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   const objectiveAdHocCommands = commands
     .map((cmd, index) => ({ command: cmd, index }))
     .filter(entry => entry.command.section_key === '_objective_ad_hoc');
+  const historyAdHocCommands = commands
+    .map((cmd, index) => ({ command: cmd, index }))
+    .filter(entry => entry.command.section_key === '_history_ad_hoc');
 
   const insertableCount = commands.filter(c => {
     if (c.command_type === 'diagnose') return c.data.icd10_code && c.data.accepted && c.display;
@@ -631,17 +664,49 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     + recommendations.filter(c => c.accepted && !c.already_documented && c.display).length;
   const showFooter = !approved && (insertableCount > 0);
 
+  const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral' };
+  const incompleteTypes = [];
+  for (const c of commands) {
+    if (c.command_type === 'diagnose' && c.display && (!c.data.icd10_code || !c.data.accepted)) {
+      if (!incompleteTypes.includes('diagnose')) incompleteTypes.push('diagnose');
+    }
+    if (c.command_type === 'imaging_order' && c.display && !c.data.service_provider) {
+      if (!incompleteTypes.includes('imaging_order')) incompleteTypes.push('imaging_order');
+    }
+  }
+  for (const c of recommendations) {
+    if (c.accepted && !c.already_documented && c.display) {
+      if (c.command_type === 'prescribe' && !c.data.fdb_code) {
+        if (!incompleteTypes.includes('prescribe')) incompleteTypes.push('prescribe');
+      }
+      if (c.command_type === 'refer' && !c.data.service_provider) {
+        if (!incompleteTypes.includes('refer')) incompleteTypes.push('refer');
+      }
+    }
+  }
+  const incompleteCount = commands.filter(c =>
+    (c.command_type === 'diagnose' && c.display && (!c.data.icd10_code || !c.data.accepted)) ||
+    (c.command_type === 'imaging_order' && c.display && !c.data.service_provider)
+  ).length + recommendations.filter(c =>
+    c.accepted && !c.already_documented && c.display && (
+      (c.command_type === 'prescribe' && !c.data.fdb_code) ||
+      (c.command_type === 'refer' && !c.data.service_provider)
+    )
+  ).length;
+
   return html`
     <div class="summary-container">
       <div class="summary-body">
         ${renderSoapGroups(noteData.sections, commandBySectionKey, handleEdit, handleDelete, {
           adHocCommands,
           objectiveAdHocCommands,
+          historyAdHocCommands,
           assignees,
           onAddTask: approved ? null : handleAddTask,
           onAddOrder: approved ? null : handleAddOrder,
           onAddMedication: approved ? null : handleAddMedication,
           onAddAllergy: approved ? null : handleAddAllergy,
+          onAddHistory: approved ? null : handleAddHistory,
           readOnly: approved,
           sectionConditions,
           patientId,
@@ -672,6 +737,11 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       `}
       ${showFooter && html`
         <div class="summary-footer">
+          ${incompleteCount > 0 && html`
+            <div class="summary-footer-warning">
+              ${incompleteCount} incomplete ${incompleteCount === 1 ? 'item' : 'items'} will be skipped: ${incompleteTypes.map(t => INCOMPLETE_LABELS[t]).join(', ')}
+            </div>
+          `}
           <button
             class="insert-btn"
             onClick=${handleInsert}

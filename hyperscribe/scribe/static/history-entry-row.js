@@ -1,11 +1,8 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
-import { useState, useRef, useCallback, useEffect } from 'https://esm.sh/preact@10.25.4/hooks';
+import { useState, useRef, useCallback } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
-
-const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
-const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -49,30 +46,32 @@ function SearchField({ label, placeholder, endpoint, onSelect, initialDisplay })
   };
 
   return html`
-    <div class="history-form-field" style="position: relative;">
-      <label class="history-form-label">${label}</label>
-      <input
-        type="text"
-        class="history-form-input"
-        value=${query}
-        onInput=${handleInput}
-        placeholder=${placeholder}
-      />
+    <div style="position: relative;">
+      <div class="labeled-field">
+        <span class="labeled-field-label">${label}</span>
+        <input
+          type="text"
+          class="labeled-field-input"
+          value=${query}
+          onInput=${handleInput}
+          placeholder=${placeholder}
+        />
+      </div>
       ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
       ${results.length > 0 && html`
-        <div class="history-search-dropdown">
+        <div class="diag-search-dropdown">
           ${results.map(r => html`
             <div
               key=${r.code}
-              class="history-search-result"
+              class="diag-search-result"
               onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
             >${r.display}${r.code ? html` <span style="opacity:0.5">(${r.code})</span>` : ''}</div>
           `)}
         </div>
       `}
       ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-        <div class="history-search-dropdown">
-          <div class="history-search-result search-no-results">No results found</div>
+        <div class="diag-search-dropdown">
+          <div class="diag-search-result search-no-results">No results found</div>
         </div>
       `}
     </div>
@@ -98,7 +97,8 @@ function FamilyHistoryForm({ command, commandIndex, onEdit, onDelete, onCancel, 
   };
 
   return html`
-    <div class="history-form">
+    <div class="order-rx-form">
+      <div class="subsection-title">Family Hx</div>
       <${SearchField}
         key="fh-condition"
         label="Condition"
@@ -115,19 +115,19 @@ function FamilyHistoryForm({ command, commandIndex, onEdit, onDelete, onCancel, 
         initialDisplay=${relative}
         onSelect=${(r, display) => { setRelative(display); setRelativeCode(r ? r.code : null); }}
       />
-      <div class="history-form-field">
-        <label class="history-form-label">Comment</label>
+      <div class="labeled-field">
+        <span class="labeled-field-label">Comment</span>
         <textarea
-          class="history-form-textarea"
-          rows="3"
+          class="labeled-field-input"
+          rows="4"
           value=${comment}
           onInput=${(e) => setComment(e.target.value)}
-          placeholder="Optional notes..."
         />
       </div>
-      <div class="questionnaire-form-actions">
-        <button type="button" class="form-btn form-btn-cancel" onClick=${onCancel}>Cancel</button>
-        <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
+      <div class="command-row-actions">
+        <button class="edit-btn" onClick=${handleSave}>Save</button>
+        <button class="edit-btn" onClick=${onCancel}>Cancel</button>
+        <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
       </div>
     </div>
   `;
@@ -152,7 +152,8 @@ function MedicalHistoryForm({ command, commandIndex, onEdit, onDelete, onCancel,
   };
 
   return html`
-    <div class="history-form">
+    <div class="order-rx-form">
+      <div class="subsection-title">Medical Hx</div>
       <${SearchField}
         key="mh-condition"
         label="Condition"
@@ -161,29 +162,29 @@ function MedicalHistoryForm({ command, commandIndex, onEdit, onDelete, onCancel,
         initialDisplay=${condition}
         onSelect=${(r, display) => { setCondition(display); setConditionCode(r ? r.code : null); }}
       />
-      <div class="history-form-dates">
-        <div class="history-form-field">
-          <label class="history-form-label">Start Date</label>
-          <input class="history-form-input" type="date" value=${startDate} onInput=${(e) => setStartDate(e.target.value)} />
+      <div class="order-rx-row">
+        <div class="labeled-field" style="flex:1">
+          <span class="labeled-field-label">Start Date</span>
+          <input class="labeled-field-input" type="date" value=${startDate} onInput=${(e) => setStartDate(e.target.value)} />
         </div>
-        <div class="history-form-field">
-          <label class="history-form-label">End Date</label>
-          <input class="history-form-input" type="date" value=${endDate} onInput=${(e) => setEndDate(e.target.value)} />
+        <div class="labeled-field" style="flex:1">
+          <span class="labeled-field-label">End Date</span>
+          <input class="labeled-field-input" type="date" value=${endDate} onInput=${(e) => setEndDate(e.target.value)} />
         </div>
       </div>
-      <div class="history-form-field">
-        <label class="history-form-label">Comment</label>
+      <div class="labeled-field">
+        <span class="labeled-field-label">Comment</span>
         <textarea
-          class="history-form-textarea"
-          rows="3"
+          class="labeled-field-input"
+          rows="4"
           value=${comment}
           onInput=${(e) => setComment(e.target.value)}
-          placeholder="Optional notes..."
         />
       </div>
-      <div class="questionnaire-form-actions">
-        <button type="button" class="form-btn form-btn-cancel" onClick=${onCancel}>Cancel</button>
-        <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
+      <div class="command-row-actions">
+        <button class="edit-btn" onClick=${handleSave}>Save</button>
+        <button class="edit-btn" onClick=${onCancel}>Cancel</button>
+        <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
       </div>
     </div>
   `;
@@ -206,7 +207,8 @@ function SurgicalHistoryForm({ command, commandIndex, onEdit, onDelete, onCancel
   };
 
   return html`
-    <div class="history-form">
+    <div class="order-rx-form">
+      <div class="subsection-title">Surgical Hx</div>
       <${SearchField}
         key="sh-procedure"
         label="Procedure"
@@ -215,23 +217,23 @@ function SurgicalHistoryForm({ command, commandIndex, onEdit, onDelete, onCancel
         initialDisplay=${procedure}
         onSelect=${(r, display) => { setProcedure(display); setProcedureCode(r ? r.code : null); }}
       />
-      <div class="history-form-field">
-        <label class="history-form-label">Date</label>
-        <input class="history-form-input" type="date" value=${date} onInput=${(e) => setDate(e.target.value)} />
+      <div class="labeled-field">
+        <span class="labeled-field-label">Date</span>
+        <input class="labeled-field-input" type="date" value=${date} onInput=${(e) => setDate(e.target.value)} />
       </div>
-      <div class="history-form-field">
-        <label class="history-form-label">Comment</label>
+      <div class="labeled-field">
+        <span class="labeled-field-label">Comment</span>
         <textarea
-          class="history-form-textarea"
-          rows="3"
+          class="labeled-field-input"
+          rows="4"
           value=${comment}
           onInput=${(e) => setComment(e.target.value)}
-          placeholder="Optional notes..."
         />
       </div>
-      <div class="questionnaire-form-actions">
-        <button type="button" class="form-btn form-btn-cancel" onClick=${onCancel}>Cancel</button>
-        <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
+      <div class="command-row-actions">
+        <button class="edit-btn" onClick=${handleSave}>Save</button>
+        <button class="edit-btn" onClick=${onCancel}>Cancel</button>
+        <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
       </div>
     </div>
   `;
@@ -249,13 +251,9 @@ const BADGE_LABELS = {
   surgicalHistory: 'Surgical Hx',
 };
 
-export function HistoryEntryRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {
+export function HistoryEntryRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
-  useEffect(() => {
-    onEditingChange?.(commandIndex, editing);
-    return () => onEditingChange?.(commandIndex, false);
-  }, [editing, commandIndex]);
 
   const handleCancel = () => {
     if (isNew) {
@@ -270,7 +268,7 @@ export function HistoryEntryRow({ command, commandIndex, onEdit, onDelete, readO
     setEditing(false);
   };
 
-  if (editing && !readOnly) {
+  if (editing) {
     const FormComponent = FORM_COMPONENTS[command.command_type];
     if (!FormComponent) return null;
     return html`
@@ -287,28 +285,13 @@ export function HistoryEntryRow({ command, commandIndex, onEdit, onDelete, readO
     `;
   }
 
-  const d = command.data || {};
-  const type = command.command_type;
-  const name = type === 'familyHistory' ? d.condition_display
-    : type === 'medicalHistory' ? d.past_medical_history
-    : d.procedure_display;
-  const details = [];
-  if (type === 'familyHistory' && d.relative) details.push(d.relative);
-  if (type === 'medicalHistory') {
-    const dates = [d.approximate_start_date, d.approximate_end_date].filter(Boolean);
-    if (dates.length) details.push(dates.join(' – '));
-  }
-  if (type === 'surgicalHistory' && d.approximate_date) details.push(d.approximate_date);
-  const comment = type === 'familyHistory' ? d.note
-    : type === 'medicalHistory' ? d.comments
-    : d.comment;
-  if (comment) details.push(comment);
+  const badge = BADGE_LABELS[command.command_type] || 'History';
 
   return html`
-    <div class="history-entry-view" onClick=${() => !readOnly && setEditing(true)}>
-      <div class="history-entry-content">
-        <div class="history-entry-name">${name || '(empty)'}</div>
-        ${details.length > 0 && html`<div class="history-entry-details">${details.join(' · ')}</div>`}
+    <div>
+      <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
+        <div class="subsection-title">${badge}</div>
+        <span class="command-row-text">${command.display || '(empty)'}</span>
       </div>
     </div>
   `;

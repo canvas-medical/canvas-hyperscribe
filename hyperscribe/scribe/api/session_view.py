@@ -889,6 +889,98 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         ]
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
 
+    @api.get("/search-family-history")
+    def get_search_family_history(self) -> list[Union[Response, Effect]]:
+        """Search family history conditions (SNOMED) via the science service."""
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        try:
+            resp = science_http.get_json(f"/search/family-history/?query={query}&limit=25")
+            data = resp.json() or {}
+        except Exception:
+            log.exception("Family history search failed")
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        results = [
+            {
+                "code": str(r.get("concept_id", "")),
+                "display": r.get("term", ""),
+                "system": "http://snomed.info/sct",
+            }
+            for r in data.get("results", [])
+            if r.get("concept_id") or r.get("term")
+        ]
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/search-family-relation")
+    def get_search_family_relation(self) -> list[Union[Response, Effect]]:
+        """Search family relation types (SNOMED CT) via the science service."""
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        try:
+            resp = science_http.get_json(f"/search/family-relation/?query={query}&limit=25")
+            data = resp.json() or {}
+        except Exception:
+            log.exception("Family relation search failed")
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        results = [
+            {
+                "code": str(r.get("concept_id", "")),
+                "display": r.get("term", ""),
+                "system": "http://snomed.info/sct",
+            }
+            for r in data.get("results", [])
+            if r.get("concept_id") or r.get("term")
+        ]
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/search-medical-history")
+    def get_search_medical_history(self) -> list[Union[Response, Effect]]:
+        """Search medical history conditions (ICD-10) via the science service."""
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        try:
+            resp = science_http.get_json(f"/search/medical-history-condition/?query={query}&limit=100")
+            data = resp.json() or {}
+        except Exception:
+            log.exception("Medical history search failed")
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        results = [
+            {
+                "code": r.get("icd10_code", ""),
+                "display": r.get("icd10_text", ""),
+                "system": "http://hl7.org/fhir/sid/icd-10-cm",
+            }
+            for r in data.get("results", [])
+            if r.get("icd10_code") or r.get("icd10_text")
+        ]
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/search-surgical-history")
+    def get_search_surgical_history(self) -> list[Union[Response, Effect]]:
+        """Search surgical history procedures (SNOMED) via the science service."""
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        try:
+            resp = science_http.get_json(f"/search/surgical-history-procedure/?query={query}&limit=100")
+            data = resp.json() or {}
+        except Exception:
+            log.exception("Surgical history search failed")
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+        results = [
+            {
+                "code": str(r.get("concept_id", "")),
+                "display": r.get("term", ""),
+                "system": "http://snomed.info/sct",
+            }
+            for r in data.get("results", [])
+            if r.get("concept_id") or r.get("term")
+        ]
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
     @api.get("/search-imaging")
     def get_search_imaging(self) -> list[Union[Response, Effect]]:
         """Search imaging codes via the science service."""

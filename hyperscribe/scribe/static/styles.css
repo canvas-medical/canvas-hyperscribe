@@ -288,6 +288,11 @@ h2 { margin-bottom: 4px; }
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 12px;
+}
+.summary-footer-warning {
+  font-size: 12px;
+  color: #b45309;
 }
 
 .summary-section {
@@ -617,7 +622,7 @@ h2 { margin-bottom: 4px; }
 .order-input:focus { outline: none; border-color: #052B49; }
 .order-textarea { width: 100%; min-height: 60px; padding: 6px 8px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
 .order-textarea:focus { outline: none; border-color: #052B49; }
-.order-rx-form { display: flex; flex-direction: column; gap: 6px; }
+.order-rx-form { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 500px; }
 .order-rx-row { display: flex; gap: 6px; align-items: center; max-width: 500px; }
 /* Labeled field: [Label|Input] */
 .labeled-field { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; max-width: 500px; }
