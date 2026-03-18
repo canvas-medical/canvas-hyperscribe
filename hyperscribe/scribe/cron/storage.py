@@ -1,8 +1,7 @@
 from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
-from canvas_sdk.effects.note import Note
 from canvas_sdk.handlers.cron_task import CronTask
-
+from canvas_sdk.v1.data import Note
 
 _CACHE_KEY_PREFIX = "scribe_transcript:"
 _SUMMARY_CACHE_KEY_PREFIX = "scribe_summary:"
