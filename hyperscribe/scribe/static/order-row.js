@@ -1518,6 +1518,28 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     `;
   }
 
+  if (command.command_type === 'imaging_order') {
+    const d = command.data;
+    const hasCenter = !!d.service_provider;
+    const detailParts = [];
+    if (d.additional_details) detailParts.push(d.additional_details);
+    if (d.priority) detailParts.push(d.priority);
+    if (d.ordering_provider_name) detailParts.push(d.ordering_provider_name);
+    if (d.service_provider_name) detailParts.push(d.service_provider_name);
+    return html`
+      <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
+        <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+          <div class="subsection-title">${badgeLabel}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="medication-row-text">${command.display}</span>
+            ${!hasCenter && html`<span class="medication-unstructured-badge">Incomplete</span>`}
+          </div>
+          ${detailParts.length > 0 && html`<span class="medication-sig-text" style="margin-left:4px">${detailParts.join(' · ')}</span>`}
+        </div>
+      </div>
+    `;
+  }
+
   return html`
     <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
       <div class="subsection-title">${badgeLabel}</div>
