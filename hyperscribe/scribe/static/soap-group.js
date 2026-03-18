@@ -8,6 +8,7 @@ import { VitalsRow } from '/plugin-io/api/hyperscribe/scribe/static/vitals-row.j
 import { TaskRow } from '/plugin-io/api/hyperscribe/scribe/static/task-row.js';
 import { OrderRow } from '/plugin-io/api/hyperscribe/scribe/static/order-row.js';
 import { HistoryReviewRow } from '/plugin-io/api/hyperscribe/scribe/static/history-review-row.js';
+import { HistoryEntryRow } from '/plugin-io/api/hyperscribe/scribe/static/history-entry-row.js';
 import { DiagnoseRow } from '/plugin-io/api/hyperscribe/scribe/static/diagnose-row.js';
 
 const html = htm.bind(h);
@@ -15,6 +16,7 @@ const html = htm.bind(h);
 const NARRATIVE_SECTIONS = new Set(['chief_complaint', 'history_of_present_illness', 'plan', 'assessment_and_plan']);
 const PLAN_SECTIONS = new Set(['plan', 'assessment_and_plan']);
 const ORDER_TYPES = new Set(['prescribe', 'lab_order', 'imaging_order', 'refer']);
+const HISTORY_TYPES = new Set(['familyHistory', 'medicalHistory', 'surgicalHistory']);
 
 // Map group title → review command section key + label + position
 const REVIEW_COMMANDS = {
@@ -210,7 +212,7 @@ function AddConditionSearch({ onAdd }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, onAddHistory, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   return html`
@@ -558,12 +560,44 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               </div>
             `;
           }
+          if (type === 'history_review') {
+            return html`
+              <div class="content-block" key=${entry.index}>
+                <${HistoryReviewRow}
+                  command=${entry.command}
+                  commandIndex=${entry.index}
+                  onEdit=${onEditCommand}
+                  onDelete=${onDeleteCommand}
+                />
+              </div>
+            `;
+          }
+          if (HISTORY_TYPES.has(type)) {
+            return html`
+              <div class="content-block" key=${entry.index}>
+                <${HistoryEntryRow}
+                  command=${entry.command}
+                  commandIndex=${entry.index}
+                  onEdit=${onEditCommand}
+                  onDelete=${onDeleteCommand}
+                  readOnly=${readOnly}
+                />
+              </div>
+            `;
+          }
           return null;
         })}
         ${onAddMedication && html`
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${onAddMedication}>+ Medication</button>
             <button type="button" class="ad-hoc-btn" onClick=${onAddAllergy}>+ Allergy</button>
+          </div>
+        `}
+        ${onAddHistory && !readOnly && html`
+          <div class="ad-hoc-buttons">
+            <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory('familyHistory')}>+ Family Hx</button>
+            <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory('medicalHistory')}>+ Medical Hx</button>
+            <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory('surgicalHistory')}>+ Surgical Hx</button>
           </div>
         `}
         ${(() => {

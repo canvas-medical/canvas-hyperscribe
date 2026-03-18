@@ -12,10 +12,12 @@ from hyperscribe.scribe.commands.assess import AssessParser
 from hyperscribe.scribe.commands.base import CommandParser
 from hyperscribe.scribe.commands.chart_review import ChartReviewParser
 from hyperscribe.scribe.commands.diagnose import DiagnoseParser
+from hyperscribe.scribe.commands.family_history import FamilyHistoryParser
 from hyperscribe.scribe.commands.history_review import HistoryReviewParser
 from hyperscribe.scribe.commands.hpi import HpiParser
 from hyperscribe.scribe.commands.imaging_order import ImagingOrderParser
 from hyperscribe.scribe.commands.lab_order import LabOrderParser
+from hyperscribe.scribe.commands.medical_history import MedicalHistoryParser
 from hyperscribe.scribe.commands.medication_statement import MedicationParser
 from hyperscribe.scribe.commands.physical_exam import PhysicalExamParser
 from hyperscribe.scribe.commands.plan import PlanParser
@@ -23,6 +25,7 @@ from hyperscribe.scribe.commands.prescription import PrescriptionParser
 from hyperscribe.scribe.commands.refer import ReferParser
 from hyperscribe.scribe.commands.rfv import RfvParser
 from hyperscribe.scribe.commands.ros import RosParser
+from hyperscribe.scribe.commands.surgical_history import SurgicalHistoryParser
 from hyperscribe.scribe.commands.task import TaskParser
 from hyperscribe.scribe.commands.vitals import VitalsParser
 
@@ -31,10 +34,12 @@ _BUILDERS: dict[str, CommandParser] = {
     "assess": AssessParser(),
     "chart_review": ChartReviewParser(),
     "diagnose": DiagnoseParser(),
+    "familyHistory": FamilyHistoryParser(),
     "history_review": HistoryReviewParser(),
     "hpi": HpiParser(),
     "imaging_order": ImagingOrderParser(),
     "lab_order": LabOrderParser(),
+    "medicalHistory": MedicalHistoryParser(),
     "medication_statement": MedicationParser(),
     "physical_exam": PhysicalExamParser(),
     "plan": PlanParser(),
@@ -42,6 +47,7 @@ _BUILDERS: dict[str, CommandParser] = {
     "refer": ReferParser(),
     "rfv": RfvParser(),
     "ros": RosParser(),
+    "surgicalHistory": SurgicalHistoryParser(),
     "task": TaskParser(),
     "vitals": VitalsParser(),
 }
