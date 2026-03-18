@@ -6,6 +6,8 @@ from typing import Any
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from canvas_sdk.commands.constants import ClinicalQuantity
+from canvas_sdk.effects import Effect
+from canvas_sdk.v1.data.note import Note
 
 from hyperscribe.scribe.commands.base import CommandParser
 
@@ -42,15 +44,31 @@ class PrescriptionParser(CommandParser):
                 ncpdp_quantity_qualifier_code=raw_type,
             )
 
+        prescriber_id = self._resolve_prescriber(note_uuid)
+
         return PrescribeCommand(
             fdb_code=data.get("fdb_code") or None,
             sig=str(data.get("sig", "")),
-            days_supply=int(data["days_supply"]) if data.get("days_supply") else None,
+            days_supply=int(data["days_supply"]) if data.get("days_supply") is not None else None,
             quantity_to_dispense=quantity,
             type_to_dispense=type_to_dispense,
-            refills=int(data["refills"]) if data.get("refills") else None,
+            refills=int(data["refills"]) if data.get("refills") is not None else None,
             substitutions=substitutions,
             note_to_pharmacist=data.get("note_to_pharmacist") or None,
+            prescriber_id=prescriber_id,
             note_uuid=note_uuid,
             command_uuid=command_uuid,
         )
+
+    def to_effects(self, command: _BaseCommand) -> list[Effect]:
+        """Prescriptions require originate + review (not commit) for provider sign-off."""
+        return [command.originate(), command.review()]
+
+    @staticmethod
+    def _resolve_prescriber(note_uuid: str) -> str | None:
+        """Look up the note's provider to use as prescriber."""
+        try:
+            provider_id: str | None = Note.objects.values_list("provider__id", flat=True).get(id=note_uuid)
+            return provider_id
+        except Exception:
+            return None

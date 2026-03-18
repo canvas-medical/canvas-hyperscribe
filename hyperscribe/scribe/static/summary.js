@@ -557,6 +557,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     const insertable = commands.filter(c => {
       if (c.already_documented || !c.display) return false;
       if (c.command_type === 'imaging_order' && !c.data.service_provider) return false;
+      if (c.command_type === 'prescribe' && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
       return true;
     });
     const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
@@ -684,10 +685,13 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     if (c.command_type === 'imaging_order' && c.display && !c.data.service_provider) {
       if (!incompleteTypes.includes('imaging_order')) incompleteTypes.push('imaging_order');
     }
+    if (c.command_type === 'prescribe' && c.display && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) {
+      if (!incompleteTypes.includes('prescribe')) incompleteTypes.push('prescribe');
+    }
   }
   for (const c of recommendations) {
     if (!c.already_documented && c.display) {
-      if (c.command_type === 'prescribe' && c.accepted && !c.data.fdb_code) {
+      if (c.command_type === 'prescribe' && c.accepted && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) {
         if (!incompleteTypes.includes('prescribe')) incompleteTypes.push('prescribe');
       }
       if (c.command_type === 'refer' && !c.data.service_provider) {
@@ -697,10 +701,11 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   }
   const incompleteCount = commands.filter(c =>
     (c.command_type === 'diagnose' && c.display && (!c.data.icd10_code || !c.data.accepted)) ||
-    (c.command_type === 'imaging_order' && c.display && !c.data.service_provider)
+    (c.command_type === 'imaging_order' && c.display && !c.data.service_provider) ||
+    (c.command_type === 'prescribe' && c.display && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null))
   ).length + recommendations.filter(c =>
     !c.already_documented && c.display && (
-      (c.command_type === 'prescribe' && c.accepted && !c.data.fdb_code) ||
+      (c.command_type === 'prescribe' && c.accepted && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) ||
       (c.command_type === 'refer' && !c.data.service_provider)
     )
   ).length;
