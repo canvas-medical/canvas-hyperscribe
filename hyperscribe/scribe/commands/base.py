@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 from canvas_sdk.commands.base import _BaseCommand
+from canvas_sdk.effects import Effect
 
 from hyperscribe.scribe.backend.models import CommandProposal
 
@@ -42,3 +43,16 @@ class CommandParser(ABC):
 
     @abstractmethod
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand: ...
+
+    def to_effects(self, command: _BaseCommand) -> list[Effect]:
+        """Convert a built command into Canvas SDK Effects.
+
+        Default: originate + commit. Override for commands that need
+        a different effect sequence (e.g. questionnaires: originate + edit).
+        """
+        effects = [command.originate()]
+        try:
+            effects.append(command.commit())
+        except Exception:
+            pass
+        return effects

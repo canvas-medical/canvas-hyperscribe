@@ -22,6 +22,7 @@ from hyperscribe.scribe.commands.medication_statement import MedicationParser
 from hyperscribe.scribe.commands.physical_exam import PhysicalExamParser
 from hyperscribe.scribe.commands.plan import PlanParser
 from hyperscribe.scribe.commands.prescription import PrescriptionParser
+from hyperscribe.scribe.commands.questionnaire import QuestionnaireParser
 from hyperscribe.scribe.commands.refer import ReferParser
 from hyperscribe.scribe.commands.rfv import RfvParser
 from hyperscribe.scribe.commands.ros import RosParser
@@ -44,6 +45,7 @@ _BUILDERS: dict[str, CommandParser] = {
     "physical_exam": PhysicalExamParser(),
     "plan": PlanParser(),
     "prescribe": PrescriptionParser(),
+    "questionnaire": QuestionnaireParser(),
     "refer": ReferParser(),
     "rfv": RfvParser(),
     "ros": RosParser(),
@@ -73,10 +75,5 @@ def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> list[Effec
         if builder is None:
             continue
         command = builder.build(proposal.get("data", {}), note_uuid, str(uuid.uuid4()))
-        effects.append(command.originate())
-        try:
-            # some commands cannot be commited, i.e. CustomCommands.
-            effects.append(command.commit())
-        except Exception:
-            pass
+        effects.extend(builder.to_effects(command))
     return effects
