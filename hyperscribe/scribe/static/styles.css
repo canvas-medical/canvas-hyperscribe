@@ -939,3 +939,44 @@ h2 { margin-bottom: 4px; }
 .interaction-severity-badge.severity-allergy { background: #fce4ec; color: #c62828; }
 .interaction-drug-name { font-weight: 500; color: #78350f; }
 .interaction-ingredients { font-size: 11px; color: #92400e; }
+
+/* Inline summary banners (skeleton view) */
+.summary-generating-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid #e8e8ec;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.generating-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: #2563eb;
+  transition: width 0.6s ease;
+}
+.generating-label {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+.summary-generate-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.summary-banner-description {
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.4;
+  flex: 1;
+  margin: 0;
+}
