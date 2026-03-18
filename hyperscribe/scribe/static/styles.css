@@ -661,6 +661,12 @@ h2 { margin-bottom: 4px; }
 .order-refer-form { display: flex; flex-direction: column; gap: 6px; }
 .order-priority { display: flex; gap: 6px; }
 
+/* Required field indicator */
+.field-required { color: #dc2626; font-weight: 700; }
+
+/* Incomplete order border (subtle amber) */
+.content-block.incomplete-order { border-color: #f59e0b; }
+
 /* Ad-hoc command buttons */
 .ad-hoc-buttons { display: flex; gap: 8px; padding: 8px 0 0; margin-top: 4px; }
 .ad-hoc-btn { padding: 6px 14px; font-size: 13px; font-weight: 600; color: #052B49; background: #fff; border: 1px solid #052B49; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
