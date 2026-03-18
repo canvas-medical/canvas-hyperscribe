@@ -16,8 +16,6 @@ from django.db.models import Q
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
-from canvas_sdk.v1.data.note import Note
-from canvas_sdk.v1.data.patient import PatientAddress
 from canvas_sdk.v1.data.staff import Staff, StaffRole
 from canvas_sdk.v1.data.task import TaskLabel
 from canvas_sdk.v1.data.team import Team
@@ -449,7 +447,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         api_key = self.secrets.get("AnthropicAPIKey", "")
         if api_key:
             try:
-                rec_proposals = recommend_commands(note, api_key)
+                from hyperscribe.scribe.contacts import resolve_zip_codes
+
+                patient_id = str(data.get("patient_id", ""))
+                zip_codes = resolve_zip_codes(patient_id, note_id) or None
+                rec_proposals = recommend_commands(note, api_key, zip_codes=zip_codes)
                 annotate_duplicates(rec_proposals, note_uuid)
                 recommendations_list = [
                     {
@@ -646,8 +648,13 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
         note = _parse_note(data.get("note", {}))
+        from hyperscribe.scribe.contacts import resolve_zip_codes
+
+        patient_id = str(data.get("patient_id", ""))
+        rec_note_id = str(data.get("note_id", ""))
+        zip_codes = resolve_zip_codes(patient_id, rec_note_id) or None
         try:
-            proposals = recommend_commands(note, api_key)
+            proposals = recommend_commands(note, api_key, zip_codes=zip_codes)
         except Exception:
             log.exception("recommend_commands failed")
             return [
@@ -844,7 +851,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             for tl in TaskLabel.objects.filter(
                 Q(modules__contains=["tasks"]) | Q(modules=[]) | Q(modules__isnull=True),
                 active=True,
-            ).order_by("position").values("name", "color")
+            )
+            .order_by("position")
+            .values("name", "color")
         ]
         return [JSONResponse({"labels": labels}, status_code=HTTPStatus.OK)]
 
@@ -1038,29 +1047,15 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.get("/search-imaging-centers")
     def get_search_imaging_centers(self) -> list[Union[Response, Effect]]:
         """Search for radiology imaging centers via the science service."""
+        from hyperscribe.scribe.contacts import resolve_zip_codes
+
         query = self.request.query_params.get("query", "").strip()
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
 
-        # Resolve zip codes: patient address first, then note location as fallback.
-        zip_codes: list[str] = []
         patient_id = self.request.query_params.get("patient_id", "").strip()
         note_id = self.request.query_params.get("note_id", "").strip()
-        if patient_id:
-            patient_zip = (
-                PatientAddress.objects.filter(patient__id=patient_id).values_list("postal_code", flat=True).first()
-            )
-            if patient_zip:
-                zip_codes = [patient_zip]
-        if not zip_codes and note_id:
-            try:
-                note = Note.objects.select_related("location").get(id=note_id)
-                if note.location:
-                    loc_zip = note.location.addresses.values_list("postal_code", flat=True).first()
-                    if loc_zip:
-                        zip_codes = [loc_zip]
-            except Note.DoesNotExist:
-                pass
+        zip_codes = resolve_zip_codes(patient_id, note_id)
 
         params = f"?search={query}&job_title__icontains=radiology"
         if zip_codes:
@@ -1121,31 +1116,15 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.get("/search-refer-providers")
     def get_search_refer_providers(self) -> list[Union[Response, Effect]]:
         """Search for providers to refer to via the science service."""
-        from hyperscribe.scribe.contacts import search_refer_providers
+        from hyperscribe.scribe.contacts import resolve_zip_codes, search_refer_providers
 
         query = self.request.query_params.get("query", "").strip()
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
 
-        # Resolve zip codes: patient address first, then note location as fallback.
-        zip_codes: list[str] = []
         patient_id = self.request.query_params.get("patient_id", "").strip()
         note_id = self.request.query_params.get("note_id", "").strip()
-        if patient_id:
-            patient_zip = (
-                PatientAddress.objects.filter(patient__id=patient_id).values_list("postal_code", flat=True).first()
-            )
-            if patient_zip:
-                zip_codes = [patient_zip]
-        if not zip_codes and note_id:
-            try:
-                note = Note.objects.select_related("location").get(id=note_id)
-                if note.location:
-                    loc_zip = note.location.addresses.values_list("postal_code", flat=True).first()
-                    if loc_zip:
-                        zip_codes = [loc_zip]
-            except Note.DoesNotExist:
-                pass
+        zip_codes = resolve_zip_codes(patient_id, note_id)
 
         results = search_refer_providers(query, zip_codes or None)
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
