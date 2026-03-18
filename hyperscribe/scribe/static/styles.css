@@ -625,6 +625,7 @@ h2 { margin-bottom: 4px; }
 .labeled-field-label { padding: 5px 8px; font-size: 12px; font-weight: 600; color: #888; background: #f5f5f8; border-right: 1px solid #ddd; white-space: nowrap; display: flex; align-items: center; }
 .labeled-field-input { flex: 1; padding: 5px 8px; font-family: inherit; font-size: 13px; border: none; outline: none; min-width: 0; }
 .labeled-field-narrow { width: 64px; flex: none; }
+.labeled-field:has(textarea) .labeled-field-label { align-items: flex-start; }
 
 .order-checkbox-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #555; cursor: pointer; padding: 4px 0; }
 .order-lab-form { display: flex; flex-direction: column; gap: 6px; }
@@ -647,6 +648,7 @@ h2 { margin-bottom: 4px; }
 .diag-suggestion-header { padding: 6px 10px; font-size: 11px; font-weight: 600; color: #888; background: #f9f9fc; border-bottom: 1px solid #f0f0f0; text-transform: uppercase; letter-spacing: 0.5px; }
 .search-no-results { color: #999; font-style: italic; cursor: default; }
 .order-imaging-form { display: flex; flex-direction: column; gap: 6px; }
+.order-refer-form { display: flex; flex-direction: column; gap: 6px; }
 .order-priority { display: flex; gap: 6px; }
 
 /* Ad-hoc command buttons */
