@@ -481,7 +481,12 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           return html`
             <div class="subsection" key=${s.key}>
               <div class="subsection-title">${s.title}</div>
-              <p class="section-text">${s.text}</p>
+              ${s.text && html`<p class="section-text">${s.text}</p>`}
+              ${PLAN_SECTIONS.has(key) && onAddCondition && !readOnly && html`
+                <div class="ad-hoc-buttons">
+                  <${AddConditionSearch} onAdd=${onAddCondition} />
+                </div>
+              `}
             </div>
           `;
         })}
