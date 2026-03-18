@@ -951,8 +951,9 @@ def test_get_assignees_empty(mock_staff_cls: MagicMock, mock_team_cls: MagicMock
 # --- /recommend-commands ---
 
 
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
-def test_recommend_commands_success(mock_recommend: MagicMock) -> None:
+def test_recommend_commands_success(mock_recommend: MagicMock, _mock_zip: MagicMock) -> None:
     mock_recommend.return_value = [
         CommandProposal(
             command_type="medication_statement",
@@ -1020,8 +1021,9 @@ def test_recommend_commands_invalid_json() -> None:
     assert "Invalid JSON" in json.loads(result[0].content)["error"]
 
 
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
-def test_recommend_commands_backend_error(mock_recommend: MagicMock) -> None:
+def test_recommend_commands_backend_error(mock_recommend: MagicMock, _mock_zip: MagicMock) -> None:
     mock_recommend.side_effect = Exception("LLM failure")
 
     view = _helper_instance()
@@ -1034,11 +1036,13 @@ def test_recommend_commands_backend_error(mock_recommend: MagicMock) -> None:
     assert "failed" in data["error"].lower()
 
 
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
 def test_recommend_commands_with_note_uuid_triggers_annotation(
     mock_recommend: MagicMock,
     mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
 ) -> None:
     mock_recommend.return_value = [
         CommandProposal(
@@ -1064,11 +1068,13 @@ def test_recommend_commands_with_note_uuid_triggers_annotation(
     assert mock_annotate.call_args.args[1] == "note-uuid-456"
 
 
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
 def test_recommend_commands_without_note_uuid_calls_annotate_with_empty(
     mock_recommend: MagicMock,
     mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
 ) -> None:
     mock_recommend.return_value = []
 
@@ -1118,6 +1124,7 @@ def test_get_summary_progress_not_found(mock_get_cache: MagicMock) -> None:
 # --- /generate-summary ---
 
 
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
@@ -1129,6 +1136,7 @@ def test_generate_summary_success(
     mock_recommend: MagicMock,
     mock_suggest: MagicMock,
     _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
 ) -> None:
     cache = _mock_cache()
     mock_get_cache.return_value = cache
@@ -1162,6 +1170,7 @@ def test_generate_summary_success(
         ],
         observations=[],
     )
+    mock_backend._last_raw_note_response = None
     get_backend.return_value = mock_backend
     mock_recommend.return_value = [
         CommandProposal(
@@ -1250,6 +1259,7 @@ def test_generate_summary_backend_error(get_backend: MagicMock, mock_get_cache: 
     assert "Note generation failed" in json.loads(result[0].content)["error"]
 
 
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
 @patch("hyperscribe.scribe.api.session_view.get_cache")
@@ -1259,6 +1269,7 @@ def test_generate_summary_non_critical_failures(
     mock_get_cache: MagicMock,
     mock_recommend: MagicMock,
     _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
 ) -> None:
     """When non-critical steps fail, the response still includes what succeeded."""
     cache = _mock_cache()
