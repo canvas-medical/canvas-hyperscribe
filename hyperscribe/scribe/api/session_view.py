@@ -149,6 +149,7 @@ def _save_summary_to_cache(
     unmatched_conditions: list[dict[str, Any]] | None = None,
     diagnosis_suggestions: dict[str, Any] | None = None,
     interaction_warnings: list[dict[str, Any]] | None = None,
+    raw_nabla_response: dict[str, Any] | None = None,
 ) -> None:
     key = f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}"
     log.info(f"summary cache save: key={key} approved={approved}")
@@ -163,6 +164,8 @@ def _save_summary_to_cache(
             payload["diagnosis_suggestions"] = diagnosis_suggestions
         if interaction_warnings is not None:
             payload["interaction_warnings"] = interaction_warnings
+        if raw_nabla_response is not None:
+            payload["raw_nabla_response"] = raw_nabla_response
         cache.set(key, json.dumps(payload))
     except Exception:
         log.exception(f"summary cache save FAILED: key={key}")
@@ -405,6 +408,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
 
+        raw_nabla_response = getattr(backend, "_last_raw_note_response", None)
         note_dict: dict[str, Any] = {
             "title": note.title,
             "sections": [{"key": s.key, "title": s.title, "text": s.text} for s in note.sections],
@@ -493,6 +497,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             unmatched_conditions=unmatched_conditions,
             diagnosis_suggestions=diagnosis_suggestions,
             interaction_warnings=interaction_warnings,
+            raw_nabla_response=raw_nabla_response,
         )
 
         return [
@@ -1006,4 +1011,36 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     },
                 }
             )
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/search-refer-providers")
+    def get_search_refer_providers(self) -> list[Union[Response, Effect]]:
+        """Search for providers to refer to via the science service."""
+        from hyperscribe.scribe.contacts import search_refer_providers
+
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+
+        # Resolve zip codes: patient address first, then note location as fallback.
+        zip_codes: list[str] = []
+        patient_id = self.request.query_params.get("patient_id", "").strip()
+        note_id = self.request.query_params.get("note_id", "").strip()
+        if patient_id:
+            patient_zip = (
+                PatientAddress.objects.filter(patient__id=patient_id).values_list("postal_code", flat=True).first()
+            )
+            if patient_zip:
+                zip_codes = [patient_zip]
+        if not zip_codes and note_id:
+            try:
+                note = Note.objects.select_related("location").get(id=note_id)
+                if note.location:
+                    loc_zip = note.location.addresses.values_list("postal_code", flat=True).first()
+                    if loc_zip:
+                        zip_codes = [loc_zip]
+            except Note.DoesNotExist:
+                pass
+
+        results = search_refer_providers(query, zip_codes or None)
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]

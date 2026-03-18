@@ -54,6 +54,7 @@ def test_recommend_commands_calls_all_recommenders(mock_llm_cls: MagicMock) -> N
             "hyperscribe.scribe.recommendations.PrescriptionRecommender.recommend",
             return_value=[rx_proposal],
         ) as mock_rx,
+        patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
     ):
         note = _make_note()
         proposals = recommend_commands(note, "test-api-key")
@@ -75,11 +76,12 @@ def test_recommend_commands_creates_client_with_settings(mock_llm_cls: MagicMock
         patch("hyperscribe.scribe.recommendations.MedicationRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.AllergyRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.PrescriptionRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
     ):
         recommend_commands(_make_note(), "my-api-key")
 
     # Each recommender gets its own client instance
-    assert mock_llm_cls.call_count == 3
+    assert mock_llm_cls.call_count == 4
     for call in mock_llm_cls.call_args_list:
         settings = call.args[0]
         assert settings.api_key == "my-api-key"
@@ -111,6 +113,7 @@ def test_recommend_commands_handles_recommender_exception(mock_llm_cls: MagicMoc
             "hyperscribe.scribe.recommendations.PrescriptionRecommender.recommend",
             return_value=[],
         ),
+        patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
     ):
         proposals = recommend_commands(_make_note(), "test-api-key")
 
@@ -127,6 +130,7 @@ def test_recommend_commands_empty_note(mock_llm_cls: MagicMock) -> None:
         patch("hyperscribe.scribe.recommendations.MedicationRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.AllergyRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.PrescriptionRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
     ):
         note = ClinicalNote(title="Empty", sections=[])
         proposals = recommend_commands(note, "test-api-key")
