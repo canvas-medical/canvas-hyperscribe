@@ -93,7 +93,7 @@ def test_recommend_with_matching_provider(mock_search: MagicMock) -> None:
     assert proposals[0].data["refer_to_display"] == "Jane Smith (ENT Clinic), Otolaryngology"
     assert proposals[0].data["clinical_question"] == "Specialized intervention"
     assert proposals[0].data["notes_to_specialist"] == "Further evaluation needed"
-    mock_search.assert_called_once_with("ENT")
+    mock_search.assert_called_once_with("ENT", None)
 
 
 @patch("hyperscribe.scribe.recommendations.refer.search_refer_providers")
@@ -112,7 +112,7 @@ def test_recommend_incomplete_when_no_provider_found(mock_search: MagicMock) -> 
     assert proposals[0].data.get("refer_to_display") is None
     assert proposals[0].data["priority"] == "Routine"
     assert proposals[0].data["notes_to_specialist"] == "Evaluation needed"
-    mock_search.assert_called_once_with("ENT")
+    mock_search.assert_called_once_with("ENT", None)
 
 
 @patch("hyperscribe.scribe.recommendations.refer.search_refer_providers")

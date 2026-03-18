@@ -12,13 +12,6 @@ from hyperscribe.scribe.recommendations.medication_statement import MedicationRe
 from hyperscribe.scribe.recommendations.prescription import PrescriptionRecommender
 from hyperscribe.scribe.recommendations.refer import ReferRecommender
 
-_RECOMMENDERS: list[BaseRecommender] = [
-    MedicationRecommender(),
-    AllergyRecommender(),
-    PrescriptionRecommender(),
-    ReferRecommender(),
-]
-
 _MODEL = "claude-sonnet-4-5-20250929"
 
 
@@ -31,10 +24,19 @@ def _make_settings(api_key: str) -> LlmSettingsAnthropic:
     )
 
 
-def recommend_commands(note: ClinicalNote, api_key: str) -> list[CommandProposal]:
+def _build_recommenders(zip_codes: list[str] | None = None) -> list[BaseRecommender]:
+    return [
+        MedicationRecommender(),
+        AllergyRecommender(),
+        PrescriptionRecommender(),
+        ReferRecommender(zip_codes=zip_codes),
+    ]
+
+
+def recommend_commands(note: ClinicalNote, api_key: str, zip_codes: list[str] | None = None) -> list[CommandProposal]:
     """Run all recommenders against the clinical note and return proposals."""
     proposals: list[CommandProposal] = []
-    for recommender in _RECOMMENDERS:
+    for recommender in _build_recommenders(zip_codes):
         try:
             client = LlmAnthropic(_make_settings(api_key))
             proposals.extend(recommender.recommend(note, client))

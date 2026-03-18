@@ -35,12 +35,12 @@ def _build_user_prompt(sections: list[NoteSection]) -> str:
 
 
 class ReferRecommender(BaseRecommender):
+    def __init__(self, zip_codes: list[str] | None = None) -> None:
+        self.zip_codes = zip_codes
+
     def recommend(self, note: ClinicalNote, client: LlmAnthropic) -> list[CommandProposal]:
-        all_keys = [s.key for s in note.sections]
-        log.info(f"ReferRecommender: note section keys={all_keys}, filtering by {_RELEVANT_KEYS}")
         sections = [s for s in note.sections if s.key.lower() in _RELEVANT_KEYS and s.text.strip()]
         if not sections:
-            log.info("ReferRecommender: no matching sections, skipping")
             return []
 
         client.reset_prompts()
@@ -69,7 +69,7 @@ class ReferRecommender(BaseRecommender):
             if not search_term:
                 continue
 
-            results = search_refer_providers(search_term)
+            results = search_refer_providers(search_term, self.zip_codes)
             # Skip TBD placeholder contacts — they aren't real providers.
             valid = [r for r in results if "(TBD)" not in (r.get("name") or "")]
             if valid:
@@ -90,7 +90,6 @@ class ReferRecommender(BaseRecommender):
                     )
                 )
             else:
-                log.info(f"ReferRecommender: no contacts found for '{search_term}', adding as incomplete")
                 proposals.append(
                     CommandProposal(
                         command_type="refer",
