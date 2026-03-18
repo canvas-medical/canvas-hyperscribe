@@ -73,7 +73,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -93,6 +93,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         assignees=${isPlan ? assignees : null}
         onAddTask=${isPlan ? onAddTask : null}
         onAddOrder=${isPlan ? onAddOrder : null}
+        onAddPlan=${isPlan ? onAddPlan : null}
         onAddMedication=${isObjective ? onAddMedication : null}
         onAddAllergy=${isObjective ? onAddAllergy : null}
         onAddHistory=${isHistory ? onAddHistory : null}
@@ -428,6 +429,18 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     }]);
   }, [approved]);
 
+  const handleAddPlan = useCallback(() => {
+    if (approved) return;
+    setCommands(prev => [...prev, {
+      command_type: 'plan',
+      display: '',
+      data: { narrative: '' },
+      selected: true,
+      section_key: '_ad_hoc',
+      already_documented: false,
+    }]);
+  }, [approved]);
+
   const handleAddHistory = useCallback((commandType) => {
     if (approved) return;
     setCommands(prev => [...prev, {
@@ -718,6 +731,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
           assignees,
           onAddTask: approved ? null : handleAddTask,
           onAddOrder: approved ? null : handleAddOrder,
+          onAddPlan: approved ? null : handleAddPlan,
           onAddMedication: approved ? null : handleAddMedication,
           onAddAllergy: approved ? null : handleAddAllergy,
           onAddHistory: approved ? null : handleAddHistory,

@@ -213,7 +213,7 @@ function AddConditionSearch({ onAdd }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   return html`
@@ -604,6 +604,19 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               </div>
             `;
           }
+          if (type === 'plan') {
+            return html`
+              <div class="content-block" key=${entry.index}>
+                <${CommandRow}
+                  command=${entry.command}
+                  commandIndex=${entry.index}
+                  onEdit=${onEditCommand}
+                  onDelete=${onDeleteCommand}
+                  readOnly=${readOnly}
+                />
+              </div>
+            `;
+          }
           return null;
         })}
         ${onAddQuestionnaire && !readOnly && html`
@@ -740,6 +753,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${onAddTask}>+ Task</button>
             <button type="button" class="ad-hoc-btn" onClick=${onAddOrder}>+ Order</button>
+            ${onAddPlan && html`<button type="button" class="ad-hoc-btn" onClick=${onAddPlan}>+ Plan</button>`}
           </div>
         `}
       </div>
