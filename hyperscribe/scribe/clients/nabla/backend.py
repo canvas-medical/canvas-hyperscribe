@@ -50,6 +50,7 @@ class NablaBackend(ScribeBackend):
     ) -> ClinicalNote:
         payload = self._build_note_payload(transcript, patient_context)
         raw = self._rest_client.generate_note(payload)
+        self._last_raw_note_response = raw
         return self._parse_note(raw)
 
     # Section keys that we synthesize locally and Nabla does not recognise.
