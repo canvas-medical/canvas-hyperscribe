@@ -160,7 +160,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
         const res = await fetch(`${API_BASE}/generate-summary`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ note_id: noteId, note_uuid: noteId }),
+          body: JSON.stringify({ note_id: noteId, note_uuid: noteId, patient_id: patientId }),
         });
         if (cancelled) return;
         const data = await res.json();
@@ -207,7 +207,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       const res = await fetch(`${API_BASE}/generate-summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: noteId, note_uuid: noteId }),
+        body: JSON.stringify({ note_id: noteId, note_uuid: noteId, patient_id: patientId }),
       });
       const data = await res.json();
       if (data.error) {
@@ -285,7 +285,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       const res = await fetch(`${API_BASE}/generate-summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: noteId, note_uuid: noteId }),
+        body: JSON.stringify({ note_id: noteId, note_uuid: noteId, patient_id: patientId }),
       });
       const data = await res.json();
       if (data.error) {
@@ -675,8 +675,8 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     }
   }
   for (const c of recommendations) {
-    if (c.accepted && !c.already_documented && c.display) {
-      if (c.command_type === 'prescribe' && !c.data.fdb_code) {
+    if (!c.already_documented && c.display) {
+      if (c.command_type === 'prescribe' && c.accepted && !c.data.fdb_code) {
         if (!incompleteTypes.includes('prescribe')) incompleteTypes.push('prescribe');
       }
       if (c.command_type === 'refer' && !c.data.service_provider) {
@@ -688,8 +688,8 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     (c.command_type === 'diagnose' && c.display && (!c.data.icd10_code || !c.data.accepted)) ||
     (c.command_type === 'imaging_order' && c.display && !c.data.service_provider)
   ).length + recommendations.filter(c =>
-    c.accepted && !c.already_documented && c.display && (
-      (c.command_type === 'prescribe' && !c.data.fdb_code) ||
+    !c.already_documented && c.display && (
+      (c.command_type === 'prescribe' && c.accepted && !c.data.fdb_code) ||
       (c.command_type === 'refer' && !c.data.service_provider)
     )
   ).length;
