@@ -38,6 +38,20 @@ const SOAP_GROUPS = [
   { title: 'PLAN', color: 'plan', keys: new Set(['plan', 'assessment_and_plan', 'prescription', 'appointments']) },
 ];
 
+const SKELETON_SECTIONS = [
+  { key: 'chief_complaint', title: 'Chief Complaint', text: '' },
+  { key: 'history_of_present_illness', title: 'History of Present Illness', text: '' },
+  { key: 'past_medical_history', title: 'Past Medical History', text: '' },
+  { key: 'past_surgical_history', title: 'Past Surgical History', text: '' },
+  { key: 'family_history', title: 'Family History', text: '' },
+  { key: 'social_history', title: 'Social History', text: '' },
+  { key: 'vitals', title: 'Vitals', text: '' },
+  { key: 'physical_exam', title: 'Physical Exam', text: '' },
+  { key: 'current_medications', title: 'Current Medications', text: '' },
+  { key: 'allergies', title: 'Allergies', text: '' },
+  { key: 'assessment_and_plan', title: 'Assessment & Plan', text: '' },
+];
+
 const PROGRESS_STEPS = [
   'Generating note',
   'Structuring the note',
@@ -66,7 +80,6 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
       const isPlan = group.title === 'PLAN';
       const isObjective = group.title === 'OBJECTIVE';
       const isHistory = group.title === 'HISTORY';
-      if (matching.length === 0 && !isPlan) return null;
       return html`<${SoapGroup}
         key=${group.title}
         title=${group.title}
@@ -102,7 +115,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
 
 export function Summary({ noteId, patientId, staffId, staffName }) {
   const [noteData, setNoteData] = useState(null);
-  const [generating, setGenerating] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [commands, setCommands] = useState([]);
   const [inserting, setInserting] = useState(false);
@@ -129,55 +142,33 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     }
   }, [noteId]);
 
-  // Load summary from cache or generate via single endpoint.
+  // Load summary from cache (no auto-generate — provider clicks "Generate Summary" when ready).
   useEffect(() => {
     if (DEV_MOCK) return;
     let cancelled = false;
 
     async function loadOrGenerate() {
-      // Try cache first.
       try {
         const cacheRes = await fetch(`${API_BASE}/summary?note_id=${encodeURIComponent(noteId)}`);
         if (!cancelled) {
           const cached = await cacheRes.json();
           if (cached.note) {
+            // Full cached summary — restore everything.
             setNoteData(cached.note);
             setCommands(cached.commands || []);
             setApproved(Boolean(cached.approved));
             setRecommendations(cached.recommendations || []);
             setUnmatchedConditions(cached.unmatched_conditions || []);
             setDiagnosisSuggestions(cached.diagnosis_suggestions || {});
-            setGenerating(false);
             return;
+          }
+          // Cache without note — restore ad-hoc commands only.
+          if (cached.commands && cached.commands.length > 0) {
+            setCommands(cached.commands);
           }
         }
       } catch (err) {
-        // Cache miss — fall through to generate.
-      }
-
-      // No cached summary — call generate-summary (single endpoint).
-      try {
-        const res = await fetch(`${API_BASE}/generate-summary`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ note_id: noteId, note_uuid: noteId, patient_id: patientId }),
-        });
-        if (cancelled) return;
-        const data = await res.json();
-        if (data.error) {
-          setError(data.error);
-        } else {
-          setNoteData(data.note);
-          setCommands(data.commands || []);
-          setRecommendations(data.recommendations || []);
-          setSectionConditions(data.section_conditions || {});
-          setUnmatchedConditions(data.unmatched_conditions || []);
-          setDiagnosisSuggestions(data.diagnosis_suggestions || {});
-        }
-      } catch (err) {
-        if (!cancelled) setError('Failed to generate summary');
-      } finally {
-        if (!cancelled) setGenerating(false);
+        // Cache miss — start with empty skeleton.
       }
     }
 
@@ -200,6 +191,20 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     return () => clearInterval(interval);
   }, [generating, noteId]);
 
+  // Auto-save commands to cache (debounced) so ad-hoc items added before generation persist on reload.
+  const commandsSaveRef = useRef(null);
+  useEffect(() => {
+    if (commandsSaveRef.current) clearTimeout(commandsSaveRef.current);
+    commandsSaveRef.current = setTimeout(() => {
+      saveSummaryToCache(noteData, commands, approved, {
+        recommendations,
+        unmatched_conditions: unmatchedConditions,
+        diagnosis_suggestions: diagnosisSuggestions,
+      });
+    }, 500);
+    return () => { if (commandsSaveRef.current) clearTimeout(commandsSaveRef.current); };
+  }, [commands, recommendations]);
+
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
     setError(null);
@@ -214,7 +219,11 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
         setError(data.error);
       } else {
         setNoteData(data.note);
-        setCommands(data.commands || []);
+        setCommands(prev => {
+          const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc']);
+          const existingAdHoc = prev.filter(c => adHocKeys.has(c.section_key));
+          return [...(data.commands || []), ...existingAdHoc];
+        });
         setRecommendations(data.recommendations || []);
         setSectionConditions(data.section_conditions || {});
         setUnmatchedConditions(data.unmatched_conditions || []);
@@ -292,7 +301,11 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
         setError(data.error);
       } else {
         setNoteData(data.note);
-        setCommands(data.commands || []);
+        setCommands(prev => {
+          const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc']);
+          const existingAdHoc = prev.filter(c => adHocKeys.has(c.section_key));
+          return [...(data.commands || []), ...existingAdHoc];
+        });
         setRecommendations(data.recommendations || []);
         setSectionConditions(data.section_conditions || {});
         setUnmatchedConditions(data.unmatched_conditions || []);
@@ -611,41 +624,6 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     `;
   }
 
-  if (generating && !noteData) {
-    return html`
-      <div class="summary-container">
-        <div class="progress-stepper">
-          ${PROGRESS_STEPS.map((label, i) => html`
-            <div class="progress-step ${i < progress.step ? 'done' : ''} ${i === progress.step ? 'active' : ''}" key=${i}>
-              <span class="progress-step-indicator">${i < progress.step ? '\u2713' : (i === progress.step ? '\u2022' : '')}</span>
-              <span class="progress-step-label">${label}</span>
-            </div>
-          `)}
-        </div>
-      </div>
-    `;
-  }
-
-  if (!noteData) {
-    return html`
-      <div class="summary-container">
-        <div class="summary-empty">
-          <p class="summary-empty-description">
-            Generate a structured summary from your recorded transcript. This will create a SOAP note with recommended commands you can review before adding to the chart.
-          </p>
-          <button
-            class="generate-btn"
-            onClick=${handleGenerate}
-            disabled=${generating}
-          >
-            ${generating ? 'Generating...' : 'Generate Summary'}
-          </button>
-          ${error && html`<p class="summary-empty-error">${error}</p>`}
-        </div>
-      </div>
-    `;
-  }
-
   const commandBySectionKey = buildCommandBySectionKey(commands);
   const adHocCommands = commands
     .map((cmd, index) => ({ command: cmd, index }))
@@ -694,10 +672,25 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     )
   ).length;
 
+  const effectiveSections = noteData ? noteData.sections : SKELETON_SECTIONS;
+
   return html`
     <div class="summary-container">
+      ${generating && html`
+        <div class="summary-generating-banner">
+          <div class="generating-bar" style="width: ${Math.max(((progress.step + 1) / PROGRESS_STEPS.length) * 100, 5)}%" />
+          <span class="generating-label">${PROGRESS_STEPS[Math.max(progress.step, 0)] || 'Generating...'}...</span>
+        </div>
+      `}
+      ${!noteData && !generating && html`
+        <div class="summary-generate-banner">
+          <p class="summary-banner-description">Generate a structured summary from your recorded transcript.</p>
+          <button class="generate-btn" onClick=${handleGenerate} disabled=${generating}>Generate Summary</button>
+          ${error && html`<p class="summary-empty-error">${error}</p>`}
+        </div>
+      `}
       <div class="summary-body">
-        ${renderSoapGroups(noteData.sections, commandBySectionKey, handleEdit, handleDelete, {
+        ${renderSoapGroups(effectiveSections, commandBySectionKey, handleEdit, handleDelete, {
           adHocCommands,
           objectiveAdHocCommands,
           historyAdHocCommands,
