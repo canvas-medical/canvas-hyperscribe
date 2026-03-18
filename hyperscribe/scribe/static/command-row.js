@@ -10,9 +10,10 @@ const DATA_FIELD = {
   plan: 'narrative',
 };
 
-export function CommandRow({ command, commandIndex, onEdit, readOnly }) {
+export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
   const field = DATA_FIELD[command.command_type];
-  const [editing, setEditing] = useState(false);
+  const isNew = onDelete && !command.display;
+  const [editing, setEditing] = useState(isNew);
   const [value, setValue] = useState(field ? (command.data[field] || '') : '');
   const textareaRef = useRef(null);
 
@@ -28,6 +29,10 @@ export function CommandRow({ command, commandIndex, onEdit, readOnly }) {
   };
 
   const handleCancel = () => {
+    if (isNew) {
+      onDelete(commandIndex);
+      return;
+    }
     setValue(field ? (command.data[field] || '') : '');
     setEditing(false);
   };
@@ -51,6 +56,7 @@ export function CommandRow({ command, commandIndex, onEdit, readOnly }) {
         <div class="command-row-actions">
           <button class="edit-btn" onClick=${handleSave}>Save</button>
           <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
+          ${onDelete && !isNew && html`<button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>`}
         </div>
       </div>
     `;
