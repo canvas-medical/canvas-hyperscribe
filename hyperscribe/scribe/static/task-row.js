@@ -4,6 +4,8 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
+
 function formatDate(iso) {
   if (!iso) return '';
   const d = new Date(iso + 'T00:00:00');
@@ -21,6 +23,8 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
   const [title, setTitle] = useState(command.data.title || '');
   const [dueDate, setDueDate] = useState(command.data.due_date || '');
   const [assignTo, setAssignTo] = useState(command.data.assign_to || null);
+  const [selectedLabels, setSelectedLabels] = useState(command.data.labels || []);
+  const [availableLabels, setAvailableLabels] = useState([]);
   const titleRef = useRef(null);
 
   useEffect(() => {
@@ -29,12 +33,21 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
     }
   }, [editing]);
 
+  useEffect(() => {
+    if (!editing || availableLabels.length > 0) return;
+    fetch(`${API_BASE}/task-labels`)
+      .then(r => r.json())
+      .then(d => setAvailableLabels(d.labels || []))
+      .catch(() => {});
+  }, [editing]);
+
   const handleSave = () => {
     if (!title.trim()) return;
     onEdit(commandIndex, {
       title: title.trim(),
       due_date: dueDate || null,
       assign_to: assignTo,
+      labels: selectedLabels.length > 0 ? selectedLabels : null,
     });
     setEditing(false);
   };
@@ -47,6 +60,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
     setTitle(command.data.title || '');
     setDueDate(command.data.due_date || '');
     setAssignTo(command.data.assign_to || null);
+    setSelectedLabels(command.data.labels || []);
     setEditing(false);
   };
 
@@ -62,6 +76,12 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
     }
     const [type, id] = val.split(':');
     setAssignTo({ to: type, id: type === 'unassigned' ? undefined : id });
+  };
+
+  const toggleLabel = (name) => {
+    setSelectedLabels(prev =>
+      prev.includes(name) ? prev.filter(l => l !== name) : [...prev, name]
+    );
   };
 
   const assigneeValue = assignTo ? `${assignTo.to}:${assignTo.id || ''}` : '';
@@ -122,6 +142,19 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
               </optgroup>
             `}
           </select>
+          <div class="task-labels">
+            ${availableLabels.length > 0
+              ? availableLabels.map(l => html`
+                  <button
+                    key=${l.name}
+                    type="button"
+                    class="task-label-btn${selectedLabels.includes(l.name) ? ' active' : ''}"
+                    onClick=${() => toggleLabel(l.name)}
+                  >${l.name}</button>
+                `)
+              : html`<span class="task-labels-empty">No labels available</span>`
+            }
+          </div>
           <div class="command-row-actions">
             <button class="edit-btn" onClick=${handleSave} disabled=${!title.trim()}>Save</button>
             <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
@@ -143,6 +176,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
       <span class="command-row-text">${parts[0]}</span>
       ${command.data.due_date && html`<span class="task-meta-badge">${formatDate(command.data.due_date)}</span>`}
       ${aLabel && html`<span class="task-meta-badge">${aLabel}</span>`}
+      ${(command.data.labels || []).map(name => html`<span class="task-meta-badge" key=${name}>${name}</span>`)}
     </div>
   `;
 }

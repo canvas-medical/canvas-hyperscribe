@@ -19,6 +19,7 @@ from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from canvas_sdk.v1.data.note import Note
 from canvas_sdk.v1.data.patient import PatientAddress
 from canvas_sdk.v1.data.staff import Staff, StaffRole
+from canvas_sdk.v1.data.task import TaskLabel
 from canvas_sdk.v1.data.team import Team
 
 from canvas_sdk.utils.http import science_http
@@ -834,6 +835,18 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         for t in Team.objects.all().order_by("name").values("dbid", "name"):
             assignees.append({"type": "team", "id": t["dbid"], "label": t["name"]})
         return [JSONResponse({"assignees": assignees}, status_code=HTTPStatus.OK)]
+
+    @api.get("/task-labels")
+    def get_task_labels(self) -> list[Union[Response, Effect]]:
+        """Return active task labels."""
+        labels = [
+            {"name": tl["name"], "color": tl["color"]}
+            for tl in TaskLabel.objects.filter(
+                Q(modules__contains=["tasks"]) | Q(modules=[]) | Q(modules__isnull=True),
+                active=True,
+            ).order_by("position").values("name", "color")
+        ]
+        return [JSONResponse({"labels": labels}, status_code=HTTPStatus.OK)]
 
     @api.get("/patient-conditions")
     def get_patient_conditions(self) -> list[Union[Response, Effect]]:
