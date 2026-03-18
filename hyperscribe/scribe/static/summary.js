@@ -391,7 +391,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     setCommands(prev => [...prev, {
       command_type: 'task',
       display: '',
-      data: { title: '', due_date: null, assign_to: null },
+      data: { title: '', due_date: null, assign_to: null, labels: [] },
       selected: true,
       section_key: '_ad_hoc',
       already_documented: false,
