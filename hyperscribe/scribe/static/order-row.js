@@ -269,7 +269,7 @@ function InteractionWarningInline({ warning }) {
   `;
 }
 
-export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, noteId, staffId, staffName }) {
+export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, noteId, staffId, staffName, isRecommendation }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   const [activeTab, setActiveTab] = useState(command.command_type || 'prescribe');
@@ -923,16 +923,18 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     return html`
       <div class="order-row editing" ref=${containerRef} onKeyDown=${handleKeyDown}>
         <div class="order-layout">
-          <div class="order-tabs">
-            ${ORDER_TABS.map(tab => html`
-              <button
-                key=${tab.key}
-                type="button"
-                class="order-tab${activeTab === tab.key ? ' active' : ''}"
-                onClick=${() => setActiveTab(tab.key)}
-              >${tab.label}</button>
-            `)}
-          </div>
+          ${!isRecommendation && html`
+            <div class="order-tabs">
+              ${ORDER_TABS.map(tab => html`
+                <button
+                  key=${tab.key}
+                  type="button"
+                  class="order-tab${activeTab === tab.key ? ' active' : ''}"
+                  onClick=${() => setActiveTab(tab.key)}
+                >${tab.label}</button>
+              `)}
+            </div>
+          `}
           <div class="order-form">
             ${activeTab === 'prescribe' && html`
               <div class="order-rx-form">
