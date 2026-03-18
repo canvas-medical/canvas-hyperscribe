@@ -612,6 +612,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       noteId=${noteId}
                       staffId=${staffId}
                       staffName=${staffName}
+                      isRecommendation=${true}
                     />
                   </div>
                 </div>
@@ -667,6 +668,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       noteId=${noteId}
                       staffId=${staffId}
                       staffName=${staffName}
+                      isRecommendation=${true}
                     />
                   </div>
                 </div>

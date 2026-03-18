@@ -149,6 +149,7 @@ def _save_summary_to_cache(
     unmatched_conditions: list[dict[str, Any]] | None = None,
     diagnosis_suggestions: dict[str, Any] | None = None,
     interaction_warnings: list[dict[str, Any]] | None = None,
+    raw_nabla_response: dict[str, Any] | None = None,
 ) -> None:
     key = f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}"
     log.info(f"summary cache save: key={key} approved={approved}")
@@ -163,6 +164,8 @@ def _save_summary_to_cache(
             payload["diagnosis_suggestions"] = diagnosis_suggestions
         if interaction_warnings is not None:
             payload["interaction_warnings"] = interaction_warnings
+        if raw_nabla_response is not None:
+            payload["raw_nabla_response"] = raw_nabla_response
         cache.set(key, json.dumps(payload))
     except Exception:
         log.exception(f"summary cache save FAILED: key={key}")
@@ -405,6 +408,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
 
+        raw_nabla_response = getattr(backend, "_last_raw_note_response", None)
         note_dict: dict[str, Any] = {
             "title": note.title,
             "sections": [{"key": s.key, "title": s.title, "text": s.text} for s in note.sections],
@@ -493,6 +497,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             unmatched_conditions=unmatched_conditions,
             diagnosis_suggestions=diagnosis_suggestions,
             interaction_warnings=interaction_warnings,
+            raw_nabla_response=raw_nabla_response,
         )
 
         return [
