@@ -63,7 +63,6 @@ class ReferRecommender(BaseRecommender):
         except Exception:
             log.exception(f"Failed to parse refer LLM response: {response.response}")
             return []
-
         proposals: list[CommandProposal] = []
         for ref in parsed.referrals:
             search_term = ref.specialty or ""
