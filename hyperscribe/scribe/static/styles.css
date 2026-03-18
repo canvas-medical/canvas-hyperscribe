@@ -980,3 +980,18 @@ h2 { margin-bottom: 4px; }
   flex: 1;
   margin: 0;
 }
+
+/* Questionnaire form */
+.questionnaire-header { font-size: 14px; font-weight: 700; color: #333; margin-bottom: 8px; }
+.questionnaire-question { margin-bottom: 12px; }
+.questionnaire-question:last-child { margin-bottom: 0; }
+.questionnaire-question-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; }
+.questionnaire-options { display: flex; flex-direction: column; gap: 4px; padding-left: 4px; }
+.questionnaire-option { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #333; cursor: pointer; }
+.questionnaire-option input[type="radio"],
+.questionnaire-option input[type="checkbox"] { cursor: pointer; }
+.questionnaire-option-comment { width: 100%; padding: 4px 8px; font-family: inherit; font-size: 12px; border: 1px solid #ddd; border-radius: 4px; margin-top: 2px; margin-left: 20px; }
+.questionnaire-option-comment:focus { outline: none; border-color: #052B49; }
+.questionnaire-text-input { width: 100%; padding: 6px 8px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; }
+.questionnaire-text-input:focus { outline: none; border-color: #052B49; }
+.questionnaire-answered-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #e8f5e9; color: #2e7d32; white-space: nowrap; }

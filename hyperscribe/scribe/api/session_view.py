@@ -14,8 +14,10 @@ from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 from django.db.models import Q
 
 from canvas_sdk.commands.commands.allergy import AllergenType
+from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
+from canvas_sdk.v1.data.questionnaire import Questionnaire as QuestionnaireModel
 from canvas_sdk.v1.data.staff import Staff, StaffRole
 from canvas_sdk.v1.data.task import TaskLabel
 from canvas_sdk.v1.data.team import Team
@@ -1128,3 +1130,52 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
         results = search_refer_providers(query, zip_codes or None)
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/search-questionnaires")
+    def get_search_questionnaires(self) -> list[Union[Response, Effect]]:
+        """Search active questionnaires by name or search tags."""
+        query = self.request.query_params.get("query", "").strip()
+        qs = QuestionnaireModel.objects.filter(status="AC")
+        if query:
+            qs = qs.filter(Q(name__icontains=query) | Q(search_tags__icontains=query))
+        questionnaires = qs.order_by("name")[:25]
+        results = [{"dbid": q.dbid, "name": q.name} for q in questionnaires]
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/questionnaire-details")
+    def get_questionnaire_details(self) -> list[Union[Response, Effect]]:
+        """Load a questionnaire's full definition (questions + response options)."""
+        dbid = self.request.query_params.get("dbid", "").strip()
+        if not dbid:
+            return [JSONResponse({"error": "dbid required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        try:
+            questionnaire = QuestionnaireModel.objects.get(dbid=int(dbid))
+        except (QuestionnaireModel.DoesNotExist, ValueError):
+            return [JSONResponse({"error": "not found"}, status_code=HTTPStatus.NOT_FOUND)]
+
+        cmd = QuestionnaireCommand(
+            questionnaire_id=str(questionnaire.id),
+            note_uuid="",
+            command_uuid="",
+        )
+        questions = []
+        for q in cmd.questions:
+            options = [{"dbid": o.dbid, "value": o.name} for o in q.options]
+            questions.append(
+                {
+                    "dbid": int(q.id),
+                    "label": q.label,
+                    "type": q.type,
+                    "options": options,
+                }
+            )
+        return [
+            JSONResponse(
+                {
+                    "questionnaire_dbid": questionnaire.dbid,
+                    "questionnaire_name": questionnaire.name,
+                    "questions": questions,
+                },
+                status_code=HTTPStatus.OK,
+            )
+        ]

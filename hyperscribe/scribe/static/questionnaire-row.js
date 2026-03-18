@@ -1,11 +1,8 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
-import { useState, useRef, useCallback, useEffect } from 'https://esm.sh/preact@10.25.4/hooks';
+import { useState, useRef, useCallback } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
-
-const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
-const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -59,30 +56,33 @@ function QuestionnaireSearch({ onSelect }) {
 
   return html`
     <div style="position: relative;">
-      <input
-        type="text"
-        class="questionnaire-search-input"
-        value=${query}
-        onInput=${handleInput}
-        onFocus=${handleFocus}
-        placeholder="Search questionnaires..."
-        autoFocus
-      />
+      <div class="labeled-field">
+        <span class="labeled-field-label">Questionnaire</span>
+        <input
+          type="text"
+          class="labeled-field-input"
+          value=${query}
+          onInput=${handleInput}
+          onFocus=${handleFocus}
+          placeholder="Search questionnaires..."
+          autoFocus
+        />
+      </div>
       ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
       ${results.length > 0 && html`
-        <div class="questionnaire-search-dropdown">
+        <div class="diag-search-dropdown">
           ${results.map(r => html`
             <div
               key=${r.dbid}
-              class="questionnaire-search-result"
+              class="diag-search-result"
               onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
             >${r.name}</div>
           `)}
         </div>
       `}
       ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-        <div class="questionnaire-search-dropdown">
-          <div class="questionnaire-search-result search-no-results">No questionnaires found</div>
+        <div class="diag-search-dropdown">
+          <div class="diag-search-result search-no-results">No questionnaires found</div>
         </div>
       `}
     </div>
@@ -164,17 +164,21 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
 
   if (!questionnaire) {
     return html`
-      <div>
+      <div class="order-rx-form">
+        <div class="subsection-title">Questionnaire</div>
         ${loading
           ? html`<span class="diag-search-spinner">Loading questionnaire...</span>`
           : html`<${QuestionnaireSearch} onSelect=${handleSelectQuestionnaire} />`
         }
+        <div class="command-row-actions">
+          <button class="edit-btn" onClick=${onCancel}>Cancel</button>
+        </div>
       </div>
     `;
   }
 
   return html`
-    <div>
+    <div class="order-rx-form">
       <div class="questionnaire-header">${questionnaire.name}</div>
       ${questionnaire.questions.map((q, qIdx) => html`
         <div class="questionnaire-question" key=${q.dbid}>
@@ -189,7 +193,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
                     checked=${r.selected}
                     onChange=${() => handleResponseChange(qIdx, rIdx, 'selected', true)}
                   />
-                  <span>${r.value}</span>
+                  ${r.value}
                 </label>
               `)}
             </div>
@@ -204,7 +208,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
                       checked=${r.selected}
                       onChange=${(e) => handleResponseChange(qIdx, rIdx, 'selected', e.target.checked)}
                     />
-                    <span>${r.value}</span>
+                    ${r.value}
                   </label>
                   ${r.selected && html`
                     <input
@@ -240,9 +244,10 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
           `}
         </div>
       `)}
-      <div class="questionnaire-form-actions">
-        <button type="button" class="form-btn form-btn-cancel" onClick=${onCancel}>Cancel</button>
-        <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
+      <div class="command-row-actions">
+        <button class="edit-btn" onClick=${handleSave}>Save</button>
+        <button class="edit-btn" onClick=${onCancel}>Cancel</button>
+        <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
       </div>
     </div>
   `;
@@ -258,13 +263,9 @@ function countAnswered(questions) {
   }).length;
 }
 
-export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {
+export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
-  useEffect(() => {
-    onEditingChange?.(commandIndex, editing);
-    return () => onEditingChange?.(commandIndex, false);
-  }, [editing, commandIndex]);
 
   const handleCancel = () => {
     if (isNew) {
@@ -279,7 +280,7 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
     setEditing(false);
   };
 
-  if (editing && !readOnly) {
+  if (editing) {
     return html`
       <div class="order-row editing" onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}>
         <${QuestionnaireForm}
@@ -298,13 +299,14 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
   const total = questions.length;
 
   return html`
-    <div class="questionnaire-view" onClick=${() => !readOnly && setEditing(true)}>
-      <div class="questionnaire-view-content">
-        <span class="questionnaire-view-name">${command.display || '(empty)'}</span>
+    <div>
+      <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
+        <div class="subsection-title">Questionnaire</div>
+        <span class="command-row-text">${command.display || '(empty)'}</span>
+        ${total > 0 && html`
+          <span class="questionnaire-answered-badge">${answered}/${total} answered</span>
+        `}
       </div>
-      ${total > 0 && html`
-        <span class="questionnaire-answered-badge">${answered}/${total} answered</span>
-      `}
     </div>
   `;
 }

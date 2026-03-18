@@ -73,13 +73,14 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, onAddHistory, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
       const isPlan = group.title === 'PLAN';
       const isObjective = group.title === 'OBJECTIVE';
       const isHistory = group.title === 'HISTORY';
+      const isSubjective = group.title === 'SUBJECTIVE';
       return html`<${SoapGroup}
         key=${group.title}
         title=${group.title}
@@ -88,13 +89,14 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         commandBySectionKey=${commandBySectionKey}
         onEditCommand=${onEditCommand}
         onDeleteCommand=${onDeleteCommand}
-        adHocCommands=${isPlan ? adHocCommands : isObjective ? objectiveAdHocCommands : isHistory ? historyAdHocCommands : null}
+        adHocCommands=${isPlan ? adHocCommands : isObjective ? objectiveAdHocCommands : isHistory ? historyAdHocCommands : isSubjective ? subjectiveAdHocCommands : null}
         assignees=${isPlan ? assignees : null}
         onAddTask=${isPlan ? onAddTask : null}
         onAddOrder=${isPlan ? onAddOrder : null}
         onAddMedication=${isObjective ? onAddMedication : null}
         onAddAllergy=${isObjective ? onAddAllergy : null}
         onAddHistory=${isHistory ? onAddHistory : null}
+        onAddQuestionnaire=${isSubjective ? onAddQuestionnaire : null}
         readOnly=${readOnly}
         sectionConditions=${sectionConditions}
         patientId=${patientId}
@@ -220,7 +222,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       } else {
         setNoteData(data.note);
         setCommands(prev => {
-          const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc']);
+          const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc']);
           const existingAdHoc = prev.filter(c => adHocKeys.has(c.section_key));
           return [...(data.commands || []), ...existingAdHoc];
         });
@@ -302,7 +304,7 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       } else {
         setNoteData(data.note);
         setCommands(prev => {
-          const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc']);
+          const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc']);
           const existingAdHoc = prev.filter(c => adHocKeys.has(c.section_key));
           return [...(data.commands || []), ...existingAdHoc];
         });
@@ -375,6 +377,9 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
         if (type === 'surgicalHistory') {
           const parts = [newData.procedure_display, newData.comment].filter(Boolean);
           return { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
+        }
+        if (type === 'questionnaire') {
+          return { ...cmd, command_type: type, data: newData, display: newData.questionnaire_name || '' };
         }
         if (type === 'diagnose') {
           const display = newData.icd10_display || newData.condition_header || cmd.display;
@@ -486,6 +491,18 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       data: { allergy_text: '', concept_id: null, concept_id_type: null, reaction: '', severity: null },
       selected: true,
       section_key: '_objective_ad_hoc',
+      already_documented: false,
+    }]);
+  }, [approved]);
+
+  const handleAddQuestionnaire = useCallback(() => {
+    if (approved) return;
+    setCommands(prev => [...prev, {
+      command_type: 'questionnaire',
+      display: '',
+      data: { questionnaire_dbid: null, questionnaire_name: '', questions: [] },
+      selected: true,
+      section_key: '_subjective_ad_hoc',
       already_documented: false,
     }]);
   }, [approved]);
@@ -634,6 +651,9 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   const historyAdHocCommands = commands
     .map((cmd, index) => ({ command: cmd, index }))
     .filter(entry => entry.command.section_key === '_history_ad_hoc');
+  const subjectiveAdHocCommands = commands
+    .map((cmd, index) => ({ command: cmd, index }))
+    .filter(entry => entry.command.section_key === '_subjective_ad_hoc');
 
   const insertableCount = commands.filter(c => {
     if (c.command_type === 'diagnose') return c.data.icd10_code && c.data.accepted && c.display;
@@ -694,12 +714,14 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
           adHocCommands,
           objectiveAdHocCommands,
           historyAdHocCommands,
+          subjectiveAdHocCommands,
           assignees,
           onAddTask: approved ? null : handleAddTask,
           onAddOrder: approved ? null : handleAddOrder,
           onAddMedication: approved ? null : handleAddMedication,
           onAddAllergy: approved ? null : handleAddAllergy,
           onAddHistory: approved ? null : handleAddHistory,
+          onAddQuestionnaire: approved ? null : handleAddQuestionnaire,
           readOnly: approved,
           sectionConditions,
           patientId,
