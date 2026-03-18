@@ -283,10 +283,10 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [medQuantities, setMedQuantities] = useState(() => buildTypeToDispenseOptions(command.data.quantities || []));
   const [selectedMedDisplay, setSelectedMedDisplay] = useState(command.data.medication_text || '');
   const [sig, setSig] = useState(command.data.sig || '');
-  const [daysSupply, setDaysSupply] = useState(command.data.days_supply || '');
-  const [quantity, setQuantity] = useState(command.data.quantity_to_dispense || '');
+  const [daysSupply, setDaysSupply] = useState(command.data.days_supply != null ? String(command.data.days_supply) : '');
+  const [quantity, setQuantity] = useState(command.data.quantity_to_dispense != null ? String(command.data.quantity_to_dispense) : '');
   const [typeToDispense, setTypeToDispense] = useState(command.data.type_to_dispense || '');
-  const [refills, setRefills] = useState(command.data.refills || '');
+  const [refills, setRefills] = useState(command.data.refills != null ? String(command.data.refills) : '');
   const [substitutions, setSubstitutions] = useState(command.data.substitutions !== 'not_allowed');
   const [noteToPharmacist, setNoteToPharmacist] = useState(command.data.note_to_pharmacist || '');
   const [interactionWarning, setInteractionWarning] = useState(null);
@@ -855,12 +855,12 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
         fdb_code: selectedFdb || null,
         medication_text: selectedMedDisplay,
         sig,
-        days_supply: daysSupply ? Number(daysSupply) : null,
-        quantity_to_dispense: quantity ? Number(quantity) : null,
+        days_supply: daysSupply !== '' ? Number(daysSupply) : null,
+        quantity_to_dispense: quantity !== '' ? Number(quantity) : null,
         type_to_dispense: decoded ? decoded.ncpdp_quantity_qualifier_code : null,
         type_to_dispense_label: selectedQty ? selectedQty.label : null,
         representative_ndc: decoded ? decoded.representative_ndc : null,
-        refills: refills ? Number(refills) : null,
+        refills: refills !== '' ? Number(refills) : null,
         substitutions: substitutions ? 'allowed' : 'not_allowed',
         note_to_pharmacist: noteToPharmacist || null,
       };
@@ -940,7 +940,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
               <div class="order-rx-form">
                 <div class="medication-search-wrapper">
                   <div class="labeled-field" style="width:100%">
-                    <span class="labeled-field-label">Medication</span>
+                    <span class="labeled-field-label">Medication <span class="field-required">*</span></span>
                     <input
                       ref=${medInputRef}
                       type="text"
@@ -970,7 +970,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 </div>
                 <div class="order-rx-row">
                   <div class="labeled-field" style="flex:2">
-                    <span class="labeled-field-label">Qty</span>
+                    <span class="labeled-field-label">Qty <span class="field-required">*</span></span>
                     <div style="display:flex;align-items:center;gap:4px">
                       <input class="labeled-field-input" style="flex:0 0 60px" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" />
                       <span style="font-size:12px;color:#666">x</span>
@@ -987,13 +987,13 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     <input class="labeled-field-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" />
                   </div>
                   <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Refills</span>
+                    <span class="labeled-field-label">Refills <span class="field-required">*</span></span>
                     <input class="labeled-field-input" type="number" value=${refills} onInput=${(e) => setRefills(e.target.value)} min="0" />
                   </div>
                 </div>
                 <div class="order-rx-row">
                   <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Sig</span>
+                    <span class="labeled-field-label">Sig <span class="field-required">*</span></span>
                     <input class="labeled-field-input" type="text" value=${sig} onInput=${(e) => setSig(e.target.value)} />
                   </div>
                 </div>
