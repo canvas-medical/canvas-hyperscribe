@@ -490,6 +490,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (!cmds || cmds.length === 0) return null;
           const entry = cmds[0];
           return html`
+            <div class="subsection-title">Review of Systems</div>
             <div class="content-block">
               <${HistoryReviewRow}
                 command=${entry.command}
