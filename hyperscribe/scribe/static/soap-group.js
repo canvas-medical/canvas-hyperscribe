@@ -550,8 +550,13 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             `;
           }
           if (ORDER_TYPES.has(type)) {
+            const prescribeIncomplete = type === 'prescribe' && entry.command.display && (
+              !entry.command.data.fdb_code || !entry.command.data.sig ||
+              entry.command.data.quantity_to_dispense == null || !entry.command.data.type_to_dispense ||
+              entry.command.data.refills == null
+            );
             return html`
-              <div class="content-block" key=${entry.index}>
+              <div class="content-block${prescribeIncomplete ? ' incomplete-order' : ''}" key=${entry.index}>
                 <${OrderRow}
                   command=${entry.command}
                   commandIndex=${entry.index}
@@ -648,8 +653,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <div class="subsection">
               <div class="subsection-title">Prescriptions</div>
               ${rxRecs.map(entry => {
-                const hasFdb = !!entry.command.data.fdb_code;
-                const isIncomplete = !hasFdb;
+                const d = entry.command.data;
+                const isIncomplete = !d.fdb_code || !d.sig || d.quantity_to_dispense == null || !d.type_to_dispense || d.refills == null;
                 const isAccepted = !isIncomplete && (entry.command.accepted || entry.command.already_documented);
                 let btnLabel, btnClass;
                 if (entry.command.already_documented) {
