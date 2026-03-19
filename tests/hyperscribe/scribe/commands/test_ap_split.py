@@ -90,6 +90,17 @@ def test_significant_words_filters_stop_words() -> None:
     assert "brown" in words
 
 
+def test_significant_words_filters_medical_qualifiers() -> None:
+    words = significant_words("Diarrhea, unspecified")
+    assert "unspecified" not in words
+    assert "diarrhea" in words
+    words = significant_words("Other specified anxiety disorders")
+    assert "other" not in words
+    assert "specified" not in words
+    assert "anxiety" in words
+    assert "disorders" in words
+
+
 def test_significant_words_filters_short() -> None:
     words = significant_words("I am ok")
     assert "i" not in words  # single char after lowering
@@ -98,9 +109,9 @@ def test_significant_words_filters_short() -> None:
 
 
 def test_significant_words_strips_punctuation() -> None:
-    words = significant_words("Headache, chronic")
+    words = significant_words("Headache, persistent")
     assert "headache" in words
-    assert "chronic" in words
+    assert "persistent" in words
 
 
 # --- word_overlap ---
@@ -300,3 +311,123 @@ def test_split_plan_uses_plan_section_key() -> None:
     assert updated[0]["command_type"] == "diagnose"
     assert updated[0]["section_key"] == "plan"
     assert unmatched == []
+
+
+def test_split_plan_corresponding_note_problem() -> None:
+    """When corresponding_note_problem is set, it takes priority over fuzzy matching."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "Acute upper respiratory infection\n- Rest and fluids"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    # The display text does NOT match the header, but corresponding_note_problem does.
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "URI",
+                "coding": [{"code": "J06.9", "display": "Acute upper respiratory infection, unspecified"}],
+                "corresponding_note_problem": "Acute upper respiratory infection",
+            },
+        ],
+    }
+    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    assert len(updated) == 1
+    assert updated[0]["data"]["icd10_code"] == "J06.9"
+    assert updated[0]["data"]["accepted"] is True
+
+
+def test_unspecified_does_not_cause_false_match() -> None:
+    """'unspecified' should not cause unrelated conditions to match via word overlap."""
+    conditions = [
+        {
+            "display": "Major depressive disorder",
+            "coding": [{"code": "F32.9", "display": "Major depressive disorder, single episode, unspecified"}],
+        },
+    ]
+    assert match_condition("Diarrhea unspecified", conditions) is None
+    assert match_condition("Constipation unspecified", conditions) is None
+    assert match_condition("Unspecified disorder of adnexa", conditions) is None
+
+
+def test_split_plan_corresponding_note_problem_prevents_wrong_match() -> None:
+    """corresponding_note_problem prevents unrelated conditions from matching via word overlap."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {
+                "narrative": (
+                    "Diarrhea, unspecified\n- Monitor hydration\n\n"
+                    "Sarcoidosis, unspecified\n- Continue current treatment"
+                )
+            },
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "Diarrhea, unspecified",
+                "coding": [{"code": "R19.7", "display": "Diarrhea, unspecified"}],
+                "corresponding_note_problem": "Diarrhea, unspecified",
+            },
+            {
+                "display": "Sarcoidosis, unspecified",
+                "coding": [{"code": "D86.9", "display": "Sarcoidosis, unspecified"}],
+                "corresponding_note_problem": "Sarcoidosis, unspecified",
+            },
+        ],
+    }
+    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    assert len(updated) == 2
+    # Diarrhea gets R19.7, NOT D86.9
+    assert updated[0]["data"]["icd10_code"] == "R19.7"
+    # Sarcoidosis gets D86.9
+    assert updated[1]["data"]["icd10_code"] == "D86.9"
+
+
+def test_split_plan_corresponding_note_problem_case_insensitive() -> None:
+    """corresponding_note_problem matching is case-insensitive."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "acute upper respiratory infection\n- Rest and fluids"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "URI",
+                "coding": [{"code": "J06.9", "display": "Acute upper respiratory infection, unspecified"}],
+                "corresponding_note_problem": "Acute Upper Respiratory Infection",
+            },
+        ],
+    }
+    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    assert len(updated) == 1
+    assert updated[0]["data"]["icd10_code"] == "J06.9"
+
+
+def test_split_plan_corresponding_note_problem_strips_whitespace() -> None:
+    """corresponding_note_problem matching ignores leading/trailing whitespace."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "Headache\n- Take ibuprofen"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "Headache",
+                "coding": [{"code": "R51.9", "display": "Headache, unspecified"}],
+                "corresponding_note_problem": "  Headache  ",
+            },
+        ],
+    }
+    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    assert len(updated) == 1
+    assert updated[0]["data"]["icd10_code"] == "R51.9"
