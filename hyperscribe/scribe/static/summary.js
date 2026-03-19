@@ -2,8 +2,58 @@ import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
+import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
 
 const html = htm.bind(h);
+
+function formatTime(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function TranscriptEntry({ speaker, start_offset_ms, text, is_final, providerName, providerPhotoUrl, patientName }) {
+  const s = (speaker || '').toUpperCase();
+  const isUnspecified = !s || s === 'UNSPECIFIED';
+  const isProvider = s === 'DOCTOR' || s.includes('PROVIDER') || s.includes('DOCTOR');
+  const isPatient = s === 'PATIENT' || s.includes('PATIENT');
+  const time = formatTime(start_offset_ms);
+
+  if (!is_final && isUnspecified) {
+    return html`
+      <div class="transcript-entry partial">
+        <div class="entry-avatar listening">...</div>
+        <div class="entry-content">
+          <div class="entry-meta">
+            <span class="entry-speaker listening-label">Listening</span>
+            <span class="entry-time">${time}</span>
+          </div>
+          <p class="entry-text">${text}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  const role = isProvider ? 'provider' : isPatient ? 'patient' : 'unspecified';
+  const label = isProvider ? (providerName || 'Provider') : isPatient ? (patientName || 'Patient') : 'Unspecified';
+  const initial = isProvider ? 'Dr' : isPatient ? 'Pt' : '?';
+
+  return html`
+    <div class="transcript-entry ${is_final ? '' : 'partial'}">
+      ${isProvider && providerPhotoUrl
+        ? html`<img class="entry-avatar-img" src=${providerPhotoUrl} alt=${label} />`
+        : html`<div class="entry-avatar ${role}">${initial}</div>`}
+      <div class="entry-content">
+        <div class="entry-meta">
+          <span class="entry-speaker">${label}</span>
+          <span class="entry-time">${time}</span>
+        </div>
+        <p class="entry-text">${text}</p>
+      </div>
+    </div>
+  `;
+}
 
 // ── DEV_MOCK: set to true to show a paste-box / mock-note picker instead of calling Nabla ──
 const DEV_MOCK = false;
@@ -116,7 +166,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Summary({ noteId, patientId, staffId, staffName }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName }) {
   const [noteData, setNoteData] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -132,6 +182,15 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   const [prescriptionWarning, setPrescriptionWarning] = useState(false);
   const [seedText, setSeedText] = useState('');
   const [seedError, setSeedError] = useState(null);
+
+  // Template state.
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [mode, setMode] = useState(null); // null | 'ai'
+  const [transcriptCollapsed, setTranscriptCollapsed] = useState(false);
+
+  // Recording hook.
+  const recording = useRecording(noteId);
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved, extras = {}) => {
     try {
@@ -255,6 +314,92 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
     fetchAssignees();
     return () => { cancelled = true; };
   }, []);
+
+  // Load visit templates on mount.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadTemplates() {
+      try {
+        const res = await fetch(`${API_BASE}/visit-templates`);
+        const data = await res.json();
+        if (!cancelled && data.templates) setTemplates(data.templates);
+      } catch (err) {
+        console.error('Failed to load visit templates:', err);
+      }
+    }
+    loadTemplates();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Auto-generate summary after recording finishes.
+  const prevFinalizedRef = useRef(false);
+  useEffect(() => {
+    if (recording.finalized && !prevFinalizedRef.current) {
+      // Collapse transcript once recording is done.
+      setTranscriptCollapsed(true);
+      if (mode === 'ai' && !noteData && !generating) {
+        handleGenerate();
+      }
+    }
+    prevFinalizedRef.current = recording.finalized;
+  }, [recording.finalized, mode, noteData, generating, handleGenerate]);
+
+  // Set mode to 'ai' if we load a finalized transcript from cache (returning to a previous session).
+  useEffect(() => {
+    if (recording.finalized && mode === null && !noteData && !approved) {
+      setMode('ai');
+    }
+  }, [recording.finalized, mode, noteData, approved]);
+
+  const handleSelectTemplate = useCallback((e) => {
+    const templateName = e.target.value;
+    if (!templateName) {
+      setSelectedTemplate(null);
+      // Remove template-inserted questionnaires.
+      setCommands(prev => prev.filter(c => !c._template_inserted));
+      return;
+    }
+    const tmpl = templates.find(t => t.name === templateName);
+    if (!tmpl) return;
+    setSelectedTemplate(tmpl);
+
+    // Build questionnaire commands from the resolved template data.
+    const qCommands = tmpl.questionnaires.map(q => ({
+      command_type: 'questionnaire',
+      display: q.questionnaire_name,
+      data: {
+        questionnaire_dbid: q.questionnaire_dbid,
+        questionnaire_name: q.questionnaire_name,
+        questions: q.questions.map(question => ({
+          dbid: question.dbid,
+          label: question.label,
+          type: question.type,
+          responses: question.options.map(o => ({
+            dbid: o.dbid,
+            value: (question.type === 'TXT' || question.type === 'INT') ? '' : o.value,
+            selected: false,
+            comment: null,
+          })),
+        })),
+      },
+      selected: true,
+      section_key: '_subjective_ad_hoc',
+      already_documented: false,
+      _template_inserted: true,
+    }));
+
+    // Replace previous template questionnaires, keep everything else.
+    setCommands(prev => {
+      const nonTemplate = prev.filter(c => !c._template_inserted);
+      return [...nonTemplate, ...qCommands];
+    });
+  }, [templates]);
+
+  const handleStartAI = useCallback(() => {
+    setMode('ai');
+    recording.startRecording();
+  }, [recording]);
+
 
   // Compute unmatched conditions when loading from old cache format (no unmatched_conditions key).
   useEffect(() => {
@@ -561,7 +706,8 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
       return true;
     });
     const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
-    let allInsertable = [...insertable, ...acceptedRecs];
+    let allInsertable = [...insertable, ...acceptedRecs]
+      .map(({ _template_inserted, ...c }) => c); // Strip internal marker.
 
     // Convert diagnose commands: match against patient conditions to decide assess vs diagnose.
     // Skip diagnose commands with no ICD code (provider didn't select one).
@@ -711,22 +857,106 @@ export function Summary({ noteId, patientId, staffId, staffName }) {
   ).length;
 
   const effectiveSections = noteData ? noteData.sections : SKELETON_SECTIONS;
+  const isRecording = recording.status === 'recording' || recording.status === 'paused';
+  const showTopControls = !approved && !noteData && !isRecording && !recording.finalized && !generating && mode === null;
 
   return html`
     <div class="summary-container">
+      ${!approved && html`
+        <div class="unified-top-bar">
+          ${templates.length > 0 && html`
+            <select
+              class="template-select"
+              onChange=${handleSelectTemplate}
+              value=${selectedTemplate ? selectedTemplate.name : ''}
+              disabled=${approved || mode !== null}
+            >
+              <option value="">Select Visit Type</option>
+              ${templates.map(t => html`<option key=${t.name} value=${t.name}>${t.name}</option>`)}
+            </select>
+          `}
+          ${showTopControls && html`
+            <button class="start-ai-btn" onClick=${handleStartAI} disabled=${!selectedTemplate}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" /></svg>
+              Start AI Scribe
+            </button>
+          `}
+          ${isRecording && html`
+            <div class="recording-controls-inline">
+              ${recording.status === 'recording'
+                ? html`<button class="control-btn" onClick=${recording.pauseRecording} title="Pause">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="5" width="4" height="14" rx="1" />
+                      <rect x="14" y="5" width="4" height="14" rx="1" />
+                    </svg>
+                    Pause
+                  </button>`
+                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="6,4 20,12 6,20" />
+                    </svg>
+                    Resume
+                  </button>`}
+              <button class="finish-btn" onClick=${recording.finishRecording}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Finish
+              </button>
+            </div>
+          `}
+          ${recording.status === 'finishing' && html`
+            <span class="generating-label">Finalizing transcript...</span>
+          `}
+        </div>
+      `}
+      ${(isRecording || recording.entries.length > 0) && html`
+        <div class="transcript-panel">
+          <button class="transcript-panel-header ${isRecording ? '' : 'finalized'}" onClick=${() => setTranscriptCollapsed(prev => !prev)}>
+            <div class="transcript-panel-status ${isRecording ? '' : 'finalized'}">
+              ${isRecording && html`<span class="recording-dot"></span>`}
+              <span>${isRecording
+                ? (recording.status === 'paused' ? 'Paused' : 'Recording in progress')
+                : 'Transcript'}</span>
+              ${!isRecording && html`<span class="transcript-entry-count">(${recording.entries.filter(e => e.is_final).length})</span>`}
+            </div>
+            <span class="transcript-panel-toggle">${transcriptCollapsed ? 'Show' : 'Hide'}</span>
+          </button>
+          ${!transcriptCollapsed && html`
+            <div class="transcript-panel-body">
+              ${recording.entries.length > 0
+                ? html`
+                  <div class="transcript-list">
+                    ${recording.entries.map((entry, i) => html`
+                      <${TranscriptEntry}
+                        key=${entry.item_id || i}
+                        ...${entry}
+                        providerName=${providerName}
+                        providerPhotoUrl=${providerPhotoUrl}
+                        patientName=${patientName}
+                      />
+                    `)}
+                  </div>
+                `
+                : html`<p class="transcript-placeholder">Transcript will appear here as you speak...</p>`}
+            </div>
+          `}
+        </div>
+      `}
+      ${recording.error && html`<p class="error" style="padding: 0 16px;">${recording.error}</p>`}
       ${generating && html`
         <div class="summary-generating-banner">
           <div class="generating-bar" style="width: ${Math.max(((progress.step + 1) / PROGRESS_STEPS.length) * 100, 5)}%" />
           <span class="generating-label">${PROGRESS_STEPS[Math.max(progress.step, 0)] || 'Generating...'}...</span>
         </div>
       `}
-      ${!noteData && !generating && html`
+      ${!noteData && !generating && recording.finalized && mode === 'ai' && html`
         <div class="summary-generate-banner">
-          <p class="summary-banner-description">Generate a structured summary from your recorded transcript.</p>
-          <button class="generate-btn" onClick=${handleGenerate} disabled=${generating}>Generate Summary</button>
-          ${error && html`<p class="summary-empty-error">${error}</p>`}
+          <p class="summary-banner-description">Recording complete. Generate a structured summary from your transcript.</p>
+          <button class="generate-btn" onClick=${handleGenerate}>Generate Summary</button>
         </div>
       `}
+      ${error && html`<p class="error" style="padding: 0 16px;">${error}</p>`}
       <div class="summary-body">
         ${renderSoapGroups(effectiveSections, commandBySectionKey, handleEdit, handleDelete, {
           adHocCommands,
