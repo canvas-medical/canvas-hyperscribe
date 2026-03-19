@@ -385,3 +385,49 @@ def test_split_plan_corresponding_note_problem_prevents_wrong_match() -> None:
     assert updated[0]["data"]["icd10_code"] == "R19.7"
     # Sarcoidosis gets D86.9
     assert updated[1]["data"]["icd10_code"] == "D86.9"
+
+
+def test_split_plan_corresponding_note_problem_case_insensitive() -> None:
+    """corresponding_note_problem matching is case-insensitive."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "acute upper respiratory infection\n- Rest and fluids"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "URI",
+                "coding": [{"code": "J06.9", "display": "Acute upper respiratory infection, unspecified"}],
+                "corresponding_note_problem": "Acute Upper Respiratory Infection",
+            },
+        ],
+    }
+    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    assert len(updated) == 1
+    assert updated[0]["data"]["icd10_code"] == "J06.9"
+
+
+def test_split_plan_corresponding_note_problem_strips_whitespace() -> None:
+    """corresponding_note_problem matching ignores leading/trailing whitespace."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "Headache\n- Take ibuprofen"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "Headache",
+                "coding": [{"code": "R51.9", "display": "Headache, unspecified"}],
+                "corresponding_note_problem": "  Headache  ",
+            },
+        ],
+    }
+    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    assert len(updated) == 1
+    assert updated[0]["data"]["icd10_code"] == "R51.9"

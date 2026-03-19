@@ -185,7 +185,12 @@ def split_plan_into_diagnoses(
     for block in blocks:
         # Prefer exact match via Nabla's corresponding_note_problem field.
         matched = next(
-            (c for c in codes if c.get("corresponding_note_problem") and c["corresponding_note_problem"] == block.header),
+            (
+                c
+                for c in codes
+                if c.get("corresponding_note_problem")
+                and c["corresponding_note_problem"].strip().lower() == block.header.strip().lower()
+            ),
             None,
         )
         if not matched:
