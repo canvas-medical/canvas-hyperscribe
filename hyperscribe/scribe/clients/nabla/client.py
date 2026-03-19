@@ -23,6 +23,12 @@ class NablaClient:
             "nabla-api-version": self._api_version,
         }
 
+    _FRIENDLY_ERRORS: dict[str, str] = {
+        "NOTE_GENERATION_TRANSCRIPT_TOO_SHORT": (
+            "The transcript is too short to generate a note. Please record a longer conversation and try again."
+        ),
+    }
+
     @staticmethod
     def _extract_error_detail(exc: requests.RequestException) -> str:
         response = getattr(exc, "response", None)
@@ -35,6 +41,18 @@ class NablaClient:
             text = getattr(response, "text", "")
             return f" | body: {text[:500]}" if text else ""
 
+    @classmethod
+    def _friendly_message(cls, exc: requests.RequestException) -> str | None:
+        response = getattr(exc, "response", None)
+        if response is None:
+            return None
+        try:
+            body: dict[str, Any] = response.json()
+            name = body.get("name", "")
+            return cls._FRIENDLY_ERRORS.get(name)
+        except (ValueError, AttributeError):
+            return None
+
     def generate_note(self, payload: dict[str, Any]) -> dict[str, Any]:
         try:
             response = self._session.post(
@@ -46,6 +64,9 @@ class NablaClient:
             response.raise_for_status()
         except requests.RequestException as exc:
             status = getattr(exc.response, "status_code", 0) if hasattr(exc, "response") else 0
+            friendly = self._friendly_message(exc)
+            if friendly:
+                raise ScribeNoteGenerationError(friendly, status_code=status) from exc
             detail = self._extract_error_detail(exc)
             raise ScribeNoteGenerationError(f"Nabla generate note failed: {exc}{detail}", status_code=status) from exc
         result: dict[str, Any] = response.json()
