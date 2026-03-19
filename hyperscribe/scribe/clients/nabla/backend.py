@@ -68,6 +68,7 @@ class NablaBackend(ScribeBackend):
                 "locale": _NOTE_LOCALE,
                 "template": _NOTE_TEMPLATE,
             },
+            "include_corresponding_note_problems": True,
         }
         raw = self._rest_client.generate_normalized_data(payload)
         return self._parse_normalized_data(raw)
@@ -154,6 +155,7 @@ class NablaBackend(ScribeBackend):
                     display=cond.get("display", ""),
                     clinical_status=cond.get("clinical_status", ""),
                     coding=coding,
+                    corresponding_note_problem=cond.get("corresponding_note_problem"),
                 )
             )
 
