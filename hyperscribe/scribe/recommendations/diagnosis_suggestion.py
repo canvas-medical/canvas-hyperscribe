@@ -32,7 +32,7 @@ def _make_settings(api_key: str) -> LlmSettingsAnthropic:
 def _validate_code(code: str) -> dict[str, str] | None:
     """Search the science service to confirm an ICD-10 code exists. Return resolved info or None."""
     try:
-        resp = science_http.get_json(f"/search/condition/?query={code}&limit=5")
+        resp = science_http.get_json(f"/search/condition/?query={code}&limit=25")
         data = resp.json() or {}
     except Exception:
         log.exception(f"Science search failed for code {code}")
@@ -49,6 +49,7 @@ def _validate_code(code: str) -> dict[str, str] | None:
                 "display": r.get("icd10_text", ""),
                 "formatted_code": formatted,
             }
+    log.info(f"ICD-10 code {code} not found in science search results")
     return None
 
 
@@ -93,6 +94,10 @@ def suggest_diagnoses(conditions: list[str], api_key: str) -> dict[str, list[dic
             info = _validate_code(code)
             if info:
                 validated.append(info)
+        log.info(
+            f"Diagnosis suggestion for '{suggestion.condition_text}': "
+            f"LLM suggested {suggestion.icd10_codes}, validated {[v['code'] for v in validated]}"
+        )
         if not validated:
             continue
 
