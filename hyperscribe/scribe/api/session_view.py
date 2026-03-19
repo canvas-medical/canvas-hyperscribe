@@ -81,11 +81,14 @@ def _save_progress(note_id: str, step: int, total: int, label: str) -> None:
 
 
 def _serialize_condition(condition: Condition) -> dict[str, Any]:
-    return {
+    result: dict[str, Any] = {
         "display": condition.display,
         "clinical_status": condition.clinical_status,
         "coding": [{"system": e.system, "code": e.code, "display": e.display} for e in condition.coding],
     }
+    if condition.corresponding_note_problem is not None:
+        result["corresponding_note_problem"] = condition.corresponding_note_problem
+    return result
 
 
 def _match_conditions_to_sections(
