@@ -90,6 +90,17 @@ def test_significant_words_filters_stop_words() -> None:
     assert "brown" in words
 
 
+def test_significant_words_filters_medical_qualifiers() -> None:
+    words = significant_words("Diarrhea, unspecified")
+    assert "unspecified" not in words
+    assert "diarrhea" in words
+    words = significant_words("Other specified anxiety disorders")
+    assert "other" not in words
+    assert "specified" not in words
+    assert "anxiety" in words
+    assert "disorders" in words
+
+
 def test_significant_words_filters_short() -> None:
     words = significant_words("I am ok")
     assert "i" not in words  # single char after lowering
@@ -98,9 +109,9 @@ def test_significant_words_filters_short() -> None:
 
 
 def test_significant_words_strips_punctuation() -> None:
-    words = significant_words("Headache, chronic")
+    words = significant_words("Headache, persistent")
     assert "headache" in words
-    assert "chronic" in words
+    assert "persistent" in words
 
 
 # --- word_overlap ---
@@ -325,6 +336,19 @@ def test_split_plan_corresponding_note_problem() -> None:
     assert len(updated) == 1
     assert updated[0]["data"]["icd10_code"] == "J06.9"
     assert updated[0]["data"]["accepted"] is True
+
+
+def test_unspecified_does_not_cause_false_match() -> None:
+    """'unspecified' should not cause unrelated conditions to match via word overlap."""
+    conditions = [
+        {
+            "display": "Major depressive disorder",
+            "coding": [{"code": "F32.9", "display": "Major depressive disorder, single episode, unspecified"}],
+        },
+    ]
+    assert match_condition("Diarrhea unspecified", conditions) is None
+    assert match_condition("Constipation unspecified", conditions) is None
+    assert match_condition("Unspecified disorder of adnexa", conditions) is None
 
 
 def test_split_plan_corresponding_note_problem_prevents_wrong_match() -> None:

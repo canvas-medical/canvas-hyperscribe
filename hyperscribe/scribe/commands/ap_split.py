@@ -29,6 +29,18 @@ _STOP_WORDS = frozenset(
         "probable",
         "likely",
         "suspected",
+        "unspecified",
+        "specified",
+        "other",
+        "disorder",
+        "disease",
+        "syndrome",
+        "condition",
+        "type",
+        "acute",
+        "chronic",
+        "primary",
+        "secondary",
     }
 )
 
