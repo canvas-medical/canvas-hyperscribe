@@ -25,6 +25,7 @@ from canvas_sdk.v1.data.team import Team
 from canvas_sdk.utils.http import science_http
 
 from hyperscribe.libraries.canvas_science import CanvasScience
+from hyperscribe.libraries.constants import Constants
 
 import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
 from hyperscribe.scribe.backend import (
@@ -1182,3 +1183,63 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 status_code=HTTPStatus.OK,
             )
         ]
+
+    @api.get("/visit-templates")
+    def get_visit_templates(self) -> list[Union[Response, Effect]]:
+        """Load visit templates with resolved questionnaire definitions."""
+        raw = self.secrets.get(Constants.SECRET_VISIT_TEMPLATES, "{}")
+        try:
+            config = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            return [JSONResponse({"templates": []}, status_code=HTTPStatus.OK)]
+
+        templates_config: list[dict[str, Any]] = config.get("templates", [])
+        if not templates_config:
+            return [JSONResponse({"templates": []}, status_code=HTTPStatus.OK)]
+
+        # Batch-resolve all questionnaire names in a single query.
+        all_q_names: list[str] = []
+        for tmpl in templates_config:
+            all_q_names.extend(tmpl.get("questionnaires", []))
+
+        q_by_name: dict[str, Any] = {}
+        if all_q_names:
+            q_filter = Q()
+            for qn in set(all_q_names):
+                q_filter |= Q(name__iexact=qn)
+            for q_obj in QuestionnaireModel.objects.filter(q_filter, status="AC"):
+                q_by_name[q_obj.name.lower()] = q_obj
+
+        def _resolve_questionnaire(q_obj: Any) -> dict[str, Any]:
+            cmd = QuestionnaireCommand(
+                questionnaire_id=str(q_obj.id),
+                note_uuid="",
+                command_uuid="",
+            )
+            questions: list[dict[str, Any]] = []
+            for q in cmd.questions:
+                options = [{"dbid": o.dbid, "value": o.name} for o in q.options]
+                questions.append({"dbid": int(q.id), "label": q.label, "type": q.type, "options": options})
+            return {
+                "questionnaire_dbid": q_obj.dbid,
+                "questionnaire_name": q_obj.name,
+                "questions": questions,
+            }
+
+        result_templates: list[dict[str, Any]] = []
+        for tmpl in templates_config:
+            name: str = tmpl.get("name", "")
+            q_names: list[str] = tmpl.get("questionnaires", [])
+            resolved: list[dict[str, Any]] = []
+            for q_name in q_names:
+                q_obj = q_by_name.get(q_name.lower())
+                if not q_obj:
+                    log.warning("visit-templates: questionnaire %r not found", q_name)
+                    continue
+                try:
+                    resolved.append(_resolve_questionnaire(q_obj))
+                except Exception:
+                    log.exception("visit-templates: failed to resolve %r", q_name)
+            result_templates.append({"name": name, "questionnaires": resolved})
+
+        return [JSONResponse({"templates": result_templates}, status_code=HTTPStatus.OK)]
