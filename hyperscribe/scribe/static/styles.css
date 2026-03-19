@@ -1007,7 +1007,7 @@ h2 { margin-bottom: 4px; }
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
+  padding: 10px 0;
   border-bottom: 1px solid #e8e8ec;
   background: #fff;
   position: sticky;
@@ -1056,6 +1056,22 @@ h2 { margin-bottom: 4px; }
   align-items: center;
   gap: 8px;
   margin-left: auto;
+}
+/* Override the standalone transcript button styles when inside the top bar. */
+.recording-controls-inline .control-btn {
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 5px;
+}
+.recording-controls-inline .finish-btn {
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
 }
 
 /* Collapsible transcript panel */
