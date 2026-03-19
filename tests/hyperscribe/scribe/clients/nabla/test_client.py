@@ -51,6 +51,32 @@ def test_generate_note_error():
             client.generate_note({})
 
 
+def test_generate_note_transcript_too_short():
+    client, _ = _make_client()
+    response = MagicMock()
+    response.status_code = 422
+    response.json.return_value = {
+        "message": "We can't generate the note when the transcript is too short.",
+        "code": 83005,
+        "name": "NOTE_GENERATION_TRANSCRIPT_TOO_SHORT",
+    }
+    response.raise_for_status.side_effect = requests.HTTPError(response=response)
+    with patch.object(client._session, "post", return_value=response):
+        with pytest.raises(ScribeNoteGenerationError, match="too short to generate a note"):
+            client.generate_note({})
+
+
+def test_generate_note_unknown_error_code_falls_through():
+    client, _ = _make_client()
+    response = MagicMock()
+    response.status_code = 422
+    response.json.return_value = {"name": "SOME_UNKNOWN_ERROR", "message": "weird"}
+    response.raise_for_status.side_effect = requests.HTTPError(response=response)
+    with patch.object(client._session, "post", return_value=response):
+        with pytest.raises(ScribeNoteGenerationError, match="generate note failed"):
+            client.generate_note({})
+
+
 def test_generate_normalized_data_success():
     client, _ = _make_client()
     expected = {"conditions": [], "observations": []}
