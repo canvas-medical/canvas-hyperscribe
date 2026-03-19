@@ -66,10 +66,12 @@ class Condition:
         display: str,
         clinical_status: str,
         coding: list[CodingEntry] | None = None,
+        corresponding_note_problem: str | None = None,
     ) -> None:
         self.display = display
         self.clinical_status = clinical_status
         self.coding: list[CodingEntry] = coding if coding is not None else []
+        self.corresponding_note_problem = corresponding_note_problem
 
 
 class Observation:
