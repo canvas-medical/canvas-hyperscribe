@@ -129,15 +129,6 @@
         }
       },
       {
-        "class": "hyperscribe.scribe.application.summary_app:SummaryApp",
-        "description": "Note application that displays the visit summary",
-        "data_access": {
-          "event": "",
-          "read": [],
-          "write": []
-        }
-      },
-      {
         "class": "hyperscribe.scribe.application.debug_cache_app:ScribeCacheApp",
         "description": "Debug cache for the canvas scribe application.",
         "data_access": {
@@ -241,7 +232,8 @@
     "StructuredReasonForVisit",
     "TrialStaffersList",
     "VendorAudioLLM",
-    "VendorTextLLM"
+    "VendorTextLLM",
+    "VisitTemplates"
   ],
   "tags": {
     "version_date": "2026-04-17",

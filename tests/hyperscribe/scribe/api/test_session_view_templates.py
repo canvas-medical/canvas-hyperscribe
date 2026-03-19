@@ -119,17 +119,8 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
                                 "questions": [expected_question],
                             },
                         ],
-                        "ros_sections": None,
-                        "pe_sections": None,
-                        "charges": [],
                     },
-                    {
-                        "name": "Follow-Up",
-                        "questionnaires": [],
-                        "ros_sections": None,
-                        "pe_sections": None,
-                        "charges": [],
-                    },
+                    {"name": "Follow-Up", "questionnaires": []},
                 ]
             },
             status_code=HTTPStatus.OK,
@@ -169,9 +160,6 @@ def test_get_visit_templates_skips_missing_questionnaire(mock_model: MagicMock, 
                                 "questions": [],
                             }
                         ],
-                        "ros_sections": None,
-                        "pe_sections": None,
-                        "charges": [],
                     }
                 ]
             },
@@ -191,154 +179,7 @@ def test_get_visit_templates_no_questionnaire_names(mock_model: MagicMock, mock_
     mock_model.objects.filter.assert_not_called()
     assert result == [
         JSONResponse(
-            {
-                "templates": [
-                    {
-                        "name": "Sick Visit",
-                        "questionnaires": [],
-                        "ros_sections": None,
-                        "pe_sections": None,
-                        "charges": [],
-                    }
-                ]
-            },
+            {"templates": [{"name": "Sick Visit", "questionnaires": []}]},
             status_code=HTTPStatus.OK,
         )
     ]
-
-
-def test_get_visit_templates_parses_ros_and_pe() -> None:
-    secret = json.dumps(
-        {
-            "templates": [
-                {
-                    "name": "Initial Visit",
-                    "questionnaires": [],
-                    "ros_template": "CONSTITUTIONAL: Denies fever.\nEYES: Denies visual changes.",
-                    "pe_template": "GENERAL: NAD. Well-developed.\nHEENT: NCAT.",
-                }
-            ]
-        }
-    )
-    view = _helper_instance(template_secret=secret)
-    result = view.get_visit_templates()
-    assert result == [
-        JSONResponse(
-            {
-                "templates": [
-                    {
-                        "name": "Initial Visit",
-                        "questionnaires": [],
-                        "ros_sections": [
-                            {"key": "constitutional", "title": "CONSTITUTIONAL", "text": "Denies fever."},
-                            {"key": "eyes", "title": "EYES", "text": "Denies visual changes."},
-                        ],
-                        "pe_sections": [
-                            {"key": "general", "title": "GENERAL", "text": "NAD. Well-developed."},
-                            {"key": "heent", "title": "HEENT", "text": "NCAT."},
-                        ],
-                        "charges": [],
-                    }
-                ]
-            },
-            status_code=HTTPStatus.OK,
-        )
-    ]
-
-
-def test_get_visit_templates_null_ros_pe() -> None:
-    secret = json.dumps(
-        {
-            "templates": [
-                {
-                    "name": "Follow-Up",
-                    "questionnaires": [],
-                    "ros_template": None,
-                    "pe_template": None,
-                }
-            ]
-        }
-    )
-    view = _helper_instance(template_secret=secret)
-    result = view.get_visit_templates()
-    assert result == [
-        JSONResponse(
-            {
-                "templates": [
-                    {
-                        "name": "Follow-Up",
-                        "questionnaires": [],
-                        "ros_sections": None,
-                        "pe_sections": None,
-                        "charges": [],
-                    }
-                ]
-            },
-            status_code=HTTPStatus.OK,
-        )
-    ]
-
-
-@patch("hyperscribe.scribe.api.session_view.ChargeDescriptionMaster")
-def test_get_visit_templates_resolves_charges(mock_cdm: MagicMock) -> None:
-    record_99342 = MagicMock()
-    record_99342.cpt_code = "99342"
-    record_99342.short_name = "Home visit new"
-    record_99342.name = "Home visit new patient"
-
-    record_g2211 = MagicMock()
-    record_g2211.cpt_code = "G2211"
-    record_g2211.short_name = "Visit complexity"
-    record_g2211.name = "Visit complexity add-on"
-
-    mock_cdm.objects.filter.return_value = [record_99342, record_g2211]
-
-    secret = json.dumps(
-        {
-            "templates": [
-                {
-                    "name": "Home Visit",
-                    "questionnaires": [],
-                    "charges": ["99342", "G2211"],
-                }
-            ]
-        }
-    )
-    view = _helper_instance(template_secret=secret)
-    result = view.get_visit_templates()
-
-    data = json.loads(result[0].content)
-    charges = data["templates"][0]["charges"]
-    assert len(charges) == 2
-    assert charges[0] == {"cpt_code": "99342", "description": "Home visit new"}
-    assert charges[1] == {"cpt_code": "G2211", "description": "Visit complexity"}
-
-
-@patch("hyperscribe.scribe.api.session_view.ChargeDescriptionMaster")
-def test_get_visit_templates_drops_invalid_charges(mock_cdm: MagicMock) -> None:
-    record = MagicMock()
-    record.cpt_code = "99342"
-    record.short_name = "Home visit new"
-    record.name = "Home visit new patient"
-
-    # Only 99342 exists; XXXXX does not.
-    mock_cdm.objects.filter.return_value = [record]
-
-    secret = json.dumps(
-        {
-            "templates": [
-                {
-                    "name": "Test",
-                    "questionnaires": [],
-                    "charges": ["99342", "XXXXX"],
-                }
-            ]
-        }
-    )
-    view = _helper_instance(template_secret=secret)
-    result = view.get_visit_templates()
-
-    data = json.loads(result[0].content)
-    charges = data["templates"][0]["charges"]
-    assert len(charges) == 1
-    assert charges[0]["cpt_code"] == "99342"
