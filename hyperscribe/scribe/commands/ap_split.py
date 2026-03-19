@@ -171,7 +171,13 @@ def split_plan_into_diagnoses(
     matched_set: set[int] = set()
 
     for block in blocks:
-        matched = match_condition(block.header, codes)
+        # Prefer exact match via Nabla's corresponding_note_problem field.
+        matched = next(
+            (c for c in codes if c.get("corresponding_note_problem") and c["corresponding_note_problem"] == block.header),
+            None,
+        )
+        if not matched:
+            matched = match_condition(block.header, codes)
         icd: dict[str, Any] | None = None
         if matched:
             icd = next((cd for cd in (matched.get("coding") or []) if cd.get("code")), None)
