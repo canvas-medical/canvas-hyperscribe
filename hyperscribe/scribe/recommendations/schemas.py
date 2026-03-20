@@ -70,6 +70,25 @@ class ReferRecommendationList(BaseModelLlmJson):
     )
 
 
+class ReconciliationSection(BaseModelLlmJson):
+    key: str = Field(description="Lowercase key for the system (e.g. 'constitutional', 'eyes')")
+    title: str = Field(description="Display title (e.g. 'CONSTITUTIONAL', 'EYES')")
+    text: str = Field(description="The final clinical text for this system")
+    updated: bool = Field(
+        description=(
+            "true if the text was changed from the template based on encounter findings, "
+            "false if the template text was kept exactly as-is"
+        ),
+    )
+
+
+class ReconciliationResult(BaseModelLlmJson):
+    sections: list[ReconciliationSection] = Field(
+        default_factory=list,
+        description="Reconciled sections with update attribution",
+    )
+
+
 class DiagnosisSuggestion(BaseModelLlmJson):
     condition_text: str = Field(description="The original condition text")
     icd10_codes: list[str] = Field(description="2-3 ICD-10 codes (e.g. R519, G43009)")

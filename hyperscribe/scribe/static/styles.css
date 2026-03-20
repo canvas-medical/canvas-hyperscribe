@@ -716,9 +716,23 @@ h2 { margin-bottom: 4px; }
 .history-review-row.editing { cursor: default; }
 .history-subsection { margin-bottom: 10px; }
 .history-subsection:last-child { margin-bottom: 0; }
-.history-subsection-title { font-size: 12px; font-weight: 600; color: #666; margin-bottom: 4px; text-transform: uppercase; }
+.history-subsection-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.history-subsection-title { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; }
 .history-subsection-text { font-size: 14px; line-height: 1.6; color: #333; white-space: pre-line; }
 .history-divider { border: none; border-top: 1px solid #f0f0f0; margin: 8px 0; }
+.reconciliation-badge {
+  font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px;
+  white-space: nowrap; line-height: 1.4; cursor: pointer; user-select: none;
+}
+.reconciliation-badge.updated { background: #dbeafe; color: #1d4ed8; }
+.reconciliation-badge.updated:hover { background: #bfdbfe; }
+.reconciliation-diff {
+  margin-top: 4px; padding: 6px 8px; background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 4px; font-size: 12px;
+}
+.reconciliation-diff-label { font-weight: 600; color: #888; margin-bottom: 2px; font-size: 11px; }
+.reconciliation-diff-text { color: #666; line-height: 1.5; white-space: pre-line; }
+.positive-finding { font-weight: 700; color: #1a1a1a; }
 
 /* Dev seed panel (DEV_MOCK transcript paste box) */
 .dev-seed-panel { padding: 24px; }
@@ -1050,6 +1064,23 @@ h2 { margin-bottom: 4px; }
 .start-ai-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .start-ai-btn svg { flex-shrink: 0; }
 
+
+.regenerate-btn {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  color: #555;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.regenerate-btn:hover:not(:disabled) { background: #f5f5f5; border-color: #ccc; }
+.regenerate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .recording-controls-inline {
   display: flex;

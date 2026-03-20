@@ -49,6 +49,7 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
                 "patient_id": str(note.patient.id),
                 "staff_id": str(staff_id),
                 "staff_name": provider_name,
+                "debug_mode": "true" if self.secrets.get("EnableCacheApp") else "",
             },
         )
         return [HTMLResponse(html)]

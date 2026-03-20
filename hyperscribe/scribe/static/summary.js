@@ -55,27 +55,6 @@ function TranscriptEntry({ speaker, start_offset_ms, text, is_final, providerNam
   `;
 }
 
-// ── DEV_MOCK: set to true to show a paste-box / mock-note picker instead of calling Nabla ──
-const DEV_MOCK = false;
-
-const DEV_MOCK_NOTE = {
-  title: 'Mock Visit Note',
-  sections: [
-    { key: 'chief_complaint', title: 'Chief Complaint', text: 'Persistent right-sided headache for 3 days, rated 7/10, worse with screen exposure.' },
-    { key: 'history_of_present_illness', title: 'History of Present Illness', text: 'Patient reports a 3-day history of right-sided throbbing headache. Pain worsens with bright lights and prolonged screen use. Associated photophobia and intermittent nausea. Has been taking ibuprofen 400mg TID with minimal relief. Denies fever, neck stiffness, or recent head trauma.' },
-    { key: 'past_medical_history', title: 'Past Medical History', text: 'Hypertension diagnosed 2018, well-controlled on lisinopril. Type 2 diabetes diagnosed 2020, managed with metformin. History of seasonal allergies.' },
-    { key: 'past_surgical_history', title: 'Past Surgical History', text: 'Appendectomy in 2010. Right knee arthroscopy in 2015.' },
-    { key: 'past_obstetric_history', title: 'Past Obstetric History', text: 'G2P2, both uncomplicated vaginal deliveries (2012, 2016). No gestational diabetes or preeclampsia.' },
-    { key: 'family_history', title: 'Family History', text: 'Father: Type 2 diabetes, coronary artery disease. Mother: Migraine headaches, hypothyroidism. Sister: Asthma.' },
-    { key: 'social_history', title: 'Social History', text: 'Non-smoker. Occasional alcohol use (1-2 drinks/week). Works as a software engineer. Exercises 3x/week. No recreational drug use.' },
-    { key: 'allergies', title: 'Allergies', text: 'Penicillin (rash). Sulfa drugs (hives).' },
-    { key: 'current_medications', title: 'Current Medications', text: '- Lisinopril 10mg daily\n- Metformin 500mg BID\n- Ibuprofen 400mg PRN' },
-    { key: 'vitals', title: 'Vitals', text: 'BP 128/82, HR 76, Temp 98.6F, RR 16, SpO2 99%' },
-    { key: 'assessment_and_plan', title: 'Assessment & Plan', text: 'Migraine without aura. Likely triggered by increased screen time and stress.\n\nStart sumatriptan 50mg at onset of migraine. Continue current medications. Lifestyle modifications: reduce screen time, ensure adequate hydration, regular sleep schedule.' },
-  ],
-};
-
-// ── END DEV_MOCK ──
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
@@ -166,7 +145,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, debugMode }) {
   const [noteData, setNoteData] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -180,14 +159,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [diagnosisSuggestions, setDiagnosisSuggestions] = useState({});
   const [progress, setProgress] = useState({ step: -1, total: 0, label: '' });
   const [prescriptionWarning, setPrescriptionWarning] = useState(false);
-  const [seedText, setSeedText] = useState('');
-  const [seedError, setSeedError] = useState(null);
 
   // Template state.
   const [templates, setTemplates] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [mode, setMode] = useState(null); // null | 'ai'
   const [transcriptCollapsed, setTranscriptCollapsed] = useState(false);
+  const [cachedTemplateName, setCachedTemplateName] = useState(null);
 
   // Recording hook.
   const recording = useRecording(noteId);
@@ -206,7 +184,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   // Load summary from cache (no auto-generate — provider clicks "Generate Summary" when ready).
   useEffect(() => {
-    if (DEV_MOCK) return;
     let cancelled = false;
 
     async function loadOrGenerate() {
@@ -214,6 +191,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         const cacheRes = await fetch(`${API_BASE}/summary?note_id=${encodeURIComponent(noteId)}`);
         if (!cancelled) {
           const cached = await cacheRes.json();
+          // Restore cached template name (resolved against templates once they load).
+          if (cached.selected_template_name) {
+            setCachedTemplateName(cached.selected_template_name);
+          }
           if (cached.note) {
             // Full cached summary — restore everything.
             setNoteData(cached.note);
@@ -240,7 +221,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   // Poll progress while generating.
   useEffect(() => {
-    if (!generating || DEV_MOCK) return;
+    if (!generating) return;
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`${API_BASE}/summary-progress?note_id=${encodeURIComponent(noteId)}`);
@@ -262,10 +243,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         recommendations,
         unmatched_conditions: unmatchedConditions,
         diagnosis_suggestions: diagnosisSuggestions,
+        selected_template_name: selectedTemplate?.name || null,
       });
     }, 500);
     return () => { if (commandsSaveRef.current) clearTimeout(commandsSaveRef.current); };
-  }, [commands, recommendations]);
+  }, [commands, recommendations, selectedTemplate]);
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
@@ -274,7 +256,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       const res = await fetch(`${API_BASE}/generate-summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: noteId, note_uuid: noteId, patient_id: patientId }),
+        body: JSON.stringify({
+          note_id: noteId,
+          note_uuid: noteId,
+          patient_id: patientId,
+          template_ros_sections: selectedTemplate?.ros_sections || null,
+          template_pe_sections: selectedTemplate?.pe_sections || null,
+        }),
       });
       const data = await res.json();
       if (data.error) {
@@ -284,7 +272,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         setCommands(prev => {
           const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc']);
           const existingAdHoc = prev.filter(c => adHocKeys.has(c.section_key));
-          return [...(data.commands || []), ...existingAdHoc];
+          const generated = data.commands || [];
+          const generatedTypes = new Set(generated.map(c => c.command_type));
+          const templateKeep = prev.filter(c =>
+            c._template_inserted && !adHocKeys.has(c.section_key) && !generatedTypes.has(c.command_type)
+          );
+          return [...generated, ...existingAdHoc, ...templateKeep];
         });
         setRecommendations(data.recommendations || []);
         setSectionConditions(data.section_conditions || {});
@@ -296,7 +289,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     } finally {
       setGenerating(false);
     }
-  }, [noteId]);
+  }, [noteId, selectedTemplate]);
 
   // Fetch assignees for task assignment (independent, small).
   useEffect(() => {
@@ -331,6 +324,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     return () => { cancelled = true; };
   }, []);
 
+  // Restore selected template from cache once templates are loaded.
+  useEffect(() => {
+    if (cachedTemplateName && templates.length > 0 && !selectedTemplate) {
+      const match = templates.find(t => t.name === cachedTemplateName);
+      if (match) setSelectedTemplate(match);
+    }
+  }, [cachedTemplateName, templates, selectedTemplate]);
+
   // Auto-generate summary after recording finishes.
   const prevFinalizedRef = useRef(false);
   useEffect(() => {
@@ -355,8 +356,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const templateName = e.target.value;
     if (!templateName) {
       setSelectedTemplate(null);
-      // Remove template-inserted questionnaires.
       setCommands(prev => prev.filter(c => !c._template_inserted));
+      saveSummaryToCache(noteData, commands, approved, {
+        recommendations, unmatched_conditions: unmatchedConditions,
+        diagnosis_suggestions: diagnosisSuggestions, selected_template_name: null,
+      });
       return;
     }
     const tmpl = templates.find(t => t.name === templateName);
@@ -388,12 +392,43 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       _template_inserted: true,
     }));
 
-    // Replace previous template questionnaires, keep everything else.
+    const templateCommands = [...qCommands];
+
+    if (tmpl.ros_sections && tmpl.ros_sections.length > 0) {
+      templateCommands.push({
+        command_type: 'ros',
+        display: tmpl.ros_sections.map(s => s.title).join(' | '),
+        data: { sections: tmpl.ros_sections },
+        selected: true,
+        section_key: '_ros',
+        already_documented: false,
+        _template_inserted: true,
+      });
+    }
+
+    if (tmpl.pe_sections && tmpl.pe_sections.length > 0) {
+      templateCommands.push({
+        command_type: 'physical_exam',
+        display: tmpl.pe_sections.map(s => s.title).join(' | '),
+        data: { sections: tmpl.pe_sections },
+        selected: true,
+        section_key: 'physical_exam',
+        already_documented: false,
+        _template_inserted: true,
+      });
+    }
+
+    // Replace previous template commands, keep everything else.
     setCommands(prev => {
       const nonTemplate = prev.filter(c => !c._template_inserted);
-      return [...nonTemplate, ...qCommands];
+      const updated = [...nonTemplate, ...templateCommands];
+      saveSummaryToCache(noteData, updated, approved, {
+        recommendations, unmatched_conditions: unmatchedConditions,
+        diagnosis_suggestions: diagnosisSuggestions, selected_template_name: tmpl.name,
+      });
+      return updated;
     });
-  }, [templates]);
+  }, [templates, noteData, approved, recommendations, unmatchedConditions, diagnosisSuggestions, saveSummaryToCache]);
 
   const handleStartAI = useCallback(() => {
     setMode('ai');
@@ -422,54 +457,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setUnmatchedConditions(codes.filter(c => !matchedSet.has(c)));
   }, [sectionConditions, commands, noteData, unmatchedConditions]);
 
-  const handleSeedGenerate = useCallback(async () => {
-    let items;
-    try {
-      items = JSON.parse(seedText);
-      if (!Array.isArray(items)) throw new Error('Must be an array');
-    } catch (e) {
-      setSeedError('Invalid JSON: ' + e.message);
-      return;
-    }
-    setSeedError(null);
-    setGenerating(true);
-    try {
-      await fetch(`${API_BASE}/save-transcript`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: noteId, transcript: { items }, finalized: true }),
-      });
-      const res = await fetch(`${API_BASE}/generate-summary`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: noteId, note_uuid: noteId, patient_id: patientId }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setNoteData(data.note);
-        setCommands(prev => {
-          const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc']);
-          const existingAdHoc = prev.filter(c => adHocKeys.has(c.section_key));
-          return [...(data.commands || []), ...existingAdHoc];
-        });
-        setRecommendations(data.recommendations || []);
-        setSectionConditions(data.section_conditions || {});
-        setUnmatchedConditions(data.unmatched_conditions || []);
-        setDiagnosisSuggestions(data.diagnosis_suggestions || {});
-      }
-    } catch (err) {
-      setError('Failed to generate summary');
-    } finally {
-      setGenerating(false);
-    }
-  }, [seedText, noteId]);
-
-  const handleUseMock = useCallback(() => {
-    setNoteData(DEV_MOCK_NOTE);
-    setGenerating(false);
-  }, []);
 
   const handleEdit = useCallback((index, newData, newType) => {
     if (approved) return;
@@ -773,33 +760,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }
   }, [commands, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions]);
 
-  if (DEV_MOCK && generating) {
-    return html`
-      <div class="summary-container">
-        <div class="summary-header">
-          <span class="summary-header-title">Canvas Scribe</span>
-          <span class="summary-header-status">Dev Mode</span>
-        </div>
-        <div class="dev-seed-panel">
-          <textarea
-            class="dev-seed-textarea"
-            placeholder="Paste transcript JSON array here..."
-            value=${seedText}
-            onInput=${(e) => setSeedText(e.target.value)}
-          />
-          ${seedError && html`<p class="error">${seedError}</p>`}
-          <div class="dev-seed-actions">
-            <button class="insert-btn" onClick=${handleSeedGenerate}>
-              Generate from Transcript
-            </button>
-            <button class="edit-btn" onClick=${handleUseMock}>
-              Use Mock Data
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
 
   const commandBySectionKey = buildCommandBySectionKey(commands);
   const adHocCommands = commands
@@ -869,7 +829,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               class="template-select"
               onChange=${handleSelectTemplate}
               value=${selectedTemplate ? selectedTemplate.name : ''}
-              disabled=${approved || mode !== null}
+              disabled=${approved || generating || noteData !== null}
             >
               <option value="">Select Visit Type</option>
               ${templates.map(t => html`<option key=${t.name} value=${t.name}>${t.name}</option>`)}
@@ -907,6 +867,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           `}
           ${recording.status === 'finishing' && html`
             <span class="generating-label">Finalizing transcript...</span>
+          `}
+          ${debugMode && noteData && !approved && !generating && !isRecording && html`
+            <button class="regenerate-btn" onClick=${handleGenerate} disabled=${!selectedTemplate}>
+              Regenerate${!selectedTemplate ? ' (select visit type)' : ''}
+            </button>
           `}
         </div>
       `}

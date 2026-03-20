@@ -41,9 +41,10 @@ from hyperscribe.scribe.backend import (
 )
 from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
 from hyperscribe.scribe.commands.builder import annotate_duplicates, build_effects
-from hyperscribe.scribe.commands.extractor import extract_commands
+from hyperscribe.scribe.commands.extractor import extract_commands, parse_ros_subsections
 from hyperscribe.scribe.recommendations import recommend_commands
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
+from hyperscribe.scribe.recommendations.reconciliation import reconcile_sections
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
@@ -155,6 +156,7 @@ def _save_summary_to_cache(
     diagnosis_suggestions: dict[str, Any] | None = None,
     interaction_warnings: list[dict[str, Any]] | None = None,
     raw_nabla_response: dict[str, Any] | None = None,
+    selected_template_name: str | None = None,
 ) -> None:
     key = f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}"
     log.info(f"summary cache save: key={key} approved={approved}")
@@ -171,6 +173,8 @@ def _save_summary_to_cache(
             payload["interaction_warnings"] = interaction_warnings
         if raw_nabla_response is not None:
             payload["raw_nabla_response"] = raw_nabla_response
+        if selected_template_name is not None:
+            payload["selected_template_name"] = selected_template_name
         cache.set(key, json.dumps(payload))
     except Exception:
         log.exception(f"summary cache save FAILED: key={key}")
@@ -344,6 +348,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             unmatched_conditions=data.get("unmatched_conditions"),
             diagnosis_suggestions=data.get("diagnosis_suggestions"),
             interaction_warnings=data.get("interaction_warnings"),
+            selected_template_name=data.get("selected_template_name"),
         )
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
@@ -446,6 +451,93 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         ]
         # A&P split: replace plan command with per-condition diagnose commands.
         commands_list, unmatched_conditions = split_plan_into_diagnoses(commands_list, section_conditions)
+
+        # ── Step 2.5: Reconcile template ROS/PE with Nabla-generated ones ──
+        template_ros: list[dict[str, str]] | None = data.get("template_ros_sections")
+        template_pe: list[dict[str, str]] | None = data.get("template_pe_sections")
+        reconciliation_api_key = self.secrets.get("AnthropicAPIKey", "")
+        cmd_types = [c["command_type"] for c in commands_list]
+        log.info(
+            "step 2.5: template_ros=%s, template_pe=%s, api_key=%s, cmd_types=%s",
+            len(template_ros) if template_ros else None,
+            len(template_pe) if template_pe else None,
+            bool(reconciliation_api_key),
+            cmd_types,
+        )
+        if template_ros or template_pe:
+            has_ros = any(c["command_type"] == "ros" for c in commands_list)
+            has_pe = any(c["command_type"] == "physical_exam" for c in commands_list)
+
+            # If Nabla didn't generate ROS/PE but the template has them,
+            # inject the template sections as commands (all unchanged).
+            if template_ros and not has_ros:
+                ros_display = " | ".join(s["title"] for s in template_ros)
+                ros_secs: list[dict[str, Any]] = [
+                    {
+                        "key": s["key"],
+                        "title": s["title"],
+                        "text": s["text"],
+                        "updated": False,
+                        "template_text": s["text"],
+                    }
+                    for s in template_ros
+                ]
+                commands_list.append(
+                    {
+                        "command_type": "ros",
+                        "display": ros_display,
+                        "data": {"sections": ros_secs},
+                        "selected": True,
+                        "section_key": "_ros",
+                        "already_documented": False,
+                    }
+                )
+            if template_pe and not has_pe:
+                pe_display = " | ".join(s["title"] for s in template_pe)
+                pe_secs: list[dict[str, Any]] = [
+                    {
+                        "key": s["key"],
+                        "title": s["title"],
+                        "text": s["text"],
+                        "updated": False,
+                        "template_text": s["text"],
+                    }
+                    for s in template_pe
+                ]
+                commands_list.append(
+                    {
+                        "command_type": "physical_exam",
+                        "display": pe_display,
+                        "data": {"sections": pe_secs},
+                        "selected": True,
+                        "section_key": "physical_exam",
+                        "already_documented": False,
+                    }
+                )
+
+            # Reconcile when both template and Nabla versions exist.
+            if reconciliation_api_key:
+                for cmd in commands_list:
+                    if cmd["command_type"] == "ros" and template_ros and has_ros:
+                        reconciled = reconcile_sections(
+                            template_ros,
+                            cmd["data"].get("sections", []),
+                            reconciliation_api_key,
+                            "Review of Systems",
+                        )
+                        if reconciled:
+                            cmd["data"]["sections"] = reconciled
+                            cmd["display"] = " | ".join(s["title"] for s in reconciled)
+                    elif cmd["command_type"] == "physical_exam" and template_pe and has_pe:
+                        reconciled = reconcile_sections(
+                            template_pe,
+                            cmd["data"].get("sections", []),
+                            reconciliation_api_key,
+                            "Physical Exam",
+                        )
+                        if reconciled:
+                            cmd["data"]["sections"] = reconciled
+                            cmd["display"] = " | ".join(s["title"] for s in reconciled)
 
         # ── Step 3: Recommend commands ──
         _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
@@ -1240,6 +1332,23 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     resolved.append(_resolve_questionnaire(q_obj))
                 except Exception:
                     log.exception("visit-templates: failed to resolve %r", q_name)
-            result_templates.append({"name": name, "questionnaires": resolved})
+            ros_sections: list[dict[str, str]] | None = None
+            raw_ros: str | None = tmpl.get("ros_template")
+            if raw_ros:
+                ros_sections = parse_ros_subsections(raw_ros)
+
+            pe_sections: list[dict[str, str]] | None = None
+            raw_pe: str | None = tmpl.get("pe_template")
+            if raw_pe:
+                pe_sections = parse_ros_subsections(raw_pe)
+
+            result_templates.append(
+                {
+                    "name": name,
+                    "questionnaires": resolved,
+                    "ros_sections": ros_sections,
+                    "pe_sections": pe_sections,
+                }
+            )
 
         return [JSONResponse({"templates": result_templates}, status_code=HTTPStatus.OK)]

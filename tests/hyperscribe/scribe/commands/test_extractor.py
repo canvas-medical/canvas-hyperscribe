@@ -1,5 +1,5 @@
 from hyperscribe.scribe.backend.models import ClinicalNote, NoteSection
-from hyperscribe.scribe.commands.extractor import extract_commands
+from hyperscribe.scribe.commands.extractor import extract_commands, parse_ros_subsections
 
 
 def test_routes_chief_complaint_to_rfv() -> None:
@@ -335,3 +335,25 @@ def test_allergies_only_chart_review() -> None:
     proposals = extract_commands(note)
     assert len(proposals) == 1
     assert proposals[0].command_type == "chart_review"
+
+
+# --- parse_ros_subsections ---
+
+
+def test_parse_ros_subsections_standard() -> None:
+    text = "CONSTITUTIONAL: Denies fever, chills.\nEYES: Denies visual changes."
+    result = parse_ros_subsections(text)
+    assert len(result) == 2
+    assert result[0] == {"key": "constitutional", "title": "CONSTITUTIONAL", "text": "Denies fever, chills."}
+    assert result[1] == {"key": "eyes", "title": "EYES", "text": "Denies visual changes."}
+
+
+def test_parse_ros_subsections_empty() -> None:
+    assert parse_ros_subsections("") == []
+
+
+def test_parse_ros_subsections_multiword_title() -> None:
+    text = "MOUTH/THROAT/VOICE: Denies sore throat."
+    result = parse_ros_subsections(text)
+    assert len(result) == 1
+    assert result[0]["title"] == "MOUTH/THROAT/VOICE"
