@@ -15,6 +15,7 @@ from django.db.models import Q
 
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
+from canvas_sdk.v1.data import ChargeDescriptionMaster
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from canvas_sdk.v1.data.questionnaire import Questionnaire as QuestionnaireModel
@@ -1009,6 +1010,23 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         ]
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
 
+    @api.get("/search-charges")
+    def get_search_charges(self) -> list[Union[Response, Effect]]:
+        """Search CPT codes by code or description."""
+        query = self.request.query_params.get("query", "").strip()
+        if not query:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+
+        exclude_raw = self.request.query_params.get("exclude", "")
+        exclude_codes = [c.strip() for c in exclude_raw.split(",") if c.strip()] if exclude_raw else []
+
+        qs = ChargeDescriptionMaster.objects.filter(Q(cpt_code__icontains=query) | Q(short_name__icontains=query))
+        if exclude_codes:
+            qs = qs.exclude(cpt_code__in=exclude_codes)
+        qs = qs.order_by("cpt_code")[:20]
+        results = [{"cpt_code": r.cpt_code, "short_name": r.short_name, "full_name": r.name} for r in qs]
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
     @api.get("/search-family-history")
     def get_search_family_history(self) -> list[Union[Response, Effect]]:
         """Search family history conditions (SNOMED) via the science service."""
@@ -1283,11 +1301,25 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         try:
             config = json.loads(raw)
         except (json.JSONDecodeError, ValueError):
+            log.warning("visit-templates: malformed JSON in %s secret", Constants.SECRET_VISIT_TEMPLATES)
             return [JSONResponse({"templates": []}, status_code=HTTPStatus.OK)]
 
         templates_config: list[dict[str, Any]] = config.get("templates", [])
         if not templates_config:
             return [JSONResponse({"templates": []}, status_code=HTTPStatus.OK)]
+
+        # Batch-resolve all charge CPT codes in a single query.
+        all_cpt_codes: set[str] = set()
+        for tmpl in templates_config:
+            for code in tmpl.get("charges", []):
+                code = str(code).strip()
+                if code:
+                    all_cpt_codes.add(code)
+
+        cdm_by_code: dict[str, Any] = {}
+        if all_cpt_codes:
+            for record in ChargeDescriptionMaster.objects.filter(cpt_code__in=all_cpt_codes):
+                cdm_by_code[record.cpt_code] = record
 
         # Batch-resolve all questionnaire names in a single query.
         all_q_names: list[str] = []
@@ -1342,12 +1374,27 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             if raw_pe:
                 pe_sections = parse_ros_subsections(raw_pe)
 
+            resolved_charges: list[dict[str, str]] = []
+            for code in tmpl.get("charges", []):
+                code = str(code).strip()
+                record = cdm_by_code.get(code)
+                if not record:
+                    log.warning("visit-templates: charge CPT code %r not found in ChargeDescriptionMaster", code)
+                    continue
+                resolved_charges.append(
+                    {
+                        "cpt_code": record.cpt_code,
+                        "description": record.short_name or record.name,
+                    }
+                )
+
             result_templates.append(
                 {
                     "name": name,
                     "questionnaires": resolved,
                     "ros_sections": ros_sections,
                     "pe_sections": pe_sections,
+                    "charges": resolved_charges,
                 }
             )
 
