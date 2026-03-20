@@ -732,6 +732,7 @@ h2 { margin-bottom: 4px; }
 }
 .reconciliation-diff-label { font-weight: 600; color: #888; margin-bottom: 2px; font-size: 11px; }
 .reconciliation-diff-text { color: #666; line-height: 1.5; white-space: pre-line; }
+.positive-finding { font-weight: 700; color: #1a1a1a; }
 
 /* Dev seed panel (DEV_MOCK transcript paste box) */
 .dev-seed-panel { padding: 24px; }

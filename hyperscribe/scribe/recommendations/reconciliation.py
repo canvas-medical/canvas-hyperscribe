@@ -31,7 +31,11 @@ _SYSTEM_PROMPT = (
     "6. Do NOT invent findings. Only use information present in the inputs.\n"
     "7. Keep the clinical writing style consistent with the template.\n"
     "8. Be CONSERVATIVE: when in doubt, keep the template text unchanged "
-    "(updated=false)."
+    "(updated=false).\n"
+    "9. POSITIVE FINDINGS: Wrap any positive/abnormal findings in **double asterisks** "
+    "for emphasis. A positive finding is anything that is NOT a denial or normal "
+    "baseline (e.g. **reports fatigue for 2 days**, **blurred vision noted**, "
+    "**tenderness in RLQ**). Do NOT bold denials or normal findings."
 )
 
 

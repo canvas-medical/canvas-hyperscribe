@@ -4,6 +4,17 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+function renderBoldMarkers(text) {
+  if (!text || !text.includes('**')) return text;
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map(part => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return html`<strong class="positive-finding">${part.slice(2, -2)}</strong>`;
+    }
+    return part;
+  });
+}
+
 function DiffToggle({ templateText, currentText }) {
   const [open, setOpen] = useState(false);
   if (!templateText || templateText === currentText) return null;
@@ -95,7 +106,7 @@ export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly }) {
                 <div class="history-subsection-title">${s.title}</div>
                 ${s.updated && html`<${DiffToggle} templateText=${s.template_text} currentText=${s.text} />`}
               </div>
-              <div class="history-subsection-text">${s.text}</div>
+              <div class="history-subsection-text">${renderBoldMarkers(s.text)}</div>
             </div>
           </div>
         `)}
