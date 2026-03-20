@@ -17,7 +17,7 @@ const html = htm.bind(h);
 const CHARGE_SEARCH_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const CHARGE_DEBOUNCE_MS = 300;
 
-function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
+function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeCpts }) {
   const data = command.data || {};
   const hasCpt = !!data.cpt_code;
   const [editing, setEditing] = useState(!hasCpt);
@@ -31,7 +31,8 @@ function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
     if (!q || q.length < 2) { setResults([]); setSearched(false); return; }
     setSearching(true);
     try {
-      const res = await fetch(`${CHARGE_SEARCH_BASE}/search-charges?query=${encodeURIComponent(q)}`);
+      const excludeParam = excludeCpts && excludeCpts.size > 0 ? `&exclude=${[...excludeCpts].join(',')}` : '';
+      const res = await fetch(`${CHARGE_SEARCH_BASE}/search-charges?query=${encodeURIComponent(q)}${excludeParam}`);
       const json = await res.json();
       setResults(json.results || []);
     } catch (err) {
@@ -41,7 +42,7 @@ function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
       setSearching(false);
       setSearched(true);
     }
-  }, []);
+  }, [excludeCpts]);
 
   const handleInput = (e) => {
     const val = e.target.value;
@@ -323,7 +324,7 @@ function AddConditionSearch({ onAdd }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   return html`
@@ -732,38 +733,87 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               </div>
             `;
           }
-          if (type === 'perform') {
-            return html`
-              <div class="content-block" key=${entry.index}>
-                <${ChargeRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                />
-              </div>
-            `;
-          }
+          if (type === 'perform') return null;
           return null;
         })}
-        ${onAddCharge && html`
-          ${(() => {
-            const chargeCmds = commandBySectionKey && commandBySectionKey['charges'];
-            if (!chargeCmds || chargeCmds.length === 0) return null;
-            return chargeCmds.map(entry => html`
-              <div class="content-block" key=${entry.index}>
-                <${ChargeRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                />
-              </div>
-            `);
-          })()}
-        `}
+        ${(() => {
+          // Build unified checklist: template charges + manually added charges.
+          // A charge is "selected" if its command exists AND has selected=true.
+          const chargeCommands = (adHocCommands || [])
+            .filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code);
+          const selectedCpts = new Set(
+            chargeCommands.filter(e => e.command.selected !== false).map(e => e.command.data.cpt_code)
+          );
+
+          // Template charges (checked if selected command exists).
+          const templateItems = (templateCharges || []).map(c => ({
+            cpt_code: c.cpt_code,
+            description: c.description,
+            isAdded: selectedCpts.has(c.cpt_code),
+          }));
+
+          // Manually added charges not in the template list (show even if deselected).
+          const templateCpts = new Set((templateCharges || []).map(c => c.cpt_code));
+          const adHocItems = chargeCommands
+            .filter(e => !templateCpts.has(e.command.data.cpt_code))
+            .map(e => ({
+              cpt_code: e.command.data.cpt_code,
+              description: e.command.data.description || '',
+              isAdded: e.command.selected !== false,
+            }));
+
+          const allItems = [...templateItems, ...adHocItems];
+          if (allItems.length === 0) return null;
+
+          return html`
+            <div class="charge-checklist">
+              ${allItems.map(c => html`
+                <label
+                  key=${c.cpt_code}
+                  class="charge-check-item${c.isAdded ? ' checked' : ''}${readOnly ? ' read-only' : ''}"
+                >
+                  <input
+                    type="checkbox"
+                    checked=${c.isAdded}
+                    disabled=${readOnly}
+                    onChange=${() => {
+                      if (c.isAdded) {
+                        onRemoveChargeByCpt && onRemoveChargeByCpt(c.cpt_code);
+                      } else {
+                        onAddTemplateCharge && onAddTemplateCharge(c.cpt_code, c.description);
+                      }
+                    }}
+                  />
+                  <span class="charge-check-code">${c.cpt_code}</span>
+                  <span class="charge-check-desc">${c.description}</span>
+                </label>
+              `)}
+            </div>
+          `;
+        })()}
+        ${(() => {
+          // Render search inputs for charges being added (no cpt_code yet).
+          const pending = (adHocCommands || []).filter(
+            e => e.command.command_type === 'perform' && !e.command.data.cpt_code
+          );
+          if (pending.length === 0) return null;
+          const allChecklistCpts = new Set([
+            ...(templateCharges || []).map(c => c.cpt_code),
+            ...(adHocCommands || []).filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code).map(e => e.command.data.cpt_code),
+          ]);
+          return pending.map(entry => html`
+            <div class="content-block" key=${entry.index}>
+              <${ChargeRow}
+                command=${entry.command}
+                commandIndex=${entry.index}
+                onEdit=${onEditCommand}
+                onDelete=${onDeleteCommand}
+                readOnly=${readOnly}
+                excludeCpts=${allChecklistCpts}
+              />
+            </div>
+          `);
+        })()}
         ${onAddCharge && !readOnly && html`
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${onAddCharge}>+ Charge</button>

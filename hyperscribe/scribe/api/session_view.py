@@ -1017,9 +1017,13 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
 
-        qs = ChargeDescriptionMaster.objects.filter(
-            Q(cpt_code__icontains=query) | Q(short_name__icontains=query)
-        ).order_by("cpt_code")[:20]
+        exclude_raw = self.request.query_params.get("exclude", "")
+        exclude_codes = [c.strip() for c in exclude_raw.split(",") if c.strip()] if exclude_raw else []
+
+        qs = ChargeDescriptionMaster.objects.filter(Q(cpt_code__icontains=query) | Q(short_name__icontains=query))
+        if exclude_codes:
+            qs = qs.exclude(cpt_code__in=exclude_codes)
+        qs = qs.order_by("cpt_code")[:20]
         results = [{"cpt_code": r.cpt_code, "short_name": r.short_name, "full_name": r.name} for r in qs]
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
 

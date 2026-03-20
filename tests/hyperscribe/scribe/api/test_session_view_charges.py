@@ -62,6 +62,7 @@ def test_search_charges_by_code(mock_cdm: MagicMock) -> None:
     mock_record.name = "Office or other outpatient visit, established patient"
 
     mock_qs = MagicMock()
+    mock_qs.exclude.return_value = mock_qs
     mock_qs.order_by.return_value.__getitem__ = MagicMock(return_value=[mock_record])
     mock_cdm.objects.filter.return_value = mock_qs
 
@@ -85,6 +86,7 @@ def test_search_charges_by_name(mock_cdm: MagicMock) -> None:
     mock_record.name = "Home visit new patient"
 
     mock_qs = MagicMock()
+    mock_qs.exclude.return_value = mock_qs
     mock_qs.order_by.return_value.__getitem__ = MagicMock(return_value=[mock_record])
     mock_cdm.objects.filter.return_value = mock_qs
 
@@ -100,8 +102,31 @@ def test_search_charges_by_name(mock_cdm: MagicMock) -> None:
 
 
 @patch("hyperscribe.scribe.api.session_view.ChargeDescriptionMaster")
+def test_search_charges_excludes_codes(mock_cdm: MagicMock) -> None:
+    mock_record = MagicMock()
+    mock_record.cpt_code = "99214"
+    mock_record.short_name = "Office visit est mod"
+    mock_record.name = "Office visit established moderate"
+
+    mock_qs = MagicMock()
+    mock_qs.exclude.return_value = mock_qs
+    mock_qs.order_by.return_value.__getitem__ = MagicMock(return_value=[mock_record])
+    mock_cdm.objects.filter.return_value = mock_qs
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"query": "992", "exclude": "99213,99215"})
+    result = view.get_search_charges()
+
+    assert result[0].status_code == HTTPStatus.OK
+    mock_qs.exclude.assert_called_once_with(cpt_code__in=["99213", "99215"])
+    data = json.loads(result[0].content)
+    assert len(data["results"]) == 1
+
+
+@patch("hyperscribe.scribe.api.session_view.ChargeDescriptionMaster")
 def test_search_charges_empty_results(mock_cdm: MagicMock) -> None:
     mock_qs = MagicMock()
+    mock_qs.exclude.return_value = mock_qs
     mock_qs.order_by.return_value.__getitem__ = MagicMock(return_value=[])
     mock_cdm.objects.filter.return_value = mock_qs
 

@@ -1174,3 +1174,13 @@ h2 { margin-bottom: 4px; }
 .charge-search-result.search-no-results:hover { background: #fff; }
 .charge-result-code { font-weight: 700; color: #052B49; white-space: nowrap; }
 .charge-result-name { color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Charge checklist (template charges) */
+.charge-checklist { display: flex; flex-direction: column; gap: 2px; padding: 4px 0; }
+.charge-check-item { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 6px; cursor: pointer; transition: background 0.15s; font-size: 14px; }
+.charge-check-item:hover:not(.read-only) { background: #f5f5f5; }
+.charge-check-item.read-only { cursor: default; }
+.charge-check-item input[type="checkbox"] { cursor: pointer; width: 16px; height: 16px; flex-shrink: 0; accent-color: #052B49; }
+.charge-check-item.read-only input[type="checkbox"] { cursor: default; }
+.charge-check-code { font-weight: 700; color: #052B49; white-space: nowrap; }
+.charge-check-desc { color: #555; }

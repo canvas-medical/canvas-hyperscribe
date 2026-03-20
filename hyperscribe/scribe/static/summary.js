@@ -103,7 +103,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -130,6 +130,9 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddHistory=${isHistory ? onAddHistory : null}
         onAddQuestionnaire=${isSubjective ? onAddQuestionnaire : null}
         onAddCharge=${isCharges ? onAddCharge : null}
+        onAddTemplateCharge=${isCharges ? onAddTemplateCharge : null}
+        onRemoveChargeByCpt=${isCharges ? onRemoveChargeByCpt : null}
+        templateCharges=${isCharges ? templateCharges : null}
         readOnly=${readOnly}
         sectionConditions=${sectionConditions}
         patientId=${patientId}
@@ -421,20 +424,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
     }
 
-    if (tmpl.charges && tmpl.charges.length > 0) {
-      tmpl.charges.forEach(charge => {
-        templateCommands.push({
-          command_type: 'perform',
-          display: `${charge.cpt_code} — ${charge.description}`,
-          data: { cpt_code: charge.cpt_code, description: charge.description, notes: '' },
-          selected: true,
-          section_key: 'charges',
-          already_documented: false,
-          _template_inserted: true,
-        });
-      });
-    }
-
     // Replace previous template commands, keep everything else.
     setCommands(prev => {
       const nonTemplate = prev.filter(c => !c._template_inserted);
@@ -685,6 +674,38 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }]);
   }, [approved]);
 
+  const handleAddTemplateCharge = useCallback((cptCode, description) => {
+    if (approved) return;
+    setCommands(prev => {
+      // Re-select if already exists but deselected.
+      const existing = prev.find(c => c.command_type === 'perform' && c.data.cpt_code === cptCode);
+      if (existing) {
+        return prev.map(c =>
+          c.command_type === 'perform' && c.data.cpt_code === cptCode
+            ? { ...c, selected: true }
+            : c
+        );
+      }
+      return [...prev, {
+        command_type: 'perform',
+        display: `${cptCode} — ${description}`,
+        data: { cpt_code: cptCode, description, notes: '' },
+        selected: true,
+        section_key: '_charges_ad_hoc',
+        already_documented: false,
+      }];
+    });
+  }, [approved]);
+
+  const handleRemoveChargeByCpt = useCallback((cptCode) => {
+    if (approved) return;
+    setCommands(prev => prev.map(c =>
+      c.command_type === 'perform' && c.data.cpt_code === cptCode
+        ? { ...c, selected: false }
+        : c
+    ));
+  }, [approved]);
+
   const handleAddCondition = useCallback((icd10Code, icd10Display) => {
     if (approved) return;
     const apKey = commands.find(c =>
@@ -723,7 +744,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.already_documented || !c.display) return false;
       if (c.command_type === 'imaging_order' && !c.data.service_provider) return false;
       if (c.command_type === 'prescribe' && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
-      if (c.command_type === 'perform' && !c.data.cpt_code) return false;
+      if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
       return true;
     });
     const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
@@ -975,6 +996,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddHistory: approved ? null : handleAddHistory,
           onAddQuestionnaire: approved ? null : handleAddQuestionnaire,
           onAddCharge: approved ? null : handleAddCharge,
+          onAddTemplateCharge: approved ? null : handleAddTemplateCharge,
+          onRemoveChargeByCpt: approved ? null : handleRemoveChargeByCpt,
+          templateCharges: selectedTemplate ? (selectedTemplate.charges || []) : [],
           readOnly: approved,
           sectionConditions,
           patientId,
