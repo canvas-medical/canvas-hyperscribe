@@ -1153,3 +1153,24 @@ h2 { margin-bottom: 4px; }
 .transcript-panel-header.finalized:hover { background: #ebebeb; }
 .transcript-panel-status.finalized { color: #555; }
 .transcript-entry-count { font-weight: 400; color: #888; }
+
+/* Charge row */
+.charge-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: background 0.15s; gap: 8px; }
+.charge-row:hover:not(.editing):not(.read-only) { background: #f5f5f5; }
+.charge-row.editing { cursor: default; flex-direction: column; align-items: stretch; }
+.charge-row-display { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.charge-cpt-code { font-size: 14px; font-weight: 700; color: #052B49; white-space: nowrap; }
+.charge-description { font-size: 14px; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.charge-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.charge-search-area { position: relative; width: 100%; }
+.charge-search-input { width: 100%; padding: 8px 10px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; }
+.charge-search-input:focus { outline: none; border-color: #052B49; }
+.charge-search-spinner { font-size: 12px; color: #888; font-style: italic; margin-top: 2px; display: block; }
+.charge-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; margin-top: 2px; }
+.charge-search-result { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+.charge-search-result:last-child { border-bottom: none; }
+.charge-search-result:hover { background: #f5f5f5; }
+.charge-search-result.search-no-results { color: #999; font-style: italic; cursor: default; }
+.charge-search-result.search-no-results:hover { background: #fff; }
+.charge-result-code { font-weight: 700; color: #052B49; white-space: nowrap; }
+.charge-result-name { color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -14,6 +14,116 @@ import { QuestionnaireRow } from '/plugin-io/api/hyperscribe/scribe/static/quest
 
 const html = htm.bind(h);
 
+const CHARGE_SEARCH_BASE = '/plugin-io/api/hyperscribe/scribe-session';
+const CHARGE_DEBOUNCE_MS = 300;
+
+function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
+  const data = command.data || {};
+  const hasCpt = !!data.cpt_code;
+  const [editing, setEditing] = useState(!hasCpt);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const timer = useRef(null);
+
+  const doSearch = useCallback(async (q) => {
+    if (!q || q.length < 2) { setResults([]); setSearched(false); return; }
+    setSearching(true);
+    try {
+      const res = await fetch(`${CHARGE_SEARCH_BASE}/search-charges?query=${encodeURIComponent(q)}`);
+      const json = await res.json();
+      setResults(json.results || []);
+    } catch (err) {
+      console.error('Charge search failed:', err);
+      setResults([]);
+    } finally {
+      setSearching(false);
+      setSearched(true);
+    }
+  }, []);
+
+  const handleInput = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => doSearch(val), CHARGE_DEBOUNCE_MS);
+  };
+
+  const handleSelect = (r) => {
+    onEdit(commandIndex, {
+      ...data,
+      cpt_code: r.cpt_code,
+      description: r.short_name || r.full_name || '',
+      notes: data.notes || '',
+    });
+    setQuery('');
+    setResults([]);
+    setSearched(false);
+    setEditing(false);
+  };
+
+  const handleRemove = (e) => {
+    e.stopPropagation();
+    onDelete(commandIndex);
+  };
+
+  if (!hasCpt || editing) {
+    return html`
+      <div class="charge-row editing">
+        <div class="charge-search-area">
+          <input
+            type="text"
+            class="charge-search-input"
+            value=${query}
+            onInput=${handleInput}
+            placeholder="Search CPT code or description..."
+            autoFocus
+          />
+          ${searching && html`<span class="charge-search-spinner">Searching...</span>`}
+          ${results.length > 0 && html`
+            <div class="charge-search-dropdown">
+              ${results.map(r => html`
+                <div
+                  key=${r.cpt_code}
+                  class="charge-search-result"
+                  onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
+                >
+                  <span class="charge-result-code">${r.cpt_code}</span>
+                  <span class="charge-result-name">${r.short_name || r.full_name}</span>
+                </div>
+              `)}
+            </div>
+          `}
+          ${!searching && searched && results.length === 0 && query.length >= 2 && html`
+            <div class="charge-search-dropdown">
+              <div class="charge-search-result search-no-results">No charges found</div>
+            </div>
+          `}
+        </div>
+        <div class="charge-row-actions">
+          ${hasCpt && html`<button type="button" class="edit-btn" onClick=${() => setEditing(false)}>Cancel</button>`}
+          <button type="button" class="delete-btn" onClick=${handleRemove} title="Remove charge">x</button>
+        </div>
+      </div>
+    `;
+  }
+
+  return html`
+    <div class="charge-row${readOnly ? ' read-only' : ''}" onClick=${() => !readOnly && setEditing(true)}>
+      <div class="charge-row-display">
+        <span class="charge-cpt-code">${data.cpt_code}</span>
+        <span class="charge-description">${data.description || ''}</span>
+      </div>
+      ${!readOnly && html`
+        <div class="charge-row-actions">
+          <button type="button" class="delete-btn" onClick=${handleRemove} title="Remove charge">x</button>
+        </div>
+      `}
+    </div>
+  `;
+}
+
 const NARRATIVE_SECTIONS = new Set(['chief_complaint', 'history_of_present_illness', 'plan', 'assessment_and_plan']);
 const PLAN_SECTIONS = new Set(['plan', 'assessment_and_plan']);
 const ORDER_TYPES = new Set(['prescribe', 'lab_order', 'imaging_order', 'refer']);
@@ -213,7 +323,7 @@ function AddConditionSearch({ onAdd }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   return html`
@@ -622,8 +732,43 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               </div>
             `;
           }
+          if (type === 'perform') {
+            return html`
+              <div class="content-block" key=${entry.index}>
+                <${ChargeRow}
+                  command=${entry.command}
+                  commandIndex=${entry.index}
+                  onEdit=${onEditCommand}
+                  onDelete=${onDeleteCommand}
+                  readOnly=${readOnly}
+                />
+              </div>
+            `;
+          }
           return null;
         })}
+        ${onAddCharge && html`
+          ${(() => {
+            const chargeCmds = commandBySectionKey && commandBySectionKey['charges'];
+            if (!chargeCmds || chargeCmds.length === 0) return null;
+            return chargeCmds.map(entry => html`
+              <div class="content-block" key=${entry.index}>
+                <${ChargeRow}
+                  command=${entry.command}
+                  commandIndex=${entry.index}
+                  onEdit=${onEditCommand}
+                  onDelete=${onDeleteCommand}
+                  readOnly=${readOnly}
+                />
+              </div>
+            `);
+          })()}
+        `}
+        ${onAddCharge && !readOnly && html`
+          <div class="ad-hoc-buttons">
+            <button type="button" class="ad-hoc-btn" onClick=${onAddCharge}>+ Charge</button>
+          </div>
+        `}
         ${onAddQuestionnaire && !readOnly && html`
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${onAddQuestionnaire}>+ Questionnaire</button>
