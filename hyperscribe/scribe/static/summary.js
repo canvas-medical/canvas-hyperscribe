@@ -65,6 +65,7 @@ const SOAP_GROUPS = [
   { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'physical_exam', 'lab_results', 'imaging_results',
     'current_medications', 'allergies', 'immunizations']) },
   { title: 'PLAN', color: 'plan', keys: new Set(['plan', 'assessment_and_plan', 'prescription', 'appointments']) },
+  { title: 'CHARGES', color: 'charges', keys: new Set(['charges']) },
 ];
 
 const SKELETON_SECTIONS = [
@@ -102,7 +103,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -110,6 +111,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
       const isObjective = group.title === 'OBJECTIVE';
       const isHistory = group.title === 'HISTORY';
       const isSubjective = group.title === 'SUBJECTIVE';
+      const isCharges = group.title === 'CHARGES';
       return html`<${SoapGroup}
         key=${group.title}
         title=${group.title}
@@ -118,7 +120,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         commandBySectionKey=${commandBySectionKey}
         onEditCommand=${onEditCommand}
         onDeleteCommand=${onDeleteCommand}
-        adHocCommands=${isPlan ? adHocCommands : isObjective ? objectiveAdHocCommands : isHistory ? historyAdHocCommands : isSubjective ? subjectiveAdHocCommands : null}
+        adHocCommands=${isPlan ? adHocCommands : isObjective ? objectiveAdHocCommands : isHistory ? historyAdHocCommands : isSubjective ? subjectiveAdHocCommands : isCharges ? chargeAdHocCommands : null}
         assignees=${isPlan ? assignees : null}
         onAddTask=${isPlan ? onAddTask : null}
         onAddOrder=${isPlan ? onAddOrder : null}
@@ -127,6 +129,10 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddAllergy=${isObjective ? onAddAllergy : null}
         onAddHistory=${isHistory ? onAddHistory : null}
         onAddQuestionnaire=${isSubjective ? onAddQuestionnaire : null}
+        onAddCharge=${isCharges ? onAddCharge : null}
+        onAddTemplateCharge=${isCharges ? onAddTemplateCharge : null}
+        onRemoveChargeByCpt=${isCharges ? onRemoveChargeByCpt : null}
+        templateCharges=${isCharges ? templateCharges : null}
         readOnly=${readOnly}
         sectionConditions=${sectionConditions}
         patientId=${patientId}
@@ -270,7 +276,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       } else {
         setNoteData(data.note);
         setCommands(prev => {
-          const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc']);
+          const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
           const existingAdHoc = prev.filter(c => adHocKeys.has(c.section_key));
           const generated = data.commands || [];
           const generatedTypes = new Set(generated.map(c => c.command_type));
@@ -514,6 +520,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (type === 'questionnaire') {
           return { ...cmd, command_type: type, data: newData, display: newData.questionnaire_name || '' };
         }
+        if (type === 'perform') {
+          const display = newData.cpt_code ? `${newData.cpt_code} — ${newData.description || ''}` : '';
+          return { ...cmd, command_type: type, data: newData, display };
+        }
         if (type === 'diagnose') {
           const display = newData.icd10_display || newData.condition_header || cmd.display;
           const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
@@ -652,6 +662,50 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }]);
   }, [approved]);
 
+  const handleAddCharge = useCallback(() => {
+    if (approved) return;
+    setCommands(prev => [...prev, {
+      command_type: 'perform',
+      display: '',
+      data: { cpt_code: null, description: '', notes: '' },
+      selected: true,
+      section_key: '_charges_ad_hoc',
+      already_documented: false,
+    }]);
+  }, [approved]);
+
+  const handleAddTemplateCharge = useCallback((cptCode, description) => {
+    if (approved) return;
+    setCommands(prev => {
+      // Re-select if already exists but deselected.
+      const existing = prev.find(c => c.command_type === 'perform' && c.data.cpt_code === cptCode);
+      if (existing) {
+        return prev.map(c =>
+          c.command_type === 'perform' && c.data.cpt_code === cptCode
+            ? { ...c, selected: true }
+            : c
+        );
+      }
+      return [...prev, {
+        command_type: 'perform',
+        display: `${cptCode} — ${description}`,
+        data: { cpt_code: cptCode, description, notes: '' },
+        selected: true,
+        section_key: '_charges_ad_hoc',
+        already_documented: false,
+      }];
+    });
+  }, [approved]);
+
+  const handleRemoveChargeByCpt = useCallback((cptCode) => {
+    if (approved) return;
+    setCommands(prev => prev.map(c =>
+      c.command_type === 'perform' && c.data.cpt_code === cptCode
+        ? { ...c, selected: false }
+        : c
+    ));
+  }, [approved]);
+
   const handleAddCondition = useCallback((icd10Code, icd10Display) => {
     if (approved) return;
     const apKey = commands.find(c =>
@@ -690,6 +744,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.already_documented || !c.display) return false;
       if (c.command_type === 'imaging_order' && !c.data.service_provider) return false;
       if (c.command_type === 'prescribe' && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
+      if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
       return true;
     });
     const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
@@ -774,6 +829,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const subjectiveAdHocCommands = commands
     .map((cmd, index) => ({ command: cmd, index }))
     .filter(entry => entry.command.section_key === '_subjective_ad_hoc');
+  const chargeAdHocCommands = commands
+    .map((cmd, index) => ({ command: cmd, index }))
+    .filter(entry => entry.command.section_key === '_charges_ad_hoc');
 
   const insertableCount = commands.filter(c => {
     if (c.command_type === 'diagnose') return c.data.icd10_code && c.data.accepted && c.display;
@@ -928,6 +986,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           objectiveAdHocCommands,
           historyAdHocCommands,
           subjectiveAdHocCommands,
+          chargeAdHocCommands,
           assignees,
           onAddTask: approved ? null : handleAddTask,
           onAddOrder: approved ? null : handleAddOrder,
@@ -936,6 +995,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddAllergy: approved ? null : handleAddAllergy,
           onAddHistory: approved ? null : handleAddHistory,
           onAddQuestionnaire: approved ? null : handleAddQuestionnaire,
+          onAddCharge: approved ? null : handleAddCharge,
+          onAddTemplateCharge: approved ? null : handleAddTemplateCharge,
+          onRemoveChargeByCpt: approved ? null : handleRemoveChargeByCpt,
+          templateCharges: selectedTemplate ? (selectedTemplate.charges || []) : [],
           readOnly: approved,
           sectionConditions,
           patientId,
