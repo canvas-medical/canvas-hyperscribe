@@ -4,6 +4,36 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+function renderBoldMarkers(text) {
+  if (!text || !text.includes('**')) return text;
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map(part => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return html`<strong class="positive-finding">${part.slice(2, -2)}</strong>`;
+    }
+    return part;
+  });
+}
+
+function DiffToggle({ templateText, currentText }) {
+  const [open, setOpen] = useState(false);
+  if (!templateText || templateText === currentText) return null;
+  return html`
+    <span
+      class="reconciliation-badge updated"
+      onClick=${(e) => { e.stopPropagation(); setOpen(prev => !prev); }}
+    >
+      Updated from encounter ${open ? '▾' : '▸'}
+    </span>
+    ${open && html`
+      <div class="reconciliation-diff" onClick=${(e) => e.stopPropagation()}>
+        <div class="reconciliation-diff-label">Template default:</div>
+        <div class="reconciliation-diff-text">${templateText}</div>
+      </div>
+    `}
+  `;
+}
+
 export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly }) {
   const sections = (command.data && command.data.sections) || [];
   const [editing, setEditing] = useState(false);
@@ -72,8 +102,11 @@ export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly }) {
           <div key=${s.key}>
             ${i > 0 && html`<hr class="history-divider" />`}
             <div class="history-subsection">
-              <div class="history-subsection-title">${s.title}</div>
-              <div class="history-subsection-text">${s.text}</div>
+              <div class="history-subsection-header">
+                <div class="history-subsection-title">${s.title}</div>
+                ${s.updated && html`<${DiffToggle} templateText=${s.template_text} currentText=${s.text} />`}
+              </div>
+              <div class="history-subsection-text">${renderBoldMarkers(s.text)}</div>
             </div>
           </div>
         `)}
