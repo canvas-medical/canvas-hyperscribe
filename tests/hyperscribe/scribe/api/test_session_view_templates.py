@@ -119,8 +119,15 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
                                 "questions": [expected_question],
                             },
                         ],
+                        "ros_sections": None,
+                        "pe_sections": None,
                     },
-                    {"name": "Follow-Up", "questionnaires": []},
+                    {
+                        "name": "Follow-Up",
+                        "questionnaires": [],
+                        "ros_sections": None,
+                        "pe_sections": None,
+                    },
                 ]
             },
             status_code=HTTPStatus.OK,
@@ -160,6 +167,8 @@ def test_get_visit_templates_skips_missing_questionnaire(mock_model: MagicMock, 
                                 "questions": [],
                             }
                         ],
+                        "ros_sections": None,
+                        "pe_sections": None,
                     }
                 ]
             },
@@ -179,7 +188,77 @@ def test_get_visit_templates_no_questionnaire_names(mock_model: MagicMock, mock_
     mock_model.objects.filter.assert_not_called()
     assert result == [
         JSONResponse(
-            {"templates": [{"name": "Sick Visit", "questionnaires": []}]},
+            {"templates": [{"name": "Sick Visit", "questionnaires": [], "ros_sections": None, "pe_sections": None}]},
+            status_code=HTTPStatus.OK,
+        )
+    ]
+
+
+def test_get_visit_templates_parses_ros_and_pe() -> None:
+    secret = json.dumps(
+        {
+            "templates": [
+                {
+                    "name": "Initial Visit",
+                    "questionnaires": [],
+                    "ros_template": "CONSTITUTIONAL: Denies fever.\nEYES: Denies visual changes.",
+                    "pe_template": "GENERAL: NAD. Well-developed.\nHEENT: NCAT.",
+                }
+            ]
+        }
+    )
+    view = _helper_instance(template_secret=secret)
+    result = view.get_visit_templates()
+    assert result == [
+        JSONResponse(
+            {
+                "templates": [
+                    {
+                        "name": "Initial Visit",
+                        "questionnaires": [],
+                        "ros_sections": [
+                            {"key": "constitutional", "title": "CONSTITUTIONAL", "text": "Denies fever."},
+                            {"key": "eyes", "title": "EYES", "text": "Denies visual changes."},
+                        ],
+                        "pe_sections": [
+                            {"key": "general", "title": "GENERAL", "text": "NAD. Well-developed."},
+                            {"key": "heent", "title": "HEENT", "text": "NCAT."},
+                        ],
+                    }
+                ]
+            },
+            status_code=HTTPStatus.OK,
+        )
+    ]
+
+
+def test_get_visit_templates_null_ros_pe() -> None:
+    secret = json.dumps(
+        {
+            "templates": [
+                {
+                    "name": "Follow-Up",
+                    "questionnaires": [],
+                    "ros_template": None,
+                    "pe_template": None,
+                }
+            ]
+        }
+    )
+    view = _helper_instance(template_secret=secret)
+    result = view.get_visit_templates()
+    assert result == [
+        JSONResponse(
+            {
+                "templates": [
+                    {
+                        "name": "Follow-Up",
+                        "questionnaires": [],
+                        "ros_sections": None,
+                        "pe_sections": None,
+                    }
+                ]
+            },
             status_code=HTTPStatus.OK,
         )
     ]
