@@ -5,7 +5,7 @@ import { Debug } from '/plugin-io/api/hyperscribe/scribe/static/debug.js';
 
 const html = htm.bind(h);
 
-export function App({ noteId, view, providerName, providerPhotoUrl, patientName, patientId, staffId, staffName }) {
+export function App({ noteId, view, providerName, providerPhotoUrl, patientName, patientId, staffId, staffName, debugMode }) {
   if (view === 'debug') {
     return html`<${Debug} noteId=${noteId} />`;
   }
@@ -19,6 +19,7 @@ export function App({ noteId, view, providerName, providerPhotoUrl, patientName,
       providerName=${providerName}
       providerPhotoUrl=${providerPhotoUrl}
       patientName=${patientName}
+      debugMode=${debugMode}
     />`;
   }
 

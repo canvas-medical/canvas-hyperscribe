@@ -52,7 +52,7 @@ def _extract_history_review(note: ClinicalNote) -> CommandProposal | None:
     )
 
 
-def _parse_ros_subsections(text: str) -> list[dict[str, str]]:
+def parse_ros_subsections(text: str) -> list[dict[str, str]]:
     """Parse ROS text into subsections by system header (e.g. 'General:', 'Skin:')."""
     sections: list[dict[str, str]] = []
     current_title = ""
@@ -103,7 +103,7 @@ def _extract_ros(note: ClinicalNote) -> CommandProposal | None:
     )
     if ros_section is None:
         return None
-    subsections = _parse_ros_subsections(ros_section.text)
+    subsections = parse_ros_subsections(ros_section.text)
     if not subsections:
         # Fall back to a single section if no system headers were detected.
         subsections = [{"key": "review_of_systems", "title": "Review of Systems", "text": ros_section.text.strip()}]
@@ -124,7 +124,7 @@ def _extract_physical_exam(note: ClinicalNote) -> CommandProposal | None:
     )
     if pe_section is None:
         return None
-    subsections = _parse_ros_subsections(pe_section.text)
+    subsections = parse_ros_subsections(pe_section.text)
     if not subsections:
         # Fall back to a single section if no system headers were detected.
         subsections = [{"key": "physical_exam", "title": "Physical Exam", "text": pe_section.text.strip()}]
