@@ -25,6 +25,7 @@ from hyperscribe.scribe.commands.plan import PlanParser
 from hyperscribe.scribe.commands.prescription import PrescriptionParser
 from hyperscribe.scribe.commands.questionnaire import QuestionnaireParser
 from hyperscribe.scribe.commands.refer import ReferParser
+from hyperscribe.scribe.commands.refill import RefillParser
 from hyperscribe.scribe.commands.remove_allergy import RemoveAllergyParser
 from hyperscribe.scribe.commands.resolve_condition import ResolveConditionParser
 from hyperscribe.scribe.commands.rfv import RfvParser
@@ -52,6 +53,7 @@ _BUILDERS: dict[str, CommandParser] = {
     "prescribe": PrescriptionParser(),
     "questionnaire": QuestionnaireParser(),
     "refer": ReferParser(),
+    "refill": RefillParser(),
     "remove_allergy": RemoveAllergyParser(),
     "resolve_condition": ResolveConditionParser(),
     "rfv": RfvParser(),
