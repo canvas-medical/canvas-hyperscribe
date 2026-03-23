@@ -213,7 +213,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
 
 const NARRATIVE_SECTIONS = new Set(['chief_complaint', 'history_of_present_illness', 'plan', 'assessment_and_plan']);
 const PLAN_SECTIONS = new Set(['plan', 'assessment_and_plan']);
-const ORDER_TYPES = new Set(['prescribe', 'lab_order', 'imaging_order', 'refer']);
+const ORDER_TYPES = new Set(['prescribe', 'refill', 'lab_order', 'imaging_order', 'refer']);
 const HISTORY_TYPES = new Set(['familyHistory', 'medicalHistory', 'surgicalHistory']);
 
 // Map group title → review command section key + label + position

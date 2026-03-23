@@ -17,6 +17,7 @@ from django.db.models import Q
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from canvas_sdk.v1.data import AllergyIntolerance, ChargeDescriptionMaster, Medication
+from canvas_sdk.v1.data.prescription import Prescription
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from canvas_sdk.v1.data.questionnaire import Questionnaire as QuestionnaireModel
@@ -1024,6 +1025,44 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 continue
             results.append({"id": str(a.id), "name": coding.display})
         return [JSONResponse({"allergies": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/patient-medications-for-refill")
+    def get_patient_medications_for_refill(self) -> list[Union[Response, Effect]]:
+        """Return active medications with their latest prescription data for refill."""
+        patient_id = self.request.query_params.get("patient_id", "").strip()
+        if not patient_id:
+            return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        medications = Medication.objects.filter(
+            patient__id=patient_id, status=Status.ACTIVE, committer__isnull=False
+        ).prefetch_related("codings")
+        results: list[dict[str, Any]] = []
+        for m in medications:
+            fdb_coding = next(
+                (c for c in m.codings.all() if "fdb" in (c.system or "").lower()),
+                None,
+            )
+            if not fdb_coding:
+                continue
+            rx = (
+                Prescription.objects.filter(medication__id=str(m.id), committer__isnull=False)
+                .order_by("-written_date")
+                .first()
+            )
+            results.append(
+                {
+                    "medication_name": fdb_coding.display,
+                    "fdb_code": fdb_coding.code,
+                    "national_drug_code": m.national_drug_code,
+                    "potency_unit_code": m.potency_unit_code,
+                    "sig": rx.sig_original_input if rx else "",
+                    "quantity_to_dispense": rx.dispense_quantity if rx else None,
+                    "days_supply": rx.duration_in_days if rx else None,
+                    "refills": rx.count_of_refills_allowed if rx else None,
+                    "substitutions": "allowed" if (rx and rx.generic_substitutions_allowed) else "not_allowed",
+                    "note_to_pharmacist": rx.note_to_pharmacist if rx else "",
+                }
+            )
+        return [JSONResponse({"medications": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-diagnoses")
     def get_search_diagnoses(self) -> list[Union[Response, Effect]]:

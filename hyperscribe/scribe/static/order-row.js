@@ -153,6 +153,7 @@ function buildTypeToDispenseOptions(quantities) {
 
 const ORDER_TABS = [
   { key: 'prescribe', label: 'Rx' },
+  { key: 'refill', label: 'Refill' },
   { key: 'lab_order', label: 'Lab' },
   { key: 'imaging_order', label: 'Imaging' },
   { key: 'refer', label: 'Refer' },
@@ -160,6 +161,7 @@ const ORDER_TABS = [
 
 const BADGE_LABELS = {
   prescribe: 'Rx',
+  refill: 'Refill',
   lab_order: 'Lab',
   imaging_order: 'Imaging',
   refer: 'Refer',
@@ -291,6 +293,55 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [noteToPharmacist, setNoteToPharmacist] = useState(command.data.note_to_pharmacist || '');
   const [interactionWarning, setInteractionWarning] = useState(null);
   const [checkingInteractions, setCheckingInteractions] = useState(false);
+
+  // Refill state
+  const [refillMeds, setRefillMeds] = useState([]);
+  const [refillLoading, setRefillLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== 'refill' || !patientId) return;
+    let cancelled = false;
+    setRefillLoading(true);
+    fetch(`${API_BASE}/patient-medications-for-refill?patient_id=${encodeURIComponent(patientId)}`)
+      .then(r => r.json())
+      .then(json => { if (!cancelled) setRefillMeds(json.medications || []); })
+      .catch(() => setRefillMeds([]))
+      .finally(() => { if (!cancelled) setRefillLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeTab, patientId]);
+
+  const handleRefillSelect = (e) => {
+    const idx = parseInt(e.target.value, 10);
+    if (isNaN(idx)) return;
+    const item = refillMeds[idx];
+    if (!item) return;
+    // Pre-fill all Rx state from the selected medication's last prescription.
+    setSelectedFdb(item.fdb_code);
+    setSelectedMedDisplay(item.medication_name);
+    setMedQuery(item.medication_name);
+    setSig(item.sig || '');
+    setDaysSupply(item.days_supply != null ? String(item.days_supply) : '');
+    setQuantity(item.quantity_to_dispense != null ? String(item.quantity_to_dispense) : '');
+    setRefills(item.refills != null ? String(item.refills) : '');
+    setSubstitutions(item.substitutions !== 'not_allowed');
+    setNoteToPharmacist(item.note_to_pharmacist || '');
+    // Build type-to-dispense from the medication's NDC + potency unit code.
+    const ndc = item.national_drug_code || '';
+    const qualifierCode = item.potency_unit_code || '';
+    if (qualifierCode) {
+      const encoded = encodeClinicalQuantity(ndc, 1, qualifierCode);
+      const options = buildTypeToDispenseOptions([]);
+      // Check if our encoded value matches any option; if not, add it.
+      const match = options.find(o => decodeClinicalQuantity(o.value).ncpdp_quantity_qualifier_code === qualifierCode);
+      setMedQuantities(options);
+      setTypeToDispense(match ? match.value : encoded);
+    } else {
+      setMedQuantities(buildTypeToDispenseOptions([]));
+      setTypeToDispense('');
+    }
+    // Stay on 'refill' tab so the command type is preserved as 'refill' on save.
+    // The prescribe form renders for both 'prescribe' and 'refill' tabs.
+  };
 
   const checkInteractions = useCallback(async (fdbCode, medName) => {
     if (!noteId || (!fdbCode && !medName)) {
@@ -847,7 +898,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
 
   const handleSave = () => {
     let data = {};
-    if (activeTab === 'prescribe') {
+    if (activeTab === 'prescribe' || activeTab === 'refill') {
       if (!selectedMedDisplay.trim()) return;
       const selectedQty = medQuantities.find(q => q.value === typeToDispense);
       const decoded = typeToDispense ? decodeClinicalQuantity(typeToDispense) : null;
@@ -936,7 +987,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
             </div>
           `}
           <div class="order-form">
-            ${activeTab === 'prescribe' && html`
+            ${(activeTab === 'prescribe' || (activeTab === 'refill' && selectedFdb)) && html`
               <div class="order-rx-form">
                 <div class="medication-search-wrapper">
                   <div class="labeled-field" style="width:100%">
@@ -1007,6 +1058,23 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   <button type="button" class="task-quick-btn${substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(true)}>Substitutions Allowed</button>
                   <button type="button" class="task-quick-btn${!substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(false)}>Substitutions Not Allowed</button>
                 </div>
+              </div>
+            `}
+            ${activeTab === 'refill' && !selectedFdb && html`
+              <div class="order-rx-form">
+                ${refillLoading
+                  ? html`<span class="removal-loading">Loading medications...</span>`
+                  : refillMeds.length > 0
+                    ? html`
+                      <div class="labeled-field" style="width:100%">
+                        <span class="labeled-field-label">Select medication to refill</span>
+                        <select class="labeled-field-input" onChange=${handleRefillSelect}>
+                          <option value="">Choose a medication...</option>
+                          ${refillMeds.map((item, i) => html`<option key=${i} value=${i}>${item.medication_name}</option>`)}
+                        </select>
+                      </div>`
+                    : html`<span class="removal-empty">No active medications to refill</span>`
+                }
               </div>
             `}
             ${activeTab === 'lab_order' && html`
