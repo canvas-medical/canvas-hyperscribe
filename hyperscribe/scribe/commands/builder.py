@@ -7,6 +7,7 @@ from canvas_sdk.effects import Effect
 from canvas_sdk.v1.data.note import Note
 
 from hyperscribe.scribe.backend.models import CommandProposal
+from hyperscribe.scribe.commands.adjust_prescription import AdjustPrescriptionParser
 from hyperscribe.scribe.commands.allergy import AllergyParser
 from hyperscribe.scribe.commands.assess import AssessParser
 from hyperscribe.scribe.commands.base import CommandParser
@@ -36,6 +37,7 @@ from hyperscribe.scribe.commands.task import TaskParser
 from hyperscribe.scribe.commands.vitals import VitalsParser
 
 _BUILDERS: dict[str, CommandParser] = {
+    "adjust_prescription": AdjustPrescriptionParser(),
     "allergy": AllergyParser(),
     "assess": AssessParser(),
     "chart_review": ChartReviewParser(),
