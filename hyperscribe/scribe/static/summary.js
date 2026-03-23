@@ -207,11 +207,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           if (cached.mode) {
             setMode(cached.mode);
           }
+          if (cached.approved) {
+            setApproved(true);
+          }
           if (cached.note) {
             // Full cached summary — restore everything.
             setNoteData(cached.note);
             setCommands(cached.commands || []);
-            setApproved(Boolean(cached.approved));
             setRecommendations(cached.recommendations || []);
             setUnmatchedConditions(cached.unmatched_conditions || []);
             setDiagnosisSuggestions(cached.diagnosis_suggestions || {});
@@ -510,7 +512,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (type === 'task') {
           return { ...cmd, data: newData, display: newData.title || '' };
         }
-        if (type === 'prescribe' || type === 'refill') {
+        if (type === 'prescribe' || type === 'refill' || type === 'adjust_prescription') {
           return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '' };
         }
         if (type === 'lab_order') {
@@ -650,7 +652,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (type === 'allergy') {
         return { ...cmd, data: newData, display: newData.allergy_text || '', accepted: true };
       }
-      if (type === 'prescribe' || type === 'refill') {
+      if (type === 'prescribe' || type === 'refill' || type === 'adjust_prescription') {
         return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '', accepted: true };
       }
       if (type === 'refer') {
@@ -812,7 +814,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const insertable = commands.filter(c => {
       if (c.already_documented || !c.display) return false;
       if (c.command_type === 'imaging_order' && !c.data.service_provider) return false;
-      if ((c.command_type === 'prescribe' || c.command_type === 'refill') && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
+      if (c.command_type === 'prescribe' && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
+      if ((c.command_type === 'refill' || c.command_type === 'adjust_prescription') && !c.data.fdb_code) return false;
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
       return true;
     });
@@ -865,9 +868,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (data.error) {
         setError(data.error);
       } else {
-        const hasPrescriptions = allInsertable.some(c => c.command_type === 'prescribe' || c.command_type === 'refill');
+        const hasPrescriptions = allInsertable.some(c => c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription');
         setApproved(true);
-        saveSummaryToCache(noteData, commands, true, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
+        saveSummaryToCache(noteData, commands, true, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
         if (hasPrescriptions) {
           setPrescriptionWarning(true);
         } else {
@@ -918,7 +921,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (c.command_type === 'imaging_order' && c.display && !c.data.service_provider) {
       if (!incompleteTypes.includes('imaging_order')) incompleteTypes.push('imaging_order');
     }
-    if ((c.command_type === 'prescribe' || c.command_type === 'refill') && c.display && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) {
+    if ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.display && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) {
       if (!incompleteTypes.includes('prescribe')) incompleteTypes.push('prescribe');
     }
   }
@@ -935,10 +938,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const incompleteCount = commands.filter(c =>
     (c.command_type === 'diagnose' && c.display && (!c.data.icd10_code || !c.data.accepted)) ||
     (c.command_type === 'imaging_order' && c.display && !c.data.service_provider) ||
-    ((c.command_type === 'prescribe' || c.command_type === 'refill') && c.display && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null))
+    ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.display && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null))
   ).length + recommendations.filter(c =>
     !c.already_documented && c.display && (
-      ((c.command_type === 'prescribe' || c.command_type === 'refill') && c.accepted && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) ||
+      ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.accepted && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) ||
       (c.command_type === 'refer' && !c.data.service_provider)
     )
   ).length;
