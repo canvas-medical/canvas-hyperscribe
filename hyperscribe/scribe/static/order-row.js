@@ -154,6 +154,7 @@ function buildTypeToDispenseOptions(quantities) {
 const ORDER_TABS = [
   { key: 'prescribe', label: 'Rx' },
   { key: 'refill', label: 'Refill' },
+  { key: 'adjust_prescription', label: 'Adjust' },
   { key: 'lab_order', label: 'Lab' },
   { key: 'imaging_order', label: 'Imaging' },
   { key: 'refer', label: 'Refer' },
@@ -162,10 +163,13 @@ const ORDER_TABS = [
 const BADGE_LABELS = {
   prescribe: 'Rx',
   refill: 'Refill',
+  adjust_prescription: 'Adjust',
   lab_order: 'Lab',
   imaging_order: 'Imaging',
   refer: 'Refer',
 };
+
+const REFILL_TABS = new Set(['refill', 'adjust_prescription']);
 
 const CLINICAL_QUESTIONS = [
   'Cognitive Assistance (Advice/Guidance)',
@@ -299,7 +303,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [refillLoading, setRefillLoading] = useState(false);
 
   useEffect(() => {
-    if (activeTab !== 'refill' || !patientId) return;
+    if (!REFILL_TABS.has(activeTab) || !patientId) return;
     let cancelled = false;
     setRefillLoading(true);
     fetch(`${API_BASE}/patient-medications-for-refill?patient_id=${encodeURIComponent(patientId)}`)
@@ -310,7 +314,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     return () => { cancelled = true; };
   }, [activeTab, patientId]);
 
-  const handleRefillSelect = (e) => {
+  const handleRefillSelect = async (e) => {
     const idx = parseInt(e.target.value, 10);
     if (isNaN(idx)) return;
     const item = refillMeds[idx];
@@ -325,22 +329,37 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setRefills(item.refills != null ? String(item.refills) : '');
     setSubstitutions(item.substitutions !== 'not_allowed');
     setNoteToPharmacist(item.note_to_pharmacist || '');
-    // Build type-to-dispense from the medication's NDC + potency unit code.
-    const ndc = item.national_drug_code || '';
+    // Fetch proper quantity options from the medication search endpoint.
     const qualifierCode = item.potency_unit_code || '';
-    if (qualifierCode) {
-      const encoded = encodeClinicalQuantity(ndc, 1, qualifierCode);
+    try {
+      const res = await fetch(`${API_BASE}/search-medications?query=${encodeURIComponent(item.medication_name)}`);
+      const data = await res.json();
+      const match = (data.results || []).find(r => r.fdb_code === item.fdb_code);
+      if (match && match.quantities && match.quantities.length > 0) {
+        const options = buildTypeToDispenseOptions(match.quantities);
+        setMedQuantities(options);
+        // Auto-select the option matching the medication's potency unit code.
+        const selected = qualifierCode
+          ? options.find(o => decodeClinicalQuantity(o.value).ncpdp_quantity_qualifier_code === qualifierCode)
+          : options.length === 1 ? options[0] : null;
+        setTypeToDispense(selected ? selected.value : '');
+      } else {
+        setMedQuantities(buildTypeToDispenseOptions([]));
+        setTypeToDispense('');
+      }
+    } catch (err) {
+      // Fallback: use generic options with the potency unit code.
       const options = buildTypeToDispenseOptions([]);
-      // Check if our encoded value matches any option; if not, add it.
-      const match = options.find(o => decodeClinicalQuantity(o.value).ncpdp_quantity_qualifier_code === qualifierCode);
       setMedQuantities(options);
-      setTypeToDispense(match ? match.value : encoded);
-    } else {
-      setMedQuantities(buildTypeToDispenseOptions([]));
-      setTypeToDispense('');
+      if (qualifierCode) {
+        const ndc = item.national_drug_code || '';
+        const encoded = encodeClinicalQuantity(ndc, 1, qualifierCode);
+        const fallback = options.find(o => decodeClinicalQuantity(o.value).ncpdp_quantity_qualifier_code === qualifierCode);
+        setTypeToDispense(fallback ? fallback.value : encoded);
+      } else {
+        setTypeToDispense('');
+      }
     }
-    // Stay on 'refill' tab so the command type is preserved as 'refill' on save.
-    // The prescribe form renders for both 'prescribe' and 'refill' tabs.
   };
 
   const checkInteractions = useCallback(async (fdbCode, medName) => {
@@ -898,7 +917,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
 
   const handleSave = () => {
     let data = {};
-    if (activeTab === 'prescribe' || activeTab === 'refill') {
+    if (activeTab === 'prescribe' || REFILL_TABS.has(activeTab)) {
       if (!selectedMedDisplay.trim()) return;
       const selectedQty = medQuantities.find(q => q.value === typeToDispense);
       const decoded = typeToDispense ? decodeClinicalQuantity(typeToDispense) : null;
@@ -987,7 +1006,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
             </div>
           `}
           <div class="order-form">
-            ${(activeTab === 'prescribe' || (activeTab === 'refill' && selectedFdb)) && html`
+            ${(activeTab === 'prescribe' || (REFILL_TABS.has(activeTab) && selectedFdb)) && html`
               <div class="order-rx-form">
                 <div class="medication-search-wrapper">
                   <div class="labeled-field" style="width:100%">
@@ -1060,20 +1079,20 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 </div>
               </div>
             `}
-            ${activeTab === 'refill' && !selectedFdb && html`
+            ${REFILL_TABS.has(activeTab) && !selectedFdb && html`
               <div class="order-rx-form">
                 ${refillLoading
                   ? html`<span class="removal-loading">Loading medications...</span>`
                   : refillMeds.length > 0
                     ? html`
                       <div class="labeled-field" style="width:100%">
-                        <span class="labeled-field-label">Select medication to refill</span>
+                        <span class="labeled-field-label">Select medication to ${activeTab === 'refill' ? 'refill' : 'adjust'}</span>
                         <select class="labeled-field-input" onChange=${handleRefillSelect}>
                           <option value="">Choose a medication...</option>
                           ${refillMeds.map((item, i) => html`<option key=${i} value=${i}>${item.medication_name}</option>`)}
                         </select>
                       </div>`
-                    : html`<span class="removal-empty">No active medications to refill</span>`
+                    : html`<span class="removal-empty">No active medications</span>`
                 }
               </div>
             `}
