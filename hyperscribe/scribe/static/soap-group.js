@@ -125,12 +125,7 @@ function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeC
   `;
 }
 
-// Override display names for subsection titles (backend note data may use different labels).
-const SECTION_DISPLAY_NAMES = {
-  'current_medications': 'Medication List Updates',
-  'allergies': 'Allergy List Updates',
-  'past_medical_history': 'Past Medical History Discussed During Encounter',
-};
+
 
 const REMOVAL_TYPES = new Set(['stop_medication', 'remove_allergy', 'resolve_condition']);
 
@@ -562,7 +557,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               const unmatched = unmatchedConditions || [];
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+                  <div class="subsection-title">${s.title}</div>
                   ${cmds.filter(e => e.command.command_type === 'assess').map(entry => {
                     const aData = entry.command.data || {};
                     const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
@@ -660,7 +655,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const entry = cmds[0];
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+                <div class="subsection-title">${s.title}</div>
                 <div class="content-block rec-narrative">
                   <${CommandRow}
                     command=${entry.command}
@@ -677,7 +672,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const entry = cmds[0];
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+                <div class="subsection-title">${s.title}</div>
                 <div class="content-block rec-vitals">
                   <${VitalsRow}
                     command=${entry.command}
@@ -694,7 +689,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const entry = cmds[0];
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+                <div class="subsection-title">${s.title}</div>
                 <div class="content-block rec-narrative">
                   <${HistoryReviewRow}
                     command=${entry.command}
@@ -714,7 +709,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (cmds || medRecs.length > 0 || onAddMedication) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+                  <div class="subsection-title">${s.title}</div>
                   ${(cmds || []).map(entry => html`
                     <div class="content-block recommendation-block rec-medication" key=${entry.index}>
                       <div class="recommendation-content">
@@ -772,7 +767,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (cmds || allergyRecs.length > 0 || onAddAllergy) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+                  <div class="subsection-title">${s.title}</div>
                   ${(cmds || []).map(entry => html`
                     <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
                       <div class="recommendation-content">
@@ -828,7 +823,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
 
           return html`
             <div class="subsection" key=${s.key}>
-              <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+              <div class="subsection-title">${s.title}</div>
               ${s.text && html`<p class="section-text">${s.text}</p>`}
               ${PLAN_SECTIONS.has(key) && (onAddCondition || onAddResolveCondition) && !readOnly && html`
                 <div class="ad-hoc-buttons">
