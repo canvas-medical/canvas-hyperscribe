@@ -25,8 +25,11 @@ from hyperscribe.scribe.commands.plan import PlanParser
 from hyperscribe.scribe.commands.prescription import PrescriptionParser
 from hyperscribe.scribe.commands.questionnaire import QuestionnaireParser
 from hyperscribe.scribe.commands.refer import ReferParser
+from hyperscribe.scribe.commands.remove_allergy import RemoveAllergyParser
+from hyperscribe.scribe.commands.resolve_condition import ResolveConditionParser
 from hyperscribe.scribe.commands.rfv import RfvParser
 from hyperscribe.scribe.commands.ros import RosParser
+from hyperscribe.scribe.commands.stop_medication import StopMedicationParser
 from hyperscribe.scribe.commands.surgical_history import SurgicalHistoryParser
 from hyperscribe.scribe.commands.task import TaskParser
 from hyperscribe.scribe.commands.vitals import VitalsParser
@@ -49,8 +52,11 @@ _BUILDERS: dict[str, CommandParser] = {
     "prescribe": PrescriptionParser(),
     "questionnaire": QuestionnaireParser(),
     "refer": ReferParser(),
+    "remove_allergy": RemoveAllergyParser(),
+    "resolve_condition": ResolveConditionParser(),
     "rfv": RfvParser(),
     "ros": RosParser(),
+    "stop_medication": StopMedicationParser(),
     "surgicalHistory": SurgicalHistoryParser(),
     "task": TaskParser(),
     "vitals": VitalsParser(),
