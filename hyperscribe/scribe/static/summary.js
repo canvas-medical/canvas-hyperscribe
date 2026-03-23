@@ -201,6 +201,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           if (cached.selected_template_name) {
             setCachedTemplateName(cached.selected_template_name);
           }
+          if (cached.mode) {
+            setMode(cached.mode);
+          }
           if (cached.note) {
             // Full cached summary — restore everything.
             setNoteData(cached.note);
@@ -211,7 +214,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             setDiagnosisSuggestions(cached.diagnosis_suggestions || {});
             return;
           }
-          // Cache without note — restore ad-hoc commands only.
+          // Cache without note — restore ad-hoc commands and mode.
           if (cached.commands && cached.commands.length > 0) {
             setCommands(cached.commands);
           }
@@ -250,10 +253,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         unmatched_conditions: unmatchedConditions,
         diagnosis_suggestions: diagnosisSuggestions,
         selected_template_name: selectedTemplate?.name || null,
+        mode: mode,
       });
     }, 500);
     return () => { if (commandsSaveRef.current) clearTimeout(commandsSaveRef.current); };
-  }, [commands, recommendations, selectedTemplate]);
+  }, [commands, recommendations, selectedTemplate, mode]);
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
@@ -440,6 +444,23 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setMode('ai');
     recording.startRecording();
   }, [recording]);
+
+  const handleStartManual = useCallback(() => {
+    setMode('manual');
+    // Pre-populate empty commands for all narrative sections so they render as editable text areas.
+    const manualCommands = [
+      { command_type: 'rfv', display: '', data: { comment: '' }, selected: true, section_key: 'chief_complaint', already_documented: false },
+      { command_type: 'hpi', display: '', data: { narrative: '' }, selected: true, section_key: 'history_of_present_illness', already_documented: false },
+      { command_type: 'vitals', display: '', data: {}, selected: true, section_key: 'vitals', already_documented: false },
+      { command_type: 'plan', display: '', data: { narrative: '' }, selected: true, section_key: 'assessment_and_plan', already_documented: false },
+    ];
+    setCommands(prev => {
+      // Keep any existing ad-hoc commands, add manual skeleton commands.
+      const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
+      const existing = prev.filter(c => adHocKeys.has(c.section_key));
+      return [...manualCommands, ...existing];
+    });
+  }, []);
 
 
   // Compute unmatched conditions when loading from old cache format (no unmatched_conditions key).
@@ -838,7 +859,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     return !c.already_documented && c.display;
   }).length
     + recommendations.filter(c => c.accepted && !c.already_documented && c.display).length;
-  const showFooter = !approved && (insertableCount > 0);
+  const showFooter = !approved && (mode === 'manual' || insertableCount > 0);
 
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral' };
   const incompleteTypes = [];
@@ -887,7 +908,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               class="template-select"
               onChange=${handleSelectTemplate}
               value=${selectedTemplate ? selectedTemplate.name : ''}
-              disabled=${approved || generating || noteData !== null}
+              disabled=${approved || generating || noteData !== null || mode !== null}
             >
               <option value="">Select Visit Type</option>
               ${templates.map(t => html`<option key=${t.name} value=${t.name}>${t.name}</option>`)}
@@ -897,6 +918,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             <button class="start-ai-btn" onClick=${handleStartAI} disabled=${!selectedTemplate}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" /></svg>
               Start AI Scribe
+            </button>
+            <button class="start-manual-btn" onClick=${handleStartManual} disabled=${!selectedTemplate}>
+              Manual
             </button>
           `}
           ${isRecording && html`
