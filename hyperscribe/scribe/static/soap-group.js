@@ -331,6 +331,9 @@ function formatIcdCode(raw) {
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+
 function AssessNarrative({ command, commandIndex, onEdit, readOnly }) {
   const data = command.data || {};
   const [editing, setEditing] = useState(false);
@@ -532,7 +535,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (!cmds || cmds.length === 0) return null;
           const entry = cmds[0];
           return html`
-            <div class="content-block">
+            <div class="content-block rec-narrative">
               <${HistoryReviewRow}
                 command=${entry.command}
                 commandIndex=${entry.index}
@@ -565,27 +568,14 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
                     const aFormatted = aCode.length > 3 ? aCode.slice(0, 3) + '.' + aCode.slice(3) : aCode;
                     return html`
-                      <div class="content-block recommendation-block accepted" key=${entry.index}>
-                        ${!readOnly && html`
-                          <div class="recommendation-actions">
-                            <span class="recommendation-accept-btn assess-badge">Existing</span>
-                          </div>
-                        `}
-                        <div class="recommendation-content" style="opacity:1">
+                      <div class="content-block recommendation-block rec-assess" key=${entry.index}>
+                        <div class="recommendation-content">
                           <div class="diagnose-row">
                             <div class="diagnose-row-header">
                               <span class="diagnose-row-title">
                                 ${aFormatted && html`<span class="diagnose-icd-prefix">${aFormatted}</span>`}
                                 ${' '}${entry.command.display}
                               </span>
-                              ${!readOnly && html`
-                                <button
-                                  type="button"
-                                  class="diagnose-delete-btn"
-                                  onClick=${() => onDeleteCommand(entry.index)}
-                                  title="Remove"
-                                >×</button>
-                              `}
                             </div>
                             <${AssessNarrative}
                               command=${entry.command}
@@ -595,6 +585,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             />
                           </div>
                         </div>
+                        ${!readOnly && html`
+                          <div class="recommendation-actions">
+                            <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                          </div>
+                        `}
                       </div>
                     `;
                   })}
@@ -605,33 +600,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const header = entry.command.data.condition_header || '';
                     const suggestions = (!hasCode && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
 
-                    let btnLabel, btnClass;
-                    if (isIncomplete) {
-                      btnLabel = 'Incomplete';
-                      btnClass = 'recommendation-accept-btn incomplete';
-                    } else if (isAccepted) {
-                      btnLabel = 'Matched';
-                      btnClass = 'recommendation-accept-btn accepted';
-                    } else {
-                      btnLabel = 'Accept';
-                      btnClass = 'recommendation-accept-btn';
-                    }
-
                     return html`
-                      <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}${isIncomplete ? ' incomplete-code' : ''}" key=${entry.index}>
-                        ${!readOnly && html`
-                          <div class="recommendation-actions">
-                            <button
-                              type="button"
-                              class=${btnClass}
-                              onClick=${() => !isIncomplete && onEditCommand(entry.index, {
-                                ...entry.command.data,
-                                accepted: !entry.command.data.accepted,
-                              }, 'diagnose')}
-                              disabled=${isIncomplete}
-                            >${btnLabel}</button>
-                          </div>
-                        `}
+                      <div class="content-block recommendation-block rec-diagnose${isIncomplete ? ' incomplete-code' : ''}" key=${entry.index}>
                         <div class="recommendation-content">
                           <${DiagnoseRow}
                             command=${entry.command}
@@ -641,7 +611,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             readOnly=${readOnly}
                             suggestions=${suggestions}
                           />
+                          ${isIncomplete && html`<span class="rec-warning-badge">Missing Diagnosis Code</span>`}
                         </div>
+                        ${!readOnly && html`
+                          <div class="recommendation-actions">
+                            <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Reject">${ICON_X}</button>
+                            ${!isIncomplete && html`
+                              <button type="button" class="rec-btn rec-btn-accept" onClick=${() => onEditCommand(entry.index, { ...entry.command.data, accepted: !entry.command.data.accepted }, 'diagnose')} title=${isAccepted ? 'Undo accept' : 'Accept'}>${ICON_CHECK}</button>
+                            `}
+                          </div>
+                        `}
                       </div>
                     `;
                   })}
@@ -682,7 +661,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
-                <div class="content-block">
+                <div class="content-block rec-narrative">
                   <${CommandRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
@@ -699,7 +678,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
-                <div class="content-block">
+                <div class="content-block rec-vitals">
                   <${VitalsRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
@@ -716,7 +695,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
-                <div class="content-block">
+                <div class="content-block rec-narrative">
                   <${HistoryReviewRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
@@ -737,26 +716,26 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
                   ${(cmds || []).map(entry => html`
-                    <div class="content-block" key=${entry.index}>
-                      <${MedicationRow}
-                        command=${entry.command}
-                        commandIndex=${entry.index}
-                        onEdit=${onEditCommand}
-                        onDelete=${onDeleteCommand}
-                        readOnly=${readOnly}
-                      />
+                    <div class="content-block recommendation-block rec-medication" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${MedicationRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                        />
+                      </div>
+                      ${!readOnly && html`
+                        <div class="recommendation-actions">
+                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                        </div>
+                      `}
                     </div>
                   `)}
                   ${medRecs.map(entry => {
-                    const isAccepted = entry.command.accepted || entry.command.already_documented;
                     return html`
-                    <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}" key=${'rec-med-' + entry.index}>
-                      <div class="recommendation-actions">
-                        ${entry.command.already_documented
-                          ? html`<span class="recommendation-accept-btn accepted">Already in chart</span>`
-                          : !readOnly && html`<button type="button" class="recommendation-accept-btn${entry.command.accepted ? ' accepted' : ''}" onClick=${() => onAcceptRecommendation(entry.index)}>${entry.command.accepted ? 'Accepted' : 'Accept'}</button>`
-                        }
-                      </div>
+                    <div class="content-block recommendation-block rec-medication${entry.command.already_documented ? ' rec-documented' : ''}" key=${'rec-med-' + entry.index}>
                       <div class="recommendation-content">
                         <${MedicationRow}
                           command=${entry.command}
@@ -765,6 +744,13 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           readOnly=${readOnly || entry.command.already_documented}
                         />
                       </div>
+                      ${!readOnly && !entry.command.already_documented && html`
+                        <div class="recommendation-actions">
+                          ${entry.command.accepted && html`<span class="rec-accepted-badge">Accepted</span>`}
+                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                          <button type="button" class="rec-btn rec-btn-accept" onClick=${() => onAcceptRecommendation(entry.index)} title=${entry.command.accepted ? 'Undo accept' : 'Accept'}>${ICON_CHECK}</button>
+                        </div>
+                      `}
                     </div>
                     `;
                   })}
@@ -788,26 +774,26 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
                   ${(cmds || []).map(entry => html`
-                    <div class="content-block" key=${entry.index}>
-                      <${AllergyRow}
-                        command=${entry.command}
-                        commandIndex=${entry.index}
-                        onEdit=${onEditCommand}
-                        onDelete=${onDeleteCommand}
-                        readOnly=${readOnly}
-                      />
+                    <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${AllergyRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                        />
+                      </div>
+                      ${!readOnly && html`
+                        <div class="recommendation-actions">
+                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                        </div>
+                      `}
                     </div>
                   `)}
                   ${allergyRecs.map(entry => {
-                    const isAccepted = entry.command.accepted || entry.command.already_documented;
                     return html`
-                    <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}" key=${'rec-allergy-' + entry.index}>
-                      <div class="recommendation-actions">
-                        ${entry.command.already_documented
-                          ? html`<span class="recommendation-accept-btn accepted">Already in chart</span>`
-                          : !readOnly && html`<button type="button" class="recommendation-accept-btn${entry.command.accepted ? ' accepted' : ''}" onClick=${() => onAcceptRecommendation(entry.index)}>${entry.command.accepted ? 'Accepted' : 'Accept'}</button>`
-                        }
-                      </div>
+                    <div class="content-block recommendation-block rec-allergy${entry.command.already_documented ? ' rec-documented' : ''}" key=${'rec-allergy-' + entry.index}>
                       <div class="recommendation-content">
                         <${AllergyRow}
                           command=${entry.command}
@@ -816,6 +802,13 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           readOnly=${readOnly || entry.command.already_documented}
                         />
                       </div>
+                      ${!readOnly && !entry.command.already_documented && html`
+                        <div class="recommendation-actions">
+                          ${entry.command.accepted && html`<span class="rec-accepted-badge">Accepted</span>`}
+                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                          <button type="button" class="rec-btn rec-btn-accept" onClick=${() => onAcceptRecommendation(entry.index)} title=${entry.command.accepted ? 'Undo accept' : 'Accept'}>${ICON_CHECK}</button>
+                        </div>
+                      `}
                     </div>
                     `;
                   })}
@@ -854,7 +847,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const entry = cmds[0];
           return html`
             <div class="subsection-title">Review of Systems</div>
-            <div class="content-block">
+            <div class="content-block rec-narrative">
               <${HistoryReviewRow}
                 command=${entry.command}
                 commandIndex=${entry.index}
@@ -868,39 +861,48 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const type = entry.command.command_type;
           if (type === 'medication_statement') {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${MedicationRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                />
+              <div class="content-block recommendation-block rec-medication" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${MedicationRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
           if (type === 'allergy') {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${AllergyRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                />
+              <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${AllergyRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
           if (type === 'task') {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${TaskRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  assignees=${assignees}
-                  readOnly=${readOnly}
-                />
+              <div class="content-block recommendation-block rec-task" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${TaskRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                    assignees=${assignees}
+                    readOnly=${readOnly}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
@@ -911,84 +913,103 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               entry.command.data.refills == null
             );
             return html`
-              <div class="content-block${prescribeIncomplete ? ' incomplete-order' : ''}" key=${entry.index}>
-                <${OrderRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                  patientId=${patientId}
-                  noteId=${noteId}
-                  staffId=${staffId}
-                  staffName=${staffName}
-                />
+              <div class="content-block recommendation-block rec-order" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${OrderRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                    readOnly=${readOnly}
+                    patientId=${patientId}
+                    noteId=${noteId}
+                    staffId=${staffId}
+                    staffName=${staffName}
+                  />
+                  ${prescribeIncomplete && html`<span class="rec-warning-badge">Missing Information</span>`}
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
           if (type === 'history_review') {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${HistoryReviewRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                />
+              <div class="content-block recommendation-block rec-narrative" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${HistoryReviewRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
           if (HISTORY_TYPES.has(type)) {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${HistoryEntryRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                />
+              <div class="content-block recommendation-block rec-history" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${HistoryEntryRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                    readOnly=${readOnly}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
           if (type === 'questionnaire') {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${QuestionnaireRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                />
+              <div class="content-block recommendation-block rec-questionnaire" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${QuestionnaireRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                    readOnly=${readOnly}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
           if (type === 'plan') {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${CommandRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                />
+              <div class="content-block recommendation-block rec-plan" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${CommandRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                    readOnly=${readOnly}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
           if (type === 'perform') return null;
           if (REMOVAL_TYPES.has(type)) {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${RemovalRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                  patientId=${patientId}
-                />
+              <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${RemovalRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                    readOnly=${readOnly}
+                    patientId=${patientId}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
@@ -1060,15 +1081,18 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             ...(adHocCommands || []).filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code).map(e => e.command.data.cpt_code),
           ]);
           return pending.map(entry => html`
-            <div class="content-block" key=${entry.index}>
-              <${ChargeRow}
-                command=${entry.command}
-                commandIndex=${entry.index}
-                onEdit=${onEditCommand}
-                onDelete=${onDeleteCommand}
-                readOnly=${readOnly}
-                excludeCpts=${allChecklistCpts}
-              />
+            <div class="content-block recommendation-block rec-charge" key=${entry.index}>
+              <div class="recommendation-content">
+                <${ChargeRow}
+                  command=${entry.command}
+                  commandIndex=${entry.index}
+                  onEdit=${onEditCommand}
+                  onDelete=${onDeleteCommand}
+                  readOnly=${readOnly}
+                  excludeCpts=${allChecklistCpts}
+                />
+              </div>
+              ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
             </div>
           `);
         })()}
@@ -1102,30 +1126,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               ${rxRecs.map(entry => {
                 const d = entry.command.data;
                 const isIncomplete = !d.fdb_code || !d.sig || d.quantity_to_dispense == null || !d.type_to_dispense || d.refills == null;
-                const isAccepted = !isIncomplete && (entry.command.accepted || entry.command.already_documented);
-                let btnLabel, btnClass;
-                if (entry.command.already_documented) {
-                  btnLabel = 'Already in chart';
-                  btnClass = 'recommendation-accept-btn accepted';
-                } else if (isIncomplete) {
-                  btnLabel = 'Incomplete';
-                  btnClass = 'recommendation-accept-btn incomplete';
-                } else if (entry.command.accepted) {
-                  btnLabel = 'Accepted';
-                  btnClass = 'recommendation-accept-btn accepted';
-                } else {
-                  btnLabel = 'Accept';
-                  btnClass = 'recommendation-accept-btn';
-                }
 
                 return html`
-                <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}" key=${'rec-rx-' + entry.index}>
-                  <div class="recommendation-actions">
-                    ${entry.command.already_documented
-                      ? html`<span class=${btnClass}>${btnLabel}</span>`
-                      : !readOnly && html`<button type="button" class=${btnClass} onClick=${() => !isIncomplete && onAcceptRecommendation(entry.index)} disabled=${isIncomplete}>${btnLabel}</button>`
-                    }
-                  </div>
+                <div class="content-block recommendation-block rec-prescribe${entry.command.already_documented ? ' rec-documented' : ''}" key=${'rec-rx-' + entry.index}>
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
@@ -1138,7 +1141,13 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       staffName=${staffName}
                       isRecommendation=${true}
                     />
+                    ${isIncomplete && !entry.command.already_documented && html`<span class="rec-warning-badge">Missing Information</span>`}
                   </div>
+                  ${!readOnly && !entry.command.already_documented && html`
+                    <div class="recommendation-actions">
+                      <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteRecommendation(entry.index)} title="Remove">${ICON_X}</button>
+                    </div>
+                  `}
                 </div>
                 `;
               })}
@@ -1156,32 +1165,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <div class="subsection">
               <div class="subsection-title">Referrals</div>
               ${referRecs.map(entry => {
-                const hasProvider = !!entry.command.data.service_provider;
-                const isIncomplete = !hasProvider;
-                const isAccepted = !isIncomplete && (entry.command.accepted || entry.command.already_documented);
-                let btnLabel, btnClass;
-                if (entry.command.already_documented) {
-                  btnLabel = 'Already in chart';
-                  btnClass = 'recommendation-accept-btn accepted';
-                } else if (isIncomplete) {
-                  btnLabel = 'Incomplete';
-                  btnClass = 'recommendation-accept-btn incomplete';
-                } else if (entry.command.accepted) {
-                  btnLabel = 'Accepted';
-                  btnClass = 'recommendation-accept-btn accepted';
-                } else {
-                  btnLabel = 'Accept';
-                  btnClass = 'recommendation-accept-btn';
-                }
+                const isIncomplete = !entry.command.data.service_provider;
 
                 return html`
-                <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}${isIncomplete ? ' incomplete-code' : ''}" key=${'rec-refer-' + entry.index}>
-                  <div class="recommendation-actions">
-                    ${entry.command.already_documented
-                      ? html`<span class=${btnClass}>${btnLabel}</span>`
-                      : !readOnly && html`<button type="button" class=${btnClass} onClick=${() => !isIncomplete && onAcceptRecommendation(entry.index)} disabled=${isIncomplete}>${btnLabel}</button>`
-                    }
-                  </div>
+                <div class="content-block recommendation-block rec-refer${entry.command.already_documented ? ' rec-documented' : ''}" key=${'rec-refer-' + entry.index}>
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
@@ -1194,7 +1181,13 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       staffName=${staffName}
                       isRecommendation=${true}
                     />
+                    ${isIncomplete && !entry.command.already_documented && html`<span class="rec-warning-badge">Missing Information</span>`}
                   </div>
+                  ${!readOnly && !entry.command.already_documented && html`
+                    <div class="recommendation-actions">
+                      <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteRecommendation(entry.index)} title="Remove">${ICON_X}</button>
+                    </div>
+                  `}
                 </div>
                 `;
               })}

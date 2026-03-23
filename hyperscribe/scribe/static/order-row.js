@@ -1559,21 +1559,13 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     }
     if (d.days_supply) detailParts.push(`${d.days_supply}d supply`);
     if (d.refills != null && d.refills !== '') detailParts.push(`${d.refills} refill${d.refills > 1 ? 's' : ''}`);
-    const hasFdb = !!d.fdb_code;
     return html`
       <div>
         <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
-            <div class="subsection-title">Rx</div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="medication-row-text">${command.display}</span>
-              ${hasFdb
-                ? html`<span class="medication-structured-badge">Structured</span>`
-                : html`<span class="medication-unstructured-badge">Unstructured</span>`
-              }
-            </div>
-            ${d.sig && html`<span class="medication-sig-text" style="margin-left:4px">Sig: ${d.sig}</span>`}
-            ${detailParts.length > 0 && html`<span class="medication-sig-text" style="margin-left:4px">${detailParts.join(' · ')}</span>`}
+          <div class="order-view">
+            <div class="order-view-name">${command.display}</div>
+            ${d.sig && html`<div class="order-view-sig">Sig: ${d.sig}</div>`}
+            ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
           </div>
         </div>
         ${interactionWarning && html`<${InteractionWarningInline} warning=${interactionWarning} />`}
@@ -1583,23 +1575,15 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
 
   if (command.command_type === 'refer') {
     const d = command.data;
-    const hasProvider = !!d.service_provider;
     const detailParts = [];
     if (d.clinical_question) detailParts.push(d.clinical_question);
     if (d.priority) detailParts.push(d.priority);
     if (d.notes_to_specialist) detailParts.push(d.notes_to_specialist);
     return html`
       <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
-        <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
-          <div class="subsection-title">Refer</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="medication-row-text">${command.display || 'Referral'}</span>
-            ${hasProvider
-              ? html`<span class="medication-structured-badge">Matched</span>`
-              : html`<span class="medication-unstructured-badge">Incomplete</span>`
-            }
-          </div>
-          ${detailParts.length > 0 && html`<span class="medication-sig-text" style="margin-left:4px">${detailParts.join(' · ')}</span>`}
+        <div class="order-view">
+          <div class="order-view-name">${command.display || 'Referral'}</div>
+          ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
         </div>
       </div>
     `;
@@ -1607,7 +1591,6 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
 
   if (command.command_type === 'imaging_order') {
     const d = command.data;
-    const hasCenter = !!d.service_provider;
     const detailParts = [];
     if (d.additional_details) detailParts.push(d.additional_details);
     if (d.priority) detailParts.push(d.priority);
@@ -1615,13 +1598,9 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     if (d.service_provider_name) detailParts.push(d.service_provider_name);
     return html`
       <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
-        <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
-          <div class="subsection-title">${badgeLabel}</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="medication-row-text">${command.display}</span>
-            ${!hasCenter && html`<span class="medication-unstructured-badge">Incomplete</span>`}
-          </div>
-          ${detailParts.length > 0 && html`<span class="medication-sig-text" style="margin-left:4px">${detailParts.join(' · ')}</span>`}
+        <div class="order-view">
+          <div class="order-view-name">${command.display}</div>
+          ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
         </div>
       </div>
     `;
@@ -1629,8 +1608,9 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
 
   return html`
     <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
-      <div class="subsection-title">${badgeLabel}</div>
-      <span class="command-row-text">${command.display}</span>
+      <div class="order-view">
+        <div class="order-view-name">${command.display}</div>
+      </div>
     </div>
   `;
 }
