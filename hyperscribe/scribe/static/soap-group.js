@@ -1,5 +1,5 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
-import { useState, useRef, useCallback } from 'https://esm.sh/preact@10.25.4/hooks';
+import { useState, useEffect, useRef, useCallback } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { CommandRow } from '/plugin-io/api/hyperscribe/scribe/static/command-row.js';
 import { AllergyRow } from '/plugin-io/api/hyperscribe/scribe/static/allergy-row.js';
@@ -131,6 +131,85 @@ const SECTION_DISPLAY_NAMES = {
   'allergies': 'Allergy List Updates',
   'past_medical_history': 'Past Medical History Discussed During Encounter',
 };
+
+const REMOVAL_TYPES = new Set(['stop_medication', 'remove_allergy', 'resolve_condition']);
+
+function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId }) {
+  const data = command.data || {};
+  const type = command.command_type;
+  const hasItem = !!(data.medication_id || data.allergy_id || data.condition_id);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const config = {
+    stop_medication: { endpoint: 'patient-medications', listKey: 'medications', idField: 'medication_id', nameField: 'medication_name', labelPlural: 'medications', placeholder: 'Select medication to stop...' },
+    remove_allergy: { endpoint: 'patient-allergies', listKey: 'allergies', idField: 'allergy_id', nameField: 'allergy_name', labelPlural: 'allergies', placeholder: 'Select allergy to remove...' },
+    resolve_condition: { endpoint: 'patient-conditions', listKey: 'conditions', idField: 'condition_id', nameField: 'condition_name', labelPlural: 'conditions', placeholder: 'Select condition to resolve...' },
+  }[type];
+
+  useEffect(() => {
+    if (hasItem || !patientId || !config) return;
+    let cancelled = false;
+    setLoading(true);
+    fetch(`${CHARGE_SEARCH_BASE}/${config.endpoint}?patient_id=${encodeURIComponent(patientId)}`)
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled) return;
+        const list = json[config.listKey] || json.conditions || [];
+        setItems(list.map(item => ({
+          id: item.id || item.condition_id,
+          name: item.name || item.display || '',
+        })));
+      })
+      .catch(() => setItems([]))
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [hasItem, patientId, type]);
+
+  const handleSelectChange = (e) => {
+    const selectedId = e.target.value;
+    if (!selectedId) return;
+    const item = items.find(i => i.id === selectedId);
+    if (!item) return;
+    onEdit(commandIndex, {
+      ...data,
+      [config.idField]: item.id,
+      [config.nameField]: item.name,
+    });
+  };
+
+  const handleRemove = (e) => {
+    e.stopPropagation();
+    onDelete(commandIndex);
+  };
+
+  if (!hasItem) {
+    return html`
+      <div class="removal-row">
+        ${loading
+          ? html`<span class="removal-loading">Loading...</span>`
+          : items.length > 0
+            ? html`<select class="removal-select" onChange=${handleSelectChange} autoFocus>
+                <option value="">${config.placeholder}</option>
+                ${items.map(item => html`<option key=${item.id} value=${item.id}>${item.name}</option>`)}
+              </select>`
+            : html`<span class="removal-empty">No active ${config.labelPlural}</span>`
+        }
+        <button type="button" class="delete-btn" onClick=${handleRemove} title="Cancel">x</button>
+      </div>
+    `;
+  }
+
+  const itemName = data[config.nameField] || '';
+  return html`
+    <div class="removal-row${readOnly ? ' read-only' : ''}">
+      <span class="removal-item-name">${itemName}</span>
+      ${!readOnly && html`
+        <button type="button" class="delete-btn" onClick=${handleRemove} title="Remove">x</button>
+      `}
+    </div>
+  `;
+}
 
 const NARRATIVE_SECTIONS = new Set(['chief_complaint', 'history_of_present_illness', 'plan', 'assessment_and_plan']);
 const PLAN_SECTIONS = new Set(['plan', 'assessment_and_plan']);
@@ -331,7 +410,7 @@ function AddConditionSearch({ onAdd }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   return html`
@@ -446,9 +525,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                     </div>
                   `}
-                  ${onAddCondition && !readOnly && html`
+                  ${(onAddCondition || onAddResolveCondition) && !readOnly && html`
                     <div class="ad-hoc-buttons">
-                      <${AddConditionSearch} onAdd=${onAddCondition} />
+                      ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} />`}
+                      ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
                     </div>
                   `}
                 </div>
@@ -544,9 +624,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                     `;
                   })}
-                  ${onAddMedication && !readOnly && html`
+                  ${(onAddMedication || onAddStopMedication) && !readOnly && html`
                     <div class="ad-hoc-buttons">
-                      <button type="button" class="ad-hoc-btn" onClick=${onAddMedication}>+ Medication</button>
+                      ${onAddMedication && html`<button type="button" class="ad-hoc-btn" onClick=${onAddMedication}>+ Medication</button>`}
+                      ${onAddStopMedication && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddStopMedication}>- Stop Medication</button>`}
                     </div>
                   `}
                 </div>
@@ -594,9 +675,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                     `;
                   })}
-                  ${onAddAllergy && !readOnly && html`
+                  ${(onAddAllergy || onAddRemoveAllergy) && !readOnly && html`
                     <div class="ad-hoc-buttons">
-                      <button type="button" class="ad-hoc-btn" onClick=${onAddAllergy}>+ Allergy</button>
+                      ${onAddAllergy && html`<button type="button" class="ad-hoc-btn" onClick=${onAddAllergy}>+ Allergy</button>`}
+                      ${onAddRemoveAllergy && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddRemoveAllergy}>- Remove Allergy</button>`}
                     </div>
                   `}
                 </div>
@@ -611,9 +693,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <div class="subsection" key=${s.key}>
               <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
               ${s.text && html`<p class="section-text">${s.text}</p>`}
-              ${PLAN_SECTIONS.has(key) && onAddCondition && !readOnly && html`
+              ${PLAN_SECTIONS.has(key) && (onAddCondition || onAddResolveCondition) && !readOnly && html`
                 <div class="ad-hoc-buttons">
-                  <${AddConditionSearch} onAdd=${onAddCondition} />
+                  ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} />`}
+                  ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
                 </div>
               `}
             </div>
@@ -751,6 +834,20 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             `;
           }
           if (type === 'perform') return null;
+          if (REMOVAL_TYPES.has(type)) {
+            return html`
+              <div class="content-block" key=${entry.index}>
+                <${RemovalRow}
+                  command=${entry.command}
+                  commandIndex=${entry.index}
+                  onEdit=${onEditCommand}
+                  onDelete=${onDeleteCommand}
+                  readOnly=${readOnly}
+                  patientId=${patientId}
+                />
+              </div>
+            `;
+          }
           return null;
         })}
         ${(() => {
@@ -965,6 +1062,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <button type="button" class="ad-hoc-btn" onClick=${onAddTask}>+ Task</button>
             <button type="button" class="ad-hoc-btn" onClick=${onAddOrder}>+ Order</button>
             ${onAddPlan && html`<button type="button" class="ad-hoc-btn" onClick=${onAddPlan}>+ Plan</button>`}
+            ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
           </div>
         `}
       </div>
