@@ -331,14 +331,77 @@ function formatIcdCode(raw) {
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
-function AddConditionSearch({ onAdd }) {
+function AssessNarrative({ command, commandIndex, onEdit, readOnly }) {
+  const data = command.data || {};
+  const [editing, setEditing] = useState(false);
+  const [narrative, setNarrative] = useState(data.narrative || '');
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (editing && textareaRef.current) textareaRef.current.focus();
+  }, [editing]);
+
+  const handleSave = () => {
+    onEdit(commandIndex, { ...data, narrative }, 'assess');
+    setEditing(false);
+  };
+
+  const handleCancel = () => {
+    setNarrative(data.narrative || '');
+    setEditing(false);
+  };
+
+  if (editing && !readOnly) {
+    return html`
+      <div class="diagnose-edit-area">
+        <textarea
+          ref=${textareaRef}
+          class="diagnose-textarea"
+          value=${narrative}
+          onInput=${(e) => setNarrative(e.target.value)}
+          onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}
+        />
+        <div class="command-row-actions">
+          <button class="edit-btn" onClick=${handleSave}>Save</button>
+          <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
+        </div>
+      </div>
+    `;
+  }
+
+  return html`
+    <div
+      class="diagnose-row-body${readOnly ? '' : ' editable'}"
+      onClick=${() => !readOnly && setEditing(true)}
+    >
+      ${data.narrative
+        ? (data.narrative).split('\n').map((line, i) => html`<div key=${i} class="diagnose-body-line">${line}</div>`)
+        : html`<div class="diagnose-body-empty">No assessment text</div>`
+      }
+    </div>
+  `;
+}
+
+function AddConditionSearch({ onAdd, patientId }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [existingConditions, setExistingConditions] = useState([]);
+  const [loadingConditions, setLoadingConditions] = useState(false);
   const timer = useRef(null);
   const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open || !patientId) return;
+    setLoadingConditions(true);
+    fetch(`${API_BASE}/patient-conditions?patient_id=${encodeURIComponent(patientId)}`)
+      .then(res => res.json())
+      .then(data => setExistingConditions(data.conditions || []))
+      .catch(err => { console.error('Failed to fetch existing conditions:', err); setExistingConditions([]); })
+      .finally(() => setLoadingConditions(false));
+  }, [open, patientId]);
 
   const doSearch = useCallback(async (q) => {
     if (!q || q.length < 2) { setResults([]); setSearched(false); return; }
@@ -364,48 +427,91 @@ function AddConditionSearch({ onAdd }) {
   };
 
   const handleSelect = (r) => {
-    onAdd(r.code, r.display);
+    onAdd(r.code, r.display, null);
     setQuery('');
     setResults([]);
     setSearched(false);
     setOpen(false);
   };
 
+  const handleSelectExisting = (c) => {
+    onAdd(c.code, c.display, c.condition_id);
+    setQuery('');
+    setResults([]);
+    setSearched(false);
+    setOpen(false);
+  };
+
+  const close = () => { setOpen(false); setQuery(''); setResults([]); setSearched(false); };
+
+  // Filter existing conditions by query text.
+  const q = query.trim().toLowerCase();
+  const filteredExisting = q
+    ? existingConditions.filter(c =>
+        (c.display || '').toLowerCase().includes(q) ||
+        (c.code || '').toLowerCase().includes(q) ||
+        (c.formatted_code || '').toLowerCase().includes(q))
+    : existingConditions;
+
+  const showDropdown = open && (
+    (!loadingConditions && filteredExisting.length > 0) ||
+    results.length > 0 ||
+    searching ||
+    (!searching && searched && results.length === 0 && query.length >= 2)
+  );
+
   if (!open) {
     return html`<button type="button" class="ad-hoc-btn" onClick=${() => setOpen(true)}>+ Add Condition</button>`;
   }
 
   return html`
-    <div class="ap-add-condition-area" ref=${containerRef}>
-      <input
-        type="text"
-        class="diagnose-search-input"
-        value=${query}
-        onInput=${handleInput}
-        placeholder="Search ICD-10 diagnosis..."
-        autoFocus
-      />
-      ${searching && html`<span class="diagnose-search-spinner">Searching...</span>`}
-      ${results.length > 0 && html`
-        <div class="diagnose-search-dropdown">
-          ${results.map(r => html`
-            <div
-              key=${r.code}
-              class="diagnose-search-result"
-              onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
-            >
-              <span class="diagnose-result-display">${r.display}</span>
-              ${r.formatted_code && html`<span class="diagnose-result-code">${r.formatted_code}</span>`}
-            </div>
-          `)}
+    <div class="add-condition-picker" ref=${containerRef}>
+      <div class="add-condition-input-row">
+        <input
+          type="text"
+          class="add-condition-input"
+          value=${query}
+          onInput=${handleInput}
+          placeholder="Search existing or new diagnosis..."
+          autoFocus
+        />
+        <button type="button" class="add-condition-close" onClick=${close}>×</button>
+      </div>
+      ${showDropdown && html`
+        <div class="add-condition-dropdown">
+          ${loadingConditions && html`<div class="add-condition-loading">Loading...</div>`}
+          ${!loadingConditions && filteredExisting.length > 0 && html`
+            <div class="add-condition-section-label">Patient conditions</div>
+            ${filteredExisting.map(c => html`
+              <div
+                key=${'ex-' + c.condition_id}
+                class="add-condition-option existing"
+                onMouseDown=${(e) => { e.preventDefault(); handleSelectExisting(c); }}
+              >
+                <span class="add-condition-option-name">${c.display}</span>
+                ${c.formatted_code && html`<span class="add-condition-option-code">${c.formatted_code}</span>`}
+              </div>
+            `)}
+          `}
+          ${results.length > 0 && html`
+            <div class="add-condition-section-label">New diagnosis</div>
+            ${results.map(r => html`
+              <div
+                key=${'sr-' + r.code}
+                class="add-condition-option"
+                onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
+              >
+                <span class="add-condition-option-name">${r.display}</span>
+                ${r.formatted_code && html`<span class="add-condition-option-code">${r.formatted_code}</span>`}
+              </div>
+            `)}
+          `}
+          ${searching && html`<div class="add-condition-loading">Searching...</div>`}
+          ${!searching && searched && results.length === 0 && query.length >= 2 && html`
+            <div class="add-condition-empty">No new diagnoses found</div>
+          `}
         </div>
       `}
-      ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-        <div class="diagnose-search-dropdown">
-          <div class="diagnose-search-result search-no-results">No diagnoses found</div>
-        </div>
-      `}
-      <button type="button" class="edit-btn" style="margin-top: 4px;" onClick=${() => { setOpen(false); setQuery(''); setResults([]); }}>Cancel</button>
     </div>
   `;
 }
@@ -447,13 +553,51 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
 
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
             const isPlan = PLAN_SECTIONS.has(key);
-            // If the A&P has been split into per-condition diagnose commands, render each as DiagnoseRow.
-            const hasDiagnoseCommands = isPlan && cmds.some(e => e.command.command_type === 'diagnose');
-            if (hasDiagnoseCommands) {
+            // If the A&P has been split into per-condition commands, render each diagnose as DiagnoseRow and assess as CommandRow.
+            const hasConditionCommands = isPlan && cmds.some(e => e.command.command_type === 'diagnose' || e.command.command_type === 'assess');
+            if (hasConditionCommands) {
               const unmatched = unmatchedConditions || [];
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+                  ${cmds.filter(e => e.command.command_type === 'assess').map(entry => {
+                    const aData = entry.command.data || {};
+                    const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
+                    const aFormatted = aCode.length > 3 ? aCode.slice(0, 3) + '.' + aCode.slice(3) : aCode;
+                    return html`
+                      <div class="content-block recommendation-block accepted" key=${entry.index}>
+                        ${!readOnly && html`
+                          <div class="recommendation-actions">
+                            <span class="recommendation-accept-btn assess-badge">Existing</span>
+                          </div>
+                        `}
+                        <div class="recommendation-content" style="opacity:1">
+                          <div class="diagnose-row">
+                            <div class="diagnose-row-header">
+                              <span class="diagnose-row-title">
+                                ${aFormatted && html`<span class="diagnose-icd-prefix">${aFormatted}</span>`}
+                                ${' '}${entry.command.display}
+                              </span>
+                              ${!readOnly && html`
+                                <button
+                                  type="button"
+                                  class="diagnose-delete-btn"
+                                  onClick=${() => onDeleteCommand(entry.index)}
+                                  title="Remove"
+                                >×</button>
+                              `}
+                            </div>
+                            <${AssessNarrative}
+                              command=${entry.command}
+                              commandIndex=${entry.index}
+                              onEdit=${onEditCommand}
+                              readOnly=${readOnly}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    `;
+                  })}
                   ${cmds.filter(e => e.command.command_type === 'diagnose').map(entry => {
                     const hasCode = !!entry.command.data.icd10_code;
                     const isAccepted = hasCode && entry.command.data.accepted;
@@ -527,7 +671,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   `}
                   ${(onAddCondition || onAddResolveCondition) && !readOnly && html`
                     <div class="ad-hoc-buttons">
-                      ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} />`}
+                      ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
                       ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
                     </div>
                   `}
@@ -695,7 +839,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               ${s.text && html`<p class="section-text">${s.text}</p>`}
               ${PLAN_SECTIONS.has(key) && (onAddCondition || onAddResolveCondition) && !readOnly && html`
                 <div class="ad-hoc-buttons">
-                  ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} />`}
+                  ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
                   ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
                 </div>
               `}
