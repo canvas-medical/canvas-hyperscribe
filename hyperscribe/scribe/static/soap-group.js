@@ -958,22 +958,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               </div>
             `;
           }
-          if (type === 'questionnaire') {
-            return html`
-              <div class="content-block recommendation-block rec-questionnaire" key=${entry.index}>
-                <div class="recommendation-content">
-                  <${QuestionnaireRow}
-                    command=${entry.command}
-                    commandIndex=${entry.index}
-                    onEdit=${onEditCommand}
-                    onDelete=${onDeleteCommand}
-                    readOnly=${readOnly}
-                  />
-                </div>
-                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
-              </div>
-            `;
-          }
+          if (type === 'questionnaire') return null;
           if (type === 'plan') {
             return html`
               <div class="content-block recommendation-block rec-plan" key=${entry.index}>
@@ -1010,6 +995,35 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           }
           return null;
         })}
+        ${(() => {
+          const questionnaireCommands = (adHocCommands || [])
+            .filter(e => e.command.command_type === 'questionnaire');
+          if (questionnaireCommands.length === 0 && !onAddQuestionnaire) return null;
+          return html`
+            <div class="subsection">
+              <div class="subsection-title">Questionnaires</div>
+              ${questionnaireCommands.map(entry => html`
+                <div class="content-block recommendation-block rec-questionnaire" key=${entry.index}>
+                  <div class="recommendation-content">
+                    <${QuestionnaireRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditCommand}
+                      onDelete=${onDeleteCommand}
+                      readOnly=${readOnly}
+                    />
+                  </div>
+                  ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                </div>
+              `)}
+              ${onAddQuestionnaire && !readOnly && html`
+                <div class="ad-hoc-buttons">
+                  <button type="button" class="ad-hoc-btn" onClick=${onAddQuestionnaire}>+ Questionnaire</button>
+                </div>
+              `}
+            </div>
+          `;
+        })()}
         ${(() => {
           // Build unified checklist: template charges + manually added charges.
           // A charge is "selected" if its command exists AND has selected=true.
@@ -1094,11 +1108,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         ${onAddCharge && !readOnly && html`
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${onAddCharge}>+ Charge</button>
-          </div>
-        `}
-        ${onAddQuestionnaire && !readOnly && html`
-          <div class="ad-hoc-buttons">
-            <button type="button" class="ad-hoc-btn" onClick=${onAddQuestionnaire}>+ Questionnaire</button>
           </div>
         `}
         ${onAddHistory && !readOnly && html`

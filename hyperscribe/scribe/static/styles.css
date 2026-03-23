@@ -1005,20 +1005,38 @@ h2 { margin-bottom: 4px; }
   margin: 0;
 }
 
+/* Questionnaire search */
+.questionnaire-search-input { width: 100%; padding: 10px 12px; font-family: inherit; font-size: 15px; border: 1px solid #ddd; border-radius: 6px; }
+.questionnaire-search-input:focus { outline: none; border-color: #052B49; }
+.questionnaire-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 240px; overflow-y: auto; margin-top: 4px; }
+.questionnaire-search-result { padding: 10px 12px; font-size: 14px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+.questionnaire-search-result:last-child { border-bottom: none; }
+.questionnaire-search-result:hover { background: #f0f4ff; }
+.questionnaire-search-result.search-no-results { color: #999; cursor: default; }
+.questionnaire-search-result.search-no-results:hover { background: none; }
+
 /* Questionnaire form */
-.questionnaire-header { font-size: 14px; font-weight: 700; color: #333; margin-bottom: 8px; }
-.questionnaire-question { margin-bottom: 12px; }
+.questionnaire-header { font-size: 15px; font-weight: 700; color: #333; margin-bottom: 12px; }
+.questionnaire-question { margin-bottom: 16px; }
 .questionnaire-question:last-child { margin-bottom: 0; }
-.questionnaire-question-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; }
-.questionnaire-options { display: flex; flex-direction: column; gap: 4px; padding-left: 4px; }
-.questionnaire-option { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #333; cursor: pointer; }
+.questionnaire-question-label { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px; }
+.questionnaire-options { display: flex; flex-direction: column; gap: 2px; }
+.questionnaire-option { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #333; cursor: pointer; padding: 8px 4px; border-radius: 6px; }
+.questionnaire-option:hover { background: #f5f7fa; }
 .questionnaire-option input[type="radio"],
-.questionnaire-option input[type="checkbox"] { cursor: pointer; }
-.questionnaire-option-comment { width: 100%; padding: 4px 8px; font-family: inherit; font-size: 12px; border: 1px solid #ddd; border-radius: 4px; margin-top: 2px; margin-left: 20px; }
+.questionnaire-option input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; }
+.questionnaire-option span { flex: 1; }
+.questionnaire-option-comment { width: 100%; padding: 8px 10px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 6px; margin-top: 4px; margin-left: 28px; }
 .questionnaire-option-comment:focus { outline: none; border-color: #052B49; }
-.questionnaire-text-input { width: 100%; padding: 6px 8px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; }
+.questionnaire-text-input { width: 100%; padding: 10px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; }
 .questionnaire-text-input:focus { outline: none; border-color: #052B49; }
-.questionnaire-answered-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #e8f5e9; color: #2e7d32; white-space: nowrap; }
+.questionnaire-view { display: flex; align-items: center; gap: 8px; padding: 4px; cursor: pointer; border-radius: 8px; }
+.recommendation-block:has(.questionnaire-view) { align-items: center; }
+.recommendation-block:has(.questionnaire-view) .recommendation-actions { padding-top: 0; }
+.questionnaire-view-content { flex: 1; min-width: 0; }
+.questionnaire-view-name { font-size: 15px; color: #333; }
+.questionnaire-answered-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #e8f5e9; color: #2e7d32; white-space: nowrap; flex-shrink: 0; }
+.questionnaire-form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f0f0f0; }
 
 /* Unified top bar */
 .unified-top-bar {

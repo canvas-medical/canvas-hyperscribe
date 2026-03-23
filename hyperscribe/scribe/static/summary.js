@@ -131,7 +131,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddRemoveAllergy=${isObjective ? onAddRemoveAllergy : null}
         onAddResolveCondition=${isPlan ? onAddResolveCondition : null}
         onAddHistory=${isHistory ? onAddHistory : null}
-        onAddQuestionnaire=${isObjective ? onAddQuestionnaire : null}
+        onAddQuestionnaire=${isSubjective ? onAddQuestionnaire : null}
         onAddCharge=${isCharges ? onAddCharge : null}
         onAddTemplateCharge=${isCharges ? onAddTemplateCharge : null}
         onRemoveChargeByCpt=${isCharges ? onRemoveChargeByCpt : null}
