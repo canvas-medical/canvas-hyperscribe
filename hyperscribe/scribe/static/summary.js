@@ -64,21 +64,21 @@ const SOAP_GROUPS = [
     'past_obstetric_history', 'family_history', 'social_history']) },
   { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'physical_exam', 'lab_results', 'imaging_results',
     'current_medications', 'allergies', 'immunizations']) },
-  { title: 'PLAN', color: 'plan', keys: new Set(['plan', 'assessment_and_plan', 'prescription', 'appointments']) },
+  { title: 'ASSESSMENT & PLAN', color: 'plan', keys: new Set(['plan', 'assessment_and_plan', 'prescription', 'appointments']) },
   { title: 'CHARGES', color: 'charges', keys: new Set(['charges']) },
 ];
 
 const SKELETON_SECTIONS = [
   { key: 'chief_complaint', title: 'Chief Complaint', text: '' },
   { key: 'history_of_present_illness', title: 'History of Present Illness', text: '' },
-  { key: 'past_medical_history', title: 'Past Medical History', text: '' },
+  { key: 'past_medical_history', title: 'Past Medical History Discussed During Encounter', text: '' },
   { key: 'past_surgical_history', title: 'Past Surgical History', text: '' },
   { key: 'family_history', title: 'Family History', text: '' },
   { key: 'social_history', title: 'Social History', text: '' },
   { key: 'vitals', title: 'Vitals', text: '' },
   { key: 'physical_exam', title: 'Physical Exam', text: '' },
-  { key: 'current_medications', title: 'Current Medications', text: '' },
-  { key: 'allergies', title: 'Allergies', text: '' },
+  { key: 'current_medications', title: 'Medication List Updates', text: '' },
+  { key: 'allergies', title: 'Allergy List Updates', text: '' },
   { key: 'assessment_and_plan', title: 'Assessment & Plan', text: '' },
 ];
 
@@ -107,7 +107,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
-      const isPlan = group.title === 'PLAN';
+      const isPlan = group.title === 'ASSESSMENT & PLAN';
       const isObjective = group.title === 'OBJECTIVE';
       const isHistory = group.title === 'HISTORY';
       const isSubjective = group.title === 'SUBJECTIVE';
@@ -128,7 +128,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddMedication=${isObjective ? onAddMedication : null}
         onAddAllergy=${isObjective ? onAddAllergy : null}
         onAddHistory=${isHistory ? onAddHistory : null}
-        onAddQuestionnaire=${isSubjective ? onAddQuestionnaire : null}
+        onAddQuestionnaire=${isObjective ? onAddQuestionnaire : null}
         onAddCharge=${isCharges ? onAddCharge : null}
         onAddTemplateCharge=${isCharges ? onAddTemplateCharge : null}
         onRemoveChargeByCpt=${isCharges ? onRemoveChargeByCpt : null}
@@ -926,7 +926,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           ${recording.status === 'finishing' && html`
             <span class="generating-label">Finalizing transcript...</span>
           `}
-          ${debugMode && noteData && !approved && !generating && !isRecording && html`
+          ${false && debugMode && noteData && !approved && !generating && !isRecording && html`
             <button class="regenerate-btn" onClick=${handleGenerate} disabled=${!selectedTemplate}>
               Regenerate${!selectedTemplate ? ' (select visit type)' : ''}
             </button>

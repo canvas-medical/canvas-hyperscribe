@@ -125,6 +125,13 @@ function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeC
   `;
 }
 
+// Override display names for subsection titles (backend note data may use different labels).
+const SECTION_DISPLAY_NAMES = {
+  'current_medications': 'Medication List Updates',
+  'allergies': 'Allergy List Updates',
+  'past_medical_history': 'Past Medical History Discussed During Encounter',
+};
+
 const NARRATIVE_SECTIONS = new Set(['chief_complaint', 'history_of_present_illness', 'plan', 'assessment_and_plan']);
 const PLAN_SECTIONS = new Set(['plan', 'assessment_and_plan']);
 const ORDER_TYPES = new Set(['prescribe', 'lab_order', 'imaging_order', 'refer']);
@@ -367,7 +374,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               const unmatched = unmatchedConditions || [];
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${s.title}</div>
+                  <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
                   ${cmds.filter(e => e.command.command_type === 'diagnose').map(entry => {
                     const hasCode = !!entry.command.data.icd10_code;
                     const isAccepted = hasCode && entry.command.data.accepted;
@@ -450,7 +457,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const entry = cmds[0];
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${s.title}</div>
+                <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
                 <div class="content-block">
                   <${CommandRow}
                     command=${entry.command}
@@ -467,7 +474,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const entry = cmds[0];
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${s.title}</div>
+                <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
                 <div class="content-block">
                   <${VitalsRow}
                     command=${entry.command}
@@ -484,7 +491,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const entry = cmds[0];
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${s.title}</div>
+                <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
                 <div class="content-block">
                   <${HistoryReviewRow}
                     command=${entry.command}
@@ -504,7 +511,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (cmds || medRecs.length > 0) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${s.title}</div>
+                  <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
                   ${(cmds || []).map(entry => html`
                     <div class="content-block" key=${entry.index}>
                       <${MedicationRow}
@@ -537,6 +544,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                     `;
                   })}
+                  ${onAddMedication && !readOnly && html`
+                    <div class="ad-hoc-buttons">
+                      <button type="button" class="ad-hoc-btn" onClick=${onAddMedication}>+ Medication</button>
+                    </div>
+                  `}
                 </div>
               `;
             }
@@ -549,7 +561,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (cmds || allergyRecs.length > 0) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${s.title}</div>
+                  <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
                   ${(cmds || []).map(entry => html`
                     <div class="content-block" key=${entry.index}>
                       <${AllergyRow}
@@ -582,6 +594,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                     `;
                   })}
+                  ${onAddAllergy && !readOnly && html`
+                    <div class="ad-hoc-buttons">
+                      <button type="button" class="ad-hoc-btn" onClick=${onAddAllergy}>+ Allergy</button>
+                    </div>
+                  `}
                 </div>
               `;
             }
@@ -592,7 +609,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
 
           return html`
             <div class="subsection" key=${s.key}>
-              <div class="subsection-title">${s.title}</div>
+              <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
               ${s.text && html`<p class="section-text">${s.text}</p>`}
               ${PLAN_SECTIONS.has(key) && onAddCondition && !readOnly && html`
                 <div class="ad-hoc-buttons">
@@ -824,12 +841,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <button type="button" class="ad-hoc-btn" onClick=${onAddQuestionnaire}>+ Questionnaire</button>
           </div>
         `}
-        ${onAddMedication && html`
-          <div class="ad-hoc-buttons">
-            <button type="button" class="ad-hoc-btn" onClick=${onAddMedication}>+ Medication</button>
-            <button type="button" class="ad-hoc-btn" onClick=${onAddAllergy}>+ Allergy</button>
-          </div>
-        `}
         ${onAddHistory && !readOnly && html`
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory('familyHistory')}>+ Family Hx</button>
@@ -839,7 +850,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         `}
         ${(() => {
           // Render Rx recommendations in the PLAN group (raw prescription text is suppressed above).
-          if (title !== 'PLAN') return null;
+          if (title !== 'ASSESSMENT & PLAN') return null;
           const rxRecs = (recommendations || [])
             .map((cmd, i) => ({ command: cmd, index: i }))
             .filter(e => e.command.command_type === 'prescribe');
@@ -895,7 +906,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         })()}
         ${(() => {
           // Render Refer recommendations in the PLAN group.
-          if (title !== 'PLAN') return null;
+          if (title !== 'ASSESSMENT & PLAN') return null;
           const referRecs = (recommendations || [])
             .map((cmd, i) => ({ command: cmd, index: i }))
             .filter(e => e.command.command_type === 'refer');
