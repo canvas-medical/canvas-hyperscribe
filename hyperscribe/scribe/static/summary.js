@@ -777,30 +777,44 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     ));
   }, [approved]);
 
-  const handleAddCondition = useCallback((icd10Code, icd10Display) => {
+  const handleAddCondition = useCallback((icd10Code, icd10Display, conditionId) => {
     if (approved) return;
     const apKey = commands.find(c =>
-      c.command_type === 'diagnose' && ['assessment_and_plan', 'plan'].includes(c.section_key)
+      (c.command_type === 'diagnose' || c.command_type === 'assess') && ['assessment_and_plan', 'plan'].includes(c.section_key)
     )?.section_key || 'assessment_and_plan';
 
-    const newCmd = {
-      command_type: 'diagnose',
-      display: icd10Display || '',
-      data: {
-        icd10_code: icd10Code || null,
-        icd10_display: icd10Display || '',
-        condition_header: icd10Display || '',
-        today_assessment: '',
-        accepted: !!icd10Code,
-      },
-      selected: true,
-      section_key: apKey,
-      already_documented: false,
-    };
+    const newCmd = conditionId
+      ? {
+          command_type: 'assess',
+          display: icd10Display || '',
+          data: {
+            condition_id: conditionId,
+            icd10_code: icd10Code || null,
+            narrative: '',
+            background: null,
+            status: null,
+          },
+          section_key: apKey,
+          already_documented: false,
+        }
+      : {
+          command_type: 'diagnose',
+          display: icd10Display || '',
+          data: {
+            icd10_code: icd10Code || null,
+            icd10_display: icd10Display || '',
+            condition_header: icd10Display || '',
+            today_assessment: '',
+            accepted: !!icd10Code,
+          },
+          selected: true,
+          section_key: apKey,
+          already_documented: false,
+        };
 
     setCommands(prev => {
       const lastApIdx = prev.reduce((acc, c, i) =>
-        c.command_type === 'diagnose' && ['assessment_and_plan', 'plan'].includes(c.section_key) ? i : acc, -1);
+        (c.command_type === 'diagnose' || c.command_type === 'assess') && ['assessment_and_plan', 'plan'].includes(c.section_key) ? i : acc, -1);
       return lastApIdx === -1 ? [...prev, newCmd] : [...prev.slice(0, lastApIdx + 1), newCmd, ...prev.slice(lastApIdx + 1)];
     });
 
