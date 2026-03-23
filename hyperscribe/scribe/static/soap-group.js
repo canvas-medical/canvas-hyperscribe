@@ -470,7 +470,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             `;
           }
 
-          if (cmds && key === 'vitals') {
+          if (key === 'vitals' && cmds) {
             const entry = cmds[0];
             return html`
               <div class="subsection" key=${s.key}>
@@ -508,7 +508,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const medRecs = (recommendations || [])
               .map((cmd, i) => ({ command: cmd, index: i }))
               .filter(e => e.command.command_type === 'medication_statement');
-            if (cmds || medRecs.length > 0) {
+            if (cmds || medRecs.length > 0 || onAddMedication) {
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
@@ -558,7 +558,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const allergyRecs = (recommendations || [])
               .map((cmd, i) => ({ command: cmd, index: i }))
               .filter(e => e.command.command_type === 'allergy');
-            if (cmds || allergyRecs.length > 0) {
+            if (cmds || allergyRecs.length > 0 || onAddAllergy) {
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
