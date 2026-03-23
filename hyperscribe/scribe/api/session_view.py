@@ -158,6 +158,7 @@ def _save_summary_to_cache(
     interaction_warnings: list[dict[str, Any]] | None = None,
     raw_nabla_response: dict[str, Any] | None = None,
     selected_template_name: str | None = None,
+    mode: str | None = None,
 ) -> None:
     key = f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}"
     log.info(f"summary cache save: key={key} approved={approved}")
@@ -176,6 +177,8 @@ def _save_summary_to_cache(
             payload["raw_nabla_response"] = raw_nabla_response
         if selected_template_name is not None:
             payload["selected_template_name"] = selected_template_name
+        if mode is not None:
+            payload["mode"] = mode
         cache.set(key, json.dumps(payload))
     except Exception:
         log.exception(f"summary cache save FAILED: key={key}")
@@ -350,6 +353,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             diagnosis_suggestions=data.get("diagnosis_suggestions"),
             interaction_warnings=data.get("interaction_warnings"),
             selected_template_name=data.get("selected_template_name"),
+            mode=data.get("mode"),
         )
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
