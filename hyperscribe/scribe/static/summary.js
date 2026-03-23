@@ -103,7 +103,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -127,6 +127,9 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddPlan=${isPlan ? onAddPlan : null}
         onAddMedication=${isObjective ? onAddMedication : null}
         onAddAllergy=${isObjective ? onAddAllergy : null}
+        onAddStopMedication=${isObjective ? onAddStopMedication : null}
+        onAddRemoveAllergy=${isObjective ? onAddRemoveAllergy : null}
+        onAddResolveCondition=${isPlan ? onAddResolveCondition : null}
         onAddHistory=${isHistory ? onAddHistory : null}
         onAddQuestionnaire=${isObjective ? onAddQuestionnaire : null}
         onAddCharge=${isCharges ? onAddCharge : null}
@@ -545,6 +548,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           const display = newData.cpt_code ? `${newData.cpt_code} — ${newData.description || ''}` : '';
           return { ...cmd, command_type: type, data: newData, display };
         }
+        if (type === 'stop_medication') {
+          return { ...cmd, command_type: type, data: newData, display: newData.medication_name || '' };
+        }
+        if (type === 'remove_allergy') {
+          return { ...cmd, command_type: type, data: newData, display: newData.allergy_name || '' };
+        }
+        if (type === 'resolve_condition') {
+          return { ...cmd, command_type: type, data: newData, display: newData.condition_name || '' };
+        }
         if (type === 'diagnose') {
           const display = newData.icd10_display || newData.condition_header || cmd.display;
           const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
@@ -667,6 +679,42 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       data: { allergy_text: '', concept_id: null, concept_id_type: null, reaction: '', severity: null },
       selected: true,
       section_key: '_objective_ad_hoc',
+      already_documented: false,
+    }]);
+  }, [approved]);
+
+  const handleAddStopMedication = useCallback(() => {
+    if (approved) return;
+    setCommands(prev => [...prev, {
+      command_type: 'stop_medication',
+      display: '',
+      data: { medication_id: null, medication_name: '', rationale: '' },
+      selected: true,
+      section_key: '_objective_ad_hoc',
+      already_documented: false,
+    }]);
+  }, [approved]);
+
+  const handleAddRemoveAllergy = useCallback(() => {
+    if (approved) return;
+    setCommands(prev => [...prev, {
+      command_type: 'remove_allergy',
+      display: '',
+      data: { allergy_id: null, allergy_name: '', narrative: '' },
+      selected: true,
+      section_key: '_objective_ad_hoc',
+      already_documented: false,
+    }]);
+  }, [approved]);
+
+  const handleAddResolveCondition = useCallback(() => {
+    if (approved) return;
+    setCommands(prev => [...prev, {
+      command_type: 'resolve_condition',
+      display: '',
+      data: { condition_id: null, condition_name: '', rationale: '' },
+      selected: true,
+      section_key: '_ad_hoc',
       already_documented: false,
     }]);
   }, [approved]);
@@ -1017,6 +1065,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddPlan: approved ? null : handleAddPlan,
           onAddMedication: approved ? null : handleAddMedication,
           onAddAllergy: approved ? null : handleAddAllergy,
+          onAddStopMedication: approved ? null : handleAddStopMedication,
+          onAddRemoveAllergy: approved ? null : handleAddRemoveAllergy,
+          onAddResolveCondition: approved ? null : handleAddResolveCondition,
           onAddHistory: approved ? null : handleAddHistory,
           onAddQuestionnaire: approved ? null : handleAddQuestionnaire,
           onAddCharge: approved ? null : handleAddCharge,

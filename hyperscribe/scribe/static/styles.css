@@ -1203,3 +1203,15 @@ h2 { margin-bottom: 4px; }
 .charge-check-item.read-only input[type="checkbox"] { cursor: default; }
 .charge-check-code { font-weight: 700; color: #052B49; white-space: nowrap; }
 .charge-check-desc { color: #555; }
+
+/* Removal row (stop medication, remove allergy, resolve condition) */
+.removal-row { display: flex; align-items: center; padding: 8px 12px; border-radius: 6px; gap: 8px; }
+.removal-item-name { font-size: 14px; color: #333; flex: 1; }
+.removal-select { flex: 1; padding: 7px 10px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; background: #fff; color: #333; cursor: pointer; }
+.removal-select:focus { outline: none; border-color: #052B49; }
+.removal-loading { font-size: 13px; color: #888; font-style: italic; }
+.removal-empty { font-size: 13px; color: #999; font-style: italic; }
+
+/* Removal button variant */
+.ad-hoc-btn.removal-btn { color: #dc2626; border-color: #dc2626; }
+.ad-hoc-btn.removal-btn:hover { background: #fef2f2; }

@@ -4,6 +4,7 @@ import json
 from http import HTTPStatus
 from typing import Any, Union
 
+from canvas_sdk.v1.data.medication import Status
 from logger import log
 
 from canvas_sdk.caching.plugins import get_cache
@@ -15,7 +16,7 @@ from django.db.models import Q
 
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
-from canvas_sdk.v1.data import ChargeDescriptionMaster
+from canvas_sdk.v1.data import AllergyIntolerance, ChargeDescriptionMaster, Medication
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from canvas_sdk.v1.data.questionnaire import Questionnaire as QuestionnaireModel
@@ -989,6 +990,40 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 }
             )
         return [JSONResponse({"conditions": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/patient-medications")
+    def get_patient_medications(self) -> list[Union[Response, Effect]]:
+        """Return active medications for a patient."""
+        patient_id = self.request.query_params.get("patient_id", "").strip()
+        if not patient_id:
+            return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        medications = Medication.objects.filter(
+            patient__id=patient_id, status=Status.ACTIVE, committer__isnull=False
+        ).prefetch_related("codings")
+        results = []
+        for m in medications:
+            coding = m.codings.first()
+            if not coding:
+                continue
+            results.append({"id": str(m.id), "name": coding.display})
+        return [JSONResponse({"medications": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/patient-allergies")
+    def get_patient_allergies(self) -> list[Union[Response, Effect]]:
+        """Return active allergies for a patient."""
+        patient_id = self.request.query_params.get("patient_id", "").strip()
+        if not patient_id:
+            return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        allergies = AllergyIntolerance.objects.filter(
+            patient__id=patient_id, status=Status.ACTIVE, committer__isnull=False
+        ).prefetch_related("codings")
+        results = []
+        for a in allergies:
+            coding = a.codings.first()
+            if not coding:
+                continue
+            results.append({"id": str(a.id), "name": coding.display})
+        return [JSONResponse({"allergies": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-diagnoses")
     def get_search_diagnoses(self) -> list[Union[Response, Effect]]:
