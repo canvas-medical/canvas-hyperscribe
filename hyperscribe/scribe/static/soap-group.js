@@ -1256,16 +1256,24 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               <div class="subsection-title">Prescriptions</div>
               ${rxRecs.map(entry => {
                 const d = entry.command.data;
-                const isIncomplete = !d.fdb_code || !d.sig || d.quantity_to_dispense == null || !d.type_to_dispense || d.refills == null;
+                const missingFields = [];
+                if (!d.fdb_code) missingFields.push('Medication');
+                if (d.quantity_to_dispense == null) missingFields.push('Qty');
+                if (!d.type_to_dispense) missingFields.push('Dispense type');
+                if (!d.sig) missingFields.push('Sig');
+                if (d.refills == null) missingFields.push('Refills');
+                const isIncomplete = missingFields.length > 0;
+                const isAccepted = entry.command.accepted && !entry.command.rejected;
+                const isRejected = entry.command.rejected;
 
                 return html`
-                <div class="content-block recommendation-block rec-prescribe${entry.command.already_documented ? ' rec-documented' : ''}" key=${'rec-rx-' + entry.index}>
+                <div class="content-block recommendation-block rec-prescribe${isRejected ? ' rec-rejected' : ''}" key=${'rec-rx-' + entry.index}>
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
-                      readOnly=${readOnly || entry.command.already_documented}
+                      readOnly=${readOnly || entry.command.already_documented || isRejected}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}
@@ -1273,12 +1281,18 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       isRecommendation=${true}
                     />
                   </div>
-                  ${!readOnly && !entry.command.already_documented && html`
-                    <div class="recommendation-actions">
-                      ${isIncomplete && html`<span class="rec-warning-pill">Missing Information</span>`}
-                      <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteRecommendation(entry.index)} title="Remove">${ICON_X}</button>
-                    </div>
-                  `}
+                  <div class="recommendation-actions">
+                    ${entry.command.already_documented
+                      ? html`<span class="rec-documented-badge">Already in chart</span>`
+                      : !readOnly && html`
+                          ${isIncomplete && !isRejected && html`<span class="rec-warning-pill">Missing: ${missingFields.join(', ')}</span>`}
+                          ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                          ${isAccepted && !isIncomplete && html`<span class="rec-accepted-badge">Accepted</span>`}
+                          <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                          <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                        `
+                    }
+                  </div>
                 </div>
                 `;
               })}
@@ -1296,16 +1310,20 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <div class="subsection">
               <div class="subsection-title">Referrals</div>
               ${referRecs.map(entry => {
-                const isIncomplete = !entry.command.data.service_provider;
+                const missingFields = [];
+                if (!entry.command.data.service_provider) missingFields.push('Provider');
+                const isIncomplete = missingFields.length > 0;
+                const isAccepted = entry.command.accepted && !entry.command.rejected;
+                const isRejected = entry.command.rejected;
 
                 return html`
-                <div class="content-block recommendation-block rec-refer${entry.command.already_documented ? ' rec-documented' : ''}" key=${'rec-refer-' + entry.index}>
+                <div class="content-block recommendation-block rec-refer${isRejected ? ' rec-rejected' : ''}" key=${'rec-refer-' + entry.index}>
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
-                      readOnly=${readOnly || entry.command.already_documented}
+                      readOnly=${readOnly || entry.command.already_documented || isRejected}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}
@@ -1313,12 +1331,18 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       isRecommendation=${true}
                     />
                   </div>
-                  ${!readOnly && !entry.command.already_documented && html`
-                    <div class="recommendation-actions">
-                      ${isIncomplete && html`<span class="rec-warning-pill">Missing Information</span>`}
-                      <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteRecommendation(entry.index)} title="Remove">${ICON_X}</button>
-                    </div>
-                  `}
+                  <div class="recommendation-actions">
+                    ${entry.command.already_documented
+                      ? html`<span class="rec-documented-badge">Already in chart</span>`
+                      : !readOnly && html`
+                          ${isIncomplete && !isRejected && html`<span class="rec-warning-pill">Missing: ${missingFields.join(', ')}</span>`}
+                          ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                          ${isAccepted && !isIncomplete && html`<span class="rec-accepted-badge">Accepted</span>`}
+                          <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                          <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                        `
+                    }
+                  </div>
                 </div>
                 `;
               })}

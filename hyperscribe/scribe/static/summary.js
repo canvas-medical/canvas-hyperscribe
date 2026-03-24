@@ -967,10 +967,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }
   for (const c of recommendations) {
     if (!c.already_documented && c.display) {
-      if (c.command_type === 'prescribe' && c.accepted && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) {
+      if (c.command_type === 'prescribe' && c.accepted && !c.rejected && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) {
         if (!incompleteTypes.includes('prescribe')) incompleteTypes.push('prescribe');
       }
-      if (c.command_type === 'refer' && !c.data.service_provider) {
+      if (c.command_type === 'refer' && !c.rejected && !c.data.service_provider) {
         if (!incompleteTypes.includes('refer')) incompleteTypes.push('refer');
       }
     }
@@ -981,8 +981,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.display && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null))
   ).length + recommendations.filter(c =>
     !c.already_documented && c.display && (
-      ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.accepted && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) ||
-      (c.command_type === 'refer' && !c.data.service_provider)
+      ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.accepted && !c.rejected && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) ||
+      (c.command_type === 'refer' && !c.rejected && !c.data.service_provider)
     )
   ).length;
 

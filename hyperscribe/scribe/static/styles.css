@@ -357,6 +357,11 @@ h2 { margin-bottom: 4px; }
 
 /* Muted button (unselected state in accept/reject toggle) */
 .rec-btn-muted { background: #e5e7eb; color: #9ca3af; }
+.rec-btn-disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Missing field highlights */
+.field-missing { color: #c2410c; }
+.input-missing { border-color: #f59e0b; background: #fffbeb; }
 
 /* Rejected state */
 .recommendation-block.rec-rejected { opacity: 0.5; }

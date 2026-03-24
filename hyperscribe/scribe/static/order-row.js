@@ -1056,14 +1056,21 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
             </div>
           `}
           <div class="order-form">
-            ${(activeTab === 'prescribe' || (REFILL_TABS.has(activeTab) && selectedFdb)) && html`
+            ${(activeTab === 'prescribe' || (REFILL_TABS.has(activeTab) && selectedFdb)) && (() => {
+              const rxMissing = new Set();
+              if (!selectedFdb) rxMissing.add('medication');
+              if (quantity === '' || quantity == null) rxMissing.add('qty');
+              if (!typeToDispense) rxMissing.add('type');
+              if (!sig) rxMissing.add('sig');
+              if (refills === '' || refills == null) rxMissing.add('refills');
+              return html`
               <div class="order-form">
                 <div class="history-form-field" style="position: relative;">
-                  <label class="history-form-label">Medication *</label>
+                  <label class="history-form-label${rxMissing.has('medication') ? ' field-missing' : ''}">Medication *</label>
                   <input
                     ref=${medInputRef}
                     type="text"
-                    class="history-form-input"
+                    class="history-form-input${rxMissing.has('medication') ? ' input-missing' : ''}"
                     value=${medQuery}
                     onInput=${handleMedInput}
                     placeholder="Search medications..."
@@ -1088,12 +1095,12 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 </div>
                 <div class="order-rx-grid">
                   <div class="history-form-field">
-                    <label class="history-form-label">Qty *</label>
-                    <input class="history-form-input" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" placeholder="0" />
+                    <label class="history-form-label${rxMissing.has('qty') ? ' field-missing' : ''}">Qty *</label>
+                    <input class="history-form-input${rxMissing.has('qty') ? ' input-missing' : ''}" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" placeholder="0" />
                   </div>
                   <div class="history-form-field">
-                    <label class="history-form-label">Dispense type *</label>
-                    <select class="history-form-input" value=${typeToDispense} onChange=${(e) => setTypeToDispense(e.target.value)}>
+                    <label class="history-form-label${rxMissing.has('type') ? ' field-missing' : ''}">Dispense type *</label>
+                    <select class="history-form-input${rxMissing.has('type') ? ' input-missing' : ''}" value=${typeToDispense} onChange=${(e) => setTypeToDispense(e.target.value)}>
                       <option value="">Select...</option>
                       ${medQuantities.map(o => html`
                         <option key=${o.value} value=${o.value}>${o.label}</option>
@@ -1105,13 +1112,13 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     <input class="history-form-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" placeholder="0" />
                   </div>
                   <div class="history-form-field">
-                    <label class="history-form-label">Refills *</label>
-                    <input class="history-form-input" type="number" value=${refills} onInput=${(e) => setRefills(e.target.value)} min="0" placeholder="0" />
+                    <label class="history-form-label${rxMissing.has('refills') ? ' field-missing' : ''}">Refills *</label>
+                    <input class="history-form-input${rxMissing.has('refills') ? ' input-missing' : ''}" type="number" value=${refills} onInput=${(e) => setRefills(e.target.value)} min="0" placeholder="0" />
                   </div>
                 </div>
                 <div class="history-form-field">
-                  <label class="history-form-label">Sig *</label>
-                  <input class="history-form-input" type="text" value=${sig} onInput=${(e) => setSig(e.target.value)} placeholder="e.g. Take 1 tablet by mouth daily" />
+                  <label class="history-form-label${rxMissing.has('sig') ? ' field-missing' : ''}">Sig *</label>
+                  <input class="history-form-input${rxMissing.has('sig') ? ' input-missing' : ''}" type="text" value=${sig} onInput=${(e) => setSig(e.target.value)} placeholder="e.g. Take 1 tablet by mouth daily" />
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label">Note to Pharmacist</label>
@@ -1125,7 +1132,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   </div>
                 </div>
               </div>
-            `}
+            `;})()}
             ${REFILL_TABS.has(activeTab) && !selectedFdb && html`
               <div class="history-form-field">
                 <label class="history-form-label">Select medication to ${activeTab === 'refill' ? 'refill' : 'adjust'}</label>
