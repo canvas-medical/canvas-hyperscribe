@@ -1232,13 +1232,13 @@ h2 { margin-bottom: 4px; }
 .transcript-entry-count { font-weight: 400; color: #888; }
 
 /* Charge row */
-.charge-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: background 0.15s; gap: 8px; }
-.charge-row:hover:not(.editing):not(.read-only) { background: #f5f5f5; }
-.charge-row.editing { cursor: default; flex-direction: column; align-items: stretch; }
-.charge-row-display { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-.charge-cpt-code { font-size: 14px; font-weight: 700; color: #052B49; white-space: nowrap; }
-.charge-description { font-size: 14px; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.charge-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.charge-row { cursor: pointer; }
+.charge-row.editing { cursor: default; }
+.charge-view { display: flex; align-items: center; gap: 10px; padding: 4px; cursor: pointer; }
+.charge-view-code { font-size: 14px; font-weight: 700; color: #052B49; flex-shrink: 0; }
+.charge-view-desc { font-size: 15px; color: #333; flex: 1; }
+.recommendation-block:has(.charge-view) { align-items: center; }
+.recommendation-block:has(.charge-view) .recommendation-actions { padding-top: 0; }
 .charge-search-area { position: relative; width: 100%; }
 .charge-search-input { width: 100%; padding: 8px 10px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; }
 .charge-search-input:focus { outline: none; border-color: #052B49; }

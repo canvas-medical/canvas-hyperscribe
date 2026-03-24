@@ -71,56 +71,44 @@ function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeC
 
   if (!hasCpt || editing) {
     return html`
-      <div class="charge-row editing">
-        <div class="charge-search-area">
+      <div class="charge-row">
+        <div class="history-form-field" style="position: relative;">
           <input
             type="text"
-            class="charge-search-input"
+            class="history-form-input"
             value=${query}
             onInput=${handleInput}
             placeholder="Search CPT code or description..."
             autoFocus
           />
-          ${searching && html`<span class="charge-search-spinner">Searching...</span>`}
+          ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
           ${results.length > 0 && html`
-            <div class="charge-search-dropdown">
+            <div class="history-search-dropdown">
               ${results.map(r => html`
                 <div
                   key=${r.cpt_code}
-                  class="charge-search-result"
+                  class="history-search-result"
                   onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
                 >
-                  <span class="charge-result-code">${r.cpt_code}</span>
-                  <span class="charge-result-name">${r.short_name || r.full_name}</span>
+                  <strong>${r.cpt_code}</strong>${' '}${r.short_name || r.full_name}
                 </div>
               `)}
             </div>
           `}
           ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-            <div class="charge-search-dropdown">
-              <div class="charge-search-result search-no-results">No charges found</div>
+            <div class="history-search-dropdown">
+              <div class="history-search-result search-no-results">No charges found</div>
             </div>
           `}
-        </div>
-        <div class="charge-row-actions">
-          ${hasCpt && html`<button type="button" class="edit-btn" onClick=${() => setEditing(false)}>Cancel</button>`}
-          <button type="button" class="delete-btn" onClick=${handleRemove} title="Remove charge">x</button>
         </div>
       </div>
     `;
   }
 
   return html`
-    <div class="charge-row${readOnly ? ' read-only' : ''}" onClick=${() => !readOnly && setEditing(true)}>
-      <div class="charge-row-display">
-        <span class="charge-cpt-code">${data.cpt_code}</span>
-        <span class="charge-description">${data.description || ''}</span>
-      </div>
-      ${!readOnly && html`
-        <div class="charge-row-actions">
-          <button type="button" class="delete-btn" onClick=${handleRemove} title="Remove charge">x</button>
-        </div>
-      `}
+    <div class="charge-view" onClick=${() => !readOnly && setEditing(true)}>
+      <span class="charge-view-code">${data.cpt_code}</span>
+      <span class="charge-view-desc">${data.description || ''}</span>
     </div>
   `;
 }
