@@ -712,25 +712,26 @@ h2 { margin-bottom: 4px; }
 /* History Review */
 .history-review-row { cursor: pointer; padding: 4px; border-radius: 8px; }
 .history-review-row.deselected { opacity: 0.45; }
-.history-review-row.editing { cursor: default; }
-.history-subsection { margin-bottom: 10px; }
+.history-review-row.editing { cursor: default; display: flex; flex-direction: column; gap: 16px; }
+.history-review-row.editing .command-row-textarea { width: 100%; min-height: 100px; }
+.history-subsection { margin-bottom: 12px; }
 .history-subsection:last-child { margin-bottom: 0; }
-.history-subsection-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.history-subsection-title { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; }
-.history-subsection-text { font-size: 14px; line-height: 1.6; color: #333; white-space: pre-line; }
+.history-subsection-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.history-subsection-title { font-size: 13px; font-weight: 700; color: #555; text-transform: uppercase; }
+.history-subsection-text { font-size: 15px; line-height: 1.6; color: #333; white-space: pre-line; }
 .history-divider { border: none; border-top: 1px solid #f0f0f0; margin: 8px 0; }
 .reconciliation-badge {
-  font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px;
+  font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px;
   white-space: nowrap; line-height: 1.4; cursor: pointer; user-select: none;
 }
 .reconciliation-badge.updated { background: #dbeafe; color: #1d4ed8; }
 .reconciliation-badge.updated:hover { background: #bfdbfe; }
 .reconciliation-diff {
-  margin-top: 4px; padding: 6px 8px; background: #f8fafc; border: 1px solid #e2e8f0;
-  border-radius: 4px; font-size: 12px;
+  margin-top: 6px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 6px; font-size: 13px;
 }
-.reconciliation-diff-label { font-weight: 600; color: #888; margin-bottom: 2px; font-size: 11px; }
-.reconciliation-diff-text { color: #666; line-height: 1.5; white-space: pre-line; }
+.reconciliation-diff-label { font-weight: 600; color: #888; margin-bottom: 4px; font-size: 12px; }
+.reconciliation-diff-text { color: #666; line-height: 1.6; white-space: pre-line; }
 .positive-finding { font-weight: 700; color: #1a1a1a; }
 
 /* Dev seed panel (DEV_MOCK transcript paste box) */
