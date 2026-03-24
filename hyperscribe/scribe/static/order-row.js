@@ -1141,50 +1141,44 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
               </div>
             `}
             ${activeTab === 'lab_order' && html`
-              <div class="order-lab-form">
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Lab Partner</span>
-                    <select class="labeled-field-input" value=${labPartnerId} onChange=${handleLabPartnerChange}>
-                      <option value="">Select a lab partner...</option>
-                      ${labPartners.map(p => html`
-                        <option key=${p.id} value=${p.id}>${p.name}</option>
-                      `)}
-                    </select>
-                  </div>
+              <div class="order-form">
+                <div class="history-form-field">
+                  <label class="history-form-label">Lab Partner</label>
+                  <select class="history-form-input" value=${labPartnerId} onChange=${handleLabPartnerChange}>
+                    <option value="">Select a lab partner...</option>
+                    ${labPartners.map(p => html`
+                      <option key=${p.id} value=${p.id}>${p.name}</option>
+                    `)}
+                  </select>
                 </div>
                 ${labPartnerId && html`
-                  <div class="order-rx-row">
-                    <div class="lab-test-search-wrapper" style="flex:1">
-                      <div class="labeled-field" style="width:100%">
-                        <span class="labeled-field-label">Tests</span>
-                        <input
-                          ref=${labTestInputRef}
-                          type="text"
-                          class="labeled-field-input"
-                          value=${labTestQuery}
-                          onInput=${handleLabTestInput}
-                          placeholder="Search tests..."
-                        />
+                  <div class="history-form-field" style="position: relative;">
+                    <label class="history-form-label">Tests</label>
+                    <input
+                      ref=${labTestInputRef}
+                      type="text"
+                      class="history-form-input"
+                      value=${labTestQuery}
+                      onInput=${handleLabTestInput}
+                      placeholder="Search tests..."
+                    />
+                    ${labTestSearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                    ${labTestResults.length > 0 && html`
+                      <div class="history-search-dropdown">
+                        ${labTestResults.map(t => html`
+                          <div
+                            key=${t.order_code}
+                            class="history-search-result"
+                            onMouseDown=${(e) => { e.preventDefault(); handleLabTestSelect(t); }}
+                          >${t.order_name}${t.order_code ? ` (${t.order_code})` : ''}</div>
+                        `)}
                       </div>
-                      ${labTestSearching && html`<span class="lab-test-search-spinner">Searching...</span>`}
-                      ${labTestResults.length > 0 && html`
-                        <div class="lab-test-search-dropdown">
-                          ${labTestResults.map(t => html`
-                            <div
-                              key=${t.order_code}
-                              class="lab-test-search-result"
-                              onMouseDown=${(e) => { e.preventDefault(); handleLabTestSelect(t); }}
-                            >${t.order_name}${t.order_code ? ` (${t.order_code})` : ''}</div>
-                          `)}
-                        </div>
-                      `}
-                      ${!labTestSearching && labTestSearched && labTestResults.length === 0 && labTestQuery.length >= 2 && html`
-                        <div class="lab-test-search-dropdown">
-                          <div class="lab-test-search-result search-no-results">No tests found</div>
-                        </div>
-                      `}
-                    </div>
+                    `}
+                    ${!labTestSearching && labTestSearched && labTestResults.length === 0 && labTestQuery.length >= 2 && html`
+                      <div class="history-search-dropdown">
+                        <div class="history-search-result search-no-results">No tests found</div>
+                      </div>
+                    `}
                   </div>
                   ${selectedTests.length > 0 && html`
                     <div class="lab-selected-tests">
@@ -1197,51 +1191,47 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     </div>
                   `}
                 `}
-                <div class="order-rx-row">
-                  <div class="diag-search-wrapper" style="flex:1">
-                    <div class="labeled-field" style="width:100%">
-                      <span class="labeled-field-label">Dx</span>
-                      <input
-                        ref=${diagInputRef}
-                        class="labeled-field-input"
-                        type="text"
-                        value=${diagQuery}
-                        onInput=${handleDiagInput}
-                        onFocus=${() => setDiagFocused(true)}
-                        onBlur=${() => setTimeout(() => setDiagFocused(false), 150)}
-                        placeholder="Search diagnoses..."
-                      />
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Diagnoses</label>
+                  <input
+                    ref=${diagInputRef}
+                    class="history-form-input"
+                    type="text"
+                    value=${diagQuery}
+                    onInput=${handleDiagInput}
+                    onFocus=${() => setDiagFocused(true)}
+                    onBlur=${() => setTimeout(() => setDiagFocused(false), 150)}
+                    placeholder="Search diagnoses..."
+                  />
+                  ${diagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                  ${diagResults.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      ${diagResults.map(d => html`
+                        <div
+                          key=${d.code}
+                          class="history-search-result"
+                          onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
+                        >${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
                     </div>
-                    ${diagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
-                    ${diagResults.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        ${diagResults.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                    ${!diagSearching && diagSearched && diagResults.length === 0 && diagQuery.length >= 2 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-search-result search-no-results">No diagnoses found</div>
-                      </div>
-                    `}
-                    ${diagFocused && !diagQuery && diagSuggestions.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-suggestion-header">Patient conditions</div>
-                        ${diagSuggestions.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                  </div>
+                  `}
+                  ${!diagSearching && diagSearched && diagResults.length === 0 && diagQuery.length >= 2 && html`
+                    <div class="history-search-dropdown">
+                      <div class="history-search-result search-no-results">No diagnoses found</div>
+                    </div>
+                  `}
+                  ${diagFocused && !diagQuery && diagSuggestions.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      <div class="diag-suggestion-header">Patient conditions</div>
+                      ${diagSuggestions.map(d => html`
+                        <div
+                          key=${d.code}
+                          class="history-search-result"
+                          onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
+                        >${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
+                    </div>
+                  `}
                 </div>
                 ${selectedDiagnoses.length > 0 && html`
                   <div class="lab-selected-tests">
@@ -1253,20 +1243,22 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     `)}
                   </div>
                 `}
-                <div class="order-rx-row">
-                  <button type="button" class="task-quick-btn${!labFasting ? ' active' : ''}" onClick=${() => setLabFasting(false)}>Fasting Not Required</button>
-                  <button type="button" class="task-quick-btn${labFasting ? ' active' : ''}" onClick=${() => setLabFasting(true)}>Fasting Required</button>
-                </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Comment</span>
-                    <input
-                      class="labeled-field-input"
-                      type="text"
-                      value=${labComment}
-                      onInput=${(e) => setLabComment(e.target.value)}
-                    />
+                <div class="history-form-field">
+                  <label class="history-form-label">Fasting</label>
+                  <div class="allergy-severity">
+                    <button type="button" class="task-quick-btn${!labFasting ? ' active' : ''}" onClick=${() => setLabFasting(false)}>Not Required</button>
+                    <button type="button" class="task-quick-btn${labFasting ? ' active' : ''}" onClick=${() => setLabFasting(true)}>Required</button>
                   </div>
+                </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Comment</label>
+                  <input
+                    class="history-form-input"
+                    type="text"
+                    value=${labComment}
+                    onInput=${(e) => setLabComment(e.target.value)}
+                    placeholder="Optional"
+                  />
                 </div>
               </div>
             `}
