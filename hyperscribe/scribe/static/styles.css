@@ -571,7 +571,12 @@ h2 { margin-bottom: 4px; }
 .allergy-search-result { padding: 8px 10px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
 .allergy-search-result:last-child { border-bottom: none; }
 .allergy-search-result:hover { background: #f0f0f0; }
-.allergy-severity { display: flex; gap: 6px; }
+.allergy-severity { display: flex; gap: 8px; }
+.allergy-severity-btn { padding: 8px 16px; font-size: 13px; font-weight: 600; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; color: #6b7280; cursor: pointer; transition: all 0.15s; }
+.allergy-severity-btn:active { opacity: 0.7; }
+.allergy-severity-btn.active-mild { background: #dcfce7; color: #166534; border-color: #86efac; }
+.allergy-severity-btn.active-moderate { background: #fff7ed; color: #c2410c; border-color: #fdba74; }
+.allergy-severity-btn.active-severe { background: #fef2f2; color: #b91c1c; border-color: #fca5a5; }
 .allergy-reaction-text { font-size: 13px; color: #666; font-style: italic; }
 .allergy-severity-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
 .allergy-severity-badge.severity-mild { background: #e8f5e9; color: #2e7d32; }

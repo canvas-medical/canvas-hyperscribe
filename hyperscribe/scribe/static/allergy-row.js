@@ -4,6 +4,9 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
@@ -145,79 +148,83 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
   if (editing) {
     return html`
       <div class="allergy-row editing" ref=${containerRef}>
-        <div class="subsection-title">Allergy</div>
-        <div class="allergy-search-wrapper">
-          <input
-            ref=${inputRef}
-            type="text"
-            class="allergy-row-input"
-            value=${query}
-            onInput=${handleInput}
-            onKeyDown=${handleKeyDown}
-            placeholder="Search allergies..."
-          />
-          ${searching && html`<span class="allergy-search-spinner">Searching...</span>`}
-          ${results.length > 0 && html`
-            <div class="allergy-search-dropdown">
-              ${results.map(r => html`
-                <div
-                  key=${r.concept_id}
-                  class="allergy-search-result"
-                  onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
-                >
-                  ${r.description}
-                </div>
+        <div class="history-form">
+          <div class="history-form-field" style="position: relative;">
+            <label class="history-form-label">Allergy</label>
+            <input
+              ref=${inputRef}
+              type="text"
+              class="history-form-input"
+              value=${query}
+              onInput=${handleInput}
+              onKeyDown=${handleKeyDown}
+              placeholder="Search allergies..."
+            />
+            ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
+            ${results.length > 0 && html`
+              <div class="history-search-dropdown">
+                ${results.map(r => html`
+                  <div
+                    key=${r.concept_id}
+                    class="history-search-result"
+                    onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
+                  >
+                    ${r.description}
+                  </div>
+                `)}
+              </div>
+            `}
+            ${!searching && searched && results.length === 0 && query.length >= 2 && html`
+              <div class="history-search-dropdown">
+                <div class="history-search-result search-no-results">No allergies found</div>
+              </div>
+            `}
+          </div>
+          <div class="history-form-field">
+            <label class="history-form-label">Reaction</label>
+            <input
+              type="text"
+              class="history-form-input"
+              value=${reaction}
+              onInput=${(e) => setReaction(e.target.value)}
+              onKeyDown=${handleKeyDown}
+              placeholder="e.g. rash, hives"
+            />
+          </div>
+          <div class="history-form-field">
+            <label class="history-form-label">Severity</label>
+            <div class="allergy-severity">
+              ${['mild', 'moderate', 'severe'].map(s => html`
+                <button
+                  key=${s}
+                  type="button"
+                  class="allergy-severity-btn${severity === s ? ' active-' + s : ''}"
+                  onClick=${() => setSeverity(severity === s ? '' : s)}
+                >${s[0].toUpperCase() + s.slice(1)}</button>
               `)}
             </div>
-          `}
-          ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-            <div class="allergy-search-dropdown">
-              <div class="allergy-search-result search-no-results">No allergies found</div>
-            </div>
-          `}
-        </div>
-        ${selectedConceptId && html`
-          <span class="allergy-structured-badge">Coded</span>
-        `}
-        <input
-          type="text"
-          class="allergy-row-input"
-          value=${reaction}
-          onInput=${(e) => setReaction(e.target.value)}
-          onKeyDown=${handleKeyDown}
-          placeholder="Reaction (e.g. rash, hives)"
-        />
-        <div class="allergy-severity">
-          ${['mild', 'moderate', 'severe'].map(s => html`
-            <button
-              key=${s}
-              type="button"
-              class="task-quick-btn${severity === s ? ' active' : ''}"
-              onClick=${() => setSeverity(severity === s ? '' : s)}
-            >${s[0].toUpperCase() + s.slice(1)}</button>
-          `)}
-        </div>
-        <div class="command-row-actions">
-          <button class="edit-btn" onClick=${handleSave}>Save</button>
-          <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
-          <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
+          </div>
+          <div class="questionnaire-form-actions">
+            <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
+            <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancel} title="Cancel">${ICON_X}</button>
+          </div>
         </div>
       </div>
     `;
   }
 
   // View mode.
+  const details = [];
+  if (command.data.reaction) details.push(command.data.reaction);
+  if (command.data.severity) details.push(command.data.severity);
+
   return html`
     <div class="allergy-row"
          onClick=${() => !readOnly && setEditing(true)}>
-      <div class="subsection-title">Allergy</div>
-      <span class="allergy-row-text">${command.display}</span>
-      ${command.data.reaction && html`<span class="allergy-reaction-text">${command.data.reaction}</span>`}
-      ${command.data.severity && html`<span class="allergy-severity-badge severity-${command.data.severity}">${command.data.severity}</span>`}
-      ${isStructured
-        ? html`<span class="allergy-structured-badge">Coded</span>`
-        : html`<span class="allergy-unstructured-badge">Unstructured</span>`
-      }
+      <div class="order-view">
+        <div class="order-view-name">${command.display}</div>
+        ${details.length > 0 && html`<div class="order-view-sig">${details.join(' · ')}</div>`}
+      </div>
     </div>
   `;
 }
