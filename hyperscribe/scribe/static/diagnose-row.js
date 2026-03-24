@@ -4,6 +4,9 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
@@ -21,7 +24,7 @@ function formatIcdCode(raw) {
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
-export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions }) {
+export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions, onAccept }) {
   const data = command.data || {};
   const hasCode = !!data.icd10_code;
 
@@ -92,12 +95,16 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   };
 
   const handleSelect = (result) => {
+    const display = result.display || result.description || '';
     const newData = {
       ...data,
       icd10_code: result.code,
-      icd10_display: result.display || result.description || '',
+      icd10_display: display,
+      condition_header: display,
+      _original_header: data._original_header || data.condition_header || '',
+      accepted: true,
+      rejected: false,
     };
-    const display = result.display || result.description || command.display;
     onEdit(commandIndex, newData, 'diagnose');
     setResults([]);
     setSearched(false);
@@ -107,7 +114,8 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
 
   const handleClearCode = () => {
     if (readOnly) return;
-    const newData = { ...data, icd10_code: null, icd10_display: '' };
+    const originalHeader = command.data._original_header || data.condition_header || '';
+    const newData = { ...data, icd10_code: null, icd10_display: '', condition_header: originalHeader, accepted: false, rejected: false };
     onEdit(commandIndex, newData, 'diagnose');
     setEditingCode(true);
     setQuery('');
@@ -150,44 +158,36 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
     <div class="diagnose-row" ref=${containerRef}>
       <div class="diagnose-row-header">
         <span class="diagnose-row-title">${title}</span>
-        ${!hasCode && !editingCode && !readOnly && html`
-          <button
-            type="button"
-            class="diagnose-search-btn"
-            onClick=${() => setEditingCode(true)}
-          >Add ICD-10</button>
-        `}
       </div>
 
       ${editingCode && !readOnly && html`
-        <div class="diagnose-search-area">
+        <div class="history-form-field" style="position: relative;">
           <input
             ref=${inputRef}
             type="text"
-            class="diagnose-search-input"
+            class="history-form-input"
             value=${query}
             onInput=${handleInput}
             onKeyDown=${handleKeyDown}
             placeholder="Search diagnosis..."
           />
-          ${searching && html`<span class="diagnose-search-spinner">Searching...</span>`}
+          ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
           ${results.length > 0 && html`
-            <div class="diagnose-search-dropdown">
+            <div class="history-search-dropdown">
               ${results.map(r => html`
                 <div
                   key=${r.code}
-                  class="diagnose-search-result"
+                  class="history-search-result"
                   onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
                 >
-                  <span class="diagnose-result-display">${r.display || r.description}</span>
-                  ${r.code && html`<span class="diagnose-result-code">${formatIcdCode(r.code)}</span>`}
+                  ${r.code && html`<strong>${formatIcdCode(r.code)}</strong>`}${' '}${r.display || r.description}
                 </div>
               `)}
             </div>
           `}
           ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-            <div class="diagnose-search-dropdown">
-              <div class="diagnose-search-result search-no-results">No diagnoses found</div>
+            <div class="history-search-dropdown">
+              <div class="history-search-result search-no-results">No diagnoses found</div>
             </div>
           `}
         </div>
@@ -211,30 +211,31 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
         <div class="diagnose-edit-area">
           <textarea
             ref=${textareaRef}
-            class="diagnose-textarea"
+            class="command-row-textarea"
             value=${assessment}
             onInput=${(e) => setAssessment(e.target.value)}
             onKeyDown=${handleTextKeyDown}
           />
           <div class="command-row-actions">
-            <button class="edit-btn" onClick=${handleSaveAssessment}>Save</button>
-            <button class="edit-btn" onClick=${handleCancelAssessment}>Cancel</button>
+            <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSaveAssessment} title="Save">${ICON_CHECK}</button>
+            <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancelAssessment} title="Cancel">${ICON_X}</button>
           </div>
         </div>
       `}
 
       ${!hasCode && !readOnly && suggestions && suggestions.length > 0 && html`
         <div class="diagnose-suggestions">
-          <div class="diagnose-suggestions-label">Suggested codes</div>
-          <div class="diagnose-suggestions-chips">
+          <div class="history-form-label">Suggested codes</div>
+          <div class="diagnose-suggestions-list">
             ${suggestions.map(s => html`
               <button
                 key=${s.code}
                 type="button"
-                class="ap-suggested-chip"
+                class="diagnose-suggestion-btn"
                 onClick=${() => handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code })}
-                title=${s.display}
-              >${s.formatted_code} ${s.display}</button>
+              >
+                <strong>${s.formatted_code}</strong>${' '}${s.display}
+              </button>
             `)}
           </div>
         </div>

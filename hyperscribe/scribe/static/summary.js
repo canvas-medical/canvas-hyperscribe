@@ -77,8 +77,8 @@ const SKELETON_SECTIONS = [
   { key: 'social_history', title: 'Social History', text: '' },
   { key: 'vitals', title: 'Vitals', text: '' },
   { key: 'physical_exam', title: 'Physical Exam', text: '' },
-  { key: 'current_medications', title: 'Medication List Updates', text: '' },
-  { key: 'allergies', title: 'Allergy List Updates', text: '' },
+  { key: 'current_medications', title: 'Medications Discussed During Encounter', text: '' },
+  { key: 'allergies', title: 'Allergies Discussed During Encounter', text: '' },
   { key: 'assessment_and_plan', title: 'Assessment & Plan', text: '' },
 ];
 
@@ -103,7 +103,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -131,7 +131,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddRemoveAllergy=${isObjective ? onAddRemoveAllergy : null}
         onAddResolveCondition=${isPlan ? onAddResolveCondition : null}
         onAddHistory=${isHistory ? onAddHistory : null}
-        onAddQuestionnaire=${isObjective ? onAddQuestionnaire : null}
+        onAddQuestionnaire=${isSubjective ? onAddQuestionnaire : null}
         onAddCharge=${isCharges ? onAddCharge : null}
         onAddTemplateCharge=${isCharges ? onAddTemplateCharge : null}
         onRemoveChargeByCpt=${isCharges ? onRemoveChargeByCpt : null}
@@ -145,6 +145,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         recommendations=${(isObjective || isPlan) ? recommendations : null}
         onEditRecommendation=${(isObjective || isPlan) ? onEditRecommendation : null}
         onDeleteRecommendation=${(isObjective || isPlan) ? onDeleteRecommendation : null}
+        onRejectRecommendation=${(isObjective || isPlan) ? onRejectRecommendation : null}
         onAcceptRecommendation=${(isObjective || isPlan) ? onAcceptRecommendation : null}
         onAddCondition=${isPlan ? onAddCondition : null}
         unmatchedConditions=${isPlan ? unmatchedConditions : null}
@@ -501,7 +502,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           return { ...cmd, data: newData, display };
         }
         if (type === 'vitals') {
-          return { ...cmd, data: newData };
+          const vParts = [];
+          const sys = newData.blood_pressure_systole;
+          const dia = newData.blood_pressure_diastole;
+          if (sys != null && dia != null) vParts.push(`BP ${sys}/${dia} mmHg`);
+          if (newData.pulse != null) vParts.push(`HR ${newData.pulse} bpm`);
+          if (newData.respiration_rate != null) vParts.push(`RR ${newData.respiration_rate} /min`);
+          if (newData.oxygen_saturation != null) vParts.push(`SpO2 ${newData.oxygen_saturation}%`);
+          if (newData.body_temperature != null) vParts.push(`Temp ${newData.body_temperature} °F`);
+          if (newData.height != null) vParts.push(`Height ${newData.height} in`);
+          if (newData.weight_lbs != null) vParts.push(`Weight ${newData.weight_lbs} lbs`);
+          return { ...cmd, data: newData, display: vParts.join(', ') || 'Vitals' };
         }
         if (type === 'medication_statement') {
           return { ...cmd, data: newData, display: newData.medication_text || '' };
@@ -536,12 +547,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           return { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
         }
         if (type === 'medicalHistory') {
-          const parts = [newData.past_medical_history, newData.comments].filter(Boolean);
-          return { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
+          const parts = [newData.past_medical_history];
+          const dates = [newData.approximate_start_date, newData.approximate_end_date].filter(Boolean);
+          if (dates.length) parts.push(dates.join(' – '));
+          if (newData.comments) parts.push(newData.comments);
+          return { ...cmd, command_type: type, data: newData, display: parts.filter(Boolean).join(' — ') || '' };
         }
         if (type === 'surgicalHistory') {
-          const parts = [newData.procedure_display, newData.comment].filter(Boolean);
-          return { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
+          const parts = [newData.procedure_display];
+          if (newData.approximate_date) parts.push(newData.approximate_date);
+          if (newData.comment) parts.push(newData.comment);
+          return { ...cmd, command_type: type, data: newData, display: parts.filter(Boolean).join(' — ') || '' };
         }
         if (type === 'questionnaire') {
           return { ...cmd, command_type: type, data: newData, display: newData.questionnaire_name || '' };
@@ -562,7 +578,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (type === 'diagnose') {
           const display = newData.icd10_display || newData.condition_header || cmd.display;
           const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
-          return { ...cmd, command_type: type, data: { ...newData, accepted }, display };
+          const rejected = newData.rejected || false;
+          return { ...cmd, command_type: type, data: { ...newData, accepted, rejected }, display };
+        }
+        if (type === 'assess') {
+          return { ...cmd, data: newData };
         }
         const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
         const text = newData[field] || '';
@@ -665,7 +685,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const handleAcceptRecommendation = useCallback((index) => {
     setRecommendations(prev => prev.map((cmd, i) =>
-      i === index ? { ...cmd, accepted: !cmd.accepted } : cmd
+      i === index ? { ...cmd, accepted: true, rejected: false } : cmd
+    ));
+  }, []);
+
+  const handleRejectRecommendation = useCallback((index) => {
+    setRecommendations(prev => prev.map((cmd, i) =>
+      i === index ? { ...cmd, rejected: true, accepted: false } : cmd
     ));
   }, []);
 
@@ -929,7 +955,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral' };
   const incompleteTypes = [];
   for (const c of commands) {
-    if (c.command_type === 'diagnose' && c.display && (!c.data.icd10_code || !c.data.accepted)) {
+    if (c.command_type === 'diagnose' && c.display && !c.data.rejected && (!c.data.icd10_code || !c.data.accepted)) {
       if (!incompleteTypes.includes('diagnose')) incompleteTypes.push('diagnose');
     }
     if (c.command_type === 'imaging_order' && c.display && !c.data.service_provider) {
@@ -941,22 +967,22 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }
   for (const c of recommendations) {
     if (!c.already_documented && c.display) {
-      if (c.command_type === 'prescribe' && c.accepted && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) {
+      if (c.command_type === 'prescribe' && !c.rejected && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) {
         if (!incompleteTypes.includes('prescribe')) incompleteTypes.push('prescribe');
       }
-      if (c.command_type === 'refer' && !c.data.service_provider) {
+      if (c.command_type === 'refer' && !c.rejected && !c.data.service_provider) {
         if (!incompleteTypes.includes('refer')) incompleteTypes.push('refer');
       }
     }
   }
   const incompleteCount = commands.filter(c =>
-    (c.command_type === 'diagnose' && c.display && (!c.data.icd10_code || !c.data.accepted)) ||
+    (c.command_type === 'diagnose' && c.display && !c.data.rejected && (!c.data.icd10_code || !c.data.accepted)) ||
     (c.command_type === 'imaging_order' && c.display && !c.data.service_provider) ||
     ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.display && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null))
   ).length + recommendations.filter(c =>
     !c.already_documented && c.display && (
-      ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.accepted && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) ||
-      (c.command_type === 'refer' && !c.data.service_provider)
+      ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && !c.rejected && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) ||
+      (c.command_type === 'refer' && !c.rejected && !c.data.service_provider)
     )
   ).length;
 
@@ -1101,6 +1127,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onEditRecommendation: handleEditRecommendation,
           onDeleteRecommendation: handleDeleteRecommendation,
           onAcceptRecommendation: handleAcceptRecommendation,
+          onRejectRecommendation: handleRejectRecommendation,
           onAddCondition: approved ? null : handleAddCondition,
           unmatchedConditions,
           diagnosisSuggestions,
@@ -1108,15 +1135,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       </div>
       ${prescriptionWarning && html`
         <div class="rx-verification-banner">
-          <div class="rx-verification-icon">!</div>
           <div class="rx-verification-text">
-            <strong>Prescriptions require verification</strong>
-            <p>Please go to the <strong>Note</strong> tab to review and sign prescriptions before they are sent.</p>
+            <strong>Prescriptions require verification.</strong> Go to the Note tab to review and sign prescriptions before they are sent.
           </div>
           <button class="rx-verification-close" onClick=${() => {
             const port = window.__canvasPort && window.__canvasPort();
             if (port) port.postMessage({ type: 'CLOSE_MODAL' });
-          }}>I've reviewed — close</button>
+          }}>Close</button>
         </div>
       `}
       ${showFooter && html`
