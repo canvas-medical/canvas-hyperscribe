@@ -348,17 +348,17 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly }) {
 
   if (editing && !readOnly) {
     return html`
-      <div class="diagnose-edit-area">
+      <div class="diagnose-edit-area editing">
         <textarea
           ref=${textareaRef}
-          class="diagnose-textarea"
+          class="command-row-textarea"
           value=${narrative}
           onInput=${(e) => setNarrative(e.target.value)}
           onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}
         />
         <div class="command-row-actions">
-          <button class="edit-btn" onClick=${handleSave}>Save</button>
-          <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
+          <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
+          <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancel} title="Cancel">${ICON_X}</button>
         </div>
       </div>
     `;
@@ -640,6 +640,21 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                     </div>
                   `}
+                  ${((adHocCommands || []).filter(e => e.command.command_type === 'resolve_condition')).map(re => html`
+                    <div class="content-block recommendation-block rec-removal" key=${re.index}>
+                      <div class="recommendation-content">
+                        <${RemovalRow}
+                          command=${re.command}
+                          commandIndex=${re.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                          patientId=${patientId}
+                        />
+                      </div>
+                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(re.index)} title="Remove">${ICON_X}</button></div>`}
+                    </div>
+                  `)}
                   ${(onAddCondition || onAddResolveCondition) && !readOnly && html`
                     <div class="ad-hoc-buttons">
                       ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
@@ -651,6 +666,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             }
             const entry = cmds[0];
             if (readOnly && !entry.command.display) return null;
+            const showConditionBtns = isPlan && (onAddCondition || onAddResolveCondition) && !readOnly;
+            const planResolves = isPlan ? (adHocCommands || []).filter(e => e.command.command_type === 'resolve_condition') : [];
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
@@ -662,6 +679,27 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     readOnly=${readOnly}
                   />
                 </div>
+                ${planResolves.map(re => html`
+                  <div class="content-block recommendation-block rec-removal" key=${re.index}>
+                    <div class="recommendation-content">
+                      <${RemovalRow}
+                        command=${re.command}
+                        commandIndex=${re.index}
+                        onEdit=${onEditCommand}
+                        onDelete=${onDeleteCommand}
+                        readOnly=${readOnly}
+                        patientId=${patientId}
+                      />
+                    </div>
+                    ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(re.index)} title="Remove">${ICON_X}</button></div>`}
+                  </div>
+                `)}
+                ${showConditionBtns && html`
+                  <div class="ad-hoc-buttons">
+                    ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
+                    ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
+                  </div>
+                `}
               </div>
             `;
           }
@@ -917,12 +955,32 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory(historyType)}>${HISTORY_ADD_LABELS[historyType]}</button>
                 </div>
               `}
-              ${PLAN_SECTIONS.has(key) && (onAddCondition || onAddResolveCondition) && !readOnly && html`
-                <div class="ad-hoc-buttons">
-                  ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
-                  ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
-                </div>
-              `}
+              ${PLAN_SECTIONS.has(key) && (() => {
+                const adHocResolves = (adHocCommands || []).filter(e => e.command.command_type === 'resolve_condition');
+                return html`
+                  ${adHocResolves.map(entry => html`
+                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${RemovalRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                          patientId=${patientId}
+                        />
+                      </div>
+                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                    </div>
+                  `)}
+                  ${(onAddCondition || onAddResolveCondition) && !readOnly && html`
+                    <div class="ad-hoc-buttons">
+                      ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
+                      ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
+                    </div>
+                  `}
+                `;
+              })()}
             </div>
           `;
         })}
@@ -950,6 +1008,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (type === 'allergy') return null;
           if (type === 'stop_medication') return null;
           if (type === 'remove_allergy') return null;
+          if (type === 'resolve_condition') return null;
           if (type === 'task') {
             return html`
               <div class="content-block recommendation-block rec-task" key=${entry.index}>
@@ -1249,7 +1308,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <button type="button" class="ad-hoc-btn" onClick=${onAddTask}>+ Task</button>
             <button type="button" class="ad-hoc-btn" onClick=${onAddOrder}>+ Order</button>
             ${onAddPlan && html`<button type="button" class="ad-hoc-btn" onClick=${onAddPlan}>+ Plan</button>`}
-            ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
           </div>
         `}
       </div>

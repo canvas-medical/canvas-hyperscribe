@@ -579,6 +579,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
           return { ...cmd, command_type: type, data: { ...newData, accepted }, display };
         }
+        if (type === 'assess') {
+          return { ...cmd, data: newData };
+        }
         const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
         const text = newData[field] || '';
         return { ...cmd, data: newData, display: text };

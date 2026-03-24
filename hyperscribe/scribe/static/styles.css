@@ -796,9 +796,7 @@ h2 { margin-bottom: 4px; }
 .diagnose-row-body.editable:hover { background: #f0f0f0; }
 .diagnose-body-line { min-height: 1.4em; }
 .diagnose-body-empty { color: #aaa; font-style: italic; }
-.diagnose-edit-area { margin-top: 4px; }
-.diagnose-textarea { width: 100%; min-height: 80px; padding: 8px; font-family: inherit; font-size: 14px; line-height: 1.6; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
-.diagnose-textarea:focus { outline: none; border-color: #052B49; }
+.diagnose-edit-area { display: flex; align-items: flex-start; gap: 12px; margin-top: 4px; }
 
 /* Suggested codings + unmatched condition chips below A&P blocks */
 .ap-suggested-codes { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e8e8ec; }
@@ -1239,6 +1237,8 @@ h2 { margin-bottom: 4px; }
 .charge-view-desc { font-size: 15px; color: #333; flex: 1; }
 .recommendation-block:has(.charge-view) { align-items: center; }
 .recommendation-block:has(.charge-view) .recommendation-actions { padding-top: 0; }
+.recommendation-block.rec-assess:not(:has(.editing)) { align-items: center; }
+.recommendation-block.rec-assess:not(:has(.editing)) .recommendation-actions { padding-top: 0; }
 .charge-search-area { position: relative; width: 100%; }
 .charge-search-input { width: 100%; padding: 8px 10px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; }
 .charge-search-input:focus { outline: none; border-color: #052B49; }
