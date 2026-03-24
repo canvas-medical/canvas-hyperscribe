@@ -191,7 +191,10 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
 
   return html`
     <div class="vitals-row" onClick=${() => !readOnly && setEditing(true)}>
-      <div class="vitals-values">${items}</div>
+      ${items.length > 0
+        ? html`<div class="vitals-values">${items}</div>`
+        : html`<span class="vitals-placeholder">Tap to enter vitals</span>`
+      }
     </div>
   `;
 }

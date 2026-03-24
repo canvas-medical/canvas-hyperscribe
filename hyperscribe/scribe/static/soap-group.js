@@ -653,6 +653,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               `;
             }
             const entry = cmds[0];
+            if (readOnly && !entry.command.display) return null;
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
@@ -670,6 +671,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
 
           if (key === 'vitals' && cmds) {
             const entry = cmds[0];
+            const hasVitals = Object.values(entry.command.data || {}).some(v => v != null);
+            if (readOnly && !hasVitals) return null;
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>

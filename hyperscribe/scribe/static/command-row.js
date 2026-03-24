@@ -66,7 +66,10 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly }
 
   return html`
     <div class="command-row" onClick=${() => !readOnly && setEditing(true)}>
-      <span class="command-row-text">${command.display}</span>
+      ${command.display
+        ? html`<span class="command-row-text">${command.display}</span>`
+        : !readOnly && html`<span class="command-row-placeholder">Tap to enter text</span>`
+      }
     </div>
   `;
 }
