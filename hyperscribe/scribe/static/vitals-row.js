@@ -4,6 +4,9 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+
 const VITALS_FIELDS = [
   { key: 'blood_pressure_systole', pair: 'blood_pressure_diastole', label: 'BP', unit: 'mmHg' },
   { key: 'pulse', label: 'HR', unit: 'bpm' },
@@ -34,26 +37,39 @@ export { formatVitalsDisplay };
 export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ ...command.data });
+  const [tempRaw, setTempRaw] = useState(command.data.body_temperature != null ? String(command.data.body_temperature) : '');
 
   const updateField = (key, raw) => {
+    if (key === 'body_temperature') {
+      setTempRaw(raw.replace(',', '.'));
+      return;
+    }
     setDraft(prev => {
       const next = { ...prev };
       if (raw === '') {
         delete next[key];
       } else {
-        next[key] = key === 'body_temperature' ? parseFloat(raw) : parseInt(raw, 10);
+        next[key] = parseInt(raw, 10);
       }
       return next;
     });
   };
 
   const handleSave = () => {
-    onEdit(commandIndex, draft);
+    const data = { ...draft };
+    if (tempRaw === '') {
+      delete data.body_temperature;
+    } else {
+      const val = parseFloat(tempRaw);
+      if (!isNaN(val)) data.body_temperature = val;
+    }
+    onEdit(commandIndex, data);
     setEditing(false);
   };
 
   const handleCancel = () => {
     setDraft({ ...command.data });
+    setTempRaw(command.data.body_temperature != null ? String(command.data.body_temperature) : '');
     setEditing(false);
   };
 
@@ -64,17 +80,16 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
   if (editing) {
     return html`
       <div class="vitals-row editing" onKeyDown=${handleKeyDown}>
-
-        <div class="vitals-grid">
+        <div class="vitals-edit-fields">
           ${VITALS_FIELDS.map(f => {
             if (f.pair) {
               return html`
-                <div class="vitals-field vitals-bp" key=${f.key}>
-                  <div class="labeled-field">
-                    <span class="labeled-field-label">${f.label}</span>
+                <div class="vitals-edit-field vitals-edit-bp" key=${f.key}>
+                  <span class="vitals-edit-label">${f.label}</span>
+                  <div class="vitals-bp-inputs">
                     <input
                       type="number"
-                      class="labeled-field-input labeled-field-narrow"
+                      class="vitals-edit-input"
                       value=${draft[f.key] ?? ''}
                       onInput=${(e) => updateField(f.key, e.target.value)}
                       placeholder="sys"
@@ -82,36 +97,34 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
                     <span class="vitals-bp-slash">/</span>
                     <input
                       type="number"
-                      class="labeled-field-input labeled-field-narrow"
+                      class="vitals-edit-input"
                       value=${draft[f.pair] ?? ''}
                       onInput=${(e) => updateField(f.pair, e.target.value)}
                       placeholder="dia"
                     />
                   </div>
-                  <span class="vitals-unit">${f.unit}</span>
+                  <span class="vitals-edit-unit">${f.unit}</span>
                 </div>
               `;
             }
             return html`
-              <div class="vitals-field" key=${f.key}>
-                <div class="labeled-field">
-                  <span class="labeled-field-label">${f.label}</span>
-                  <input
-                    type="number"
-                    step=${f.step || '1'}
-                    class="labeled-field-input labeled-field-narrow"
-                    value=${draft[f.key] ?? ''}
-                    onInput=${(e) => updateField(f.key, e.target.value)}
-                  />
-                </div>
-                <span class="vitals-unit">${f.unit}</span>
+              <div class="vitals-edit-field" key=${f.key}>
+                <span class="vitals-edit-label">${f.label}</span>
+                <input
+                  type=${f.step ? 'text' : 'number'}
+                  inputMode="decimal"
+                  class="vitals-edit-input"
+                  value=${f.step ? tempRaw : (draft[f.key] ?? '')}
+                  onInput=${(e) => updateField(f.key, e.target.value)}
+                />
+                <span class="vitals-edit-unit">${f.unit}</span>
               </div>
             `;
           })}
         </div>
         <div class="command-row-actions">
-          <button class="edit-btn" onClick=${handleSave}>Save</button>
-          <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
+          <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
+          <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancel} title="Cancel">${ICON_X}</button>
         </div>
       </div>
     `;

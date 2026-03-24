@@ -501,7 +501,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           return { ...cmd, data: newData, display };
         }
         if (type === 'vitals') {
-          return { ...cmd, data: newData };
+          const vParts = [];
+          const sys = newData.blood_pressure_systole;
+          const dia = newData.blood_pressure_diastole;
+          if (sys != null && dia != null) vParts.push(`BP ${sys}/${dia} mmHg`);
+          if (newData.pulse != null) vParts.push(`HR ${newData.pulse} bpm`);
+          if (newData.respiration_rate != null) vParts.push(`RR ${newData.respiration_rate} /min`);
+          if (newData.oxygen_saturation != null) vParts.push(`SpO2 ${newData.oxygen_saturation}%`);
+          if (newData.body_temperature != null) vParts.push(`Temp ${newData.body_temperature} °F`);
+          if (newData.height != null) vParts.push(`Height ${newData.height} in`);
+          if (newData.weight_lbs != null) vParts.push(`Weight ${newData.weight_lbs} lbs`);
+          return { ...cmd, data: newData, display: vParts.join(', ') || 'Vitals' };
         }
         if (type === 'medication_statement') {
           return { ...cmd, data: newData, display: newData.medication_text || '' };

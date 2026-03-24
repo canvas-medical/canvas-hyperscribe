@@ -505,19 +505,21 @@ h2 { margin-bottom: 4px; }
 /* Inline vitals rows */
 .vitals-row { display: flex; align-items: flex-start; gap: 8px; padding: 4px; border-radius: 8px; cursor: pointer; }
 .vitals-row.deselected { opacity: 0.45; }
-.vitals-row.editing { flex-direction: column; cursor: default; }
-.vitals-values { display: flex; flex-wrap: wrap; gap: 8px 18px; flex: 1; font-size: 14px; line-height: 1.6; color: #333; }
+.vitals-row.editing { cursor: default; }
+.vitals-values { display: flex; flex-wrap: wrap; gap: 8px 18px; flex: 1; font-size: 15px; line-height: 1.6; color: #333; }
 .vitals-item { padding: 2px 0; }
 .vitals-item strong { font-weight: 600; color: #555; margin-right: 2px; }
-.vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-top: 6px; }
-.vitals-field { display: flex; align-items: center; gap: 4px; }
-.vitals-bp { grid-column: span 2; }
-.vitals-bp-inputs { display: flex; align-items: center; gap: 2px; }
+
+/* Vitals edit form */
+.vitals-edit-fields { display: flex; flex-wrap: wrap; gap: 10px; flex: 1; }
+.vitals-edit-field { display: flex; align-items: center; gap: 6px; }
+.vitals-edit-bp { }
+.vitals-edit-label { font-size: 13px; font-weight: 600; color: #6b7280; min-width: 40px; }
+.vitals-edit-input { width: 72px; padding: 8px 8px; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; text-align: center; }
+.vitals-edit-input:focus { outline: none; border-color: #052B49; }
+.vitals-edit-unit { font-size: 12px; color: #999; }
+.vitals-bp-inputs { display: flex; align-items: center; gap: 4px; }
 .vitals-bp-slash { font-weight: 600; color: #888; }
-.vitals-label { font-size: 12px; font-weight: 600; color: #888; min-width: 42px; }
-.vitals-input { width: 64px; padding: 4px 6px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; text-align: right; }
-.vitals-input:focus { outline: none; border-color: #052B49; }
-.vitals-unit { font-size: 12px; color: #999; }
 
 /* Medication rows */
 .medication-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px; border-radius: 8px; cursor: pointer; }
