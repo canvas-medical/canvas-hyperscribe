@@ -75,7 +75,7 @@ class NablaBackend(ScribeBackend):
 
     # Remap section titles from Nabla to user-facing labels.
     _TITLE_OVERRIDES: dict[str, str] = {
-        "current_medications": "Medication List Updates",
+        "current_medications": "Medications Discussed During Encounter",
         "allergies": "Allergies Discussed During Encounter",
         "past_medical_history": "Past Medical History Discussed During Encounter",
     }

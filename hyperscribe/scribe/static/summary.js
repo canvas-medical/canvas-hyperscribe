@@ -77,8 +77,8 @@ const SKELETON_SECTIONS = [
   { key: 'social_history', title: 'Social History', text: '' },
   { key: 'vitals', title: 'Vitals', text: '' },
   { key: 'physical_exam', title: 'Physical Exam', text: '' },
-  { key: 'current_medications', title: 'Medication List Updates', text: '' },
-  { key: 'allergies', title: 'Allergy List Updates', text: '' },
+  { key: 'current_medications', title: 'Medications Discussed During Encounter', text: '' },
+  { key: 'allergies', title: 'Allergies Discussed During Encounter', text: '' },
   { key: 'assessment_and_plan', title: 'Assessment & Plan', text: '' },
 ];
 

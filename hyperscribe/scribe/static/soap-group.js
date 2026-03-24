@@ -137,9 +137,9 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
   const [loading, setLoading] = useState(false);
 
   const config = {
-    stop_medication: { endpoint: 'patient-medications', listKey: 'medications', idField: 'medication_id', nameField: 'medication_name', labelPlural: 'medications', placeholder: 'Select medication to stop...' },
-    remove_allergy: { endpoint: 'patient-allergies', listKey: 'allergies', idField: 'allergy_id', nameField: 'allergy_name', labelPlural: 'allergies', placeholder: 'Select allergy to remove...' },
-    resolve_condition: { endpoint: 'patient-conditions', listKey: 'conditions', idField: 'condition_id', nameField: 'condition_name', labelPlural: 'conditions', placeholder: 'Select condition to resolve...' },
+    stop_medication: { endpoint: 'patient-medications', listKey: 'medications', idField: 'medication_id', nameField: 'medication_name', labelPlural: 'medications', placeholder: 'Select medication to stop...', actionLabel: 'STOP' },
+    remove_allergy: { endpoint: 'patient-allergies', listKey: 'allergies', idField: 'allergy_id', nameField: 'allergy_name', labelPlural: 'allergies', placeholder: 'Select allergy to remove...', actionLabel: 'REMOVE' },
+    resolve_condition: { endpoint: 'patient-conditions', listKey: 'conditions', idField: 'condition_id', nameField: 'condition_name', labelPlural: 'conditions', placeholder: 'Select condition to resolve...', actionLabel: 'RESOLVE' },
   }[type];
 
   useEffect(() => {
@@ -190,7 +190,6 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
               </select>`
             : html`<span class="removal-empty">No active ${config.labelPlural}</span>`
         }
-        <button type="button" class="delete-btn" onClick=${handleRemove} title="Cancel">x</button>
       </div>
     `;
   }
@@ -198,10 +197,8 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
   const itemName = data[config.nameField] || '';
   return html`
     <div class="removal-row${readOnly ? ' read-only' : ''}">
+      <span class="removal-action-label">${config.actionLabel}</span>
       <span class="removal-item-name">${itemName}</span>
-      ${!readOnly && html`
-        <button type="button" class="delete-btn" onClick=${handleRemove} title="Remove">x</button>
-      `}
     </div>
   `;
 }
@@ -721,7 +718,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const medRecs = (recommendations || [])
               .map((cmd, i) => ({ command: cmd, index: i }))
               .filter(e => e.command.command_type === 'medication_statement');
-            if (cmds || medRecs.length > 0 || onAddMedication) {
+            const adHocMeds = (adHocCommands || []).filter(e => e.command.command_type === 'medication_statement');
+            const adHocStopMeds = (adHocCommands || []).filter(e => e.command.command_type === 'stop_medication');
+            if (cmds || medRecs.length > 0 || adHocMeds.length > 0 || adHocStopMeds.length > 0 || onAddMedication) {
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${s.title}</div>
@@ -734,6 +733,23 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
                           readOnly=${readOnly}
+                        />
+                      </div>
+                      ${!readOnly && html`
+                        <div class="recommendation-actions">
+                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                        </div>
+                      `}
+                    </div>
+                  `)}
+                  ${adHocMeds.map(entry => html`
+                    <div class="content-block recommendation-block rec-medication" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${MedicationRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
                         />
                       </div>
                       ${!readOnly && html`
@@ -764,6 +780,21 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                     `;
                   })}
+                  ${adHocStopMeds.map(entry => html`
+                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${RemovalRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                          patientId=${patientId}
+                        />
+                      </div>
+                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                    </div>
+                  `)}
                   ${(onAddMedication || onAddStopMedication) && !readOnly && html`
                     <div class="ad-hoc-buttons">
                       ${onAddMedication && html`<button type="button" class="ad-hoc-btn" onClick=${onAddMedication}>+ Medication</button>`}
@@ -779,7 +810,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const allergyRecs = (recommendations || [])
               .map((cmd, i) => ({ command: cmd, index: i }))
               .filter(e => e.command.command_type === 'allergy');
-            if (cmds || allergyRecs.length > 0 || onAddAllergy) {
+            const adHocAllergies = (adHocCommands || []).filter(e => e.command.command_type === 'allergy');
+            const adHocRemoveAllergies = (adHocCommands || []).filter(e => e.command.command_type === 'remove_allergy');
+            if (cmds || allergyRecs.length > 0 || adHocAllergies.length > 0 || adHocRemoveAllergies.length > 0 || onAddAllergy) {
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${s.title}</div>
@@ -792,6 +825,23 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
                           readOnly=${readOnly}
+                        />
+                      </div>
+                      ${!readOnly && html`
+                        <div class="recommendation-actions">
+                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                        </div>
+                      `}
+                    </div>
+                  `)}
+                  ${adHocAllergies.map(entry => html`
+                    <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${AllergyRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
                         />
                       </div>
                       ${!readOnly && html`
@@ -822,6 +872,21 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                     `;
                   })}
+                  ${adHocRemoveAllergies.map(entry => html`
+                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${RemovalRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                          patientId=${patientId}
+                        />
+                      </div>
+                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                    </div>
+                  `)}
                   ${(onAddAllergy || onAddRemoveAllergy) && !readOnly && html`
                     <div class="ad-hoc-buttons">
                       ${onAddAllergy && html`<button type="button" class="ad-hoc-btn" onClick=${onAddAllergy}>+ Allergy</button>`}
@@ -893,36 +958,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         })()}
         ${adHocCommands && adHocCommands.map(entry => {
           const type = entry.command.command_type;
-          if (type === 'medication_statement') {
-            return html`
-              <div class="content-block recommendation-block rec-medication" key=${entry.index}>
-                <div class="recommendation-content">
-                  <${MedicationRow}
-                    command=${entry.command}
-                    commandIndex=${entry.index}
-                    onEdit=${onEditCommand}
-                    onDelete=${onDeleteCommand}
-                  />
-                </div>
-                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
-              </div>
-            `;
-          }
-          if (type === 'allergy') {
-            return html`
-              <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
-                <div class="recommendation-content">
-                  <${AllergyRow}
-                    command=${entry.command}
-                    commandIndex=${entry.index}
-                    onEdit=${onEditCommand}
-                    onDelete=${onDeleteCommand}
-                  />
-                </div>
-                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
-              </div>
-            `;
-          }
+          if (type === 'medication_statement') return null;
+          if (type === 'allergy') return null;
+          if (type === 'stop_medication') return null;
+          if (type === 'remove_allergy') return null;
           if (type === 'task') {
             return html`
               <div class="content-block recommendation-block rec-task" key=${entry.index}>
