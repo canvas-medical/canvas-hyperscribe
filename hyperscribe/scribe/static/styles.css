@@ -304,6 +304,11 @@ h2 { margin-bottom: 4px; }
   margin-bottom: 0;
 }
 
+/* Hide SOAP group sections whose body has no visible children (e.g. all items filtered in approved mode). */
+.summary-section:has(.section-body:not(:has(*))) {
+  display: none;
+}
+
 .section-header {
   display: flex;
   align-items: center;
