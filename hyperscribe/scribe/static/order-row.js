@@ -1263,82 +1263,60 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
               </div>
             `}
             ${activeTab === 'imaging_order' && html`
-              <div class="order-imaging-form">
-                <div class="imaging-search-wrapper">
-                  <div class="labeled-field" style="width:100%">
-                    <span class="labeled-field-label">Imaging</span>
-                    <input
-                      ref=${imagingInputRef}
-                      type="text"
-                      class="labeled-field-input"
-                      value=${imagingQuery}
-                      onInput=${handleImagingInput}
-                      placeholder="Search imaging..."
-                    />
-                  </div>
-                  ${imagingSearching && html`<span class="imaging-search-spinner">Searching...</span>`}
+              <div class="order-form">
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Imaging</label>
+                  <input
+                    ref=${imagingInputRef}
+                    type="text"
+                    class="history-form-input"
+                    value=${imagingQuery}
+                    onInput=${handleImagingInput}
+                    placeholder="Search imaging..."
+                  />
+                  ${imagingSearching && html`<span class="diag-search-spinner">Searching...</span>`}
                   ${imagingResults.length > 0 && html`
-                    <div class="imaging-search-dropdown">
+                    <div class="history-search-dropdown">
                       ${imagingResults.map((r, i) => html`
-                        <div
-                          key=${i}
-                          class="imaging-search-result"
-                          onMouseDown=${(e) => { e.preventDefault(); handleImagingSelect(r); }}
-                        >${r.display}</div>
+                        <div key=${i} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingSelect(r); }}>${r.display}</div>
                       `)}
                     </div>
                   `}
                   ${!imagingSearching && imagingSearched && imagingResults.length === 0 && imagingQuery.length >= 2 && html`
-                    <div class="imaging-search-dropdown">
-                      <div class="imaging-search-result search-no-results">No imaging codes found</div>
-                    </div>
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No imaging codes found</div></div>
                   `}
                 </div>
-                <div class="order-rx-row">
-                  <div class="diag-search-wrapper" style="flex:1">
-                    <div class="labeled-field" style="width:100%">
-                      <span class="labeled-field-label">Dx</span>
-                      <input
-                        ref=${imagingDiagInputRef}
-                        class="labeled-field-input"
-                        type="text"
-                        value=${imagingDiagQuery}
-                        onInput=${handleImagingDiagInput}
-                        onFocus=${() => setImagingDiagFocused(true)}
-                        onBlur=${() => setTimeout(() => setImagingDiagFocused(false), 150)}
-                        placeholder="Search diagnoses..."
-                      />
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Diagnoses</label>
+                  <input
+                    ref=${imagingDiagInputRef}
+                    class="history-form-input"
+                    type="text"
+                    value=${imagingDiagQuery}
+                    onInput=${handleImagingDiagInput}
+                    onFocus=${() => setImagingDiagFocused(true)}
+                    onBlur=${() => setTimeout(() => setImagingDiagFocused(false), 150)}
+                    placeholder="Search diagnoses..."
+                  />
+                  ${imagingDiagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                  ${imagingDiagResults.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      ${imagingDiagResults.map(d => html`
+                        <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
                     </div>
-                    ${imagingDiagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
-                    ${imagingDiagResults.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        ${imagingDiagResults.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                    ${!imagingDiagSearching && imagingDiagSearched && imagingDiagResults.length === 0 && imagingDiagQuery.length >= 2 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-search-result search-no-results">No diagnoses found</div>
-                      </div>
-                    `}
-                    ${imagingDiagFocused && !imagingDiagQuery && imagingDiagSuggestions.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-suggestion-header">Patient conditions</div>
-                        ${imagingDiagSuggestions.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                  </div>
+                  `}
+                  ${!imagingDiagSearching && imagingDiagSearched && imagingDiagResults.length === 0 && imagingDiagQuery.length >= 2 && html`
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No diagnoses found</div></div>
+                  `}
+                  ${imagingDiagFocused && !imagingDiagQuery && imagingDiagSuggestions.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      <div class="diag-suggestion-header">Patient conditions</div>
+                      ${imagingDiagSuggestions.map(d => html`
+                        <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
+                    </div>
+                  `}
                 </div>
                 ${imagingDiagnoses.length > 0 && html`
                   <div class="lab-selected-tests">
@@ -1350,178 +1328,129 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     `)}
                   </div>
                 `}
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Order Details</span>
-                    <input
-                      class="labeled-field-input"
-                      type="text"
-                      value=${imagingDetails}
-                      onInput=${(e) => setImagingDetails(e.target.value)}
-                    />
+                <div class="history-form-field">
+                  <label class="history-form-label">Order Details</label>
+                  <input class="history-form-input" type="text" value=${imagingDetails} onInput=${(e) => setImagingDetails(e.target.value)} placeholder="Optional" />
+                </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Comment</label>
+                  <input class="history-form-input" type="text" value=${imagingComment} onInput=${(e) => setImagingComment(e.target.value)} placeholder="Optional" />
+                </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Priority</label>
+                  <div class="allergy-severity">
+                    <button type="button" class="task-quick-btn${imagingPriority === 'Routine' ? ' active' : ''}" onClick=${() => setImagingPriority('Routine')}>Routine</button>
+                    <button type="button" class="task-quick-btn${imagingPriority === 'Urgent' ? ' active' : ''}" onClick=${() => setImagingPriority('Urgent')}>Urgent</button>
                   </div>
                 </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Comment</span>
-                    <input
-                      class="labeled-field-input"
-                      type="text"
-                      value=${imagingComment}
-                      onInput=${(e) => setImagingComment(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div class="order-rx-row">
-                  <button type="button" class="task-quick-btn${imagingPriority === 'Routine' ? ' active' : ''}" onClick=${() => setImagingPriority('Routine')}>Routine</button>
-                  <button type="button" class="task-quick-btn${imagingPriority === 'Urgent' ? ' active' : ''}" onClick=${() => setImagingPriority('Urgent')}>Urgent</button>
-                </div>
-                <div class="imaging-search-wrapper">
-                  <div class="labeled-field" style="width:100%">
-                    <span class="labeled-field-label">Ordering Provider</span>
-                    <input
-                      ref=${providerInputRef}
-                      type="text"
-                      class="labeled-field-input"
-                      value=${providerQuery || orderingProviderName}
-                      onInput=${handleProviderInput}
-                      onFocus=${() => { if (orderingProviderName) { setProviderQuery(orderingProviderName); debouncedProviderSearch(orderingProviderName); } }}
-                      placeholder="Search providers..."
-                    />
-                  </div>
-                  ${providerSearching && html`<span class="imaging-search-spinner">Searching...</span>`}
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Ordering Provider</label>
+                  <input
+                    ref=${providerInputRef}
+                    type="text"
+                    class="history-form-input"
+                    value=${providerQuery || orderingProviderName}
+                    onInput=${handleProviderInput}
+                    onFocus=${() => { if (orderingProviderName) { setProviderQuery(orderingProviderName); debouncedProviderSearch(orderingProviderName); } }}
+                    placeholder="Search providers..."
+                  />
+                  ${providerSearching && html`<span class="diag-search-spinner">Searching...</span>`}
                   ${providerResults.length > 0 && html`
-                    <div class="imaging-search-dropdown">
+                    <div class="history-search-dropdown">
                       ${providerResults.map(p => html`
-                        <div
-                          key=${p.id}
-                          class="imaging-search-result"
-                          onMouseDown=${(e) => { e.preventDefault(); handleProviderSelect(p); }}
-                        >${p.label}</div>
+                        <div key=${p.id} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleProviderSelect(p); }}>${p.label}</div>
                       `)}
                     </div>
                   `}
                   ${!providerSearching && providerSearched && providerResults.length === 0 && providerQuery.length >= 2 && html`
-                    <div class="imaging-search-dropdown">
-                      <div class="imaging-search-result search-no-results">No providers found</div>
-                    </div>
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No providers found</div></div>
                   `}
                 </div>
-                <div class="imaging-search-wrapper">
-                  <div class="labeled-field" style="width:100%">
-                    <span class="labeled-field-label">Imaging Center</span>
-                    <input
-                      ref=${centerInputRef}
-                      type="text"
-                      class="labeled-field-input"
-                      value=${centerQuery || selectedCenterName}
-                      onInput=${handleCenterInput}
-                      placeholder="Search imaging centers..."
-                    />
-                  </div>
-                  ${centerSearching && html`<span class="imaging-search-spinner">Searching...</span>`}
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Imaging Center</label>
+                  <input
+                    ref=${centerInputRef}
+                    type="text"
+                    class="history-form-input"
+                    value=${centerQuery || selectedCenterName}
+                    onInput=${handleCenterInput}
+                    placeholder="Search imaging centers..."
+                  />
+                  ${centerSearching && html`<span class="diag-search-spinner">Searching...</span>`}
                   ${centerResults.length > 0 && html`
-                    <div class="imaging-search-dropdown">
+                    <div class="history-search-dropdown">
                       ${centerResults.map((r, i) => html`
-                        <div
-                          key=${i}
-                          class="imaging-search-result"
-                          onMouseDown=${(e) => { e.preventDefault(); handleCenterSelect(r); }}
-                        >
-                          <div class="imaging-center-name">${r.name}</div>
-                          ${r.description && html`<div class="imaging-center-desc">${r.description}</div>`}
+                        <div key=${i} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleCenterSelect(r); }}>
+                          <div style="font-weight:600">${r.name}</div>
+                          ${r.description && html`<div style="font-size:12px;color:#888">${r.description}</div>`}
                         </div>
                       `)}
                     </div>
                   `}
                   ${!centerSearching && centerSearched && centerResults.length === 0 && centerQuery.length >= 2 && html`
-                    <div class="imaging-search-dropdown">
-                      <div class="imaging-search-result search-no-results">No imaging centers found</div>
-                    </div>
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No imaging centers found</div></div>
                   `}
                 </div>
               </div>
             `}
             ${activeTab === 'refer' && html`
-              <div class="order-refer-form">
-                <div class="imaging-search-wrapper">
-                  <div class="labeled-field" style="width:100%">
-                    <span class="labeled-field-label">Refer To</span>
-                    <input
-                      ref=${referProviderInputRef}
-                      type="text"
-                      class="labeled-field-input"
-                      value=${referProviderQuery || referProviderDisplay}
-                      onInput=${handleReferProviderInput}
-                      placeholder="Search by name, specialty, or practice..."
-                    />
-                  </div>
-                  ${referProviderSearching && html`<span class="imaging-search-spinner">Searching...</span>`}
+              <div class="order-form">
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Refer To</label>
+                  <input
+                    ref=${referProviderInputRef}
+                    type="text"
+                    class="history-form-input"
+                    value=${referProviderQuery || referProviderDisplay}
+                    onInput=${handleReferProviderInput}
+                    placeholder="Search by name, specialty, or practice..."
+                  />
+                  ${referProviderSearching && html`<span class="diag-search-spinner">Searching...</span>`}
                   ${referProviderResults.length > 0 && html`
-                    <div class="imaging-search-dropdown">
+                    <div class="history-search-dropdown">
                       ${referProviderResults.map((r, i) => html`
-                        <div
-                          key=${i}
-                          class="imaging-search-result"
-                          onMouseDown=${(e) => { e.preventDefault(); handleReferProviderSelect(r); }}
-                        >
-                          <div class="imaging-center-name">${r.name}</div>
-                          ${r.description && html`<div class="imaging-center-desc">${r.description}</div>`}
+                        <div key=${i} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferProviderSelect(r); }}>
+                          <div style="font-weight:600">${r.name}</div>
+                          ${r.description && html`<div style="font-size:12px;color:#888">${r.description}</div>`}
                         </div>
                       `)}
                     </div>
                   `}
                   ${!referProviderSearching && referProviderSearched && referProviderResults.length === 0 && referProviderQuery.length >= 2 && html`
-                    <div class="imaging-search-dropdown">
-                      <div class="imaging-search-result search-no-results">No providers found</div>
-                    </div>
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No providers found</div></div>
                   `}
                 </div>
-                <div class="order-rx-row">
-                  <div class="diag-search-wrapper" style="flex:1">
-                    <div class="labeled-field" style="width:100%">
-                      <span class="labeled-field-label">Indications</span>
-                      <input
-                        ref=${referDiagInputRef}
-                        class="labeled-field-input"
-                        type="text"
-                        value=${referDiagQuery}
-                        onInput=${handleReferDiagInput}
-                        onFocus=${() => setReferDiagFocused(true)}
-                        onBlur=${() => setTimeout(() => setReferDiagFocused(false), 150)}
-                        placeholder="Search diagnoses..."
-                      />
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Indications</label>
+                  <input
+                    ref=${referDiagInputRef}
+                    class="history-form-input"
+                    type="text"
+                    value=${referDiagQuery}
+                    onInput=${handleReferDiagInput}
+                    onFocus=${() => setReferDiagFocused(true)}
+                    onBlur=${() => setTimeout(() => setReferDiagFocused(false), 150)}
+                    placeholder="Search diagnoses..."
+                  />
+                  ${referDiagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                  ${referDiagResults.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      ${referDiagResults.map(d => html`
+                        <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
                     </div>
-                    ${referDiagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
-                    ${referDiagResults.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        ${referDiagResults.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                    ${!referDiagSearching && referDiagSearched && referDiagResults.length === 0 && referDiagQuery.length >= 2 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-search-result search-no-results">No diagnoses found</div>
-                      </div>
-                    `}
-                    ${referDiagFocused && !referDiagQuery && referDiagSuggestions.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-suggestion-header">Patient conditions</div>
-                        ${referDiagSuggestions.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                  </div>
+                  `}
+                  ${!referDiagSearching && referDiagSearched && referDiagResults.length === 0 && referDiagQuery.length >= 2 && html`
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No diagnoses found</div></div>
+                  `}
+                  ${referDiagFocused && !referDiagQuery && referDiagSuggestions.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      <div class="diag-suggestion-header">Patient conditions</div>
+                      ${referDiagSuggestions.map(d => html`
+                        <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
+                    </div>
+                  `}
                 </div>
                 ${referDiagnoses.length > 0 && html`
                   <div class="lab-selected-tests">
@@ -1533,42 +1462,29 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     `)}
                   </div>
                 `}
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Clinical Question</span>
-                    <select class="labeled-field-input" value=${referClinicalQuestion} onChange=${(e) => setReferClinicalQuestion(e.target.value)}>
-                      <option value="">—</option>
-                      ${CLINICAL_QUESTIONS.map(q => html`
-                        <option key=${q} value=${q}>${q}</option>
-                      `)}
-                    </select>
+                <div class="history-form-field">
+                  <label class="history-form-label">Clinical Question</label>
+                  <select class="history-form-input" value=${referClinicalQuestion} onChange=${(e) => setReferClinicalQuestion(e.target.value)}>
+                    <option value="">Select...</option>
+                    ${CLINICAL_QUESTIONS.map(q => html`
+                      <option key=${q} value=${q}>${q}</option>
+                    `)}
+                  </select>
+                </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Priority</label>
+                  <div class="allergy-severity">
+                    <button type="button" class="task-quick-btn${referPriority === 'Routine' ? ' active' : ''}" onClick=${() => setReferPriority('Routine')}>Routine</button>
+                    <button type="button" class="task-quick-btn${referPriority === 'Urgent' ? ' active' : ''}" onClick=${() => setReferPriority('Urgent')}>Urgent</button>
                   </div>
                 </div>
-                <div class="order-rx-row">
-                  <button type="button" class="task-quick-btn${referPriority === 'Routine' ? ' active' : ''}" onClick=${() => setReferPriority('Routine')}>Routine</button>
-                  <button type="button" class="task-quick-btn${referPriority === 'Urgent' ? ' active' : ''}" onClick=${() => setReferPriority('Urgent')}>Urgent</button>
+                <div class="history-form-field">
+                  <label class="history-form-label">Notes to Specialist</label>
+                  <textarea class="history-form-textarea" rows="3" value=${referNotesToSpecialist} onInput=${(e) => setReferNotesToSpecialist(e.target.value)} placeholder="Optional" />
                 </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Notes to Specialist</span>
-                    <textarea
-                      class="labeled-field-input"
-                      rows="4"
-                      value=${referNotesToSpecialist}
-                      onInput=${(e) => setReferNotesToSpecialist(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Comment</span>
-                    <textarea
-                      class="labeled-field-input"
-                      rows="4"
-                      value=${referComment}
-                      onInput=${(e) => setReferComment(e.target.value)}
-                    />
-                  </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Comment</label>
+                  <textarea class="history-form-textarea" rows="3" value=${referComment} onInput=${(e) => setReferComment(e.target.value)} placeholder="Optional" />
                 </div>
               </div>
             `}
@@ -1598,6 +1514,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
       <div>
         <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
           <div class="order-view">
+            <span class="command-type-label">${badgeLabel}</span>
             <div class="order-view-name">${command.display}</div>
             ${d.sig && html`<div class="order-view-sig">Sig: ${d.sig}</div>`}
             ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
@@ -1617,6 +1534,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     return html`
       <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
         <div class="order-view">
+          <span class="command-type-label">Refer</span>
           <div class="order-view-name">${command.display || 'Referral'}</div>
           ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
         </div>
@@ -1634,6 +1552,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     return html`
       <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
         <div class="order-view">
+          <span class="command-type-label">${badgeLabel}</span>
           <div class="order-view-name">${command.display}</div>
           ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
         </div>
@@ -1644,6 +1563,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   return html`
     <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
       <div class="order-view">
+        <span class="command-type-label">${badgeLabel}</span>
         <div class="order-view-name">${command.display}</div>
       </div>
     </div>

@@ -623,6 +623,7 @@ h2 { margin-bottom: 4px; }
 .order-textarea { width: 100%; min-height: 60px; padding: 6px 8px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
 .order-textarea:focus { outline: none; border-color: #052B49; }
 /* Order view mode (read-only display) */
+.command-type-label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
 .order-view { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
 .order-view-name { font-size: 14px; font-weight: 600; color: #333; }
 .order-view-sig { font-size: 13px; color: #555; font-style: italic; }

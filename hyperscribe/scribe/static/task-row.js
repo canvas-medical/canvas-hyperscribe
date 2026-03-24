@@ -186,6 +186,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
   return html`
     <div class="task-row" onClick=${() => !readOnly && setEditing(true)}>
       <div class="order-view">
+        <span class="command-type-label">Task</span>
         <div class="order-view-name">${command.display}</div>
         ${details.length > 0 && html`<div class="order-view-details">${details.join(' · ')}</div>`}
       </div>
