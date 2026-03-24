@@ -421,34 +421,6 @@ h2 { margin-bottom: 4px; }
 .icd-condition-name { color: #555; }
 .icd-code-badge { font-weight: 600; color: #052B49; margin-left: 2px; }
 
-.edit-btn {
-  padding: 4px 12px;
-  font-size: 13px;
-  color: #555;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.edit-btn:hover {
-  background: #f5f5f5;
-  border-color: #ccc;
-}
-
-.delete-btn {
-  padding: 4px 12px;
-  font-size: 13px;
-  color: #e55;
-  background: #fff;
-  border: 1px solid #e55;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.delete-btn:hover {
-  background: #fef2f2;
-}
 
 .section-body {
   padding: 0;
@@ -565,20 +537,7 @@ h2 { margin-bottom: 4px; }
 .order-row > .subsection-title,
 .allergy-row > .command-row-actions { width: 100%; }
 .medication-row.deselected { opacity: 0.45; }
-.medication-row-text { font-size: 14px; line-height: 1.6; color: #333; }
 .medication-checkbox { cursor: pointer; flex-shrink: 0; }
-.medication-row-input { width: 100%; padding: 4px 8px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; }
-.medication-row-input:focus { outline: none; border-color: #052B49; }
-.medication-documented-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #e8e8ec; color: #888; white-space: nowrap; }
-.medication-unstructured-badge { display: none; }
-.medication-structured-badge { display: none; }
-.medication-search-wrapper { position: relative; flex: 1; min-width: 0; max-width: 500px; }
-.medication-search-spinner { font-size: 12px; color: #888; font-style: italic; margin-top: 2px; display: block; }
-.medication-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; margin-top: 2px; }
-.medication-search-result { padding: 8px 10px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
-.medication-search-result:last-child { border-bottom: none; }
-.medication-search-result:hover { background: #f0f0f0; }
-.medication-sig-text { font-size: 13px; color: #666; font-style: italic; }
 
 /* Allergy rows */
 .allergy-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px; border-radius: 8px; cursor: pointer; }
@@ -586,26 +545,13 @@ h2 { margin-bottom: 4px; }
 .allergy-row.documented { opacity: 0.55; cursor: default; }
 .allergy-row.editing { cursor: default; }
 .allergy-row.deselected { opacity: 0.45; }
-.allergy-row-text { font-size: 14px; line-height: 1.6; color: #333; }
 .allergy-checkbox { cursor: pointer; flex-shrink: 0; }
-.allergy-row-input { width: 100%; padding: 4px 8px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; }
-.allergy-row-input:focus { outline: none; border-color: #052B49; }
-.allergy-documented-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #e8e8ec; color: #888; white-space: nowrap; }
-.allergy-unstructured-badge { display: none; }
-.allergy-structured-badge { display: none; }
-.allergy-search-wrapper { position: relative; flex: 1; min-width: 0; }
-.allergy-search-spinner { font-size: 12px; color: #888; font-style: italic; margin-top: 2px; display: block; }
-.allergy-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; margin-top: 2px; }
-.allergy-search-result { padding: 8px 10px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
-.allergy-search-result:last-child { border-bottom: none; }
-.allergy-search-result:hover { background: #f0f0f0; }
 .allergy-severity { display: flex; gap: 8px; }
 .allergy-severity-btn { padding: 8px 16px; font-size: 13px; font-weight: 600; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; color: #6b7280; cursor: pointer; transition: all 0.15s; }
 .allergy-severity-btn:active { opacity: 0.7; }
 .allergy-severity-btn.active-mild { background: #dcfce7; color: #166534; border-color: #86efac; }
 .allergy-severity-btn.active-moderate { background: #fff7ed; color: #c2410c; border-color: #fdba74; }
 .allergy-severity-btn.active-severe { background: #fef2f2; color: #b91c1c; border-color: #fca5a5; }
-.allergy-reaction-text { font-size: 13px; color: #666; font-style: italic; }
 .allergy-severity-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
 .allergy-severity-badge.severity-mild { background: #e8f5e9; color: #2e7d32; }
 .allergy-severity-badge.severity-moderate { background: #fff3e0; color: #e65100; }
@@ -647,15 +593,7 @@ h2 { margin-bottom: 4px; }
 .order-view-name { font-size: 14px; font-weight: 600; color: #333; }
 .order-view-sig { font-size: 13px; color: #555; font-style: italic; }
 .order-view-details { font-size: 12px; color: #888; }
-.order-rx-form { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 500px; }
-.order-rx-row { display: flex; gap: 6px; align-items: center; max-width: 500px; }
-/* Labeled field: [Label|Input] */
-.labeled-field { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; max-width: 500px; }
-.labeled-field:focus-within { border-color: #052B49; }
-.labeled-field-label { padding: 5px 8px; font-size: 12px; font-weight: 600; color: #888; background: #f5f5f8; border-right: 1px solid #ddd; white-space: nowrap; display: flex; align-items: center; }
-.labeled-field-input { flex: 1; padding: 5px 8px; font-family: inherit; font-size: 13px; border: none; outline: none; min-width: 0; }
-.labeled-field-narrow { width: 64px; flex: none; }
-.labeled-field:has(textarea) .labeled-field-label { align-items: flex-start; }
+
 
 .order-checkbox-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #555; cursor: pointer; padding: 4px 0; }
 .order-lab-form { display: flex; flex-direction: column; gap: 6px; }
@@ -689,14 +627,6 @@ h2 { margin-bottom: 4px; }
 .ad-hoc-btn { padding: 10px 16px; font-size: 13px; font-weight: 600; color: #052B49; background: #fff; border: 1.5px solid #d1d5db; border-radius: 8px; cursor: pointer; transition: all 0.15s; }
 .ad-hoc-btn:hover { background: #f5f7fa; border-color: #052B49; }
 .ad-hoc-btn:active { background: #e8edf2; }
-.imaging-search-wrapper { position: relative; flex: 1; min-width: 0; max-width: 500px; }
-.imaging-search-spinner { font-size: 12px; color: #888; font-style: italic; margin-top: 2px; display: block; }
-.imaging-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; margin-top: 2px; }
-.imaging-search-result { padding: 8px 10px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
-.imaging-search-result:last-child { border-bottom: none; }
-.imaging-search-result:hover { background: #f0f0f0; }
-.imaging-center-name { font-weight: 500; }
-.imaging-center-desc { font-size: 11px; color: #666; margin-top: 2px; }
 
 .insert-btn {
   display: inline-block;
@@ -828,11 +758,6 @@ h2 { margin-bottom: 4px; }
 .diagnose-edit-area { display: flex; align-items: flex-start; gap: 12px; margin-top: 4px; }
 
 /* Suggested codings + unmatched condition chips below A&P blocks */
-.ap-suggested-codes { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e8e8ec; }
-.ap-suggested-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-.ap-suggested-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.ap-suggested-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; font-size: 12px; font-weight: 500; color: #052B49; background: #f0f4ff; border: 1px solid #93c5fd; border-radius: 14px; cursor: pointer; transition: all 0.15s; }
-.ap-suggested-chip:hover { background: #dbeafe; border-color: #2563eb; }
 
 /* Progress stepper (shown during generate-summary) */
 .progress-stepper {
@@ -1268,16 +1193,6 @@ h2 { margin-bottom: 4px; }
 .recommendation-block:has(.charge-view) .recommendation-actions { padding-top: 0; }
 .recommendation-block.rec-assess:not(:has(.editing)) { align-items: center; }
 .recommendation-block.rec-assess:not(:has(.editing)) .recommendation-actions { padding-top: 0; }
-.charge-search-area { position: relative; width: 100%; }
-.charge-search-input { width: 100%; padding: 8px 10px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; }
-.charge-search-input:focus { outline: none; border-color: #052B49; }
-.charge-search-spinner { font-size: 12px; color: #888; font-style: italic; margin-top: 2px; display: block; }
-.charge-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; margin-top: 2px; }
-.charge-search-result { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
-.charge-search-result:last-child { border-bottom: none; }
-.charge-search-result:hover { background: #f5f5f5; }
-.charge-search-result.search-no-results { color: #999; font-style: italic; cursor: default; }
-.charge-search-result.search-no-results:hover { background: #fff; }
 .charge-result-code { font-weight: 700; color: #052B49; white-space: nowrap; }
 .charge-result-name { color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
