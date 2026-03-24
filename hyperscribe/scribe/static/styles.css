@@ -520,6 +520,9 @@ h2 { margin-bottom: 4px; }
 .vitals-edit-unit { font-size: 12px; color: #999; }
 .vitals-bp-inputs { display: flex; align-items: center; gap: 4px; }
 .vitals-bp-slash { font-weight: 600; color: #888; }
+.vitals-input-error { border-color: #dc2626; }
+.vitals-input-error:focus { border-color: #dc2626; }
+.vitals-error { font-size: 11px; color: #dc2626; font-weight: 600; white-space: nowrap; }
 
 /* Medication rows */
 .medication-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px; border-radius: 8px; cursor: pointer; }

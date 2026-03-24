@@ -8,13 +8,13 @@ const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
 
 const VITALS_FIELDS = [
-  { key: 'blood_pressure_systole', pair: 'blood_pressure_diastole', label: 'BP', unit: 'mmHg' },
-  { key: 'pulse', label: 'HR', unit: 'bpm' },
-  { key: 'respiration_rate', label: 'RR', unit: '/min' },
-  { key: 'oxygen_saturation', label: 'SpO2', unit: '%' },
-  { key: 'body_temperature', label: 'Temp', unit: '°F', step: '0.1' },
-  { key: 'height', label: 'Height', unit: 'in' },
-  { key: 'weight_lbs', label: 'Weight', unit: 'lbs' },
+  { key: 'blood_pressure_systole', pair: 'blood_pressure_diastole', pairMin: 20, pairMax: 180, label: 'BP', unit: 'mmHg', min: 30, max: 305 },
+  { key: 'pulse', label: 'HR', unit: 'bpm', min: 30, max: 250 },
+  { key: 'respiration_rate', label: 'RR', unit: '/min', min: 6, max: 60 },
+  { key: 'oxygen_saturation', label: 'SpO2', unit: '%', min: 60, max: 100 },
+  { key: 'body_temperature', label: 'Temp', unit: '°F', step: '0.1', min: 85, max: 107 },
+  { key: 'height', label: 'Height', unit: 'in', min: 10, max: 108 },
+  { key: 'weight_lbs', label: 'Weight', unit: 'lbs', min: 1, max: 1500 },
 ];
 
 function formatVitalsDisplay(data) {
@@ -34,14 +34,30 @@ function formatVitalsDisplay(data) {
 
 export { formatVitalsDisplay };
 
+function validateField(key, value) {
+  if (value == null || value === '') return null;
+  const field = VITALS_FIELDS.find(f => f.key === key || f.pair === key);
+  if (!field) return null;
+  const isPair = field.pair === key;
+  const min = isPair ? field.pairMin : field.min;
+  const max = isPair ? field.pairMax : field.max;
+  const num = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
+  if (isNaN(num)) return 'Invalid number';
+  if (min != null && num < min) return `Min ${min}`;
+  if (max != null && num > max) return `Max ${max}`;
+  return null;
+}
+
 export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ ...command.data });
   const [tempRaw, setTempRaw] = useState(command.data.body_temperature != null ? String(command.data.body_temperature) : '');
+  const [errors, setErrors] = useState({});
 
   const updateField = (key, raw) => {
     if (key === 'body_temperature') {
       setTempRaw(raw.replace(',', '.'));
+      setErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
       return;
     }
     setDraft(prev => {
@@ -53,6 +69,7 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
       }
       return next;
     });
+    setErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
   };
 
   const handleSave = () => {
@@ -63,12 +80,31 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
       const val = parseFloat(tempRaw);
       if (!isNaN(val)) data.body_temperature = val;
     }
+
+    // Validate all fields.
+    const newErrors = {};
+    for (const f of VITALS_FIELDS) {
+      const val = f.key === 'body_temperature' ? tempRaw : data[f.key];
+      const err = validateField(f.key, val);
+      if (err) newErrors[f.key] = err;
+      if (f.pair) {
+        const pairVal = data[f.pair];
+        const pairErr = validateField(f.pair, pairVal);
+        if (pairErr) newErrors[f.pair] = pairErr;
+      }
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
     onEdit(commandIndex, data);
     setEditing(false);
   };
 
   const handleCancel = () => {
     setDraft({ ...command.data });
+    setErrors({});
     setTempRaw(command.data.body_temperature != null ? String(command.data.body_temperature) : '');
     setEditing(false);
   };
@@ -83,41 +119,47 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
         <div class="vitals-edit-fields">
           ${VITALS_FIELDS.map(f => {
             if (f.pair) {
+              const sysErr = errors[f.key];
+              const diaErr = errors[f.pair];
               return html`
                 <div class="vitals-edit-field vitals-edit-bp" key=${f.key}>
                   <span class="vitals-edit-label">${f.label}</span>
                   <div class="vitals-bp-inputs">
                     <input
                       type="number"
-                      class="vitals-edit-input"
+                      class="vitals-edit-input${sysErr ? ' vitals-input-error' : ''}"
                       value=${draft[f.key] ?? ''}
                       onInput=${(e) => updateField(f.key, e.target.value)}
-                      placeholder="sys"
+                      placeholder=${f.min + '-' + f.max}
                     />
                     <span class="vitals-bp-slash">/</span>
                     <input
                       type="number"
-                      class="vitals-edit-input"
+                      class="vitals-edit-input${diaErr ? ' vitals-input-error' : ''}"
                       value=${draft[f.pair] ?? ''}
                       onInput=${(e) => updateField(f.pair, e.target.value)}
-                      placeholder="dia"
+                      placeholder=${f.pairMin + '-' + f.pairMax}
                     />
                   </div>
                   <span class="vitals-edit-unit">${f.unit}</span>
+                  ${(sysErr || diaErr) && html`<span class="vitals-error">${sysErr || diaErr}</span>`}
                 </div>
               `;
             }
+            const err = errors[f.key];
             return html`
               <div class="vitals-edit-field" key=${f.key}>
                 <span class="vitals-edit-label">${f.label}</span>
                 <input
                   type=${f.step ? 'text' : 'number'}
                   inputMode="decimal"
-                  class="vitals-edit-input"
+                  class="vitals-edit-input${err ? ' vitals-input-error' : ''}"
                   value=${f.step ? tempRaw : (draft[f.key] ?? '')}
                   onInput=${(e) => updateField(f.key, e.target.value)}
+                  placeholder=${f.min + '-' + f.max}
                 />
                 <span class="vitals-edit-unit">${f.unit}</span>
+                ${err && html`<span class="vitals-error">${err}</span>`}
               </div>
             `;
           })}
