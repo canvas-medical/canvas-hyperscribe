@@ -593,38 +593,43 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   ${cmds.filter(e => e.command.command_type === 'diagnose').map(entry => {
                     const hasCode = !!entry.command.data.icd10_code;
                     const isAccepted = hasCode && entry.command.data.accepted;
-                    const isIncomplete = !hasCode;
+                    const isRejected = entry.command.data.rejected;
+                    const isIncomplete = !hasCode && !isRejected;
                     const header = entry.command.data.condition_header || '';
-                    const suggestions = (!hasCode && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
+                    const suggestions = (!hasCode && !isRejected && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
+
+                    const handleAcceptDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, accepted: true, rejected: false }, 'diagnose');
+                    const handleRejectDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, rejected: true, accepted: false }, 'diagnose');
 
                     return html`
-                      <div class="content-block recommendation-block rec-diagnose${isIncomplete ? ' incomplete-code' : ''}" key=${entry.index}>
+                      <div class="content-block recommendation-block rec-diagnose${isRejected ? ' rec-rejected' : ''}" key=${entry.index}>
                         <div class="recommendation-content">
                           <${DiagnoseRow}
                             command=${entry.command}
                             commandIndex=${entry.index}
                             onEdit=${onEditCommand}
                             onDelete=${onDeleteCommand}
-                            readOnly=${readOnly}
+                            readOnly=${readOnly || isRejected}
                             suggestions=${suggestions}
+                            onAccept=${handleAcceptDiagnose}
                           />
-                          ${isIncomplete && html`<span class="rec-warning-badge">Missing Diagnosis Code</span>`}
                         </div>
                         ${!readOnly && html`
                           <div class="recommendation-actions">
-                            <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Reject">${ICON_X}</button>
-                            ${!isIncomplete && html`
-                              <button type="button" class="rec-btn rec-btn-accept" onClick=${() => onEditCommand(entry.index, { ...entry.command.data, accepted: !entry.command.data.accepted }, 'diagnose')} title=${isAccepted ? 'Undo accept' : 'Accept'}>${ICON_CHECK}</button>
-                            `}
+                            ${isIncomplete && html`<span class="rec-warning-pill">Missing Diagnosis Code</span>`}
+                            ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                            ${isAccepted && html`<span class="rec-accepted-badge">Accepted</span>`}
+                            <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${handleRejectDiagnose} title="Reject">${ICON_X}</button>
+                            <button type="button" class="rec-btn ${isAccepted ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${handleAcceptDiagnose} title="Accept">${ICON_CHECK}</button>
                           </div>
                         `}
                       </div>
                     `;
                   })}
                   ${unmatched.length > 0 && html`
-                    <div class="ap-suggested-codes">
-                      <div class="ap-suggested-label">Other detected conditions</div>
-                      <div class="ap-suggested-chips">
+                    <div class="diagnose-suggestions" style="margin-top: 12px;">
+                      <div class="history-form-label">Other detected conditions</div>
+                      <div class="diagnose-suggestions-list">
                         ${unmatched.map(c => {
                           const codes = (c.coding || []).filter(cd => cd.code);
                           const code = codes[0];
@@ -636,10 +641,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             <button
                               key=${code.code}
                               type="button"
-                              class="ap-suggested-chip"
+                              class="diagnose-suggestion-btn"
                               onClick=${() => onAddCondition && onAddCondition(code.code, display)}
-                              title="Add ${display}"
-                            >${formatted} ${display}</button>
+                            ><strong>${formatted}</strong>${' '}${display}</button>
                           `;
                         })}
                       </div>

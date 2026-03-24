@@ -578,7 +578,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (type === 'diagnose') {
           const display = newData.icd10_display || newData.condition_header || cmd.display;
           const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
-          return { ...cmd, command_type: type, data: { ...newData, accepted }, display };
+          const rejected = newData.rejected || false;
+          return { ...cmd, command_type: type, data: { ...newData, accepted, rejected }, display };
         }
         if (type === 'assess') {
           return { ...cmd, data: newData };
@@ -954,7 +955,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral' };
   const incompleteTypes = [];
   for (const c of commands) {
-    if (c.command_type === 'diagnose' && c.display && (!c.data.icd10_code || !c.data.accepted)) {
+    if (c.command_type === 'diagnose' && c.display && !c.data.rejected && (!c.data.icd10_code || !c.data.accepted)) {
       if (!incompleteTypes.includes('diagnose')) incompleteTypes.push('diagnose');
     }
     if (c.command_type === 'imaging_order' && c.display && !c.data.service_provider) {
@@ -975,7 +976,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }
   }
   const incompleteCount = commands.filter(c =>
-    (c.command_type === 'diagnose' && c.display && (!c.data.icd10_code || !c.data.accepted)) ||
+    (c.command_type === 'diagnose' && c.display && !c.data.rejected && (!c.data.icd10_code || !c.data.accepted)) ||
     (c.command_type === 'imaging_order' && c.display && !c.data.service_provider) ||
     ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.display && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null))
   ).length + recommendations.filter(c =>

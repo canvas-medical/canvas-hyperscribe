@@ -24,7 +24,7 @@ function formatIcdCode(raw) {
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
-export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions }) {
+export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions, onAccept }) {
   const data = command.data || {};
   const hasCode = !!data.icd10_code;
 
@@ -95,12 +95,16 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   };
 
   const handleSelect = (result) => {
+    const display = result.display || result.description || '';
     const newData = {
       ...data,
       icd10_code: result.code,
-      icd10_display: result.display || result.description || '',
+      icd10_display: display,
+      condition_header: display,
+      _original_header: data._original_header || data.condition_header || '',
+      accepted: true,
+      rejected: false,
     };
-    const display = result.display || result.description || command.display;
     onEdit(commandIndex, newData, 'diagnose');
     setResults([]);
     setSearched(false);
@@ -110,7 +114,8 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
 
   const handleClearCode = () => {
     if (readOnly) return;
-    const newData = { ...data, icd10_code: null, icd10_display: '' };
+    const originalHeader = command.data._original_header || data.condition_header || '';
+    const newData = { ...data, icd10_code: null, icd10_display: '', condition_header: originalHeader, accepted: false, rejected: false };
     onEdit(commandIndex, newData, 'diagnose');
     setEditingCode(true);
     setQuery('');
@@ -153,44 +158,36 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
     <div class="diagnose-row" ref=${containerRef}>
       <div class="diagnose-row-header">
         <span class="diagnose-row-title">${title}</span>
-        ${!hasCode && !editingCode && !readOnly && html`
-          <button
-            type="button"
-            class="diagnose-search-btn"
-            onClick=${() => setEditingCode(true)}
-          >Add ICD-10</button>
-        `}
       </div>
 
       ${editingCode && !readOnly && html`
-        <div class="diagnose-search-area">
+        <div class="history-form-field" style="position: relative;">
           <input
             ref=${inputRef}
             type="text"
-            class="diagnose-search-input"
+            class="history-form-input"
             value=${query}
             onInput=${handleInput}
             onKeyDown=${handleKeyDown}
             placeholder="Search diagnosis..."
           />
-          ${searching && html`<span class="diagnose-search-spinner">Searching...</span>`}
+          ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
           ${results.length > 0 && html`
-            <div class="diagnose-search-dropdown">
+            <div class="history-search-dropdown">
               ${results.map(r => html`
                 <div
                   key=${r.code}
-                  class="diagnose-search-result"
+                  class="history-search-result"
                   onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
                 >
-                  <span class="diagnose-result-display">${r.display || r.description}</span>
-                  ${r.code && html`<span class="diagnose-result-code">${formatIcdCode(r.code)}</span>`}
+                  ${r.code && html`<strong>${formatIcdCode(r.code)}</strong>`}${' '}${r.display || r.description}
                 </div>
               `)}
             </div>
           `}
           ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-            <div class="diagnose-search-dropdown">
-              <div class="diagnose-search-result search-no-results">No diagnoses found</div>
+            <div class="history-search-dropdown">
+              <div class="history-search-result search-no-results">No diagnoses found</div>
             </div>
           `}
         </div>
@@ -228,16 +225,17 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
 
       ${!hasCode && !readOnly && suggestions && suggestions.length > 0 && html`
         <div class="diagnose-suggestions">
-          <div class="diagnose-suggestions-label">Suggested codes</div>
-          <div class="diagnose-suggestions-chips">
+          <div class="history-form-label">Suggested codes</div>
+          <div class="diagnose-suggestions-list">
             ${suggestions.map(s => html`
               <button
                 key=${s.code}
                 type="button"
-                class="ap-suggested-chip"
+                class="diagnose-suggestion-btn"
                 onClick=${() => handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code })}
-                title=${s.display}
-              >${s.formatted_code} ${s.display}</button>
+              >
+                <strong>${s.formatted_code}</strong>${' '}${s.display}
+              </button>
             `)}
           </div>
         </div>

@@ -786,7 +786,7 @@ h2 { margin-bottom: 4px; }
 /* Diagnose row (per-condition A&P block) */
 .diagnose-row { padding: 4px 0; }
 .diagnose-row-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.diagnose-row-title { font-size: 14px; font-weight: 700; color: #333; flex: 1; line-height: 1.4; }
+.diagnose-row-title { font-size: 15px; font-weight: 700; color: #333; flex: 1; line-height: 1.4; }
 .diagnose-search-btn { padding: 2px 10px; font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; border: 1px dashed #059669; border-radius: 10px; cursor: pointer; }
 .diagnose-search-btn:hover { background: #d1fae5; border-style: solid; }
 .diagnose-delete-btn { width: 20px; height: 20px; border: none; background: none; color: #999; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0; }
@@ -804,10 +804,18 @@ h2 { margin-bottom: 4px; }
 .diagnose-icd-prefix { font-size: 12px; font-weight: 700; color: #059669; margin-right: 2px; }
 .diagnose-icd-prefix.clickable { cursor: pointer; }
 .diagnose-icd-prefix.clickable:hover { text-decoration: underline; }
-.diagnose-suggestions { margin-top: 6px; }
-.diagnose-suggestions-label { font-size: 11px; font-weight: 600; color: #888; margin-bottom: 4px; }
-.diagnose-suggestions-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.diagnose-row-body { font-size: 14px; line-height: 1.6; color: #444; white-space: pre-line; padding: 4px; border-radius: 8px; }
+.diagnose-suggestions { margin-top: 10px; }
+.diagnose-suggestions-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.diagnose-suggestion-btn {
+  display: block; width: 100%; text-align: left;
+  padding: 10px 12px; font-size: 14px; font-family: inherit;
+  color: #052B49; background: #f8fafc; border: 1.5px solid #d1d5db;
+  border-radius: 8px; cursor: pointer; transition: all 0.15s;
+}
+.diagnose-suggestion-btn:hover { background: #f0f4ff; border-color: #052B49; }
+.diagnose-suggestion-btn:active { background: #e0e7ff; }
+.diagnose-suggestion-btn strong { color: #059669; margin-right: 4px; }
+.diagnose-row-body { font-size: 15px; line-height: 1.6; color: #444; white-space: pre-line; padding: 4px; border-radius: 8px; }
 .diagnose-row-body.editable { cursor: pointer; border-radius: 4px; padding: 4px 6px; }
 .diagnose-row-body.editable:hover { background: #f0f0f0; }
 .diagnose-body-line { min-height: 1.4em; }
