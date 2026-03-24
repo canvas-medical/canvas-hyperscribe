@@ -283,6 +283,15 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [editing, setEditing] = useState(isNew);
   const [activeTab, setActiveTab] = useState(command.command_type || 'prescribe');
 
+  // Per-tab Rx state snapshots (saved when switching away, restored when switching back).
+  const rxSnapshots = useRef({});
+
+  const initRxState = () => ({
+    medQuery: '', selectedFdb: null, selectedMedDisplay: '', medQuantities: buildTypeToDispenseOptions([]),
+    sig: '', daysSupply: '', quantity: '', typeToDispense: '', refills: '',
+    substitutions: true, noteToPharmacist: '', interactionWarning: null,
+  });
+
   // Rx state
   const [medQuery, setMedQuery] = useState(command.data.medication_text || '');
   const [medResults, setMedResults] = useState([]);
@@ -300,6 +309,29 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [noteToPharmacist, setNoteToPharmacist] = useState(command.data.note_to_pharmacist || '');
   const [interactionWarning, setInteractionWarning] = useState(null);
   const [checkingInteractions, setCheckingInteractions] = useState(false);
+
+  const snapshotCurrentRx = () => ({
+    medQuery, selectedFdb, selectedMedDisplay, medQuantities,
+    sig, daysSupply, quantity, typeToDispense, refills,
+    substitutions, noteToPharmacist, interactionWarning,
+  });
+
+  const restoreRxSnapshot = (snap) => {
+    setMedQuery(snap.medQuery);
+    setSelectedFdb(snap.selectedFdb);
+    setSelectedMedDisplay(snap.selectedMedDisplay);
+    setMedQuantities(snap.medQuantities);
+    setSig(snap.sig);
+    setDaysSupply(snap.daysSupply);
+    setQuantity(snap.quantity);
+    setTypeToDispense(snap.typeToDispense);
+    setRefills(snap.refills);
+    setSubstitutions(snap.substitutions);
+    setNoteToPharmacist(snap.noteToPharmacist);
+    setInteractionWarning(snap.interactionWarning);
+    setMedResults([]);
+    setMedSearched(false);
+  };
 
   // Refill state
   const [refillMeds, setRefillMeds] = useState([]);
@@ -1004,7 +1036,21 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   key=${tab.key}
                   type="button"
                   class="order-tab-h${activeTab === tab.key ? ' active' : ''}"
-                  onClick=${() => setActiveTab(tab.key)}
+                  onClick=${() => {
+                    if (tab.key === activeTab) return;
+                    // Save current Rx state for this tab.
+                    const RX_TABS = new Set(['prescribe', 'refill', 'adjust_prescription']);
+                    if (RX_TABS.has(activeTab)) {
+                      rxSnapshots.current[activeTab] = snapshotCurrentRx();
+                    }
+                    // Restore or reset Rx state for the target tab.
+                    if (RX_TABS.has(tab.key) && rxSnapshots.current[tab.key]) {
+                      restoreRxSnapshot(rxSnapshots.current[tab.key]);
+                    } else if (RX_TABS.has(tab.key)) {
+                      restoreRxSnapshot(initRxState());
+                    }
+                    setActiveTab(tab.key);
+                  }}
                 >${tab.label}</button>
               `)}
             </div>
