@@ -208,6 +208,18 @@ const HISTORY_ADD_LABELS = {
   'familyHistory': '+ Family Hx',
 };
 
+// Returns true if a command/recommendation would have been inserted by handleInsert.
+function wasInserted(cmd, isRec = false) {
+  if (isRec) return !!(cmd.accepted && !cmd.already_documented && cmd.display);
+  if (cmd.already_documented || !cmd.display) return false;
+  if (cmd.command_type === 'imaging_order' && !cmd.data.service_provider) return false;
+  if (cmd.command_type === 'prescribe' && (!cmd.data.fdb_code || !cmd.data.sig || cmd.data.quantity_to_dispense == null || !cmd.data.type_to_dispense || cmd.data.refills == null)) return false;
+  if ((cmd.command_type === 'refill' || cmd.command_type === 'adjust_prescription') && !cmd.data.fdb_code) return false;
+  if (cmd.command_type === 'perform' && (!cmd.data.cpt_code || cmd.selected === false)) return false;
+  if (cmd.command_type === 'diagnose' && (!cmd.data.icd10_code || !cmd.data.accepted)) return false;
+  return true;
+}
+
 // Map group title → review command section key + label + position
 const REVIEW_COMMANDS = {
   SUBJECTIVE: { sectionKey: '_ros', label: 'ROS', color: 'ros', position: 'after' },
@@ -514,6 +526,14 @@ function AddConditionSearch({ onAdd, patientId }) {
 export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
+  // In approved (readOnly) mode, only show items that actually made it into the note.
+  const visibleRecs = readOnly
+    ? (recommendations || []).filter(c => wasInserted(c, true))
+    : (recommendations || []);
+  const visibleAdHoc = readOnly
+    ? (adHocCommands || []).filter(e => wasInserted(e.command))
+    : (adHocCommands || []);
+
   return html`
     <div class="summary-section">
       <div class="section-header">
@@ -544,10 +564,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         })()}
         ${sections.map(s => {
           const key = s.key.toLowerCase();
-          const hasRecsForKey = recommendations && recommendations.length > 0 &&
-            ((key === 'current_medications' && recommendations.some(r => r.command_type === 'medication_statement')) ||
-             (key === 'allergies' && recommendations.some(r => r.command_type === 'allergy')) ||
-             (key === 'prescription' && recommendations.some(r => r.command_type === 'prescribe')));
+          const hasRecsForKey = visibleRecs.length > 0 &&
+            ((key === 'current_medications' && visibleRecs.some(r => r.command_type === 'medication_statement')) ||
+             (key === 'allergies' && visibleRecs.some(r => r.command_type === 'allergy')) ||
+             (key === 'prescription' && visibleRecs.some(r => r.command_type === 'prescribe')));
           if (coveredKeys.has(key) && !hasRecsForKey) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
 
@@ -590,7 +610,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                     `;
                   })}
-                  ${cmds.filter(e => e.command.command_type === 'diagnose').map(entry => {
+                  ${cmds.filter(e => e.command.command_type === 'diagnose' && (!readOnly || wasInserted(e.command))).map(entry => {
                     const hasCode = !!entry.command.data.icd10_code;
                     const isAccepted = hasCode && entry.command.data.accepted;
                     const isRejected = entry.command.data.rejected;
@@ -626,7 +646,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                     `;
                   })}
-                  ${unmatched.length > 0 && html`
+                  ${!readOnly && unmatched.length > 0 && html`
                     <div class="diagnose-suggestions" style="margin-top: 12px;">
                       <div class="history-form-label">Other detected conditions</div>
                       <div class="diagnose-suggestions-list">
@@ -649,7 +669,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                     </div>
                   `}
-                  ${((adHocCommands || []).filter(e => e.command.command_type === 'resolve_condition')).map(re => html`
+                  ${(visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition')).map(re => html`
                     <div class="content-block recommendation-block rec-removal" key=${re.index}>
                       <div class="recommendation-content">
                         <${RemovalRow}
@@ -676,7 +696,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const entry = cmds[0];
             if (readOnly && !entry.command.display) return null;
             const showConditionBtns = isPlan && (onAddCondition || onAddResolveCondition) && !readOnly;
-            const planResolves = isPlan ? (adHocCommands || []).filter(e => e.command.command_type === 'resolve_condition') : [];
+            const planResolves = isPlan ? visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition') : [];
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
@@ -750,11 +770,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           }
 
           if (key === 'current_medications') {
-            const medRecs = (recommendations || [])
+            const medRecs = visibleRecs
               .map((cmd, i) => ({ command: cmd, index: i }))
               .filter(e => e.command.command_type === 'medication_statement');
-            const adHocMeds = (adHocCommands || []).filter(e => e.command.command_type === 'medication_statement');
-            const adHocStopMeds = (adHocCommands || []).filter(e => e.command.command_type === 'stop_medication');
+            const adHocMeds = visibleAdHoc.filter(e => e.command.command_type === 'medication_statement');
+            const adHocStopMeds = visibleAdHoc.filter(e => e.command.command_type === 'stop_medication');
             if (cmds || medRecs.length > 0 || adHocMeds.length > 0 || adHocStopMeds.length > 0 || onAddMedication) {
               return html`
                 <div class="subsection" key=${s.key}>
@@ -785,6 +805,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
                         />
                       </div>
                       ${!readOnly && html`
@@ -849,11 +870,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           }
 
           if (key === 'allergies') {
-            const allergyRecs = (recommendations || [])
+            const allergyRecs = visibleRecs
               .map((cmd, i) => ({ command: cmd, index: i }))
               .filter(e => e.command.command_type === 'allergy');
-            const adHocAllergies = (adHocCommands || []).filter(e => e.command.command_type === 'allergy');
-            const adHocRemoveAllergies = (adHocCommands || []).filter(e => e.command.command_type === 'remove_allergy');
+            const adHocAllergies = visibleAdHoc.filter(e => e.command.command_type === 'allergy');
+            const adHocRemoveAllergies = visibleAdHoc.filter(e => e.command.command_type === 'remove_allergy');
             if (cmds || allergyRecs.length > 0 || adHocAllergies.length > 0 || adHocRemoveAllergies.length > 0 || onAddAllergy) {
               return html`
                 <div class="subsection" key=${s.key}>
@@ -884,6 +905,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
                         />
                       </div>
                       ${!readOnly && html`
@@ -951,7 +973,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
 
           const historyType = SECTION_TO_HISTORY_TYPE[key];
           const historyEntries = historyType
-            ? (adHocCommands || []).filter(e => e.command.command_type === historyType)
+            ? visibleAdHoc.filter(e => e.command.command_type === historyType)
             : [];
           if (readOnly && !s.text && !cmds && historyEntries.length === 0) return null;
           return html`
@@ -978,7 +1000,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 </div>
               `}
               ${PLAN_SECTIONS.has(key) && (() => {
-                const adHocResolves = (adHocCommands || []).filter(e => e.command.command_type === 'resolve_condition');
+                const adHocResolves = visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition');
                 return html`
                   ${adHocResolves.map(entry => html`
                     <div class="content-block recommendation-block rec-removal" key=${entry.index}>
@@ -1024,7 +1046,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             </div>
           `;
         })()}
-        ${adHocCommands && adHocCommands.map(entry => {
+        ${visibleAdHoc.map(entry => {
           const type = entry.command.command_type;
           if (type === 'medication_statement') return null;
           if (type === 'allergy') return null;
@@ -1130,7 +1152,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           return null;
         })}
         ${(() => {
-          const questionnaireCommands = (adHocCommands || [])
+          const questionnaireCommands = visibleAdHoc
             .filter(e => e.command.command_type === 'questionnaire');
           if (questionnaireCommands.length === 0 && !onAddQuestionnaire) return null;
           return html`
@@ -1161,7 +1183,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         ${(() => {
           // Build unified checklist: template charges + manually added charges.
           // A charge is "selected" if its command exists AND has selected=true.
-          const chargeCommands = (adHocCommands || [])
+          const chargeCommands = visibleAdHoc
             .filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code);
           const selectedCpts = new Set(
             chargeCommands.filter(e => e.command.selected !== false).map(e => e.command.data.cpt_code)
@@ -1185,11 +1207,12 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             }));
 
           const allItems = [...templateItems, ...adHocItems];
-          if (allItems.length === 0) return null;
+          const visibleCharges = readOnly ? allItems.filter(c => c.isAdded) : allItems;
+          if (visibleCharges.length === 0) return null;
 
           return html`
             <div class="charge-checklist">
-              ${allItems.map(c => html`
+              ${visibleCharges.map(c => html`
                 <label
                   key=${c.cpt_code}
                   class="charge-check-item${c.isAdded ? ' checked' : ''}${readOnly ? ' read-only' : ''}"
@@ -1215,13 +1238,15 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         })()}
         ${(() => {
           // Render search inputs for charges being added (no cpt_code yet).
-          const pending = (adHocCommands || []).filter(
+          // In readOnly mode, pending charges (no CPT) were never inserted — skip them.
+          if (readOnly) return null;
+          const pending = visibleAdHoc.filter(
             e => e.command.command_type === 'perform' && !e.command.data.cpt_code
           );
           if (pending.length === 0) return null;
           const allChecklistCpts = new Set([
             ...(templateCharges || []).map(c => c.cpt_code),
-            ...(adHocCommands || []).filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code).map(e => e.command.data.cpt_code),
+            ...visibleAdHoc.filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code).map(e => e.command.data.cpt_code),
           ]);
           return pending.map(entry => html`
             <div class="content-block recommendation-block rec-charge" key=${entry.index}>
@@ -1247,7 +1272,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         ${(() => {
           // Render Rx recommendations in the PLAN group (raw prescription text is suppressed above).
           if (title !== 'ASSESSMENT & PLAN') return null;
-          const rxRecs = (recommendations || [])
+          const rxRecs = visibleRecs
             .map((cmd, i) => ({ command: cmd, index: i }))
             .filter(e => e.command.command_type === 'prescribe');
           if (rxRecs.length === 0) return null;
@@ -1302,7 +1327,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         ${(() => {
           // Render Refer recommendations in the PLAN group.
           if (title !== 'ASSESSMENT & PLAN') return null;
-          const referRecs = (recommendations || [])
+          const referRecs = visibleRecs
             .map((cmd, i) => ({ command: cmd, index: i }))
             .filter(e => e.command.command_type === 'refer');
           if (referRecs.length === 0) return null;
