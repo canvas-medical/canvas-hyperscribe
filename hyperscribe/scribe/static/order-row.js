@@ -1127,18 +1127,15 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
               </div>
             `}
             ${REFILL_TABS.has(activeTab) && !selectedFdb && html`
-              <div class="order-rx-form">
+              <div class="history-form-field">
+                <label class="history-form-label">Select medication to ${activeTab === 'refill' ? 'refill' : 'adjust'}</label>
                 ${refillLoading
-                  ? html`<span class="removal-loading">Loading medications...</span>`
+                  ? html`<span class="diag-search-spinner">Loading medications...</span>`
                   : refillMeds.length > 0
-                    ? html`
-                      <div class="labeled-field" style="width:100%">
-                        <span class="labeled-field-label">Select medication to ${activeTab === 'refill' ? 'refill' : 'adjust'}</span>
-                        <select class="labeled-field-input" onChange=${handleRefillSelect}>
-                          <option value="">Choose a medication...</option>
-                          ${refillMeds.map((item, i) => html`<option key=${i} value=${i}>${item.medication_name}</option>`)}
-                        </select>
-                      </div>`
+                    ? html`<select class="history-form-input" onChange=${handleRefillSelect}>
+                        <option value="">Choose a medication...</option>
+                        ${refillMeds.map((item, i) => html`<option key=${i} value=${i}>${item.medication_name}</option>`)}
+                      </select>`
                     : html`<span class="removal-empty">No active medications</span>`
                 }
               </div>
