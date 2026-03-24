@@ -853,7 +853,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (cmds || allergyRecs.length > 0 || adHocAllergies.length > 0 || adHocRemoveAllergies.length > 0 || onAddAllergy) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${s.title}</div>
+                  <div class="subsection-title">Allergies Discussed During Encounter</div>
                   ${(cmds || []).map(entry => html`
                     <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
                       <div class="recommendation-content">
@@ -890,23 +890,29 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                   `)}
                   ${allergyRecs.map(entry => {
+                    const isAccepted = entry.command.accepted && !entry.command.rejected;
+                    const isRejected = entry.command.rejected;
                     return html`
-                    <div class="content-block recommendation-block rec-allergy${entry.command.already_documented ? ' rec-documented' : ''}" key=${'rec-allergy-' + entry.index}>
+                    <div class="content-block recommendation-block rec-allergy${isRejected ? ' rec-rejected' : ''}" key=${'rec-allergy-' + entry.index}>
                       <div class="recommendation-content">
                         <${AllergyRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditRecommendation}
-                          readOnly=${readOnly || entry.command.already_documented}
+                          readOnly=${readOnly || entry.command.already_documented || isRejected}
                         />
                       </div>
-                      ${!readOnly && !entry.command.already_documented && html`
-                        <div class="recommendation-actions">
-                          ${entry.command.accepted && html`<span class="rec-accepted-badge">Accepted</span>`}
-                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteRecommendation(entry.index)} title="Reject">${ICON_X}</button>
-                          <button type="button" class="rec-btn rec-btn-accept" onClick=${() => onAcceptRecommendation(entry.index)} title=${entry.command.accepted ? 'Undo accept' : 'Accept'}>${ICON_CHECK}</button>
-                        </div>
-                      `}
+                      <div class="recommendation-actions">
+                        ${entry.command.already_documented
+                          ? html`<span class="rec-documented-badge">Already in chart</span>`
+                          : !readOnly && html`
+                              ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                              ${isAccepted && html`<span class="rec-accepted-badge">Accepted</span>`}
+                              <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                              <button type="button" class="rec-btn ${isAccepted ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                            `
+                        }
+                      </div>
                     </div>
                     `;
                   })}

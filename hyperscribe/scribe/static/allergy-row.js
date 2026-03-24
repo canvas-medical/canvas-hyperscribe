@@ -135,11 +135,15 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
 
   // Already documented — non-clickable, dimmed.
   if (command.already_documented) {
+    const docDetails = [];
+    if (command.data.reaction) docDetails.push(command.data.reaction);
+    if (command.data.severity) docDetails.push(command.data.severity);
     return html`
       <div class="allergy-row documented">
-        <div class="subsection-title">Allergy</div>
-        <span class="allergy-row-text">${command.display}</span>
-        <span class="allergy-documented-badge">Already in chart</span>
+        <div class="order-view">
+          <div class="order-view-name">${command.display}</div>
+          ${docDetails.length > 0 && html`<div class="order-view-sig">${docDetails.join(' · ')}</div>`}
+        </div>
       </div>
     `;
   }
