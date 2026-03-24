@@ -4,6 +4,9 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
 function formatDate(iso) {
@@ -97,86 +100,96 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
   if (editing) {
     return html`
       <div class="task-row editing" onKeyDown=${handleKeyDown}>
-        <div class="subsection-title">Task</div>
-        <div class="task-form">
-          <input
-            ref=${titleRef}
-            class="task-input task-title-input"
-            type="text"
-            value=${title}
-            onInput=${(e) => setTitle(e.target.value)}
-            placeholder="Add a task..."
-          />
-          <div class="task-due-date">
-            <button
-              type="button"
-              class="task-quick-btn${dueDate === addDays(1) ? ' active' : ''}"
-              onClick=${() => setDueDate(dueDate === addDays(1) ? '' : addDays(1))}
-            >Tomorrow</button>
-            <button
-              type="button"
-              class="task-quick-btn${dueDate === addDays(7) ? ' active' : ''}"
-              onClick=${() => setDueDate(dueDate === addDays(7) ? '' : addDays(7))}
-            >In a week</button>
+        <div class="history-form">
+          <div class="history-form-field">
+            <label class="history-form-label">Task</label>
             <input
-              class="task-date-picker"
-              type="date"
-              value=${dueDate}
-              onInput=${(e) => setDueDate(e.target.value)}
+              ref=${titleRef}
+              class="history-form-input"
+              type="text"
+              value=${title}
+              onInput=${(e) => setTitle(e.target.value)}
+              placeholder="Add a task..."
             />
           </div>
-          <select class="task-select" value=${assigneeValue} onChange=${handleAssigneeChange}>
-            <option value="">Unassigned</option>
-            ${(assignees || []).some(a => a.type === 'team') && html`
-              <optgroup label="Teams">
-                ${(assignees || []).filter(a => a.type === 'team').map(a => html`
-                  <option key=${`team:${a.id}`} value=${`team:${a.id}`}>${a.label}</option>
-                `)}
-              </optgroup>
-            `}
-            ${(assignees || []).some(a => a.type === 'staff') && html`
-              <optgroup label="Staff">
-                ${(assignees || []).filter(a => a.type === 'staff').map(a => html`
-                  <option key=${`staff:${a.id}`} value=${`staff:${a.id}`}>${a.label}</option>
-                `)}
-              </optgroup>
-            `}
-          </select>
-          <div class="task-labels">
-            ${availableLabels.length > 0
-              ? availableLabels.map(l => html`
+          <div class="history-form-field">
+            <label class="history-form-label">Due Date</label>
+            <div class="task-due-date">
+              <button
+                type="button"
+                class="task-quick-btn${dueDate === addDays(1) ? ' active' : ''}"
+                onClick=${() => setDueDate(dueDate === addDays(1) ? '' : addDays(1))}
+              >Tomorrow</button>
+              <button
+                type="button"
+                class="task-quick-btn${dueDate === addDays(7) ? ' active' : ''}"
+                onClick=${() => setDueDate(dueDate === addDays(7) ? '' : addDays(7))}
+              >In a week</button>
+              <input
+                class="task-date-picker"
+                type="date"
+                value=${dueDate}
+                onInput=${(e) => setDueDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <div class="history-form-field">
+            <label class="history-form-label">Assign to</label>
+            <select class="history-form-input" value=${assigneeValue} onChange=${handleAssigneeChange}>
+              <option value="">Unassigned</option>
+              ${(assignees || []).some(a => a.type === 'team') && html`
+                <optgroup label="Teams">
+                  ${(assignees || []).filter(a => a.type === 'team').map(a => html`
+                    <option key=${`team:${a.id}`} value=${`team:${a.id}`}>${a.label}</option>
+                  `)}
+                </optgroup>
+              `}
+              ${(assignees || []).some(a => a.type === 'staff') && html`
+                <optgroup label="Staff">
+                  ${(assignees || []).filter(a => a.type === 'staff').map(a => html`
+                    <option key=${`staff:${a.id}`} value=${`staff:${a.id}`}>${a.label}</option>
+                  `)}
+                </optgroup>
+              `}
+            </select>
+          </div>
+          ${availableLabels.length > 0 && html`
+            <div class="history-form-field">
+              <label class="history-form-label">Labels</label>
+              <div class="task-labels">
+                ${availableLabels.map(l => html`
                   <button
                     key=${l.name}
                     type="button"
                     class="task-label-btn${selectedLabels.includes(l.name) ? ' active' : ''}"
                     onClick=${() => toggleLabel(l.name)}
                   >${l.name}</button>
-                `)
-              : html`<span class="task-labels-empty">No labels available</span>`
-            }
-          </div>
-          <div class="command-row-actions">
-            <button class="edit-btn" onClick=${handleSave} disabled=${!title.trim()}>Save</button>
-            <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
-            <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
+                `)}
+              </div>
+            </div>
+          `}
+          <div class="questionnaire-form-actions">
+            <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
+            <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancel} title="Cancel">${ICON_X}</button>
           </div>
         </div>
       </div>
     `;
   }
 
-  const parts = [command.display];
-  if (command.data.due_date) parts.push(`Due ${formatDate(command.data.due_date)}`);
+  const details = [];
+  if (command.data.due_date) details.push(`Due ${formatDate(command.data.due_date)}`);
   const aLabel = assigneeLabel();
-  if (aLabel) parts.push(aLabel);
+  if (aLabel) details.push(aLabel);
+  if (command.data.labels && command.data.labels.length) details.push(command.data.labels.join(', '));
 
   return html`
     <div class="task-row" onClick=${() => !readOnly && setEditing(true)}>
-      <div class="subsection-title">Task</div>
-      <span class="command-row-text">${parts[0]}</span>
-      ${command.data.due_date && html`<span class="task-meta-badge">${formatDate(command.data.due_date)}</span>`}
-      ${aLabel && html`<span class="task-meta-badge">${aLabel}</span>`}
-      ${(command.data.labels || []).map(name => html`<span class="task-meta-badge" key=${name}>${name}</span>`)}
+      <div class="order-view">
+        <span class="command-type-label">Task</span>
+        <div class="order-view-name">${command.display}</div>
+        ${details.length > 0 && html`<div class="order-view-details">${details.join(' · ')}</div>`}
+      </div>
     </div>
   `;
 }

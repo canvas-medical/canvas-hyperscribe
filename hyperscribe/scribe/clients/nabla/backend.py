@@ -73,6 +73,13 @@ class NablaBackend(ScribeBackend):
         raw = self._rest_client.generate_normalized_data(payload)
         return self._parse_normalized_data(raw)
 
+    # Remap section titles from Nabla to user-facing labels.
+    _TITLE_OVERRIDES: dict[str, str] = {
+        "current_medications": "Medications Discussed During Encounter",
+        "allergies": "Allergies Discussed During Encounter",
+        "past_medical_history": "Past Medical History Discussed During Encounter",
+    }
+
     @staticmethod
     def _parse_note(raw: dict[str, Any]) -> ClinicalNote:
         # The note content may be nested under a "note" key (API >= 2026-02-20).
@@ -80,7 +87,7 @@ class NablaBackend(ScribeBackend):
         sections: list[NoteSection] = []
         for section in note_data.get("sections", []):
             key = section.get("key", "")
-            title = section.get("title", "")
+            title = NablaBackend._TITLE_OVERRIDES.get(key, section.get("title", ""))
             text = section.get("text", "")
 
             if key.lower() == "history_of_present_illness":
