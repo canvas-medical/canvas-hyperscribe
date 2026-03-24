@@ -349,8 +349,22 @@ h2 { margin-bottom: 4px; }
 .recommendation-block:has(.editing) > .recommendation-actions { display: none; }
 
 /* Already documented */
-.recommendation-block.rec-documented { opacity: 0.55; }
-.recommendation-block.rec-documented .recommendation-actions { display: none; }
+.rec-documented-badge {
+  padding: 4px 12px; font-size: 12px; font-weight: 600;
+  color: #6b7280; background: #f3f4f6; border: 1px solid #d1d5db;
+  border-radius: 12px; white-space: nowrap;
+}
+
+/* Muted button (unselected state in accept/reject toggle) */
+.rec-btn-muted { background: #e5e7eb; color: #9ca3af; }
+
+/* Rejected state */
+.recommendation-block.rec-rejected { opacity: 0.5; }
+.rec-rejected-badge {
+  padding: 3px 10px; font-size: 11px; font-weight: 600;
+  color: #991b1b; background: #fef2f2; border-radius: 12px;
+  white-space: nowrap;
+}
 
 /* Accepted badge */
 .rec-accepted-badge {

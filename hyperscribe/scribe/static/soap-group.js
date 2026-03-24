@@ -511,7 +511,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   return html`
@@ -526,10 +526,15 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const cmds = commandBySectionKey && commandBySectionKey[review.sectionKey];
           if (!cmds || cmds.length === 0) return null;
           const entry = cmds[0];
+          // Filter out sections that are rendered as structured cards.
+          const STRUCTURED_KEYS = new Set(['current_medications', 'allergies']);
+          const filteredSections = (entry.command.data.sections || []).filter(s => !STRUCTURED_KEYS.has(s.key));
+          if (filteredSections.length === 0) return null;
+          const filteredCommand = { ...entry.command, data: { ...entry.command.data, sections: filteredSections } };
           return html`
             <div class="content-block rec-narrative">
               <${HistoryReviewRow}
-                command=${entry.command}
+                command=${filteredCommand}
                 commandIndex=${entry.index}
                 onEdit=${onEditCommand}
                 readOnly=${readOnly}
@@ -749,7 +754,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (cmds || medRecs.length > 0 || adHocMeds.length > 0 || adHocStopMeds.length > 0 || onAddMedication) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${s.title}</div>
+                  <div class="subsection-title">Medications Discussed During Encounter</div>
                   ${(cmds || []).map(entry => html`
                     <div class="content-block recommendation-block rec-medication" key=${entry.index}>
                       <div class="recommendation-content">
@@ -786,23 +791,30 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                   `)}
                   ${medRecs.map(entry => {
+                    const isAccepted = entry.command.accepted && !entry.command.rejected;
+                    const isRejected = entry.command.rejected;
+                    const isUnreviewed = !isAccepted && !isRejected;
                     return html`
-                    <div class="content-block recommendation-block rec-medication${entry.command.already_documented ? ' rec-documented' : ''}" key=${'rec-med-' + entry.index}>
+                    <div class="content-block recommendation-block rec-medication${isRejected ? ' rec-rejected' : ''}" key=${'rec-med-' + entry.index}>
                       <div class="recommendation-content">
                         <${MedicationRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditRecommendation}
-                          readOnly=${readOnly || entry.command.already_documented}
+                          readOnly=${readOnly || entry.command.already_documented || isRejected}
                         />
                       </div>
-                      ${!readOnly && !entry.command.already_documented && html`
-                        <div class="recommendation-actions">
-                          ${entry.command.accepted && html`<span class="rec-accepted-badge">Accepted</span>`}
-                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteRecommendation(entry.index)} title="Reject">${ICON_X}</button>
-                          <button type="button" class="rec-btn rec-btn-accept" onClick=${() => onAcceptRecommendation(entry.index)} title=${entry.command.accepted ? 'Undo accept' : 'Accept'}>${ICON_CHECK}</button>
-                        </div>
-                      `}
+                      <div class="recommendation-actions">
+                        ${entry.command.already_documented
+                          ? html`<span class="rec-documented-badge">Already in chart</span>`
+                          : !readOnly && html`
+                              ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                              ${isAccepted && html`<span class="rec-accepted-badge">Accepted</span>`}
+                              <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                              <button type="button" class="rec-btn ${isAccepted ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                            `
+                        }
+                      </div>
                     </div>
                     `;
                   })}

@@ -137,9 +137,10 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   if (command.already_documented) {
     return html`
       <div class="medication-row documented">
-        <div class="subsection-title">Med</div>
-        <span class="medication-row-text">${command.display}</span>
-        <span class="medication-documented-badge">Already in chart</span>
+        <div class="order-view">
+          <div class="order-view-name">${command.display}</div>
+          ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
+        </div>
       </div>
     `;
   }

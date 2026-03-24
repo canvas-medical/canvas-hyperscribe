@@ -103,7 +103,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -145,6 +145,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         recommendations=${(isObjective || isPlan) ? recommendations : null}
         onEditRecommendation=${(isObjective || isPlan) ? onEditRecommendation : null}
         onDeleteRecommendation=${(isObjective || isPlan) ? onDeleteRecommendation : null}
+        onRejectRecommendation=${(isObjective || isPlan) ? onRejectRecommendation : null}
         onAcceptRecommendation=${(isObjective || isPlan) ? onAcceptRecommendation : null}
         onAddCondition=${isPlan ? onAddCondition : null}
         unmatchedConditions=${isPlan ? unmatchedConditions : null}
@@ -683,7 +684,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const handleAcceptRecommendation = useCallback((index) => {
     setRecommendations(prev => prev.map((cmd, i) =>
-      i === index ? { ...cmd, accepted: !cmd.accepted } : cmd
+      i === index ? { ...cmd, accepted: true, rejected: false } : cmd
+    ));
+  }, []);
+
+  const handleRejectRecommendation = useCallback((index) => {
+    setRecommendations(prev => prev.map((cmd, i) =>
+      i === index ? { ...cmd, rejected: true, accepted: false } : cmd
     ));
   }, []);
 
@@ -1119,6 +1126,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onEditRecommendation: handleEditRecommendation,
           onDeleteRecommendation: handleDeleteRecommendation,
           onAcceptRecommendation: handleAcceptRecommendation,
+          onRejectRecommendation: handleRejectRecommendation,
           onAddCondition: approved ? null : handleAddCondition,
           unmatchedConditions,
           diagnosisSuggestions,
