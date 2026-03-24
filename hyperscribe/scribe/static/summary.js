@@ -1135,15 +1135,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       </div>
       ${prescriptionWarning && html`
         <div class="rx-verification-banner">
-          <div class="rx-verification-icon">!</div>
           <div class="rx-verification-text">
-            <strong>Prescriptions require verification</strong>
-            <p>Please go to the <strong>Note</strong> tab to review and sign prescriptions before they are sent.</p>
+            <strong>Prescriptions require verification.</strong> Go to the Note tab to review and sign prescriptions before they are sent.
           </div>
           <button class="rx-verification-close" onClick=${() => {
             const port = window.__canvasPort && window.__canvasPort();
             if (port) port.postMessage({ type: 'CLOSE_MODAL' });
-          }}>I've reviewed — close</button>
+          }}>Close</button>
         </div>
       `}
       ${showFooter && html`
