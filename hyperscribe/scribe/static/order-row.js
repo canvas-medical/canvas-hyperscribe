@@ -4,6 +4,9 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
@@ -280,6 +283,15 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [editing, setEditing] = useState(isNew);
   const [activeTab, setActiveTab] = useState(command.command_type || 'prescribe');
 
+  // Per-tab Rx state snapshots (saved when switching away, restored when switching back).
+  const rxSnapshots = useRef({});
+
+  const initRxState = () => ({
+    medQuery: '', selectedFdb: null, selectedMedDisplay: '', medQuantities: buildTypeToDispenseOptions([]),
+    sig: '', daysSupply: '', quantity: '', typeToDispense: '', refills: '',
+    substitutions: true, noteToPharmacist: '', interactionWarning: null,
+  });
+
   // Rx state
   const [medQuery, setMedQuery] = useState(command.data.medication_text || '');
   const [medResults, setMedResults] = useState([]);
@@ -297,6 +309,29 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [noteToPharmacist, setNoteToPharmacist] = useState(command.data.note_to_pharmacist || '');
   const [interactionWarning, setInteractionWarning] = useState(null);
   const [checkingInteractions, setCheckingInteractions] = useState(false);
+
+  const snapshotCurrentRx = () => ({
+    medQuery, selectedFdb, selectedMedDisplay, medQuantities,
+    sig, daysSupply, quantity, typeToDispense, refills,
+    substitutions, noteToPharmacist, interactionWarning,
+  });
+
+  const restoreRxSnapshot = (snap) => {
+    setMedQuery(snap.medQuery);
+    setSelectedFdb(snap.selectedFdb);
+    setSelectedMedDisplay(snap.selectedMedDisplay);
+    setMedQuantities(snap.medQuantities);
+    setSig(snap.sig);
+    setDaysSupply(snap.daysSupply);
+    setQuantity(snap.quantity);
+    setTypeToDispense(snap.typeToDispense);
+    setRefills(snap.refills);
+    setSubstitutions(snap.substitutions);
+    setNoteToPharmacist(snap.noteToPharmacist);
+    setInteractionWarning(snap.interactionWarning);
+    setMedResults([]);
+    setMedSearched(false);
+  };
 
   // Refill state
   const [refillMeds, setRefillMeds] = useState([]);
@@ -933,6 +968,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
         refills: refills !== '' ? Number(refills) : null,
         substitutions: substitutions ? 'allowed' : 'not_allowed',
         note_to_pharmacist: noteToPharmacist || null,
+        quantities: medQuantities.map(q => ({ representative_ndc: q.representative_ndc, ncpdp_quantity_qualifier_code: q.ncpdp_quantity_qualifier_code, clinical_quantity_description: q.label, quantity: 1 })),
       };
     } else if (activeTab === 'lab_order') {
       data = {
@@ -992,155 +1028,164 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   if (editing) {
     return html`
       <div class="order-row editing" ref=${containerRef} onKeyDown=${handleKeyDown}>
-        <div class="order-layout">
+        <div class="history-form">
           ${!isRecommendation && html`
-            <div class="order-tabs">
+            <div class="order-tabs-horizontal">
               ${ORDER_TABS.map(tab => html`
                 <button
                   key=${tab.key}
                   type="button"
-                  class="order-tab${activeTab === tab.key ? ' active' : ''}"
-                  onClick=${() => setActiveTab(tab.key)}
+                  class="order-tab-h${activeTab === tab.key ? ' active' : ''}"
+                  onClick=${() => {
+                    if (tab.key === activeTab) return;
+                    // Save current Rx state for this tab.
+                    const RX_TABS = new Set(['prescribe', 'refill', 'adjust_prescription']);
+                    if (RX_TABS.has(activeTab)) {
+                      rxSnapshots.current[activeTab] = snapshotCurrentRx();
+                    }
+                    // Restore or reset Rx state for the target tab.
+                    if (RX_TABS.has(tab.key) && rxSnapshots.current[tab.key]) {
+                      restoreRxSnapshot(rxSnapshots.current[tab.key]);
+                    } else if (RX_TABS.has(tab.key)) {
+                      restoreRxSnapshot(initRxState());
+                    }
+                    setActiveTab(tab.key);
+                  }}
                 >${tab.label}</button>
               `)}
             </div>
           `}
           <div class="order-form">
-            ${(activeTab === 'prescribe' || (REFILL_TABS.has(activeTab) && selectedFdb)) && html`
-              <div class="order-rx-form">
-                <div class="medication-search-wrapper">
-                  <div class="labeled-field" style="width:100%">
-                    <span class="labeled-field-label">Medication <span class="field-required">*</span></span>
-                    <input
-                      ref=${medInputRef}
-                      type="text"
-                      class="labeled-field-input"
-                      value=${medQuery}
-                      onInput=${handleMedInput}
-                      placeholder="Search medications..."
-                    />
-                  </div>
-                  ${medSearching && html`<span class="medication-search-spinner">Searching...</span>`}
+            ${(activeTab === 'prescribe' || (REFILL_TABS.has(activeTab) && selectedFdb)) && (() => {
+              const rxMissing = new Set();
+              if (!selectedFdb) rxMissing.add('medication');
+              if (quantity === '' || quantity == null) rxMissing.add('qty');
+              if (!typeToDispense) rxMissing.add('type');
+              if (!sig) rxMissing.add('sig');
+              if (refills === '' || refills == null) rxMissing.add('refills');
+              return html`
+              <div class="order-form">
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label${rxMissing.has('medication') ? ' field-missing' : ''}">Medication *</label>
+                  <input
+                    ref=${medInputRef}
+                    type="text"
+                    class="history-form-input${rxMissing.has('medication') ? ' input-missing' : ''}"
+                    value=${medQuery}
+                    onInput=${handleMedInput}
+                    placeholder="Search medications..."
+                  />
+                  ${medSearching && html`<span class="diag-search-spinner">Searching...</span>`}
                   ${medResults.length > 0 && html`
-                    <div class="medication-search-dropdown">
+                    <div class="history-search-dropdown">
                       ${medResults.map(r => html`
                         <div
                           key=${r.fdb_code}
-                          class="medication-search-result"
+                          class="history-search-result"
                           onMouseDown=${(e) => { e.preventDefault(); handleMedSelect(r); }}
                         >${r.description}</div>
                       `)}
                     </div>
                   `}
                   ${!medSearching && medSearched && medResults.length === 0 && medQuery.length >= 2 && html`
-                    <div class="medication-search-dropdown">
-                      <div class="medication-search-result search-no-results">No medications found</div>
+                    <div class="history-search-dropdown">
+                      <div class="history-search-result search-no-results">No medications found</div>
                     </div>
                   `}
                 </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:2">
-                    <span class="labeled-field-label">Qty <span class="field-required">*</span></span>
-                    <div style="display:flex;align-items:center;gap:4px">
-                      <input class="labeled-field-input" style="flex:0 0 60px" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" />
-                      <span style="font-size:12px;color:#666">x</span>
-                      <select class="labeled-field-input" style="flex:1;min-width:120px" value=${typeToDispense} onChange=${(e) => setTypeToDispense(e.target.value)}>
-                        <option value="">—</option>
-                        ${medQuantities.map(o => html`
-                          <option key=${o.value} value=${o.value}>${o.label}</option>
-                        `)}
-                      </select>
-                    </div>
+                <div class="order-rx-grid">
+                  <div class="history-form-field">
+                    <label class="history-form-label${rxMissing.has('qty') ? ' field-missing' : ''}">Qty *</label>
+                    <input class="history-form-input${rxMissing.has('qty') ? ' input-missing' : ''}" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" placeholder="0" />
                   </div>
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Days</span>
-                    <input class="labeled-field-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" />
+                  <div class="history-form-field">
+                    <label class="history-form-label${rxMissing.has('type') ? ' field-missing' : ''}">Dispense type *</label>
+                    <select class="history-form-input${rxMissing.has('type') ? ' input-missing' : ''}" value=${typeToDispense} onChange=${(e) => setTypeToDispense(e.target.value)}>
+                      <option value="">Select...</option>
+                      ${medQuantities.map(o => html`
+                        <option key=${o.value} value=${o.value}>${o.label}</option>
+                      `)}
+                    </select>
                   </div>
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Refills <span class="field-required">*</span></span>
-                    <input class="labeled-field-input" type="number" value=${refills} onInput=${(e) => setRefills(e.target.value)} min="0" />
+                  <div class="history-form-field">
+                    <label class="history-form-label">Days supply</label>
+                    <input class="history-form-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" placeholder="0" />
                   </div>
-                </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Sig <span class="field-required">*</span></span>
-                    <input class="labeled-field-input" type="text" value=${sig} onInput=${(e) => setSig(e.target.value)} />
+                  <div class="history-form-field">
+                    <label class="history-form-label${rxMissing.has('refills') ? ' field-missing' : ''}">Refills *</label>
+                    <input class="history-form-input${rxMissing.has('refills') ? ' input-missing' : ''}" type="number" value=${refills} onInput=${(e) => setRefills(e.target.value)} min="0" placeholder="0" />
                   </div>
                 </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Note to Pharmacist</span>
-                    <input class="labeled-field-input" type="text" value=${noteToPharmacist} onInput=${(e) => setNoteToPharmacist(e.target.value)} />
-                  </div>
+                <div class="history-form-field">
+                  <label class="history-form-label${rxMissing.has('sig') ? ' field-missing' : ''}">Sig *</label>
+                  <input class="history-form-input${rxMissing.has('sig') ? ' input-missing' : ''}" type="text" value=${sig} onInput=${(e) => setSig(e.target.value)} placeholder="e.g. Take 1 tablet by mouth daily" />
                 </div>
-                <div class="order-rx-row">
-                  <button type="button" class="task-quick-btn${substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(true)}>Substitutions Allowed</button>
-                  <button type="button" class="task-quick-btn${!substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(false)}>Substitutions Not Allowed</button>
+                <div class="history-form-field">
+                  <label class="history-form-label">Note to Pharmacist</label>
+                  <input class="history-form-input" type="text" value=${noteToPharmacist} onInput=${(e) => setNoteToPharmacist(e.target.value)} placeholder="Optional" />
+                </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Substitutions</label>
+                  <div class="allergy-severity">
+                    <button type="button" class="task-quick-btn${substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(true)}>Allowed</button>
+                    <button type="button" class="task-quick-btn${!substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(false)}>Not Allowed</button>
+                  </div>
                 </div>
               </div>
-            `}
+            `;})()}
             ${REFILL_TABS.has(activeTab) && !selectedFdb && html`
-              <div class="order-rx-form">
+              <div class="history-form-field">
+                <label class="history-form-label">Select medication to ${activeTab === 'refill' ? 'refill' : 'adjust'}</label>
                 ${refillLoading
-                  ? html`<span class="removal-loading">Loading medications...</span>`
+                  ? html`<span class="diag-search-spinner">Loading medications...</span>`
                   : refillMeds.length > 0
-                    ? html`
-                      <div class="labeled-field" style="width:100%">
-                        <span class="labeled-field-label">Select medication to ${activeTab === 'refill' ? 'refill' : 'adjust'}</span>
-                        <select class="labeled-field-input" onChange=${handleRefillSelect}>
-                          <option value="">Choose a medication...</option>
-                          ${refillMeds.map((item, i) => html`<option key=${i} value=${i}>${item.medication_name}</option>`)}
-                        </select>
-                      </div>`
+                    ? html`<select class="history-form-input" onChange=${handleRefillSelect}>
+                        <option value="">Choose a medication...</option>
+                        ${refillMeds.map((item, i) => html`<option key=${i} value=${i}>${item.medication_name}</option>`)}
+                      </select>`
                     : html`<span class="removal-empty">No active medications</span>`
                 }
               </div>
             `}
             ${activeTab === 'lab_order' && html`
-              <div class="order-lab-form">
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Lab Partner</span>
-                    <select class="labeled-field-input" value=${labPartnerId} onChange=${handleLabPartnerChange}>
-                      <option value="">Select a lab partner...</option>
-                      ${labPartners.map(p => html`
-                        <option key=${p.id} value=${p.id}>${p.name}</option>
-                      `)}
-                    </select>
-                  </div>
+              <div class="order-form">
+                <div class="history-form-field">
+                  <label class="history-form-label">Lab Partner</label>
+                  <select class="history-form-input" value=${labPartnerId} onChange=${handleLabPartnerChange}>
+                    <option value="">Select a lab partner...</option>
+                    ${labPartners.map(p => html`
+                      <option key=${p.id} value=${p.id}>${p.name}</option>
+                    `)}
+                  </select>
                 </div>
                 ${labPartnerId && html`
-                  <div class="order-rx-row">
-                    <div class="lab-test-search-wrapper" style="flex:1">
-                      <div class="labeled-field" style="width:100%">
-                        <span class="labeled-field-label">Tests</span>
-                        <input
-                          ref=${labTestInputRef}
-                          type="text"
-                          class="labeled-field-input"
-                          value=${labTestQuery}
-                          onInput=${handleLabTestInput}
-                          placeholder="Search tests..."
-                        />
+                  <div class="history-form-field" style="position: relative;">
+                    <label class="history-form-label">Tests</label>
+                    <input
+                      ref=${labTestInputRef}
+                      type="text"
+                      class="history-form-input"
+                      value=${labTestQuery}
+                      onInput=${handleLabTestInput}
+                      placeholder="Search tests..."
+                    />
+                    ${labTestSearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                    ${labTestResults.length > 0 && html`
+                      <div class="history-search-dropdown">
+                        ${labTestResults.map(t => html`
+                          <div
+                            key=${t.order_code}
+                            class="history-search-result"
+                            onMouseDown=${(e) => { e.preventDefault(); handleLabTestSelect(t); }}
+                          >${t.order_name}${t.order_code ? ` (${t.order_code})` : ''}</div>
+                        `)}
                       </div>
-                      ${labTestSearching && html`<span class="lab-test-search-spinner">Searching...</span>`}
-                      ${labTestResults.length > 0 && html`
-                        <div class="lab-test-search-dropdown">
-                          ${labTestResults.map(t => html`
-                            <div
-                              key=${t.order_code}
-                              class="lab-test-search-result"
-                              onMouseDown=${(e) => { e.preventDefault(); handleLabTestSelect(t); }}
-                            >${t.order_name}${t.order_code ? ` (${t.order_code})` : ''}</div>
-                          `)}
-                        </div>
-                      `}
-                      ${!labTestSearching && labTestSearched && labTestResults.length === 0 && labTestQuery.length >= 2 && html`
-                        <div class="lab-test-search-dropdown">
-                          <div class="lab-test-search-result search-no-results">No tests found</div>
-                        </div>
-                      `}
-                    </div>
+                    `}
+                    ${!labTestSearching && labTestSearched && labTestResults.length === 0 && labTestQuery.length >= 2 && html`
+                      <div class="history-search-dropdown">
+                        <div class="history-search-result search-no-results">No tests found</div>
+                      </div>
+                    `}
                   </div>
                   ${selectedTests.length > 0 && html`
                     <div class="lab-selected-tests">
@@ -1153,51 +1198,47 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     </div>
                   `}
                 `}
-                <div class="order-rx-row">
-                  <div class="diag-search-wrapper" style="flex:1">
-                    <div class="labeled-field" style="width:100%">
-                      <span class="labeled-field-label">Dx</span>
-                      <input
-                        ref=${diagInputRef}
-                        class="labeled-field-input"
-                        type="text"
-                        value=${diagQuery}
-                        onInput=${handleDiagInput}
-                        onFocus=${() => setDiagFocused(true)}
-                        onBlur=${() => setTimeout(() => setDiagFocused(false), 150)}
-                        placeholder="Search diagnoses..."
-                      />
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Diagnoses</label>
+                  <input
+                    ref=${diagInputRef}
+                    class="history-form-input"
+                    type="text"
+                    value=${diagQuery}
+                    onInput=${handleDiagInput}
+                    onFocus=${() => setDiagFocused(true)}
+                    onBlur=${() => setTimeout(() => setDiagFocused(false), 150)}
+                    placeholder="Search diagnoses..."
+                  />
+                  ${diagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                  ${diagResults.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      ${diagResults.map(d => html`
+                        <div
+                          key=${d.code}
+                          class="history-search-result"
+                          onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
+                        >${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
                     </div>
-                    ${diagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
-                    ${diagResults.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        ${diagResults.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                    ${!diagSearching && diagSearched && diagResults.length === 0 && diagQuery.length >= 2 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-search-result search-no-results">No diagnoses found</div>
-                      </div>
-                    `}
-                    ${diagFocused && !diagQuery && diagSuggestions.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-suggestion-header">Patient conditions</div>
-                        ${diagSuggestions.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                  </div>
+                  `}
+                  ${!diagSearching && diagSearched && diagResults.length === 0 && diagQuery.length >= 2 && html`
+                    <div class="history-search-dropdown">
+                      <div class="history-search-result search-no-results">No diagnoses found</div>
+                    </div>
+                  `}
+                  ${diagFocused && !diagQuery && diagSuggestions.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      <div class="diag-suggestion-header">Patient conditions</div>
+                      ${diagSuggestions.map(d => html`
+                        <div
+                          key=${d.code}
+                          class="history-search-result"
+                          onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
+                        >${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
+                    </div>
+                  `}
                 </div>
                 ${selectedDiagnoses.length > 0 && html`
                   <div class="lab-selected-tests">
@@ -1209,100 +1250,80 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     `)}
                   </div>
                 `}
-                <div class="order-rx-row">
-                  <button type="button" class="task-quick-btn${!labFasting ? ' active' : ''}" onClick=${() => setLabFasting(false)}>Fasting Not Required</button>
-                  <button type="button" class="task-quick-btn${labFasting ? ' active' : ''}" onClick=${() => setLabFasting(true)}>Fasting Required</button>
-                </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Comment</span>
-                    <input
-                      class="labeled-field-input"
-                      type="text"
-                      value=${labComment}
-                      onInput=${(e) => setLabComment(e.target.value)}
-                    />
+                <div class="history-form-field">
+                  <label class="history-form-label">Fasting</label>
+                  <div class="allergy-severity">
+                    <button type="button" class="task-quick-btn${!labFasting ? ' active' : ''}" onClick=${() => setLabFasting(false)}>Not Required</button>
+                    <button type="button" class="task-quick-btn${labFasting ? ' active' : ''}" onClick=${() => setLabFasting(true)}>Required</button>
                   </div>
+                </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Comment</label>
+                  <input
+                    class="history-form-input"
+                    type="text"
+                    value=${labComment}
+                    onInput=${(e) => setLabComment(e.target.value)}
+                    placeholder="Optional"
+                  />
                 </div>
               </div>
             `}
             ${activeTab === 'imaging_order' && html`
-              <div class="order-imaging-form">
-                <div class="imaging-search-wrapper">
-                  <div class="labeled-field" style="width:100%">
-                    <span class="labeled-field-label">Imaging</span>
-                    <input
-                      ref=${imagingInputRef}
-                      type="text"
-                      class="labeled-field-input"
-                      value=${imagingQuery}
-                      onInput=${handleImagingInput}
-                      placeholder="Search imaging..."
-                    />
-                  </div>
-                  ${imagingSearching && html`<span class="imaging-search-spinner">Searching...</span>`}
+              <div class="order-form">
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Imaging</label>
+                  <input
+                    ref=${imagingInputRef}
+                    type="text"
+                    class="history-form-input"
+                    value=${imagingQuery}
+                    onInput=${handleImagingInput}
+                    placeholder="Search imaging..."
+                  />
+                  ${imagingSearching && html`<span class="diag-search-spinner">Searching...</span>`}
                   ${imagingResults.length > 0 && html`
-                    <div class="imaging-search-dropdown">
+                    <div class="history-search-dropdown">
                       ${imagingResults.map((r, i) => html`
-                        <div
-                          key=${i}
-                          class="imaging-search-result"
-                          onMouseDown=${(e) => { e.preventDefault(); handleImagingSelect(r); }}
-                        >${r.display}</div>
+                        <div key=${i} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingSelect(r); }}>${r.display}</div>
                       `)}
                     </div>
                   `}
                   ${!imagingSearching && imagingSearched && imagingResults.length === 0 && imagingQuery.length >= 2 && html`
-                    <div class="imaging-search-dropdown">
-                      <div class="imaging-search-result search-no-results">No imaging codes found</div>
-                    </div>
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No imaging codes found</div></div>
                   `}
                 </div>
-                <div class="order-rx-row">
-                  <div class="diag-search-wrapper" style="flex:1">
-                    <div class="labeled-field" style="width:100%">
-                      <span class="labeled-field-label">Dx</span>
-                      <input
-                        ref=${imagingDiagInputRef}
-                        class="labeled-field-input"
-                        type="text"
-                        value=${imagingDiagQuery}
-                        onInput=${handleImagingDiagInput}
-                        onFocus=${() => setImagingDiagFocused(true)}
-                        onBlur=${() => setTimeout(() => setImagingDiagFocused(false), 150)}
-                        placeholder="Search diagnoses..."
-                      />
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Diagnoses</label>
+                  <input
+                    ref=${imagingDiagInputRef}
+                    class="history-form-input"
+                    type="text"
+                    value=${imagingDiagQuery}
+                    onInput=${handleImagingDiagInput}
+                    onFocus=${() => setImagingDiagFocused(true)}
+                    onBlur=${() => setTimeout(() => setImagingDiagFocused(false), 150)}
+                    placeholder="Search diagnoses..."
+                  />
+                  ${imagingDiagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                  ${imagingDiagResults.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      ${imagingDiagResults.map(d => html`
+                        <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
                     </div>
-                    ${imagingDiagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
-                    ${imagingDiagResults.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        ${imagingDiagResults.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                    ${!imagingDiagSearching && imagingDiagSearched && imagingDiagResults.length === 0 && imagingDiagQuery.length >= 2 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-search-result search-no-results">No diagnoses found</div>
-                      </div>
-                    `}
-                    ${imagingDiagFocused && !imagingDiagQuery && imagingDiagSuggestions.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-suggestion-header">Patient conditions</div>
-                        ${imagingDiagSuggestions.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                  </div>
+                  `}
+                  ${!imagingDiagSearching && imagingDiagSearched && imagingDiagResults.length === 0 && imagingDiagQuery.length >= 2 && html`
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No diagnoses found</div></div>
+                  `}
+                  ${imagingDiagFocused && !imagingDiagQuery && imagingDiagSuggestions.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      <div class="diag-suggestion-header">Patient conditions</div>
+                      ${imagingDiagSuggestions.map(d => html`
+                        <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
+                    </div>
+                  `}
                 </div>
                 ${imagingDiagnoses.length > 0 && html`
                   <div class="lab-selected-tests">
@@ -1314,178 +1335,129 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     `)}
                   </div>
                 `}
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Order Details</span>
-                    <input
-                      class="labeled-field-input"
-                      type="text"
-                      value=${imagingDetails}
-                      onInput=${(e) => setImagingDetails(e.target.value)}
-                    />
+                <div class="history-form-field">
+                  <label class="history-form-label">Order Details</label>
+                  <input class="history-form-input" type="text" value=${imagingDetails} onInput=${(e) => setImagingDetails(e.target.value)} placeholder="Optional" />
+                </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Comment</label>
+                  <input class="history-form-input" type="text" value=${imagingComment} onInput=${(e) => setImagingComment(e.target.value)} placeholder="Optional" />
+                </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Priority</label>
+                  <div class="allergy-severity">
+                    <button type="button" class="task-quick-btn${imagingPriority === 'Routine' ? ' active' : ''}" onClick=${() => setImagingPriority('Routine')}>Routine</button>
+                    <button type="button" class="task-quick-btn${imagingPriority === 'Urgent' ? ' active' : ''}" onClick=${() => setImagingPriority('Urgent')}>Urgent</button>
                   </div>
                 </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Comment</span>
-                    <input
-                      class="labeled-field-input"
-                      type="text"
-                      value=${imagingComment}
-                      onInput=${(e) => setImagingComment(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div class="order-rx-row">
-                  <button type="button" class="task-quick-btn${imagingPriority === 'Routine' ? ' active' : ''}" onClick=${() => setImagingPriority('Routine')}>Routine</button>
-                  <button type="button" class="task-quick-btn${imagingPriority === 'Urgent' ? ' active' : ''}" onClick=${() => setImagingPriority('Urgent')}>Urgent</button>
-                </div>
-                <div class="imaging-search-wrapper">
-                  <div class="labeled-field" style="width:100%">
-                    <span class="labeled-field-label">Ordering Provider</span>
-                    <input
-                      ref=${providerInputRef}
-                      type="text"
-                      class="labeled-field-input"
-                      value=${providerQuery || orderingProviderName}
-                      onInput=${handleProviderInput}
-                      onFocus=${() => { if (orderingProviderName) { setProviderQuery(orderingProviderName); debouncedProviderSearch(orderingProviderName); } }}
-                      placeholder="Search providers..."
-                    />
-                  </div>
-                  ${providerSearching && html`<span class="imaging-search-spinner">Searching...</span>`}
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Ordering Provider</label>
+                  <input
+                    ref=${providerInputRef}
+                    type="text"
+                    class="history-form-input"
+                    value=${providerQuery || orderingProviderName}
+                    onInput=${handleProviderInput}
+                    onFocus=${() => { if (orderingProviderName) { setProviderQuery(orderingProviderName); debouncedProviderSearch(orderingProviderName); } }}
+                    placeholder="Search providers..."
+                  />
+                  ${providerSearching && html`<span class="diag-search-spinner">Searching...</span>`}
                   ${providerResults.length > 0 && html`
-                    <div class="imaging-search-dropdown">
+                    <div class="history-search-dropdown">
                       ${providerResults.map(p => html`
-                        <div
-                          key=${p.id}
-                          class="imaging-search-result"
-                          onMouseDown=${(e) => { e.preventDefault(); handleProviderSelect(p); }}
-                        >${p.label}</div>
+                        <div key=${p.id} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleProviderSelect(p); }}>${p.label}</div>
                       `)}
                     </div>
                   `}
                   ${!providerSearching && providerSearched && providerResults.length === 0 && providerQuery.length >= 2 && html`
-                    <div class="imaging-search-dropdown">
-                      <div class="imaging-search-result search-no-results">No providers found</div>
-                    </div>
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No providers found</div></div>
                   `}
                 </div>
-                <div class="imaging-search-wrapper">
-                  <div class="labeled-field" style="width:100%">
-                    <span class="labeled-field-label">Imaging Center</span>
-                    <input
-                      ref=${centerInputRef}
-                      type="text"
-                      class="labeled-field-input"
-                      value=${centerQuery || selectedCenterName}
-                      onInput=${handleCenterInput}
-                      placeholder="Search imaging centers..."
-                    />
-                  </div>
-                  ${centerSearching && html`<span class="imaging-search-spinner">Searching...</span>`}
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Imaging Center</label>
+                  <input
+                    ref=${centerInputRef}
+                    type="text"
+                    class="history-form-input"
+                    value=${centerQuery || selectedCenterName}
+                    onInput=${handleCenterInput}
+                    placeholder="Search imaging centers..."
+                  />
+                  ${centerSearching && html`<span class="diag-search-spinner">Searching...</span>`}
                   ${centerResults.length > 0 && html`
-                    <div class="imaging-search-dropdown">
+                    <div class="history-search-dropdown">
                       ${centerResults.map((r, i) => html`
-                        <div
-                          key=${i}
-                          class="imaging-search-result"
-                          onMouseDown=${(e) => { e.preventDefault(); handleCenterSelect(r); }}
-                        >
-                          <div class="imaging-center-name">${r.name}</div>
-                          ${r.description && html`<div class="imaging-center-desc">${r.description}</div>`}
+                        <div key=${i} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleCenterSelect(r); }}>
+                          <div style="font-weight:600">${r.name}</div>
+                          ${r.description && html`<div style="font-size:12px;color:#888">${r.description}</div>`}
                         </div>
                       `)}
                     </div>
                   `}
                   ${!centerSearching && centerSearched && centerResults.length === 0 && centerQuery.length >= 2 && html`
-                    <div class="imaging-search-dropdown">
-                      <div class="imaging-search-result search-no-results">No imaging centers found</div>
-                    </div>
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No imaging centers found</div></div>
                   `}
                 </div>
               </div>
             `}
             ${activeTab === 'refer' && html`
-              <div class="order-refer-form">
-                <div class="imaging-search-wrapper">
-                  <div class="labeled-field" style="width:100%">
-                    <span class="labeled-field-label">Refer To</span>
-                    <input
-                      ref=${referProviderInputRef}
-                      type="text"
-                      class="labeled-field-input"
-                      value=${referProviderQuery || referProviderDisplay}
-                      onInput=${handleReferProviderInput}
-                      placeholder="Search by name, specialty, or practice..."
-                    />
-                  </div>
-                  ${referProviderSearching && html`<span class="imaging-search-spinner">Searching...</span>`}
+              <div class="order-form">
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Refer To</label>
+                  <input
+                    ref=${referProviderInputRef}
+                    type="text"
+                    class="history-form-input"
+                    value=${referProviderQuery || referProviderDisplay}
+                    onInput=${handleReferProviderInput}
+                    placeholder="Search by name, specialty, or practice..."
+                  />
+                  ${referProviderSearching && html`<span class="diag-search-spinner">Searching...</span>`}
                   ${referProviderResults.length > 0 && html`
-                    <div class="imaging-search-dropdown">
+                    <div class="history-search-dropdown">
                       ${referProviderResults.map((r, i) => html`
-                        <div
-                          key=${i}
-                          class="imaging-search-result"
-                          onMouseDown=${(e) => { e.preventDefault(); handleReferProviderSelect(r); }}
-                        >
-                          <div class="imaging-center-name">${r.name}</div>
-                          ${r.description && html`<div class="imaging-center-desc">${r.description}</div>`}
+                        <div key=${i} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferProviderSelect(r); }}>
+                          <div style="font-weight:600">${r.name}</div>
+                          ${r.description && html`<div style="font-size:12px;color:#888">${r.description}</div>`}
                         </div>
                       `)}
                     </div>
                   `}
                   ${!referProviderSearching && referProviderSearched && referProviderResults.length === 0 && referProviderQuery.length >= 2 && html`
-                    <div class="imaging-search-dropdown">
-                      <div class="imaging-search-result search-no-results">No providers found</div>
-                    </div>
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No providers found</div></div>
                   `}
                 </div>
-                <div class="order-rx-row">
-                  <div class="diag-search-wrapper" style="flex:1">
-                    <div class="labeled-field" style="width:100%">
-                      <span class="labeled-field-label">Indications</span>
-                      <input
-                        ref=${referDiagInputRef}
-                        class="labeled-field-input"
-                        type="text"
-                        value=${referDiagQuery}
-                        onInput=${handleReferDiagInput}
-                        onFocus=${() => setReferDiagFocused(true)}
-                        onBlur=${() => setTimeout(() => setReferDiagFocused(false), 150)}
-                        placeholder="Search diagnoses..."
-                      />
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Indications</label>
+                  <input
+                    ref=${referDiagInputRef}
+                    class="history-form-input"
+                    type="text"
+                    value=${referDiagQuery}
+                    onInput=${handleReferDiagInput}
+                    onFocus=${() => setReferDiagFocused(true)}
+                    onBlur=${() => setTimeout(() => setReferDiagFocused(false), 150)}
+                    placeholder="Search diagnoses..."
+                  />
+                  ${referDiagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                  ${referDiagResults.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      ${referDiagResults.map(d => html`
+                        <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
                     </div>
-                    ${referDiagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
-                    ${referDiagResults.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        ${referDiagResults.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                    ${!referDiagSearching && referDiagSearched && referDiagResults.length === 0 && referDiagQuery.length >= 2 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-search-result search-no-results">No diagnoses found</div>
-                      </div>
-                    `}
-                    ${referDiagFocused && !referDiagQuery && referDiagSuggestions.length > 0 && html`
-                      <div class="diag-search-dropdown">
-                        <div class="diag-suggestion-header">Patient conditions</div>
-                        ${referDiagSuggestions.map(d => html`
-                          <div
-                            key=${d.code}
-                            class="diag-search-result"
-                            onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}
-                          >${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                  </div>
+                  `}
+                  ${!referDiagSearching && referDiagSearched && referDiagResults.length === 0 && referDiagQuery.length >= 2 && html`
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No diagnoses found</div></div>
+                  `}
+                  ${referDiagFocused && !referDiagQuery && referDiagSuggestions.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      <div class="diag-suggestion-header">Patient conditions</div>
+                      ${referDiagSuggestions.map(d => html`
+                        <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                      `)}
+                    </div>
+                  `}
                 </div>
                 ${referDiagnoses.length > 0 && html`
                   <div class="lab-selected-tests">
@@ -1497,49 +1469,35 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     `)}
                   </div>
                 `}
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Clinical Question</span>
-                    <select class="labeled-field-input" value=${referClinicalQuestion} onChange=${(e) => setReferClinicalQuestion(e.target.value)}>
-                      <option value="">—</option>
-                      ${CLINICAL_QUESTIONS.map(q => html`
-                        <option key=${q} value=${q}>${q}</option>
-                      `)}
-                    </select>
+                <div class="history-form-field">
+                  <label class="history-form-label">Clinical Question</label>
+                  <select class="history-form-input" value=${referClinicalQuestion} onChange=${(e) => setReferClinicalQuestion(e.target.value)}>
+                    <option value="">Select...</option>
+                    ${CLINICAL_QUESTIONS.map(q => html`
+                      <option key=${q} value=${q}>${q}</option>
+                    `)}
+                  </select>
+                </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Priority</label>
+                  <div class="allergy-severity">
+                    <button type="button" class="task-quick-btn${referPriority === 'Routine' ? ' active' : ''}" onClick=${() => setReferPriority('Routine')}>Routine</button>
+                    <button type="button" class="task-quick-btn${referPriority === 'Urgent' ? ' active' : ''}" onClick=${() => setReferPriority('Urgent')}>Urgent</button>
                   </div>
                 </div>
-                <div class="order-rx-row">
-                  <button type="button" class="task-quick-btn${referPriority === 'Routine' ? ' active' : ''}" onClick=${() => setReferPriority('Routine')}>Routine</button>
-                  <button type="button" class="task-quick-btn${referPriority === 'Urgent' ? ' active' : ''}" onClick=${() => setReferPriority('Urgent')}>Urgent</button>
+                <div class="history-form-field">
+                  <label class="history-form-label">Notes to Specialist</label>
+                  <textarea class="history-form-textarea" rows="3" value=${referNotesToSpecialist} onInput=${(e) => setReferNotesToSpecialist(e.target.value)} placeholder="Optional" />
                 </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Notes to Specialist</span>
-                    <textarea
-                      class="labeled-field-input"
-                      rows="4"
-                      value=${referNotesToSpecialist}
-                      onInput=${(e) => setReferNotesToSpecialist(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Comment</span>
-                    <textarea
-                      class="labeled-field-input"
-                      rows="4"
-                      value=${referComment}
-                      onInput=${(e) => setReferComment(e.target.value)}
-                    />
-                  </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Comment</label>
+                  <textarea class="history-form-textarea" rows="3" value=${referComment} onInput=${(e) => setReferComment(e.target.value)} placeholder="Optional" />
                 </div>
               </div>
             `}
-            <div class="command-row-actions">
-              <button class="edit-btn" onClick=${handleSave}>Save</button>
-              <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
-              <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
+            <div class="questionnaire-form-actions">
+              <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
+              <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancel} title="Cancel">${ICON_X}</button>
             </div>
           </div>
         </div>
@@ -1559,21 +1517,14 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     }
     if (d.days_supply) detailParts.push(`${d.days_supply}d supply`);
     if (d.refills != null && d.refills !== '') detailParts.push(`${d.refills} refill${d.refills > 1 ? 's' : ''}`);
-    const hasFdb = !!d.fdb_code;
     return html`
       <div>
         <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
-            <div class="subsection-title">Rx</div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="medication-row-text">${command.display}</span>
-              ${hasFdb
-                ? html`<span class="medication-structured-badge">Structured</span>`
-                : html`<span class="medication-unstructured-badge">Unstructured</span>`
-              }
-            </div>
-            ${d.sig && html`<span class="medication-sig-text" style="margin-left:4px">Sig: ${d.sig}</span>`}
-            ${detailParts.length > 0 && html`<span class="medication-sig-text" style="margin-left:4px">${detailParts.join(' · ')}</span>`}
+          <div class="order-view">
+            <span class="command-type-label">${badgeLabel}</span>
+            <div class="order-view-name">${command.display}</div>
+            ${d.sig && html`<div class="order-view-sig">Sig: ${d.sig}</div>`}
+            ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
           </div>
         </div>
         ${interactionWarning && html`<${InteractionWarningInline} warning=${interactionWarning} />`}
@@ -1583,23 +1534,16 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
 
   if (command.command_type === 'refer') {
     const d = command.data;
-    const hasProvider = !!d.service_provider;
     const detailParts = [];
     if (d.clinical_question) detailParts.push(d.clinical_question);
     if (d.priority) detailParts.push(d.priority);
     if (d.notes_to_specialist) detailParts.push(d.notes_to_specialist);
     return html`
       <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
-        <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
-          <div class="subsection-title">Refer</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="medication-row-text">${command.display || 'Referral'}</span>
-            ${hasProvider
-              ? html`<span class="medication-structured-badge">Matched</span>`
-              : html`<span class="medication-unstructured-badge">Incomplete</span>`
-            }
-          </div>
-          ${detailParts.length > 0 && html`<span class="medication-sig-text" style="margin-left:4px">${detailParts.join(' · ')}</span>`}
+        <div class="order-view">
+          <span class="command-type-label">Refer</span>
+          <div class="order-view-name">${command.display || 'Referral'}</div>
+          ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
         </div>
       </div>
     `;
@@ -1607,7 +1551,6 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
 
   if (command.command_type === 'imaging_order') {
     const d = command.data;
-    const hasCenter = !!d.service_provider;
     const detailParts = [];
     if (d.additional_details) detailParts.push(d.additional_details);
     if (d.priority) detailParts.push(d.priority);
@@ -1615,13 +1558,10 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     if (d.service_provider_name) detailParts.push(d.service_provider_name);
     return html`
       <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
-        <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
-          <div class="subsection-title">${badgeLabel}</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="medication-row-text">${command.display}</span>
-            ${!hasCenter && html`<span class="medication-unstructured-badge">Incomplete</span>`}
-          </div>
-          ${detailParts.length > 0 && html`<span class="medication-sig-text" style="margin-left:4px">${detailParts.join(' · ')}</span>`}
+        <div class="order-view">
+          <span class="command-type-label">${badgeLabel}</span>
+          <div class="order-view-name">${command.display}</div>
+          ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
         </div>
       </div>
     `;
@@ -1629,8 +1569,10 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
 
   return html`
     <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
-      <div class="subsection-title">${badgeLabel}</div>
-      <span class="command-row-text">${command.display}</span>
+      <div class="order-view">
+        <span class="command-type-label">${badgeLabel}</span>
+        <div class="order-view-name">${command.display}</div>
+      </div>
     </div>
   `;
 }

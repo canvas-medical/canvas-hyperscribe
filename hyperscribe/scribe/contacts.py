@@ -17,16 +17,14 @@ def _format_contact(c: dict[str, Any]) -> dict[str, Any]:
     specialty = c.get("specialty", "")
 
     parts: list[str] = []
-    if first and first != "(TBD)":
+    if first:
         parts.append(first)
     if last and last != first:
         parts.append(last)
-    if practice and practice != "(TBD)":
+    if practice and practice != first:
         parts.append(f"({practice}),")
     if specialty and specialty not in (first, last, practice):
         parts.append(specialty)
-    if first == "(TBD)":
-        parts.append(first)
     name = " ".join(parts).strip()
 
     desc_parts: list[str] = []
@@ -63,10 +61,15 @@ def search_refer_providers(
     if not query:
         return []
 
-    params = f"?search={query}"
-    if zip_codes:
-        params += f"&business_postal_code__in={','.join(zip_codes)}"
     try:
+        # Try zip-filtered first for local results, fall back to unfiltered.
+        if zip_codes:
+            params = f"?search={query}&business_postal_code__in={','.join(zip_codes)}"
+            resp = science_http.get_json(f"/contacts/{params}")
+            raw_results = (resp.json() or {}).get("results", [])
+            if raw_results:
+                return [_format_contact(c) for c in raw_results]
+        params = f"?search={query}"
         resp = science_http.get_json(f"/contacts/{params}")
         raw_results = (resp.json() or {}).get("results", [])
     except Exception:

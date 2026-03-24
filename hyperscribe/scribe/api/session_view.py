@@ -1268,16 +1268,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             specialty = c.get("specialty", "")
             # Build display name matching Canvas convention.
             parts = []
-            if first and first != "(TBD)":
+            if first:
                 parts.append(first)
             if last and last != first:
                 parts.append(last)
-            if practice and practice != "(TBD)":
+            if practice and practice != first:
                 parts.append(f"({practice}),")
             if specialty and specialty not in (first, last, practice):
                 parts.append(specialty)
-            if first == "(TBD)":
-                parts.append(first)
             name = " ".join(parts).strip()
             # Build description with contact details.
             desc_parts = []
