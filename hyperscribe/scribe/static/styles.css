@@ -1012,6 +1012,31 @@ h2 { margin-bottom: 4px; }
   margin: 0;
 }
 
+/* History entry view */
+.history-entry-view { display: flex; align-items: center; gap: 8px; padding: 4px; cursor: pointer; border-radius: 8px; }
+.recommendation-block:has(.history-entry-view) { align-items: center; }
+.recommendation-block:has(.history-entry-view) .recommendation-actions { padding-top: 0; }
+.history-entry-content { flex: 1; min-width: 0; }
+.history-entry-name { font-size: 15px; font-weight: 500; color: #333; }
+.history-entry-details { font-size: 13px; color: #6b7280; margin-top: 2px; }
+
+/* History entry forms */
+.history-form { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.history-form-field { display: flex; flex-direction: column; gap: 4px; }
+.history-form-label { font-size: 13px; font-weight: 600; color: #6b7280; }
+.history-form-input { width: 100%; padding: 10px 12px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; }
+.history-form-input:focus { outline: none; border-color: #052B49; }
+.history-form-textarea { width: 100%; padding: 10px 12px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; resize: vertical; }
+.history-form-textarea:focus { outline: none; border-color: #052B49; }
+.history-form-dates { display: flex; gap: 12px; }
+.history-form-dates .history-form-field { flex: 1; }
+.history-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; margin-top: 4px; }
+.history-search-result { padding: 10px 12px; font-size: 14px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+.history-search-result:last-child { border-bottom: none; }
+.history-search-result:hover { background: #f0f4ff; }
+.history-search-result.search-no-results { color: #999; cursor: default; }
+.history-search-result.search-no-results:hover { background: none; }
+
 /* Questionnaire search */
 .questionnaire-search-input { width: 100%; padding: 10px 12px; font-family: inherit; font-size: 15px; border: 1px solid #ddd; border-radius: 6px; }
 .questionnaire-search-input:focus { outline: none; border-color: #052B49; }

@@ -546,12 +546,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           return { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
         }
         if (type === 'medicalHistory') {
-          const parts = [newData.past_medical_history, newData.comments].filter(Boolean);
-          return { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
+          const parts = [newData.past_medical_history];
+          const dates = [newData.approximate_start_date, newData.approximate_end_date].filter(Boolean);
+          if (dates.length) parts.push(dates.join(' – '));
+          if (newData.comments) parts.push(newData.comments);
+          return { ...cmd, command_type: type, data: newData, display: parts.filter(Boolean).join(' — ') || '' };
         }
         if (type === 'surgicalHistory') {
-          const parts = [newData.procedure_display, newData.comment].filter(Boolean);
-          return { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
+          const parts = [newData.procedure_display];
+          if (newData.approximate_date) parts.push(newData.approximate_date);
+          if (newData.comment) parts.push(newData.comment);
+          return { ...cmd, command_type: type, data: newData, display: parts.filter(Boolean).join(' — ') || '' };
         }
         if (type === 'questionnaire') {
           return { ...cmd, command_type: type, data: newData, display: newData.questionnaire_name || '' };

@@ -211,6 +211,18 @@ const PLAN_SECTIONS = new Set(['plan', 'assessment_and_plan']);
 const ORDER_TYPES = new Set(['prescribe', 'refill', 'adjust_prescription', 'lab_order', 'imaging_order', 'refer']);
 const HISTORY_TYPES = new Set(['familyHistory', 'medicalHistory', 'surgicalHistory']);
 
+// Map section keys to the history command type that belongs under them.
+const SECTION_TO_HISTORY_TYPE = {
+  'past_medical_history': 'medicalHistory',
+  'past_surgical_history': 'surgicalHistory',
+  'family_history': 'familyHistory',
+};
+const HISTORY_ADD_LABELS = {
+  'medicalHistory': '+ Medical Hx',
+  'surgicalHistory': '+ Surgical Hx',
+  'familyHistory': '+ Family Hx',
+};
+
 // Map group title → review command section key + label + position
 const REVIEW_COMMANDS = {
   SUBJECTIVE: { sectionKey: '_ros', label: 'ROS', color: 'ros', position: 'after' },
@@ -824,10 +836,34 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           // Suppress raw prescription text — Rx recs are rendered by the fallback IIFE below.
           if (key === 'prescription') return null;
 
+          const historyType = SECTION_TO_HISTORY_TYPE[key];
+          const historyEntries = historyType
+            ? (adHocCommands || []).filter(e => e.command.command_type === historyType)
+            : [];
+          if (readOnly && !s.text && !cmds && historyEntries.length === 0) return null;
           return html`
             <div class="subsection" key=${s.key}>
               <div class="subsection-title">${s.title}</div>
               ${s.text && html`<p class="section-text">${s.text}</p>`}
+              ${historyEntries.map(entry => html`
+                <div class="content-block recommendation-block rec-history" key=${entry.index}>
+                  <div class="recommendation-content">
+                    <${HistoryEntryRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditCommand}
+                      onDelete=${onDeleteCommand}
+                      readOnly=${readOnly}
+                    />
+                  </div>
+                  ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                </div>
+              `)}
+              ${historyType && onAddHistory && !readOnly && html`
+                <div class="ad-hoc-buttons">
+                  <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory(historyType)}>${HISTORY_ADD_LABELS[historyType]}</button>
+                </div>
+              `}
               ${PLAN_SECTIONS.has(key) && (onAddCondition || onAddResolveCondition) && !readOnly && html`
                 <div class="ad-hoc-buttons">
                   ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
@@ -945,22 +981,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               </div>
             `;
           }
-          if (HISTORY_TYPES.has(type)) {
-            return html`
-              <div class="content-block recommendation-block rec-history" key=${entry.index}>
-                <div class="recommendation-content">
-                  <${HistoryEntryRow}
-                    command=${entry.command}
-                    commandIndex=${entry.index}
-                    onEdit=${onEditCommand}
-                    onDelete=${onDeleteCommand}
-                    readOnly=${readOnly}
-                  />
-                </div>
-                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
-              </div>
-            `;
-          }
+          if (HISTORY_TYPES.has(type)) return null;
           if (type === 'questionnaire') return null;
           if (type === 'plan') {
             return html`
@@ -1111,13 +1132,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         ${onAddCharge && !readOnly && html`
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${onAddCharge}>+ Charge</button>
-          </div>
-        `}
-        ${onAddHistory && !readOnly && html`
-          <div class="ad-hoc-buttons">
-            <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory('familyHistory')}>+ Family Hx</button>
-            <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory('medicalHistory')}>+ Medical Hx</button>
-            <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory('surgicalHistory')}>+ Surgical Hx</button>
           </div>
         `}
         ${(() => {
