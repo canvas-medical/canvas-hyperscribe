@@ -4,6 +4,9 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 const FDB_SYSTEM = 'http://www.fdbhealth.com/';
@@ -134,9 +137,10 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   if (command.already_documented) {
     return html`
       <div class="medication-row documented">
-        <div class="subsection-title">Med</div>
-        <span class="medication-row-text">${command.display}</span>
-        <span class="medication-documented-badge">Already in chart</span>
+        <div class="order-view">
+          <div class="order-view-name">${command.display}</div>
+          ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
+        </div>
       </div>
     `;
   }
@@ -145,52 +149,53 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   if (editing) {
     return html`
       <div class="medication-row editing" ref=${containerRef}>
-        <div class="subsection-title">Med</div>
-        <div class="medication-search-wrapper">
-          <input
-            ref=${inputRef}
-            type="text"
-            class="medication-row-input"
-            value=${query}
-            onInput=${handleInput}
-            onKeyDown=${handleKeyDown}
-            placeholder="Search medications..."
-          />
-          ${searching && html`<span class="medication-search-spinner">Searching...</span>`}
-          ${results.length > 0 && html`
-            <div class="medication-search-dropdown">
-              ${results.map(r => html`
-                <div
-                  key=${r.fdb_code}
-                  class="medication-search-result"
-                  onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
-                >
-                  ${r.description}
-                </div>
-              `)}
-            </div>
-          `}
-          ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-            <div class="medication-search-dropdown">
-              <div class="medication-search-result search-no-results">No medications found</div>
-            </div>
-          `}
-        </div>
-        ${selectedFdb && html`
-          <span class="medication-structured-badge">Coded</span>
-        `}
-        <input
-          type="text"
-          class="medication-row-input"
-          value=${sig}
-          onInput=${(e) => setSig(e.target.value)}
-          onKeyDown=${handleKeyDown}
-          placeholder="Sig (e.g. Take 1 tablet daily)"
-        />
-        <div class="command-row-actions">
-          <button class="edit-btn" onClick=${handleSave}>Save</button>
-          <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
-          <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
+        <div class="history-form">
+          <div class="history-form-field" style="position: relative;">
+            <label class="history-form-label">Medication</label>
+            <input
+              ref=${inputRef}
+              type="text"
+              class="history-form-input"
+              value=${query}
+              onInput=${handleInput}
+              onKeyDown=${handleKeyDown}
+              placeholder="Search medications..."
+            />
+            ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
+            ${results.length > 0 && html`
+              <div class="history-search-dropdown">
+                ${results.map(r => html`
+                  <div
+                    key=${r.fdb_code}
+                    class="history-search-result"
+                    onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
+                  >
+                    ${r.description}
+                  </div>
+                `)}
+              </div>
+            `}
+            ${!searching && searched && results.length === 0 && query.length >= 2 && html`
+              <div class="history-search-dropdown">
+                <div class="history-search-result search-no-results">No medications found</div>
+              </div>
+            `}
+          </div>
+          <div class="history-form-field">
+            <label class="history-form-label">Sig</label>
+            <input
+              type="text"
+              class="history-form-input"
+              value=${sig}
+              onInput=${(e) => setSig(e.target.value)}
+              onKeyDown=${handleKeyDown}
+              placeholder="e.g. Take 1 tablet daily"
+            />
+          </div>
+          <div class="questionnaire-form-actions">
+            <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
+            <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancel} title="Cancel">${ICON_X}</button>
+          </div>
         </div>
       </div>
     `;
@@ -200,13 +205,10 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   return html`
     <div class="medication-row"
          onClick=${() => !readOnly && setEditing(true)}>
-      <div class="subsection-title">Med</div>
-      <span class="medication-row-text">${command.display}</span>
-      ${command.data.sig && html`<span class="medication-sig-text">${command.data.sig}</span>`}
-      ${isStructured
-        ? html`<span class="medication-structured-badge">Coded</span>`
-        : html`<span class="medication-unstructured-badge">Unstructured</span>`
-      }
+      <div class="order-view">
+        <div class="order-view-name">${command.display}</div>
+        ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
+      </div>
     </div>
   `;
 }

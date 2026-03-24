@@ -71,66 +71,49 @@ function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeC
 
   if (!hasCpt || editing) {
     return html`
-      <div class="charge-row editing">
-        <div class="charge-search-area">
+      <div class="charge-row">
+        <div class="history-form-field" style="position: relative;">
           <input
             type="text"
-            class="charge-search-input"
+            class="history-form-input"
             value=${query}
             onInput=${handleInput}
             placeholder="Search CPT code or description..."
             autoFocus
           />
-          ${searching && html`<span class="charge-search-spinner">Searching...</span>`}
+          ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
           ${results.length > 0 && html`
-            <div class="charge-search-dropdown">
+            <div class="history-search-dropdown">
               ${results.map(r => html`
                 <div
                   key=${r.cpt_code}
-                  class="charge-search-result"
+                  class="history-search-result"
                   onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
                 >
-                  <span class="charge-result-code">${r.cpt_code}</span>
-                  <span class="charge-result-name">${r.short_name || r.full_name}</span>
+                  <strong>${r.cpt_code}</strong>${' '}${r.short_name || r.full_name}
                 </div>
               `)}
             </div>
           `}
           ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-            <div class="charge-search-dropdown">
-              <div class="charge-search-result search-no-results">No charges found</div>
+            <div class="history-search-dropdown">
+              <div class="history-search-result search-no-results">No charges found</div>
             </div>
           `}
-        </div>
-        <div class="charge-row-actions">
-          ${hasCpt && html`<button type="button" class="edit-btn" onClick=${() => setEditing(false)}>Cancel</button>`}
-          <button type="button" class="delete-btn" onClick=${handleRemove} title="Remove charge">x</button>
         </div>
       </div>
     `;
   }
 
   return html`
-    <div class="charge-row${readOnly ? ' read-only' : ''}" onClick=${() => !readOnly && setEditing(true)}>
-      <div class="charge-row-display">
-        <span class="charge-cpt-code">${data.cpt_code}</span>
-        <span class="charge-description">${data.description || ''}</span>
-      </div>
-      ${!readOnly && html`
-        <div class="charge-row-actions">
-          <button type="button" class="delete-btn" onClick=${handleRemove} title="Remove charge">x</button>
-        </div>
-      `}
+    <div class="charge-view" onClick=${() => !readOnly && setEditing(true)}>
+      <span class="charge-view-code">${data.cpt_code}</span>
+      <span class="charge-view-desc">${data.description || ''}</span>
     </div>
   `;
 }
 
-// Override display names for subsection titles (backend note data may use different labels).
-const SECTION_DISPLAY_NAMES = {
-  'current_medications': 'Medication List Updates',
-  'allergies': 'Allergy List Updates',
-  'past_medical_history': 'Past Medical History Discussed During Encounter',
-};
+
 
 const REMOVAL_TYPES = new Set(['stop_medication', 'remove_allergy', 'resolve_condition']);
 
@@ -142,9 +125,9 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
   const [loading, setLoading] = useState(false);
 
   const config = {
-    stop_medication: { endpoint: 'patient-medications', listKey: 'medications', idField: 'medication_id', nameField: 'medication_name', labelPlural: 'medications', placeholder: 'Select medication to stop...' },
-    remove_allergy: { endpoint: 'patient-allergies', listKey: 'allergies', idField: 'allergy_id', nameField: 'allergy_name', labelPlural: 'allergies', placeholder: 'Select allergy to remove...' },
-    resolve_condition: { endpoint: 'patient-conditions', listKey: 'conditions', idField: 'condition_id', nameField: 'condition_name', labelPlural: 'conditions', placeholder: 'Select condition to resolve...' },
+    stop_medication: { endpoint: 'patient-medications', listKey: 'medications', idField: 'medication_id', nameField: 'medication_name', labelPlural: 'medications', placeholder: 'Select medication to stop...', actionLabel: 'STOP' },
+    remove_allergy: { endpoint: 'patient-allergies', listKey: 'allergies', idField: 'allergy_id', nameField: 'allergy_name', labelPlural: 'allergies', placeholder: 'Select allergy to remove...', actionLabel: 'REMOVE' },
+    resolve_condition: { endpoint: 'patient-conditions', listKey: 'conditions', idField: 'condition_id', nameField: 'condition_name', labelPlural: 'conditions', placeholder: 'Select condition to resolve...', actionLabel: 'RESOLVE' },
   }[type];
 
   useEffect(() => {
@@ -195,7 +178,6 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
               </select>`
             : html`<span class="removal-empty">No active ${config.labelPlural}</span>`
         }
-        <button type="button" class="delete-btn" onClick=${handleRemove} title="Cancel">x</button>
       </div>
     `;
   }
@@ -203,10 +185,8 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
   const itemName = data[config.nameField] || '';
   return html`
     <div class="removal-row${readOnly ? ' read-only' : ''}">
+      <span class="removal-action-label">${config.actionLabel}</span>
       <span class="removal-item-name">${itemName}</span>
-      ${!readOnly && html`
-        <button type="button" class="delete-btn" onClick=${handleRemove} title="Remove">x</button>
-      `}
     </div>
   `;
 }
@@ -215,6 +195,18 @@ const NARRATIVE_SECTIONS = new Set(['chief_complaint', 'history_of_present_illne
 const PLAN_SECTIONS = new Set(['plan', 'assessment_and_plan']);
 const ORDER_TYPES = new Set(['prescribe', 'refill', 'adjust_prescription', 'lab_order', 'imaging_order', 'refer']);
 const HISTORY_TYPES = new Set(['familyHistory', 'medicalHistory', 'surgicalHistory']);
+
+// Map section keys to the history command type that belongs under them.
+const SECTION_TO_HISTORY_TYPE = {
+  'past_medical_history': 'medicalHistory',
+  'past_surgical_history': 'surgicalHistory',
+  'family_history': 'familyHistory',
+};
+const HISTORY_ADD_LABELS = {
+  'medicalHistory': '+ Medical Hx',
+  'surgicalHistory': '+ Surgical Hx',
+  'familyHistory': '+ Family Hx',
+};
 
 // Map group title → review command section key + label + position
 const REVIEW_COMMANDS = {
@@ -331,6 +323,9 @@ function formatIcdCode(raw) {
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+
 function AssessNarrative({ command, commandIndex, onEdit, readOnly }) {
   const data = command.data || {};
   const [editing, setEditing] = useState(false);
@@ -353,17 +348,17 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly }) {
 
   if (editing && !readOnly) {
     return html`
-      <div class="diagnose-edit-area">
+      <div class="diagnose-edit-area editing">
         <textarea
           ref=${textareaRef}
-          class="diagnose-textarea"
+          class="command-row-textarea"
           value=${narrative}
           onInput=${(e) => setNarrative(e.target.value)}
           onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}
         />
         <div class="command-row-actions">
-          <button class="edit-btn" onClick=${handleSave}>Save</button>
-          <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
+          <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
+          <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancel} title="Cancel">${ICON_X}</button>
         </div>
       </div>
     `;
@@ -516,7 +511,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   return html`
@@ -531,10 +526,15 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const cmds = commandBySectionKey && commandBySectionKey[review.sectionKey];
           if (!cmds || cmds.length === 0) return null;
           const entry = cmds[0];
+          // Filter out sections that are rendered as structured cards.
+          const STRUCTURED_KEYS = new Set(['current_medications', 'allergies']);
+          const filteredSections = (entry.command.data.sections || []).filter(s => !STRUCTURED_KEYS.has(s.key));
+          if (filteredSections.length === 0) return null;
+          const filteredCommand = { ...entry.command, data: { ...entry.command.data, sections: filteredSections } };
           return html`
-            <div class="content-block">
+            <div class="content-block rec-narrative">
               <${HistoryReviewRow}
-                command=${entry.command}
+                command=${filteredCommand}
                 commandIndex=${entry.index}
                 onEdit=${onEditCommand}
                 readOnly=${readOnly}
@@ -559,33 +559,20 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               const unmatched = unmatchedConditions || [];
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+                  <div class="subsection-title">${s.title}</div>
                   ${cmds.filter(e => e.command.command_type === 'assess').map(entry => {
                     const aData = entry.command.data || {};
                     const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
                     const aFormatted = aCode.length > 3 ? aCode.slice(0, 3) + '.' + aCode.slice(3) : aCode;
                     return html`
-                      <div class="content-block recommendation-block accepted" key=${entry.index}>
-                        ${!readOnly && html`
-                          <div class="recommendation-actions">
-                            <span class="recommendation-accept-btn assess-badge">Existing</span>
-                          </div>
-                        `}
-                        <div class="recommendation-content" style="opacity:1">
+                      <div class="content-block recommendation-block rec-assess" key=${entry.index}>
+                        <div class="recommendation-content">
                           <div class="diagnose-row">
                             <div class="diagnose-row-header">
                               <span class="diagnose-row-title">
                                 ${aFormatted && html`<span class="diagnose-icd-prefix">${aFormatted}</span>`}
                                 ${' '}${entry.command.display}
                               </span>
-                              ${!readOnly && html`
-                                <button
-                                  type="button"
-                                  class="diagnose-delete-btn"
-                                  onClick=${() => onDeleteCommand(entry.index)}
-                                  title="Remove"
-                                >×</button>
-                              `}
                             </div>
                             <${AssessNarrative}
                               command=${entry.command}
@@ -595,60 +582,54 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             />
                           </div>
                         </div>
+                        ${!readOnly && html`
+                          <div class="recommendation-actions">
+                            <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                          </div>
+                        `}
                       </div>
                     `;
                   })}
                   ${cmds.filter(e => e.command.command_type === 'diagnose').map(entry => {
                     const hasCode = !!entry.command.data.icd10_code;
                     const isAccepted = hasCode && entry.command.data.accepted;
-                    const isIncomplete = !hasCode;
+                    const isRejected = entry.command.data.rejected;
+                    const isIncomplete = !hasCode && !isRejected;
                     const header = entry.command.data.condition_header || '';
-                    const suggestions = (!hasCode && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
+                    const suggestions = (!hasCode && !isRejected && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
 
-                    let btnLabel, btnClass;
-                    if (isIncomplete) {
-                      btnLabel = 'Incomplete';
-                      btnClass = 'recommendation-accept-btn incomplete';
-                    } else if (isAccepted) {
-                      btnLabel = 'Matched';
-                      btnClass = 'recommendation-accept-btn accepted';
-                    } else {
-                      btnLabel = 'Accept';
-                      btnClass = 'recommendation-accept-btn';
-                    }
+                    const handleAcceptDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, accepted: true, rejected: false }, 'diagnose');
+                    const handleRejectDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, rejected: true, accepted: false }, 'diagnose');
 
                     return html`
-                      <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}${isIncomplete ? ' incomplete-code' : ''}" key=${entry.index}>
-                        ${!readOnly && html`
-                          <div class="recommendation-actions">
-                            <button
-                              type="button"
-                              class=${btnClass}
-                              onClick=${() => !isIncomplete && onEditCommand(entry.index, {
-                                ...entry.command.data,
-                                accepted: !entry.command.data.accepted,
-                              }, 'diagnose')}
-                              disabled=${isIncomplete}
-                            >${btnLabel}</button>
-                          </div>
-                        `}
+                      <div class="content-block recommendation-block rec-diagnose${isRejected ? ' rec-rejected' : ''}" key=${entry.index}>
                         <div class="recommendation-content">
                           <${DiagnoseRow}
                             command=${entry.command}
                             commandIndex=${entry.index}
                             onEdit=${onEditCommand}
                             onDelete=${onDeleteCommand}
-                            readOnly=${readOnly}
+                            readOnly=${readOnly || isRejected}
                             suggestions=${suggestions}
+                            onAccept=${handleAcceptDiagnose}
                           />
                         </div>
+                        ${!readOnly && html`
+                          <div class="recommendation-actions">
+                            ${isIncomplete && html`<span class="rec-warning-pill">Missing Diagnosis Code</span>`}
+                            ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                            ${isAccepted && html`<span class="rec-accepted-badge">Accepted</span>`}
+                            <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${handleRejectDiagnose} title="Reject">${ICON_X}</button>
+                            <button type="button" class="rec-btn ${isAccepted ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${handleAcceptDiagnose} title="Accept">${ICON_CHECK}</button>
+                          </div>
+                        `}
                       </div>
                     `;
                   })}
                   ${unmatched.length > 0 && html`
-                    <div class="ap-suggested-codes">
-                      <div class="ap-suggested-label">Other detected conditions</div>
-                      <div class="ap-suggested-chips">
+                    <div class="diagnose-suggestions" style="margin-top: 12px;">
+                      <div class="history-form-label">Other detected conditions</div>
+                      <div class="diagnose-suggestions-list">
                         ${unmatched.map(c => {
                           const codes = (c.coding || []).filter(cd => cd.code);
                           const code = codes[0];
@@ -660,15 +641,29 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             <button
                               key=${code.code}
                               type="button"
-                              class="ap-suggested-chip"
+                              class="diagnose-suggestion-btn"
                               onClick=${() => onAddCondition && onAddCondition(code.code, display)}
-                              title="Add ${display}"
-                            >${formatted} ${display}</button>
+                            ><strong>${formatted}</strong>${' '}${display}</button>
                           `;
                         })}
                       </div>
                     </div>
                   `}
+                  ${((adHocCommands || []).filter(e => e.command.command_type === 'resolve_condition')).map(re => html`
+                    <div class="content-block recommendation-block rec-removal" key=${re.index}>
+                      <div class="recommendation-content">
+                        <${RemovalRow}
+                          command=${re.command}
+                          commandIndex=${re.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                          patientId=${patientId}
+                        />
+                      </div>
+                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(re.index)} title="Remove">${ICON_X}</button></div>`}
+                    </div>
+                  `)}
                   ${(onAddCondition || onAddResolveCondition) && !readOnly && html`
                     <div class="ad-hoc-buttons">
                       ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
@@ -679,10 +674,13 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               `;
             }
             const entry = cmds[0];
+            if (readOnly && !entry.command.display) return null;
+            const showConditionBtns = isPlan && (onAddCondition || onAddResolveCondition) && !readOnly;
+            const planResolves = isPlan ? (adHocCommands || []).filter(e => e.command.command_type === 'resolve_condition') : [];
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
-                <div class="content-block">
+                <div class="subsection-title">${s.title}</div>
+                <div class="content-block rec-narrative">
                   <${CommandRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
@@ -690,16 +688,39 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     readOnly=${readOnly}
                   />
                 </div>
+                ${planResolves.map(re => html`
+                  <div class="content-block recommendation-block rec-removal" key=${re.index}>
+                    <div class="recommendation-content">
+                      <${RemovalRow}
+                        command=${re.command}
+                        commandIndex=${re.index}
+                        onEdit=${onEditCommand}
+                        onDelete=${onDeleteCommand}
+                        readOnly=${readOnly}
+                        patientId=${patientId}
+                      />
+                    </div>
+                    ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(re.index)} title="Remove">${ICON_X}</button></div>`}
+                  </div>
+                `)}
+                ${showConditionBtns && html`
+                  <div class="ad-hoc-buttons">
+                    ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
+                    ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
+                  </div>
+                `}
               </div>
             `;
           }
 
           if (key === 'vitals' && cmds) {
             const entry = cmds[0];
+            const hasVitals = Object.values(entry.command.data || {}).some(v => v != null);
+            if (readOnly && !hasVitals) return null;
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
-                <div class="content-block">
+                <div class="subsection-title">${s.title}</div>
+                <div class="content-block rec-vitals">
                   <${VitalsRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
@@ -715,8 +736,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const entry = cmds[0];
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
-                <div class="content-block">
+                <div class="subsection-title">${s.title}</div>
+                <div class="content-block rec-narrative">
                   <${HistoryReviewRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
@@ -732,42 +753,90 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const medRecs = (recommendations || [])
               .map((cmd, i) => ({ command: cmd, index: i }))
               .filter(e => e.command.command_type === 'medication_statement');
-            if (cmds || medRecs.length > 0 || onAddMedication) {
+            const adHocMeds = (adHocCommands || []).filter(e => e.command.command_type === 'medication_statement');
+            const adHocStopMeds = (adHocCommands || []).filter(e => e.command.command_type === 'stop_medication');
+            if (cmds || medRecs.length > 0 || adHocMeds.length > 0 || adHocStopMeds.length > 0 || onAddMedication) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+                  <div class="subsection-title">Medications Discussed During Encounter</div>
                   ${(cmds || []).map(entry => html`
-                    <div class="content-block" key=${entry.index}>
-                      <${MedicationRow}
-                        command=${entry.command}
-                        commandIndex=${entry.index}
-                        onEdit=${onEditCommand}
-                        onDelete=${onDeleteCommand}
-                        readOnly=${readOnly}
-                      />
+                    <div class="content-block recommendation-block rec-medication" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${MedicationRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                        />
+                      </div>
+                      ${!readOnly && html`
+                        <div class="recommendation-actions">
+                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                        </div>
+                      `}
+                    </div>
+                  `)}
+                  ${adHocMeds.map(entry => html`
+                    <div class="content-block recommendation-block rec-medication" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${MedicationRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                        />
+                      </div>
+                      ${!readOnly && html`
+                        <div class="recommendation-actions">
+                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                        </div>
+                      `}
                     </div>
                   `)}
                   ${medRecs.map(entry => {
-                    const isAccepted = entry.command.accepted || entry.command.already_documented;
+                    const isAccepted = entry.command.accepted && !entry.command.rejected;
+                    const isRejected = entry.command.rejected;
+                    const isUnreviewed = !isAccepted && !isRejected;
                     return html`
-                    <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}" key=${'rec-med-' + entry.index}>
-                      <div class="recommendation-actions">
-                        ${entry.command.already_documented
-                          ? html`<span class="recommendation-accept-btn accepted">Already in chart</span>`
-                          : !readOnly && html`<button type="button" class="recommendation-accept-btn${entry.command.accepted ? ' accepted' : ''}" onClick=${() => onAcceptRecommendation(entry.index)}>${entry.command.accepted ? 'Accepted' : 'Accept'}</button>`
-                        }
-                      </div>
+                    <div class="content-block recommendation-block rec-medication${isRejected ? ' rec-rejected' : ''}" key=${'rec-med-' + entry.index}>
                       <div class="recommendation-content">
                         <${MedicationRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditRecommendation}
-                          readOnly=${readOnly || entry.command.already_documented}
+                          readOnly=${readOnly || entry.command.already_documented || isRejected}
                         />
+                      </div>
+                      <div class="recommendation-actions">
+                        ${entry.command.already_documented
+                          ? html`<span class="rec-documented-badge">Already in chart</span>`
+                          : !readOnly && html`
+                              ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                              ${isAccepted && html`<span class="rec-accepted-badge">Accepted</span>`}
+                              <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                              <button type="button" class="rec-btn ${isAccepted ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                            `
+                        }
                       </div>
                     </div>
                     `;
                   })}
+                  ${adHocStopMeds.map(entry => html`
+                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${RemovalRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                          patientId=${patientId}
+                        />
+                      </div>
+                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                    </div>
+                  `)}
                   ${(onAddMedication || onAddStopMedication) && !readOnly && html`
                     <div class="ad-hoc-buttons">
                       ${onAddMedication && html`<button type="button" class="ad-hoc-btn" onClick=${onAddMedication}>+ Medication</button>`}
@@ -783,42 +852,89 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const allergyRecs = (recommendations || [])
               .map((cmd, i) => ({ command: cmd, index: i }))
               .filter(e => e.command.command_type === 'allergy');
-            if (cmds || allergyRecs.length > 0 || onAddAllergy) {
+            const adHocAllergies = (adHocCommands || []).filter(e => e.command.command_type === 'allergy');
+            const adHocRemoveAllergies = (adHocCommands || []).filter(e => e.command.command_type === 'remove_allergy');
+            if (cmds || allergyRecs.length > 0 || adHocAllergies.length > 0 || adHocRemoveAllergies.length > 0 || onAddAllergy) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+                  <div class="subsection-title">Allergies Discussed During Encounter</div>
                   ${(cmds || []).map(entry => html`
-                    <div class="content-block" key=${entry.index}>
-                      <${AllergyRow}
-                        command=${entry.command}
-                        commandIndex=${entry.index}
-                        onEdit=${onEditCommand}
-                        onDelete=${onDeleteCommand}
-                        readOnly=${readOnly}
-                      />
+                    <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${AllergyRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                        />
+                      </div>
+                      ${!readOnly && html`
+                        <div class="recommendation-actions">
+                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                        </div>
+                      `}
+                    </div>
+                  `)}
+                  ${adHocAllergies.map(entry => html`
+                    <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${AllergyRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                        />
+                      </div>
+                      ${!readOnly && html`
+                        <div class="recommendation-actions">
+                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                        </div>
+                      `}
                     </div>
                   `)}
                   ${allergyRecs.map(entry => {
-                    const isAccepted = entry.command.accepted || entry.command.already_documented;
+                    const isAccepted = entry.command.accepted && !entry.command.rejected;
+                    const isRejected = entry.command.rejected;
                     return html`
-                    <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}" key=${'rec-allergy-' + entry.index}>
-                      <div class="recommendation-actions">
-                        ${entry.command.already_documented
-                          ? html`<span class="recommendation-accept-btn accepted">Already in chart</span>`
-                          : !readOnly && html`<button type="button" class="recommendation-accept-btn${entry.command.accepted ? ' accepted' : ''}" onClick=${() => onAcceptRecommendation(entry.index)}>${entry.command.accepted ? 'Accepted' : 'Accept'}</button>`
-                        }
-                      </div>
+                    <div class="content-block recommendation-block rec-allergy${isRejected ? ' rec-rejected' : ''}" key=${'rec-allergy-' + entry.index}>
                       <div class="recommendation-content">
                         <${AllergyRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditRecommendation}
-                          readOnly=${readOnly || entry.command.already_documented}
+                          readOnly=${readOnly || entry.command.already_documented || isRejected}
                         />
+                      </div>
+                      <div class="recommendation-actions">
+                        ${entry.command.already_documented
+                          ? html`<span class="rec-documented-badge">Already in chart</span>`
+                          : !readOnly && html`
+                              ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                              ${isAccepted && html`<span class="rec-accepted-badge">Accepted</span>`}
+                              <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                              <button type="button" class="rec-btn ${isAccepted ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                            `
+                        }
                       </div>
                     </div>
                     `;
                   })}
+                  ${adHocRemoveAllergies.map(entry => html`
+                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${RemovalRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                          patientId=${patientId}
+                        />
+                      </div>
+                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                    </div>
+                  `)}
                   ${(onAddAllergy || onAddRemoveAllergy) && !readOnly && html`
                     <div class="ad-hoc-buttons">
                       ${onAddAllergy && html`<button type="button" class="ad-hoc-btn" onClick=${onAddAllergy}>+ Allergy</button>`}
@@ -833,16 +949,60 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           // Suppress raw prescription text — Rx recs are rendered by the fallback IIFE below.
           if (key === 'prescription') return null;
 
+          const historyType = SECTION_TO_HISTORY_TYPE[key];
+          const historyEntries = historyType
+            ? (adHocCommands || []).filter(e => e.command.command_type === historyType)
+            : [];
+          if (readOnly && !s.text && !cmds && historyEntries.length === 0) return null;
           return html`
             <div class="subsection" key=${s.key}>
-              <div class="subsection-title">${SECTION_DISPLAY_NAMES[key] || s.title}</div>
+              <div class="subsection-title">${s.title}</div>
               ${s.text && html`<p class="section-text">${s.text}</p>`}
-              ${PLAN_SECTIONS.has(key) && (onAddCondition || onAddResolveCondition) && !readOnly && html`
+              ${historyEntries.map(entry => html`
+                <div class="content-block recommendation-block rec-history" key=${entry.index}>
+                  <div class="recommendation-content">
+                    <${HistoryEntryRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditCommand}
+                      onDelete=${onDeleteCommand}
+                      readOnly=${readOnly}
+                    />
+                  </div>
+                  ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                </div>
+              `)}
+              ${historyType && onAddHistory && !readOnly && html`
                 <div class="ad-hoc-buttons">
-                  ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
-                  ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
+                  <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory(historyType)}>${HISTORY_ADD_LABELS[historyType]}</button>
                 </div>
               `}
+              ${PLAN_SECTIONS.has(key) && (() => {
+                const adHocResolves = (adHocCommands || []).filter(e => e.command.command_type === 'resolve_condition');
+                return html`
+                  ${adHocResolves.map(entry => html`
+                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                      <div class="recommendation-content">
+                        <${RemovalRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          onDelete=${onDeleteCommand}
+                          readOnly=${readOnly}
+                          patientId=${patientId}
+                        />
+                      </div>
+                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                    </div>
+                  `)}
+                  ${(onAddCondition || onAddResolveCondition) && !readOnly && html`
+                    <div class="ad-hoc-buttons">
+                      ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
+                      ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
+                    </div>
+                  `}
+                `;
+              })()}
             </div>
           `;
         })}
@@ -854,7 +1014,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const entry = cmds[0];
           return html`
             <div class="subsection-title">Review of Systems</div>
-            <div class="content-block">
+            <div class="content-block rec-narrative">
               <${HistoryReviewRow}
                 command=${entry.command}
                 commandIndex=${entry.index}
@@ -866,41 +1026,25 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
         })()}
         ${adHocCommands && adHocCommands.map(entry => {
           const type = entry.command.command_type;
-          if (type === 'medication_statement') {
-            return html`
-              <div class="content-block" key=${entry.index}>
-                <${MedicationRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                />
-              </div>
-            `;
-          }
-          if (type === 'allergy') {
-            return html`
-              <div class="content-block" key=${entry.index}>
-                <${AllergyRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                />
-              </div>
-            `;
-          }
+          if (type === 'medication_statement') return null;
+          if (type === 'allergy') return null;
+          if (type === 'stop_medication') return null;
+          if (type === 'remove_allergy') return null;
+          if (type === 'resolve_condition') return null;
           if (type === 'task') {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${TaskRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  assignees=${assignees}
-                  readOnly=${readOnly}
-                />
+              <div class="content-block recommendation-block rec-task" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${TaskRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                    assignees=${assignees}
+                    readOnly=${readOnly}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
@@ -911,89 +1055,109 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               entry.command.data.refills == null
             );
             return html`
-              <div class="content-block${prescribeIncomplete ? ' incomplete-order' : ''}" key=${entry.index}>
-                <${OrderRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                  patientId=${patientId}
-                  noteId=${noteId}
-                  staffId=${staffId}
-                  staffName=${staffName}
-                />
+              <div class="content-block recommendation-block rec-order" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${OrderRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                    readOnly=${readOnly}
+                    patientId=${patientId}
+                    noteId=${noteId}
+                    staffId=${staffId}
+                    staffName=${staffName}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions">
+                  ${prescribeIncomplete && html`<span class="rec-warning-pill">Missing Information</span>`}
+                  <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                </div>`}
               </div>
             `;
           }
           if (type === 'history_review') {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${HistoryReviewRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                />
+              <div class="content-block recommendation-block rec-narrative" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${HistoryReviewRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
-          if (HISTORY_TYPES.has(type)) {
-            return html`
-              <div class="content-block" key=${entry.index}>
-                <${HistoryEntryRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                />
-              </div>
-            `;
-          }
-          if (type === 'questionnaire') {
-            return html`
-              <div class="content-block" key=${entry.index}>
-                <${QuestionnaireRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                />
-              </div>
-            `;
-          }
+          if (HISTORY_TYPES.has(type)) return null;
+          if (type === 'questionnaire') return null;
           if (type === 'plan') {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${CommandRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                />
+              <div class="content-block recommendation-block rec-plan" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${CommandRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                    readOnly=${readOnly}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
           if (type === 'perform') return null;
           if (REMOVAL_TYPES.has(type)) {
             return html`
-              <div class="content-block" key=${entry.index}>
-                <${RemovalRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                  patientId=${patientId}
-                />
+              <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                <div class="recommendation-content">
+                  <${RemovalRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    onDelete=${onDeleteCommand}
+                    readOnly=${readOnly}
+                    patientId=${patientId}
+                  />
+                </div>
+                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
           return null;
         })}
+        ${(() => {
+          const questionnaireCommands = (adHocCommands || [])
+            .filter(e => e.command.command_type === 'questionnaire');
+          if (questionnaireCommands.length === 0 && !onAddQuestionnaire) return null;
+          return html`
+            <div class="subsection">
+              <div class="subsection-title">Questionnaires</div>
+              ${questionnaireCommands.map(entry => html`
+                <div class="content-block recommendation-block rec-questionnaire" key=${entry.index}>
+                  <div class="recommendation-content">
+                    <${QuestionnaireRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditCommand}
+                      onDelete=${onDeleteCommand}
+                      readOnly=${readOnly}
+                    />
+                  </div>
+                  ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                </div>
+              `)}
+              ${onAddQuestionnaire && !readOnly && html`
+                <div class="ad-hoc-buttons">
+                  <button type="button" class="ad-hoc-btn" onClick=${onAddQuestionnaire}>+ Questionnaire</button>
+                </div>
+              `}
+            </div>
+          `;
+        })()}
         ${(() => {
           // Build unified checklist: template charges + manually added charges.
           // A charge is "selected" if its command exists AND has selected=true.
@@ -1060,33 +1224,24 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             ...(adHocCommands || []).filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code).map(e => e.command.data.cpt_code),
           ]);
           return pending.map(entry => html`
-            <div class="content-block" key=${entry.index}>
-              <${ChargeRow}
-                command=${entry.command}
-                commandIndex=${entry.index}
-                onEdit=${onEditCommand}
-                onDelete=${onDeleteCommand}
-                readOnly=${readOnly}
-                excludeCpts=${allChecklistCpts}
-              />
+            <div class="content-block recommendation-block rec-charge" key=${entry.index}>
+              <div class="recommendation-content">
+                <${ChargeRow}
+                  command=${entry.command}
+                  commandIndex=${entry.index}
+                  onEdit=${onEditCommand}
+                  onDelete=${onDeleteCommand}
+                  readOnly=${readOnly}
+                  excludeCpts=${allChecklistCpts}
+                />
+              </div>
+              ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
             </div>
           `);
         })()}
         ${onAddCharge && !readOnly && html`
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${onAddCharge}>+ Charge</button>
-          </div>
-        `}
-        ${onAddQuestionnaire && !readOnly && html`
-          <div class="ad-hoc-buttons">
-            <button type="button" class="ad-hoc-btn" onClick=${onAddQuestionnaire}>+ Questionnaire</button>
-          </div>
-        `}
-        ${onAddHistory && !readOnly && html`
-          <div class="ad-hoc-buttons">
-            <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory('familyHistory')}>+ Family Hx</button>
-            <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory('medicalHistory')}>+ Medical Hx</button>
-            <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory('surgicalHistory')}>+ Surgical Hx</button>
           </div>
         `}
         ${(() => {
@@ -1101,43 +1256,42 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               <div class="subsection-title">Prescriptions</div>
               ${rxRecs.map(entry => {
                 const d = entry.command.data;
-                const isIncomplete = !d.fdb_code || !d.sig || d.quantity_to_dispense == null || !d.type_to_dispense || d.refills == null;
-                const isAccepted = !isIncomplete && (entry.command.accepted || entry.command.already_documented);
-                let btnLabel, btnClass;
-                if (entry.command.already_documented) {
-                  btnLabel = 'Already in chart';
-                  btnClass = 'recommendation-accept-btn accepted';
-                } else if (isIncomplete) {
-                  btnLabel = 'Incomplete';
-                  btnClass = 'recommendation-accept-btn incomplete';
-                } else if (entry.command.accepted) {
-                  btnLabel = 'Accepted';
-                  btnClass = 'recommendation-accept-btn accepted';
-                } else {
-                  btnLabel = 'Accept';
-                  btnClass = 'recommendation-accept-btn';
-                }
+                const missingFields = [];
+                if (!d.fdb_code) missingFields.push('Medication');
+                if (d.quantity_to_dispense == null) missingFields.push('Qty');
+                if (!d.type_to_dispense) missingFields.push('Dispense type');
+                if (!d.sig) missingFields.push('Sig');
+                if (d.refills == null) missingFields.push('Refills');
+                const isIncomplete = missingFields.length > 0;
+                const isAccepted = entry.command.accepted && !entry.command.rejected;
+                const isRejected = entry.command.rejected;
 
                 return html`
-                <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}" key=${'rec-rx-' + entry.index}>
-                  <div class="recommendation-actions">
-                    ${entry.command.already_documented
-                      ? html`<span class=${btnClass}>${btnLabel}</span>`
-                      : !readOnly && html`<button type="button" class=${btnClass} onClick=${() => !isIncomplete && onAcceptRecommendation(entry.index)} disabled=${isIncomplete}>${btnLabel}</button>`
-                    }
-                  </div>
+                <div class="content-block recommendation-block rec-prescribe${isRejected ? ' rec-rejected' : ''}" key=${'rec-rx-' + entry.index}>
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
-                      readOnly=${readOnly || entry.command.already_documented}
+                      readOnly=${readOnly || entry.command.already_documented || isRejected}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}
                       staffName=${staffName}
                       isRecommendation=${true}
                     />
+                  </div>
+                  <div class="recommendation-actions">
+                    ${entry.command.already_documented
+                      ? html`<span class="rec-documented-badge">Already in chart</span>`
+                      : !readOnly && html`
+                          ${isIncomplete && !isRejected && html`<span class="rec-warning-pill">Missing: ${missingFields.join(', ')}</span>`}
+                          ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                          ${isAccepted && !isIncomplete && html`<span class="rec-accepted-badge">Accepted</span>`}
+                          <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                          <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                        `
+                    }
                   </div>
                 </div>
                 `;
@@ -1156,44 +1310,38 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <div class="subsection">
               <div class="subsection-title">Referrals</div>
               ${referRecs.map(entry => {
-                const hasProvider = !!entry.command.data.service_provider;
-                const isIncomplete = !hasProvider;
-                const isAccepted = !isIncomplete && (entry.command.accepted || entry.command.already_documented);
-                let btnLabel, btnClass;
-                if (entry.command.already_documented) {
-                  btnLabel = 'Already in chart';
-                  btnClass = 'recommendation-accept-btn accepted';
-                } else if (isIncomplete) {
-                  btnLabel = 'Incomplete';
-                  btnClass = 'recommendation-accept-btn incomplete';
-                } else if (entry.command.accepted) {
-                  btnLabel = 'Accepted';
-                  btnClass = 'recommendation-accept-btn accepted';
-                } else {
-                  btnLabel = 'Accept';
-                  btnClass = 'recommendation-accept-btn';
-                }
+                const missingFields = [];
+                if (!entry.command.data.service_provider) missingFields.push('Provider');
+                const isIncomplete = missingFields.length > 0;
+                const isAccepted = entry.command.accepted && !entry.command.rejected;
+                const isRejected = entry.command.rejected;
 
                 return html`
-                <div class="content-block recommendation-block${isAccepted ? ' accepted' : ''}${isIncomplete ? ' incomplete-code' : ''}" key=${'rec-refer-' + entry.index}>
-                  <div class="recommendation-actions">
-                    ${entry.command.already_documented
-                      ? html`<span class=${btnClass}>${btnLabel}</span>`
-                      : !readOnly && html`<button type="button" class=${btnClass} onClick=${() => !isIncomplete && onAcceptRecommendation(entry.index)} disabled=${isIncomplete}>${btnLabel}</button>`
-                    }
-                  </div>
+                <div class="content-block recommendation-block rec-refer${isRejected ? ' rec-rejected' : ''}" key=${'rec-refer-' + entry.index}>
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
-                      readOnly=${readOnly || entry.command.already_documented}
+                      readOnly=${readOnly || entry.command.already_documented || isRejected}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}
                       staffName=${staffName}
                       isRecommendation=${true}
                     />
+                  </div>
+                  <div class="recommendation-actions">
+                    ${entry.command.already_documented
+                      ? html`<span class="rec-documented-badge">Already in chart</span>`
+                      : !readOnly && html`
+                          ${isIncomplete && !isRejected && html`<span class="rec-warning-pill">Missing: ${missingFields.join(', ')}</span>`}
+                          ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                          ${isAccepted && !isIncomplete && html`<span class="rec-accepted-badge">Accepted</span>`}
+                          <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                          <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                        `
+                    }
                   </div>
                 </div>
                 `;
@@ -1206,7 +1354,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <button type="button" class="ad-hoc-btn" onClick=${onAddTask}>+ Task</button>
             <button type="button" class="ad-hoc-btn" onClick=${onAddOrder}>+ Order</button>
             ${onAddPlan && html`<button type="button" class="ad-hoc-btn" onClick=${onAddPlan}>+ Plan</button>`}
-            ${onAddResolveCondition && html`<button type="button" class="ad-hoc-btn removal-btn" onClick=${onAddResolveCondition}>- Resolve Condition</button>`}
           </div>
         `}
       </div>

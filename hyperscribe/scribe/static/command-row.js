@@ -4,6 +4,9 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+
 const DATA_FIELD = {
   rfv: 'comment',
   hpi: 'narrative',
@@ -54,9 +57,8 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly }
           onKeyDown=${handleKeyDown}
         />
         <div class="command-row-actions">
-          <button class="edit-btn" onClick=${handleSave}>Save</button>
-          <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
-          ${onDelete && !isNew && html`<button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>`}
+          <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
+          <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancel} title="Cancel">${ICON_X}</button>
         </div>
       </div>
     `;
@@ -64,7 +66,10 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly }
 
   return html`
     <div class="command-row" onClick=${() => !readOnly && setEditing(true)}>
-      <span class="command-row-text">${command.display}</span>
+      ${command.display
+        ? html`<span class="command-row-text">${command.display}</span>`
+        : !readOnly && html`<span class="command-row-placeholder">Tap to enter text</span>`
+      }
     </div>
   `;
 }
