@@ -4,6 +4,9 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
@@ -933,6 +936,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
         refills: refills !== '' ? Number(refills) : null,
         substitutions: substitutions ? 'allowed' : 'not_allowed',
         note_to_pharmacist: noteToPharmacist || null,
+        quantities: medQuantities.map(q => ({ representative_ndc: q.representative_ndc, ncpdp_quantity_qualifier_code: q.ncpdp_quantity_qualifier_code, clinical_quantity_description: q.label, quantity: 1 })),
       };
     } else if (activeTab === 'lab_order') {
       data = {
@@ -992,14 +996,14 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   if (editing) {
     return html`
       <div class="order-row editing" ref=${containerRef} onKeyDown=${handleKeyDown}>
-        <div class="order-layout">
+        <div class="history-form">
           ${!isRecommendation && html`
-            <div class="order-tabs">
+            <div class="order-tabs-horizontal">
               ${ORDER_TABS.map(tab => html`
                 <button
                   key=${tab.key}
                   type="button"
-                  class="order-tab${activeTab === tab.key ? ' active' : ''}"
+                  class="order-tab-h${activeTab === tab.key ? ' active' : ''}"
                   onClick=${() => setActiveTab(tab.key)}
                 >${tab.label}</button>
               `)}
@@ -1007,75 +1011,72 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
           `}
           <div class="order-form">
             ${(activeTab === 'prescribe' || (REFILL_TABS.has(activeTab) && selectedFdb)) && html`
-              <div class="order-rx-form">
-                <div class="medication-search-wrapper">
-                  <div class="labeled-field" style="width:100%">
-                    <span class="labeled-field-label">Medication <span class="field-required">*</span></span>
-                    <input
-                      ref=${medInputRef}
-                      type="text"
-                      class="labeled-field-input"
-                      value=${medQuery}
-                      onInput=${handleMedInput}
-                      placeholder="Search medications..."
-                    />
-                  </div>
-                  ${medSearching && html`<span class="medication-search-spinner">Searching...</span>`}
+              <div class="order-form">
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Medication *</label>
+                  <input
+                    ref=${medInputRef}
+                    type="text"
+                    class="history-form-input"
+                    value=${medQuery}
+                    onInput=${handleMedInput}
+                    placeholder="Search medications..."
+                  />
+                  ${medSearching && html`<span class="diag-search-spinner">Searching...</span>`}
                   ${medResults.length > 0 && html`
-                    <div class="medication-search-dropdown">
+                    <div class="history-search-dropdown">
                       ${medResults.map(r => html`
                         <div
                           key=${r.fdb_code}
-                          class="medication-search-result"
+                          class="history-search-result"
                           onMouseDown=${(e) => { e.preventDefault(); handleMedSelect(r); }}
                         >${r.description}</div>
                       `)}
                     </div>
                   `}
                   ${!medSearching && medSearched && medResults.length === 0 && medQuery.length >= 2 && html`
-                    <div class="medication-search-dropdown">
-                      <div class="medication-search-result search-no-results">No medications found</div>
+                    <div class="history-search-dropdown">
+                      <div class="history-search-result search-no-results">No medications found</div>
                     </div>
                   `}
                 </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:2">
-                    <span class="labeled-field-label">Qty <span class="field-required">*</span></span>
-                    <div style="display:flex;align-items:center;gap:4px">
-                      <input class="labeled-field-input" style="flex:0 0 60px" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" />
-                      <span style="font-size:12px;color:#666">x</span>
-                      <select class="labeled-field-input" style="flex:1;min-width:120px" value=${typeToDispense} onChange=${(e) => setTypeToDispense(e.target.value)}>
-                        <option value="">—</option>
-                        ${medQuantities.map(o => html`
-                          <option key=${o.value} value=${o.value}>${o.label}</option>
-                        `)}
-                      </select>
-                    </div>
+                <div class="order-rx-grid">
+                  <div class="history-form-field">
+                    <label class="history-form-label">Qty *</label>
+                    <input class="history-form-input" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" placeholder="0" />
                   </div>
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Days</span>
-                    <input class="labeled-field-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" />
+                  <div class="history-form-field">
+                    <label class="history-form-label">Dispense type *</label>
+                    <select class="history-form-input" value=${typeToDispense} onChange=${(e) => setTypeToDispense(e.target.value)}>
+                      <option value="">Select...</option>
+                      ${medQuantities.map(o => html`
+                        <option key=${o.value} value=${o.value}>${o.label}</option>
+                      `)}
+                    </select>
                   </div>
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Refills <span class="field-required">*</span></span>
-                    <input class="labeled-field-input" type="number" value=${refills} onInput=${(e) => setRefills(e.target.value)} min="0" />
+                  <div class="history-form-field">
+                    <label class="history-form-label">Days supply</label>
+                    <input class="history-form-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" placeholder="0" />
                   </div>
-                </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Sig <span class="field-required">*</span></span>
-                    <input class="labeled-field-input" type="text" value=${sig} onInput=${(e) => setSig(e.target.value)} />
+                  <div class="history-form-field">
+                    <label class="history-form-label">Refills *</label>
+                    <input class="history-form-input" type="number" value=${refills} onInput=${(e) => setRefills(e.target.value)} min="0" placeholder="0" />
                   </div>
                 </div>
-                <div class="order-rx-row">
-                  <div class="labeled-field" style="flex:1">
-                    <span class="labeled-field-label">Note to Pharmacist</span>
-                    <input class="labeled-field-input" type="text" value=${noteToPharmacist} onInput=${(e) => setNoteToPharmacist(e.target.value)} />
-                  </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Sig *</label>
+                  <input class="history-form-input" type="text" value=${sig} onInput=${(e) => setSig(e.target.value)} placeholder="e.g. Take 1 tablet by mouth daily" />
                 </div>
-                <div class="order-rx-row">
-                  <button type="button" class="task-quick-btn${substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(true)}>Substitutions Allowed</button>
-                  <button type="button" class="task-quick-btn${!substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(false)}>Substitutions Not Allowed</button>
+                <div class="history-form-field">
+                  <label class="history-form-label">Note to Pharmacist</label>
+                  <input class="history-form-input" type="text" value=${noteToPharmacist} onInput=${(e) => setNoteToPharmacist(e.target.value)} placeholder="Optional" />
+                </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Substitutions</label>
+                  <div class="allergy-severity">
+                    <button type="button" class="task-quick-btn${substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(true)}>Allowed</button>
+                    <button type="button" class="task-quick-btn${!substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(false)}>Not Allowed</button>
+                  </div>
                 </div>
               </div>
             `}
@@ -1536,10 +1537,9 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 </div>
               </div>
             `}
-            <div class="command-row-actions">
-              <button class="edit-btn" onClick=${handleSave}>Save</button>
-              <button class="edit-btn" onClick=${handleCancel}>Cancel</button>
-              <button class="delete-btn" onClick=${() => onDelete(commandIndex)}>Delete</button>
+            <div class="questionnaire-form-actions">
+              <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
+              <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancel} title="Cancel">${ICON_X}</button>
             </div>
           </div>
         </div>

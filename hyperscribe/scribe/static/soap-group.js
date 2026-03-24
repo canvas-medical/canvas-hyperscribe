@@ -999,9 +999,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     staffId=${staffId}
                     staffName=${staffName}
                   />
-                  ${prescribeIncomplete && html`<span class="rec-warning-badge">Missing Information</span>`}
                 </div>
-                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                ${!readOnly && html`<div class="recommendation-actions">
+                  ${prescribeIncomplete && html`<span class="rec-warning-pill">Missing Information</span>`}
+                  <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                </div>`}
               </div>
             `;
           }
@@ -1201,10 +1203,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       staffName=${staffName}
                       isRecommendation=${true}
                     />
-                    ${isIncomplete && !entry.command.already_documented && html`<span class="rec-warning-badge">Missing Information</span>`}
                   </div>
                   ${!readOnly && !entry.command.already_documented && html`
                     <div class="recommendation-actions">
+                      ${isIncomplete && html`<span class="rec-warning-pill">Missing Information</span>`}
                       <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteRecommendation(entry.index)} title="Remove">${ICON_X}</button>
                     </div>
                   `}
@@ -1241,10 +1243,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       staffName=${staffName}
                       isRecommendation=${true}
                     />
-                    ${isIncomplete && !entry.command.already_documented && html`<span class="rec-warning-badge">Missing Information</span>`}
                   </div>
                   ${!readOnly && !entry.command.already_documented && html`
                     <div class="recommendation-actions">
+                      ${isIncomplete && html`<span class="rec-warning-pill">Missing Information</span>`}
                       <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteRecommendation(entry.index)} title="Remove">${ICON_X}</button>
                     </div>
                   `}
