@@ -12,6 +12,7 @@ _SECTION_PARSERS: dict[str, CommandParser] = {
     "history_of_present_illness": HpiParser(),
     "plan": PlanParser(),
     "assessment_and_plan": PlanParser(),
+    "appointments": PlanParser(),
     "vitals": VitalsParser(),
 }
 
