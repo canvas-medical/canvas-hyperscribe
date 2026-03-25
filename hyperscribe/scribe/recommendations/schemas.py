@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from pydantic import Field
 
 from canvas_sdk.clients.llms.structures import BaseModelLlmJson

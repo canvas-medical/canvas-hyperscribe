@@ -94,6 +94,18 @@ def test_assessment_and_plan_routed_to_plan() -> None:
     assert proposals[0].section_key == "assessment_and_plan"
 
 
+def test_appointments_routed_to_plan() -> None:
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="appointments", title="Appointments", text="Follow-up in 2 weeks.")],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "plan"
+    assert proposals[0].section_key == "appointments"
+    assert proposals[0].data == {"narrative": "Follow-up in 2 weeks."}
+
+
 def test_physical_exam_with_subsections() -> None:
     note = ClinicalNote(
         title="Note",
