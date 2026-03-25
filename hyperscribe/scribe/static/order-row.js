@@ -543,8 +543,8 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [imagingDetails, setImagingDetails] = useState(command.data.additional_details || '');
   const [imagingComment, setImagingComment] = useState(command.data.comment || '');
   const [imagingPriority, setImagingPriority] = useState(command.data.priority || 'Routine');
-  const [orderingProviderId, setOrderingProviderId] = useState(command.data.ordering_provider_id || staffId || '');
-  const [orderingProviderName, setOrderingProviderName] = useState(command.data.ordering_provider_name || staffName || '');
+  const [orderingProviderId, setOrderingProviderId] = useState(command.data.ordering_provider_id || '');
+  const [orderingProviderName, setOrderingProviderName] = useState(command.data.ordering_provider_name || '');
   const [providerQuery, setProviderQuery] = useState('');
   const [providerResults, setProviderResults] = useState([]);
   const [providerSearching, setProviderSearching] = useState(false);
