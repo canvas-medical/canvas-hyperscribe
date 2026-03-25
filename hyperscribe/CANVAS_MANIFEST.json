@@ -226,6 +226,7 @@
     "NotionAPIKey",
     "NotionFeedbackDatabaseId",
     "ScribeBackend",
+    "ScribeNoteTypes",
     "ScribePilotStaffers",
     "StaffersList",
     "StaffersPolicy",
