@@ -25,7 +25,8 @@ from canvas_sdk.v1.data.staff import Staff, StaffRole
 from canvas_sdk.v1.data.task import TaskLabel
 from canvas_sdk.v1.data.team import Team
 
-from canvas_sdk.utils.http import science_http
+from canvas_sdk.utils.http import pharmacy_http, science_http
+from canvas_sdk.v1.data.patient import Patient
 
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.constants import Constants
@@ -1330,6 +1331,63 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             qs = qs.filter(Q(name__icontains=query) | Q(search_tags__icontains=query))
         questionnaires = qs.order_by("name")[:25]
         results = [{"dbid": q.dbid, "name": q.name} for q in questionnaires]
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
+    @api.get("/search-pharmacies")
+    def get_search_pharmacies(self) -> list[Union[Response, Effect]]:
+        """Search pharmacies. Returns patient preferred pharmacies when no query is provided."""
+        query = self.request.query_params.get("query", "").strip()
+        patient_id = self.request.query_params.get("patient_id", "").strip()
+
+        def _format_pharmacy(details: dict) -> dict:
+            name = details.get("organization_name") or ""
+            address = details.get("address_line_1") or ""
+            city = details.get("city") or ""
+            state = details.get("state") or ""
+            address_parts = [p for p in [address, city, state] if p]
+            return {
+                "ncpdp_id": details.get("ncpdp_id") or "",
+                "name": name,
+                "address": ", ".join(address_parts) if address_parts else "",
+            }
+
+        if query:
+            try:
+                search_results = pharmacy_http.search_pharmacies(search_term=query)
+                results = [_format_pharmacy(r) for r in search_results]
+                results = [r for r in results if r["ncpdp_id"] and (r["name"] or r["address"])]
+            except Exception:
+                results = []
+            return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
+
+        # No query — return the patient's preferred pharmacies.
+        if not patient_id:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+
+        try:
+            patient = Patient.objects.get(id=patient_id)
+        except Patient.DoesNotExist:
+            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
+
+        pharmacies_setting = patient.preferred_pharmacies or []
+        results = []
+        for pharm in pharmacies_setting:
+            ncpdp_id = pharm.get("ncpdp_id", "")
+            if not ncpdp_id:
+                continue
+            entry = {"ncpdp_id": ncpdp_id, "name": ncpdp_id, "address": "", "preferred": True}
+            try:
+                details = pharmacy_http.get_pharmacy_by_ncpdp_id(ncpdp_id)
+                if details:
+                    formatted = _format_pharmacy(details)
+                    if formatted["name"]:
+                        entry["name"] = formatted["name"]
+                    if formatted["address"]:
+                        entry["address"] = formatted["address"]
+            except Exception:
+                pass
+            results.append(entry)
+
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/questionnaire-details")
