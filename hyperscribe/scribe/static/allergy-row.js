@@ -209,8 +209,8 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
             </div>
           </div>
           <div class="questionnaire-form-actions">
-            <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
             <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancel} title="Cancel">${ICON_X}</button>
+            <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
           </div>
         </div>
       </div>
