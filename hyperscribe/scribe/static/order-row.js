@@ -289,7 +289,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const initRxState = () => ({
     medQuery: '', selectedFdb: null, selectedMedDisplay: '', medQuantities: buildTypeToDispenseOptions([]),
     sig: '', daysSupply: '', quantity: '', typeToDispense: '', refills: '',
-    substitutions: true, noteToPharmacist: '', interactionWarning: null,
+    substitutions: true, noteToPharmacist: '', interactionWarning: null, selectedPharmacy: '', pharmacyQuery: '',
   });
 
   // Rx state
@@ -307,13 +307,18 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [refills, setRefills] = useState(command.data.refills != null ? String(command.data.refills) : '');
   const [substitutions, setSubstitutions] = useState(command.data.substitutions !== 'not_allowed');
   const [noteToPharmacist, setNoteToPharmacist] = useState(command.data.note_to_pharmacist || '');
+  const [selectedPharmacy, setSelectedPharmacy] = useState(command.data.pharmacy || '');
+  const [pharmacyQuery, setPharmacyQuery] = useState(command.data.pharmacy_name || '');
+  const [pharmacyResults, setPharmacyResults] = useState([]);
+  const [pharmacySearching, setPharmacySearching] = useState(false);
+  const [pharmacySearched, setPharmacySearched] = useState(false);
   const [interactionWarning, setInteractionWarning] = useState(null);
   const [checkingInteractions, setCheckingInteractions] = useState(false);
 
   const snapshotCurrentRx = () => ({
     medQuery, selectedFdb, selectedMedDisplay, medQuantities,
     sig, daysSupply, quantity, typeToDispense, refills,
-    substitutions, noteToPharmacist, interactionWarning,
+    substitutions, noteToPharmacist, interactionWarning, selectedPharmacy, pharmacyQuery,
   });
 
   const restoreRxSnapshot = (snap) => {
@@ -328,6 +333,8 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setRefills(snap.refills);
     setSubstitutions(snap.substitutions);
     setNoteToPharmacist(snap.noteToPharmacist);
+    setSelectedPharmacy(snap.selectedPharmacy);
+    setPharmacyQuery(snap.pharmacyQuery);
     setInteractionWarning(snap.interactionWarning);
     setMedResults([]);
     setMedSearched(false);
@@ -348,6 +355,62 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
       .finally(() => { if (!cancelled) setRefillLoading(false); });
     return () => { cancelled = true; };
   }, [activeTab, patientId]);
+
+  // Load patient's preferred pharmacies when the Rx tab is first active.
+  const preferredPharmaciesLoaded = useRef(false);
+  useEffect(() => {
+    if (activeTab !== 'prescribe' && !REFILL_TABS.has(activeTab)) return;
+    if (!patientId || preferredPharmaciesLoaded.current || selectedPharmacy) return;
+    preferredPharmaciesLoaded.current = true;
+    fetch(`${API_BASE}/search-pharmacies?patient_id=${encodeURIComponent(patientId)}`)
+      .then(r => r.json())
+      .then(d => {
+        const list = d.results || [];
+        setPharmacyResults(list);
+        const defaultPharm = list.find(p => p.preferred);
+        if (defaultPharm) {
+          setSelectedPharmacy(defaultPharm.ncpdp_id);
+          setPharmacyQuery(defaultPharm.name);
+        }
+      })
+      .catch(() => {});
+  }, [activeTab, patientId]);
+
+  const doPharmacySearch = useCallback(async (q) => {
+    if (!q || q.length < 2) {
+      setPharmacyResults([]);
+      setPharmacySearched(false);
+      return;
+    }
+    setPharmacySearching(true);
+    try {
+      const res = await fetch(`${API_BASE}/search-pharmacies?query=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      setPharmacyResults(data.results || []);
+    } catch (err) {
+      setPharmacyResults([]);
+    } finally {
+      setPharmacySearching(false);
+      setPharmacySearched(true);
+    }
+  }, []);
+
+  const debouncedPharmacySearch = useDebounce(doPharmacySearch, DEBOUNCE_MS);
+
+  const handlePharmacyInput = (e) => {
+    const val = e.target.value;
+    setPharmacyQuery(val);
+    setSelectedPharmacy('');
+    debouncedPharmacySearch(val);
+  };
+
+  const handlePharmacySelect = (pharmacy) => {
+    setSelectedPharmacy(pharmacy.ncpdp_id);
+    const display = [pharmacy.name, pharmacy.address].filter(Boolean).join(' — ');
+    setPharmacyQuery(display || pharmacy.ncpdp_id);
+    setPharmacyResults([]);
+    setPharmacySearched(false);
+  };
 
   const handleRefillSelect = async (e) => {
     const idx = parseInt(e.target.value, 10);
@@ -902,6 +965,8 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
         setReferDiagResults([]);
         setReferDiagSearched(false);
         setReferDiagFocused(false);
+        setPharmacyResults([]);
+        setPharmacySearched(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -968,6 +1033,8 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
         refills: refills !== '' ? Number(refills) : null,
         substitutions: substitutions ? 'allowed' : 'not_allowed',
         note_to_pharmacist: noteToPharmacist || null,
+        pharmacy: selectedPharmacy || null,
+        pharmacy_name: selectedPharmacy ? pharmacyQuery : null,
         quantities: medQuantities.map(q => ({ representative_ndc: q.representative_ndc, ncpdp_quantity_qualifier_code: q.ncpdp_quantity_qualifier_code, clinical_quantity_description: q.label, quantity: 1 })),
       };
     } else if (activeTab === 'lab_order') {
@@ -1123,6 +1190,42 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 <div class="history-form-field">
                   <label class="history-form-label">Note to Pharmacist</label>
                   <input class="history-form-input" type="text" value=${noteToPharmacist} onInput=${(e) => setNoteToPharmacist(e.target.value)} placeholder="Optional" />
+                </div>
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Pharmacy</label>
+                  <input
+                    type="text"
+                    class="history-form-input"
+                    value=${pharmacyQuery}
+                    onInput=${handlePharmacyInput}
+                    onFocus=${() => { if (!pharmacyQuery && patientId && !selectedPharmacy) {
+                      fetch(`${API_BASE}/search-pharmacies?patient_id=${encodeURIComponent(patientId)}`)
+                        .then(r => r.json())
+                        .then(d => setPharmacyResults(d.results || []))
+                        .catch(() => {});
+                    }}}
+                    placeholder="Search pharmacies..."
+                  />
+                  ${pharmacySearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                  ${pharmacyResults.length > 0 && !selectedPharmacy && html`
+                    <div class="history-search-dropdown">
+                      ${pharmacyResults.map(r => html`
+                        <div
+                          key=${r.ncpdp_id}
+                          class="history-search-result"
+                          onMouseDown=${(e) => { e.preventDefault(); handlePharmacySelect(r); }}
+                        >
+                          <div style="font-weight: 500;">${r.name || 'Unknown'}${r.preferred ? ' (preferred)' : ''}</div>
+                          ${r.address && html`<div style="font-size: 12px; color: #666;">${r.address}</div>`}
+                        </div>
+                      `)}
+                    </div>
+                  `}
+                  ${!pharmacySearching && pharmacySearched && pharmacyResults.length === 0 && pharmacyQuery.length >= 2 && html`
+                    <div class="history-search-dropdown">
+                      <div class="history-search-result search-no-results">No pharmacies found</div>
+                    </div>
+                  `}
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label">Substitutions</label>
