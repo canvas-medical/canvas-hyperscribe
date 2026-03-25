@@ -1228,8 +1228,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         qs = (
             Staff.objects.filter(
                 active=True,
-                staffrole__role_type=StaffRole.RoleType.PROVIDER,
-                staffrole__domain__in=StaffRole.RoleDomain.clinical_domains(),
+                roles__role_type=StaffRole.RoleType.PROVIDER,
+                roles__domain__in=StaffRole.RoleDomain.clinical_domains(),
             )
             .distinct()
             .order_by("last_name", "first_name")
@@ -1252,17 +1252,22 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "").strip()
         zip_codes = resolve_zip_codes(patient_id, note_id)
 
-        params = f"?search={query}&job_title__icontains=radiology"
-        if zip_codes:
-            params += f"&business_postal_code__in={','.join(zip_codes)}"
+        base_params = f"?search={query}&job_title__icontains=radiology"
         try:
-            resp = science_http.get_json(f"/contacts/{params}")
-            data = resp.json() or {}
+            # Try zip-filtered first for local results, fall back to unfiltered.
+            raw_results: list[dict] = []
+            if zip_codes:
+                params = base_params + f"&business_postal_code__in={','.join(zip_codes)}"
+                resp = science_http.get_json(f"/contacts/{params}")
+                raw_results = (resp.json() or {}).get("results", [])
+            if not raw_results:
+                resp = science_http.get_json(f"/contacts/{base_params}")
+                raw_results = (resp.json() or {}).get("results", [])
         except Exception:
             log.exception("Imaging center search failed")
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         results = []
-        for c in data.get("results", []):
+        for c in raw_results:
             first = c.get("firstName", "")
             last = c.get("lastName", "")
             practice = c.get("practiceName", "")
