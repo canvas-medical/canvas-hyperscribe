@@ -126,8 +126,8 @@ function FamilyHistoryForm({ command, commandIndex, onEdit, onDelete, onCancel, 
         />
       </div>
       <div class="questionnaire-form-actions">
-        <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
         <button type="button" class="rec-btn rec-btn-reject" onClick=${onCancel} title="Cancel">${ICON_X}</button>
+        <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
       </div>
     </div>
   `;
@@ -182,8 +182,8 @@ function MedicalHistoryForm({ command, commandIndex, onEdit, onDelete, onCancel,
         />
       </div>
       <div class="questionnaire-form-actions">
-        <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
         <button type="button" class="rec-btn rec-btn-reject" onClick=${onCancel} title="Cancel">${ICON_X}</button>
+        <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
       </div>
     </div>
   `;
@@ -230,8 +230,8 @@ function SurgicalHistoryForm({ command, commandIndex, onEdit, onDelete, onCancel
         />
       </div>
       <div class="questionnaire-form-actions">
-        <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
         <button type="button" class="rec-btn rec-btn-reject" onClick=${onCancel} title="Cancel">${ICON_X}</button>
+        <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
       </div>
     </div>
   `;
