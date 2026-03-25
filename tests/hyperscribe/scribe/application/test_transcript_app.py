@@ -54,6 +54,96 @@ def test_visible_missing_user_context(mock_settings_cls: MagicMock) -> None:
 
 
 @patch("hyperscribe.scribe.application.transcript_app.Note")
+@patch("hyperscribe.scribe.application.transcript_app.Settings")
+def test_visible_note_type_match(mock_settings_cls: MagicMock, mock_note: MagicMock) -> None:
+    mock_settings = MagicMock()
+    mock_settings_cls.from_dictionary.return_value = mock_settings
+    mock_settings.is_scribe_modality.return_value = True
+
+    mock_qs = MagicMock(spec=QuerySet)
+    mock_qs.get.return_value = "Office Visit"
+    mock_note.objects.values_list.return_value = mock_qs
+
+    event = Event(EventRequest(context='{"user": {"id": "staff1"}, "note_id": 123}'))
+    tested = ScribeApp(event, {"ScribeNoteTypes": "Office Visit, Telehealth"})
+    assert tested.visible() is True
+    mock_qs.get.assert_called_once_with(dbid=123)
+
+
+@patch("hyperscribe.scribe.application.transcript_app.Note")
+@patch("hyperscribe.scribe.application.transcript_app.Settings")
+def test_visible_note_type_no_match(mock_settings_cls: MagicMock, mock_note: MagicMock) -> None:
+    mock_settings = MagicMock()
+    mock_settings_cls.from_dictionary.return_value = mock_settings
+    mock_settings.is_scribe_modality.return_value = True
+
+    mock_qs = MagicMock(spec=QuerySet)
+    mock_qs.get.return_value = "Phone Call"
+    mock_note.objects.values_list.return_value = mock_qs
+
+    event = Event(EventRequest(context='{"user": {"id": "staff1"}, "note_id": 123}'))
+    tested = ScribeApp(event, {"ScribeNoteTypes": "Office Visit, Telehealth"})
+    assert tested.visible() is False
+
+
+@patch("hyperscribe.scribe.application.transcript_app.Note")
+@patch("hyperscribe.scribe.application.transcript_app.Settings")
+def test_visible_note_type_case_insensitive(mock_settings_cls: MagicMock, mock_note: MagicMock) -> None:
+    mock_settings = MagicMock()
+    mock_settings_cls.from_dictionary.return_value = mock_settings
+    mock_settings.is_scribe_modality.return_value = True
+
+    mock_qs = MagicMock(spec=QuerySet)
+    mock_qs.get.return_value = "office visit"
+    mock_note.objects.values_list.return_value = mock_qs
+
+    event = Event(EventRequest(context='{"user": {"id": "staff1"}, "note_id": 123}'))
+    tested = ScribeApp(event, {"ScribeNoteTypes": "Office Visit"})
+    assert tested.visible() is True
+
+
+@patch("hyperscribe.scribe.application.transcript_app.Settings")
+def test_visible_note_type_empty_secret_allows_all(mock_settings_cls: MagicMock) -> None:
+    mock_settings = MagicMock()
+    mock_settings_cls.from_dictionary.return_value = mock_settings
+    mock_settings.is_scribe_modality.return_value = True
+
+    event = Event(EventRequest(context='{"user": {"id": "staff1"}}'))
+    tested = ScribeApp(event, {"ScribeNoteTypes": ""})
+    assert tested.visible() is True
+
+
+@patch("hyperscribe.scribe.application.transcript_app.Settings")
+def test_visible_note_type_missing_secret_allows_all(mock_settings_cls: MagicMock) -> None:
+    mock_settings = MagicMock()
+    mock_settings_cls.from_dictionary.return_value = mock_settings
+    mock_settings.is_scribe_modality.return_value = True
+
+    event = Event(EventRequest(context='{"user": {"id": "staff1"}}'))
+    tested = ScribeApp(event, {})
+    assert tested.visible() is True
+
+
+@patch("hyperscribe.scribe.application.transcript_app.Note")
+@patch("hyperscribe.scribe.application.transcript_app.Settings")
+def test_visible_note_type_note_not_found(mock_settings_cls: MagicMock, mock_note: MagicMock) -> None:
+    mock_settings = MagicMock()
+    mock_settings_cls.from_dictionary.return_value = mock_settings
+    mock_settings.is_scribe_modality.return_value = True
+
+    from canvas_sdk.v1.data.note import Note as RealNote
+
+    mock_qs = MagicMock(spec=QuerySet)
+    mock_qs.get.side_effect = RealNote.DoesNotExist
+    mock_note.objects.values_list.return_value = mock_qs
+    mock_note.DoesNotExist = RealNote.DoesNotExist
+
+    event = Event(EventRequest(context='{"user": {"id": "staff1"}, "note_id": 999}'))
+    tested = ScribeApp(event, {"ScribeNoteTypes": "Office Visit"})
+    assert tested.visible() is False
+
+
+@patch("hyperscribe.scribe.application.transcript_app.Note")
 @patch("hyperscribe.scribe.application.transcript_app.LaunchModalEffect")
 def test_handle(launch_modal_effect: object, mock_note: MagicMock) -> None:
     launch_modal_effect.return_value.apply.side_effect = [  # type: ignore[union-attr]
