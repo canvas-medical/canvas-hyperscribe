@@ -483,10 +483,12 @@ def test_combine_and_speaker_detection(
         Line(speaker="speaker", text="last words 3", start=2.5, end=3.6),
     ]
 
+    single_result = JsonExtract(has_error=False, error="", content=[])
+    double_result = JsonExtract(has_error=False, error="", content=[])
     tests = [
         (
             True,
-            "single",
+            single_result,
             [call(helper.audio2texter.return_value, lines)],
             [],
             [
@@ -498,7 +500,7 @@ def test_combine_and_speaker_detection(
         ),
         (
             False,
-            "double",
+            double_result,
             [],
             [call(helper.audio2texter.return_value, helper.chatter.return_value, lines)],
             [
@@ -515,8 +517,8 @@ def test_combine_and_speaker_detection(
     ]
     for identification, expected, exp_call_single, exp_calls_double, exp_call_helper, exp_call_memory_log in tests:
         helper.audio2texter.return_value.support_speaker_identification.side_effect = [identification]
-        combine_and_speaker_detection_single_step.side_effect = ["single"]
-        combine_and_speaker_detection_double_step.side_effect = ["double"]
+        combine_and_speaker_detection_single_step.side_effect = [single_result]
+        combine_and_speaker_detection_double_step.side_effect = [double_result]
 
         result = tested.combine_and_speaker_detection(audio_bytes, lines)
         assert result == expected
