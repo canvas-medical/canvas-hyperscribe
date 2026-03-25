@@ -360,6 +360,15 @@ h2 { margin-bottom: 4px; }
   border-radius: 12px; white-space: nowrap;
 }
 
+/* Add Now button for immediate order insertion */
+.rec-btn-add-now {
+  height: 36px; padding: 0 12px; font-size: 12px; font-weight: 600;
+  color: #059669; background: #ecfdf5; border: 1.5px solid #059669; border-radius: 6px;
+  cursor: pointer; white-space: nowrap; transition: opacity 0.15s;
+}
+.rec-btn-add-now:active:not(:disabled) { opacity: 0.7; }
+.rec-btn-add-now:disabled { opacity: 0.6; cursor: wait; }
+
 /* Muted button (unselected state in accept/reject toggle) */
 .rec-btn-muted { background: #e5e7eb; color: #9ca3af; }
 .rec-btn-disabled { opacity: 0.4; cursor: not-allowed; }
