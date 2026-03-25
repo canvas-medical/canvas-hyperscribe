@@ -179,11 +179,9 @@ class CanvasScience:
         for _ in range(Constants.MAX_ATTEMPTS_CANVAS_SERVICES):
             try:
                 if is_ontologies:
-                    ontologies_http._MAX_REQUEST_TIMEOUT_SECONDS = 7
                     response = ontologies_http.get_json(url, headers)
                     source = "ontologies"
                 else:
-                    science_http._MAX_REQUEST_TIMEOUT_SECONDS = 7
                     response = science_http.get_json(url, headers)
                     source = "science"
 
