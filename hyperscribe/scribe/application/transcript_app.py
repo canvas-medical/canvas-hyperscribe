@@ -12,6 +12,33 @@ from hyperscribe.structures.settings import Settings
 _CACHE_KEY_PREFIX = "scribe_transcript:"
 
 
+def is_scribe_visible(secrets: dict[str, str], context: dict) -> bool:
+    """Return True when scribe should be visible for this staff/note combination.
+
+    Checks scribe modality and, when configured, allowed note types.
+    """
+    # PILOT: revert to `secrets.get(Constants.SECRET_MODALITY, "").lower() == Constants.MODALITY_SCRIBE`
+    settings = Settings.from_dictionary(secrets)
+    staff_id = context.get("user", {}).get("id", "")
+    if not settings.is_scribe_modality(staff_id):
+        return False
+
+    # If allowed note types are configured, check the note's type.
+    allowed_raw = secrets.get(Constants.SECRET_SCRIBE_NOTE_TYPES, "")
+    allowed = [s.strip().lower() for s in allowed_raw.split(",") if s.strip()]
+    if not allowed:
+        return True
+
+    note_dbid = context.get("note_id")
+    if not note_dbid:
+        return False
+    try:
+        note_type_name = Note.objects.values_list("note_type_version__name", flat=True).get(dbid=note_dbid)
+        return (note_type_name or "").strip().lower() in allowed
+    except Note.DoesNotExist:
+        return False
+
+
 class ScribeApp(NoteApplication):
     """Note application for Canvas Scribe with recording and transcript."""
 
@@ -37,10 +64,7 @@ class ScribeApp(NoteApplication):
             return False
 
     def visible(self) -> bool:
-        # PILOT: revert to `self.secrets.get(Constants.SECRET_MODALITY, "").lower() == Constants.MODALITY_SCRIBE`
-        settings = Settings.from_dictionary(self.secrets)
-        staff_id = self.context.get("user", {}).get("id", "")
-        return settings.is_scribe_modality(staff_id)
+        return is_scribe_visible(self.secrets, self.context)
 
     def handle(self) -> list[Effect]:
         note_dbid = self.context.get("note_id")
