@@ -70,10 +70,8 @@ class ReferRecommender(BaseRecommender):
                 continue
 
             results = search_refer_providers(search_term, self.zip_codes)
-            # Skip TBD placeholder contacts — they aren't real providers.
-            valid = [r for r in results if "(TBD)" not in (r.get("name") or "")]
-            if valid:
-                match = valid[0]
+            if results:
+                match = results[0]
                 display = match["name"]
                 proposals.append(
                     CommandProposal(
