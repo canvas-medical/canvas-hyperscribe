@@ -58,6 +58,7 @@ class RefillParser(CommandParser):
             refills=int(data["refills"]) if data.get("refills") is not None else None,
             substitutions=substitutions,
             note_to_pharmacist=data.get("note_to_pharmacist") or None,
+            pharmacy=data.get("pharmacy") or None,
             prescriber_id=prescriber_id,
             note_uuid=note_uuid,
             command_uuid=command_uuid,
