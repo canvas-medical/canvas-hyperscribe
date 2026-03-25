@@ -461,9 +461,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       { command_type: 'plan', display: '', data: { narrative: '' }, selected: true, section_key: 'assessment_and_plan', already_documented: false },
     ];
     setCommands(prev => {
-      // Keep any existing ad-hoc commands, add manual skeleton commands.
+      // Keep any existing ad-hoc commands and template-inserted commands (ROS, PE, questionnaires).
       const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
-      const existing = prev.filter(c => adHocKeys.has(c.section_key));
+      const existing = prev.filter(c => adHocKeys.has(c.section_key) || c._template_inserted);
       return [...manualCommands, ...existing];
     });
   }, []);
