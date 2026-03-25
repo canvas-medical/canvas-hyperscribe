@@ -1325,7 +1325,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     def get_search_questionnaires(self) -> list[Union[Response, Effect]]:
         """Search active questionnaires by name or search tags."""
         query = self.request.query_params.get("query", "").strip()
-        qs = QuestionnaireModel.objects.filter(status="AC")
+        qs = QuestionnaireModel.objects.filter(status="AC", use_case_in_charting="QUES")
         if query:
             qs = qs.filter(Q(name__icontains=query) | Q(search_tags__icontains=query))
         questionnaires = qs.order_by("name")[:25]
