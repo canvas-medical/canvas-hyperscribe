@@ -172,7 +172,8 @@ class AdjustPrescription(BasePrescription):
                         "suppliedDays": {
                             "type": "integer",
                             "exclusiveMinimum": 0,
-                            "description": "Duration of the treatment in days, at least 1",
+                            "description": "Duration of the treatment in days. If explicitly stated in the transcript, "
+                            "use that value. Otherwise, default to 30 days.",
                         },
                         "substitution": {
                             "type": "string",

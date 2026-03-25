@@ -464,8 +464,8 @@ def test_command_parameters_schemas(current_conditions):
                         "type": "string",
                     },
                     "suppliedDays": {
-                        "description": "Duration of the treatment in days either as mentioned, or "
-                        "following the standard practices, at least 1",
+                        "description": "Duration of the treatment in days. If explicitly stated in the transcript, "
+                        "use that value. Otherwise, default to 30 days.",
                         "exclusiveMinimum": 0,
                         "type": "integer",
                     },
@@ -531,8 +531,8 @@ def test_command_parameters_schemas(current_conditions):
                         "type": "string",
                     },
                     "suppliedDays": {
-                        "description": "Duration of the treatment in days either as mentioned, or "
-                        "following the standard practices, at least 1",
+                        "description": "Duration of the treatment in days. If explicitly stated in the transcript, "
+                        "use that value. Otherwise, default to 30 days.",
                         "exclusiveMinimum": 0,
                         "type": "integer",
                     },

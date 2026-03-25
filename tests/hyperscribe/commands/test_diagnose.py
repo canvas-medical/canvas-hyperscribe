@@ -153,7 +153,7 @@ def test_command_from_json(add_code2description, condition_from):
         icd10_code="CODE12.3",
         background="theRationale",
         approximate_date_of_onset=date(2025, 2, 3),
-        today_assessment="theAssessment",
+        today_assessment="Assessment: theAssessment\nPlan:",
         note_uuid="noteUuid",
     )
     expected = InstructionWithCommand(**(arguments | {"command": command}))
@@ -167,7 +167,7 @@ def test_command_from_json(add_code2description, condition_from):
             chatter,
             ["keyword1", "keyword2", "keyword3"],
             ["ICD01", "ICD02", "ICD03"],
-            "theRationale\n\ntheAssessment",
+            "theRationale\n\nAssessment: theAssessment\nPlan:",
         ),
     ]
     assert condition_from.mock_calls == calls
@@ -196,7 +196,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "b764c1c5a596c1bd095c084b13658002"
+    expected_hash = "b65203e6bc0c5ad36cf11702bc6bfbef"
     assert schema_hash == expected_hash
 
     tests = [
@@ -370,15 +370,12 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Medical condition identified, diagnosed, or referenced as pertaining to the patient "
-        "by a provider. When available in the transcript, also include: "
-        "- all reasoning explicitly mentioned, "
-        "- current detailed assessment, and "
-        "- the approximate date of onset. "
-        "If a condition is discussed in relation to the patient's treatment or medications "
-        "(e.g., asking about a medication used for a specific condition), and that condition is not already "
-        "in the patient's chart, create a Diagnose instruction for it. "
-        "There is one and only one condition per instruction, "
+        "Medical condition identified by a provider; the necessary information to report includes: "
+        "- the medical condition itself, "
+        "- all reasoning explicitly mentioned in the transcript, "
+        "- current detailed assessment as mentioned in the transcript, and "
+        "- the approximate date of onset if mentioned in the transcript. "
+        "There is one and only one condition per instruction with all necessary information, "
         "and no instruction in the lack of."
     )
     assert result == expected

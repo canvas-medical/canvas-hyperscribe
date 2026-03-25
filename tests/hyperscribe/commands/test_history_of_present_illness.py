@@ -124,7 +124,7 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "f74d047438c7bb480f347e81e8e479e5"
+    expected_hash = "7143eb3a4b6f14359ce44629a171d6fb"
     assert schema_hash == expected_hash
 
     tests = [
@@ -162,7 +162,12 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Highlights of the patient's symptoms and surrounding events and observations. "
+        "History of present illness narrative covering: "
+        "the patient's name, age, and visit type with known conditions; "
+        "a summary of reported symptoms including what makes them better or worse; "
+        "a recap of the visit (e.g. 'During today's visit...'); "
+        "the conditions and problems that were evaluated; "
+        "and key points discussed with the patient. "
         "There can be multiple highlights within an instruction, but only one such instruction in the "
         "whole discussion. "
         "So, if one was already found, simply update it by intelligently merging all key highlights."
@@ -181,7 +186,12 @@ def test_instruction_description():
     )
     result = tested.instruction_description()
     expected = (
-        "Highlights of the patient's symptoms and surrounding events and observations. "
+        "History of present illness narrative covering: "
+        "the patient's name, age, and visit type with known conditions; "
+        "a summary of reported symptoms including what makes them better or worse; "
+        "a recap of the visit (e.g. 'During today's visit...'); "
+        "the conditions and problems that were evaluated; "
+        "and key points discussed with the patient. "
         "There can be multiple highlights within an instruction, but only one such instruction in the "
         "whole discussion. "
         "So, if one was already found, simply update it by intelligently merging all key highlights. "
