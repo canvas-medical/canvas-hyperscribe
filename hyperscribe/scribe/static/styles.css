@@ -505,7 +505,7 @@ h2 { margin-bottom: 4px; }
 .command-row.editing { cursor: default; }
 .command-row-textarea { flex: 1; min-height: 80px; padding: 10px; font-family: inherit; font-size: 15px; line-height: 1.6; border: 1px solid #ddd; border-radius: 6px; resize: vertical; min-width: 0; }
 .command-row-textarea:focus { outline: none; border-color: #052B49; }
-.command-row-actions { display: flex; flex-direction: column; gap: 8px; margin-left: 12px; flex-shrink: 0; align-self: flex-start; padding-top: 4px; }
+.command-row-actions { display: flex; gap: 8px; margin-left: 12px; flex-shrink: 0; align-self: flex-start; padding-top: 4px; }
 
 /* Inline vitals rows */
 .vitals-row { display: flex; align-items: flex-start; gap: 8px; padding: 4px; border-radius: 8px; cursor: pointer; }
