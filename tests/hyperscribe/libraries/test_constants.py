@@ -133,6 +133,7 @@ def test_constants():
         "SECRET_TEXT_LLM_VENDOR": "VendorTextLLM",
         "SECRET_NOTION_FEEDBACK_DATABASE_ID": "NotionFeedbackDatabaseId",
         "SECRET_SCRIBE_BACKEND": "ScribeBackend",
+        "SECRET_SCRIBE_NOTE_TYPES": "ScribeNoteTypes",
         "SECRET_VISIT_TEMPLATES": "VisitTemplates",
         "SECRET_NOTION_API_KEY": "NotionAPIKey",
         "SECRET_MODALITY": "Modality",
