@@ -20,8 +20,8 @@ hyperscribe/
   handlers/       # Canvas plugin entry points (buttons, views, protocols)
   libraries/      # Core logic: commander, audio_interpreter, caching, S3, auth
   llms/           # LLM vendor implementations, all inherit from LlmBase
-  structures/     # Data types (NamedTuples and plain classes)
-  templates/      # LLM prompt templates (Jinja-style)
+  structures/     # Data types (NamedTuples and @dataclass(frozen=True))
+  templates/      # HTML templates
   static/         # Frontend assets
 evaluations/      # Evaluation framework: situational tests, end-to-end cases
 scripts/          # Operational utilities (case building, analysis, S3 tools)
@@ -31,7 +31,7 @@ tests/            # Mirrors hyperscribe/ and evaluations/ structure exactly
 ## Architecture
 
 ### Command Pattern
-Every command inherits from `Base` and implements: `schema_key()`, `note_section()`, `command_from_json()`, `command_parameters()`, `instruction_description()`, `instruction_constraints()`, `is_available()`, `staged_command_extract()`. All are `@classmethod` except `command_from_json` and `is_available`. Commands should provide a `command_parameters_schemas` method with JSON Schema including `description` keys for each property -- this improves LLM response quality.
+Every command inherits from `Base` and implements: `schema_key()`, `note_section()`, `command_from_json()`, `command_parameters()`, `instruction_description()`, `instruction_constraints()`, `is_available()`, `staged_command_extract()`. All are `@classmethod` except `command_from_json` and `is_available`. Commands must provide a `command_parameters_schemas` method with JSON Schema including `description` keys for each property -- this improves LLM response quality.
 
 ### LLM Abstraction
 Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor selection happens via `Helper.chatter()` factory. Retry logic lives in the base class (`attempt_requests`, `chat`). Use `single_conversation` and `chat` methods -- they handle JSON Schema validation and retry automatically.
@@ -54,14 +54,14 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
   ```
 - Use `ArgumentParser` for scripts that accept arguments.
 - All SQL queries belong in dedicated datastore classes, not scattered in scripts or handlers.
-- All database access goes through `LimitedCache`, not directly in commands.
+- In hyperscribe: all database requests happen before diving into threads/sub-processes (except cache calls). All database access goes through `LimitedCache`, not directly in commands.
 
 ### Data Structures
-- **Use `NamedTuple`** for immutable value objects. No `@dataclass` (explicitly reverted in history).
-- **Use plain classes** with `__init__` for mutable state or inheritance hierarchies.
-- Every structure should have `to_json()` for serialization and `@classmethod load_from_json()` for deserialization. These methods handle the camelCase (JSON/JavaScript) to snake_case (Python) conversion.
+- **Use `NamedTuple`** or **`@dataclass(frozen=True)`** for immutable value objects. Both enforce explicitness when creating modified copies.
+- Every structure should have `to_json()` for serialization and `@classmethod load_from_json()` for deserialization. These methods handle the camelCase (JSON/JavaScript) to snake_case (Python) conversion. (Some existing code uses `to_dict()`/`from_dict()` -- ideally settle on one naming.)
 - Never use `_asdict()` -- it's a private method with no control over the conversion. Never use `MyClass(**my_dict)` for construction -- use `load_from_json()`.
-- Prefer `NamedTuple` or plain classes over raw dictionaries and tuples. Named fields help humans, tools, and type checkers alike.
+- Use `Enum` for finite sets of values.
+- Prefer typed structures over raw dictionaries and tuples. Named fields help humans, tools, and type checkers alike.
 
 ### Type Annotations
 - Mypy strict mode is enforced (see `mypy.ini`). Tests opt out via `# mypy: allow-untyped-defs` at file top.
@@ -79,7 +79,8 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 
 ### Methods
 - Prefer `@classmethod` over `@staticmethod`. Use `@classmethod` even for utility functions (see `Helper`). `@classmethod` can access other class methods through `cls`.
-- Use `raise NotImplementedError` in base classes for abstract methods (no `abc.ABC`).
+- Use `raise NotImplementedError` in base classes for abstract methods. (The project currently uses this over `abc.ABC`, though that convention could be reversed if applied consistently.)
+- Methods must not modify objects passed in by the caller.
 - Use factory classmethods for construction: `from_dictionary()`, `load_from_json()`, `add_parameters()`.
 - Standard return variable: build up a `result` variable and return it at the end.
 - **No optional/default parameters.** Create explicit wrappers instead (see "Explicit over implicit" in Design Principles):
@@ -94,18 +95,18 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 - Walrus operator (`:=`) for conditional extraction: `if response := chatter.single_conversation(...):`
 - Dict merge with `|` operator: `return { ... } | extras`
 - `HTTPStatus` enum for HTTP status codes, never raw integers.
-- No docstrings (code is self-documenting through naming and types). Only inline `#` comments where logic is non-obvious.
-- Avoid magic values -- define named constants in `Constants`.
+- Docstrings at the class level only. No method-level docstrings -- code is self-documenting through naming and types. Only inline `#` comments where logic is non-obvious.
+- Never use magic values -- define named constants in `Constants`.
 - Use `Path` over strings for file system paths. `Path` offers an `open` method that is easier to mock.
 - Avoid recursive functions -- there is always a loop alternative in Python.
 - Prefer `while condition:` over `while True:` with a `break`.
 
 ### Error Handling
 - Defensive `.get()` with defaults for dict access. But consider whether a missing key should crash -- silent `.get()` with a fallback can hide bugs.
-- Return `None` for failures rather than raising exceptions (command methods return `X | None`).
+- Return `None` for failures rather than raising exceptions (command methods return `X | None`). This convention may evolve as log monitoring matures.
 - Minimal try/except; let errors propagate. No custom exception classes.
 - `for/else` pattern for retry-exhaustion handling.
-- When tests break, question the code first before changing the tests.
+- When tests break, question the code first before changing the tests. This is especially critical when using Claude or other LLMs for development -- never assume the tests are wrong.
 
 ### Imports
 - Standard library, then third-party (canvas_sdk, requests), then local project.
@@ -154,7 +155,7 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 
 **Block review on foundational issues.** If the architecture is wrong, stop reviewing tests and details -- "It does not make sense to continue the review before they are addressed as we can anticipate some important changes." Fix the foundation first.
 
-**Revert fast when an approach doesn't work.** `@dataclass` was adopted and reverted the same day when it introduced test friction. Write more explicit boilerplate (manual `__init__`, `__eq__`) rather than fight with framework behavior. Transparent code beats clever code.
+**Revert fast when an approach doesn't work.** Transparent code beats clever code. If a pattern introduces friction, revert rather than work around it.
 
 **Pragmatic temporary solutions are fine if flagged.** When the ideal solution depends on future SDK capabilities, ship the pragmatic version (S3 document instead of database) but document what the ideal long-term solution would be.
 
@@ -167,6 +168,7 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 - Set `"additionalProperties": false` in all JSON Schemas.
 - Add an `id` or identifier field to each object in array responses -- this lets you match objects regardless of order and removes the `in the same order` constraint from the LLM.
 - The less you ask of LLMs, the less they hallucinate. Remove unnecessary constraints.
+- **Split requests, don't combine.** Ask 3 things through 3 separate requests, even if it takes 50% more time -- LLMs tend to forget or mix concepts when asked to do too much at once.
 - Use ASCII characters in prompts, not Unicode dashes or special characters -- they add nothing for the LLM while making prompts harder to read for humans.
 - For proprietary data (e.g., FDB codes), don't ask the LLM directly. Use a multi-step approach: get keywords from LLM -> query the service -> let LLM pick from real results.
 - **Token economics matter.** Reduce input/output tokens aggressively -- CSV format for flat data reduced tokens 50-80% vs JSON. Route "complex" requests (speaker identification, section detection) to capable models and "simple" requests (parameter extraction, command generation) to cheaper/faster models.
@@ -178,7 +180,7 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 - Function-based tests only (no test classes).
 - One test file per source file: `hyperscribe/commands/diagnose.py` -> `tests/hyperscribe/commands/test_diagnose.py`.
 - Test methods must appear in the same order as the source methods they test.
-- Every public method must have at least one test.
+- Every method must have at least one test.
 - 100% test coverage is the expectation. From 2% missing it becomes 3, then 7, 11, 17... and tests won't matter anymore. 100% coverage helps quickly identify what tests/scenarios are missing.
 - Tests must be part of every PR. No merging without tests.
 
@@ -186,6 +188,7 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 - Test function naming: `test_<method_name>__<scenario>` (note the **double underscore** between method and scenario). For dunder methods: `test___init__`.
 - `helper_instance()` factory function at the top of each test file to construct the system under test.
 - `tested` variable for the class or instance under test: `tested = Diagnose` or `tested = helper_instance()`.
+- `result` for actual output, `expected` (or `exp_xxx`) for expected values, `calls` (or `exp_calls`) for expected mock calls.
 - `the_` prefix for pytest fixtures: `the_client`, `the_session`, `the_audio_file`.
 
 ### Assertions
@@ -194,18 +197,17 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 - `assert result == expected` for value comparison.
 - `assert isinstance(result, X)` is useless after `assert result == expected` where `expected` is already of type `X`.
 - Index debugging: `assert result == expected, f"---> {idx}"` in loops.
-- Schema stability: `md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()` to detect unintentional changes.
-- LLM prompt stability: hash the full prompt string rather than spot-checking a few words.
+- String stability: use `md5(string.encode()).hexdigest()` to detect unintentional changes in schemas, prompts, or any significant string. Hashing catches any change without verbose full-text comparison.
 - **Never use constants for expected output values** -- use their literal values. Constants are fine for test *inputs*.
 
 ### Mocking
 - Use `@patch.object(Class, "method")` for class method patches. Use `@patch("module.path")` for module-level patches.
 - **Always verify mock calls** with `.mock_calls` against explicit `call(...)` lists. Never use `assert_called_once_with` or similar -- `mock_calls` comparison is stricter. An unchecked mock is a risk.
 - Use `mock_object.mock_calls` (on the object), not `mock_object.method.mock_calls` (on a specific method) -- the former catches unexpected method calls on the same object.
-- Prefer `side_effect` over `return_value`. `side_effect` controls the exact sequence of return values and breaks if the mock is called more times than expected. `return_value` silently returns the same value no matter how many times it's called.
+- Prefer `side_effect` over `return_value`. `side_effect` controls the exact sequence of return values and breaks if the mock is called more times than expected. For mock chains, use `side_effect` on the last part: `my_mock.return_value.the_function.side_effect = [...]`.
 - Define a local `reset_mocks()` function inside each test to reset all mocks between scenarios. Create `MagicMock` instances *before* the `reset_mocks` definition.
 - Keep mocks in consistent order everywhere: decorator list -> `reset_mocks` -> `side_effect` setup -> calls check section.
-- Use `MagicMock()` for dependencies that need method chaining. Simplify where possible: `MagicMock(llm_text=VendorKey(...))` instead of assigning attributes separately.
+- Prefer `SimpleNamespace` over `MagicMock` when possible. Use `MagicMock()` only when method chaining or call tracking is needed.
 - Reserve `monkeypatch` for cases where `@patch` is impossible or difficult (e.g., environment variables). Prefer `@patch` / `@patch.object` for everything else.
 - Never use `ANY` in mock call assertions -- mock the dependency to control the value instead.
 - Mock called methods to prevent duplicating their tests -- check the call arguments instead.
@@ -214,10 +216,10 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 - **Never compute expected values** from the same logic being tested. Hard-code them. If the test uses the same code as the source, it's equivalent to `assert 2 == 2`.
 - Use clearly fake, descriptive values prefixed with "the": `"thePatientId"`, `"theNoteId"`, `"textVendor"`.
 - Use varied/random-looking dates and values -- always using "perfect" values can mask hardcoded bugs.
-- Use `tests = [(input, expected), ...]` lists iterated with `for` loops for multi-scenario coverage (or `@pytest.mark.parametrize`).
+- Use `@pytest.mark.parametrize` for multi-scenario coverage (aligned with Canvas SDK conventions).
 - Every `NamedTuple` structure should have a `test_class()` test verifying its fields using `is_namedtuple()` from `tests/helper.py`.
 
-## SQL Conventions
+## SQL Conventions (evaluations)
 
 - All SQL queries belong in dedicated datastore classes (`evaluations/datastores/postgres/`), not in scripts or handlers.
 - Always use `ORDER BY` with `LIMIT` -- without it, results are unpredictable.
@@ -232,6 +234,8 @@ Every LLM vendor inherits from `LlmBase` and implements `request()`. Vendor sele
 - Multiple changes separated with ` / `: `"remove audio server / allow customer to enter free text (issue #192)"`.
 
 ## Running
+
+`hyperscribe` is the visible part of the project, but keeping the `evaluations` side working is equally important.
 
 ```bash
 # install pre-commit hooks (required)
