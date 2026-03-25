@@ -1163,7 +1163,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 <div class="order-rx-grid">
                   <div class="history-form-field">
                     <label class="history-form-label${rxMissing.has('qty') ? ' field-missing' : ''}">Qty *</label>
-                    <input class="history-form-input${rxMissing.has('qty') ? ' input-missing' : ''}" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" placeholder="0" />
+                    <input class="history-form-input${rxMissing.has('qty') ? ' input-missing' : ''}" type="number" value=${quantity} onInput=${(e) => setQuantity(e.target.value)} min="0" placeholder="—" />
                   </div>
                   <div class="history-form-field">
                     <label class="history-form-label${rxMissing.has('type') ? ' field-missing' : ''}">Dispense type *</label>
@@ -1176,11 +1176,11 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   </div>
                   <div class="history-form-field">
                     <label class="history-form-label">Days supply</label>
-                    <input class="history-form-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" placeholder="0" />
+                    <input class="history-form-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" placeholder="—" />
                   </div>
                   <div class="history-form-field">
                     <label class="history-form-label${rxMissing.has('refills') ? ' field-missing' : ''}">Refills *</label>
-                    <input class="history-form-input${rxMissing.has('refills') ? ' input-missing' : ''}" type="number" value=${refills} onInput=${(e) => setRefills(e.target.value)} min="0" placeholder="0" />
+                    <input class="history-form-input${rxMissing.has('refills') ? ' input-missing' : ''}" type="number" value=${refills} onInput=${(e) => setRefills(e.target.value)} min="0" placeholder="—" />
                   </div>
                 </div>
                 <div class="history-form-field">

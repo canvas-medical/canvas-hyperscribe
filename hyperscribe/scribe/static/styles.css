@@ -980,6 +980,7 @@ h2 { margin-bottom: 4px; }
 .history-form-label { font-size: 13px; font-weight: 600; color: #6b7280; }
 .history-form-input { width: 100%; padding: 10px 12px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; }
 .history-form-input:focus { outline: none; border-color: #052B49; }
+.history-form-input::placeholder, .history-form-textarea::placeholder { color: #c0c0c0; font-style: italic; }
 .history-form-textarea { width: 100%; padding: 10px 12px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; resize: vertical; }
 .history-form-textarea:focus { outline: none; border-color: #052B49; }
 .history-form-dates { display: flex; gap: 12px; }
