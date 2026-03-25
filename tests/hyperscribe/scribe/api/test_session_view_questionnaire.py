@@ -43,7 +43,7 @@ def test_search_questionnaires_empty_query_returns_all(mock_model: MagicMock) ->
     view = _helper_instance()
     view.request.query_params = {"query": ""}
     result = view.get_search_questionnaires()
-    mock_model.objects.filter.assert_called_once_with(status="AC")
+    mock_model.objects.filter.assert_called_once_with(status="AC", use_case_in_charting="QUES")
     # No additional .filter() for query text
     qs.filter.assert_not_called()
     assert result == [JSONResponse({"results": [{"dbid": 1, "name": "PHQ-9"}]}, status_code=HTTPStatus.OK)]
