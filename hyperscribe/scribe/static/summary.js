@@ -103,7 +103,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -150,6 +150,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddCondition=${isPlan ? onAddCondition : null}
         unmatchedConditions=${isPlan ? unmatchedConditions : null}
         diagnosisSuggestions=${isPlan ? diagnosisSuggestions : null}
+        onAddNow=${isPlan ? onAddNow : null}
       />`;
     })
     .filter(Boolean);
@@ -853,9 +854,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setInserting(true);
     const insertable = commands.filter(c => {
       if (c.already_documented || !c.display) return false;
-      if (c.command_type === 'imaging_order' && !c.data.service_provider) return false;
+      if (c.command_type === 'imaging_order' && (!c.data.image_code || !c.data.service_provider)) return false;
       if (c.command_type === 'prescribe' && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
       if ((c.command_type === 'refill' || c.command_type === 'adjust_prescription') && !c.data.fdb_code) return false;
+      if (c.command_type === 'lab_order' && (!c.data.lab_partner || !c.data.tests_order_codes || c.data.tests_order_codes.length === 0)) return false;
+      if (c.command_type === 'refer' && (!c.data.service_provider || !c.data.clinical_question)) return false;
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
       return true;
     });
@@ -927,6 +930,40 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }
   }, [commands, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions]);
 
+  const handleAddNow = useCallback(async (command, isRecommendation, index) => {
+    // Mark as adding to show spinner and prevent double-clicks.
+    const setAdding = (flag) => {
+      if (isRecommendation) {
+        setRecommendations(prev => prev.map((rec, i) => i === index ? { ...rec, _adding: flag } : rec));
+      } else {
+        setCommands(prev => prev.map((cmd, i) => i === index ? { ...cmd, _adding: flag } : cmd));
+      }
+    };
+    setAdding(true);
+    try {
+      const { _template_inserted, ...payload } = command;
+      const res = await fetch(`${API_BASE}/insert-commands`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note_uuid: noteId, commands: [payload] }),
+      });
+      const data = await res.json();
+      if (data.error) { setAdding(false); return; }
+      if (isRecommendation) {
+        setRecommendations(prev => prev.map((rec, i) =>
+          i === index ? { ...rec, already_documented: true, accepted: true, _added_now: true, _adding: false } : rec
+        ));
+      } else {
+        setCommands(prev => prev.map((cmd, i) =>
+          i === index ? { ...cmd, already_documented: true, _added_now: true, _adding: false } : cmd
+        ));
+      }
+    } catch (err) {
+      console.error('Add Now failed:', err);
+      setAdding(false);
+    }
+  }, [noteId]);
+
 
   const commandBySectionKey = buildCommandBySectionKey(commands);
   const adHocCommands = commands
@@ -952,37 +989,51 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     + recommendations.filter(c => c.accepted && !c.already_documented && c.display).length;
   const showFooter = !approved && (mode === 'manual' || insertableCount > 0);
 
-  const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral' };
+  const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral', lab_order: 'lab order' };
+  const _isRxIncomplete = (d) => !d.fdb_code || !d.sig || d.quantity_to_dispense == null || !d.type_to_dispense || d.refills == null;
+  const _isLabIncomplete = (d) => !d.lab_partner || !d.tests_order_codes || d.tests_order_codes.length === 0;
+  const _isImagingIncomplete = (d) => !d.image_code || !d.service_provider;
+  const _isReferIncomplete = (d) => !d.service_provider || !d.clinical_question;
   const incompleteTypes = [];
   for (const c of commands) {
+    if (c.already_documented) continue;
     if (c.command_type === 'diagnose' && c.display && !c.data.rejected && (!c.data.icd10_code || !c.data.accepted)) {
       if (!incompleteTypes.includes('diagnose')) incompleteTypes.push('diagnose');
     }
-    if (c.command_type === 'imaging_order' && c.display && !c.data.service_provider) {
+    if (c.command_type === 'imaging_order' && c.display && _isImagingIncomplete(c.data)) {
       if (!incompleteTypes.includes('imaging_order')) incompleteTypes.push('imaging_order');
     }
-    if ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.display && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) {
+    if ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.display && _isRxIncomplete(c.data)) {
       if (!incompleteTypes.includes('prescribe')) incompleteTypes.push('prescribe');
+    }
+    if (c.command_type === 'lab_order' && c.display && _isLabIncomplete(c.data)) {
+      if (!incompleteTypes.includes('lab_order')) incompleteTypes.push('lab_order');
+    }
+    if (c.command_type === 'refer' && c.display && _isReferIncomplete(c.data)) {
+      if (!incompleteTypes.includes('refer')) incompleteTypes.push('refer');
     }
   }
   for (const c of recommendations) {
-    if (!c.already_documented && c.display) {
-      if (c.command_type === 'prescribe' && !c.rejected && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) {
-        if (!incompleteTypes.includes('prescribe')) incompleteTypes.push('prescribe');
-      }
-      if (c.command_type === 'refer' && !c.rejected && !c.data.service_provider) {
-        if (!incompleteTypes.includes('refer')) incompleteTypes.push('refer');
-      }
+    if (c.already_documented || !c.display || c.rejected) continue;
+    if ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && _isRxIncomplete(c.data)) {
+      if (!incompleteTypes.includes('prescribe')) incompleteTypes.push('prescribe');
+    }
+    if (c.command_type === 'refer' && _isReferIncomplete(c.data)) {
+      if (!incompleteTypes.includes('refer')) incompleteTypes.push('refer');
     }
   }
   const incompleteCount = commands.filter(c =>
-    (c.command_type === 'diagnose' && c.display && !c.data.rejected && (!c.data.icd10_code || !c.data.accepted)) ||
-    (c.command_type === 'imaging_order' && c.display && !c.data.service_provider) ||
-    ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && c.display && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null))
-  ).length + recommendations.filter(c =>
     !c.already_documented && c.display && (
-      ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && !c.rejected && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) ||
-      (c.command_type === 'refer' && !c.rejected && !c.data.service_provider)
+      (c.command_type === 'diagnose' && !c.data.rejected && (!c.data.icd10_code || !c.data.accepted)) ||
+      (c.command_type === 'imaging_order' && _isImagingIncomplete(c.data)) ||
+      ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && _isRxIncomplete(c.data)) ||
+      (c.command_type === 'lab_order' && _isLabIncomplete(c.data)) ||
+      (c.command_type === 'refer' && _isReferIncomplete(c.data))
+    )
+  ).length + recommendations.filter(c =>
+    !c.already_documented && c.display && !c.rejected && (
+      ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && _isRxIncomplete(c.data)) ||
+      (c.command_type === 'refer' && _isReferIncomplete(c.data))
     )
   ).length;
 
@@ -1131,6 +1182,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddCondition: approved ? null : handleAddCondition,
           unmatchedConditions,
           diagnosisSuggestions,
+          onAddNow: approved ? null : handleAddNow,
         })}
       </div>
       ${prescriptionWarning && html`

@@ -210,11 +210,15 @@ const HISTORY_ADD_LABELS = {
 
 // Returns true if a command/recommendation would have been inserted by handleInsert.
 function wasInserted(cmd, isRec = false) {
+  // Items added via "Add Now" were already inserted — show them in approved view.
+  if (cmd._added_now) return true;
   if (isRec) return !!(cmd.accepted && !cmd.already_documented && cmd.display);
   if (cmd.already_documented || !cmd.display) return false;
-  if (cmd.command_type === 'imaging_order' && !cmd.data.service_provider) return false;
+  if (cmd.command_type === 'imaging_order' && (!cmd.data.image_code || !cmd.data.service_provider)) return false;
   if (cmd.command_type === 'prescribe' && (!cmd.data.fdb_code || !cmd.data.sig || cmd.data.quantity_to_dispense == null || !cmd.data.type_to_dispense || cmd.data.refills == null)) return false;
   if ((cmd.command_type === 'refill' || cmd.command_type === 'adjust_prescription') && !cmd.data.fdb_code) return false;
+  if (cmd.command_type === 'lab_order' && (!cmd.data.lab_partner || !cmd.data.tests_order_codes || cmd.data.tests_order_codes.length === 0)) return false;
+  if (cmd.command_type === 'refer' && (!cmd.data.service_provider || !cmd.data.clinical_question)) return false;
   if (cmd.command_type === 'perform' && (!cmd.data.cpt_code || cmd.selected === false)) return false;
   if (cmd.command_type === 'diagnose' && (!cmd.data.icd10_code || !cmd.data.accepted)) return false;
   return true;
@@ -523,7 +527,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   // In approved (readOnly) mode, only show items that actually made it into the note.
@@ -1071,11 +1075,28 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             `;
           }
           if (ORDER_TYPES.has(type)) {
-            const prescribeIncomplete = type === 'prescribe' && entry.command.display && (
-              !entry.command.data.fdb_code || !entry.command.data.sig ||
-              entry.command.data.quantity_to_dispense == null || !entry.command.data.type_to_dispense ||
-              entry.command.data.refills == null
-            );
+            const d = entry.command.data;
+            const orderMissing = [];
+            if (type === 'prescribe' && entry.command.display) {
+              if (!d.fdb_code) orderMissing.push('Medication');
+              if (!d.sig) orderMissing.push('Sig');
+              if (d.quantity_to_dispense == null) orderMissing.push('Qty');
+              if (!d.type_to_dispense) orderMissing.push('Dispense type');
+              if (d.refills == null) orderMissing.push('Refills');
+            }
+            if (type === 'lab_order' && entry.command.display) {
+              if (!d.lab_partner) orderMissing.push('Lab partner');
+              if (!d.tests_order_codes || d.tests_order_codes.length === 0) orderMissing.push('Tests');
+            }
+            if (type === 'imaging_order' && entry.command.display) {
+              if (!d.image_code) orderMissing.push('Image');
+              if (!d.service_provider) orderMissing.push('Imaging center');
+            }
+            if (type === 'refer' && entry.command.display) {
+              if (!d.service_provider) orderMissing.push('Provider');
+              if (!d.clinical_question) orderMissing.push('Clinical question');
+            }
+            const orderIncomplete = orderMissing.length > 0;
             return html`
               <div class="content-block recommendation-block rec-order" key=${entry.index}>
                 <div class="recommendation-content">
@@ -1084,7 +1105,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
-                    readOnly=${readOnly}
+                    readOnly=${readOnly || entry.command.already_documented}
                     patientId=${patientId}
                     noteId=${noteId}
                     staffId=${staffId}
@@ -1092,8 +1113,12 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   />
                 </div>
                 ${!readOnly && html`<div class="recommendation-actions">
-                  ${prescribeIncomplete && html`<span class="rec-warning-pill">Missing Information</span>`}
-                  <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                  ${orderIncomplete && html`<span class="rec-warning-pill">Missing: ${orderMissing.join(', ')}</span>`}
+                  ${entry.command.already_documented
+                    ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
+                    : onAddNow && entry.command.display && !orderIncomplete && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, false, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`
+                  }
+                  ${!entry.command.already_documented && !entry.command._adding && html`<button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>`}
                 </div>`}
               </div>
             `;
@@ -1308,13 +1333,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   </div>
                   <div class="recommendation-actions">
                     ${entry.command.already_documented
-                      ? html`<span class="rec-documented-badge">Already in chart</span>`
+                      ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
                       : !readOnly && html`
                           ${isIncomplete && !isRejected && html`<span class="rec-warning-pill">Missing: ${missingFields.join(', ')}</span>`}
                           ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
                           ${isAccepted && !isIncomplete && html`<span class="rec-accepted-badge">Accepted</span>`}
-                          <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
-                          <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                          ${onAddNow && !isIncomplete && !isRejected && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
+                          ${!entry.command._adding && html`
+                            <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                            <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                          `}
                         `
                     }
                   </div>
@@ -1337,6 +1365,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               ${referRecs.map(entry => {
                 const missingFields = [];
                 if (!entry.command.data.service_provider) missingFields.push('Provider');
+                if (!entry.command.data.clinical_question) missingFields.push('Clinical question');
                 const isIncomplete = missingFields.length > 0;
                 const isAccepted = entry.command.accepted && !entry.command.rejected;
                 const isRejected = entry.command.rejected;
@@ -1358,13 +1387,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   </div>
                   <div class="recommendation-actions">
                     ${entry.command.already_documented
-                      ? html`<span class="rec-documented-badge">Already in chart</span>`
+                      ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
                       : !readOnly && html`
                           ${isIncomplete && !isRejected && html`<span class="rec-warning-pill">Missing: ${missingFields.join(', ')}</span>`}
                           ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
                           ${isAccepted && !isIncomplete && html`<span class="rec-accepted-badge">Accepted</span>`}
-                          <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
-                          <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                          ${onAddNow && !isIncomplete && !isRejected && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
+                          ${!entry.command._adding && html`
+                            <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                            <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                          `}
                         `
                     }
                   </div>
