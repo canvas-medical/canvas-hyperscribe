@@ -204,6 +204,10 @@ export function useRecording(noteId) {
         const data = await res.json();
         if (!cancelled && data.items && data.items.length > 0) {
           setEntries(data.items);
+          // Non-finalized transcript with entries means recording was paused before refresh.
+          if (!data.finalized) {
+            setStatus('paused');
+          }
         }
         if (!cancelled && data.finalized) {
           setFinalized(true);
