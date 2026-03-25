@@ -177,6 +177,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [mode, setMode] = useState(null); // null | 'ai'
   const [transcriptCollapsed, setTranscriptCollapsed] = useState(false);
   const [cachedTemplateName, setCachedTemplateName] = useState(null);
+  const cacheLoadedRef = useRef(false);
 
   // Recording hook.
   const recording = useRecording(noteId);
@@ -228,6 +229,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         }
       } catch (err) {
         // Cache miss — start with empty skeleton.
+      } finally {
+        cacheLoadedRef.current = true;
       }
     }
 
@@ -251,8 +254,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [generating, noteId]);
 
   // Auto-save commands to cache (debounced) so ad-hoc items added before generation persist on reload.
+  // Skip until cache has loaded to avoid overwriting persisted noteData with null.
   const commandsSaveRef = useRef(null);
   useEffect(() => {
+    if (!cacheLoadedRef.current) return;
     if (commandsSaveRef.current) clearTimeout(commandsSaveRef.current);
     commandsSaveRef.current = setTimeout(() => {
       saveSummaryToCache(noteData, commands, approved, {
@@ -285,28 +290,36 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (data.error) {
         setError(data.error);
       } else {
+        const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
+        const existingAdHoc = commands.filter(c => adHocKeys.has(c.section_key));
+        const generated = data.commands || [];
+        const generatedTypes = new Set(generated.map(c => c.command_type));
+        const templateKeep = commands.filter(c =>
+          c._template_inserted && !adHocKeys.has(c.section_key) && !generatedTypes.has(c.command_type)
+        );
+        const newCommands = [...generated, ...existingAdHoc, ...templateKeep];
+        const newRecs = data.recommendations || [];
         setNoteData(data.note);
-        setCommands(prev => {
-          const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
-          const existingAdHoc = prev.filter(c => adHocKeys.has(c.section_key));
-          const generated = data.commands || [];
-          const generatedTypes = new Set(generated.map(c => c.command_type));
-          const templateKeep = prev.filter(c =>
-            c._template_inserted && !adHocKeys.has(c.section_key) && !generatedTypes.has(c.command_type)
-          );
-          return [...generated, ...existingAdHoc, ...templateKeep];
-        });
-        setRecommendations(data.recommendations || []);
+        setCommands(newCommands);
+        setRecommendations(newRecs);
         setSectionConditions(data.section_conditions || {});
         setUnmatchedConditions(data.unmatched_conditions || []);
         setDiagnosisSuggestions(data.diagnosis_suggestions || {});
+        // Save to cache immediately so a refresh doesn't lose the generated note.
+        saveSummaryToCache(data.note, newCommands, false, {
+          recommendations: newRecs,
+          unmatched_conditions: data.unmatched_conditions || [],
+          diagnosis_suggestions: data.diagnosis_suggestions || {},
+          selected_template_name: selectedTemplate?.name || null,
+          mode: mode,
+        });
       }
     } catch (err) {
       setError('Failed to generate summary');
     } finally {
       setGenerating(false);
     }
-  }, [noteId, selectedTemplate]);
+  }, [noteId, selectedTemplate, commands, mode]);
 
   // Fetch assignees for task assignment (independent, small).
   useEffect(() => {
@@ -355,7 +368,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (recording.finalized && !prevFinalizedRef.current) {
       // Collapse transcript once recording is done.
       setTranscriptCollapsed(true);
-      if (mode === 'ai' && !noteData && !generating) {
+      // Only auto-generate if cache has loaded (prevents regeneration on reload when
+      // noteData hasn't been restored yet from cache).
+      if (cacheLoadedRef.current && mode === 'ai' && !noteData && !generating) {
         handleGenerate();
       }
     }
