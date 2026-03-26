@@ -523,11 +523,11 @@ h2 { margin-bottom: 4px; }
 .vitals-item strong { font-weight: 600; color: #555; margin-right: 2px; }
 
 /* Vitals edit form */
-.vitals-edit-fields { display: flex; flex-wrap: wrap; gap: 10px; flex: 1; }
+.vitals-edit-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; flex: 1; }
 .vitals-edit-field { display: flex; align-items: center; gap: 6px; }
 .vitals-edit-bp { }
 .vitals-edit-label { font-size: 13px; font-weight: 600; color: #6b7280; min-width: 40px; }
-.vitals-edit-input { width: 72px; padding: 8px 8px; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; text-align: center; }
+.vitals-edit-input { width: 84px; padding: 8px 6px; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; text-align: center; }
 .vitals-edit-input:focus { outline: none; border-color: #052B49; }
 .vitals-edit-unit { font-size: 12px; color: #999; }
 .vitals-bp-inputs { display: flex; align-items: center; gap: 4px; }
