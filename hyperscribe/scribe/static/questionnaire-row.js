@@ -241,8 +241,8 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
         </div>
       `)}
       <div class="questionnaire-form-actions">
-        <button type="button" class="rec-btn rec-btn-reject" onClick=${onCancel} title="Cancel">${ICON_X}</button>
-        <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
+        <button type="button" class="form-btn form-btn-cancel" onClick=${onCancel}>Cancel</button>
+        <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
       </div>
     </div>
   `;
