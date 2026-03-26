@@ -551,7 +551,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (!cmds || cmds.length === 0) return null;
           const entry = cmds[0];
           // Filter out sections that are rendered as structured cards.
-          const STRUCTURED_KEYS = new Set(['current_medications', 'allergies']);
+          const STRUCTURED_KEYS = new Set();
           const filteredSections = (entry.command.data.sections || []).filter(s => !STRUCTURED_KEYS.has(s.key));
           if (filteredSections.length === 0) return null;
           const filteredCommand = { ...entry.command, data: { ...entry.command.data, sections: filteredSections } };
@@ -572,7 +572,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             ((key === 'current_medications' && visibleRecs.some(r => r.command_type === 'medication_statement')) ||
              (key === 'allergies' && visibleRecs.some(r => r.command_type === 'allergy')) ||
              (key === 'prescription' && visibleRecs.some(r => r.command_type === 'prescribe')));
-          if (coveredKeys.has(key) && !hasRecsForKey) return null;
+          const DEDICATED_SECTION_KEYS = new Set(['current_medications', 'allergies']);
+          if (coveredKeys.has(key) && !hasRecsForKey && !DEDICATED_SECTION_KEYS.has(key)) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
 
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
@@ -782,7 +783,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (cmds || medRecs.length > 0 || adHocMeds.length > 0 || adHocStopMeds.length > 0 || onAddMedication) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">Medications Discussed During Encounter</div>
+                  <div class="subsection-title">Med List Updates</div>
                   ${(cmds || []).map(entry => html`
                     <div class="content-block recommendation-block rec-medication" key=${entry.index}>
                       <div class="recommendation-content">
@@ -882,7 +883,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (cmds || allergyRecs.length > 0 || adHocAllergies.length > 0 || adHocRemoveAllergies.length > 0 || onAddAllergy) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">Allergies Discussed During Encounter</div>
+                  <div class="subsection-title">Allergy List Updates</div>
                   ${(cmds || []).map(entry => html`
                     <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
                       <div class="recommendation-content">

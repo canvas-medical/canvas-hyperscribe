@@ -309,7 +309,7 @@ def test_routes_chart_sections_to_chart_review() -> None:
     assert proposals[0].command_type == "chart_review"
     assert proposals[0].section_key == "_chart_review"
     assert len(proposals[0].data["sections"]) == 3
-    assert proposals[0].display == "Meds | Allergies | Immunizations"
+    assert proposals[0].display == "Meds Discussed | Allergies Discussed | Immunizations"
 
 
 def test_chart_review_partial_sections() -> None:
