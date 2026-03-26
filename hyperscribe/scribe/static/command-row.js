@@ -57,8 +57,8 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly }
           onKeyDown=${handleKeyDown}
         />
         <div class="command-row-actions">
-          <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancel} title="Cancel">${ICON_X}</button>
-          <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSave} title="Save">${ICON_CHECK}</button>
+          <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
+          <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
         </div>
       </div>
     `;

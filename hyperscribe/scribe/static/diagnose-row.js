@@ -217,8 +217,8 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
             onKeyDown=${handleTextKeyDown}
           />
           <div class="command-row-actions">
-            <button type="button" class="rec-btn rec-btn-reject" onClick=${handleCancelAssessment} title="Cancel">${ICON_X}</button>
-            <button type="button" class="rec-btn rec-btn-accept" onClick=${handleSaveAssessment} title="Save">${ICON_CHECK}</button>
+            <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancelAssessment}>Cancel</button>
+            <button type="button" class="form-btn form-btn-save" onClick=${handleSaveAssessment}>Save</button>
           </div>
         </div>
       `}

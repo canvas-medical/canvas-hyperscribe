@@ -402,6 +402,12 @@ h2 { margin-bottom: 4px; }
 .rec-btn-accept { background: #16a34a; color: #fff; }
 .rec-btn-edit   { background: #2563eb; color: #fff; }
 
+/* Text save/cancel buttons (distinct from icon approve/reject) */
+.form-btn { height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; flex-shrink: 0; transition: opacity 0.15s; }
+.form-btn:active { opacity: 0.7; }
+.form-btn-cancel { background: #fff; color: #6b7280; border: 1.5px solid #d1d5db; }
+.form-btn-save { background: #052B49; color: #fff; border: none; }
+
 /* Warning badges */
 .rec-warning-badge {
   display: inline-block; font-size: 12px; font-weight: 600;
