@@ -3,7 +3,7 @@ from canvas_sdk.effects.launch_modal import LaunchModalEffect
 from canvas_sdk.handlers.application import NoteApplication
 
 from hyperscribe.libraries.constants import Constants
-from hyperscribe.scribe.application.transcript_app import is_scribe_visible
+from hyperscribe.scribe.application.transcript_app import is_debug_visible
 
 
 class ScribeCacheApp(NoteApplication):
@@ -14,9 +14,7 @@ class ScribeCacheApp(NoteApplication):
     PRIORITY = 1
 
     def visible(self) -> bool:
-        if not self.secrets.get("EnableCacheApp"):
-            return False
-        return is_scribe_visible(self.secrets, self.context)
+        return is_debug_visible(self.secrets, self.event)
 
     def handle(self) -> list[Effect]:
         from canvas_sdk.v1.data.note import Note

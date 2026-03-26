@@ -2,8 +2,6 @@ import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect, useRef } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 
-import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
-
 const html = htm.bind(h);
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
@@ -14,8 +12,6 @@ const CATEGORY_COLORS = {
   APPROVE_START: '#16a34a', APPROVE_COMPLETE: '#16a34a', APPROVE_ERROR: '#ef4444',
   ADD_NOW: '#059669', ADD_NOW_SUCCESS: '#059669', ADD_NOW_ERROR: '#ef4444',
   CACHE_LOADED: '#9ca3af', CACHE_SAVED: '#9ca3af',
-  COMMANDS_VERIFIED: '#16a34a', COMMANDS_FAILED: '#ef4444',
-  COMMANDS_SENDING: '#3b82f6', COMMANDS_FILTERED: '#f59e0b', TRANSCRIPT_AUTO_SAVED: '#9ca3af',
 };
 
 function formatTime(isoString) {
@@ -43,17 +39,8 @@ export function Audit({ noteId }) {
       } catch (err) { console.error('Failed to load audit log:', err); }
     }
     load();
-    return () => { cancelled = true; };
-  }, [noteId]);
-
-  useEffect(() => {
-    if (!noteId) return;
-    const cleanup = connectScribeWS(noteId, (msg) => {
-      if (msg.type === 'AUDIT_EVENTS') {
-        setEvents(prev => [...prev, ...(msg.events || [])]);
-      }
-    });
-    return cleanup;
+    const interval = setInterval(load, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [noteId]);
 
   useEffect(() => {

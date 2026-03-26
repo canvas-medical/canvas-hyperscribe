@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
+import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 
 const html = htm.bind(h);
 
@@ -182,6 +183,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // Recording hook.
   const recording = useRecording(noteId);
 
+  // Audit logging.
+  useEffect(() => { initAuditLog(noteId); }, [noteId]);
+
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved, extras = {}) => {
     try {
       await fetch(`${API_BASE}/save-summary`, {
@@ -220,11 +224,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             setRecommendations(cached.recommendations || []);
             setUnmatchedConditions(cached.unmatched_conditions || []);
             setDiagnosisSuggestions(cached.diagnosis_suggestions || {});
+            logEvent('CACHE_LOADED', { hasNote: !!cached.note, commandCount: (cached.commands || []).length });
             return;
           }
           // Cache without note — restore ad-hoc commands and mode.
           if (cached.commands && cached.commands.length > 0) {
             setCommands(cached.commands);
+            logEvent('CACHE_LOADED', { hasNote: false, commandCount: cached.commands.length });
           }
         }
       } catch (err) {
@@ -272,6 +278,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [commands, recommendations, selectedTemplate, mode]);
 
   const handleGenerate = useCallback(async () => {
+    logEvent('GENERATE_START');
     setGenerating(true);
     setError(null);
     try {
@@ -289,6 +296,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       const data = await res.json();
       if (data.error) {
         setError(data.error);
+        logEvent('GENERATE_ERROR', { error: data.error });
       } else {
         const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
         const existingAdHoc = commands.filter(c => adHocKeys.has(c.section_key));
@@ -313,9 +321,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           selected_template_name: selectedTemplate?.name || null,
           mode: mode,
         });
+        logEvent('GENERATE_COMPLETE', { commandCount: (data.commands || []).length, recCount: (data.recommendations || []).length });
       }
     } catch (err) {
       setError('Failed to generate summary');
+      logEvent('GENERATE_ERROR', { error: err.message });
     } finally {
       setGenerating(false);
     }
@@ -387,6 +397,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const handleSelectTemplate = useCallback((e) => {
     const templateName = e.target.value;
     if (!templateName) {
+      logEvent('DESELECT_TEMPLATE');
       setSelectedTemplate(null);
       setCommands(prev => prev.filter(c => !c._template_inserted));
       saveSummaryToCache(noteData, commands, approved, {
@@ -395,6 +406,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
       return;
     }
+    logEvent('SELECT_TEMPLATE', { name: templateName });
     const tmpl = templates.find(t => t.name === templateName);
     if (!tmpl) return;
     setSelectedTemplate(tmpl);
@@ -463,11 +475,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [templates, noteData, approved, recommendations, unmatchedConditions, diagnosisSuggestions, saveSummaryToCache]);
 
   const handleStartAI = useCallback(() => {
+    logEvent('START_AI');
     setMode('ai');
     recording.startRecording();
   }, [recording]);
 
   const handleStartManual = useCallback(() => {
+    logEvent('START_MANUAL');
     setMode('manual');
     // Pre-populate empty commands for all narrative sections so they render as editable text areas.
     const manualCommands = [
@@ -508,6 +522,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
 
   const handleEdit = useCallback((index, newData, newType) => {
+    logEvent('EDIT_COMMAND', { index, commandType: newType || commands[index]?.command_type, data: newData });
     if (approved) return;
     setCommands(prev => {
       const updated = prev.map((cmd, i) => {
@@ -610,6 +625,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
   const handleDelete = useCallback((index) => {
+    logEvent('DELETE_COMMAND', { index, commandType: commands[index]?.command_type });
     if (approved) return;
     setCommands(prev => {
       const updated = prev.filter((_, i) => i !== index);
@@ -619,6 +635,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
   const handleAddTask = useCallback(() => {
+    logEvent('ADD_TASK');
     if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'task',
@@ -631,6 +648,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleAddOrder = useCallback(() => {
+    logEvent('ADD_ORDER');
     if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'prescribe',
@@ -643,6 +661,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleAddPlan = useCallback(() => {
+    logEvent('ADD_PLAN');
     if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'plan',
@@ -655,6 +674,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleAddHistory = useCallback((commandType) => {
+    logEvent('ADD_HISTORY', { type: commandType });
     if (approved) return;
     setCommands(prev => [...prev, {
       command_type: commandType,
@@ -667,6 +687,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleAddMedication = useCallback(() => {
+    logEvent('ADD_MEDICATION');
     if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'medication_statement',
@@ -679,6 +700,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleEditRecommendation = useCallback((index, newData, newType) => {
+    logEvent('EDIT_REC', { index, commandType: newType, data: newData });
     setRecommendations(prev => prev.map((cmd, i) => {
       if (i !== index) return cmd;
       const type = newType || cmd.command_type;
@@ -700,22 +722,26 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, []);
 
   const handleAcceptRecommendation = useCallback((index) => {
+    logEvent('ACCEPT_REC', { index });
     setRecommendations(prev => prev.map((cmd, i) =>
       i === index ? { ...cmd, accepted: true, rejected: false } : cmd
     ));
   }, []);
 
   const handleRejectRecommendation = useCallback((index) => {
+    logEvent('REJECT_REC', { index });
     setRecommendations(prev => prev.map((cmd, i) =>
       i === index ? { ...cmd, rejected: true, accepted: false } : cmd
     ));
   }, []);
 
   const handleDeleteRecommendation = useCallback((index) => {
+    logEvent('DELETE_REC', { index });
     setRecommendations(prev => prev.filter((_, i) => i !== index));
   }, []);
 
   const handleAddAllergy = useCallback(() => {
+    logEvent('ADD_ALLERGY');
     if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'allergy',
@@ -728,6 +754,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleAddStopMedication = useCallback(() => {
+    logEvent('ADD_STOP_MED');
     if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'stop_medication',
@@ -740,6 +767,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleAddRemoveAllergy = useCallback(() => {
+    logEvent('ADD_REMOVE_ALLERGY');
     if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'remove_allergy',
@@ -752,6 +780,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleAddResolveCondition = useCallback(() => {
+    logEvent('ADD_RESOLVE_CONDITION');
     if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'resolve_condition',
@@ -764,6 +793,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleAddQuestionnaire = useCallback(() => {
+    logEvent('ADD_QUESTIONNAIRE');
     if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'questionnaire',
@@ -776,6 +806,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleAddCharge = useCallback(() => {
+    logEvent('ADD_CHARGE');
     if (approved) return;
     setCommands(prev => [...prev, {
       command_type: 'perform',
@@ -788,6 +819,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleAddTemplateCharge = useCallback((cptCode, description) => {
+    logEvent('ADD_TEMPLATE_CHARGE', { cptCode, description });
     if (approved) return;
     setCommands(prev => {
       // Re-select if already exists but deselected.
@@ -811,6 +843,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleRemoveChargeByCpt = useCallback((cptCode) => {
+    logEvent('REMOVE_CHARGE', { cptCode });
     if (approved) return;
     setCommands(prev => prev.map(c =>
       c.command_type === 'perform' && c.data.cpt_code === cptCode
@@ -820,6 +853,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved]);
 
   const handleAddCondition = useCallback((icd10Code, icd10Display, conditionId) => {
+    logEvent('ADD_CONDITION', { icd10Code, display: icd10Display });
     if (approved) return;
     const apKey = commands.find(c =>
       (c.command_type === 'diagnose' || c.command_type === 'assess') && ['assessment_and_plan', 'plan'].includes(c.section_key)
@@ -866,6 +900,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved, commands]);
 
   const handleInsert = useCallback(async () => {
+    logEvent('APPROVE_START');
     setInserting(true);
     const insertable = commands.filter(c => {
       if (c.already_documented || !c.display) return false;
@@ -925,10 +960,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       const data = await res.json();
       if (data.error) {
         setError(data.error);
+        logEvent('APPROVE_ERROR', { error: data.error });
       } else {
         const hasPrescriptions = allInsertable.some(c => c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription');
         setApproved(true);
         saveSummaryToCache(noteData, commands, true, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+        logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length });
         if (hasPrescriptions) {
           setPrescriptionWarning(true);
         } else {
@@ -940,12 +977,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       }
     } catch (err) {
       setError('Failed to insert commands');
+      logEvent('APPROVE_ERROR', { error: 'Failed to insert commands' });
     } finally {
       setInserting(false);
     }
   }, [commands, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions]);
 
   const handleAddNow = useCallback(async (command, isRecommendation, index) => {
+    logEvent('ADD_NOW', { commandType: command.command_type, isRecommendation, index });
     // Mark as adding to show spinner and prevent double-clicks.
     const setAdding = (flag) => {
       if (isRecommendation) {
@@ -963,7 +1002,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         body: JSON.stringify({ note_uuid: noteId, commands: [payload] }),
       });
       const data = await res.json();
-      if (data.error) { setAdding(false); return; }
+      if (data.error) { setAdding(false); logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index }); return; }
       if (isRecommendation) {
         setRecommendations(prev => prev.map((rec, i) =>
           i === index ? { ...rec, already_documented: true, accepted: true, _added_now: true, _adding: false } : rec
@@ -973,9 +1012,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           i === index ? { ...cmd, already_documented: true, _added_now: true, _adding: false } : cmd
         ));
       }
+      logEvent('ADD_NOW_SUCCESS', { commandType: command.command_type, index });
     } catch (err) {
       console.error('Add Now failed:', err);
       setAdding(false);
+      logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index });
     }
   }, [noteId]);
 

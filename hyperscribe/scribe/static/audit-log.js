@@ -32,7 +32,7 @@ async function flushEvents() {
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     if (_noteId && _events.length > 0) {
-      const payload = new Blob([JSON.stringify({ note_id: _noteId, events: _events })], { type: 'application/json' });
+      const payload = JSON.stringify({ note_id: _noteId, events: _events });
       navigator.sendBeacon(`${API_BASE}/save-audit-log`, payload);
     }
   });
