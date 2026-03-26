@@ -12,9 +12,7 @@ from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin
 from hyperscribe.scribe.api.session_view import (
     SUMMARY_STEPS,
     ScribeSessionView,
-    _CACHE_KEY_PREFIX,
     _PROGRESS_CACHE_KEY_PREFIX,
-    _SUMMARY_CACHE_KEY_PREFIX,
     _match_conditions_to_sections,
 )
 from hyperscribe.scribe.backend import ScribeError
@@ -110,7 +108,7 @@ def test_get_config_auth_error(get_backend: MagicMock) -> None:
 
 
 def _mock_cache() -> MagicMock:
-    """Create a dict-backed mock cache."""
+    """Create a dict-backed mock cache for progress (still cached)."""
     store: dict[str, str] = {}
     cache = MagicMock()
     cache.set = lambda key, value, **kw: store.__setitem__(key, value)
@@ -120,12 +118,15 @@ def _mock_cache() -> MagicMock:
     return cache
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
-def test_get_transcript_success(mock_get_cache: MagicMock) -> None:
-    cache = _mock_cache()
-    mock_get_cache.return_value = cache
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_transcript_success(mock_note: MagicMock, mock_transcript: MagicMock) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 55
     items = [{"text": "Hello", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 1000}]
-    cache._store[f"{_CACHE_KEY_PREFIX}55"] = json.dumps({"items": items, "finalized": True})
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": items,
+        "finalized": True,
+    }
 
     view = _helper_instance()
     view.request = SimpleNamespace(query_params={"note_id": "55"})
@@ -135,9 +136,11 @@ def test_get_transcript_success(mock_get_cache: MagicMock) -> None:
     assert json.loads(result[0].content) == {"items": items, "finalized": True}
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
-def test_get_transcript_empty(mock_get_cache: MagicMock) -> None:
-    mock_get_cache.return_value = _mock_cache()
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_transcript_empty(mock_note: MagicMock, mock_transcript: MagicMock) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 999
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = None
 
     view = _helper_instance()
     view.request = SimpleNamespace(query_params={"note_id": "999"})
@@ -147,10 +150,7 @@ def test_get_transcript_empty(mock_get_cache: MagicMock) -> None:
     assert json.loads(result[0].content) == {"items": [], "finalized": False}
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
-def test_get_transcript_missing_note_id(mock_get_cache: MagicMock) -> None:
-    mock_get_cache.return_value = _mock_cache()
-
+def test_get_transcript_missing_note_id() -> None:
     view = _helper_instance()
     view.request = SimpleNamespace(query_params={})
     result = view.get_transcript()
@@ -161,10 +161,10 @@ def test_get_transcript_missing_note_id(mock_get_cache: MagicMock) -> None:
 # --- /save-transcript ---
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
-def test_save_transcript_success(mock_get_cache: MagicMock) -> None:
-    cache = _mock_cache()
-    mock_get_cache.return_value = cache
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_save_transcript_success(mock_note: MagicMock, mock_transcript: MagicMock) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 42
 
     view = _helper_instance()
     items = [{"text": "Hello", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 1000}]
@@ -173,13 +173,12 @@ def test_save_transcript_success(mock_get_cache: MagicMock) -> None:
 
     assert result[0].status_code == HTTPStatus.OK
     assert json.loads(result[0].content) == {"status": "ok"}
-    assert json.loads(cache._store[f"{_CACHE_KEY_PREFIX}42"]) == {"items": items, "finalized": False}
+    mock_transcript.objects.update_or_create.assert_called_once_with(
+        note_id=42, defaults={"items": items, "finalized": False}
+    )
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
-def test_save_transcript_missing_note_id(mock_get_cache: MagicMock) -> None:
-    mock_get_cache.return_value = _mock_cache()
-
+def test_save_transcript_missing_note_id() -> None:
     view = _helper_instance()
     view.request = SimpleNamespace(body=json.dumps({"transcript": {"items": []}}))
     result = view.post_save_transcript()
@@ -200,28 +199,37 @@ def test_save_transcript_invalid_json() -> None:
 # --- /summary ---
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
-def test_get_summary_success(mock_get_cache: MagicMock) -> None:
-    cache = _mock_cache()
-    mock_get_cache.return_value = cache
-    summary_data = {
-        "note": {"title": "SOAP", "sections": [{"key": "cc", "title": "CC", "text": "Pain"}]},
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_success(mock_note: MagicMock, mock_summary: MagicMock) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 55
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
+        "note_data": {"title": "SOAP", "sections": [{"key": "cc", "title": "CC", "text": "Pain"}]},
         "commands": [{"command_type": "rfv", "data": {"comment": "Pain"}}],
         "approved": True,
+        "recommendations": [],
+        "unmatched_conditions": [],
+        "diagnosis_suggestions": {},
+        "selected_template_name": "",
+        "mode": "",
     }
-    cache._store[f"{_SUMMARY_CACHE_KEY_PREFIX}55"] = json.dumps(summary_data)
 
     view = _helper_instance()
     view.request = SimpleNamespace(query_params={"note_id": "55"})
     result = view.get_summary()
 
     assert result[0].status_code == HTTPStatus.OK
-    assert json.loads(result[0].content) == summary_data
+    data = json.loads(result[0].content)
+    assert data["note"]["title"] == "SOAP"
+    assert data["commands"] == [{"command_type": "rfv", "data": {"comment": "Pain"}}]
+    assert data["approved"] is True
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
-def test_get_summary_empty(mock_get_cache: MagicMock) -> None:
-    mock_get_cache.return_value = _mock_cache()
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_empty(mock_note: MagicMock, mock_summary: MagicMock) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 999
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = None
 
     view = _helper_instance()
     view.request = SimpleNamespace(query_params={"note_id": "999"})
@@ -231,10 +239,7 @@ def test_get_summary_empty(mock_get_cache: MagicMock) -> None:
     assert json.loads(result[0].content) == {"note": None, "commands": [], "approved": False}
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
-def test_get_summary_missing_note_id(mock_get_cache: MagicMock) -> None:
-    mock_get_cache.return_value = _mock_cache()
-
+def test_get_summary_missing_note_id() -> None:
     view = _helper_instance()
     view.request = SimpleNamespace(query_params={})
     result = view.get_summary()
@@ -245,10 +250,10 @@ def test_get_summary_missing_note_id(mock_get_cache: MagicMock) -> None:
 # --- /save-summary ---
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
-def test_save_summary_success(mock_get_cache: MagicMock) -> None:
-    cache = _mock_cache()
-    mock_get_cache.return_value = cache
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_save_summary_success(mock_note: MagicMock, mock_summary: MagicMock) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 42
 
     view = _helper_instance()
     note = {"title": "SOAP", "sections": []}
@@ -260,14 +265,15 @@ def test_save_summary_success(mock_get_cache: MagicMock) -> None:
 
     assert result[0].status_code == HTTPStatus.OK
     assert json.loads(result[0].content) == {"status": "ok"}
-    stored = json.loads(cache._store[f"{_SUMMARY_CACHE_KEY_PREFIX}42"])
-    assert stored == {"note": note, "commands": commands, "approved": True}
+    mock_summary.objects.update_or_create.assert_called_once()
+    call_kwargs = mock_summary.objects.update_or_create.call_args
+    assert call_kwargs.kwargs["note_id"] == 42
+    assert call_kwargs.kwargs["defaults"]["note_data"] == note
+    assert call_kwargs.kwargs["defaults"]["commands"] == commands
+    assert call_kwargs.kwargs["defaults"]["approved"] is True
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
-def test_save_summary_missing_note_id(mock_get_cache: MagicMock) -> None:
-    mock_get_cache.return_value = _mock_cache()
-
+def test_save_summary_missing_note_id() -> None:
     view = _helper_instance()
     view.request = SimpleNamespace(body=json.dumps({"note": {}, "commands": []}))
     result = view.post_save_summary()
@@ -285,19 +291,19 @@ def test_save_summary_invalid_json() -> None:
     assert "Invalid JSON" in json.loads(result[0].content)["error"]
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
-def test_save_summary_defaults(mock_get_cache: MagicMock) -> None:
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_save_summary_defaults(mock_note: MagicMock, mock_summary: MagicMock) -> None:
     """When approved is not provided, it defaults to False."""
-    cache = _mock_cache()
-    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 10
 
     view = _helper_instance()
     view.request = SimpleNamespace(body=json.dumps({"note_id": "10", "note": {}, "commands": []}))
     result = view.post_save_summary()
 
     assert result[0].status_code == HTTPStatus.OK
-    stored = json.loads(cache._store[f"{_SUMMARY_CACHE_KEY_PREFIX}10"])
-    assert stored["approved"] is False
+    call_kwargs = mock_summary.objects.update_or_create.call_args
+    assert call_kwargs.kwargs["defaults"]["approved"] is False
 
 
 # --- /generate-note ---
@@ -339,13 +345,16 @@ def test_generate_note_success(get_backend: MagicMock) -> None:
     mock_backend.generate_note.assert_called_once()
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
-def test_generate_note_from_cache(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
-    cache = _mock_cache()
-    mock_get_cache.return_value = cache
+def test_generate_note_from_cache(get_backend: MagicMock, mock_note: MagicMock, mock_transcript: MagicMock) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 99
     cached_items = [{"text": "I feel dizzy", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 1500}]
-    cache._store[f"{_CACHE_KEY_PREFIX}99"] = json.dumps({"items": cached_items, "finalized": True})
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": cached_items,
+        "finalized": True,
+    }
 
     mock_backend = MagicMock()
     mock_backend.generate_note.return_value = ClinicalNote(
@@ -365,10 +374,14 @@ def test_generate_note_from_cache(get_backend: MagicMock, mock_get_cache: MagicM
     assert transcript_arg.items[0].text == "I feel dizzy"
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
-def test_generate_note_no_transcript_no_cache(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
-    mock_get_cache.return_value = _mock_cache()
+def test_generate_note_no_transcript_no_cache(
+    get_backend: MagicMock, mock_note: MagicMock, mock_transcript: MagicMock
+) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 999
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = None
     get_backend.return_value = MagicMock()
 
     view = _helper_instance()
@@ -379,14 +392,17 @@ def test_generate_note_no_transcript_no_cache(get_backend: MagicMock, mock_get_c
     assert "No transcript" in json.loads(result[0].content)["error"]
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
-def test_generate_note_rejects_non_finalized_transcript(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
-    cache = _mock_cache()
-    mock_get_cache.return_value = cache
-    cache._store[f"{_CACHE_KEY_PREFIX}42"] = json.dumps(
-        {"items": [{"text": "hi", "speaker": "patient"}], "finalized": False}
-    )
+def test_generate_note_rejects_non_finalized_transcript(
+    get_backend: MagicMock, mock_note: MagicMock, mock_transcript: MagicMock
+) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": False,
+    }
     get_backend.return_value = MagicMock()
 
     view = _helper_instance()
@@ -1128,11 +1144,17 @@ def test_get_summary_progress_not_found(mock_get_cache: MagicMock) -> None:
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
 @patch("hyperscribe.scribe.api.session_view.get_cache")
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
 def test_generate_summary_success(
     get_backend: MagicMock,
     mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_summary: MagicMock,
     mock_recommend: MagicMock,
     mock_suggest: MagicMock,
     _mock_annotate: MagicMock,
@@ -1140,13 +1162,12 @@ def test_generate_summary_success(
 ) -> None:
     cache = _mock_cache()
     mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 55
     # Seed finalized transcript.
-    cache._store[f"{_CACHE_KEY_PREFIX}55"] = json.dumps(
-        {
-            "items": [{"text": "I have a headache", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 2000}],
-            "finalized": True,
-        }
-    )
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "I have a headache", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 2000}],
+        "finalized": True,
+    }
 
     mock_backend = MagicMock()
     mock_backend.generate_note.return_value = ClinicalNote(
@@ -1197,14 +1218,12 @@ def test_generate_summary_success(
     assert diagnose_cmds[0]["data"]["icd10_code"] == "G43"
     assert len(data["recommendations"]) == 1
     assert data["recommendations"][0]["command_type"] == "medication_statement"
-    # Summary should be saved to cache.
-    assert f"{_SUMMARY_CACHE_KEY_PREFIX}55" in cache._store
+    # Summary should be saved to database.
+    mock_summary.objects.update_or_create.assert_called_once()
 
 
-@patch("hyperscribe.scribe.api.session_view.get_cache")
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
-def test_generate_summary_missing_note_id(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
-    mock_get_cache.return_value = _mock_cache()
+def test_generate_summary_missing_note_id(get_backend: MagicMock) -> None:
     get_backend.return_value = MagicMock()
 
     view = _helper_instance()
@@ -1215,10 +1234,16 @@ def test_generate_summary_missing_note_id(get_backend: MagicMock, mock_get_cache
     assert "note_id" in json.loads(result[0].content)["error"]
 
 
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
 @patch("hyperscribe.scribe.api.session_view.get_cache")
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
-def test_generate_summary_no_transcript(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
+def test_generate_summary_no_transcript(
+    get_backend: MagicMock, mock_get_cache: MagicMock, mock_note: MagicMock, mock_transcript: MagicMock
+) -> None:
     mock_get_cache.return_value = _mock_cache()
+    mock_note.objects.values_list.return_value.get.return_value = 99
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = None
     get_backend.return_value = MagicMock()
 
     view = _helper_instance()
@@ -1238,14 +1263,20 @@ def test_generate_summary_invalid_json() -> None:
     assert "Invalid JSON" in json.loads(result[0].content)["error"]
 
 
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
 @patch("hyperscribe.scribe.api.session_view.get_cache")
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
-def test_generate_summary_backend_error(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
+def test_generate_summary_backend_error(
+    get_backend: MagicMock, mock_get_cache: MagicMock, mock_note: MagicMock, mock_transcript: MagicMock
+) -> None:
     cache = _mock_cache()
     mock_get_cache.return_value = cache
-    cache._store[f"{_CACHE_KEY_PREFIX}42"] = json.dumps(
-        {"items": [{"text": "hi", "speaker": "patient"}], "finalized": True}
-    )
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
 
     mock_backend = MagicMock()
     mock_backend.generate_note.side_effect = ScribeError("Note generation failed")
@@ -1262,11 +1293,17 @@ def test_generate_summary_backend_error(get_backend: MagicMock, mock_get_cache: 
 @patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
 @patch("hyperscribe.scribe.api.session_view.get_cache")
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
 def test_generate_summary_non_critical_failures(
     get_backend: MagicMock,
     mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
     mock_recommend: MagicMock,
     _mock_annotate: MagicMock,
     _mock_zip: MagicMock,
@@ -1274,9 +1311,11 @@ def test_generate_summary_non_critical_failures(
     """When non-critical steps fail, the response still includes what succeeded."""
     cache = _mock_cache()
     mock_get_cache.return_value = cache
-    cache._store[f"{_CACHE_KEY_PREFIX}77"] = json.dumps(
-        {"items": [{"text": "hi", "speaker": "patient"}], "finalized": True}
-    )
+    mock_note.objects.values_list.return_value.get.return_value = 77
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
 
     mock_backend = MagicMock()
     mock_backend.generate_note.return_value = ClinicalNote(
@@ -1299,15 +1338,26 @@ def test_generate_summary_non_critical_failures(
     assert data["diagnosis_suggestions"] == {}
 
 
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
 @patch("hyperscribe.scribe.api.session_view.get_cache")
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
-def test_generate_summary_writes_progress(get_backend: MagicMock, mock_get_cache: MagicMock) -> None:
+def test_generate_summary_writes_progress(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+) -> None:
     """Progress cache is updated during the pipeline."""
     cache = _mock_cache()
     mock_get_cache.return_value = cache
-    cache._store[f"{_CACHE_KEY_PREFIX}88"] = json.dumps(
-        {"items": [{"text": "test", "speaker": "patient"}], "finalized": True}
-    )
+    mock_note.objects.values_list.return_value.get.return_value = 88
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "test", "speaker": "patient"}],
+        "finalized": True,
+    }
 
     mock_backend = MagicMock()
     mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])

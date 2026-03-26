@@ -163,10 +163,6 @@
           "read": [],
           "write": []
         }
-      },
-      {
-        "class": "hyperscribe.scribe.cron.storage:StorageCronTask",
-        "description": "A cron task that runs every monday at 3am that checks and extends storage."
       }
     ],
     "applications": [
@@ -232,6 +228,7 @@
     "KeyTextLLM",
     "MaxWorkers",
     "Modality",
+    "namespace_read_write_access_key",
     "NotionAPIKey",
     "NotionFeedbackDatabaseId",
     "ScribeBackend",
@@ -250,6 +247,10 @@
     "version_date": "2026-01-26",
     "version_branch": "main",
     "version_semantic": "0.2.156"
+  },
+  "custom_data": {
+    "namespace": "canvas_medical__scribe",
+    "access": "read_write"
   },
   "references": [],
   "license": "",
