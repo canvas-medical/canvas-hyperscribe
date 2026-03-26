@@ -2,10 +2,15 @@ import { h } from 'https://esm.sh/preact@10.25.4';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { Scribe } from '/plugin-io/api/hyperscribe/scribe/static/summary.js';
 import { Debug } from '/plugin-io/api/hyperscribe/scribe/static/debug.js';
+import { Audit } from '/plugin-io/api/hyperscribe/scribe/static/audit.js';
 
 const html = htm.bind(h);
 
 export function App({ noteId, view, providerName, providerPhotoUrl, patientName, patientId, staffId, staffName, debugMode }) {
+  if (view === 'audit') {
+    return html`<${Audit} noteId=${noteId} />`;
+  }
+
   if (view === 'debug') {
     return html`<${Debug} noteId=${noteId} />`;
   }

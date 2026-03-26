@@ -27,7 +27,11 @@
         if (event.data && event.data.type === 'INIT_CHANNEL' && event.ports && event.ports[0]) {
           messagePort = event.ports[0];
           messagePort.start();
-          sendResize();
+          let view = '{{ view }}'
+          if (view !== 'audit') {
+              sendResize();
+          }
+
         }
       });
 
@@ -41,7 +45,6 @@
   <script type="module">
     import { h, render } from 'https://esm.sh/preact@10.25.4';
     import { App } from '/plugin-io/api/hyperscribe/scribe/static/app.js';
-
     const config = {
       noteId: '{{ note_id }}',
       view: '{{ view }}',
