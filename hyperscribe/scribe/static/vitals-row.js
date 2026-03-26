@@ -49,7 +49,8 @@ function validateField(key, value) {
 }
 
 export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
-  const [editing, setEditing] = useState(false);
+  const hasData = Object.values(command.data || {}).some(v => v != null);
+  const [editing, setEditing] = useState(!readOnly && !hasData);
   const [draft, setDraft] = useState({ ...command.data });
   const [tempRaw, setTempRaw] = useState(command.data.body_temperature != null ? String(command.data.body_temperature) : '');
   const [errors, setErrors] = useState({});

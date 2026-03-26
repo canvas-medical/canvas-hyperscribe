@@ -104,7 +104,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -126,6 +126,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddTask=${isPlan ? onAddTask : null}
         onAddOrder=${isPlan ? onAddOrder : null}
         onAddPlan=${isPlan ? onAddPlan : null}
+        onAddVitals=${isObjective ? onAddVitals : null}
         onAddMedication=${isObjective ? onAddMedication : null}
         onAddAllergy=${isObjective ? onAddAllergy : null}
         onAddStopMedication=${isObjective ? onAddStopMedication : null}
@@ -699,6 +700,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }]);
   }, [approved]);
 
+  const handleAddVitals = useCallback(() => {
+    logEvent('ADD_VITALS');
+    if (approved) return;
+    setCommands(prev => [...prev, {
+      command_type: 'vitals',
+      display: '',
+      data: {},
+      selected: true,
+      section_key: '_objective_ad_hoc',
+      already_documented: false,
+    }]);
+  }, [approved]);
+
   const handleEditRecommendation = useCallback((index, newData, newType) => {
     logEvent('EDIT_REC', { index, commandType: newType, data: newData });
     setRecommendations(prev => prev.map((cmd, i) => {
@@ -1226,6 +1240,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddTask: approved ? null : handleAddTask,
           onAddOrder: approved ? null : handleAddOrder,
           onAddPlan: approved ? null : handleAddPlan,
+          onAddVitals: approved ? null : handleAddVitals,
           onAddMedication: approved ? null : handleAddMedication,
           onAddAllergy: approved ? null : handleAddAllergy,
           onAddStopMedication: approved ? null : handleAddStopMedication,
