@@ -1538,3 +1538,31 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             )
 
         return [JSONResponse({"templates": result_templates}, status_code=HTTPStatus.OK)]
+
+    @api.post("/save-audit-log")
+    def post_save_audit_log(self) -> list[Union[Response, Effect]]:
+        """Append audit events to the per-note audit log cache."""
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError):
+            return [JSONResponse({"error": "Invalid JSON"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_id = data.get("note_id", "")
+        new_events = data.get("events", [])
+        if not note_id or not new_events:
+            return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK)]
+        cache = get_cache()
+        key = f"scribe_audit:{note_id}"
+        existing = json.loads(cache.get(key) or "[]")
+        existing.extend(new_events)
+        cache.set(key, json.dumps(existing))
+        return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK)]
+
+    @api.get("/audit-log")
+    def get_audit_log(self) -> list[Union[Response, Effect]]:
+        """Return the audit event log for a note."""
+        note_id = self.request.query_params.get("note_id", "")
+        if not note_id:
+            return [JSONResponse({"events": []}, status_code=HTTPStatus.OK)]
+        cache = get_cache()
+        events = json.loads(cache.get(f"scribe_audit:{note_id}") or "[]")
+        return [JSONResponse({"events": events}, status_code=HTTPStatus.OK)]
