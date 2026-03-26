@@ -573,7 +573,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
              (key === 'allergies' && visibleRecs.some(r => r.command_type === 'allergy')) ||
              (key === 'prescription' && visibleRecs.some(r => r.command_type === 'prescribe')));
           const DEDICATED_SECTION_KEYS = new Set(['current_medications', 'allergies']);
-          if (coveredKeys.has(key) && !hasRecsForKey && !DEDICATED_SECTION_KEYS.has(key)) return null;
+          const HISTORY_SECTION_KEYS = new Set(['past_medical_history', 'past_surgical_history', 'family_history']);
+          const isCoveredHistory = coveredKeys.has(key) && HISTORY_SECTION_KEYS.has(key);
+          if (coveredKeys.has(key) && !hasRecsForKey && !DEDICATED_SECTION_KEYS.has(key) && !HISTORY_SECTION_KEYS.has(key)) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
 
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
@@ -980,11 +982,13 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const historyEntries = historyType
             ? visibleAdHoc.filter(e => e.command.command_type === historyType)
             : [];
-          if (readOnly && !s.text && !cmds && historyEntries.length === 0) return null;
+          const showHistoryText = s.text && !isCoveredHistory;
+          if (readOnly && !showHistoryText && !cmds && historyEntries.length === 0) return null;
+          if (!showHistoryText && historyEntries.length === 0 && !onAddHistory && !cmds) return null;
           return html`
             <div class="subsection" key=${s.key}>
               <div class="subsection-title">${s.title}</div>
-              ${s.text && html`<p class="section-text">${s.text}</p>`}
+              ${showHistoryText && html`<p class="section-text">${s.text}</p>`}
               ${historyEntries.map(entry => html`
                 <div class="content-block recommendation-block rec-history" key=${entry.index}>
                   <div class="recommendation-content">
