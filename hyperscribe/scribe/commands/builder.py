@@ -369,6 +369,21 @@ _BUILD_ERROR_LABELS: dict[str, str] = {
 }
 
 
+def _deduplicate_diagnoses(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Remove duplicate diagnose proposals that share the same ICD-10 code."""
+    seen_icd10: set[str] = set()
+    result: list[dict[str, Any]] = []
+    for proposal in proposals:
+        if proposal.get("command_type") == "diagnose":
+            icd10 = (proposal.get("data") or {}).get("icd10_code") or ""
+            if icd10 and icd10 in seen_icd10:
+                continue
+            if icd10:
+                seen_icd10.add(icd10)
+        result.append(proposal)
+    return result
+
+
 def build_effects(
     proposals: list[dict[str, Any]],
     note_uuid: str,
@@ -396,6 +411,7 @@ def build_effects(
     is emitted inline); kept in the signature so the legacy ``/insert-metadata``
     pathway continues to be a no-op without requiring a separate route change.
     """
+    proposals = _deduplicate_diagnoses(proposals)
     built: list[tuple[CommandParser, _BaseCommand, dict[str, Any]]] = []
     build_errors: list[dict[str, Any]] = []
     for proposal in proposals:
