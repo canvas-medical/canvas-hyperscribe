@@ -527,7 +527,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   // In approved (readOnly) mode, only show items that actually made it into the note.
@@ -740,21 +740,30 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             `;
           }
 
-          if (key === 'vitals' && cmds) {
-            const entry = cmds[0];
-            const hasVitals = Object.values(entry.command.data || {}).some(v => v != null);
-            if (readOnly && !hasVitals) return null;
+          if (key === 'vitals') {
+            const adHocVitals = visibleAdHoc.filter(e => e.command.command_type === 'vitals');
+            const allVitals = [...(cmds || []), ...adHocVitals];
+            const hasAny = allVitals.some(e => Object.values(e.command.data || {}).some(v => v != null));
+            if (readOnly && !hasAny) return null;
+            if (allVitals.length === 0 && !onAddVitals) return null;
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
-                <div class="content-block rec-vitals">
-                  <${VitalsRow}
-                    command=${entry.command}
-                    commandIndex=${entry.index}
-                    onEdit=${onEditCommand}
-                    readOnly=${readOnly}
-                  />
-                </div>
+                ${allVitals.map(entry => html`
+                  <div class="content-block rec-vitals" key=${entry.index}>
+                    <${VitalsRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditCommand}
+                      readOnly=${readOnly}
+                    />
+                  </div>
+                `)}
+                ${onAddVitals && !readOnly && html`
+                  <div class="ad-hoc-buttons">
+                    <button type="button" class="ad-hoc-btn" onClick=${onAddVitals}>+ Vitals</button>
+                  </div>
+                `}
               </div>
             `;
           }
