@@ -79,8 +79,24 @@ def annotate_duplicates(proposals: list[CommandProposal], note_uuid: str) -> Non
         builder.annotate_duplicates(proposals, note)
 
 
+def _deduplicate_diagnoses(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Remove duplicate diagnose proposals that share the same ICD-10 code."""
+    seen_icd10: set[str] = set()
+    result: list[dict[str, Any]] = []
+    for proposal in proposals:
+        if proposal.get("command_type") == "diagnose":
+            icd10 = (proposal.get("data") or {}).get("icd10_code") or ""
+            if icd10 and icd10 in seen_icd10:
+                continue
+            if icd10:
+                seen_icd10.add(icd10)
+        result.append(proposal)
+    return result
+
+
 def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> list[Effect]:
     """Convert selected command proposals into Canvas SDK Effects."""
+    proposals = _deduplicate_diagnoses(proposals)
     effects: list[Effect] = []
     for proposal in proposals:
         builder = _BUILDERS.get(proposal.get("command_type", ""))
