@@ -1093,10 +1093,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     )
   ).length;
 
-  // Ensure dedicated sections (medications, allergies) are always present even if Nabla omits them.
+  // Ensure sections with ad-hoc buttons are always present even if Nabla omits them.
   const ENSURE_KEYS = new Map([
     ['current_medications', { key: 'current_medications', title: 'Meds Discussed', text: '' }],
     ['allergies', { key: 'allergies', title: 'Allergies Discussed', text: '' }],
+    ['past_medical_history', { key: 'past_medical_history', title: 'Past Medical History', text: '' }],
+    ['past_surgical_history', { key: 'past_surgical_history', title: 'Past Surgical History', text: '' }],
+    ['family_history', { key: 'family_history', title: 'Family History', text: '' }],
   ]);
   const effectiveSections = (() => {
     const base = noteData ? noteData.sections : SKELETON_SECTIONS;
