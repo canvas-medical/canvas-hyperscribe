@@ -78,8 +78,8 @@ const SKELETON_SECTIONS = [
   { key: 'social_history', title: 'Social History', text: '' },
   { key: 'vitals', title: 'Vitals', text: '' },
   { key: 'physical_exam', title: 'Physical Exam', text: '' },
-  { key: 'current_medications', title: 'Medications Discussed During Encounter', text: '' },
-  { key: 'allergies', title: 'Allergies Discussed During Encounter', text: '' },
+  { key: 'current_medications', title: 'Meds Discussed', text: '' },
+  { key: 'allergies', title: 'Allergies Discussed', text: '' },
   { key: 'assessment_and_plan', title: 'Assessment & Plan', text: '' },
 ];
 
@@ -1093,7 +1093,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     )
   ).length;
 
-  const effectiveSections = noteData ? noteData.sections : SKELETON_SECTIONS;
+  // Ensure dedicated sections (medications, allergies) are always present even if Nabla omits them.
+  const ENSURE_KEYS = new Map([
+    ['current_medications', { key: 'current_medications', title: 'Meds Discussed', text: '' }],
+    ['allergies', { key: 'allergies', title: 'Allergies Discussed', text: '' }],
+  ]);
+  const effectiveSections = (() => {
+    const base = noteData ? noteData.sections : SKELETON_SECTIONS;
+    const existing = new Set(base.map(s => s.key.toLowerCase()));
+    const missing = [...ENSURE_KEYS.entries()].filter(([k]) => !existing.has(k)).map(([, v]) => v);
+    return missing.length > 0 ? [...base, ...missing] : base;
+  })();
   const isRecording = recording.status === 'recording' || recording.status === 'paused';
   const showTopControls = !approved && !noteData && !isRecording && !recording.finalized && !generating && mode === null;
 

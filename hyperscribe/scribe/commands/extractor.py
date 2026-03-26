@@ -138,10 +138,20 @@ def _extract_physical_exam(note: ClinicalNote) -> CommandProposal | None:
     )
 
 
+_CHART_REVIEW_TITLE_OVERRIDES: dict[str, str] = {
+    "current_medications": "Meds Discussed",
+    "allergies": "Allergies Discussed",
+}
+
+
 def _extract_chart_review(note: ClinicalNote) -> CommandProposal | None:
     """Combine chart review sections into one Chart Review command."""
     sections = [
-        {"key": s.key.lower(), "title": s.title, "text": s.text.strip()}
+        {
+            "key": s.key.lower(),
+            "title": _CHART_REVIEW_TITLE_OVERRIDES.get(s.key.lower(), s.title),
+            "text": s.text.strip(),
+        }
         for s in note.sections
         if s.key.lower() in _CHART_REVIEW_KEYS and s.text.strip()
     ]
