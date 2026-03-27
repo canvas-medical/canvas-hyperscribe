@@ -50,6 +50,7 @@ class AdjustPrescriptionParser(CommandParser):
         prescriber_id = self._resolve_prescriber(note_uuid)
 
         return AdjustPrescriptionCommand(
+            new_fdb_code=data.get("new_fdb_code") or None,
             fdb_code=data.get("fdb_code") or None,
             sig=str(data.get("sig", "")),
             days_supply=int(data["days_supply"]) if data.get("days_supply") is not None else None,
