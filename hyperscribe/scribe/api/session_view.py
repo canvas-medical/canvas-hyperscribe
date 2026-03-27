@@ -240,15 +240,54 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "")
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        transcript_data = _load_transcript(note_id)
-        # Return None when no transcript exists (empty default means none saved).
-        transcript = transcript_data if transcript_data["items"] else None
-        summary = _load_summary(note_id)
+        try:
+            note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
+        except Note.DoesNotExist:
+            return [JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)]
+        transcript_row = (
+            ScribeTranscript.objects.filter(note_id=note_dbid)
+            .values(
+                "items",
+                "finalized",
+                "updated_at",
+            )
+            .first()
+        )
+        summary_row = (
+            ScribeSummary.objects.filter(note_id=note_dbid)
+            .values(
+                "note_data",
+                "commands",
+                "recommendations",
+                "unmatched_conditions",
+                "diagnosis_suggestions",
+                "approved",
+                "selected_template_name",
+                "mode",
+                "raw_nabla_response",
+                "updated_at",
+            )
+            .first()
+        )
+        audit_row = (
+            ScribeAuditLog.objects.filter(note_id=note_dbid)
+            .values(
+                "events",
+                "updated_at",
+            )
+            .first()
+        )
+        # Serialize datetimes to ISO strings.
+        for row in (transcript_row, summary_row, audit_row):
+            if row and "updated_at" in row and row["updated_at"]:
+                row["updated_at"] = row["updated_at"].isoformat()
         return [
             JSONResponse(
                 {
-                    "transcript": transcript,
-                    "summary": summary,
+                    "note_dbid": note_dbid,
+                    "transcript": transcript_row,
+                    "summary": summary_row,
+                    "audit_log": audit_row,
                 },
                 status_code=HTTPStatus.OK,
             )
@@ -266,12 +305,48 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 ScribeTranscript.objects.filter(note_id=note_dbid).delete()
             if key_type in ("all", "summary"):
                 ScribeSummary.objects.filter(note_id=note_dbid).delete()
+            if key_type in ("all", "audit_log"):
+                ScribeAuditLog.objects.filter(note_id=note_dbid).delete()
         except Note.DoesNotExist:
             pass
         except Exception:
             log.exception(f"debug cache delete FAILED: note_id={note_id}")
             return [JSONResponse({"error": "Cache delete failed"}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
         return [JSONResponse({"status": "ok", "deleted": key_type}, status_code=HTTPStatus.OK)]
+
+    @api.put("/debug-cache")
+    def put_debug_cache(self) -> list[Union[Response, Effect]]:
+        """Update a model record's fields for debugging/testing."""
+        try:
+            body: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError):
+            return [JSONResponse({"error": "Invalid JSON"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_id = body.get("note_id", "")
+        model_type = body.get("type", "")
+        fields = body.get("fields", {})
+        if not note_id or not model_type or not fields:
+            return [
+                JSONResponse({"error": "note_id, type, and fields are required"}, status_code=HTTPStatus.BAD_REQUEST)
+            ]
+        model_map: dict[str, type[ScribeTranscript] | type[ScribeSummary] | type[ScribeAuditLog]] = {
+            "transcript": ScribeTranscript,
+            "summary": ScribeSummary,
+            "audit_log": ScribeAuditLog,
+        }
+        model_cls = model_map.get(model_type)
+        if not model_cls:
+            return [JSONResponse({"error": f"Unknown type: {model_type}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        try:
+            note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
+            # Filter out non-editable fields.
+            fields.pop("updated_at", None)
+            model_cls.objects.update_or_create(note_id=note_dbid, defaults=fields)
+        except Note.DoesNotExist:
+            return [JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)]
+        except Exception:
+            log.exception(f"debug cache update FAILED: note_id={note_id}, type={model_type}")
+            return [JSONResponse({"error": "Update failed"}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
+        return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
     @api.get("/config")
     def get_config(self) -> list[Union[Response, Effect]]:
