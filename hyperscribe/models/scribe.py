@@ -4,17 +4,16 @@ from django.db.models import DO_NOTHING, BooleanField, DateTimeField, JSONField,
 
 try:
     from canvas_sdk.v1.data.base import CustomModel
-
-    _HAS_CUSTOM_MODEL = True
 except ImportError:
     CustomModel = Model
-    _HAS_CUSTOM_MODEL = False
 
-from hyperscribe.models.proxy import NoteProxy
+from hyperscribe.models.proxy import NoteProxy, _HAS_MODEL_EXTENSION
 
 
 class _FallbackMeta:
-    if not _HAS_CUSTOM_MODEL:
+    """Provides app_label when running locally without CustomModel."""
+
+    if not _HAS_MODEL_EXTENSION:
         app_label = "v1"
         managed = False
 
