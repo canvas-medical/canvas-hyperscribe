@@ -1109,6 +1109,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   // Ensure sections with ad-hoc buttons are always present even if Nabla omits them.
   const ENSURE_KEYS = new Map([
+    ['vitals', { key: 'vitals', title: 'Vitals', text: '' }],
     ['current_medications', { key: 'current_medications', title: 'Meds Discussed', text: '' }],
     ['allergies', { key: 'allergies', title: 'Allergies Discussed', text: '' }],
     ['past_medical_history', { key: 'past_medical_history', title: 'Past Medical History', text: '' }],
