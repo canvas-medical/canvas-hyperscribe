@@ -1,6 +1,3 @@
-import json
-
-from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.launch_modal import LaunchModalEffect
 from canvas_sdk.handlers.application import NoteApplication
@@ -72,20 +69,7 @@ class ScribeApp(NoteApplication):
 
     def open_by_default(self) -> bool:
         """Return True when no transcript has been saved yet or it hasn't been finalized."""
-        try:
-            note_dbid = self.context.get("note_id")
-            note_id = Note.objects.values_list("id", flat=True).get(dbid=note_dbid)
-            cache = get_cache()
-            raw = cache.get(f"{_CACHE_KEY_PREFIX}{note_id}")
-
-            if raw is None:
-                return True
-
-            data = json.loads(raw)
-            return not data.get("finalized", False)
-
-        except Exception:
-            return False
+        return True
 
     def visible(self) -> bool:
         return is_scribe_visible(self.secrets, self.event)
