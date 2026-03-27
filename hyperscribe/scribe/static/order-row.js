@@ -315,6 +315,41 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [interactionWarning, setInteractionWarning] = useState(null);
   const [checkingInteractions, setCheckingInteractions] = useState(false);
 
+  // "Change to" medication (adjust_prescription only).
+  const [changeToQuery, setChangeToQuery] = useState(command.data.new_medication_text || '');
+  const [changeToResults, setChangeToResults] = useState([]);
+  const [changeToSearching, setChangeToSearching] = useState(false);
+  const [changeToSearched, setChangeToSearched] = useState(false);
+  const [changeToFdb, setChangeToFdb] = useState(command.data.new_fdb_code || null);
+  const [changeToDisplay, setChangeToDisplay] = useState(command.data.new_medication_text || '');
+  const changeToTimer = useRef(null);
+
+  const handleChangeToInput = (e) => {
+    const val = e.target.value;
+    setChangeToQuery(val);
+    setChangeToFdb(null);
+    setChangeToDisplay('');
+    if (changeToTimer.current) clearTimeout(changeToTimer.current);
+    if (val.length < 2) { setChangeToResults([]); setChangeToSearched(false); return; }
+    changeToTimer.current = setTimeout(async () => {
+      setChangeToSearching(true);
+      try {
+        const res = await fetch(`${API_BASE}/search-medications?query=${encodeURIComponent(val)}`);
+        const data = await res.json();
+        setChangeToResults(data.results || []);
+      } catch (err) { setChangeToResults([]); }
+      finally { setChangeToSearching(false); setChangeToSearched(true); }
+    }, 300);
+  };
+
+  const handleChangeToSelect = (r) => {
+    setChangeToFdb(r.fdb_code);
+    setChangeToDisplay(r.description);
+    setChangeToQuery(r.description);
+    setChangeToResults([]);
+    setChangeToSearched(false);
+  };
+
   const snapshotCurrentRx = () => ({
     medQuery, selectedFdb, selectedMedDisplay, medQuantities,
     sig, daysSupply, quantity, typeToDispense, refills,
@@ -1037,6 +1072,11 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
         pharmacy_name: selectedPharmacy ? pharmacyQuery : null,
         quantities: medQuantities.map(q => ({ representative_ndc: q.representative_ndc, ncpdp_quantity_qualifier_code: q.ncpdp_quantity_qualifier_code, clinical_quantity_description: q.label, quantity: 1 })),
       };
+      // Include "change to" medication for adjust_prescription.
+      if (activeTab === 'adjust_prescription' && changeToFdb) {
+        data.new_fdb_code = changeToFdb;
+        data.new_medication_text = changeToDisplay;
+      }
     } else if (activeTab === 'lab_order') {
       data = {
         lab_partner: labPartnerId || null,
@@ -1160,6 +1200,29 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     </div>
                   `}
                 </div>
+                ${activeTab === 'adjust_prescription' && html`
+                <div class="history-form-field" style="position: relative;">
+                  <label class="history-form-label">Change to (optional)</label>
+                  <input
+                    type="text"
+                    class="history-form-input"
+                    value=${changeToQuery}
+                    onInput=${handleChangeToInput}
+                    placeholder="Search new medication..."
+                  />
+                  ${changeToSearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                  ${changeToResults.length > 0 && html`
+                    <div class="history-search-dropdown">
+                      ${changeToResults.map(r => html`
+                        <div key=${r.fdb_code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleChangeToSelect(r); }}>${r.description}</div>
+                      `)}
+                    </div>
+                  `}
+                  ${!changeToSearching && changeToSearched && changeToResults.length === 0 && changeToQuery.length >= 2 && html`
+                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No medications found</div></div>
+                  `}
+                </div>
+                `}
                 <div class="order-rx-grid">
                   <div class="history-form-field">
                     <label class="history-form-label${rxMissing.has('qty') ? ' field-missing' : ''}">Qty *</label>
