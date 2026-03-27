@@ -187,7 +187,22 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
     <div class="removal-row${readOnly ? ' read-only' : ''}">
       <span class="removal-action-label">${config.actionLabel}</span>
       <span class="removal-item-name">${itemName}</span>
+      ${type === 'stop_medication' && data.rationale && readOnly && html`
+        <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">${data.rationale}</div>
+      `}
     </div>
+    ${type === 'stop_medication' && hasItem && !readOnly && html`
+      <div class="history-form-field" style="margin-top: 8px;">
+        <label class="history-form-label">Rationale</label>
+        <input
+          type="text"
+          class="history-form-input"
+          value=${data.rationale || ''}
+          onInput=${(e) => onEdit(commandIndex, { ...data, rationale: e.target.value })}
+          placeholder="Reason for stopping..."
+        />
+      </div>
+    `}
   `;
 }
 
