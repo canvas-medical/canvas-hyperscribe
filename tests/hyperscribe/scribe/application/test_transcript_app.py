@@ -5,7 +5,6 @@ from django.db.models import QuerySet
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
-from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.handlers.application import NoteApplication
 
 from hyperscribe.scribe.application.transcript_app import ScribeApp
@@ -13,7 +12,6 @@ from hyperscribe.scribe.application.transcript_app import ScribeApp
 
 def test_class() -> None:
     assert issubclass(ScribeApp, NoteApplication)
-    assert issubclass(ScribeApp, ActionButton)
 
 
 def test_constants() -> None:
