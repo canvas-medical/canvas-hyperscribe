@@ -818,12 +818,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${readOnly || entry.command.already_documented}
                         />
                       </div>
                       ${!readOnly && html`
                         <div class="recommendation-actions">
-                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                          ${entry.command.already_documented
+                            ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
+                            : onAddNow && entry.command.display && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, false, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`
+                          }
+                          ${!entry.command.already_documented && !entry.command._adding && html`<button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>`}
                         </div>
                       `}
                     </div>
@@ -836,12 +840,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${readOnly || entry.command.already_documented}
                         />
                       </div>
                       ${!readOnly && html`
                         <div class="recommendation-actions">
-                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                          ${entry.command.already_documented
+                            ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
+                            : onAddNow && entry.command.display && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, false, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`
+                          }
+                          ${!entry.command.already_documented && !entry.command._adding && html`<button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>`}
                         </div>
                       `}
                     </div>
@@ -862,12 +870,15 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                       <div class="recommendation-actions">
                         ${entry.command.already_documented
-                          ? html`<span class="rec-documented-badge">Already in chart</span>`
+                          ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
                           : !readOnly && html`
                               ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
                               ${isAccepted && html`<span class="rec-accepted-badge">Accepted</span>`}
-                              <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
-                              <button type="button" class="rec-btn ${isAccepted ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                              ${onAddNow && !isRejected && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
+                              ${!entry.command._adding && html`
+                                <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                                <button type="button" class="rec-btn ${isAccepted ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                              `}
                             `
                         }
                       </div>
@@ -882,11 +893,17 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${readOnly || entry.command.already_documented}
                           patientId=${patientId}
                         />
                       </div>
-                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                      ${!readOnly && html`<div class="recommendation-actions">
+                        ${entry.command.already_documented
+                          ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
+                          : onAddNow && entry.command.display && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, false, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`
+                        }
+                        ${!entry.command.already_documented && !entry.command._adding && html`<button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>`}
+                      </div>`}
                     </div>
                   `)}
                   ${(onAddMedication || onAddStopMedication) && !readOnly && html`
@@ -1096,10 +1113,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
                     assignees=${assignees}
-                    readOnly=${readOnly}
+                    readOnly=${readOnly || entry.command.already_documented}
                   />
                 </div>
-                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                ${!readOnly && html`<div class="recommendation-actions">
+                  ${entry.command.already_documented
+                    ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
+                    : onAddNow && entry.command.display && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, false, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`
+                  }
+                  ${!entry.command.already_documented && !entry.command._adding && html`<button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>`}
+                </div>`}
               </div>
             `;
           }
