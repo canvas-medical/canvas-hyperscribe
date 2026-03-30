@@ -16,7 +16,7 @@ from django.db.models import Q
 
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
-from canvas_sdk.v1.data import AllergyIntolerance, ChargeDescriptionMaster, Medication
+from canvas_sdk.v1.data import AllergyIntolerance, ChargeDescriptionMaster, Medication, Note
 from canvas_sdk.v1.data.prescription import Prescription
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
@@ -24,6 +24,8 @@ from canvas_sdk.v1.data.questionnaire import Questionnaire as QuestionnaireModel
 from canvas_sdk.v1.data.staff import Staff, StaffRole
 from canvas_sdk.v1.data.task import TaskLabel
 from canvas_sdk.v1.data.team import Team
+
+from hyperscribe.models.scribe import ScribeAuditLog, ScribeSummary, ScribeTranscript
 
 from canvas_sdk.utils.http import pharmacy_http, science_http
 from canvas_sdk.v1.data.patient import Patient
@@ -62,8 +64,6 @@ def _format_icd10_code(raw: str) -> str:
     return code
 
 
-_CACHE_KEY_PREFIX = "scribe_transcript:"
-_SUMMARY_CACHE_KEY_PREFIX = "scribe_summary:"
 _PROGRESS_CACHE_KEY_PREFIX = "scribe_progress:"
 
 _PLAN_SECTION_KEYS = frozenset({"assessment_and_plan", "plan"})
@@ -119,85 +119,67 @@ def _match_conditions_to_sections(
     return result
 
 
-def _save_transcript_to_cache(note_id: str, items: list[dict[str, Any]], *, finalized: bool = False) -> None:
-    key = f"{_CACHE_KEY_PREFIX}{note_id}"
-    log.info(f"cache save: key={key} items={len(items)} finalized={finalized}")
-    try:
-        cache = get_cache()
-        cache.set(key, json.dumps({"items": items, "finalized": finalized}))
-        log.info(f"cache save OK: key={key}")
-    except Exception:
-        log.exception(f"cache save FAILED: key={key}")
+def _save_transcript(note_id: str, items: list[dict[str, Any]], *, finalized: bool = False) -> None:
+    note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
+    ScribeTranscript.objects.update_or_create(
+        note_id=note_dbid,
+        defaults={"items": items, "finalized": finalized},
+    )
 
 
-def _load_transcript_from_cache(note_id: str) -> dict[str, Any] | None:
-    key = f"{_CACHE_KEY_PREFIX}{note_id}"
-    log.info(f"cache load: key={key}")
-    try:
-        cache = get_cache()
-        raw = cache.get(key)
-        log.info(f"cache load result: key={key} found={raw is not None}")
-    except Exception:
-        log.exception(f"cache load FAILED: key={key}")
-        return None
-    if raw is None:
-        return None
-    data = json.loads(raw)
-    # Backwards compat: old cache entries are bare lists of items.
-    if isinstance(data, list):
-        return {"items": data, "finalized": False}
-    return data  # type: ignore[no-any-return]
+def _load_transcript(note_id: str) -> dict[str, Any]:
+    note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
+    row = ScribeTranscript.objects.filter(note_id=note_dbid).values("items", "finalized").first()
+    if row:
+        return {"items": row["items"], "finalized": row["finalized"]}
+    return {"items": [], "finalized": False}
 
 
-def _save_summary_to_cache(
-    note_id: str,
-    note_data: dict[str, Any],
-    commands: list[dict[str, Any]],
-    *,
-    approved: bool = False,
-    recommendations: list[dict[str, Any]] | None = None,
-    unmatched_conditions: list[dict[str, Any]] | None = None,
-    diagnosis_suggestions: dict[str, Any] | None = None,
-    interaction_warnings: list[dict[str, Any]] | None = None,
-    raw_nabla_response: dict[str, Any] | None = None,
-    selected_template_name: str | None = None,
-    mode: str | None = None,
-) -> None:
-    key = f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}"
-    log.info(f"summary cache save: key={key} approved={approved}")
-    try:
-        cache = get_cache()
-        payload: dict[str, Any] = {"note": note_data, "commands": commands, "approved": approved}
-        if recommendations is not None:
-            payload["recommendations"] = recommendations
-        if unmatched_conditions is not None:
-            payload["unmatched_conditions"] = unmatched_conditions
-        if diagnosis_suggestions is not None:
-            payload["diagnosis_suggestions"] = diagnosis_suggestions
-        if interaction_warnings is not None:
-            payload["interaction_warnings"] = interaction_warnings
-        if raw_nabla_response is not None:
-            payload["raw_nabla_response"] = raw_nabla_response
-        if selected_template_name is not None:
-            payload["selected_template_name"] = selected_template_name
-        if mode is not None:
-            payload["mode"] = mode
-        cache.set(key, json.dumps(payload))
-    except Exception:
-        log.exception(f"summary cache save FAILED: key={key}")
+def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
+    note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
+    defaults: dict[str, Any] = {
+        "note_data": payload.get("note") or {},
+        "commands": payload.get("commands") or [],
+        "approved": payload.get("approved", False),
+        "recommendations": payload.get("recommendations") or [],
+        "unmatched_conditions": payload.get("unmatched_conditions") or [],
+        "diagnosis_suggestions": payload.get("diagnosis_suggestions") or {},
+        "selected_template_name": payload.get("selected_template_name") or "",
+        "mode": payload.get("mode") or "",
+    }
+    if "raw_response" in payload:
+        defaults["raw_response"] = payload["raw_response"]
+    ScribeSummary.objects.update_or_create(note_id=note_dbid, defaults=defaults)
 
 
-def _load_summary_from_cache(note_id: str) -> dict[str, Any] | None:
-    key = f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}"
-    try:
-        cache = get_cache()
-        raw = cache.get(key)
-    except Exception:
-        log.exception(f"summary cache load FAILED: key={key}")
-        return None
-    if raw is None:
-        return None
-    return json.loads(raw)  # type: ignore[no-any-return]
+def _load_summary(note_id: str) -> dict[str, Any] | None:
+    note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
+    row = (
+        ScribeSummary.objects.filter(note_id=note_dbid)
+        .values(
+            "note_data",
+            "commands",
+            "approved",
+            "recommendations",
+            "unmatched_conditions",
+            "diagnosis_suggestions",
+            "selected_template_name",
+            "mode",
+        )
+        .first()
+    )
+    if row:
+        return {
+            "note": row["note_data"] or None,
+            "commands": row["commands"] or [],
+            "approved": row["approved"],
+            "recommendations": row["recommendations"] or [],
+            "unmatched_conditions": row["unmatched_conditions"] or [],
+            "diagnosis_suggestions": row["diagnosis_suggestions"] or {},
+            "selected_template_name": row["selected_template_name"] or None,
+            "mode": row["mode"] or None,
+        }
+    return None
 
 
 def _parse_transcript(data: dict[str, Any]) -> Transcript:
@@ -258,13 +240,54 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "")
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        transcript = _load_transcript_from_cache(note_id)
-        summary = _load_summary_from_cache(note_id)
+        try:
+            note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
+        except Note.DoesNotExist:
+            return [JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)]
+        transcript_row = (
+            ScribeTranscript.objects.filter(note_id=note_dbid)
+            .values(
+                "items",
+                "finalized",
+                "updated_at",
+            )
+            .first()
+        )
+        summary_row = (
+            ScribeSummary.objects.filter(note_id=note_dbid)
+            .values(
+                "note_data",
+                "commands",
+                "recommendations",
+                "unmatched_conditions",
+                "diagnosis_suggestions",
+                "approved",
+                "selected_template_name",
+                "mode",
+                "raw_response",
+                "updated_at",
+            )
+            .first()
+        )
+        audit_row = (
+            ScribeAuditLog.objects.filter(note_id=note_dbid)
+            .values(
+                "events",
+                "updated_at",
+            )
+            .first()
+        )
+        # Serialize datetimes to ISO strings.
+        for row in (transcript_row, summary_row, audit_row):
+            if row and "updated_at" in row and row["updated_at"]:
+                row["updated_at"] = row["updated_at"].isoformat()
         return [
             JSONResponse(
                 {
-                    "transcript": transcript,
-                    "summary": summary,
+                    "note_dbid": note_dbid,
+                    "transcript": transcript_row,
+                    "summary": summary_row,
+                    "audit_log": audit_row,
                 },
                 status_code=HTTPStatus.OK,
             )
@@ -277,15 +300,53 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         key_type = self.request.query_params.get("type", "all")
         try:
-            cache = get_cache()
+            note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
             if key_type in ("all", "transcript"):
-                cache.delete(f"{_CACHE_KEY_PREFIX}{note_id}")
+                ScribeTranscript.objects.filter(note_id=note_dbid).delete()
             if key_type in ("all", "summary"):
-                cache.delete(f"{_SUMMARY_CACHE_KEY_PREFIX}{note_id}")
+                ScribeSummary.objects.filter(note_id=note_dbid).delete()
+            if key_type in ("all", "audit_log"):
+                ScribeAuditLog.objects.filter(note_id=note_dbid).delete()
+        except Note.DoesNotExist:
+            pass
         except Exception:
             log.exception(f"debug cache delete FAILED: note_id={note_id}")
             return [JSONResponse({"error": "Cache delete failed"}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
         return [JSONResponse({"status": "ok", "deleted": key_type}, status_code=HTTPStatus.OK)]
+
+    @api.put("/debug-cache")
+    def put_debug_cache(self) -> list[Union[Response, Effect]]:
+        """Update a model record's fields for debugging/testing."""
+        try:
+            body: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError):
+            return [JSONResponse({"error": "Invalid JSON"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_id = body.get("note_id", "")
+        model_type = body.get("type", "")
+        fields = body.get("fields", {})
+        if not note_id or not model_type or not fields:
+            return [
+                JSONResponse({"error": "note_id, type, and fields are required"}, status_code=HTTPStatus.BAD_REQUEST)
+            ]
+        model_map: dict[str, type[ScribeTranscript] | type[ScribeSummary] | type[ScribeAuditLog]] = {
+            "transcript": ScribeTranscript,
+            "summary": ScribeSummary,
+            "audit_log": ScribeAuditLog,
+        }
+        model_cls = model_map.get(model_type)
+        if not model_cls:
+            return [JSONResponse({"error": f"Unknown type: {model_type}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        try:
+            note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
+            # Filter out non-editable fields.
+            fields.pop("updated_at", None)
+            model_cls.objects.update_or_create(note_id=note_dbid, defaults=fields)
+        except Note.DoesNotExist:
+            return [JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)]
+        except Exception:
+            log.exception(f"debug cache update FAILED: note_id={note_id}, type={model_type}")
+            return [JSONResponse({"error": "Update failed"}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
+        return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
     @api.get("/config")
     def get_config(self) -> list[Union[Response, Effect]]:
@@ -305,9 +366,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "")
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        data = _load_transcript_from_cache(note_id)
-        if data is None:
-            return [JSONResponse({"items": [], "finalized": False}, status_code=HTTPStatus.OK)]
+        data = _load_transcript(note_id)
         return [JSONResponse(data, status_code=HTTPStatus.OK)]
 
     @api.post("/save-transcript")
@@ -321,7 +380,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         items = data.get("transcript", {}).get("items", [])
         finalized = bool(data.get("finalized", False))
-        _save_transcript_to_cache(note_id, items, finalized=finalized)
+        _save_transcript(note_id, items, finalized=finalized)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
     @api.get("/summary")
@@ -329,7 +388,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "")
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        data = _load_summary_from_cache(note_id)
+        data = _load_summary(note_id)
         if data is None:
             return [JSONResponse({"note": None, "commands": [], "approved": False}, status_code=HTTPStatus.OK)]
         return [JSONResponse(data, status_code=HTTPStatus.OK)]
@@ -343,21 +402,24 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = str(data.get("note_id", ""))
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        note_data = data.get("note", {})
-        commands = data.get("commands", [])
-        approved = bool(data.get("approved", False))
-        _save_summary_to_cache(
-            note_id,
-            note_data,
-            commands,
-            approved=approved,
-            recommendations=data.get("recommendations"),
-            unmatched_conditions=data.get("unmatched_conditions"),
-            diagnosis_suggestions=data.get("diagnosis_suggestions"),
-            interaction_warnings=data.get("interaction_warnings"),
-            selected_template_name=data.get("selected_template_name"),
-            mode=data.get("mode"),
-        )
+        payload: dict[str, Any] = {
+            "note": data.get("note", {}),
+            "commands": data.get("commands", []),
+            "approved": bool(data.get("approved", False)),
+        }
+        if data.get("recommendations") is not None:
+            payload["recommendations"] = data["recommendations"]
+        if data.get("unmatched_conditions") is not None:
+            payload["unmatched_conditions"] = data["unmatched_conditions"]
+        if data.get("diagnosis_suggestions") is not None:
+            payload["diagnosis_suggestions"] = data["diagnosis_suggestions"]
+        if data.get("interaction_warnings") is not None:
+            payload["interaction_warnings"] = data["interaction_warnings"]
+        if data.get("selected_template_name") is not None:
+            payload["selected_template_name"] = data["selected_template_name"]
+        if data.get("mode") is not None:
+            payload["mode"] = data["mode"]
+        _save_summary(note_id, payload)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
     @api.get("/summary-progress")
@@ -400,17 +462,17 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
         transcript_data = data.get("transcript", {})
         transcript_items = transcript_data.get("items", [])
-        cached_data: dict[str, Any] | None = None
+        loaded_data: dict[str, Any] | None = None
         if not transcript_items:
-            cached_data = _load_transcript_from_cache(note_id)
-            if cached_data:
-                transcript_items = cached_data["items"]
+            loaded_data = _load_transcript(note_id)
+            if loaded_data and loaded_data["items"]:
+                transcript_items = loaded_data["items"]
                 transcript_data = {"items": transcript_items}
 
         if not transcript_items:
             return [JSONResponse({"error": "No transcript available"}, status_code=HTTPStatus.BAD_REQUEST)]
 
-        is_finalized = (cached_data or {}).get("finalized", False) if not data.get("transcript") else True
+        is_finalized = (loaded_data or {}).get("finalized", False) if not data.get("transcript") else True
         if not is_finalized:
             return [
                 JSONResponse(
@@ -426,7 +488,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
 
-        raw_nabla_response = getattr(backend, "_last_raw_note_response", None)
+        raw_response = getattr(backend, "_last_raw_note_response", None)
         note_dict: dict[str, Any] = {
             "title": note.title,
             "sections": [{"key": s.key, "title": s.title, "text": s.text} for s in note.sections],
@@ -596,18 +658,19 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             except Exception:
                 log.exception("suggest_diagnoses failed (non-critical)")
 
-        # ── Save to cache ──
-        _save_summary_to_cache(
-            note_id,
-            note_dict,
-            commands_list,
-            approved=False,
-            recommendations=recommendations_list,
-            unmatched_conditions=unmatched_conditions,
-            diagnosis_suggestions=diagnosis_suggestions,
-            interaction_warnings=interaction_warnings,
-            raw_nabla_response=raw_nabla_response,
-        )
+        # ── Save to database ──
+        summary_payload: dict[str, Any] = {
+            "note": note_dict,
+            "commands": commands_list,
+            "approved": False,
+            "recommendations": recommendations_list,
+            "unmatched_conditions": unmatched_conditions,
+            "diagnosis_suggestions": diagnosis_suggestions,
+            "interaction_warnings": interaction_warnings,
+        }
+        if raw_response is not None:
+            summary_payload["raw_response"] = raw_response
+        _save_summary(note_id, summary_payload)
 
         return [
             JSONResponse(
@@ -638,20 +701,20 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         transcript_data = data.get("transcript", {})
         transcript_items = transcript_data.get("items", [])
 
-        # If no transcript items in body, load from cache using note_id.
+        # If no transcript items in body, load from database using note_id.
         note_id = str(data.get("note_id", ""))
-        cached_data: dict[str, Any] | None = None
+        loaded_data: dict[str, Any] | None = None
         if not transcript_items and note_id:
-            cached_data = _load_transcript_from_cache(note_id)
-            if cached_data:
-                transcript_items = cached_data["items"]
+            loaded_data = _load_transcript(note_id)
+            if loaded_data and loaded_data["items"]:
+                transcript_items = loaded_data["items"]
                 transcript_data = {"items": transcript_items}
 
         if not transcript_items:
             return [JSONResponse({"error": "No transcript available"}, status_code=HTTPStatus.BAD_REQUEST)]
 
         # Only allow generation from finalized transcripts.
-        is_finalized = (cached_data or {}).get("finalized", False) if not data.get("transcript") else True
+        is_finalized = (loaded_data or {}).get("finalized", False) if not data.get("transcript") else True
         if not is_finalized:
             return [
                 JSONResponse(
@@ -1541,7 +1604,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
     @api.post("/save-audit-log")
     def post_save_audit_log(self) -> list[Union[Response, Effect]]:
-        """Append audit events to the per-note audit log cache."""
+        """Append audit events to the per-note audit log."""
         try:
             data: dict[str, Any] = json.loads(self.request.body)
         except (json.JSONDecodeError, ValueError):
@@ -1550,11 +1613,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         new_events = data.get("events", [])
         if not note_id or not new_events:
             return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK)]
-        cache = get_cache()
-        key = f"scribe_audit:{note_id}"
-        existing = json.loads(cache.get(key) or "[]")
-        existing.extend(new_events)
-        cache.set(key, json.dumps(existing))
+        note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
+        obj, created = ScribeAuditLog.objects.get_or_create(note_id=note_dbid, defaults={"events": new_events})
+        if not created:
+            obj.events = list(obj.events) + new_events
+            obj.save()
         return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK)]
 
     @api.get("/audit-log")
@@ -1563,6 +1626,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "")
         if not note_id:
             return [JSONResponse({"events": []}, status_code=HTTPStatus.OK)]
-        cache = get_cache()
-        events = json.loads(cache.get(f"scribe_audit:{note_id}") or "[]")
+        note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
+        row = ScribeAuditLog.objects.filter(note_id=note_dbid).values("events").first()
+        events = row["events"] if row else []
         return [JSONResponse({"events": events}, status_code=HTTPStatus.OK)]

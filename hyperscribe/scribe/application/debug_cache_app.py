@@ -9,7 +9,7 @@ from hyperscribe.scribe.application.transcript_app import is_debug_visible
 class ScribeCacheApp(NoteApplication):
     """Note application for Canvas Scribe with recording and transcript."""
 
-    NAME = "Cache"
+    NAME = "Models"
     IDENTIFIER = "hyperscribe__scribe_cache"
     PRIORITY = 1
 
