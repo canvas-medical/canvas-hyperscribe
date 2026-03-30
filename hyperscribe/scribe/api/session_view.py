@@ -147,8 +147,8 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
         "selected_template_name": payload.get("selected_template_name") or "",
         "mode": payload.get("mode") or "",
     }
-    if "raw_nabla_response" in payload:
-        defaults["raw_nabla_response"] = payload["raw_nabla_response"]
+    if "raw_response" in payload:
+        defaults["raw_response"] = payload["raw_response"]
     ScribeSummary.objects.update_or_create(note_id=note_dbid, defaults=defaults)
 
 
@@ -264,7 +264,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 "approved",
                 "selected_template_name",
                 "mode",
-                "raw_nabla_response",
+                "raw_response",
                 "updated_at",
             )
             .first()
@@ -488,7 +488,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
 
-        raw_nabla_response = getattr(backend, "_last_raw_note_response", None)
+        raw_response = getattr(backend, "_last_raw_note_response", None)
         note_dict: dict[str, Any] = {
             "title": note.title,
             "sections": [{"key": s.key, "title": s.title, "text": s.text} for s in note.sections],
@@ -668,8 +668,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             "diagnosis_suggestions": diagnosis_suggestions,
             "interaction_warnings": interaction_warnings,
         }
-        if raw_nabla_response is not None:
-            summary_payload["raw_nabla_response"] = raw_nabla_response
+        if raw_response is not None:
+            summary_payload["raw_response"] = raw_response
         _save_summary(note_id, summary_payload)
 
         return [

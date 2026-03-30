@@ -54,7 +54,7 @@ class ScribeSummary(CustomModel):
     approved: Any = BooleanField(default=False)
     selected_template_name: Any = TextField(default="")
     mode: Any = TextField(default="")
-    raw_nabla_response: Any = JSONField(default=dict)
+    raw_response: Any = JSONField(default=dict)
     updated_at: Any = DateTimeField(auto_now=True)
 
     class Meta(_FallbackMeta):

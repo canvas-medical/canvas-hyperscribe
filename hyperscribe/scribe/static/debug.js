@@ -130,7 +130,7 @@ const SUMMARY_FIELDS = [
   { key: 'approved', name: 'approved', type: 'bool' },
   { key: 'selected_template_name', name: 'selected_template_name', type: 'text' },
   { key: 'mode', name: 'mode', type: 'text' },
-  { key: 'raw_nabla_response', name: 'raw_nabla_response', type: 'json' },
+  { key: 'raw_response', name: 'raw_response', type: 'json' },
   { key: 'updated_at', name: 'updated_at', type: 'text' },
 ];
 
