@@ -152,7 +152,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddCondition=${isPlan ? onAddCondition : null}
         unmatchedConditions=${isPlan ? unmatchedConditions : null}
         diagnosisSuggestions=${isPlan ? diagnosisSuggestions : null}
-        onAddNow=${isPlan ? onAddNow : null}
+        onAddNow=${(isPlan || isObjective) ? onAddNow : null}
       />`;
     })
     .filter(Boolean);

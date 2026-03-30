@@ -1,21 +1,10 @@
 from typing import Any
 
-from django.db.models import DO_NOTHING, BooleanField, DateTimeField, JSONField, Model, OneToOneField, TextField
+from django.db.models import DO_NOTHING, BooleanField, DateTimeField, JSONField, OneToOneField, TextField
 
-try:
-    from canvas_sdk.v1.data.base import CustomModel
-except ImportError:
-    CustomModel = Model
+from canvas_sdk.v1.data.base import CustomModel
 
-from hyperscribe.models.proxy import NoteProxy, _HAS_MODEL_EXTENSION
-
-
-class _FallbackMeta:
-    """Provides app_label when running locally without CustomModel."""
-
-    if not _HAS_MODEL_EXTENSION:
-        app_label = "v1"
-        managed = False
+from hyperscribe.models.proxy import NoteProxy
 
 
 class ScribeTranscript(CustomModel):
@@ -31,9 +20,6 @@ class ScribeTranscript(CustomModel):
     items: Any = JSONField(default=list)
     finalized: Any = BooleanField(default=False)
     updated_at: Any = DateTimeField(auto_now=True)
-
-    class Meta(_FallbackMeta):
-        pass
 
 
 class ScribeSummary(CustomModel):
@@ -57,9 +43,6 @@ class ScribeSummary(CustomModel):
     raw_response: Any = JSONField(default=dict)
     updated_at: Any = DateTimeField(auto_now=True)
 
-    class Meta(_FallbackMeta):
-        pass
-
 
 class ScribeAuditLog(CustomModel):
     """Append-only audit event log for debugging."""
@@ -73,6 +56,3 @@ class ScribeAuditLog(CustomModel):
     )
     events: Any = JSONField(default=list)
     updated_at: Any = DateTimeField(auto_now=True)
-
-    class Meta(_FallbackMeta):
-        pass
