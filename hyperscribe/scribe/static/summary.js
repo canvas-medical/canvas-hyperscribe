@@ -165,6 +165,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [error, setError] = useState(null);
   const [commands, setCommands] = useState([]);
   const [inserting, setInserting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [approved, setApproved] = useState(false);
   const [hideRejected, setHideRejected] = useState(true);
   const [assignees, setAssignees] = useState([]);
@@ -1296,18 +1297,27 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       `}
       ${showFooter && html`
         <div class="summary-footer">
-          ${incompleteCount > 0 && html`
-            <div class="summary-footer-warning">
-              ${incompleteCount} incomplete ${incompleteCount === 1 ? 'item' : 'items'} will be skipped: ${incompleteTypes.map(t => INCOMPLETE_LABELS[t]).join(', ')}
+          ${inserting ? html`
+            <div class="approve-progress">
+              <div class="approve-spinner" />
+              <span>Inserting ${insertableCount} ${insertableCount === 1 ? 'command' : 'commands'} into note...</span>
+            </div>
+          ` : confirming ? html`
+            <div class="approve-confirm-block">
+              <button class="insert-btn confirm" onClick=${handleInsert}>Confirm Approve</button>
+              <button class="approve-cancel" onClick=${() => setConfirming(false)}>Cancel</button>
+            </div>
+          ` : html`
+            <div class="approve-block">
+              ${incompleteCount > 0 && html`
+                <div class="summary-footer-warning">
+                  ${incompleteCount} incomplete ${incompleteCount === 1 ? 'item' : 'items'} will be skipped: ${incompleteTypes.map(t => INCOMPLETE_LABELS[t]).join(', ')}
+                </div>
+              `}
+              <button class="insert-btn" onClick=${() => setConfirming(true)}>Approve & Insert Commands</button>
+              <div class="approve-warning">This action is permanent and cannot be undone.</div>
             </div>
           `}
-          <button
-            class="insert-btn"
-            onClick=${handleInsert}
-            disabled=${inserting}
-          >
-            ${inserting ? 'Approving...' : 'Approve'}
-          </button>
         </div>
       `}
     </div>
