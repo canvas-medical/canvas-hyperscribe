@@ -114,7 +114,7 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
     if (e.key === 'Escape') handleCancel();
   };
 
-  if (editing) {
+  if (editing && !readOnly) {
     return html`
       <div class="vitals-row editing" onKeyDown=${handleKeyDown}>
         <div class="vitals-edit-fields">
