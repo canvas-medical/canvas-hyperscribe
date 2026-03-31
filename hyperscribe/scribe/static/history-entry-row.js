@@ -266,7 +266,7 @@ export function HistoryEntryRow({ command, commandIndex, onEdit, onDelete, readO
     setEditing(false);
   };
 
-  if (editing) {
+  if (editing && !readOnly) {
     const FormComponent = FORM_COMPONENTS[command.command_type];
     if (!FormComponent) return null;
     return html`
