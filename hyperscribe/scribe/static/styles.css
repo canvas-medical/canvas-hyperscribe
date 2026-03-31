@@ -282,17 +282,32 @@ h2 { margin-bottom: 4px; }
 }
 
 .summary-footer {
-  padding: 16px 24px;
-  border-top: 1px solid #e8e8ec;
+  padding: 20px 24px;
+  border-top: 2px solid #e8e8ec;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   align-items: center;
-  gap: 12px;
 }
 .summary-footer-warning {
   font-size: 12px;
   color: #b45309;
+  text-align: center;
 }
+
+/* Approve flow */
+.approve-block { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.approve-confirm-block { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.approve-warning { font-size: 12px; color: #9ca3af; }
+.approve-cancel { font-size: 13px; color: #6b7280; background: none; border: none; cursor: pointer; text-decoration: underline; }
+.approve-cancel:hover { color: #374151; }
+
+/* Progress indicator */
+.approve-progress { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; color: #6b7280; }
+.approve-spinner {
+  width: 20px; height: 20px; border: 2.5px solid #e5e7eb; border-top-color: #16a34a;
+  border-radius: 50%; animation: approve-spin 0.8s linear infinite;
+}
+@keyframes approve-spin { to { transform: rotate(360deg); } }
 
 .hide-rejected-toggle { display: flex; justify-content: flex-end; padding: 8px 8px 0; }
 .hide-rejected-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #6b7280; cursor: pointer; user-select: none; }
@@ -655,24 +670,31 @@ h2 { margin-bottom: 4px; }
 
 .insert-btn {
   display: inline-block;
-  padding: 8px 16px;
+  padding: 12px 48px;
   border: none;
-  border-radius: 6px;
-  background: #34a853;
+  border-radius: 8px;
+  background: #16a34a;
   color: #fff;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .insert-btn:hover:not(:disabled) {
-  background: #2d9249;
+  background: #15803d;
 }
 
 .insert-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.insert-btn.confirm {
+  background: #dc2626;
+  padding: 12px 48px;
+}
+.insert-btn.confirm:hover { background: #b91c1c; }
 }
 
 .insert-success {
