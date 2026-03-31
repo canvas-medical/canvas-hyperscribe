@@ -216,7 +216,7 @@ def split_plan_into_diagnoses(
                     "icd10_display": icd10_display,
                     "condition_header": block.header,
                     "today_assessment": "\n".join(block.body),
-                    "accepted": bool(icd),
+                    "accepted": False,
                 },
                 section_key=ap_cmd.get("section_key", "assessment_and_plan"),
             )

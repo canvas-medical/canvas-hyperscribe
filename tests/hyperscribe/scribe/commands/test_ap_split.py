@@ -213,7 +213,7 @@ def test_split_plan_into_diagnoses_basic() -> None:
     assert updated[0]["command_type"] == "rfv"
     assert updated[1]["command_type"] == "diagnose"
     assert updated[1]["data"]["icd10_code"] == "G43.909"
-    assert updated[1]["data"]["accepted"] is True
+    assert updated[1]["data"]["accepted"] is False
     assert updated[2]["command_type"] == "diagnose"
     assert updated[2]["data"]["icd10_code"] == "I10"
     assert unmatched == []
@@ -335,7 +335,7 @@ def test_split_plan_corresponding_note_problem() -> None:
     updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 1
     assert updated[0]["data"]["icd10_code"] == "J06.9"
-    assert updated[0]["data"]["accepted"] is True
+    assert updated[0]["data"]["accepted"] is False
 
 
 def test_unspecified_does_not_cause_false_match() -> None:
