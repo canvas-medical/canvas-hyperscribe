@@ -88,6 +88,6 @@ class QuestionnaireParser(CommandParser):
         cmd.questions = cmd_questions
         return cmd
 
-    def to_effects(self, command: _BaseCommand) -> list[Effect]:
+    def to_effects(self, command: _BaseCommand, note_uuid: str | None = None) -> list[Effect]:
         """Questionnaires require originate + edit (not commit) to apply responses."""
         return [command.originate(), command.edit(), command.commit()]

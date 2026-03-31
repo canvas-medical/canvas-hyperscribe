@@ -87,5 +87,5 @@ def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> list[Effec
         if builder is None:
             continue
         command = builder.build(proposal.get("data", {}), note_uuid, str(uuid.uuid4()))
-        effects.extend(builder.to_effects(command))
+        effects.extend(builder.to_effects(command, note_uuid=note_uuid))
     return effects
