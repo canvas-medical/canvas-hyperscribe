@@ -68,7 +68,7 @@ export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly }) {
     if (e.key === 'Escape') handleCancel();
   };
 
-  if (editing) {
+  if (editing && !readOnly) {
     return html`
       <div class="history-review-row editing">
         ${sections.map((s, i) => html`

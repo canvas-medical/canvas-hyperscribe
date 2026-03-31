@@ -146,7 +146,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   }
 
   // Edit mode with search.
-  if (editing) {
+  if (editing && !readOnly) {
     return html`
       <div class="medication-row editing" ref=${containerRef}>
         <div class="history-form">
