@@ -65,7 +65,7 @@ class AdjustPrescriptionParser(CommandParser):
             command_uuid=command_uuid,
         )
 
-    def to_effects(self, command: _BaseCommand) -> list[Effect]:
+    def to_effects(self, command: _BaseCommand, note_uuid: str | None = None) -> list[Effect]:
         """Adjust prescriptions require originate + review (same as prescriptions)."""
         return [command.originate(), command.review()]
 

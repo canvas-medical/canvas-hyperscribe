@@ -64,6 +64,20 @@ def _format_icd10_code(raw: str) -> str:
     return code
 
 
+def audit_event(note_uuid: str, event_type: str, details: dict[str, Any] | None = None) -> None:
+    """Append an audit event to the ScribeAuditLog from the backend."""
+    from datetime import datetime, timezone
+
+    try:
+        note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_uuid)
+        obj, created = ScribeAuditLog.objects.get_or_create(note_id=note_dbid, defaults={"events": []})
+        event = {"ts": datetime.now(timezone.utc).isoformat(), "type": event_type, "details": details or {}}
+        obj.events = list(obj.events) + [event]
+        obj.save()
+    except Exception:
+        log.exception(f"Failed to write audit event: {event_type}")
+
+
 _PROGRESS_CACHE_KEY_PREFIX = "scribe_progress:"
 
 _PLAN_SECTION_KEYS = frozenset({"assessment_and_plan", "plan"})
@@ -920,6 +934,12 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         commands = data.get("commands", [])
         effects = build_effects(commands, note_uuid)
+        command_types = [c.get("command_type", "") for c in commands]
+        audit_event(
+            note_uuid,
+            "INSERT_COMMANDS",
+            {"command_count": len(commands), "effect_count": len(effects), "command_types": command_types},
+        )
         return [JSONResponse({"inserted": len(effects)}, status_code=HTTPStatus.OK), *effects]
 
     @api.get("/search-medications")

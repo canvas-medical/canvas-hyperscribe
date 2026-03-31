@@ -44,7 +44,7 @@ class CommandParser(ABC):
     @abstractmethod
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand: ...
 
-    def to_effects(self, command: _BaseCommand) -> list[Effect]:
+    def to_effects(self, command: _BaseCommand, note_uuid: str | None = None) -> list[Effect]:
         """Convert a built command into Canvas SDK Effects.
 
         Default: originate + commit. Override for commands that need
@@ -53,6 +53,17 @@ class CommandParser(ABC):
         effects = [command.originate()]
         try:
             effects.append(command.commit())
-        except Exception:
-            pass
+        except Exception as exc:
+            if note_uuid:
+                from hyperscribe.scribe.api.session_view import audit_event
+
+                audit_event(
+                    note_uuid,
+                    "COMMIT_FAILED",
+                    {
+                        "command_type": self.command_type,
+                        "command_uuid": command.command_uuid,
+                        "error": str(exc),
+                    },
+                )
         return effects
