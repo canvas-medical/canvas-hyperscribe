@@ -542,13 +542,17 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   // In approved (readOnly) mode, only show items that actually made it into the note.
+  // When hideRejected is on, also filter out rejected recommendations before approval.
+  const shouldHideRejected = hideRejected || readOnly;
   const visibleRecs = readOnly
     ? (recommendations || []).filter(c => wasInserted(c, true))
-    : (recommendations || []);
+    : shouldHideRejected
+      ? (recommendations || []).filter(c => !c.rejected)
+      : (recommendations || []);
   const visibleAdHoc = readOnly
     ? (adHocCommands || []).filter(e => wasInserted(e.command))
     : (adHocCommands || []);
@@ -632,7 +636,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                     `;
                   })}
-                  ${cmds.filter(e => e.command.command_type === 'diagnose' && (!readOnly || wasInserted(e.command))).map(entry => {
+                  ${cmds.filter(e => e.command.command_type === 'diagnose' && (!readOnly || wasInserted(e.command)) && (!shouldHideRejected || !e.command.data.rejected)).map(entry => {
                     const hasCode = !!entry.command.data.icd10_code;
                     const isAccepted = hasCode && entry.command.data.accepted;
                     const isRejected = entry.command.data.rejected;
