@@ -104,7 +104,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -153,6 +153,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         unmatchedConditions=${isPlan ? unmatchedConditions : null}
         diagnosisSuggestions=${isPlan ? diagnosisSuggestions : null}
         onAddNow=${(isPlan || isObjective) ? onAddNow : null}
+        hideRejected=${hideRejected}
       />`;
     })
     .filter(Boolean);
@@ -165,6 +166,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [commands, setCommands] = useState([]);
   const [inserting, setInserting] = useState(false);
   const [approved, setApproved] = useState(false);
+  const [hideRejected, setHideRejected] = useState(true);
   const [assignees, setAssignees] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [sectionConditions, setSectionConditions] = useState({});
@@ -1230,6 +1232,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         </div>
       `}
       ${error && html`<p class="error" style="padding: 0 16px;">${error}</p>`}
+      ${!approved && recommendations.length > 0 && html`
+        <div class="hide-rejected-toggle">
+          <label class="hide-rejected-label" onClick=${() => setHideRejected(prev => !prev)}>
+            <div class="toggle-switch${hideRejected ? ' on' : ''}">
+              <div class="toggle-knob" />
+            </div>
+            Hide Rejected Recommendations
+          </label>
+        </div>
+      `}
       <div class="summary-body">
         ${renderSoapGroups(effectiveSections, commandBySectionKey, handleEdit, handleDelete, {
           adHocCommands,
@@ -1268,6 +1280,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           unmatchedConditions,
           diagnosisSuggestions,
           onAddNow: approved ? null : handleAddNow,
+          hideRejected,
         })}
       </div>
       ${prescriptionWarning && html`
