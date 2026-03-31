@@ -61,7 +61,7 @@ class PrescriptionParser(CommandParser):
             command_uuid=command_uuid,
         )
 
-    def to_effects(self, command: _BaseCommand) -> list[Effect]:
+    def to_effects(self, command: _BaseCommand, note_uuid: str | None = None) -> list[Effect]:
         """Prescriptions require originate + review (not commit) for provider sign-off."""
         return [command.originate(), command.review()]
 
