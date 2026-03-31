@@ -279,7 +279,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
     }, 500);
     return () => { if (commandsSaveRef.current) clearTimeout(commandsSaveRef.current); };
-  }, [commands, recommendations, selectedTemplate, mode]);
+  }, [commands, recommendations, selectedTemplate, mode, approved]);
 
   const handleGenerate = useCallback(async () => {
     logEvent('GENERATE_START');
@@ -390,6 +390,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }
     prevFinalizedRef.current = recording.finalized;
   }, [recording.finalized, mode, noteData, generating, handleGenerate]);
+
+  // Warn before navigating away during insertion.
+  useEffect(() => {
+    if (!inserting) return;
+    const handler = (e) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [inserting]);
 
   // Set mode to 'ai' if we load a finalized transcript from cache (returning to a previous session).
   useEffect(() => {
@@ -917,8 +925,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [approved, commands]);
 
   const handleInsert = useCallback(async () => {
+    if (approved || inserting) return;
     logEvent('APPROVE_START');
     setInserting(true);
+
+    // Mark as approved IMMEDIATELY — before the async request.
+    // Even if the request fails or the page is reloaded, the user can't re-submit.
+    setApproved(true);
+    saveSummaryToCache(noteData, commands, true, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+
     const insertable = commands.filter(c => {
       if (c.already_documented || !c.display) return false;
       if (c.command_type === 'imaging_order' && (!c.data.image_code || !c.data.service_provider)) return false;
@@ -977,11 +992,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       const data = await res.json();
       if (data.error) {
         setError(data.error);
+        setApproved(false);
+        setConfirming(false);
+        saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
         logEvent('APPROVE_ERROR', { error: data.error });
       } else {
         const hasPrescriptions = allInsertable.some(c => c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription');
-        setApproved(true);
-        saveSummaryToCache(noteData, commands, true, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
         logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length });
         if (hasPrescriptions) {
           setPrescriptionWarning(true);
@@ -994,11 +1010,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       }
     } catch (err) {
       setError('Failed to insert commands');
+      setApproved(false);
+      setConfirming(false);
+      saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
       logEvent('APPROVE_ERROR', { error: 'Failed to insert commands' });
     } finally {
       setInserting(false);
     }
-  }, [commands, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions]);
+  }, [commands, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions, approved, inserting]);
 
   const handleAddNow = useCallback(async (command, isRecommendation, index) => {
     logEvent('ADD_NOW', { commandType: command.command_type, isRecommendation, index });
@@ -1266,7 +1285,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddTemplateCharge: approved ? null : handleAddTemplateCharge,
           onRemoveChargeByCpt: approved ? null : handleRemoveChargeByCpt,
           templateCharges: selectedTemplate ? (selectedTemplate.charges || []) : [],
-          readOnly: approved,
+          readOnly: approved || inserting,
           sectionConditions,
           patientId,
           noteId,
