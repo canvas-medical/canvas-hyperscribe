@@ -149,7 +149,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
   }
 
   // Edit mode with search.
-  if (editing) {
+  if (editing && !readOnly) {
     return html`
       <div class="allergy-row editing" ref=${containerRef}>
         <div class="history-form">

@@ -97,7 +97,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
     return match ? match.label : '';
   };
 
-  if (editing) {
+  if (editing && !readOnly) {
     return html`
       <div class="task-row editing" onKeyDown=${handleKeyDown}>
         <div class="history-form">

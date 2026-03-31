@@ -1132,7 +1132,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     if (e.key === 'Escape') handleCancel();
   };
 
-  if (editing) {
+  if (editing && !readOnly) {
     return html`
       <div class="order-row editing" ref=${containerRef} onKeyDown=${handleKeyDown}>
         <div class="history-form">

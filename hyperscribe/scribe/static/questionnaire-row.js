@@ -275,7 +275,7 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
     setEditing(false);
   };
 
-  if (editing) {
+  if (editing && !readOnly) {
     return html`
       <div class="order-row editing" onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}>
         <${QuestionnaireForm}

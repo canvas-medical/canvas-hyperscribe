@@ -46,7 +46,7 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly }
     }
   };
 
-  if (editing) {
+  if (editing && !readOnly) {
     return html`
       <div class="command-row editing">
         <textarea
