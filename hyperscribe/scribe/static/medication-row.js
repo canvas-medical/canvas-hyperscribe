@@ -35,6 +35,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   );
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.medication_text || '');
   const [sig, setSig] = useState(command.data.sig || '');
+  const [alertFacility, setAlertFacility] = useState(!!command.data.alert_facility);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -100,7 +101,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   };
 
   const handleSave = () => {
-    const newData = { ...command.data, medication_text: selectedDisplay, sig };
+    const newData = { ...command.data, medication_text: selectedDisplay, sig, alert_facility: alertFacility };
     if (selectedFdb) {
       newData.fdb_code = selectedFdb;
     } else {
@@ -119,6 +120,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     setSelectedFdb(isFdbStructured(command.data.fdb_code) ? command.data.fdb_code : null);
     setSelectedDisplay(command.data.medication_text || '');
     setSig(command.data.sig || '');
+    setAlertFacility(!!command.data.alert_facility);
     setResults([]);
     setEditing(false);
   };
@@ -192,6 +194,14 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
               placeholder="e.g. Take 1 tablet daily"
             />
           </div>
+          <div class="history-form-field">
+            <label class="alert-facility-toggle" onClick=${() => setAlertFacility(prev => !prev)}>
+              <div class="toggle-switch${alertFacility ? ' on' : ''}">
+                <div class="toggle-knob" />
+              </div>
+              Alert Facility
+            </label>
+          </div>
           <div class="questionnaire-form-actions">
             <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
             <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
@@ -208,6 +218,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
       <div class="order-view">
         <div class="order-view-name">${command.display}</div>
         ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
+        ${command.data.alert_facility && html`<span class="badge badge-alert">Alert Facility</span>`}
       </div>
     </div>
   `;

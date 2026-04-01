@@ -115,3 +115,16 @@ class MedicationParser(CommandParser):
             note_uuid=note_uuid,
             command_uuid=command_uuid,
         )
+
+    def pending_metadata(self, command: _BaseCommand, proposal: dict[str, Any] | None = None) -> dict[str, Any] | None:
+        if proposal and proposal.get("data", {}).get("alert_facility"):
+            return {
+                "command_uuid": command.command_uuid,
+                "command_type": self.command_type,
+                "note_uuid": command.note_uuid,
+                "metadata": {"alert_facility": "true"},
+            }
+        return None
+
+    def build_stub(self, command_uuid: str, note_uuid: str) -> _BaseCommand:
+        return MedicationStatementCommand(command_uuid=command_uuid, note_uuid=note_uuid)
