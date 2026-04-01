@@ -803,7 +803,20 @@ h2 { margin-bottom: 4px; }
 .diagnose-row-body.editable:hover { background: #f0f0f0; }
 .diagnose-body-line { min-height: 1.4em; }
 .diagnose-body-empty { color: #aaa; font-style: italic; }
-.diagnose-edit-area { display: flex; align-items: flex-start; gap: 12px; margin-top: 4px; }
+.diagnose-edit-area { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 4px; }
+.diagnose-edit-area .command-row-textarea { width: 100%; }
+.diagnose-edit-area .command-row-actions { align-self: flex-end; }
+
+/* Diagnose recommendation: header + actions on one row, everything else full-width below */
+.recommendation-block.rec-diagnose { display: grid; grid-template-columns: 1fr auto; align-items: start; }
+.recommendation-block.rec-diagnose .recommendation-content,
+.recommendation-block.rec-diagnose .diagnose-row { display: contents; }
+.recommendation-block.rec-diagnose .diagnose-row-header { grid-column: 1; }
+.recommendation-block.rec-diagnose .recommendation-actions { grid-column: 2; grid-row: 1; }
+.recommendation-block.rec-diagnose .diagnose-edit-area,
+.recommendation-block.rec-diagnose .diagnose-row-body,
+.recommendation-block.rec-diagnose .history-form-field,
+.recommendation-block.rec-diagnose .diagnose-suggestions { grid-column: 1 / -1; }
 
 /* Suggested codings + unmatched condition chips below A&P blocks */
 
