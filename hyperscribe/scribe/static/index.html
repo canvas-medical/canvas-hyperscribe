@@ -15,11 +15,11 @@
 
       function sendResize() {
         if (!messagePort) return;
-        var el = document.documentElement;
+        var appEl = document.getElementById('app');
         messagePort.postMessage({
           type: 'RESIZE',
-          width: el.scrollWidth,
-          height: el.scrollHeight,
+          width: appEl.scrollWidth,
+          height: appEl.scrollHeight,
         });
       }
 
@@ -39,7 +39,7 @@
       window.__canvasPort = function() { return messagePort; };
 
       var observer = new ResizeObserver(sendResize);
-      observer.observe(document.documentElement);
+      observer.observe(document.getElementById('app'));
     })();
   </script>
   <script type="module">
