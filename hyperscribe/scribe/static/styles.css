@@ -540,6 +540,7 @@ h2 { margin-bottom: 4px; }
 .command-row.deselected { opacity: 0.45; }
 .command-row.editing { cursor: default; }
 .command-row-textarea { flex: 1; min-height: 80px; padding: 10px; font-family: inherit; font-size: 15px; line-height: 1.6; border: 1px solid #ddd; border-radius: 6px; resize: vertical; min-width: 0; }
+.command-row-textarea[rows] { min-height: 0; }
 .command-row-textarea:focus { outline: none; border-color: #052B49; }
 .command-row-actions { display: flex; gap: 8px; margin-left: 12px; flex-shrink: 0; align-self: flex-start; padding-top: 4px; }
 
@@ -711,6 +712,7 @@ h2 { margin-bottom: 4px; }
 .history-review-row.deselected { opacity: 0.45; }
 .history-review-row.editing { cursor: default; display: flex; flex-direction: column; gap: 16px; }
 .history-review-row.editing .command-row-textarea { width: 100%; min-height: 100px; }
+.history-review-row.editing .command-row-textarea[rows] { min-height: 0; }
 .history-subsection { margin-bottom: 12px; }
 .history-subsection:last-child { margin-bottom: 0; }
 .history-subsection-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
