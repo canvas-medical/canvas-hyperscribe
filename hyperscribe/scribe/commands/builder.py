@@ -20,6 +20,7 @@ from hyperscribe.scribe.commands.history_review import HistoryReviewParser
 from hyperscribe.scribe.commands.hpi import HpiParser
 from hyperscribe.scribe.commands.imaging_order import ImagingOrderParser
 from hyperscribe.scribe.commands.lab_order import LabOrderParser
+from hyperscribe.scribe.commands.lab_results import LabResultsParser
 from hyperscribe.scribe.commands.medical_history import MedicalHistoryParser
 from hyperscribe.scribe.commands.medication_statement import MedicationParser
 from hyperscribe.scribe.commands.perform import PerformParser
@@ -50,6 +51,7 @@ _BUILDERS: dict[str, CommandParser] = {
     "hpi": HpiParser(),
     "imaging_order": ImagingOrderParser(),
     "lab_order": LabOrderParser(),
+    "lab_results": LabResultsParser(),
     "medicalHistory": MedicalHistoryParser(),
     "medication_statement": MedicationParser(),
     "perform": PerformParser(),
@@ -100,7 +102,7 @@ def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> tuple[list
         return [], []
 
     # CustomCommand types must originate individually — batch originate doesn't handle schema_key correctly.
-    _INDIVIDUAL_ORIGINATE = frozenset({"chart_review", "history_review", "ros", "physical_exam"})
+    _INDIVIDUAL_ORIGINATE = frozenset({"chart_review", "history_review", "lab_results", "ros", "physical_exam"})
     batch_commands = [(b, cmd, p) for b, cmd, p in built if b.command_type not in _INDIVIDUAL_ORIGINATE]
     individual_commands = [(b, cmd, p) for b, cmd, p in built if b.command_type in _INDIVIDUAL_ORIGINATE]
 

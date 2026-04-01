@@ -11,6 +11,7 @@ const DATA_FIELD = {
   rfv: 'comment',
   hpi: 'narrative',
   plan: 'narrative',
+  lab_results: 'narrative',
 };
 
 export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly }) {

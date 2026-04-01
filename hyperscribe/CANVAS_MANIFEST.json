@@ -199,6 +199,12 @@
         "label": "Review Of Systems",
         "schema_key": "reviewOfSystems",
         "section": "subjective"
+      },
+      {
+        "name": "LabResults",
+        "label": "Lab Results",
+        "schema_key": "labResult",
+        "section": "objective"
       }
     ],
     "content": [],
