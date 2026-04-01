@@ -282,7 +282,7 @@ h2 { margin-bottom: 4px; }
 }
 
 .summary-footer {
-  padding: 20px 24px;
+  padding: 16px 24px 0;
   border-top: 2px solid #e8e8ec;
   display: flex;
   justify-content: center;
