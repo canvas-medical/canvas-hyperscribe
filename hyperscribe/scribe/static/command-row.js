@@ -53,6 +53,7 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly }
         <textarea
           ref=${textareaRef}
           class="command-row-textarea"
+          rows=${command.command_type === 'hpi' ? 10 : undefined}
           value=${value}
           onInput=${(e) => setValue(e.target.value)}
           onKeyDown=${handleKeyDown}
