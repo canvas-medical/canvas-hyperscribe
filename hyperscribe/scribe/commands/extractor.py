@@ -166,6 +166,23 @@ def _extract_chart_review(note: ClinicalNote) -> CommandProposal | None:
     )
 
 
+def _extract_lab_results(note: ClinicalNote) -> CommandProposal | None:
+    """Extract lab_results section into a Lab Review command."""
+    lab_section = next(
+        (s for s in note.sections if s.key.lower() == "lab_results" and s.text.strip()),
+        None,
+    )
+    if lab_section is None:
+        return None
+    text = lab_section.text.strip()
+    return CommandProposal(
+        command_type="lab_results",
+        display=text,
+        data={"narrative": text},
+        section_key="lab_results",
+    )
+
+
 def extract_commands(note: ClinicalNote) -> list[CommandProposal]:
     """Map ClinicalNote sections to CommandProposal list (deterministic, no LLM)."""
     proposals: list[CommandProposal] = []
@@ -195,5 +212,9 @@ def extract_commands(note: ClinicalNote) -> list[CommandProposal]:
     chart_proposal = _extract_chart_review(note)
     if chart_proposal is not None:
         proposals.append(chart_proposal)
+
+    lab_proposal = _extract_lab_results(note)
+    if lab_proposal is not None:
+        proposals.append(lab_proposal)
 
     return proposals
