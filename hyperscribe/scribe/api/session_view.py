@@ -46,7 +46,7 @@ from hyperscribe.scribe.backend import (
     get_backend_from_secrets,
 )
 from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
-from hyperscribe.scribe.commands.builder import annotate_duplicates, build_effects
+from hyperscribe.scribe.commands.builder import annotate_duplicates, build_effects, build_metadata_effects
 from hyperscribe.scribe.commands.extractor import extract_commands, parse_ros_subsections
 from hyperscribe.scribe.recommendations import recommend_commands
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
@@ -933,14 +933,30 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not note_uuid:
             return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         commands = data.get("commands", [])
-        effects = build_effects(commands, note_uuid)
+        effects, metadata_pending = build_effects(commands, note_uuid)
         command_types = [c.get("command_type", "") for c in commands]
         audit_event(
             note_uuid,
             "INSERT_COMMANDS",
             {"command_count": len(commands), "effect_count": len(effects), "command_types": command_types},
         )
-        return [JSONResponse({"inserted": len(effects)}, status_code=HTTPStatus.OK), *effects]
+        return [
+            JSONResponse({"inserted": len(effects), "metadata_pending": metadata_pending}, status_code=HTTPStatus.OK),
+            *effects,
+        ]
+
+    @api.post("/insert-metadata")
+    def post_insert_metadata(self) -> list[Union[Response, Effect]]:
+        """Phase 2: upsert command metadata after commands have been created."""
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        pending = data.get("pending", [])
+        if not pending:
+            return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK)]
+        effects = build_metadata_effects(pending)
+        return [JSONResponse({"ok": True, "metadata_count": len(effects)}, status_code=HTTPStatus.OK), *effects]
 
     @api.get("/search-medications")
     def get_search_medications(self) -> list[Union[Response, Effect]]:
