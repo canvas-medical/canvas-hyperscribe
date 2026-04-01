@@ -548,11 +548,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
   // In approved (readOnly) mode, only show items that actually made it into the note.
   // When hideRejected is on, also filter out rejected recommendations before approval.
   const shouldHideRejected = hideRejected || readOnly;
-  const visibleRecs = readOnly
-    ? (recommendations || []).filter(c => wasInserted(c, true))
-    : shouldHideRejected
-      ? (recommendations || []).filter(c => !c.rejected)
-      : (recommendations || []);
+  const visibleRecs = (recommendations || [])
+    .map((c, origIndex) => ({ ...c, _origIndex: origIndex }))
+    .filter(c => readOnly ? wasInserted(c, true) : shouldHideRejected ? !c.rejected : true);
   const visibleAdHoc = readOnly
     ? (adHocCommands || []).filter(e => wasInserted(e.command))
     : (adHocCommands || []);
@@ -806,7 +804,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
 
           if (key === 'current_medications') {
             const medRecs = visibleRecs
-              .map((cmd, i) => ({ command: cmd, index: i }))
+              .map(cmd => ({ command: cmd, index: cmd._origIndex }))
               .filter(e => e.command.command_type === 'medication_statement');
             const adHocMeds = visibleAdHoc.filter(e => e.command.command_type === 'medication_statement');
             const adHocStopMeds = visibleAdHoc.filter(e => e.command.command_type === 'stop_medication');
@@ -923,7 +921,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
 
           if (key === 'allergies') {
             const allergyRecs = visibleRecs
-              .map((cmd, i) => ({ command: cmd, index: i }))
+              .map(cmd => ({ command: cmd, index: cmd._origIndex }))
               .filter(e => e.command.command_type === 'allergy');
             const adHocAllergies = visibleAdHoc.filter(e => e.command.command_type === 'allergy');
             const adHocRemoveAllergies = visibleAdHoc.filter(e => e.command.command_type === 'remove_allergy');
@@ -1354,7 +1352,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           // Render Rx recommendations in the PLAN group (raw prescription text is suppressed above).
           if (title !== 'ASSESSMENT & PLAN') return null;
           const rxRecs = visibleRecs
-            .map((cmd, i) => ({ command: cmd, index: i }))
+            .map(cmd => ({ command: cmd, index: cmd._origIndex }))
             .filter(e => e.command.command_type === 'prescribe');
           if (rxRecs.length === 0) return null;
           return html`
@@ -1412,7 +1410,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           // Render Refer recommendations in the PLAN group.
           if (title !== 'ASSESSMENT & PLAN') return null;
           const referRecs = visibleRecs
-            .map((cmd, i) => ({ command: cmd, index: i }))
+            .map(cmd => ({ command: cmd, index: cmd._origIndex }))
             .filter(e => e.command.command_type === 'refer');
           if (referRecs.length === 0) return null;
           return html`
