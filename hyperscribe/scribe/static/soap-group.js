@@ -1105,6 +1105,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 commandIndex=${entry.index}
                 onEdit=${onEditCommand}
                 readOnly=${readOnly}
+                textareaRows=${2}
               />
             </div>
           `;

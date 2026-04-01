@@ -37,7 +37,7 @@ function DiffToggle({ templateText, currentText }) {
   `;
 }
 
-export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly }) {
+export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly, textareaRows }) {
   const sections = (command.data && command.data.sections) || [];
   const [editing, setEditing] = useState(false);
   const [drafts, setDrafts] = useState(sections.map(s => s.text || ''));
@@ -77,6 +77,7 @@ export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly }) {
             <textarea
               ref=${i === 0 ? firstRef : null}
               class="command-row-textarea"
+              rows=${textareaRows || undefined}
               value=${drafts[i]}
               onInput=${(e) => {
                 const next = [...drafts];
