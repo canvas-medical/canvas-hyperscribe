@@ -997,6 +997,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
         logEvent('APPROVE_ERROR', { error: data.error });
       } else {
+        // Phase 2: Insert metadata if any pending
+        if (data.metadata_pending && data.metadata_pending.length > 0) {
+          try {
+            await fetch(`${API_BASE}/insert-metadata`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pending: data.metadata_pending }),
+            });
+          } catch (metaErr) {
+            console.error('Failed to insert metadata:', metaErr);
+          }
+        }
         const hasPrescriptions = allInsertable.some(c => c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription');
         logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length });
         if (hasPrescriptions) {
@@ -1039,6 +1051,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
       const data = await res.json();
       if (data.error) { setAdding(false); logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index }); return; }
+      // Phase 2: insert metadata if needed (e.g. alert_facility).
+      if (data.metadata_pending && data.metadata_pending.length > 0) {
+        try {
+          await fetch(`${API_BASE}/insert-metadata`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pending: data.metadata_pending }),
+          });
+        } catch (metaErr) { console.error('Add Now metadata failed:', metaErr); }
+      }
       if (isRecommendation) {
         setRecommendations(prev => prev.map((rec, i) =>
           i === index ? { ...rec, already_documented: true, accepted: true, _added_now: true, _adding: false } : rec
