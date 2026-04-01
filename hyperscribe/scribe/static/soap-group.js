@@ -187,8 +187,11 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
     <div class="removal-row${readOnly ? ' read-only' : ''}">
       <span class="removal-action-label">${config.actionLabel}</span>
       <span class="removal-item-name">${itemName}</span>
-      ${type === 'stop_medication' && data.rationale && readOnly && html`
-        <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">${data.rationale}</div>
+      ${type === 'stop_medication' && readOnly && (data.rationale || data.alert_facility) && html`
+        <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">
+          ${data.rationale || ''}
+          ${data.alert_facility && html`<span class="badge badge-alert" style="margin-left: 6px;">Alert Facility</span>`}
+        </div>
       `}
     </div>
     ${type === 'stop_medication' && hasItem && !readOnly && html`
@@ -201,6 +204,14 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
           onInput=${(e) => onEdit(commandIndex, { ...data, rationale: e.target.value })}
           placeholder="Reason for stopping..."
         />
+      </div>
+      <div class="history-form-field" style="margin-top: 8px;">
+        <label class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: !data.alert_facility })}>
+          <div class="toggle-switch${data.alert_facility ? ' on' : ''}">
+            <div class="toggle-knob" />
+          </div>
+          Alert Facility
+        </label>
       </div>
     `}
   `;
