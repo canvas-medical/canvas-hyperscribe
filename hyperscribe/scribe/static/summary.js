@@ -1159,6 +1159,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     ['past_medical_history', { key: 'past_medical_history', title: 'Past Medical History', text: '' }],
     ['past_surgical_history', { key: 'past_surgical_history', title: 'Past Surgical History', text: '' }],
     ['family_history', { key: 'family_history', title: 'Family History', text: '' }],
+    ['lab_results', { key: 'lab_results', title: 'Lab Results', text: '' }],
   ]);
   const effectiveSections = (() => {
     const base = noteData ? noteData.sections : SKELETON_SECTIONS;
