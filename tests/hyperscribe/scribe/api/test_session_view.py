@@ -696,7 +696,7 @@ def test_extract_commands_invalid_json() -> None:
 def test_insert_commands_success(mock_build: MagicMock) -> None:
     mock_effect_1 = MagicMock()
     mock_effect_2 = MagicMock()
-    mock_build.return_value = [mock_effect_1, mock_effect_2]
+    mock_build.return_value = ([mock_effect_1, mock_effect_2], [])
 
     view = _helper_instance()
     commands = [
@@ -709,6 +709,7 @@ def test_insert_commands_success(mock_build: MagicMock) -> None:
     assert result[0].status_code == HTTPStatus.OK
     data = json.loads(result[0].content)
     assert data["inserted"] == 2
+    assert data["metadata_pending"] == []
     assert len(result) == 3  # JSONResponse + 2 effects
     assert result[1] is mock_effect_1
     assert result[2] is mock_effect_2
@@ -716,8 +717,33 @@ def test_insert_commands_success(mock_build: MagicMock) -> None:
 
 
 @patch("hyperscribe.scribe.api.session_view.build_effects")
+def test_insert_commands_with_metadata_pending(mock_build: MagicMock) -> None:
+    mock_effect = MagicMock()
+    pending = [
+        {
+            "command_uuid": "uuid-1",
+            "command_type": "medication_statement",
+            "note_uuid": "note-uuid",
+            "metadata": {"alert_facility": "true"},
+        },
+    ]
+    mock_build.return_value = ([mock_effect], pending)
+
+    view = _helper_instance()
+    commands = [{"command_type": "medication_statement", "data": {"medication_text": "Test", "alert_facility": True}}]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_insert_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["inserted"] == 1
+    assert len(data["metadata_pending"]) == 1
+    assert data["metadata_pending"][0]["command_uuid"] == "uuid-1"
+
+
+@patch("hyperscribe.scribe.api.session_view.build_effects")
 def test_insert_commands_empty(mock_build: MagicMock) -> None:
-    mock_build.return_value = []
+    mock_build.return_value = ([], [])
 
     view = _helper_instance()
     view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": []}))
@@ -726,6 +752,7 @@ def test_insert_commands_empty(mock_build: MagicMock) -> None:
     assert result[0].status_code == HTTPStatus.OK
     data = json.loads(result[0].content)
     assert data["inserted"] == 0
+    assert data["metadata_pending"] == []
     assert len(result) == 1
 
 
@@ -742,6 +769,53 @@ def test_insert_commands_invalid_json() -> None:
     view = _helper_instance()
     view.request = SimpleNamespace(body="not-json")
     result = view.post_insert_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+# --- /insert-metadata ---
+
+
+@patch("hyperscribe.scribe.api.session_view.build_metadata_effects")
+def test_insert_metadata_success(mock_meta: MagicMock) -> None:
+    mock_effect = MagicMock()
+    mock_meta.return_value = [mock_effect]
+
+    view = _helper_instance()
+    pending = [
+        {
+            "command_uuid": "uuid-1",
+            "command_type": "medication_statement",
+            "note_uuid": "note-uuid",
+            "metadata": {"alert_facility": "true"},
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"pending": pending}))
+    result = view.post_insert_metadata()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["ok"] is True
+    assert data["metadata_count"] == 1
+    assert len(result) == 2
+    mock_meta.assert_called_once_with(pending)
+
+
+def test_insert_metadata_empty_pending() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"pending": []}))
+    result = view.post_insert_metadata()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["ok"] is True
+
+
+def test_insert_metadata_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_insert_metadata()
 
     assert result[0].status_code == HTTPStatus.BAD_REQUEST
     assert "Invalid JSON" in json.loads(result[0].content)["error"]

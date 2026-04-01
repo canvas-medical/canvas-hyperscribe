@@ -67,3 +67,18 @@ class CommandParser(ABC):
                     },
                 )
         return effects
+
+    def post_originate_effects(self, command: _BaseCommand, proposal: dict[str, Any] | None = None) -> list[Effect]:
+        """Effects to apply AFTER batch origination (commit, review, etc). No metadata here."""
+        try:
+            return [command.commit()]
+        except Exception:
+            return []
+
+    def pending_metadata(self, command: _BaseCommand, proposal: dict[str, Any] | None = None) -> dict[str, Any] | None:
+        """Return metadata to upsert in phase 2, or None. Override per command type."""
+        return None
+
+    def build_stub(self, command_uuid: str, note_uuid: str) -> _BaseCommand:
+        """Build a minimal command for metadata operations (phase 2)."""
+        raise NotImplementedError

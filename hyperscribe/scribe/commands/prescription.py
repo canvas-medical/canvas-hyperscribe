@@ -65,6 +65,12 @@ class PrescriptionParser(CommandParser):
         """Prescriptions require originate + review (not commit) for provider sign-off."""
         return [command.originate(), command.review()]
 
+    def post_originate_effects(self, command: _BaseCommand, proposal: dict[str, Any] | None = None) -> list[Effect]:
+        return [command.review()]
+
+    def build_stub(self, command_uuid: str, note_uuid: str) -> _BaseCommand:
+        return PrescribeCommand(command_uuid=command_uuid, note_uuid=note_uuid)
+
     @staticmethod
     def _resolve_prescriber(note_uuid: str) -> str | None:
         """Look up the note's provider to use as prescriber."""
