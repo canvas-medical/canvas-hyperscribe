@@ -127,6 +127,7 @@ class Constants:
     SECRET_NOTION_FEEDBACK_DATABASE_ID = "NotionFeedbackDatabaseId"
     SECRET_SCRIBE_BACKEND = "ScribeBackend"  # JSON: {"vendor": "nabla", "region": "us", ...}
     SECRET_SCRIBE_NOTE_TYPES = "ScribeNoteTypes"  # Comma-separated note type names
+    SECRET_ALERT_FACILITY_ENABLED = "AlertFacilityEnabled"
     SECRET_SCRIBE_DEBUG_STAFFERS = "ScribeDebugStaffers"  # Comma-separated staff keys for debug apps
     SECRET_VISIT_TEMPLATES = "VisitTemplates"  # JSON: {"templates": [...]}
     SECRET_NOTION_API_KEY = "NotionAPIKey"
