@@ -8,6 +8,8 @@ from canvas_sdk.templates import render_to_string
 from canvas_sdk.v1.data.note import Note
 from canvas_sdk.v1.data.staff import Staff
 
+from hyperscribe.libraries.helper import Helper
+
 CONTENT_TYPES: dict[str, str] = {
     "js": "text/javascript",
     "css": "text/css",
@@ -37,6 +39,7 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
 
         note = Note.objects.select_related("patient").get(id=note_id)
         patient_name = note.patient.full_name
+        note_editable = Helper.editable_note(note.dbid)
 
         html = render_to_string(
             "scribe/static/index.html",
@@ -50,6 +53,7 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
                 "staff_id": str(staff_id),
                 "staff_name": provider_name,
                 "debug_mode": "true" if self.secrets.get("ScribeDebugStaffers") else "",
+                "note_editable": "true" if note_editable else "",
             },
         )
         return [HTMLResponse(html)]

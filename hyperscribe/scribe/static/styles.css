@@ -1285,3 +1285,12 @@ h2 { margin-bottom: 4px; }
 .audit-expand { font-size: 10px; color: #999; cursor: pointer; }
 .audit-details { width: 100%; margin: 4px 0 0; padding: 8px; font-family: 'SF Mono', Monaco, monospace; font-size: 11px; background: #f5f5f8; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; color: #333; }
 .audit-empty { padding: 24px; text-align: center; color: #999; font-size: 14px; }
+
+/* Signed-note blocking screen */
+.signed-note-block {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 24px; text-align: center; min-height: 300px;
+}
+.signed-note-icon { font-size: 48px; margin-bottom: 16px; }
+.signed-note-title { font-size: 20px; font-weight: 700; color: #111; margin-bottom: 8px; }
+.signed-note-message { font-size: 15px; color: #6b7280; max-width: 480px; line-height: 1.5; }
