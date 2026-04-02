@@ -1473,24 +1473,17 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except Patient.DoesNotExist:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
 
-        pharmacies_setting = patient.preferred_pharmacies or []
+        preferred_pharmacy = patient.preferred_pharmacy
         results = []
-        for pharm in pharmacies_setting:
-            ncpdp_id = pharm.get("ncpdp_id", "")
-            if not ncpdp_id:
-                continue
-            entry = {"ncpdp_id": ncpdp_id, "name": ncpdp_id, "address": "", "preferred": True}
-            try:
-                details = pharmacy_http.get_pharmacy_by_ncpdp_id(ncpdp_id)
-                if details:
-                    formatted = _format_pharmacy(details)
-                    if formatted["name"]:
-                        entry["name"] = formatted["name"]
-                    if formatted["address"]:
-                        entry["address"] = formatted["address"]
-            except Exception:
-                pass
-            results.append(entry)
+        if preferred_pharmacy:
+            ncpdp_id = preferred_pharmacy.get("pharmacy_ncpdp_id", "")
+            if ncpdp_id:
+                results.append({
+                    "ncpdp_id": ncpdp_id,
+                    "name": preferred_pharmacy.get("pharmacy_name", "") or ncpdp_id,
+                    "address": preferred_pharmacy.get("pharmacy_address", ""),
+                    "preferred": True,
+                })
 
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
 
