@@ -217,10 +217,9 @@ class NablaBackend(ScribeBackend):
 
         hpi_custom_instructions = (
             f"Begin this section with a single opening sentence in this exact format: {opening}\n"
-            "Write in complete sentences using the patient's name or appropriate pronouns as the subject. "
+            "Write in complete sentences with clear subjects. "
             "Do not use sentence fragments or omit the subject of a sentence. "
-            "Use formal medical terminology and a professional clinical narrative tone throughout. "
-            "Provide a thorough and comprehensive narrative.\n"
+            "Use formal medical terminology and a professional clinical narrative tone throughout.\n"
             "Include ROS at the end of this section and add positive and negative symptoms as mentioned.\n"
             "ROS\n"
             "General:\n"
@@ -250,31 +249,22 @@ class NablaBackend(ScribeBackend):
                 {
                     "section_key": "HISTORY_OF_PRESENT_ILLNESS",
                     "style": "PARAGRAPH",
-                    "level_of_detail": "DETAILED",
+                    "level_of_detail": "DEFAULT",
                     "custom_instruction": hpi_custom_instructions,
                 },
             ],
         }
-        # NOTE: structured_context with patient_demographics is supported by the
-        # Nabla API (see nabla-integration-improvements.md) and the frontend now
-        # sends patient_context. However, testing showed that when structured_context
-        # is included in the payload, Nabla produces significantly shorter and less
-        # detailed HPI output — omitting relevant medical history, medications, and
-        # social context that it otherwise extracts from the transcript. Until this
-        # is resolved (possibly via Nabla API version or additional parameters),
-        # demographics are baked into the custom_instruction above instead.
-        #
-        # if patient_context is not None:
-        #     structured_context: dict[str, Any] = {
-        #         "patient_demographics": {
-        #             "name": patient_context.name,
-        #         },
-        #     }
-        #     if patient_context.birth_date:
-        #         structured_context["patient_demographics"]["birth_date"] = patient_context.birth_date
-        #     if patient_context.gender:
-        #         structured_context["patient_demographics"]["gender"] = _GENDER_API_MAP.get(
-        #             patient_context.gender, patient_context.gender.upper()
-        #         )
-        #     payload["structured_context"] = structured_context
+        if patient_context is not None:
+            structured_context: dict[str, Any] = {
+                "patient_demographics": {
+                    "name": patient_context.name,
+                },
+            }
+            if patient_context.birth_date:
+                structured_context["patient_demographics"]["birth_date"] = patient_context.birth_date
+            if patient_context.gender:
+                structured_context["patient_demographics"]["gender"] = NablaBackend._GENDER_API_MAP.get(
+                    patient_context.gender, patient_context.gender.upper()
+                )
+            payload["structured_context"] = structured_context
         return payload

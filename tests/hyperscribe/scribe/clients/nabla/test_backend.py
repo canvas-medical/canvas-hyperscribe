@@ -89,9 +89,10 @@ def test_generate_note_with_patient_context() -> None:
     backend.generate_note(Transcript(), patient_context=ctx)
 
     payload = mock_rest_client.generate_note.call_args.args[0]
-    # structured_context is intentionally not sent (see comment in _build_note_payload).
-    # Demographics are baked into the custom_instruction instead.
-    assert "structured_context" not in payload
+    demographics = payload["structured_context"]["patient_demographics"]
+    assert demographics["name"] == "Jane Doe"
+    assert demographics["birth_date"] == "1990-05-15"
+    assert demographics["gender"] == "FEMALE"
     assert "Jane Doe" in payload["note_sections_customization"][1]["custom_instruction"]
 
 
