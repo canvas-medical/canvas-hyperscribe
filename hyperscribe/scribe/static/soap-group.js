@@ -117,7 +117,7 @@ function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeC
 
 const REMOVAL_TYPES = new Set(['stop_medication', 'remove_allergy', 'resolve_condition']);
 
-function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId }) {
+function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, alertFacilityEnabled }) {
   const data = command.data || {};
   const type = command.command_type;
   const hasItem = !!(data.medication_id || data.allergy_id || data.condition_id);
@@ -190,7 +190,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
       ${type === 'stop_medication' && readOnly && (data.rationale || data.alert_facility) && html`
         <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">
           ${data.rationale || ''}
-          ${data.alert_facility && html`<span class="badge badge-alert" style="margin-left: 6px;">Alert Facility</span>`}
+          ${alertFacilityEnabled && data.alert_facility && html`<span class="badge badge-alert" style="margin-left: 6px;">Alert Facility</span>`}
         </div>
       `}
     </div>
@@ -205,6 +205,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
           placeholder="Reason for stopping..."
         />
       </div>
+      ${alertFacilityEnabled && html`
       <div class="history-form-field" style="margin-top: 8px;">
         <label class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: !data.alert_facility })}>
           <div class="toggle-switch${data.alert_facility ? ' on' : ''}">
@@ -213,6 +214,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
           Alert Facility
         </label>
       </div>
+      `}
     `}
   `;
 }
@@ -553,7 +555,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   // In approved (readOnly) mode, only show items that actually made it into the note.
@@ -714,6 +716,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${readOnly}
                           patientId=${patientId}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                         />
                       </div>
                       ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(re.index)} title="Remove">${ICON_X}</button></div>`}
@@ -832,6 +835,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                           readOnly=${readOnly || entry.command.already_documented}
                         />
                       </div>
@@ -854,6 +858,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                           readOnly=${readOnly || entry.command.already_documented}
                         />
                       </div>
@@ -879,6 +884,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditRecommendation}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                           readOnly=${readOnly || entry.command.already_documented || isRejected}
                         />
                       </div>
@@ -1014,6 +1020,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${readOnly}
                           patientId=${patientId}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                         />
                       </div>
                       ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1076,6 +1083,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${readOnly}
                           patientId=${patientId}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                         />
                       </div>
                       ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}

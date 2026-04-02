@@ -24,7 +24,7 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
+export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityEnabled }) {
   const [editing, setEditing] = useState(!command.display);
   const [query, setQuery] = useState(command.data.medication_text || '');
   const [results, setResults] = useState([]);
@@ -194,6 +194,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
               placeholder="e.g. Take 1 tablet daily"
             />
           </div>
+          ${alertFacilityEnabled && html`
           <div class="history-form-field">
             <label class="alert-facility-toggle" onClick=${() => setAlertFacility(prev => !prev)}>
               <div class="toggle-switch${alertFacility ? ' on' : ''}">
@@ -202,6 +203,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
               Alert Facility
             </label>
           </div>
+          `}
           <div class="questionnaire-form-actions">
             <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
             <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
@@ -218,7 +220,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
       <div class="order-view">
         <div class="order-view-name">${command.display}</div>
         ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
-        ${command.data.alert_facility && html`<span class="badge badge-alert">Alert Facility</span>`}
+        ${alertFacilityEnabled && command.data.alert_facility && html`<span class="badge badge-alert">Alert Facility</span>`}
       </div>
     </div>
   `;
