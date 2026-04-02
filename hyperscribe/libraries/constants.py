@@ -132,6 +132,7 @@ class Constants:
     SECRET_VISIT_TEMPLATES = "VisitTemplates"  # JSON: {"templates": [...]}
     SECRET_NOTION_API_KEY = "NotionAPIKey"
     SECRET_MODALITY = "Modality"
+    SECRET_SCRIBE_TAB_NAME = "ScribeTabName"
     MODALITY_SCRIBE = "scribe"
     # PILOT: remove SECRET_SCRIBE_PILOT_STAFFERS when scribe pilot ends
     SECRET_SCRIBE_PILOT_STAFFERS = "ScribePilotStaffers"
