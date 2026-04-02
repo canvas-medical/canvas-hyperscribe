@@ -129,6 +129,8 @@ export function useRecording(noteId) {
     }
   }, []);
 
+  const [lastSaved, setLastSaved] = useState(null);
+
   const saveTranscriptToCache = useCallback(async () => {
     if (!noteId || entriesRef.current.length === 0) return;
     try {
@@ -140,6 +142,7 @@ export function useRecording(noteId) {
           transcript: { items: entriesRef.current },
         }),
       });
+      setLastSaved(Date.now());
     } catch (err) {
       console.error('Failed to save transcript to cache:', err);
     }
@@ -220,9 +223,23 @@ export function useRecording(noteId) {
     return () => { cancelled = true; };
   }, [noteId]);
 
-  // Cleanup on unmount.
+  // Auto-save transcript every 10s while recording to prevent data loss.
+  useEffect(() => {
+    if (status !== 'recording') return;
+    const interval = setInterval(() => { saveTranscriptToCache(); }, 10000);
+    return () => clearInterval(interval);
+  }, [status, saveTranscriptToCache]);
+
+  // Cleanup on unmount — save transcript via sendBeacon before destroying resources.
   useEffect(() => {
     return () => {
+      if (noteId && entriesRef.current.length > 0) {
+        const payload = new Blob(
+          [JSON.stringify({ note_id: noteId, transcript: { items: entriesRef.current } })],
+          { type: 'application/json' },
+        );
+        navigator.sendBeacon(`${API_BASE}/save-transcript`, payload);
+      }
       cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
       if (clientRef.current) {
         clientRef.current.end();
@@ -232,7 +249,7 @@ export function useRecording(noteId) {
   }, []);
 
   return {
-    status, entries, error, finalized,
+    status, entries, error, finalized, lastSaved,
     startRecording, pauseRecording, resumeRecording, finishRecording,
   };
 }

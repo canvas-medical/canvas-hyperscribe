@@ -1212,6 +1212,15 @@ h2 { margin-bottom: 4px; }
   font-weight: 500;
   color: #666;
 }
+.transcript-panel { position: relative; }
+.transcript-saved-toast {
+  position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 10;
+  padding: 2px 8px; font-size: 10px; font-weight: 500; color: #16a34a;
+  animation: toast-fade 2s ease-in-out forwards; pointer-events: none;
+}
+@keyframes toast-fade {
+  0% { opacity: 0; } 10% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; }
+}
 .transcript-panel-body {
   max-height: 300px;
   overflow-y: auto;
