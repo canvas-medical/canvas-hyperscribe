@@ -15,8 +15,19 @@ def test_class() -> None:
 
 
 def test_constants() -> None:
-    assert ScribeApp.NAME == "Scribe"
     assert ScribeApp.IDENTIFIER == "hyperscribe__scribe"
+
+
+def test_name_defaults_to_scribe() -> None:
+    app = MagicMock(spec=ScribeApp)
+    app.secrets = {}
+    assert ScribeApp.NAME.fget(app) == "Scribe"
+
+
+def test_name_from_secret() -> None:
+    app = MagicMock(spec=ScribeApp)
+    app.secrets = {"ScribeTabName": "Note"}
+    assert ScribeApp.NAME.fget(app) == "Note"
 
 
 @patch(
