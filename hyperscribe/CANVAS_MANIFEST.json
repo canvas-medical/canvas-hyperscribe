@@ -221,6 +221,7 @@
     "views": []
   },
   "secrets": [
+    "AlertFacilityEnabled",
     "AnthropicAPIKey",
     "APISigningKey",
     "AudioHost",

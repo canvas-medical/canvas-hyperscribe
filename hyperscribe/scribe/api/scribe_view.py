@@ -54,6 +54,7 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
                 "staff_name": provider_name,
                 "debug_mode": "true" if self.secrets.get("ScribeDebugStaffers") else "",
                 "note_editable": "true" if note_editable else "",
+                "alert_facility_enabled": "true" if self.secrets.get("AlertFacilityEnabled") else "",
             },
         )
         return [HTMLResponse(html)]
