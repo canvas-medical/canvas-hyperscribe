@@ -6,7 +6,7 @@ import { Audit } from '/plugin-io/api/hyperscribe/scribe/static/audit.js';
 
 const html = htm.bind(h);
 
-export function App({ noteId, view, providerName, providerPhotoUrl, patientName, patientId, staffId, staffName, debugMode, noteEditable, alertFacilityEnabled }) {
+export function App({ noteId, view, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, patientId, staffId, staffName, debugMode, noteEditable, alertFacilityEnabled }) {
   if (view === 'audit') {
     return html`<${Audit} noteId=${noteId} />`;
   }
@@ -24,6 +24,8 @@ export function App({ noteId, view, providerName, providerPhotoUrl, patientName,
       providerName=${providerName}
       providerPhotoUrl=${providerPhotoUrl}
       patientName=${patientName}
+      patientBirthDate=${patientBirthDate}
+      patientGender=${patientGender}
       debugMode=${debugMode}
       noteEditable=${noteEditable}
       alertFacilityEnabled=${alertFacilityEnabled}
