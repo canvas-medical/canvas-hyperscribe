@@ -4,6 +4,7 @@ import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
 import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
+import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
 
 const html = htm.bind(h);
 
@@ -159,7 +160,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, debugMode }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, debugMode, noteEditable = true }) {
   const [noteData, setNoteData] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -167,6 +168,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [inserting, setInserting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [approved, setApproved] = useState(false);
+  const [isNoteEditable, setNoteEditable] = useState(noteEditable);
   const [hideRejected, setHideRejected] = useState(true);
   const [assignees, setAssignees] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
@@ -189,6 +191,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   // Audit logging.
   useEffect(() => { initAuditLog(noteId); }, [noteId]);
+
+  // WebSocket: listen for note state changes in real time.
+  useEffect(() => {
+    if (!noteId) return;
+    const cleanup = connectScribeWS(noteId, (msg) => {
+      if (msg.type === 'NOTE_STATE_CHANGED') {
+        setNoteEditable(msg.editable);
+      }
+    });
+    return cleanup;
+  }, [noteId]);
+
+  const noteLocked = !isNoteEditable && !approved;
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved, extras = {}) => {
     try {
@@ -1169,6 +1184,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   })();
   const isRecording = recording.status === 'recording' || recording.status === 'paused';
   const showTopControls = !approved && !noteData && !isRecording && !recording.finalized && !generating && mode === null;
+
+  if (noteLocked) {
+    return html`
+      <div class="summary-container">
+        <div class="signed-note-block">
+          <div class="signed-note-icon">${'\uD83D\uDD12'}</div>
+          <h2 class="signed-note-title">Note Locked</h2>
+          <p class="signed-note-message">
+            This note is no longer editable. To make changes, please amend the note first.
+          </p>
+        </div>
+      </div>
+    `;
+  }
 
   return html`
     <div class="summary-container">

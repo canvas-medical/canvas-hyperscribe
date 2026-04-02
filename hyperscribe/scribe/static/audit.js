@@ -2,6 +2,8 @@ import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect, useRef } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 
+import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
+
 const html = htm.bind(h);
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
@@ -39,8 +41,17 @@ export function Audit({ noteId }) {
       } catch (err) { console.error('Failed to load audit log:', err); }
     }
     load();
-    const interval = setInterval(load, 5000);
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => { cancelled = true; };
+  }, [noteId]);
+
+  useEffect(() => {
+    if (!noteId) return;
+    const cleanup = connectScribeWS(noteId, (msg) => {
+      if (msg.type === 'AUDIT_EVENTS') {
+        setEvents(prev => [...prev, ...(msg.events || [])]);
+      }
+    });
+    return cleanup;
   }, [noteId]);
 
   useEffect(() => {
