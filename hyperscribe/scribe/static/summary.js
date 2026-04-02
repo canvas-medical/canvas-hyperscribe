@@ -416,7 +416,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [recording.finalized, mode, noteData, generating, handleGenerate]);
 
   // Warn before navigating away during recording or insertion.
-  const activeRecording = recording.status === 'recording' || recording.status === 'paused';
+  const activeRecording = recording.status === 'recording';
   useEffect(() => {
     if (!inserting && !activeRecording) return;
     const handler = (e) => { e.preventDefault(); };
@@ -527,13 +527,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       { command_type: 'vitals', display: '', data: {}, selected: true, section_key: 'vitals', already_documented: false },
       { command_type: 'plan', display: '', data: { narrative: '' }, selected: true, section_key: 'assessment_and_plan', already_documented: false },
     ];
+    // Add PE from template if available.
+    if (selectedTemplate?.pe_sections?.length > 0) {
+      const peSections = selectedTemplate.pe_sections.map(s => ({ key: s.key, title: s.title, text: s.text, updated: false, template_text: s.text }));
+      const peDisplay = peSections.map(s => s.title).join(' | ');
+      manualCommands.push({ command_type: 'physical_exam', display: peDisplay, data: { sections: peSections }, selected: true, section_key: 'physical_exam', already_documented: false });
+    }
     setCommands(prev => {
       // Keep any existing ad-hoc commands and template-inserted commands (ROS, PE, questionnaires).
       const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
       const existing = prev.filter(c => adHocKeys.has(c.section_key) || c._template_inserted);
       return [...manualCommands, ...existing];
     });
-  }, []);
+  }, [selectedTemplate]);
 
 
   // Compute unmatched conditions when loading from old cache format (no unmatched_conditions key).
@@ -1185,6 +1191,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     ['past_surgical_history', { key: 'past_surgical_history', title: 'Past Surgical History', text: '' }],
     ['family_history', { key: 'family_history', title: 'Family History', text: '' }],
     ['lab_results', { key: 'lab_results', title: 'Lab Results', text: '' }],
+    ['physical_exam', { key: 'physical_exam', title: 'Physical Exam', text: '' }],
   ]);
   const effectiveSections = (() => {
     const base = noteData ? noteData.sections : SKELETON_SECTIONS;
