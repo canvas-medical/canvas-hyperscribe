@@ -63,9 +63,12 @@ def is_debug_visible(secrets: dict[str, str], event: Event) -> bool:
 class ScribeApp(NoteApplication):
     """Note application for Canvas Scribe with recording and transcript."""
 
-    NAME = "Scribe"
     IDENTIFIER = "hyperscribe__scribe"
     PRIORITY = 0
+
+    @property
+    def NAME(self) -> str:
+        return self.secrets.get(Constants.SECRET_SCRIBE_TAB_NAME) or "Scribe"
 
     def open_by_default(self) -> bool:
         """Return True when no transcript has been saved yet or it hasn't been finalized."""
@@ -83,6 +86,6 @@ class ScribeApp(NoteApplication):
             LaunchModalEffect(
                 url=url,
                 target=LaunchModalEffect.TargetType.NOTE,
-                title="Scribe",
+                title=self.NAME,
             ).apply()
         ]

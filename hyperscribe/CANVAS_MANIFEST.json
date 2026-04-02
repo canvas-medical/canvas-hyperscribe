@@ -251,6 +251,7 @@
     "ScribeDebugStaffers",
     "ScribeNoteTypes",
     "ScribePilotStaffers",
+    "ScribeTabName",
     "StaffersList",
     "StaffersPolicy",
     "StructuredReasonForVisit",
