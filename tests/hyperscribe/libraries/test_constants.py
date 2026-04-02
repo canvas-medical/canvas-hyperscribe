@@ -140,6 +140,7 @@ def test_constants():
         "SECRET_NOTION_API_KEY": "NotionAPIKey",
         "SECRET_MODALITY": "Modality",
         "SECRET_SCRIBE_PILOT_STAFFERS": "ScribePilotStaffers",
+        "SECRET_SCRIBE_TAB_NAME": "ScribeTabName",
         "SECRET_TRIAL_STAFFERS_LIST": "TrialStaffersList",
         "MODALITY_SCRIBE": "scribe",
         #
