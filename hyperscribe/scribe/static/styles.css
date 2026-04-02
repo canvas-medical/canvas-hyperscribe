@@ -118,6 +118,12 @@ h2 { margin-bottom: 4px; }
 .finish-btn:hover {
   background: #4a48c4;
 }
+.finish-btn.confirming {
+  background: #b91c1c;
+}
+.finish-btn.confirming:hover {
+  background: #991b1b;
+}
 
 /* Recording banner */
 .recording-banner {
