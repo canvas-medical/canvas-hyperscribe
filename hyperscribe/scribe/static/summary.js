@@ -190,6 +190,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // Recording hook.
   const recording = useRecording(noteId);
 
+  const [showSavedToast, setShowSavedToast] = useState(false);
+  useEffect(() => {
+    if (!recording.lastSaved) return;
+    setShowSavedToast(true);
+    const timer = setTimeout(() => setShowSavedToast(false), 2000);
+    return () => clearTimeout(timer);
+  }, [recording.lastSaved]);
+
   // Audit logging.
   useEffect(() => { initAuditLog(noteId); }, [noteId]);
 
@@ -407,13 +415,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     prevFinalizedRef.current = recording.finalized;
   }, [recording.finalized, mode, noteData, generating, handleGenerate]);
 
-  // Warn before navigating away during insertion.
+  // Warn before navigating away during recording or insertion.
+  const activeRecording = recording.status === 'recording' || recording.status === 'paused';
   useEffect(() => {
-    if (!inserting) return;
+    if (!inserting && !activeRecording) return;
     const handler = (e) => { e.preventDefault(); };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [inserting]);
+  }, [inserting, activeRecording]);
 
   // Set mode to 'ai' if we load a finalized transcript from cache (returning to a previous session).
   useEffect(() => {
@@ -1270,6 +1279,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </div>
             <span class="transcript-panel-toggle">${transcriptCollapsed ? 'Show' : 'Hide'}</span>
           </button>
+          ${showSavedToast && html`<div class="transcript-saved-toast">Transcript saved</div>`}
           ${!transcriptCollapsed && html`
             <div class="transcript-panel-body">
               ${recording.entries.length > 0
