@@ -5,6 +5,7 @@ import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hypersc
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
 import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
+import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/finish-button.js';
 
 const html = htm.bind(h);
 
@@ -1256,12 +1257,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                     </svg>
                     Resume
                   </button>`}
-              <button class="finish-btn" onClick=${recording.finishRecording}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Finish
-              </button>
+              <${FinishRecordingButton} onFinish=${recording.finishRecording} />
             </div>
           `}
           ${recording.status === 'finishing' && html`
