@@ -163,6 +163,15 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.scribe.handlers.note_state:NoteStateHandler",
+        "description": "Triggers WebSocket broadcast on note state changes",
+        "data_access": {
+          "event": "NOTE_STATE_CHANGE_EVENT_CREATED",
+          "read": [],
+          "write": []
+        }
       }
     ],
     "applications": [

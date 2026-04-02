@@ -9,7 +9,7 @@ from logger import log
 
 from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
-from canvas_sdk.effects.simple_api import JSONResponse, Response
+from canvas_sdk.effects.simple_api import Broadcast, JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 
 from django.db.models import Q
@@ -1654,7 +1654,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not created:
             obj.events = list(obj.events) + new_events
             obj.save()
-        return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK)]
+        broadcast = Broadcast(
+            channel=f"scribe-{note_id}",
+            message={"type": "AUDIT_EVENTS", "note_id": note_id, "events": new_events},
+        )
+        return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK), broadcast.apply()]
 
     @api.get("/audit-log")
     def get_audit_log(self) -> list[Union[Response, Effect]]:
