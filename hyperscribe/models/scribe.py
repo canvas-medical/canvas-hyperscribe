@@ -1,6 +1,6 @@
 from typing import Any
 
-from django.db.models import DO_NOTHING, BooleanField, DateTimeField, JSONField, OneToOneField, TextField
+from django.db.models import DO_NOTHING, BooleanField, CharField, DateTimeField, JSONField, OneToOneField, TextField
 
 from canvas_sdk.v1.data.base import CustomModel
 
@@ -19,6 +19,7 @@ class ScribeTranscript(CustomModel):
     )
     items: Any = JSONField(default=list)
     finalized: Any = BooleanField(default=False)
+    provider_id: Any = CharField(max_length=32, default="", blank=True)
     updated_at: Any = DateTimeField(auto_now=True)
 
 

@@ -118,6 +118,7 @@ function ModelSection({ title, modelType, data, onDelete, onSave, fields, readOn
 const TRANSCRIPT_FIELDS = [
   { key: 'items', name: 'items', type: 'json' },
   { key: 'finalized', name: 'finalized', type: 'bool' },
+  { key: 'provider_id', name: 'provider_id', type: 'text' },
   { key: 'updated_at', name: 'updated_at', type: 'text' },
 ];
 

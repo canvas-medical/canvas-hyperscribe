@@ -133,11 +133,20 @@ def _match_conditions_to_sections(
     return result
 
 
-def _save_transcript(note_id: str, items: list[dict[str, Any]], *, finalized: bool = False) -> None:
+def _save_transcript(
+    note_id: str,
+    items: list[dict[str, Any]],
+    *,
+    finalized: bool = False,
+    provider_id: str = "",
+) -> None:
     note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
+    defaults: dict[str, Any] = {"items": items, "finalized": finalized}
+    if provider_id:
+        defaults["provider_id"] = provider_id
     ScribeTranscript.objects.update_or_create(
         note_id=note_dbid,
-        defaults={"items": items, "finalized": finalized},
+        defaults=defaults,
     )
 
 
@@ -263,6 +272,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             .values(
                 "items",
                 "finalized",
+                "provider_id",
                 "updated_at",
             )
             .first()
@@ -394,7 +404,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         items = data.get("transcript", {}).get("items", [])
         finalized = bool(data.get("finalized", False))
-        _save_transcript(note_id, items, finalized=finalized)
+        staff_id = self.request.headers.get("canvas-logged-in-user-id") or ""
+        _save_transcript(note_id, items, finalized=finalized, provider_id=staff_id)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
     @api.get("/summary")
