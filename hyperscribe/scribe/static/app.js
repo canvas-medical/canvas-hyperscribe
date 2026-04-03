@@ -29,6 +29,7 @@ export function App({ noteId, view, providerName, providerPhotoUrl, patientName,
       debugMode=${debugMode}
       noteEditable=${noteEditable}
       alertFacilityEnabled=${alertFacilityEnabled}
+      initialData=${initialData}
     />`;
   }
 
