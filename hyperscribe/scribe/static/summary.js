@@ -162,7 +162,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, debugMode, noteEditable = true, alertFacilityEnabled = false }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, alertFacilityEnabled = false }) {
   const [noteData, setNoteData] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -320,6 +320,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           patient_id: patientId,
           template_ros_sections: selectedTemplate?.ros_sections || null,
           template_pe_sections: selectedTemplate?.pe_sections || null,
+          patient_context: {
+            name: patientName || '',
+            birth_date: patientBirthDate || '',
+            gender: patientGender || '',
+          },
         }),
       });
       const data = await res.json();

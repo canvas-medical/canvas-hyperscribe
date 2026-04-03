@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from hyperscribe.scribe.backend import (
@@ -182,14 +183,44 @@ class NablaBackend(ScribeBackend):
         return NormalizedData(conditions=conditions, observations=observations)
 
     @staticmethod
+    def _age_from_birth_date(birth_date: str) -> int | None:
+        """Calculate age in years from a YYYY-MM-DD birth date string."""
+        try:
+            dob = date.fromisoformat(birth_date)
+        except (ValueError, TypeError):
+            return None
+        today = date.today()
+        return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+    @staticmethod
+    def _display_gender(gender: str) -> str | None:
+        """Map a gender value to a lowercase display string for the HPI opening line."""
+        gender_display = {"M": "male", "F": "female", "MALE": "male", "FEMALE": "female"}
+        return gender_display.get(gender) or gender.lower() or None
+
+    _GENDER_API_MAP: dict[str, str] = {"M": "MALE", "F": "FEMALE", "male": "MALE", "female": "FEMALE"}
+
+    @staticmethod
     def _build_note_payload(
         transcript: Transcript,
         patient_context: PatientContext | None,
     ) -> dict[str, Any]:
-        demographics = "Start this section with patient's name, age, gender, and [reason for visit as mentioned].\n"
+        # Build the HPI opening line with concrete demographics when available.
+        if patient_context is not None:
+            name = patient_context.name or "[PATIENT_NAME]"
+            age = NablaBackend._age_from_birth_date(patient_context.birth_date)
+            age_str = str(age) if age is not None else "[AGE]"
+            gender_str = NablaBackend._display_gender(patient_context.gender) or "[GENDER]"
+            opening = f"'{name} is a {age_str}-year-old {gender_str} who presents today for [CHIEF COMPLAINT].'"
+        else:
+            opening = "'[PATIENT_NAME] is a [AGE]-year-old [GENDER] who presents today for [CHIEF COMPLAINT].'"
+
         hpi_custom_instructions = (
-            demographics
-            + "Include ROS at the end of this section and add positive and negative symptoms as mentioned.\n"
+            f"Begin this section with a single opening sentence in this exact format: {opening}\n"
+            "Write in complete sentences with clear subjects. "
+            "Do not use sentence fragments or omit the subject of a sentence. "
+            "Use formal medical terminology and a professional clinical narrative tone throughout.\n"
+            "Include ROS at the end of this section and add positive and negative symptoms as mentioned.\n"
             "ROS\n"
             "General:\n"
             "Skin:\n"
@@ -218,18 +249,22 @@ class NablaBackend(ScribeBackend):
                 {
                     "section_key": "HISTORY_OF_PRESENT_ILLNESS",
                     "style": "PARAGRAPH",
+                    "level_of_detail": "DEFAULT",
                     "custom_instruction": hpi_custom_instructions,
                 },
             ],
         }
         if patient_context is not None:
-            payload["patient_context"] = {
-                "name": patient_context.name,
-                "birth_date": patient_context.birth_date,
-                "gender": patient_context.gender,
-                "encounter_diagnoses": [
-                    {"system": c.system, "code": c.code, "display": c.display}
-                    for c in patient_context.encounter_diagnoses
-                ],
+            structured_context: dict[str, Any] = {
+                "patient_demographics": {
+                    "name": patient_context.name,
+                },
             }
+            if patient_context.birth_date:
+                structured_context["patient_demographics"]["birth_date"] = patient_context.birth_date
+            if patient_context.gender:
+                structured_context["patient_demographics"]["gender"] = NablaBackend._GENDER_API_MAP.get(
+                    patient_context.gender, patient_context.gender.upper()
+                )
+            payload["structured_context"] = structured_context
         return payload
