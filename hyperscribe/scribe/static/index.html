@@ -18,10 +18,7 @@
       function sendResize() {
         if (!messagePort) return;
         var appEl = document.getElementById('app');
-        var w = appEl.scrollWidth;
-        var h = appEl.scrollHeight;
-        console.log('[scribe] sendResize', w, 'x', h, new Error().stack.split('\n')[1].trim());
-        messagePort.postMessage({ type: 'RESIZE', width: w, height: h });
+        messagePort.postMessage({ type: 'RESIZE', width: appEl.scrollWidth, height: appEl.scrollHeight });
       }
 
       window.addEventListener('message', function(event) {
@@ -52,12 +49,6 @@
     import { App } from '/plugin-io/api/hyperscribe/scribe/static/app.js';
     const initialDataEl = document.getElementById('scribe-initial-data');
     const initialData = initialDataEl ? JSON.parse(initialDataEl.textContent) : null;
-    console.log('[scribe] initialData loaded', {
-      hasTranscript: !!(initialData?.transcript?.items?.length),
-      hasSummary: !!(initialData?.summary),
-      assignees: initialData?.assignees?.length ?? 0,
-      templates: initialData?.templates?.length ?? 0,
-    });
     const config = {
       noteId: '{{ note_id }}',
       view: '{{ view }}',
