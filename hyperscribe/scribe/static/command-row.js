@@ -23,7 +23,7 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly }
 
   useEffect(() => {
     if (editing && textareaRef.current) {
-      textareaRef.current.focus();
+      textareaRef.current.focus({ preventScroll: true });
     }
   }, [editing]);
 

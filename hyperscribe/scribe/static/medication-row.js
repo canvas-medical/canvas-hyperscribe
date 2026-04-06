@@ -43,7 +43,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
 
   useEffect(() => {
     if (editing && inputRef.current) {
-      inputRef.current.focus();
+      inputRef.current.focus({ preventScroll: true });
     }
   }, [editing]);
 

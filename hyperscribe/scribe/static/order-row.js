@@ -626,7 +626,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
 
   useEffect(() => {
     if (editing && activeTab === 'prescribe' && medInputRef.current) {
-      medInputRef.current.focus();
+      medInputRef.current.focus({ preventScroll: true });
     }
   }, [editing, activeTab]);
 
@@ -679,7 +679,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setSelectedTests([...selectedTests, test]);
     setLabTestQuery('');
     setLabTestResults([]);
-    if (labTestInputRef.current) labTestInputRef.current.focus();
+    if (labTestInputRef.current) labTestInputRef.current.focus({ preventScroll: true });
   };
 
   const handleLabTestRemove = (orderCode) => {
@@ -728,7 +728,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setDiagQuery('');
     setDiagResults([]);
     setDiagSearched(false);
-    if (diagInputRef.current) diagInputRef.current.focus();
+    if (diagInputRef.current) diagInputRef.current.focus({ preventScroll: true });
   };
 
   const handleDiagRemove = (code) => {
@@ -807,7 +807,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setImagingDiagQuery('');
     setImagingDiagResults([]);
     setImagingDiagSearched(false);
-    if (imagingDiagInputRef.current) imagingDiagInputRef.current.focus();
+    if (imagingDiagInputRef.current) imagingDiagInputRef.current.focus({ preventScroll: true });
   };
 
   const handleImagingDiagRemove = (code) => {
@@ -960,7 +960,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setReferDiagQuery('');
     setReferDiagResults([]);
     setReferDiagSearched(false);
-    if (referDiagInputRef.current) referDiagInputRef.current.focus();
+    if (referDiagInputRef.current) referDiagInputRef.current.focus({ preventScroll: true });
   };
 
   const handleReferDiagRemove = (code) => {

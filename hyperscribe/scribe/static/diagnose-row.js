@@ -41,13 +41,13 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
 
   useEffect(() => {
     if (editingCode && inputRef.current) {
-      inputRef.current.focus();
+      inputRef.current.focus({ preventScroll: true });
     }
   }, [editingCode]);
 
   useEffect(() => {
     if (editingText && textareaRef.current) {
-      textareaRef.current.focus();
+      textareaRef.current.focus({ preventScroll: true });
     }
   }, [editingText]);
 
