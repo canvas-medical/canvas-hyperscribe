@@ -581,7 +581,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       const updated = prev.map((cmd, i) => {
         if (i !== index) return cmd;
         const type = newType || cmd.command_type;
-        if (type === 'history_review' || type === 'chart_review' || type === 'ros') {
+        if (type === 'history_review' || type === 'chart_review' || type === 'ros' || type === 'physical_exam') {
           const display = (newData.sections || []).map(s => s.title).join(' | ');
           return { ...cmd, data: newData, display };
         }
@@ -975,8 +975,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setApproved(true);
     saveSummaryToCache(noteData, commands, true, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
 
+    const SECTION_TYPES = new Set(['physical_exam', 'ros', 'chart_review', 'history_review']);
     const insertable = commands.filter(c => {
-      if (c.already_documented || !c.display) return false;
+      if (c.already_documented) return false;
+      if (!c.display && !(SECTION_TYPES.has(c.command_type) && c.data?.sections?.length > 0)) return false;
       if (c.command_type === 'imaging_order' && (!c.data.image_code || !c.data.service_provider)) return false;
       if (c.command_type === 'prescribe' && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
       if ((c.command_type === 'refill' || c.command_type === 'adjust_prescription') && !c.data.fdb_code) return false;
