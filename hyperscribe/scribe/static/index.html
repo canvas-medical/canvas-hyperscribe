@@ -8,19 +8,17 @@
 </head>
 <body>
   <div id="app"></div>
+  <script id="scribe-initial-data" type="application/json">{{ initial_data | safe }}</script>
   <script>
     // Capture the message port early, before module scripts load.
     (function() {
       var messagePort = null;
+      var resizeTimer = null;
 
       function sendResize() {
         if (!messagePort) return;
         var appEl = document.getElementById('app');
-        messagePort.postMessage({
-          type: 'RESIZE',
-          width: appEl.scrollWidth,
-          height: appEl.scrollHeight,
-        });
+        messagePort.postMessage({ type: 'RESIZE', width: appEl.scrollWidth, height: appEl.scrollHeight });
       }
 
       window.addEventListener('message', function(event) {
@@ -31,20 +29,26 @@
           if (view !== 'audit') {
               sendResize();
           }
-
         }
       });
 
       // Expose for components that need to send messages (e.g. CLOSE_MODAL).
       window.__canvasPort = function() { return messagePort; };
 
-      var observer = new ResizeObserver(sendResize);
+      function sendResizeDebounced() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(sendResize, 100);
+      }
+
+      var observer = new ResizeObserver(sendResizeDebounced);
       observer.observe(document.getElementById('app'));
     })();
   </script>
   <script type="module">
     import { h, render } from 'https://esm.sh/preact@10.25.4';
     import { App } from '/plugin-io/api/hyperscribe/scribe/static/app.js';
+    const initialDataEl = document.getElementById('scribe-initial-data');
+    const initialData = initialDataEl ? JSON.parse(initialDataEl.textContent) : null;
     const config = {
       noteId: '{{ note_id }}',
       view: '{{ view }}',
@@ -59,6 +63,7 @@
       debugMode: '{{ debug_mode }}' === 'true',
       noteEditable: '{{ note_editable }}' === 'true',
       alertFacilityEnabled: '{{ alert_facility_enabled }}' === 'true',
+      initialData: initialData,
     };
     render(h(App, config), document.getElementById('app'));
   </script>
