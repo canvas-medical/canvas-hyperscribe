@@ -71,9 +71,6 @@ class RefillParser(CommandParser):
     def post_originate_effects(self, command: _BaseCommand, proposal: dict[str, Any] | None = None) -> list[Effect]:
         return [command.review()]
 
-    def build_stub(self, command_uuid: str, note_uuid: str) -> _BaseCommand:
-        return RefillCommand(command_uuid=command_uuid, note_uuid=note_uuid)
-
     @staticmethod
     def _resolve_prescriber(note_uuid: str) -> str | None:
         try:

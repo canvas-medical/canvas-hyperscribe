@@ -53,7 +53,6 @@ def test_build_effects_routes_all_types() -> None:
         patch("hyperscribe.scribe.commands.allergy.AllergyCommand") as mock_allergy,
         patch("hyperscribe.scribe.commands.diagnose.DiagnoseCommand") as mock_diagnose,
         patch("hyperscribe.scribe.commands.assess.AssessCommand") as mock_assess,
-        patch("hyperscribe.scribe.commands.builder.BatchOriginateCommandEffect") as mock_batch,
     ):
         all_mocks = [
             mock_rfv,
@@ -73,37 +72,20 @@ def test_build_effects_routes_all_types() -> None:
         ]
         for mock in all_mocks:
             inst = MagicMock()
-            inst.originate.return_value = f"{mock._mock_name}_effect"
+            inst.originate.return_value = f"{mock._mock_name}_originate"
             inst.commit.return_value = f"{mock._mock_name}_commit"
             inst.review.return_value = f"{mock._mock_name}_review"
-            inst.command_uuid = "test-uuid"
-            inst.note_uuid = "note-uuid"
+            inst.command_uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
             mock.return_value = inst
 
-        mock_batch_inst = MagicMock()
-        mock_batch_inst.apply.return_value = "batch_effect"
-        mock_batch.return_value = mock_batch_inst
+        effects, metadata_pending = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
 
-        effects, metadata_pending = build_effects(proposals, "note-uuid")
-
-    # 1 batch (12 non-custom) + 2 individual originate (history, chart) + 13 commits + 1 review
-    assert len(effects) == 17
-    assert effects[0] == "batch_effect"
+    # 14 originates + 13 commits + 1 review (prescription)
+    assert len(effects) == 28
     assert metadata_pending == []
-    mock_rfv.assert_called_once()
-    mock_hpi.assert_called_once()
-    mock_vitals.assert_called_once()
-    mock_plan.assert_called_once()
-    mock_med.assert_called_once()
-    mock_task.assert_called_once()
-    mock_rx.assert_called_once()
-    mock_lab.assert_called_once()
-    mock_img.assert_called_once()
-    mock_history.assert_called_once()
-    mock_chart.assert_called_once()
-    mock_allergy.assert_called_once()
-    mock_diagnose.assert_called_once()
-    mock_assess.assert_called_once()
+    for mock in all_mocks:
+        mock.assert_called_once()
 
 
 def test_build_effects_unknown_type_skipped() -> None:
@@ -127,25 +109,20 @@ def test_build_effects_medication_with_alert_facility() -> None:
             "data": {"medication_text": "Lisinopril 10mg", "alert_facility": True},
         },
     ]
-    with (
-        patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med,
-        patch("hyperscribe.scribe.commands.builder.BatchOriginateCommandEffect") as mock_batch,
-    ):
+    with patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med:
         inst = MagicMock()
+        inst.originate.return_value = "med_originate"
         inst.commit.return_value = "med_commit"
-        inst.command_uuid = "cmd-uuid-123"
-        inst.note_uuid = "note-uuid"
+        inst.command_uuid = "d6a96b19-a087-458a-9619-b46537a8c121"
+        inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
         mock_med.return_value = inst
-        mock_batch_inst = MagicMock()
-        mock_batch_inst.apply.return_value = "batch_effect"
-        mock_batch.return_value = mock_batch_inst
 
-        effects, metadata_pending = build_effects(proposals, "note-uuid")
+        effects, metadata_pending = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
 
-    assert len(effects) == 2  # 1 batch + 1 commit
-    assert effects[0] == "batch_effect"
+    assert len(effects) == 2  # 1 originate + 1 commit
+    assert effects[0] == "med_originate"
     assert len(metadata_pending) == 1
-    assert metadata_pending[0]["command_uuid"] == "cmd-uuid-123"
+    assert metadata_pending[0]["command_uuid"] == "d6a96b19-a087-458a-9619-b46537a8c121"
     assert metadata_pending[0]["command_type"] == "medication_statement"
     assert metadata_pending[0]["metadata"] == {"alert_facility": "true"}
 
@@ -158,46 +135,40 @@ def test_build_effects_medication_without_alert_facility() -> None:
             "data": {"medication_text": "Lisinopril 10mg"},
         },
     ]
-    with (
-        patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med,
-        patch("hyperscribe.scribe.commands.builder.BatchOriginateCommandEffect") as mock_batch,
-    ):
+    with patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med:
         inst = MagicMock()
+        inst.originate.return_value = "med_originate"
         inst.commit.return_value = "med_commit"
-        inst.command_uuid = "cmd-uuid-123"
-        inst.note_uuid = "note-uuid"
+        inst.command_uuid = "d6a96b19-a087-458a-9619-b46537a8c121"
+        inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
         mock_med.return_value = inst
-        mock_batch_inst = MagicMock()
-        mock_batch_inst.apply.return_value = "batch_effect"
-        mock_batch.return_value = mock_batch_inst
 
-        effects, metadata_pending = build_effects(proposals, "note-uuid")
+        effects, metadata_pending = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
 
-    assert len(effects) == 2  # 1 batch + 1 commit
+    assert len(effects) == 2  # 1 originate + 1 commit
     assert metadata_pending == []
 
 
 def test_build_metadata_effects() -> None:
     """Phase 2 builds upsert_metadata effects from pending items."""
+    from hyperscribe.scribe.commands.builder import _BUILDERS
+
     pending: list[dict[str, Any]] = [
         {
-            "command_uuid": "cmd-uuid-123",
+            "command_uuid": "d6a96b19-a087-458a-9619-b46537a8c121",
             "command_type": "medication_statement",
-            "note_uuid": "note-uuid",
+            "note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
             "metadata": {"alert_facility": "true"},
         },
     ]
-    with patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med:
-        stub = MagicMock()
-        stub.upsert_metadata.return_value = "upsert_effect"
-        mock_med.return_value = stub
-
+    stub = MagicMock()
+    stub.upsert_metadata.return_value = "upsert_effect"
+    with patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub):
         effects = build_metadata_effects(pending)
 
     assert len(effects) == 1
     assert effects[0] == "upsert_effect"
     stub.upsert_metadata.assert_called_once_with("alert_facility", "true")
-    mock_med.assert_called_once_with(command_uuid="cmd-uuid-123", note_uuid="note-uuid")
 
 
 def test_build_metadata_effects_empty() -> None:
@@ -210,9 +181,9 @@ def test_build_metadata_effects_unknown_type() -> None:
     """Unknown command type in pending is skipped."""
     pending: list[dict[str, Any]] = [
         {
-            "command_uuid": "cmd-uuid",
+            "command_uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
             "command_type": "nonexistent_type",
-            "note_uuid": "note-uuid",
+            "note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
             "metadata": {"key": "val"},
         },
     ]

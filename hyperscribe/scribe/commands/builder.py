@@ -5,7 +5,6 @@ from typing import Any
 
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.effects import Effect
-from canvas_sdk.effects.batch_originate import BatchOriginateCommandEffect
 from canvas_sdk.v1.data.note import Note
 
 from hyperscribe.scribe.backend.models import CommandProposal
@@ -87,8 +86,12 @@ def annotate_duplicates(proposals: list[CommandProposal], note_uuid: str) -> Non
 def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> tuple[list[Effect], list[dict[str, Any]]]:
     """Convert selected command proposals into Canvas SDK Effects.
 
-    Returns (effects, metadata_pending) where metadata_pending contains items
-    that need a second request to upsert metadata after commands exist.
+    Each command is originated individually so a single failure doesn't
+    take down unrelated commands. Post-originate effects (commit/review)
+    follow immediately since Canvas processes effects sequentially.
+
+    Returns (effects, metadata_pending) where metadata_pending contains
+    items that need a second request to upsert metadata after commands exist.
     """
     built: list[tuple[CommandParser, _BaseCommand, dict[str, Any]]] = []
     for proposal in proposals:
@@ -101,22 +104,15 @@ def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> tuple[list
     if not built:
         return [], []
 
-    # CustomCommand types must originate individually — batch originate doesn't handle schema_key correctly.
-    _INDIVIDUAL_ORIGINATE = frozenset({"chart_review", "history_review", "lab_results", "ros", "physical_exam"})
-    batch_commands = [(b, cmd, p) for b, cmd, p in built if b.command_type not in _INDIVIDUAL_ORIGINATE]
-    individual_commands = [(b, cmd, p) for b, cmd, p in built if b.command_type in _INDIVIDUAL_ORIGINATE]
-
     effects: list[Effect] = []
-    if batch_commands:
-        batch = BatchOriginateCommandEffect(commands=[cmd for _, cmd, _ in batch_commands])
-        effects.append(batch.apply())
-    for _, command, _ in individual_commands:
+    for _, command, _ in built:
         effects.append(command.originate())
 
-    # Post-origination effects (commit/review/edit) per command.
-    metadata_pending: list[dict[str, Any]] = []
     for builder, command, proposal in built:
         effects.extend(builder.post_originate_effects(command, proposal))
+
+    metadata_pending: list[dict[str, Any]] = []
+    for builder, command, proposal in built:
         meta = builder.pending_metadata(command, proposal)
         if meta:
             metadata_pending.append(meta)
