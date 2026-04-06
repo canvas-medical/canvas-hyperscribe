@@ -1,5 +1,6 @@
+import json
 from http import HTTPStatus
-from typing import Union
+from typing import Any, Union
 
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import HTMLResponse, Response
@@ -10,6 +11,13 @@ from canvas_sdk.v1.data.staff import Staff
 
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.models.scribe import ScribeTranscript
+from hyperscribe.scribe.api.session_view import _load_initial_data
+
+
+def _safe_json(data: Any) -> str:
+    """Serialize to JSON safe for embedding in an HTML script tag."""
+    return json.dumps(data).replace("<", r"\u003c").replace(">", r"\u003e").replace("&", r"\u0026")
+
 
 CONTENT_TYPES: dict[str, str] = {
     "js": "text/javascript",
@@ -46,7 +54,9 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
 
         # Use the provider stored with the transcript (the user who recorded it).
         # Fall back to the note author, then a generic label.
-        transcript_provider_id = ScribeTranscript.objects.filter(note_id=note.dbid).values_list("provider_id", flat=True).first()
+        transcript_provider_id = (
+            ScribeTranscript.objects.filter(note_id=note.dbid).values_list("provider_id", flat=True).first()
+        )
         if transcript_provider_id:
             provider = Staff.objects.get(id=transcript_provider_id)
             provider_name = provider.credentialed_name
@@ -57,6 +67,8 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
         else:
             provider_name = "Unknown Provider"
             provider_photo_url = ""
+
+        initial_data = _load_initial_data(note_id, self.secrets)
 
         html = render_to_string(
             "scribe/static/index.html",
@@ -74,6 +86,7 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
                 "debug_mode": "true" if self.secrets.get("ScribeDebugStaffers") else "",
                 "note_editable": "true" if note_editable else "",
                 "alert_facility_enabled": "true" if self.secrets.get("AlertFacilityEnabled") else "",
+                "initial_data": _safe_json(initial_data),
             },
         )
         return [HTMLResponse(html)]

@@ -162,34 +162,35 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, alertFacilityEnabled = false }) {
-  const [noteData, setNoteData] = useState(null);
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, alertFacilityEnabled = false, initialData = null }) {
+  const initSummary = initialData?.summary ?? null;
+  const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
-  const [commands, setCommands] = useState([]);
+  const [commands, setCommands] = useState(initSummary?.commands ?? []);
   const [inserting, setInserting] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [approved, setApproved] = useState(false);
+  const [approved, setApproved] = useState(initSummary?.approved ?? false);
   const [isNoteEditable, setNoteEditable] = useState(noteEditable);
   const [hideRejected, setHideRejected] = useState(true);
-  const [assignees, setAssignees] = useState([]);
-  const [recommendations, setRecommendations] = useState([]);
+  const [assignees, setAssignees] = useState(initialData?.assignees ?? []);
+  const [recommendations, setRecommendations] = useState(initSummary?.recommendations ?? []);
   const [sectionConditions, setSectionConditions] = useState({});
-  const [unmatchedConditions, setUnmatchedConditions] = useState([]);
-  const [diagnosisSuggestions, setDiagnosisSuggestions] = useState({});
+  const [unmatchedConditions, setUnmatchedConditions] = useState(initSummary?.unmatched_conditions ?? []);
+  const [diagnosisSuggestions, setDiagnosisSuggestions] = useState(initSummary?.diagnosis_suggestions ?? {});
   const [progress, setProgress] = useState({ step: -1, total: 0, label: '' });
   const [prescriptionWarning, setPrescriptionWarning] = useState(false);
 
   // Template state.
-  const [templates, setTemplates] = useState([]);
+  const [templates, setTemplates] = useState(initialData?.templates ?? []);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [mode, setMode] = useState(null); // null | 'ai'
+  const [mode, setMode] = useState(initSummary?.mode ?? null);
   const [transcriptCollapsed, setTranscriptCollapsed] = useState(false);
-  const [cachedTemplateName, setCachedTemplateName] = useState(null);
-  const cacheLoadedRef = useRef(false);
+  const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
+  const cacheLoadedRef = useRef(!!initialData);
 
   // Recording hook.
-  const recording = useRecording(noteId);
+  const recording = useRecording(noteId, initialData?.transcript);
 
   const [showSavedToast, setShowSavedToast] = useState(false);
   useEffect(() => {
@@ -227,8 +228,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }
   }, [noteId]);
 
-  // Load summary from cache (no auto-generate — provider clicks "Generate Summary" when ready).
+  // Load summary from cache — skip if initial data was provided server-side.
   useEffect(() => {
+    if (initialData) return;
     let cancelled = false;
 
     async function loadOrGenerate() {
@@ -367,6 +369,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   // Fetch assignees for task assignment (independent, small).
   useEffect(() => {
+    if (initialData) return;
     let cancelled = false;
     async function fetchAssignees() {
       try {
@@ -382,8 +385,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     return () => { cancelled = true; };
   }, []);
 
-  // Load visit templates on mount.
+  // Load visit templates on mount — skip if initial data was provided server-side.
   useEffect(() => {
+    if (initialData) return;
     let cancelled = false;
     async function loadTemplates() {
       try {
