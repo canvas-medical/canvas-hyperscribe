@@ -205,6 +205,114 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
     return None
 
 
+def _load_assignees() -> list[dict[str, Any]]:
+    """Load active staff members and teams for task assignment."""
+    assignees: list[dict[str, Any]] = []
+    for s in (
+        Staff.objects.filter(active=True).order_by("last_name", "first_name").values("dbid", "first_name", "last_name")
+    ):
+        label = f"{s['first_name']} {s['last_name']}".strip()
+        assignees.append({"type": "staff", "id": s["dbid"], "label": label})
+    for t in Team.objects.all().order_by("name").values("dbid", "name"):
+        assignees.append({"type": "team", "id": t["dbid"], "label": t["name"]})
+    return assignees
+
+
+def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
+    """Load and resolve visit templates from secrets config."""
+    raw = secrets.get(Constants.SECRET_VISIT_TEMPLATES, "{}")
+    try:
+        config = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        log.warning("visit-templates: malformed JSON in %s secret", Constants.SECRET_VISIT_TEMPLATES)
+        return []
+
+    templates_config: list[dict[str, Any]] = config.get("templates", [])
+    if not templates_config:
+        return []
+
+    all_cpt_codes: set[str] = set()
+    for tmpl in templates_config:
+        for code in tmpl.get("charges", []):
+            code = str(code).strip()
+            if code:
+                all_cpt_codes.add(code)
+
+    cdm_by_code: dict[str, Any] = {}
+    if all_cpt_codes:
+        for record in ChargeDescriptionMaster.objects.filter(cpt_code__in=all_cpt_codes):
+            cdm_by_code[record.cpt_code] = record
+
+    all_q_names: list[str] = []
+    for tmpl in templates_config:
+        all_q_names.extend(tmpl.get("questionnaires", []))
+
+    q_by_name: dict[str, Any] = {}
+    if all_q_names:
+        q_filter = Q()
+        for qn in set(all_q_names):
+            q_filter |= Q(name__iexact=qn)
+        for q_obj in QuestionnaireModel.objects.filter(q_filter, status="AC"):
+            q_by_name[q_obj.name.lower()] = q_obj
+
+    def _resolve_questionnaire(q_obj: Any) -> dict[str, Any]:
+        cmd = QuestionnaireCommand(questionnaire_id=str(q_obj.id), note_uuid="", command_uuid="")
+        questions: list[dict[str, Any]] = []
+        for q in cmd.questions:
+            options = [{"dbid": o.dbid, "value": o.name} for o in q.options]
+            questions.append({"dbid": int(q.id), "label": q.label, "type": q.type, "options": options})
+        return {"questionnaire_dbid": q_obj.dbid, "questionnaire_name": q_obj.name, "questions": questions}
+
+    result_templates: list[dict[str, Any]] = []
+    for tmpl in templates_config:
+        q_names: list[str] = tmpl.get("questionnaires", [])
+        resolved: list[dict[str, Any]] = []
+        for q_name in q_names:
+            q_obj = q_by_name.get(q_name.lower())
+            if not q_obj:
+                log.warning("visit-templates: questionnaire %r not found", q_name)
+                continue
+            try:
+                resolved.append(_resolve_questionnaire(q_obj))
+            except Exception:
+                log.exception("visit-templates: failed to resolve %r", q_name)
+        ros_sections: list[dict[str, str]] | None = None
+        if raw_ros := tmpl.get("ros_template"):
+            ros_sections = parse_ros_subsections(raw_ros)
+        pe_sections: list[dict[str, str]] | None = None
+        if raw_pe := tmpl.get("pe_template"):
+            pe_sections = parse_ros_subsections(raw_pe)
+        resolved_charges: list[dict[str, str]] = []
+        for code in tmpl.get("charges", []):
+            code = str(code).strip()
+            record = cdm_by_code.get(code)
+            if not record:
+                log.warning("visit-templates: charge CPT code %r not found", code)
+                continue
+            resolved_charges.append({"cpt_code": record.cpt_code, "description": record.short_name or record.name})
+        result_templates.append(
+            {
+                "name": tmpl.get("name", ""),
+                "questionnaires": resolved,
+                "ros_sections": ros_sections,
+                "pe_sections": pe_sections,
+                "charges": resolved_charges,
+            }
+        )
+
+    return result_templates
+
+
+def _load_initial_data(note_id: str, secrets: dict[str, str]) -> dict[str, Any]:
+    """Compile all data needed for the Scribe UI initial render."""
+    return {
+        "transcript": _load_transcript(note_id),
+        "summary": _load_summary(note_id),
+        "assignees": _load_assignees(),
+        "templates": _load_templates(secrets),
+    }
+
+
 def _parse_transcript(data: dict[str, Any]) -> Transcript:
     items: list[TranscriptItem] = []
     for item in data.get("items", []):
@@ -1047,17 +1155,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.get("/assignees")
     def get_assignees(self) -> list[Union[Response, Effect]]:
         """Return a merged list of active staff members and teams for task assignment."""
-        assignees: list[dict[str, Any]] = []
-        for s in (
-            Staff.objects.filter(active=True)
-            .order_by("last_name", "first_name")
-            .values("dbid", "first_name", "last_name")
-        ):
-            label = f"{s['first_name']} {s['last_name']}".strip()
-            assignees.append({"type": "staff", "id": s["dbid"], "label": label})
-        for t in Team.objects.all().order_by("name").values("dbid", "name"):
-            assignees.append({"type": "team", "id": t["dbid"], "label": t["name"]})
-        return [JSONResponse({"assignees": assignees}, status_code=HTTPStatus.OK)]
+        return [JSONResponse({"assignees": _load_assignees()}, status_code=HTTPStatus.OK)]
 
     @api.get("/task-labels")
     def get_task_labels(self) -> list[Union[Response, Effect]]:
@@ -1489,12 +1587,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if preferred_pharmacy:
             ncpdp_id = preferred_pharmacy.get("pharmacy_ncpdp_id", "")
             if ncpdp_id:
-                results.append({
-                    "ncpdp_id": ncpdp_id,
-                    "name": preferred_pharmacy.get("pharmacy_name", "") or ncpdp_id,
-                    "address": preferred_pharmacy.get("pharmacy_address", ""),
-                    "preferred": True,
-                })
+                results.append(
+                    {
+                        "ncpdp_id": ncpdp_id,
+                        "name": preferred_pharmacy.get("pharmacy_name", "") or ncpdp_id,
+                        "address": preferred_pharmacy.get("pharmacy_address", ""),
+                        "preferred": True,
+                    }
+                )
 
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
 
@@ -1539,108 +1639,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.get("/visit-templates")
     def get_visit_templates(self) -> list[Union[Response, Effect]]:
         """Load visit templates with resolved questionnaire definitions."""
-        raw = self.secrets.get(Constants.SECRET_VISIT_TEMPLATES, "{}")
-        try:
-            config = json.loads(raw)
-        except (json.JSONDecodeError, ValueError):
-            log.warning("visit-templates: malformed JSON in %s secret", Constants.SECRET_VISIT_TEMPLATES)
-            return [JSONResponse({"templates": []}, status_code=HTTPStatus.OK)]
-
-        templates_config: list[dict[str, Any]] = config.get("templates", [])
-        if not templates_config:
-            return [JSONResponse({"templates": []}, status_code=HTTPStatus.OK)]
-
-        # Batch-resolve all charge CPT codes in a single query.
-        all_cpt_codes: set[str] = set()
-        for tmpl in templates_config:
-            for code in tmpl.get("charges", []):
-                code = str(code).strip()
-                if code:
-                    all_cpt_codes.add(code)
-
-        cdm_by_code: dict[str, Any] = {}
-        if all_cpt_codes:
-            for record in ChargeDescriptionMaster.objects.filter(cpt_code__in=all_cpt_codes):
-                cdm_by_code[record.cpt_code] = record
-
-        # Batch-resolve all questionnaire names in a single query.
-        all_q_names: list[str] = []
-        for tmpl in templates_config:
-            all_q_names.extend(tmpl.get("questionnaires", []))
-
-        q_by_name: dict[str, Any] = {}
-        if all_q_names:
-            q_filter = Q()
-            for qn in set(all_q_names):
-                q_filter |= Q(name__iexact=qn)
-            for q_obj in QuestionnaireModel.objects.filter(q_filter, status="AC"):
-                q_by_name[q_obj.name.lower()] = q_obj
-
-        def _resolve_questionnaire(q_obj: Any) -> dict[str, Any]:
-            cmd = QuestionnaireCommand(
-                questionnaire_id=str(q_obj.id),
-                note_uuid="",
-                command_uuid="",
-            )
-            questions: list[dict[str, Any]] = []
-            for q in cmd.questions:
-                options = [{"dbid": o.dbid, "value": o.name} for o in q.options]
-                questions.append({"dbid": int(q.id), "label": q.label, "type": q.type, "options": options})
-            return {
-                "questionnaire_dbid": q_obj.dbid,
-                "questionnaire_name": q_obj.name,
-                "questions": questions,
-            }
-
-        result_templates: list[dict[str, Any]] = []
-        for tmpl in templates_config:
-            name: str = tmpl.get("name", "")
-            q_names: list[str] = tmpl.get("questionnaires", [])
-            resolved: list[dict[str, Any]] = []
-            for q_name in q_names:
-                q_obj = q_by_name.get(q_name.lower())
-                if not q_obj:
-                    log.warning("visit-templates: questionnaire %r not found", q_name)
-                    continue
-                try:
-                    resolved.append(_resolve_questionnaire(q_obj))
-                except Exception:
-                    log.exception("visit-templates: failed to resolve %r", q_name)
-            ros_sections: list[dict[str, str]] | None = None
-            raw_ros: str | None = tmpl.get("ros_template")
-            if raw_ros:
-                ros_sections = parse_ros_subsections(raw_ros)
-
-            pe_sections: list[dict[str, str]] | None = None
-            raw_pe: str | None = tmpl.get("pe_template")
-            if raw_pe:
-                pe_sections = parse_ros_subsections(raw_pe)
-
-            resolved_charges: list[dict[str, str]] = []
-            for code in tmpl.get("charges", []):
-                code = str(code).strip()
-                record = cdm_by_code.get(code)
-                if not record:
-                    log.warning("visit-templates: charge CPT code %r not found in ChargeDescriptionMaster", code)
-                    continue
-                resolved_charges.append(
-                    {
-                        "cpt_code": record.cpt_code,
-                        "description": record.short_name or record.name,
-                    }
-                )
-
-            result_templates.append(
-                {
-                    "name": name,
-                    "questionnaires": resolved,
-                    "ros_sections": ros_sections,
-                    "pe_sections": pe_sections,
-                    "charges": resolved_charges,
-                }
-            )
-
-        return [JSONResponse({"templates": result_templates}, status_code=HTTPStatus.OK)]
+        return [JSONResponse({"templates": _load_templates(self.secrets)}, status_code=HTTPStatus.OK)]
 
     @api.post("/save-audit-log")
     def post_save_audit_log(self) -> list[Union[Response, Effect]]:
