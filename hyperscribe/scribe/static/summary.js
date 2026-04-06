@@ -162,9 +162,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, alertFacilityEnabled = false }) {
-  const [noteData, setNoteData] = useState(null);
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, debugMode, noteEditable = true, alertFacilityEnabled = false, initialData = null }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, alertFacilityEnabled = false, initialData = null }) {
   const initSummary = initialData?.summary ?? null;
   const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
