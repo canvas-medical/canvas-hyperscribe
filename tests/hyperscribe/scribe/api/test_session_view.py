@@ -168,13 +168,16 @@ def test_save_transcript_success(mock_note: MagicMock, mock_transcript: MagicMoc
 
     view = _helper_instance()
     items = [{"text": "Hello", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 1000}]
-    view.request = SimpleNamespace(body=json.dumps({"note_id": "42", "transcript": {"items": items}}))
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-key-abc"},
+        body=json.dumps({"note_id": "42", "transcript": {"items": items}}),
+    )
     result = view.post_save_transcript()
 
     assert result[0].status_code == HTTPStatus.OK
     assert json.loads(result[0].content) == {"status": "ok"}
     mock_transcript.objects.update_or_create.assert_called_once_with(
-        note_id=42, defaults={"items": items, "finalized": False}
+        note_id=42, defaults={"items": items, "finalized": False, "provider_id": "staff-key-abc"}
     )
 
 

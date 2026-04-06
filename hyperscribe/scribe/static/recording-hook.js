@@ -23,11 +23,14 @@ function cleanupAudio(audioCtxRef, streamRef, workletNodeRef) {
  * Custom hook encapsulating all recording logic.
  * Returns: { status, entries, error, finalized, startRecording, pauseRecording, resumeRecording, finishRecording }
  */
-export function useRecording(noteId) {
-  const [status, setStatus] = useState('idle'); // 'idle' | 'recording' | 'paused' | 'finishing'
-  const [entries, setEntries] = useState([]);
+export function useRecording(noteId, initialTranscript) {
+  const [status, setStatus] = useState(() => {
+    if (initialTranscript?.items?.length > 0 && !initialTranscript.finalized) return 'paused';
+    return 'idle';
+  });
+  const [entries, setEntries] = useState(() => initialTranscript?.items ?? []);
   const [error, setError] = useState(null);
-  const [finalized, setFinalized] = useState(false);
+  const [finalized, setFinalized] = useState(() => initialTranscript?.finalized ?? false);
 
   const clientRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -193,9 +196,9 @@ export function useRecording(noteId) {
     setStatus('idle');
   }, [noteId, disconnectAll]);
 
-  // Load cached transcript on mount.
+  // Load cached transcript on mount — skip if initial data was provided server-side.
   useEffect(() => {
-    if (!noteId) return;
+    if (initialTranscript || !noteId) return;
     let cancelled = false;
     async function load() {
       try {
