@@ -1053,11 +1053,22 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         commands = data.get("commands", [])
         effects, metadata_pending = build_effects(commands, note_uuid)
-        command_types = [c.get("command_type", "") for c in commands]
         audit_event(
             note_uuid,
             "INSERT_COMMANDS",
-            {"command_count": len(commands), "effect_count": len(effects), "command_types": command_types},
+            {
+                "command_count": len(commands),
+                "effect_count": len(effects),
+                "commands": [
+                    {
+                        "type": c.get("command_type", ""),
+                        "display": (c.get("display") or "")[:80],
+                        "section_key": c.get("section_key", ""),
+                    }
+                    for c in commands
+                ],
+                "metadata_pending_count": len(metadata_pending),
+            },
         )
         return [
             JSONResponse({"inserted": len(effects), "metadata_pending": metadata_pending}, status_code=HTTPStatus.OK),

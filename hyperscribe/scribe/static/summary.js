@@ -195,6 +195,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [showSavedToast, setShowSavedToast] = useState(false);
   useEffect(() => {
     if (!recording.lastSaved) return;
+    logEvent('TRANSCRIPT_AUTO_SAVED', { entryCount: recording.entries.length });
     setShowSavedToast(true);
     const timer = setTimeout(() => setShowSavedToast(false), 2000);
     return () => clearTimeout(timer);
@@ -967,7 +968,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const handleInsert = useCallback(async () => {
     if (approved || inserting) return;
-    logEvent('APPROVE_START');
+    logEvent('APPROVE_START', { totalCommands: commands.length, commandTypes: commands.map(c => c.command_type) });
     setInserting(true);
 
     // Mark as approved IMMEDIATELY — before the async request.
@@ -987,6 +988,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
       return true;
     });
+    const dropped = commands.filter(c => !c.already_documented && !insertable.includes(c));
+    if (dropped.length > 0) {
+      logEvent('COMMANDS_FILTERED', { dropped: dropped.map(c => ({
+        type: c.command_type, display: (c.display || '').slice(0, 80), sectionKey: c.section_key,
+        reason: !c.display ? 'empty_display' : c.selected === false ? 'deselected' : 'validation',
+      })) });
+    }
     const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
     let allInsertable = [...insertable, ...acceptedRecs]
       .map(({ _template_inserted, ...c }) => c); // Strip internal marker.
@@ -1026,6 +1034,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     } catch (err) {
       console.error('Failed to fetch patient conditions for assess check:', err);
     }
+    logEvent('COMMANDS_SENDING', { commands: allInsertable.map(c => ({
+      type: c.command_type, display: (c.display || '').slice(0, 80), sectionKey: c.section_key,
+    })) });
     try {
       const res = await fetch(`${API_BASE}/insert-commands`, {
         method: 'POST',
@@ -1053,7 +1064,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }
         }
         const hasPrescriptions = allInsertable.some(c => c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription');
-        logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length });
+        logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length, effectCount: data.inserted, hasPendingMetadata: (data.metadata_pending?.length || 0) > 0 });
         if (hasPrescriptions) {
           setPrescriptionWarning(true);
         } else {
