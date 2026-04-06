@@ -36,7 +36,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
 
   useEffect(() => {
     if (editing && inputRef.current) {
-      inputRef.current.focus();
+      inputRef.current.focus({ preventScroll: true });
     }
   }, [editing]);
 

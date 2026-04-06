@@ -32,7 +32,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
 
   useEffect(() => {
     if (editing && titleRef.current) {
-      titleRef.current.focus();
+      titleRef.current.focus({ preventScroll: true });
     }
   }, [editing]);
 

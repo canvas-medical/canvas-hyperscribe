@@ -377,7 +377,7 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly }) {
   const textareaRef = useRef(null);
 
   useEffect(() => {
-    if (editing && textareaRef.current) textareaRef.current.focus();
+    if (editing && textareaRef.current) textareaRef.current.focus({ preventScroll: true });
   }, [editing]);
 
   const handleSave = () => {

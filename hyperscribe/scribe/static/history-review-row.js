@@ -45,7 +45,7 @@ export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly, text
 
   useEffect(() => {
     if (editing && firstRef.current) {
-      firstRef.current.focus();
+      firstRef.current.focus({ preventScroll: true });
     }
   }, [editing]);
 
