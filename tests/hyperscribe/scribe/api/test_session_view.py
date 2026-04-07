@@ -699,7 +699,11 @@ def test_extract_commands_invalid_json() -> None:
 def test_insert_commands_success(mock_build: MagicMock) -> None:
     mock_effect_1 = MagicMock()
     mock_effect_2 = MagicMock()
-    mock_build.return_value = ([mock_effect_1, mock_effect_2], [])
+    attempted = [
+        {"command_uuid": "u1", "command_type": "hpi", "display": "Back pain"},
+        {"command_uuid": "u2", "command_type": "plan", "display": "Start naproxen"},
+    ]
+    mock_build.return_value = ([mock_effect_1, mock_effect_2], [], attempted)
 
     view = _helper_instance()
     commands = [
@@ -713,6 +717,7 @@ def test_insert_commands_success(mock_build: MagicMock) -> None:
     data = json.loads(result[0].content)
     assert data["inserted"] == 2
     assert data["metadata_pending"] == []
+    assert len(data["attempted"]) == 2
     assert len(result) == 3  # JSONResponse + 2 effects
     assert result[1] is mock_effect_1
     assert result[2] is mock_effect_2
@@ -730,7 +735,11 @@ def test_insert_commands_with_metadata_pending(mock_build: MagicMock) -> None:
             "metadata": {"alert_facility": "true"},
         },
     ]
-    mock_build.return_value = ([mock_effect], pending)
+    mock_build.return_value = (
+        [mock_effect],
+        pending,
+        [{"command_uuid": "uuid-1", "command_type": "medication_statement", "display": "Test"}],
+    )
 
     view = _helper_instance()
     commands = [{"command_type": "medication_statement", "data": {"medication_text": "Test", "alert_facility": True}}]
@@ -746,7 +755,7 @@ def test_insert_commands_with_metadata_pending(mock_build: MagicMock) -> None:
 
 @patch("hyperscribe.scribe.api.session_view.build_effects")
 def test_insert_commands_empty(mock_build: MagicMock) -> None:
-    mock_build.return_value = ([], [])
+    mock_build.return_value = ([], [], [])
 
     view = _helper_instance()
     view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": []}))
