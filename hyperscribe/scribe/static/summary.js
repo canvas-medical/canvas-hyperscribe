@@ -340,7 +340,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (!cacheLoadedRef.current) return;
     if (commandsSaveRef.current) clearTimeout(commandsSaveRef.current);
     commandsSaveRef.current = setTimeout(() => {
-      saveSummaryToCache(noteData, commands, approved, {
+      saveSummaryToCache(noteData, commands, approved || inserting, {
         recommendations,
         unmatched_conditions: unmatchedConditions,
         diagnosis_suggestions: diagnosisSuggestions,
@@ -349,7 +349,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
     }, 500);
     return () => { if (commandsSaveRef.current) clearTimeout(commandsSaveRef.current); };
-  }, [commands, recommendations, selectedTemplate, mode, approved]);
+  }, [commands, recommendations, selectedTemplate, mode, approved, inserting]);
 
   // Auto-verify on load when approved with command UUIDs.
   useEffect(() => {
