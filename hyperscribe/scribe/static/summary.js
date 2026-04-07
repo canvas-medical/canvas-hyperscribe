@@ -1501,7 +1501,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         <div class="transcript-panel">
           <button class="transcript-panel-header ${isRecording ? '' : 'finalized'}" onClick=${() => setTranscriptCollapsed(prev => !prev)}>
             <div class="transcript-panel-status ${isRecording ? '' : 'finalized'}">
-              ${isRecording && html`<span class="recording-dot"></span>`}
+              ${isRecording && recording.status === 'recording' && html`
+                <span class="recording-dot recording-dot-live"
+                  style=${{
+                    transform: `scale(${1 + Math.min(recording.audioLevel * 12, 2)})`,
+                    opacity: 0.4 + Math.min(recording.audioLevel * 8, 0.6),
+                  }}
+                ></span>
+              `}
+              ${isRecording && recording.status === 'paused' && html`<span class="recording-dot recording-dot-paused"></span>`}
               <span>${isRecording
                 ? (recording.status === 'paused' ? 'Paused' : 'Recording in progress')
                 : 'Transcript'}</span>
@@ -1529,6 +1537,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                 : html`<p class="transcript-placeholder">Transcript will appear here as you speak...</p>`}
             </div>
           `}
+        </div>
+      `}
+      ${recording.silenceWarning && recording.status === 'recording' && html`
+        <div class="silence-warning">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          No audio detected — check your microphone permissions and make sure it is not muted
         </div>
       `}
       ${recording.error && html`<p class="error" style="padding: 0 16px;">${recording.error}</p>`}

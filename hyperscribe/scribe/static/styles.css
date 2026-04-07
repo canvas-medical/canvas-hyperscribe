@@ -144,20 +144,37 @@ h2 { margin-bottom: 4px; }
   height: 8px;
   background: #fff;
   border-radius: 50%;
-  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.recording-dot-live {
+  transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+}
+
+.recording-dot-paused {
+  opacity: 0.5;
 }
 
 .recording-banner.paused {
   background: #f5a623;
 }
 
-.recording-banner.paused .recording-dot {
-  animation: none;
+/* Silence warning */
+.silence-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fef3cd;
+  color: #856404;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid #ffc107;
+  animation: fade-in 0.3s ease-out;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Transcript entries */

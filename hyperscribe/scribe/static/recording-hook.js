@@ -19,9 +19,16 @@ function cleanupAudio(audioCtxRef, streamRef, workletNodeRef) {
   }
 }
 
+// RMS threshold below which audio is considered silence.
+// Typical quiet room noise is ~0.001–0.01; speech is ~0.02–0.2.
+const SILENCE_RMS_THRESHOLD = 0.005;
+// Seconds of continuous silence before showing a warning.
+const SILENCE_WARNING_SECONDS = 7.5;
+
 /**
  * Custom hook encapsulating all recording logic.
- * Returns: { status, entries, error, finalized, startRecording, pauseRecording, resumeRecording, finishRecording }
+ * Returns: { status, entries, error, finalized, audioLevel, silenceWarning,
+ *            startRecording, pauseRecording, resumeRecording, finishRecording }
  */
 export function useRecording(noteId, initialTranscript) {
   const [status, setStatus] = useState(() => {
@@ -31,6 +38,10 @@ export function useRecording(noteId, initialTranscript) {
   const [entries, setEntries] = useState(() => initialTranscript?.items ?? []);
   const [error, setError] = useState(null);
   const [finalized, setFinalized] = useState(() => initialTranscript?.finalized ?? false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [silenceWarning, setSilenceWarning] = useState(false);
+  const lastAudioTimeRef = useRef(null);
+  const silenceTimerRef = useRef(null);
 
   const statusRef = useRef(status);
   statusRef.current = status;
@@ -104,8 +115,14 @@ export function useRecording(noteId, initialTranscript) {
       workletNodeRef.current = workletNode;
 
       workletNode.port.onmessage = (event) => {
+        const { pcm16, rms } = event.data;
+        setAudioLevel(rms);
+        if (rms >= SILENCE_RMS_THRESHOLD) {
+          lastAudioTimeRef.current = Date.now();
+          setSilenceWarning(false);
+        }
         if (clientRef.current) {
-          clientRef.current.sendAudio(event.data);
+          clientRef.current.sendAudio(pcm16);
         }
       };
 
@@ -124,6 +141,12 @@ export function useRecording(noteId, initialTranscript) {
 
   const disconnectAll = useCallback(async () => {
     cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
+    setAudioLevel(0);
+    setSilenceWarning(false);
+    if (silenceTimerRef.current) {
+      clearInterval(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
     if (clientRef.current) {
       const client = clientRef.current;
       clientRef.current = null;
@@ -160,6 +183,9 @@ export function useRecording(noteId, initialTranscript) {
     } else {
       console.log('[Hyperscribe] Sentry session replay not available');
     }
+    setSilenceWarning(false);
+    setAudioLevel(0);
+    lastAudioTimeRef.current = Date.now();
     const ok = await connectAndRecord();
     if (ok) setStatus('recording');
     return ok;
@@ -173,6 +199,9 @@ export function useRecording(noteId, initialTranscript) {
 
   const resumeRecording = useCallback(async () => {
     setError(null);
+    setSilenceWarning(false);
+    setAudioLevel(0);
+    lastAudioTimeRef.current = Date.now();
     const ok = await connectAndRecord();
     if (ok) {
       setStatus('recording');
@@ -240,6 +269,21 @@ export function useRecording(noteId, initialTranscript) {
     return () => clearInterval(interval);
   }, [status, saveTranscriptToCache]);
 
+  // Check for prolonged silence while recording.
+  useEffect(() => {
+    if (status !== 'recording') return;
+    silenceTimerRef.current = setInterval(() => {
+      const elapsed = (Date.now() - (lastAudioTimeRef.current || Date.now())) / 1000;
+      if (elapsed >= SILENCE_WARNING_SECONDS) {
+        setSilenceWarning(true);
+      }
+    }, 2000);
+    return () => {
+      clearInterval(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    };
+  }, [status]);
+
   // Cleanup on unmount — save transcript via sendBeacon before destroying resources.
   useEffect(() => {
     return () => {
@@ -259,7 +303,7 @@ export function useRecording(noteId, initialTranscript) {
   }, []);
 
   return {
-    status, entries, error, finalized, lastSaved,
+    status, entries, error, finalized, lastSaved, audioLevel, silenceWarning,
     startRecording, pauseRecording, resumeRecording, finishRecording,
   };
 }
