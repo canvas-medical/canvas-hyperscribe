@@ -20,7 +20,7 @@ class StopMedicationParser(CommandParser):
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         return StopMedicationCommand(
             medication_id=data.get("medication_id") or None,
-            rationale=data.get("rationale") or None,
+            rationale=(data.get("rationale") or "")[:1024] or None,
             note_uuid=note_uuid,
             command_uuid=command_uuid,
         )

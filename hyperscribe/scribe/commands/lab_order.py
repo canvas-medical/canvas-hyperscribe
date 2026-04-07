@@ -18,7 +18,7 @@ class LabOrderParser(CommandParser):
             tests_order_codes=data.get("tests_order_codes") or [],
             diagnosis_codes=data.get("diagnosis_codes") or [],
             fasting_required=bool(data.get("fasting_required")),
-            comment=data.get("comment") or None,
+            comment=(data.get("comment") or "")[:128] or None,
             note_uuid=note_uuid,
             command_uuid=command_uuid,
         )

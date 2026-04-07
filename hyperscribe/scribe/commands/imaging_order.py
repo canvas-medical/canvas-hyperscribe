@@ -40,8 +40,8 @@ class ImagingOrderParser(CommandParser):
         return ImagingOrderCommand(
             image_code=data.get("image_code") or None,
             diagnosis_codes=data.get("diagnosis_codes") or None,
-            additional_details=data.get("additional_details") or None,
-            comment=data.get("comment") or None,
+            additional_details=(data.get("additional_details") or "")[:1024] or None,
+            comment=(data.get("comment") or "")[:1024] or None,
             priority=priority,
             ordering_provider_key=data.get("ordering_provider_id") or None,
             service_provider=service_provider,

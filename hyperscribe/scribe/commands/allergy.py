@@ -100,7 +100,7 @@ class AllergyParser(CommandParser):
 
         return AllergyCommand(
             allergy=allergen,
-            narrative=data.get("reaction") or allergy_text,
+            narrative=(data.get("reaction") or allergy_text)[:512],
             severity=severity,
             note_uuid=note_uuid,
             command_uuid=command_uuid,
