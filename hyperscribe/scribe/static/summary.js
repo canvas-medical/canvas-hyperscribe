@@ -1321,6 +1321,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       (c.command_type === 'refer' && _isReferIncomplete(c.data))
     )
   ).length;
+  const UNDECIDED_LABELS = { diagnose: 'diagnosis', medication_statement: 'medication', allergy: 'allergy', prescribe: 'prescription', refill: 'prescription', adjust_prescription: 'prescription', refer: 'referral' };
+  const undecidedTypes = [];
+  for (const c of commands) {
+    if (!c.already_documented && c.display && c.command_type === 'diagnose' && !c.data.accepted && !c.data.rejected) {
+      if (!undecidedTypes.includes(c.command_type)) undecidedTypes.push(c.command_type);
+    }
+  }
+  for (const c of recommendations) {
+    if (!c.already_documented && c.display && !c.accepted && !c.rejected) {
+      if (!undecidedTypes.includes(c.command_type)) undecidedTypes.push(c.command_type);
+    }
+  }
   const undecidedRecommendationCount = commands.filter(c =>
     !c.already_documented && c.display && c.command_type === 'diagnose' && !c.data.accepted && !c.data.rejected
   ).length + recommendations.filter(c =>
@@ -1548,7 +1560,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               `}
               ${undecidedRecommendationCount > 0 && html`
                 <div class="summary-footer-warning">
-                  ${undecidedRecommendationCount} ${undecidedRecommendationCount === 1 ? 'recommendation needs' : 'recommendations need'} a decision, ${undecidedRecommendationCount === 1 ? 'it has' : 'they have'} not been accepted nor rejected.
+                  ${undecidedRecommendationCount} ${undecidedRecommendationCount === 1 ? 'recommendation needs' : 'recommendations need'} a decision, ${undecidedRecommendationCount === 1 ? 'it has' : 'they have'} not been accepted nor rejected: ${undecidedTypes.map(t => UNDECIDED_LABELS[t] || t).join(', ')}
                 </div>
               `}
               <button class="insert-btn" disabled=${undecidedRecommendationCount > 0} onClick=${() => setConfirming(true)}>Approve & Insert Commands</button>
