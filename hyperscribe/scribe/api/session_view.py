@@ -46,7 +46,12 @@ from hyperscribe.scribe.backend import (
     get_backend_from_secrets,
 )
 from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
-from hyperscribe.scribe.commands.builder import annotate_duplicates, build_effects, build_metadata_effects
+from hyperscribe.scribe.commands.builder import (
+    annotate_duplicates,
+    build_effects,
+    build_metadata_effects,
+    validate_proposals,
+)
 from hyperscribe.scribe.commands.extractor import extract_commands, parse_ros_subsections
 from hyperscribe.scribe.recommendations import recommend_commands
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
@@ -1052,6 +1057,15 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not note_uuid:
             return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         commands = data.get("commands", [])
+        validation_errors = validate_proposals(commands)
+        if validation_errors:
+            audit_event(note_uuid, "VALIDATION_FAILED", {"errors": validation_errors})
+            return [
+                JSONResponse(
+                    {"error": "Validation failed", "validation_errors": validation_errors},
+                    status_code=HTTPStatus.BAD_REQUEST,
+                )
+            ]
         effects, metadata_pending, attempted = build_effects(commands, note_uuid)
         audit_event(
             note_uuid,
