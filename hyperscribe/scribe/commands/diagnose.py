@@ -20,7 +20,7 @@ class DiagnoseParser(CommandParser):
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         return DiagnoseCommand(
             icd10_code=data.get("icd10_code") or "",
-            today_assessment=data.get("today_assessment") or "",
+            today_assessment=(data.get("today_assessment") or "")[:2048],
             background=data.get("background") or "",
             note_uuid=note_uuid,
             command_uuid=command_uuid,
