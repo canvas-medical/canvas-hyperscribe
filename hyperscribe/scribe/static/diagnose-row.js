@@ -122,7 +122,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   };
 
   const handleSaveAssessment = () => {
-    const newData = { ...data, today_assessment: assessment };
+    const newData = { ...data, today_assessment: assessment, accepted: true, rejected: false };
     onEdit(commandIndex, newData, 'diagnose');
     setEditingText(false);
   };
