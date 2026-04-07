@@ -1504,7 +1504,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               ${isRecording && recording.status === 'recording' && html`
                 <span class="recording-dot recording-dot-live"
                   style=${{
-                    transform: `scale(${1 + Math.min(recording.audioLevel * 12, 2)})`,
+                    transform: `scale(${1 + Math.min(recording.audioLevel * 8, 1)})`,
                     opacity: 0.6 + Math.min(recording.audioLevel * 6, 0.4),
                   }}
                 ></span>
