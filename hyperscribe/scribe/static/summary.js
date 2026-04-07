@@ -217,6 +217,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [progress, setProgress] = useState({ step: -1, total: 0, label: '' });
   const [prescriptionWarning, setPrescriptionWarning] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
+  const [validationError, setValidationError] = useState(null);
   const rxCloseRef = useRef(null);
   useEffect(() => {
     if (prescriptionWarning) rxCloseRef.current?.focus();
@@ -1041,6 +1042,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const handleInsert = useCallback(async () => {
     if (approved || inserting) return;
+    // Block if any diagnose/assess text exceeds 2048 chars.
+    const overLimit = commands.filter(c =>
+      (c.command_type === 'diagnose' && (c.data.today_assessment || '').length > 2048) ||
+      (c.command_type === 'assess' && (c.data.narrative || '').length > 2048)
+    );
+    if (overLimit.length > 0) {
+      setValidationError(`${overLimit.length} condition(s) have assessment text over 2048 characters. Please shorten before approving.`);
+      return;
+    }
+    setValidationError(null);
     logEvent('APPROVE_START', { totalCommands: commands.length, commandTypes: commands.map(c => c.command_type) });
     setInserting(true);
 
@@ -1514,6 +1525,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }}>Close</button>
         </div>
       `}
+      ${validationError && html`<div class="validation-error">${validationError}</div>`}
       ${showFooter && html`
         <div class="summary-footer">
           ${inserting ? html`

@@ -29,7 +29,7 @@ class AssessParser(CommandParser):
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         return AssessCommand(
             condition_id=data.get("condition_id") or "",
-            narrative=data.get("narrative") or "",
+            narrative=(data.get("narrative") or "")[:2048],
             background=data.get("background") or "",
             status=_parse_status(data.get("status")),
             note_uuid=note_uuid,

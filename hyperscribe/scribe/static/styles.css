@@ -926,6 +926,14 @@ h2 { margin-bottom: 4px; }
 }
 .rx-verification-close:active { background: #fef3c7; }
 
+/* Character counter */
+.char-counter { font-size: 11px; color: #9ca3af; text-align: right; margin-top: 2px; }
+.char-counter.near-limit { color: #f59e0b; }
+.char-counter.over-limit { color: #dc2626; font-weight: 600; }
+
+/* Validation error above footer */
+.validation-error { margin: 8px 16px; padding: 8px 12px; font-size: 13px; color: #991b1b; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; }
+
 /* Command verification banner */
 .verification-banner { margin: 12px 16px; border-radius: 8px; font-size: 13px; }
 .verification-banner.verification-ok { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }

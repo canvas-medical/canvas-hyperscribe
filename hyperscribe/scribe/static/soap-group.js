@@ -396,18 +396,21 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly }) {
         <textarea
           ref=${textareaRef}
           class="command-row-textarea"
+          maxLength=${2048}
           value=${narrative}
           onInput=${(e) => setNarrative(e.target.value)}
           onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}
         />
+        <div class="char-counter${narrative.length > 1900 ? narrative.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${narrative.length} / 2048</div>
         <div class="command-row-actions">
           <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
-          <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
+          <button type="button" class="form-btn form-btn-save" disabled=${narrative.length > 2048} onClick=${handleSave}>Save</button>
         </div>
       </div>
     `;
   }
 
+  const overLimit = (data.narrative || '').length > 2048;
   return html`
     <div
       class="diagnose-row-body${readOnly ? '' : ' editable'}"
@@ -417,6 +420,7 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly }) {
         ? (data.narrative).split('\n').map((line, i) => html`<div key=${i} class="diagnose-body-line">${line}</div>`)
         : html`<div class="diagnose-body-empty">No assessment text</div>`
       }
+      ${overLimit && html`<div class="char-counter over-limit">${data.narrative.length} / 2048 — text must be shortened before approving</div>`}
     </div>
   `;
 }

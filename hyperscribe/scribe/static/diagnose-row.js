@@ -204,6 +204,9 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
           ${!data.today_assessment && html`
             <div class="diagnose-body-empty">No assessment text</div>
           `}
+          ${(data.today_assessment || '').length > 2048 && html`
+            <div class="char-counter over-limit">${data.today_assessment.length} / 2048 — text must be shortened before approving</div>
+          `}
         </div>
       `}
 
@@ -212,13 +215,15 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
           <textarea
             ref=${textareaRef}
             class="command-row-textarea"
+            maxLength=${2048}
             value=${assessment}
             onInput=${(e) => setAssessment(e.target.value)}
             onKeyDown=${handleTextKeyDown}
           />
+          <div class="char-counter${assessment.length > 1900 ? assessment.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${assessment.length} / 2048</div>
           <div class="command-row-actions">
             <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancelAssessment}>Cancel</button>
-            <button type="button" class="form-btn form-btn-save" onClick=${handleSaveAssessment}>Save</button>
+            <button type="button" class="form-btn form-btn-save" disabled=${assessment.length > 2048} onClick=${handleSaveAssessment}>Save</button>
           </div>
         </div>
       `}
