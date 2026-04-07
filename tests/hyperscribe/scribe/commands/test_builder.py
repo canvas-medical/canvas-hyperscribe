@@ -79,26 +79,45 @@ def test_build_effects_routes_all_types() -> None:
             inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
             mock.return_value = inst
 
-        effects, metadata_pending = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+        effects, metadata_pending, attempted = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
 
     # 14 originates + 13 commits + 1 review (prescription)
     assert len(effects) == 28
     assert metadata_pending == []
+    assert len(attempted) == 14
+    assert {a["command_type"] for a in attempted} == {
+        "rfv",
+        "hpi",
+        "vitals",
+        "plan",
+        "medication_statement",
+        "task",
+        "prescribe",
+        "lab_order",
+        "imaging_order",
+        "history_review",
+        "chart_review",
+        "allergy",
+        "diagnose",
+        "assess",
+    }
     for mock in all_mocks:
         mock.assert_called_once()
 
 
 def test_build_effects_unknown_type_skipped() -> None:
     proposals: list[dict[str, Any]] = [{"command_type": "unknown_type", "data": {"foo": "bar"}}]
-    effects, metadata_pending = build_effects(proposals, "note-uuid")
+    effects, metadata_pending, attempted = build_effects(proposals, "note-uuid")
     assert effects == []
     assert metadata_pending == []
+    assert attempted == []
 
 
 def test_build_effects_empty_list() -> None:
-    effects, metadata_pending = build_effects([], "note-uuid")
+    effects, metadata_pending, attempted = build_effects([], "note-uuid")
     assert effects == []
     assert metadata_pending == []
+    assert attempted == []
 
 
 def test_build_effects_medication_with_alert_facility() -> None:
@@ -117,7 +136,7 @@ def test_build_effects_medication_with_alert_facility() -> None:
         inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
         mock_med.return_value = inst
 
-        effects, metadata_pending = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+        effects, metadata_pending, attempted = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
 
     assert len(effects) == 2  # 1 originate + 1 commit
     assert effects[0] == "med_originate"
@@ -125,6 +144,8 @@ def test_build_effects_medication_with_alert_facility() -> None:
     assert metadata_pending[0]["command_uuid"] == "d6a96b19-a087-458a-9619-b46537a8c121"
     assert metadata_pending[0]["command_type"] == "medication_statement"
     assert metadata_pending[0]["metadata"] == {"alert_facility": "true"}
+    assert len(attempted) == 1
+    assert attempted[0]["command_type"] == "medication_statement"
 
 
 def test_build_effects_medication_without_alert_facility() -> None:
@@ -143,7 +164,7 @@ def test_build_effects_medication_without_alert_facility() -> None:
         inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
         mock_med.return_value = inst
 
-        effects, metadata_pending = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+        effects, metadata_pending, attempted = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
 
     assert len(effects) == 2  # 1 originate + 1 commit
     assert metadata_pending == []
