@@ -59,6 +59,42 @@ function TranscriptEntry({ speaker, start_offset_ms, text, is_final, providerNam
 }
 
 
+function VerificationSummary({ result }) {
+  const [expanded, setExpanded] = useState(false);
+  const total = result.verified.length + result.failed.length;
+  const headline = result.ok
+    ? `All ${total} command(s) inserted successfully`
+    : `${result.failed.length} of ${total} command(s) failed to insert`;
+  return html`
+    <div class="verification-banner ${result.ok ? 'verification-ok' : 'verification-error'}">
+      <div class="verification-headline" onClick=${() => setExpanded(prev => !prev)}>
+        <span>${headline}</span>
+        <span class="verification-chevron ${expanded ? 'open' : ''}">\u25BE</span>
+      </div>
+      ${expanded && html`
+        <div class="verification-details">
+          ${result.failed.length > 0 && html`
+            <div class="verification-group verification-group-failed">
+              ${result.failed.map(f => html`
+                <div class="verification-item" key=${f.command_uuid}>
+                  <span class="verification-tag failed-tag">${f.command_type}</span>
+                  <span>${f.display || ''}</span>
+                </div>
+              `)}
+            </div>
+          `}
+          ${result.verified.map(v => html`
+            <div class="verification-item" key=${v.command_uuid}>
+              <span class="verification-tag passed-tag">${v.command_type}</span>
+              <span>${v.display || ''}</span>
+            </div>
+          `)}
+        </div>
+      `}
+    </div>
+  `;
+}
+
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
 const SOAP_GROUPS = [
@@ -180,6 +216,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [diagnosisSuggestions, setDiagnosisSuggestions] = useState(initSummary?.diagnosis_suggestions ?? {});
   const [progress, setProgress] = useState({ step: -1, total: 0, label: '' });
   const [prescriptionWarning, setPrescriptionWarning] = useState(false);
+  const [verificationResult, setVerificationResult] = useState(null);
   const rxCloseRef = useRef(null);
   useEffect(() => {
     if (prescriptionWarning) rxCloseRef.current?.focus();
@@ -312,6 +349,38 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }, 500);
     return () => { if (commandsSaveRef.current) clearTimeout(commandsSaveRef.current); };
   }, [commands, recommendations, selectedTemplate, mode, approved]);
+
+  // Auto-verify on load when approved with command UUIDs.
+  useEffect(() => {
+    if (!approved || verificationResult) return;
+    const withUuids = commands.filter(c => c.command_uuid);
+    if (withUuids.length === 0) return;
+    const attempted = withUuids.map(c => ({
+      command_uuid: c.command_uuid,
+      command_type: c.command_type,
+      display: (c.display || '').slice(0, 80),
+    }));
+    let cancelled = false;
+    async function verify() {
+      try {
+        const res = await fetch(`${API_BASE}/verify-commands`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note_uuid: noteId, attempted }),
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        const failedCount = data.failed?.length || 0;
+        setVerificationResult(failedCount > 0
+          ? { ok: false, verified: data.verified || [], failed: data.failed }
+          : { ok: true, verified: data.verified || [], failed: [] });
+      } catch (err) {
+        console.error('Auto-verify failed:', err);
+      }
+    }
+    verify();
+    return () => { cancelled = true; };
+  }, [approved, noteId]);
 
   const handleGenerate = useCallback(async () => {
     logEvent('GENERATE_START');
@@ -580,7 +649,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
 
   const handleEdit = useCallback((index, newData, newType) => {
-    logEvent('EDIT_COMMAND', { index, commandType: newType || commands[index]?.command_type, data: newData });
+    logEvent('EDIT_COMMAND', { index, commandType: newType || commands[index]?.command_type, sectionKey: commands[index]?.section_key, data: newData });
     if (approved) return;
     setCommands(prev => {
       const updated = prev.map((cmd, i) => {
@@ -1065,16 +1134,54 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             console.error('Failed to insert metadata:', metaErr);
           }
         }
+        // Stamp commands with their UUIDs and save immediately (before modal closes).
+        let updatedCommands = commands;
+        if (data.attempted && data.attempted.length > 0) {
+          const uuidMap = new Map(data.attempted.map(a => [`${a.command_type}:${a.display}`, a.command_uuid]));
+          updatedCommands = commands.map(cmd => {
+            const key = `${cmd.command_type}:${(cmd.display || '').slice(0, 80)}`;
+            const uuid = uuidMap.get(key);
+            return uuid ? { ...cmd, command_uuid: uuid } : cmd;
+          });
+          setCommands(updatedCommands);
+          saveSummaryToCache(noteData, updatedCommands, true, {
+            recommendations, unmatched_conditions: unmatchedConditions,
+            diagnosis_suggestions: diagnosisSuggestions,
+            selected_template_name: selectedTemplate?.name || null, mode,
+          });
+        }
         const hasPrescriptions = allInsertable.some(c => c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription');
         logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length, effectCount: data.inserted, hasPendingMetadata: (data.metadata_pending?.length || 0) > 0 });
-        setApproved(true);
-        if (hasPrescriptions) {
-          setPrescriptionWarning(true);
-        } else {
-          const port = window.__canvasPort && window.__canvasPort();
-          if (port) {
-            port.postMessage({ type: 'CLOSE_MODAL' });
+        // Verify commands were actually created.
+          if (data.attempted && data.attempted.length > 0) {
+              try {
+            const verifyRes = await fetch(`${API_BASE}/verify-commands`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ note_uuid: noteId, attempted: data.attempted }),
+            });
+            const verifyData = await verifyRes.json();
+            const failedCount = verifyData.failed?.length || 0;
+            const verifiedCount = verifyData.verified?.length || 0;
+            const vResult = failedCount > 0
+              ? { ok: false, verified: verifyData.verified || [], failed: verifyData.failed }
+              : { ok: true, verified: verifyData.verified || [], failed: [] };
+            setVerificationResult(vResult);
+            if (failedCount > 0) {
+              logEvent('COMMANDS_FAILED', { failed: verifyData.failed });
+            } else {
+              logEvent('COMMANDS_VERIFIED', { total: verifiedCount });
+            }
+          } catch (verifyErr) {
+            console.error('Verification failed:', verifyErr);
           }
+          }
+          setApproved(true);
+          if (hasPrescriptions) {
+              setPrescriptionWarning(true);
+          } else {
+          const port = window.__canvasPort && window.__canvasPort();
+          if (port) port.postMessage({ type: 'CLOSE_MODAL' });
         }
       }
     } catch (err) {
@@ -1395,6 +1502,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           alertFacilityEnabled,
         })}
       </div>
+      ${verificationResult && html`<${VerificationSummary} result=${verificationResult} />`}
       ${prescriptionWarning && html`
         <div class="rx-verification-banner">
           <div class="rx-verification-text">

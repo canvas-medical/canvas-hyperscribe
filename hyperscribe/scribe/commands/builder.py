@@ -83,15 +83,18 @@ def annotate_duplicates(proposals: list[CommandProposal], note_uuid: str) -> Non
         builder.annotate_duplicates(proposals, note)
 
 
-def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> tuple[list[Effect], list[dict[str, Any]]]:
+def build_effects(
+    proposals: list[dict[str, Any]], note_uuid: str
+) -> tuple[list[Effect], list[dict[str, Any]], list[dict[str, Any]]]:
     """Convert selected command proposals into Canvas SDK Effects.
 
     Each command is originated individually so a single failure doesn't
     take down unrelated commands. Post-originate effects (commit/review)
     follow immediately since Canvas processes effects sequentially.
 
-    Returns (effects, metadata_pending) where metadata_pending contains
-    items that need a second request to upsert metadata after commands exist.
+    Returns (effects, metadata_pending, attempted) where:
+    - metadata_pending: items needing a second request for metadata upsert
+    - attempted: list of {command_uuid, command_type, display} for verification
     """
     built: list[tuple[CommandParser, _BaseCommand, dict[str, Any]]] = []
     for proposal in proposals:
@@ -102,7 +105,7 @@ def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> tuple[list
         built.append((builder, command, proposal))
 
     if not built:
-        return [], []
+        return [], [], []
 
     effects: list[Effect] = []
     for _, command, _ in built:
@@ -117,7 +120,16 @@ def build_effects(proposals: list[dict[str, Any]], note_uuid: str) -> tuple[list
         if meta:
             metadata_pending.append(meta)
 
-    return effects, metadata_pending
+    attempted = [
+        {
+            "command_uuid": str(command.command_uuid),
+            "command_type": builder.command_type,
+            "display": (proposal.get("display") or "")[:80],
+        }
+        for builder, command, proposal in built
+    ]
+
+    return effects, metadata_pending, attempted
 
 
 def build_metadata_effects(pending: list[dict[str, Any]]) -> list[Effect]:
