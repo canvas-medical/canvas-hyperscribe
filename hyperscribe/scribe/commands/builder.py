@@ -83,6 +83,25 @@ def annotate_duplicates(proposals: list[CommandProposal], note_uuid: str) -> Non
         builder.annotate_duplicates(proposals, note)
 
 
+def validate_proposals(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Validate all proposals. Returns list of {command_type, display, errors} for failures."""
+    validation_errors: list[dict[str, Any]] = []
+    for proposal in proposals:
+        builder = _BUILDERS.get(proposal.get("command_type", ""))
+        if builder is None:
+            continue
+        errors = builder.validate(proposal.get("data", {}))
+        if errors:
+            validation_errors.append(
+                {
+                    "command_type": proposal.get("command_type", ""),
+                    "display": (proposal.get("display") or "")[:80],
+                    "errors": errors,
+                }
+            )
+    return validation_errors
+
+
 def build_effects(
     proposals: list[dict[str, Any]], note_uuid: str
 ) -> tuple[list[Effect], list[dict[str, Any]], list[dict[str, Any]]]:

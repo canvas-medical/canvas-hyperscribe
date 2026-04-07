@@ -26,6 +26,12 @@ class AssessParser(CommandParser):
     def extract(self, text: str) -> None:
         return None
 
+    def validate(self, data: dict[str, Any]) -> list[str]:
+        errors: list[str] = []
+        if len(data.get("narrative") or "") > 2048:
+            errors.append("Narrative exceeds 2048 characters")
+        return errors
+
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         return AssessCommand(
             condition_id=data.get("condition_id") or "",

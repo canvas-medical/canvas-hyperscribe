@@ -189,11 +189,13 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
             <input
               type="text"
               class="history-form-input"
+              maxLength=512
               value=${reaction}
               onInput=${(e) => setReaction(e.target.value)}
               onKeyDown=${handleKeyDown}
               placeholder="e.g. rash, hives"
             />
+            <div class="char-counter${reaction.length > 460 ? reaction.length > 512 ? ' over-limit' : ' near-limit' : ''}">${reaction.length} / 512</div>
           </div>
           <div class="history-form-field">
             <label class="history-form-label">Severity</label>
@@ -210,7 +212,7 @@ export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }
           </div>
           <div class="questionnaire-form-actions">
             <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
-            <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
+            <button type="button" class="form-btn form-btn-save" disabled=${reaction.length > 512} onClick=${handleSave}>Save</button>
           </div>
         </div>
       </div>

@@ -41,6 +41,10 @@ class CommandParser(ABC):
     def annotate_duplicates(self, proposals: list[CommandProposal], note: Note) -> None:
         """Mark proposals that already exist in the patient's chart. Override per command type."""
 
+    def validate(self, data: dict[str, Any]) -> list[str]:
+        """Return validation error strings, or empty list if valid. Override per command type."""
+        return []
+
     @abstractmethod
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand: ...
 

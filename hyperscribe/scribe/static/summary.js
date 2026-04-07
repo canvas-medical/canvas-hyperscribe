@@ -1042,15 +1042,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const handleInsert = useCallback(async () => {
     if (approved || inserting) return;
-    // Block if any diagnose/assess text exceeds 2048 chars.
-    const overLimit = commands.filter(c =>
-      (c.command_type === 'diagnose' && (c.data.today_assessment || '').length > 2048) ||
-      (c.command_type === 'assess' && (c.data.narrative || '').length > 2048)
-    );
-    if (overLimit.length > 0) {
-      setValidationError(`${overLimit.length} condition(s) have assessment text over 2048 characters. Please shorten before approving.`);
-      return;
-    }
     setValidationError(null);
     logEvent('APPROVE_START', { totalCommands: commands.length, commandTypes: commands.map(c => c.command_type) });
     setInserting(true);
@@ -1127,11 +1118,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
       const data = await res.json();
       if (data.error) {
-        setError(data.error);
+        if (data.validation_errors) {
+          setValidationError(data.validation_errors);
+        } else {
+          setError(data.error);
+        }
         setApproved(false);
         setConfirming(false);
         saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
-        logEvent('APPROVE_ERROR', { error: data.error });
+        logEvent('APPROVE_ERROR', { error: data.error, validation_errors: data.validation_errors });
       } else {
         // Phase 2: Insert metadata if any pending
         if (data.metadata_pending && data.metadata_pending.length > 0) {
@@ -1538,7 +1533,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }}>Close</button>
         </div>
       `}
-      ${validationError && html`<div class="validation-error">${validationError}</div>`}
+      ${validationError && html`
+        <div class="validation-error">
+          <strong>Please fix before approving:</strong>
+          <ul>
+            ${(Array.isArray(validationError) ? validationError : [{ display: '', errors: [validationError] }]).map(v => html`
+              ${v.errors.map(e => html`<li key=${e}><strong>${v.display || v.command_type}</strong>: ${e}</li>`)}
+            `)}
+          </ul>
+        </div>
+      `}
       ${showFooter && html`
         <div class="summary-footer">
           ${inserting ? html`
