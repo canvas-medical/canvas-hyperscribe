@@ -12,6 +12,12 @@ class LabOrderParser(CommandParser):
     command_type = "lab_order"
     data_field = "comment"
 
+    def validate(self, data: dict[str, Any]) -> list[str]:
+        errors: list[str] = []
+        if len(data.get("comment") or "") > 128:
+            errors.append("Comment exceeds 128 characters")
+        return errors
+
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         return LabOrderCommand(
             lab_partner=data.get("lab_partner") or None,

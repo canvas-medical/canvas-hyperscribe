@@ -22,6 +22,14 @@ class RefillParser(CommandParser):
     def extract(self, text: str) -> None:
         return None
 
+    def validate(self, data: dict[str, Any]) -> list[str]:
+        errors: list[str] = []
+        if len(str(data.get("sig") or "")) > 1000:
+            errors.append("Sig exceeds 1000 characters")
+        if len(data.get("note_to_pharmacist") or "") > 1024:
+            errors.append("Note to pharmacist exceeds 1024 characters")
+        return errors
+
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         quantity = None
         raw_qty = data.get("quantity_to_dispense")

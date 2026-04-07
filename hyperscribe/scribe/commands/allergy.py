@@ -83,6 +83,13 @@ class AllergyParser(CommandParser):
                     proposal.already_documented = True
                     break
 
+    def validate(self, data: dict[str, Any]) -> list[str]:
+        errors: list[str] = []
+        narrative = data.get("reaction") or data.get("allergy_text") or ""
+        if len(narrative) > 512:
+            errors.append("Reaction exceeds 512 characters")
+        return errors
+
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         allergy_text = str(data.get("allergy_text", ""))
         concept_id = data.get("concept_id")
