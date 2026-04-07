@@ -1286,9 +1286,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const incompleteTypes = [];
   for (const c of commands) {
     if (c.already_documented) continue;
-    if (c.command_type === 'diagnose' && c.display && !c.data.rejected && (!c.data.icd10_code || !c.data.accepted)) {
-      if (!incompleteTypes.includes('diagnose')) incompleteTypes.push('diagnose');
-    }
     if (c.command_type === 'imaging_order' && c.display && _isImagingIncomplete(c.data)) {
       if (!incompleteTypes.includes('imaging_order')) incompleteTypes.push('imaging_order');
     }
@@ -1313,7 +1310,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }
   const incompleteCount = commands.filter(c =>
     !c.already_documented && c.display && (
-      (c.command_type === 'diagnose' && !c.data.rejected && (!c.data.icd10_code || !c.data.accepted)) ||
       (c.command_type === 'imaging_order' && _isImagingIncomplete(c.data)) ||
       ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && _isRxIncomplete(c.data)) ||
       (c.command_type === 'lab_order' && _isLabIncomplete(c.data)) ||
@@ -1325,7 +1321,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       (c.command_type === 'refer' && _isReferIncomplete(c.data))
     )
   ).length;
-  const undecidedRecommendationCount = recommendations.filter(c =>
+  const undecidedRecommendationCount = commands.filter(c =>
+    !c.already_documented && c.display && c.command_type === 'diagnose' && !c.data.accepted && !c.data.rejected
+  ).length + recommendations.filter(c =>
     !c.already_documented && c.display && !c.accepted && !c.rejected
   ).length;
 
