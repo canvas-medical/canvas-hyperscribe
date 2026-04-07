@@ -375,7 +375,7 @@ h2 { margin-bottom: 4px; }
 
 /* Recommendation card — flex row: content left, icon buttons right */
 .recommendation-block { display: flex; align-items: flex-start; }
-.recommendation-block .recommendation-content { flex: 1; min-width: 0; }
+.recommendation-block .recommendation-content { flex: 1; min-width: 0; word-break: break-word; }
 .recommendation-block .recommendation-actions {
   display: flex; gap: 8px; flex-shrink: 0;
   align-items: center; margin-left: 12px; padding-top: 4px;
@@ -642,7 +642,7 @@ h2 { margin-bottom: 4px; }
 /* Order view mode (read-only display) */
 .command-type-label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
 .order-view { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
-.order-view-name { font-size: 14px; font-weight: 600; color: #333; }
+.order-view-name { font-size: 14px; font-weight: 600; color: #333; word-break: break-word; }
 .order-view-sig { font-size: 13px; color: #555; font-style: italic; }
 .order-view-details { font-size: 12px; color: #888; }
 
@@ -810,7 +810,7 @@ h2 { margin-bottom: 4px; }
 .diagnose-suggestion-btn:hover { background: #f5f5f5; border-color: #052B49; }
 .diagnose-suggestion-btn:active { background: #e0e7ff; }
 .diagnose-suggestion-btn strong { color: #059669; margin-right: 4px; }
-.diagnose-row-body { font-size: 15px; line-height: 1.6; color: #444; white-space: pre-line; padding: 4px; border-radius: 8px; }
+.diagnose-row-body { font-size: 15px; line-height: 1.6; color: #444; white-space: pre-line; padding: 4px; border-radius: 8px; word-break: break-word; }
 .diagnose-row-body.editable { cursor: pointer; border-radius: 4px; padding: 4px 6px; }
 .diagnose-row-body.editable:hover { background: #f0f0f0; }
 .diagnose-body-line { min-height: 1.4em; }
@@ -933,6 +933,9 @@ h2 { margin-bottom: 4px; }
 
 /* Validation error above footer */
 .validation-error { margin: 8px 16px; padding: 8px 12px; font-size: 13px; color: #991b1b; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; }
+.validation-error strong { font-weight: 600; }
+.validation-error ul { margin: 4px 0 0; padding-left: 20px; }
+.validation-error li { margin-bottom: 2px; }
 
 /* Command verification banner */
 .verification-banner { margin: 12px 16px; border-radius: 8px; font-size: 13px; }

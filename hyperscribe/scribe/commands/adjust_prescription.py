@@ -22,6 +22,14 @@ class AdjustPrescriptionParser(CommandParser):
     def extract(self, text: str) -> None:
         return None
 
+    def validate(self, data: dict[str, Any]) -> list[str]:
+        errors: list[str] = []
+        if len(str(data.get("sig") or "")) > 1000:
+            errors.append("Sig exceeds 1000 characters")
+        if len(data.get("note_to_pharmacist") or "") > 1024:
+            errors.append("Note to pharmacist exceeds 1024 characters")
+        return errors
+
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         quantity = None
         raw_qty = data.get("quantity_to_dispense")
@@ -52,13 +60,13 @@ class AdjustPrescriptionParser(CommandParser):
         return AdjustPrescriptionCommand(
             new_fdb_code=data.get("new_fdb_code") or None,
             fdb_code=data.get("fdb_code") or None,
-            sig=str(data.get("sig", "")),
+            sig=str(data.get("sig", ""))[:1000],
             days_supply=int(data["days_supply"]) if data.get("days_supply") is not None else None,
             quantity_to_dispense=quantity,
             type_to_dispense=type_to_dispense,
             refills=int(data["refills"]) if data.get("refills") is not None else None,
             substitutions=substitutions,
-            note_to_pharmacist=data.get("note_to_pharmacist") or None,
+            note_to_pharmacist=(data.get("note_to_pharmacist") or "")[:1024] or None,
             pharmacy=data.get("pharmacy") or None,
             prescriber_id=prescriber_id,
             note_uuid=note_uuid,

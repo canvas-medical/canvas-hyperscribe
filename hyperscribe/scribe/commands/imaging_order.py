@@ -16,6 +16,14 @@ class ImagingOrderParser(CommandParser):
     def extract(self, text: str) -> None:
         return None
 
+    def validate(self, data: dict[str, Any]) -> list[str]:
+        errors: list[str] = []
+        if len(data.get("additional_details") or "") > 1024:
+            errors.append("Order details exceeds 1024 characters")
+        if len(data.get("comment") or "") > 1024:
+            errors.append("Comment exceeds 1024 characters")
+        return errors
+
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         priority = None
         raw_priority = data.get("priority")
@@ -40,8 +48,8 @@ class ImagingOrderParser(CommandParser):
         return ImagingOrderCommand(
             image_code=data.get("image_code") or None,
             diagnosis_codes=data.get("diagnosis_codes") or None,
-            additional_details=data.get("additional_details") or None,
-            comment=data.get("comment") or None,
+            additional_details=(data.get("additional_details") or "")[:1024] or None,
+            comment=(data.get("comment") or "")[:1024] or None,
             priority=priority,
             ordering_provider_key=data.get("ordering_provider_id") or None,
             service_provider=service_provider,
