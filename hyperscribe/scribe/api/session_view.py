@@ -1052,7 +1052,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not note_uuid:
             return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         commands = data.get("commands", [])
-        effects, metadata_pending = build_effects(commands, note_uuid)
+        effects, metadata_pending, attempted = build_effects(commands, note_uuid)
         audit_event(
             note_uuid,
             "INSERT_COMMANDS",
@@ -1071,7 +1071,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             },
         )
         return [
-            JSONResponse({"inserted": len(effects), "metadata_pending": metadata_pending}, status_code=HTTPStatus.OK),
+            JSONResponse(
+                {
+                    "inserted": len(effects),
+                    "metadata_pending": metadata_pending,
+                    "attempted": attempted,
+                },
+                status_code=HTTPStatus.OK,
+            ),
             *effects,
         ]
 
@@ -1087,6 +1094,58 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK)]
         effects = build_metadata_effects(pending)
         return [JSONResponse({"ok": True, "metadata_count": len(effects)}, status_code=HTTPStatus.OK), *effects]
+
+    @api.post("/verify-commands")
+    def post_verify_commands(self) -> list[Union[Response, Effect]]:
+        """Verify that attempted commands exist on the note with anchor objects."""
+        from canvas_sdk.v1.data.command import Command
+
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_uuid = str(data.get("note_uuid", ""))
+        attempted: list[dict[str, Any]] = data.get("attempted", [])
+        if not note_uuid or not attempted:
+            return [JSONResponse({"verified": [], "failed": []}, status_code=HTTPStatus.OK)]
+
+        uuids = [a["command_uuid"] for a in attempted]
+        cmd_rows = {
+            str(row["id"]): row
+            for row in Command.objects.filter(
+                id__in=uuids,
+                note__id=note_uuid,
+            ).values("id", "anchor_object_type", "anchor_object_dbid")
+        }
+        verified: list[dict[str, Any]] = []
+        failed: list[dict[str, Any]] = []
+        for a in attempted:
+            row = cmd_rows.get(a["command_uuid"])
+            if row and row["anchor_object_dbid"]:
+                verified.append(a)
+            else:
+                reason = "no_anchor" if row else "not_found"
+                failed.append({**a, "reason": reason})
+
+        audit_event(
+            note_uuid,
+            "COMMANDS_VERIFIED",
+            {
+                "total": len(verified) + len(failed),
+                "verified": [
+                    {"type": v.get("command_type", ""), "display": (v.get("display") or "")[:80]} for v in verified
+                ],
+                "failed": [
+                    {
+                        "type": f.get("command_type", ""),
+                        "display": (f.get("display") or "")[:80],
+                        "reason": f.get("reason", ""),
+                    }
+                    for f in failed
+                ],
+            },
+        )
+        return [JSONResponse({"verified": verified, "failed": failed}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-medications")
     def get_search_medications(self) -> list[Union[Response, Effect]]:
