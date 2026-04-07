@@ -1248,11 +1248,13 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label${rxMissing.has('sig') ? ' field-missing' : ''}">Sig *</label>
-                  <input class="history-form-input${rxMissing.has('sig') ? ' input-missing' : ''}" type="text" value=${sig} onInput=${(e) => setSig(e.target.value)} placeholder="e.g. Take 1 tablet by mouth daily" />
+                  <input class="history-form-input${rxMissing.has('sig') ? ' input-missing' : ''}" type="text" maxLength=1000 value=${sig} onInput=${(e) => setSig(e.target.value)} placeholder="e.g. Take 1 tablet by mouth daily" />
+                  <div class="char-counter${sig.length > 900 ? sig.length > 1000 ? ' over-limit' : ' near-limit' : ''}">${sig.length} / 1000</div>
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label">Note to Pharmacist</label>
-                  <input class="history-form-input" type="text" value=${noteToPharmacist} onInput=${(e) => setNoteToPharmacist(e.target.value)} placeholder="Optional" />
+                  <input class="history-form-input" type="text" maxLength=1024 value=${noteToPharmacist} onInput=${(e) => setNoteToPharmacist(e.target.value)} placeholder="Optional" />
+                  <div class="char-counter${noteToPharmacist.length > 900 ? noteToPharmacist.length > 1024 ? ' over-limit' : ' near-limit' : ''}">${noteToPharmacist.length} / 1024</div>
                 </div>
                 <div class="history-form-field" style="position: relative;">
                   <label class="history-form-label">Pharmacy</label>
@@ -1428,10 +1430,12 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   <input
                     class="history-form-input"
                     type="text"
+                    maxLength=128
                     value=${labComment}
                     onInput=${(e) => setLabComment(e.target.value)}
                     placeholder="Optional"
                   />
+                  <div class="char-counter${labComment.length > 110 ? labComment.length > 128 ? ' over-limit' : ' near-limit' : ''}">${labComment.length} / 128</div>
                 </div>
               </div>
             `}
@@ -1503,11 +1507,13 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 `}
                 <div class="history-form-field">
                   <label class="history-form-label">Order Details</label>
-                  <input class="history-form-input" type="text" value=${imagingDetails} onInput=${(e) => setImagingDetails(e.target.value)} placeholder="Optional" />
+                  <input class="history-form-input" type="text" maxLength=1024 value=${imagingDetails} onInput=${(e) => setImagingDetails(e.target.value)} placeholder="Optional" />
+                  <div class="char-counter${imagingDetails.length > 900 ? imagingDetails.length > 1024 ? ' over-limit' : ' near-limit' : ''}">${imagingDetails.length} / 1024</div>
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label">Comment</label>
-                  <input class="history-form-input" type="text" value=${imagingComment} onInput=${(e) => setImagingComment(e.target.value)} placeholder="Optional" />
+                  <input class="history-form-input" type="text" maxLength=1024 value=${imagingComment} onInput=${(e) => setImagingComment(e.target.value)} placeholder="Optional" />
+                  <div class="char-counter${imagingComment.length > 900 ? imagingComment.length > 1024 ? ' over-limit' : ' near-limit' : ''}">${imagingComment.length} / 1024</div>
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label">Priority</label>
@@ -1663,7 +1669,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
             `}
             <div class="questionnaire-form-actions">
               <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
-              <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
+              <button type="button" class="form-btn form-btn-save" disabled=${sig.length > 1000 || noteToPharmacist.length > 1024 || labComment.length > 128 || imagingDetails.length > 1024 || imagingComment.length > 1024} onClick=${handleSave}>Save</button>
             </div>
           </div>
         </div>

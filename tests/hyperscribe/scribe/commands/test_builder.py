@@ -1,7 +1,7 @@
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from hyperscribe.scribe.commands.builder import build_effects, build_metadata_effects
+from hyperscribe.scribe.commands.builder import build_effects, build_metadata_effects, validate_proposals
 
 
 def test_build_effects_routes_all_types() -> None:
@@ -210,3 +210,89 @@ def test_build_metadata_effects_unknown_type() -> None:
     ]
     effects = build_metadata_effects(pending)
     assert effects == []
+
+
+def test_validate_proposals_all_valid() -> None:
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "diagnose", "data": {"today_assessment": "Short text"}, "display": "Migraine"},
+        {"command_type": "assess", "data": {"narrative": "Brief"}, "display": "HTN"},
+        {"command_type": "prescribe", "data": {"sig": "Take daily"}, "display": "Lisinopril"},
+    ]
+    assert validate_proposals(proposals) == []
+
+
+def test_validate_proposals_diagnose_over_limit() -> None:
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "diagnose", "data": {"today_assessment": "x" * 2049}, "display": "Migraine"},
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 1
+    assert errors[0]["command_type"] == "diagnose"
+    assert errors[0]["display"] == "Migraine"
+    assert "2048" in errors[0]["errors"][0]
+
+
+def test_validate_proposals_assess_over_limit() -> None:
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "assess", "data": {"narrative": "x" * 2049}, "display": "HTN"},
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 1
+    assert errors[0]["command_type"] == "assess"
+
+
+def test_validate_proposals_prescription_sig_over_limit() -> None:
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "prescribe", "data": {"sig": "x" * 1001}, "display": "Lisinopril"},
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 1
+    assert "Sig" in errors[0]["errors"][0]
+
+
+def test_validate_proposals_prescription_note_to_pharmacist_over_limit() -> None:
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "prescribe", "data": {"sig": "ok", "note_to_pharmacist": "x" * 1025}, "display": "Lisinopril"},
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 1
+    assert "pharmacist" in errors[0]["errors"][0].lower()
+
+
+def test_validate_proposals_multiple_failures() -> None:
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "diagnose", "data": {"today_assessment": "x" * 2049}, "display": "Migraine"},
+        {"command_type": "prescribe", "data": {"sig": "x" * 1001, "note_to_pharmacist": "x" * 1025}, "display": "Rx"},
+        {"command_type": "allergy", "data": {"reaction": "x" * 513}, "display": "Penicillin"},
+        {"command_type": "lab_order", "data": {"comment": "x" * 129}, "display": "CBC"},
+        {
+            "command_type": "imaging_order",
+            "data": {"additional_details": "x" * 1025, "comment": "x" * 1025},
+            "display": "MRI",
+        },
+        {"command_type": "stop_medication", "data": {"rationale": "x" * 1025}, "display": "Stop med"},
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 6
+    # Prescription has 2 errors (sig + note_to_pharmacist)
+    rx_errors = next(e for e in errors if e["command_type"] == "prescribe")
+    assert len(rx_errors["errors"]) == 2
+    # Imaging has 2 errors
+    img_errors = next(e for e in errors if e["command_type"] == "imaging_order")
+    assert len(img_errors["errors"]) == 2
+
+
+def test_validate_proposals_unknown_type_skipped() -> None:
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "unknown", "data": {"text": "x" * 99999}, "display": "???"},
+    ]
+    assert validate_proposals(proposals) == []
+
+
+def test_validate_proposals_refill_and_adjust() -> None:
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "refill", "data": {"sig": "x" * 1001}, "display": "Refill"},
+        {"command_type": "adjust_prescription", "data": {"sig": "x" * 1001}, "display": "Adjust"},
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 2
