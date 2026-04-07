@@ -1505,7 +1505,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                 <span class="recording-dot recording-dot-live"
                   style=${{
                     transform: `scale(${1 + Math.min(recording.audioLevel * 12, 2)})`,
-                    opacity: 0.4 + Math.min(recording.audioLevel * 8, 0.6),
+                    opacity: 0.6 + Math.min(recording.audioLevel * 6, 0.4),
                   }}
                 ></span>
               `}
