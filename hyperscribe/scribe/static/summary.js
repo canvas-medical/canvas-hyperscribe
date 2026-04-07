@@ -1325,6 +1325,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       (c.command_type === 'refer' && _isReferIncomplete(c.data))
     )
   ).length;
+  const undecidedRecommendationCount = recommendations.filter(c =>
+    !c.already_documented && c.display && !c.accepted && !c.rejected
+  ).length;
 
   // Ensure sections with ad-hoc buttons are always present even if Nabla omits them.
   const ENSURE_KEYS = new Map([
@@ -1545,7 +1548,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${incompleteCount} incomplete ${incompleteCount === 1 ? 'item' : 'items'} will be skipped: ${incompleteTypes.map(t => INCOMPLETE_LABELS[t]).join(', ')}
                 </div>
               `}
-              <button class="insert-btn" onClick=${() => setConfirming(true)}>Approve & Insert Commands</button>
+              ${undecidedRecommendationCount > 0 && html`
+                <div class="summary-footer-warning">
+                  ${undecidedRecommendationCount} ${undecidedRecommendationCount === 1 ? 'recommendation needs' : 'recommendations need'} a decision, ${undecidedRecommendationCount === 1 ? 'it has' : 'they have'} not been accepted nor rejected.
+                </div>
+              `}
+              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0} onClick=${() => setConfirming(true)}>Approve & Insert Commands</button>
               <div class="approve-warning">This action is permanent and cannot be undone.</div>
             </div>
           `}
