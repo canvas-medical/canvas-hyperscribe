@@ -180,6 +180,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [diagnosisSuggestions, setDiagnosisSuggestions] = useState(initSummary?.diagnosis_suggestions ?? {});
   const [progress, setProgress] = useState({ step: -1, total: 0, label: '' });
   const [prescriptionWarning, setPrescriptionWarning] = useState(false);
+  const rxCloseRef = useRef(null);
+  useEffect(() => {
+    if (prescriptionWarning) rxCloseRef.current?.focus();
+  }, [prescriptionWarning]);
 
   // Template state.
   const [templates, setTemplates] = useState(initialData?.templates ?? []);
@@ -971,9 +975,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     logEvent('APPROVE_START', { totalCommands: commands.length, commandTypes: commands.map(c => c.command_type) });
     setInserting(true);
 
-    // Mark as approved IMMEDIATELY — before the async request.
-    // Even if the request fails or the page is reloaded, the user can't re-submit.
-    setApproved(true);
+    // Persist approved state to cache early so a page reload can't re-submit.
     saveSummaryToCache(noteData, commands, true, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
 
     const SECTION_TYPES = new Set(['physical_exam', 'ros', 'chart_review', 'history_review']);
@@ -1065,6 +1067,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         }
         const hasPrescriptions = allInsertable.some(c => c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription');
         logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length, effectCount: data.inserted, hasPendingMetadata: (data.metadata_pending?.length || 0) > 0 });
+        setApproved(true);
         if (hasPrescriptions) {
           setPrescriptionWarning(true);
         } else {
@@ -1350,7 +1353,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           </label>
         </div>
       `}
-      <div class="summary-body">
+      <div class=${`summary-body${inserting ? ' summary-body--inserting' : ''}`}>
         ${renderSoapGroups(effectiveSections, commandBySectionKey, handleEdit, handleDelete, {
           adHocCommands,
           objectiveAdHocCommands,
@@ -1373,7 +1376,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddTemplateCharge: approved ? null : handleAddTemplateCharge,
           onRemoveChargeByCpt: approved ? null : handleRemoveChargeByCpt,
           templateCharges: selectedTemplate ? (selectedTemplate.charges || []) : [],
-          readOnly: approved || inserting,
+          readOnly: approved,
           sectionConditions,
           patientId,
           noteId,
@@ -1397,7 +1400,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           <div class="rx-verification-text">
             <strong>Prescriptions require verification.</strong> Go to the Note tab to review and sign prescriptions before they are sent.
           </div>
-          <button class="rx-verification-close" onClick=${() => {
+          <button ref=${rxCloseRef} class="rx-verification-close" onClick=${() => {
             const port = window.__canvasPort && window.__canvasPort();
             if (port) port.postMessage({ type: 'CLOSE_MODAL' });
           }}>Close</button>
