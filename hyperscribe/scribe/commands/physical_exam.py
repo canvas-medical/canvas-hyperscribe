@@ -15,7 +15,8 @@ class PhysicalExamParser(CommandParser):
 
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         sections = [{"title": s.get("title", ""), "text": s.get("text", "")} for s in data.get("sections", [])]
-        html = render_to_string("scribe/templates/ros_sections.html", {"sections": sections})
+        html = render_to_string("scribe/templates/ros_sections.html", {"sections": sections}) or ""
+        html = html.encode("ascii", "xmlcharrefreplace").decode("ascii")
         return CustomCommand(
             schema_key="physicalExam",
             content=html,

@@ -616,7 +616,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setCommands(prev => {
       // Keep any existing ad-hoc commands and template-inserted commands (ROS, PE, questionnaires).
       const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
-      const existing = prev.filter(c => adHocKeys.has(c.section_key) || c._template_inserted);
+      const existing = prev.filter(c => {
+        if (c._template_inserted && c.command_type === 'physical_exam') return false;
+        return adHocKeys.has(c.section_key) || c._template_inserted;
+      });
       return [...manualCommands, ...existing];
     });
   }, [selectedTemplate]);
