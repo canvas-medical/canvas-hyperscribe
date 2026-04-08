@@ -14,8 +14,6 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.models.scribe import ScribeTranscript
 from hyperscribe.scribe.api.session_view import _load_initial_data
 
-STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
-
 
 def _safe_json(data: Any) -> str:
     """Serialize to JSON safe for embedding in an HTML script tag."""
@@ -105,16 +103,18 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
             return [Response(b"Not found", status_code=HTTPStatus.NOT_FOUND)]
 
         if extension in BINARY_EXTENSIONS:
-            file_path = STATIC_DIR / filename
-            if not file_path.is_file():
+            try:
+                static_dir = Path(__file__).resolve().parent.parent / "static"
+                file_path = static_dir / filename
+                return [
+                    Response(
+                        file_path.read_bytes(),
+                        status_code=HTTPStatus.OK,
+                        content_type=content_type,
+                    )
+                ]
+            except Exception:
                 return [Response(b"Not found", status_code=HTTPStatus.NOT_FOUND)]
-            return [
-                Response(
-                    file_path.read_bytes(),
-                    status_code=HTTPStatus.OK,
-                    content_type=content_type,
-                )
-            ]
 
         content = render_to_string(f"scribe/static/{filename}")
         return [
