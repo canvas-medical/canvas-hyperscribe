@@ -1539,6 +1539,31 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           `}
         </div>
       `}
+      ${recording.micPrompting && html`
+        <div class="mic-prompting-banner">
+          <div class="mic-prompting-spinner" />
+          <span>Waiting for microphone permission…</span>
+        </div>
+      `}
+      ${recording.micBlocked && html`
+        <div class="mic-blocked-banner">
+          <div class="mic-blocked-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#c0392b">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+              <line x1="3" y1="3" x2="21" y2="21" stroke="#c0392b" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="mic-blocked-content">
+            <strong>Microphone Access Blocked</strong>
+            <p>Your browser is blocking microphone access. On iPad: open <strong>Settings \u203A Chrome \u203A Microphone</strong> and enable, then refresh.</p>
+          </div>
+          <div class="mic-blocked-actions">
+            <a class="mic-blocked-btn mic-blocked-btn-settings" href="app-settings:">Open Chrome Settings</a>
+            <button class="mic-blocked-btn mic-blocked-btn-refresh" onClick=${() => window.location.reload()}>Refresh Page</button>
+          </div>
+        </div>
+      `}
       ${recording.silenceWarning && recording.status === 'recording' && html`
         <div class="silence-warning">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">

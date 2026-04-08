@@ -24,6 +24,7 @@ function cleanupAudio(audioCtxRef, streamRef, workletNodeRef) {
 const SILENCE_RMS_THRESHOLD = 0.005;
 // Seconds of continuous silence before showing a warning.
 const SILENCE_WARNING_SECONDS = 7.5;
+const DING_URL = new URL('./ding.wav', import.meta.url).href;
 
 /**
  * Custom hook encapsulating all recording logic.
@@ -40,8 +41,11 @@ export function useRecording(noteId, initialTranscript) {
   const [finalized, setFinalized] = useState(() => initialTranscript?.finalized ?? false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [silenceWarning, setSilenceWarning] = useState(false);
+  const [micBlocked, setMicBlocked] = useState(false);
+  const [micPrompting, setMicPrompting] = useState(false);
   const lastAudioTimeRef = useRef(null);
   const silenceTimerRef = useRef(null);
+  const silenceDingPlayedRef = useRef(false);
 
   const statusRef = useRef(status);
   statusRef.current = status;
@@ -92,14 +96,18 @@ export function useRecording(noteId, initialTranscript) {
 
     let stream;
     try {
+      setMicPrompting(true);
       stream = await navigator.mediaDevices.getUserMedia({
         audio: { sampleRate: TARGET_SAMPLE_RATE, channelCount: 1, echoCancellation: true },
       });
     } catch (err) {
       setError('Microphone access denied');
+      setMicBlocked(true);
       client.end();
       clientRef.current = null;
       return false;
+    } finally {
+      setMicPrompting(false);
     }
     streamRef.current = stream;
 
@@ -184,10 +192,14 @@ export function useRecording(noteId, initialTranscript) {
       console.log('[Hyperscribe] Sentry session replay not available');
     }
     setSilenceWarning(false);
+    silenceDingPlayedRef.current = false;
     setAudioLevel(0);
     lastAudioTimeRef.current = Date.now();
     const ok = await connectAndRecord();
-    if (ok) setStatus('recording');
+    if (ok) {
+      setMicBlocked(false);
+      setStatus('recording');
+    }
     return ok;
   }, [connectAndRecord]);
 
@@ -200,10 +212,12 @@ export function useRecording(noteId, initialTranscript) {
   const resumeRecording = useCallback(async () => {
     setError(null);
     setSilenceWarning(false);
+    silenceDingPlayedRef.current = false;
     setAudioLevel(0);
     lastAudioTimeRef.current = Date.now();
     const ok = await connectAndRecord();
     if (ok) {
+      setMicBlocked(false);
       setStatus('recording');
     } else {
       setStatus('paused');
@@ -276,6 +290,10 @@ export function useRecording(noteId, initialTranscript) {
       const elapsed = (Date.now() - (lastAudioTimeRef.current || Date.now())) / 1000;
       if (elapsed >= SILENCE_WARNING_SECONDS) {
         setSilenceWarning(true);
+        if (!silenceDingPlayedRef.current) {
+          silenceDingPlayedRef.current = true;
+          new Audio(DING_URL).play().catch(() => {});
+        }
       }
     }, 2000);
     return () => {
@@ -283,6 +301,22 @@ export function useRecording(noteId, initialTranscript) {
       silenceTimerRef.current = null;
     };
   }, [status]);
+
+  // Check microphone permission on mount and listen for changes.
+  useEffect(() => {
+    let permStatus;
+    async function check() {
+      try {
+        permStatus = await navigator.permissions.query({ name: 'microphone' });
+        setMicBlocked(permStatus.state === 'denied');
+        permStatus.onchange = () => setMicBlocked(permStatus.state === 'denied');
+      } catch {
+        // Permissions API not supported — we'll catch denial on getUserMedia instead.
+      }
+    }
+    check();
+    return () => { if (permStatus) permStatus.onchange = null; };
+  }, []);
 
   // Cleanup on unmount — save transcript via sendBeacon before destroying resources.
   useEffect(() => {
@@ -303,7 +337,7 @@ export function useRecording(noteId, initialTranscript) {
   }, []);
 
   return {
-    status, entries, error, finalized, lastSaved, audioLevel, silenceWarning,
+    status, entries, error, finalized, lastSaved, audioLevel, silenceWarning, micBlocked, micPrompting,
     startRecording, pauseRecording, resumeRecording, finishRecording,
   };
 }
