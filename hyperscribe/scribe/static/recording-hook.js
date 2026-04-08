@@ -153,8 +153,8 @@ export function useRecording(noteId, initialTranscript) {
 
   const startRecording = useCallback(async () => {
     setError(null);
-    if (window.__startReplayRecording) {
-      window.__startReplayRecording();
+    if (window.parent.__startReplayRecording) {
+      window.parent.__startReplayRecording();
     } else {
       console.log('[Hyperscribe] Sentry session replay not available');
     }
