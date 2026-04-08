@@ -1103,8 +1103,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       console.error('Failed to fetch patient conditions for assess check:', err);
     }
     // Prescriptions first so they appear at the top of the note.
-    const RX_TYPES = new Set(['prescribe', 'refill', 'adjust_prescription']);
-    allInsertable.sort((a, b) => (RX_TYPES.has(a.command_type) ? 0 : 1) - (RX_TYPES.has(b.command_type) ? 0 : 1));
+    const RX_SET = new Set(['prescribe', 'refill', 'adjust_prescription']);
+    allInsertable.sort((a, b) => (RX_SET.has(a.command_type) ? 0 : 1) - (RX_SET.has(b.command_type) ? 0 : 1));
     logEvent('COMMANDS_SENDING', { commands: allInsertable.map(c => ({
       type: c.command_type, display: (c.display || '').slice(0, 80), sectionKey: c.section_key,
     })) });
@@ -1154,7 +1154,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             selected_template_name: selectedTemplate?.name || null, mode,
           });
         }
-        const hasPrescriptions = allInsertable.some(c => c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription');
+        const hasPrescriptions = commands.some(c => c.display && RX_SET.has(c.command_type))
+          || recommendations.some(c => c.display && !c.rejected && RX_SET.has(c.command_type));
         logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length, effectCount: data.inserted, hasPendingMetadata: (data.metadata_pending?.length || 0) > 0 });
         // Verify commands were actually created.
           if (data.attempted && data.attempted.length > 0) {
@@ -1277,6 +1278,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     return !c.already_documented && c.display;
   }).length
     + recommendations.filter(c => c.accepted && !c.already_documented && c.display).length;
+  const RX_TYPES = new Set(['prescribe', 'refill', 'adjust_prescription']);
+  const hasRxCommands = commands.some(c => c.display && RX_TYPES.has(c.command_type))
+    || recommendations.some(c => c.display && !c.rejected && RX_TYPES.has(c.command_type));
   const showFooter = !approved && (mode === 'manual' || insertableCount > 0);
 
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral', lab_order: 'lab order' };
@@ -1547,7 +1551,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </div>
           ` : confirming ? html`
             <div class="approve-confirm-block">
-              <button class="insert-btn confirm" onClick=${handleInsert}>Confirm Approve</button>
+              <button class="insert-btn confirm" onClick=${handleInsert}>${hasRxCommands ? 'Confirm: Accept and review prescriptions' : 'Confirm: Accept and sign'}</button>
               <button class="approve-cancel" onClick=${() => setConfirming(false)}>Cancel</button>
             </div>
           ` : html`
@@ -1562,7 +1566,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${undecidedRecommendationCount} ${undecidedRecommendationCount === 1 ? 'recommendation needs' : 'recommendations need'} a decision, ${undecidedRecommendationCount === 1 ? 'it has' : 'they have'} not been accepted nor rejected: ${undecidedTypes.map(t => UNDECIDED_LABELS[t] || t).join(', ')}
                 </div>
               `}
-              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0} onClick=${() => setConfirming(true)}>Approve & Insert Commands</button>
+              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0} onClick=${() => setConfirming(true)}>${hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign'}</button>
               <div class="approve-warning">This action is permanent and cannot be undone.</div>
             </div>
           `}
