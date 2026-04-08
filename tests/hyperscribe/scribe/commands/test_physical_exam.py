@@ -26,6 +26,20 @@ def test_build_renders_template(mock_render: MagicMock) -> None:
 
 
 @patch("hyperscribe.scribe.commands.physical_exam.render_to_string")
+def test_build_encodes_non_ascii_as_html_entities(mock_render: MagicMock) -> None:
+    mock_render.return_value = "<div><b>General:</b> A&amp;O ×3</div>"
+    parser = PhysicalExamParser()
+
+    with patch("hyperscribe.scribe.commands.physical_exam.CustomCommand") as mock_cmd:
+        mock_cmd.return_value = MagicMock()
+        parser.build({"sections": [{"title": "General", "text": "A&O ×3"}]}, "n", "c")
+
+    content = mock_cmd.call_args[1]["content"]
+    assert "×" not in content
+    assert "&#215;" in content
+
+
+@patch("hyperscribe.scribe.commands.physical_exam.render_to_string")
 def test_build_multiple_sections(mock_render: MagicMock) -> None:
     mock_render.return_value = "<div><b>General:</b> WA</div><div><b>Lungs:</b> CTA</div>"
     parser = PhysicalExamParser()
