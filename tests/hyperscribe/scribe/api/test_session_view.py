@@ -833,6 +833,51 @@ def test_insert_metadata_invalid_json() -> None:
     assert "Invalid JSON" in json.loads(result[0].content)["error"]
 
 
+# --- sign-note ---
+
+
+@patch("hyperscribe.scribe.api.session_view.NoteEffect")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+def test_sign_note_success(mock_audit: MagicMock, mock_note_cls: MagicMock) -> None:
+    mock_note = MagicMock()
+    mock_note.lock.return_value = "lock_effect"
+    mock_note.sign.return_value = "sign_effect"
+    mock_note_cls.return_value = mock_note
+
+    view = _helper_instance()
+    note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": note_uuid}))
+    result = view.post_sign_note()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["ok"] is True
+    assert result[1] == "lock_effect"
+    assert result[2] == "sign_effect"
+    assert len(result) == 3
+    mock_note_cls.assert_called_once_with(instance_id=note_uuid)
+    mock_note.lock.assert_called_once()
+    mock_note.sign.assert_called_once()
+    mock_audit.assert_called_once_with(note_uuid, "SIGN_NOTE", {})
+
+
+def test_sign_note_missing_note_uuid() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({}))
+    result = view.post_sign_note()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_uuid" in json.loads(result[0].content)["error"]
+
+
+def test_sign_note_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_sign_note()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
 # --- annotate_duplicates delegation ---
 
 
