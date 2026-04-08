@@ -216,7 +216,7 @@ h2 { margin-bottom: 4px; }
   min-width: 0;
 }
 
-.mic-blocked-content strong {
+.mic-blocked-content > strong {
   display: block;
   font-size: 14px;
   color: #922;
