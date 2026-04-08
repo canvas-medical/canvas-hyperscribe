@@ -18,6 +18,14 @@ class ReferParser(CommandParser):
     def extract(self, text: str) -> None:
         return None
 
+    def validate(self, data: dict[str, Any]) -> list[str]:
+        errors: list[str] = []
+        if not data.get("notes_to_specialist"):
+            errors.append("Notes to specialist is required")
+        if not data.get("diagnosis_codes"):
+            errors.append("At least one indication is required")
+        return errors
+
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         priority = None
         raw_priority = data.get("priority")
