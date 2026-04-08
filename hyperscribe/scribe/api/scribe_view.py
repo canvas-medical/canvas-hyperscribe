@@ -1,6 +1,5 @@
 import json
 from http import HTTPStatus
-from pathlib import Path
 from typing import Any, Union
 
 from canvas_sdk.effects import Effect
@@ -23,9 +22,7 @@ def _safe_json(data: Any) -> str:
 CONTENT_TYPES: dict[str, str] = {
     "js": "text/javascript",
     "css": "text/css",
-    "wav": "audio/wav",
 }
-BINARY_EXTENSIONS: set[str] = {"wav"}
 
 
 class ScribeView(StaffSessionAuthMixin, SimpleAPI):
@@ -101,20 +98,6 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
         content_type = CONTENT_TYPES.get(extension)
         if not content_type:
             return [Response(b"Not found", status_code=HTTPStatus.NOT_FOUND)]
-
-        if extension in BINARY_EXTENSIONS:
-            try:
-                static_dir = Path(__file__).resolve().parent.parent / "static"
-                file_path = static_dir / filename
-                return [
-                    Response(
-                        file_path.read_bytes(),
-                        status_code=HTTPStatus.OK,
-                        content_type=content_type,
-                    )
-                ]
-            except Exception:
-                return [Response(b"Not found", status_code=HTTPStatus.NOT_FOUND)]
 
         content = render_to_string(f"scribe/static/{filename}")
         return [
