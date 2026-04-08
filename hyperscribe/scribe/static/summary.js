@@ -215,13 +215,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [unmatchedConditions, setUnmatchedConditions] = useState(initSummary?.unmatched_conditions ?? []);
   const [diagnosisSuggestions, setDiagnosisSuggestions] = useState(initSummary?.diagnosis_suggestions ?? {});
   const [progress, setProgress] = useState({ step: -1, total: 0, label: '' });
-  const [prescriptionWarning, setPrescriptionWarning] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
   const [validationError, setValidationError] = useState(null);
-  const rxCloseRef = useRef(null);
-  useEffect(() => {
-    if (prescriptionWarning) rxCloseRef.current?.focus();
-  }, [prescriptionWarning]);
 
   // Template state.
   const [templates, setTemplates] = useState(initialData?.templates ?? []);
@@ -1107,6 +1102,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     } catch (err) {
       console.error('Failed to fetch patient conditions for assess check:', err);
     }
+    // Prescriptions first so they appear at the top of the note.
+    const RX_TYPES = new Set(['prescribe', 'refill', 'adjust_prescription']);
+    allInsertable.sort((a, b) => (RX_TYPES.has(a.command_type) ? 0 : 1) - (RX_TYPES.has(b.command_type) ? 0 : 1));
     logEvent('COMMANDS_SENDING', { commands: allInsertable.map(c => ({
       type: c.command_type, display: (c.display || '').slice(0, 80), sectionKey: c.section_key,
     })) });
@@ -1183,12 +1181,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }
           }
           setApproved(true);
-          if (hasPrescriptions) {
-              setPrescriptionWarning(true);
-          } else {
+          if (!hasPrescriptions) {
+            try {
+              await fetch(`${API_BASE}/sign-note`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note_uuid: noteId }),
+              });
+              logEvent('NOTE_SIGNED');
+            } catch (signErr) {
+              console.error('Failed to sign note:', signErr);
+            }
+          }
           const port = window.__canvasPort && window.__canvasPort();
           if (port) port.postMessage({ type: 'CLOSE_MODAL' });
-        }
       }
     } catch (err) {
       setError('Failed to insert commands');
@@ -1522,17 +1528,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         })}
       </div>
       ${verificationResult && html`<${VerificationSummary} result=${verificationResult} />`}
-      ${prescriptionWarning && html`
-        <div class="rx-verification-banner">
-          <div class="rx-verification-text">
-            <strong>Prescriptions require verification.</strong> Go to the Note tab to review and sign prescriptions before they are sent.
-          </div>
-          <button ref=${rxCloseRef} class="rx-verification-close" onClick=${() => {
-            const port = window.__canvasPort && window.__canvasPort();
-            if (port) port.postMessage({ type: 'CLOSE_MODAL' });
-          }}>Close</button>
-        </div>
-      `}
       ${validationError && html`
         <div class="validation-error">
           <strong>Please fix before approving:</strong>
