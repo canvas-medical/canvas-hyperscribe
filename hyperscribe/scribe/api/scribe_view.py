@@ -1,5 +1,6 @@
 import json
 from http import HTTPStatus
+from pathlib import Path
 from typing import Any, Union
 
 from canvas_sdk.effects import Effect
@@ -13,6 +14,8 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.models.scribe import ScribeTranscript
 from hyperscribe.scribe.api.session_view import _load_initial_data
 
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+
 
 def _safe_json(data: Any) -> str:
     """Serialize to JSON safe for embedding in an HTML script tag."""
@@ -22,7 +25,9 @@ def _safe_json(data: Any) -> str:
 CONTENT_TYPES: dict[str, str] = {
     "js": "text/javascript",
     "css": "text/css",
+    "wav": "audio/wav",
 }
+BINARY_EXTENSIONS: set[str] = {"wav"}
 
 
 class ScribeView(StaffSessionAuthMixin, SimpleAPI):
@@ -98,6 +103,18 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
         content_type = CONTENT_TYPES.get(extension)
         if not content_type:
             return [Response(b"Not found", status_code=HTTPStatus.NOT_FOUND)]
+
+        if extension in BINARY_EXTENSIONS:
+            file_path = STATIC_DIR / filename
+            if not file_path.is_file():
+                return [Response(b"Not found", status_code=HTTPStatus.NOT_FOUND)]
+            return [
+                Response(
+                    file_path.read_bytes(),
+                    status_code=HTTPStatus.OK,
+                    content_type=content_type,
+                )
+            ]
 
         content = render_to_string(f"scribe/static/{filename}")
         return [

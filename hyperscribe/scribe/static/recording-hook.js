@@ -24,7 +24,7 @@ function cleanupAudio(audioCtxRef, streamRef, workletNodeRef) {
 const SILENCE_RMS_THRESHOLD = 0.005;
 // Seconds of continuous silence before showing a warning.
 const SILENCE_WARNING_SECONDS = 7.5;
-const DING_URL = new URL('./ding.wav', import.meta.url).href;
+const DING_URL = '/plugin-io/api/hyperscribe/scribe/static/ding.wav';
 
 /**
  * Custom hook encapsulating all recording logic.
