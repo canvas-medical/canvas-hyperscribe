@@ -578,12 +578,11 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [imagingDetails, setImagingDetails] = useState(command.data.additional_details || '');
   const [imagingComment, setImagingComment] = useState(command.data.comment || '');
   const [imagingPriority, setImagingPriority] = useState(command.data.priority || 'Routine');
+  const [orderingProviders, setOrderingProviders] = useState([]);
   const [orderingProviderId, setOrderingProviderId] = useState(command.data.ordering_provider_id || '');
   const [orderingProviderName, setOrderingProviderName] = useState(command.data.ordering_provider_name || '');
   const [providerQuery, setProviderQuery] = useState('');
-  const [providerResults, setProviderResults] = useState([]);
-  const [providerSearching, setProviderSearching] = useState(false);
-  const [providerSearched, setProviderSearched] = useState(false);
+  const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
   const [centerQuery, setCenterQuery] = useState('');
   const [centerResults, setCenterResults] = useState([]);
   const [centerSearching, setCenterSearching] = useState(false);
@@ -592,7 +591,6 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [selectedCenterName, setSelectedCenterName] = useState(command.data.service_provider_name || '');
   const imagingInputRef = useRef(null);
   const imagingDiagInputRef = useRef(null);
-  const providerInputRef = useRef(null);
   const centerInputRef = useRef(null);
 
   // Refer state
@@ -636,6 +634,22 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     fetch(`${API_BASE}/lab-partners`)
       .then(r => r.json())
       .then(d => setLabPartners(d.lab_partners || []))
+      .catch(() => {});
+  }, [activeTab]);
+
+  // Load ordering providers when imaging tab is active.
+  useEffect(() => {
+    if (activeTab !== 'imaging_order' || orderingProviders.length > 0) return;
+    fetch(`${API_BASE}/ordering-providers`)
+      .then(r => r.json())
+      .then(d => {
+        const providers = d.providers || [];
+        setOrderingProviders(providers);
+        if (!orderingProviderId && staffId && providers.some(p => p.id === staffId)) {
+          setOrderingProviderId(staffId);
+          setOrderingProviderName(staffName || '');
+        }
+      })
       .catch(() => {});
   }, [activeTab]);
 
@@ -822,39 +836,25 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     return [];
   })();
 
-  // Ordering provider search.
-  const doProviderSearch = useCallback(async (q) => {
-    if (!q || q.length < 2) { setProviderResults([]); setProviderSearched(false); return; }
-    setProviderSearching(true);
-    try {
-      const res = await fetch(`${API_BASE}/ordering-providers?query=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      setProviderResults(data.providers || []);
-    } catch (err) {
-      setProviderResults([]);
-    } finally {
-      setProviderSearching(false);
-      setProviderSearched(true);
-    }
-  }, []);
-
-  const debouncedProviderSearch = useDebounce(doProviderSearch, DEBOUNCE_MS);
-
   const handleProviderInput = (e) => {
-    const val = e.target.value;
-    setProviderQuery(val);
-    setOrderingProviderId('');
-    setOrderingProviderName(val);
-    debouncedProviderSearch(val);
+    setProviderQuery(e.target.value);
+    setProviderDropdownOpen(true);
+    if (!e.target.value) {
+      setOrderingProviderId('');
+      setOrderingProviderName('');
+    }
   };
 
   const handleProviderSelect = (provider) => {
     setOrderingProviderId(provider.id);
     setOrderingProviderName(provider.label);
     setProviderQuery('');
-    setProviderResults([]);
-    setProviderSearched(false);
+    setProviderDropdownOpen(false);
   };
+
+  const filteredProviders = providerQuery
+    ? orderingProviders.filter(p => p.label.toLowerCase().includes(providerQuery.toLowerCase()))
+    : orderingProviders;
 
   // Imaging center search.
   const doCenterSearch = useCallback(async (q) => {
@@ -1525,23 +1525,22 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 <div class="history-form-field" style="position: relative;">
                   <label class="history-form-label">Ordering Provider</label>
                   <input
-                    ref=${providerInputRef}
                     type="text"
                     class="history-form-input"
                     value=${providerQuery || orderingProviderName}
                     onInput=${handleProviderInput}
-                    onFocus=${() => { if (orderingProviderName) { setProviderQuery(orderingProviderName); debouncedProviderSearch(orderingProviderName); } }}
+                    onFocus=${() => setProviderDropdownOpen(true)}
+                    onBlur=${() => setTimeout(() => setProviderDropdownOpen(false), 200)}
                     placeholder="Search providers..."
                   />
-                  ${providerSearching && html`<span class="diag-search-spinner">Searching...</span>`}
-                  ${providerResults.length > 0 && html`
+                  ${providerDropdownOpen && filteredProviders.length > 0 && html`
                     <div class="history-search-dropdown">
-                      ${providerResults.map(p => html`
-                        <div key=${p.id} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleProviderSelect(p); }}>${p.label}</div>
+                      ${filteredProviders.map(p => html`
+                        <div key=${p.id} class="history-search-result${p.id === orderingProviderId ? ' selected' : ''}" onMouseDown=${(e) => { e.preventDefault(); handleProviderSelect(p); }}>${p.label}</div>
                       `)}
                     </div>
                   `}
-                  ${!providerSearching && providerSearched && providerResults.length === 0 && providerQuery.length >= 2 && html`
+                  ${providerDropdownOpen && providerQuery && filteredProviders.length === 0 && html`
                     <div class="history-search-dropdown"><div class="history-search-result search-no-results">No providers found</div></div>
                   `}
                 </div>
@@ -1659,7 +1658,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label">Notes to Specialist</label>
-                  <textarea class="history-form-textarea" rows="3" value=${referNotesToSpecialist} onInput=${(e) => setReferNotesToSpecialist(e.target.value)} placeholder="Optional" />
+                  <textarea class="history-form-textarea" rows="3" value=${referNotesToSpecialist} onInput=${(e) => setReferNotesToSpecialist(e.target.value)} placeholder="Required" />
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label">Comment</label>

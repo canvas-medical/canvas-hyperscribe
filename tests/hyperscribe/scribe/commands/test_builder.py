@@ -271,20 +271,70 @@ def test_validate_proposals_multiple_failures() -> None:
             "display": "MRI",
         },
         {"command_type": "stop_medication", "data": {"rationale": "x" * 1025}, "display": "Stop med"},
+        {"command_type": "refer", "data": {}, "display": "Cardiology"},
     ]
     errors = validate_proposals(proposals)
-    assert len(errors) == 6
+    assert len(errors) == 7
     # Prescription has 2 errors (sig + note_to_pharmacist)
     rx_errors = next(e for e in errors if e["command_type"] == "prescribe")
     assert len(rx_errors["errors"]) == 2
-    # Imaging has 2 errors
+    # Imaging has 4 errors (ordering provider + indications + details + comment)
     img_errors = next(e for e in errors if e["command_type"] == "imaging_order")
-    assert len(img_errors["errors"]) == 2
+    assert len(img_errors["errors"]) == 4
+    # Refer has 2 errors (notes_to_specialist + indications)
+    refer_errors = next(e for e in errors if e["command_type"] == "refer")
+    assert len(refer_errors["errors"]) == 2
 
 
 def test_validate_proposals_unknown_type_skipped() -> None:
     proposals: list[dict[str, Any]] = [
         {"command_type": "unknown", "data": {"text": "x" * 99999}, "display": "???"},
+    ]
+    assert validate_proposals(proposals) == []
+
+
+def test_validate_imaging_order_missing_provider_and_indications() -> None:
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "imaging_order", "data": {"comment": "MRI"}, "display": "MRI Brain"},
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 1
+    assert len(errors[0]["errors"]) == 2
+    error_text = " ".join(errors[0]["errors"])
+    assert "Ordering provider" in error_text
+    assert "indication" in error_text.lower()
+
+
+def test_validate_imaging_order_with_required_fields() -> None:
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "imaging_order",
+            "data": {"ordering_provider_id": "staff-uuid", "diagnosis_codes": ["J06.9"]},
+            "display": "MRI",
+        },
+    ]
+    assert validate_proposals(proposals) == []
+
+
+def test_validate_refer_missing_notes_and_indications() -> None:
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "refer", "data": {"service_provider": {"first_name": "Dr"}}, "display": "Cardiology"},
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 1
+    assert len(errors[0]["errors"]) == 2
+    error_text = " ".join(errors[0]["errors"])
+    assert "Notes to specialist" in error_text
+    assert "indication" in error_text.lower()
+
+
+def test_validate_refer_with_required_fields() -> None:
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "refer",
+            "data": {"notes_to_specialist": "Evaluate murmur", "diagnosis_codes": ["I10"]},
+            "display": "Cardiology",
+        },
     ]
     assert validate_proposals(proposals) == []
 

@@ -242,11 +242,11 @@ function wasInserted(cmd, isRec = false) {
   if (cmd._added_now) return true;
   if (isRec) return !!(cmd.accepted && !cmd.already_documented && cmd.display);
   if (cmd.already_documented || !cmd.display) return false;
-  if (cmd.command_type === 'imaging_order' && (!cmd.data.image_code || !cmd.data.service_provider)) return false;
+  if (cmd.command_type === 'imaging_order' && (!cmd.data.image_code || !cmd.data.service_provider || !cmd.data.ordering_provider_id || !cmd.data.diagnosis_codes || cmd.data.diagnosis_codes.length === 0)) return false;
   if (cmd.command_type === 'prescribe' && (!cmd.data.fdb_code || !cmd.data.sig || cmd.data.quantity_to_dispense == null || !cmd.data.type_to_dispense || cmd.data.refills == null)) return false;
   if ((cmd.command_type === 'refill' || cmd.command_type === 'adjust_prescription') && !cmd.data.fdb_code) return false;
   if (cmd.command_type === 'lab_order' && (!cmd.data.lab_partner || !cmd.data.tests_order_codes || cmd.data.tests_order_codes.length === 0)) return false;
-  if (cmd.command_type === 'refer' && (!cmd.data.service_provider || !cmd.data.clinical_question)) return false;
+  if (cmd.command_type === 'refer' && (!cmd.data.service_provider || !cmd.data.clinical_question || !cmd.data.notes_to_specialist || !cmd.data.diagnosis_codes || cmd.data.diagnosis_codes.length === 0)) return false;
   if (cmd.command_type === 'perform' && (!cmd.data.cpt_code || cmd.selected === false)) return false;
   if (cmd.command_type === 'diagnose' && (!cmd.data.icd10_code || !cmd.data.accepted)) return false;
   return true;
@@ -1171,10 +1171,14 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (type === 'imaging_order' && entry.command.display) {
               if (!d.image_code) orderMissing.push('Image');
               if (!d.service_provider) orderMissing.push('Imaging center');
+              if (!d.ordering_provider_id) orderMissing.push('Ordering provider');
+              if (!d.diagnosis_codes || d.diagnosis_codes.length === 0) orderMissing.push('Indications');
             }
             if (type === 'refer' && entry.command.display) {
               if (!d.service_provider) orderMissing.push('Provider');
               if (!d.clinical_question) orderMissing.push('Clinical question');
+              if (!d.notes_to_specialist) orderMissing.push('Notes to specialist');
+              if (!d.diagnosis_codes || d.diagnosis_codes.length === 0) orderMissing.push('Indications');
             }
             const orderIncomplete = orderMissing.length > 0;
             return html`
@@ -1446,6 +1450,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const missingFields = [];
                 if (!entry.command.data.service_provider) missingFields.push('Provider');
                 if (!entry.command.data.clinical_question) missingFields.push('Clinical question');
+                if (!entry.command.data.notes_to_specialist) missingFields.push('Notes to specialist');
+                if (!entry.command.data.diagnosis_codes || entry.command.data.diagnosis_codes.length === 0) missingFields.push('Indications');
                 const isIncomplete = missingFields.length > 0;
                 const isAccepted = entry.command.accepted && !entry.command.rejected;
                 const isRejected = entry.command.rejected;
