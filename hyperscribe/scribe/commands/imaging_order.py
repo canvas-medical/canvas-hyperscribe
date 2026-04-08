@@ -18,6 +18,10 @@ class ImagingOrderParser(CommandParser):
 
     def validate(self, data: dict[str, Any]) -> list[str]:
         errors: list[str] = []
+        if not data.get("ordering_provider_id"):
+            errors.append("Ordering provider is required")
+        if not data.get("diagnosis_codes"):
+            errors.append("At least one indication is required")
         if len(data.get("additional_details") or "") > 1024:
             errors.append("Order details exceeds 1024 characters")
         if len(data.get("comment") or "") > 1024:
