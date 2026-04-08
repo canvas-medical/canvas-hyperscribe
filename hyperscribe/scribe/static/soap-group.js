@@ -898,7 +898,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           : !readOnly && html`
                               ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
                               ${isAccepted && html`<span class="rec-accepted-badge">Accepted</span>`}
-                              ${onAddNow && !isRejected && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
+                              ${onAddNow && isAccepted && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
                               ${!entry.command._adding && html`
                                 <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
                                 <button type="button" class="rec-btn ${isAccepted ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
@@ -919,6 +919,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${readOnly || entry.command.already_documented}
                           patientId=${patientId}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                         />
                       </div>
                       ${!readOnly && html`<div class="recommendation-actions">
@@ -1417,7 +1418,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           ${isIncomplete && !isRejected && html`<span class="rec-warning-pill">Missing: ${missingFields.join(', ')}</span>`}
                           ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
                           ${isAccepted && !isIncomplete && html`<span class="rec-accepted-badge">Accepted</span>`}
-                          ${onAddNow && !isIncomplete && !isRejected && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
+                          ${onAddNow && isAccepted && !isIncomplete && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
                           ${!entry.command._adding && html`
                             <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
                             <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
@@ -1471,7 +1472,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           ${isIncomplete && !isRejected && html`<span class="rec-warning-pill">Missing: ${missingFields.join(', ')}</span>`}
                           ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
                           ${isAccepted && !isIncomplete && html`<span class="rec-accepted-badge">Accepted</span>`}
-                          ${onAddNow && !isIncomplete && !isRejected && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
+                          ${onAddNow && isAccepted && !isIncomplete && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
                           ${!entry.command._adding && html`
                             <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
                             <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
