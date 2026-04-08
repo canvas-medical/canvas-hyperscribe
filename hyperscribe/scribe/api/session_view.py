@@ -9,6 +9,7 @@ from logger import log
 
 from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
+from canvas_sdk.effects.note.note import Note as NoteEffect
 from canvas_sdk.effects.simple_api import Broadcast, JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 
@@ -1160,6 +1161,20 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             },
         )
         return [JSONResponse({"verified": verified, "failed": failed}, status_code=HTTPStatus.OK)]
+
+    @api.post("/sign-note")
+    def post_sign_note(self) -> list[Union[Response, Effect]]:
+        """Sign the note after all commands have been inserted (no prescriptions)."""
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_uuid = str(data.get("note_uuid", ""))
+        if not note_uuid:
+            return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        audit_event(note_uuid, "SIGN_NOTE", {})
+        note_effect = NoteEffect(instance_id=note_uuid)
+        return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK), note_effect.lock(), note_effect.sign()]
 
     @api.get("/search-medications")
     def get_search_medications(self) -> list[Union[Response, Effect]]:
