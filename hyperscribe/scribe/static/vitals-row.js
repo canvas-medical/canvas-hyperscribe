@@ -17,6 +17,29 @@ const VITALS_FIELDS = [
   { key: 'weight_lbs', label: 'Weight', unit: 'lbs', min: 1, max: 1500 },
 ];
 
+const BP_SITE_OPTIONS = [
+  { value: 0, label: 'Sitting, Right Upper Arm', group: 'Sitting' },
+  { value: 1, label: 'Sitting, Left Upper Arm', group: 'Sitting' },
+  { value: 2, label: 'Sitting, Right Lower Arm', group: 'Sitting' },
+  { value: 3, label: 'Sitting, Left Lower Arm', group: 'Sitting' },
+  { value: 4, label: 'Standing, Right Upper Arm', group: 'Standing' },
+  { value: 5, label: 'Standing, Left Upper Arm', group: 'Standing' },
+  { value: 6, label: 'Standing, Right Lower Arm', group: 'Standing' },
+  { value: 7, label: 'Standing, Left Lower Arm', group: 'Standing' },
+  { value: 8, label: 'Supine, Right Upper Arm', group: 'Supine' },
+  { value: 9, label: 'Supine, Left Upper Arm', group: 'Supine' },
+  { value: 10, label: 'Supine, Right Lower Arm', group: 'Supine' },
+  { value: 11, label: 'Supine, Left Lower Arm', group: 'Supine' },
+];
+const BP_SITE_GROUPS = ['Sitting', 'Standing', 'Supine'];
+
+function bpSiteLabel(value) {
+  const opt = BP_SITE_OPTIONS.find(o => o.value === Number(value));
+  return opt ? opt.label : '';
+}
+
+export { bpSiteLabel };
+
 function formatVitalsDisplay(data) {
   const parts = [];
   VITALS_FIELDS.forEach(f => {
@@ -29,6 +52,11 @@ function formatVitalsDisplay(data) {
       if (val != null) parts.push(`${f.label} ${val} ${f.unit}`);
     }
   });
+  if (data.blood_pressure_position_and_site != null) {
+    const label = bpSiteLabel(data.blood_pressure_position_and_site);
+    if (label) parts.push(`Site: ${label}`);
+  }
+  if (data.note) parts.push(`Note: ${data.note}`);
   return parts.join(', ');
 }
 
@@ -57,6 +85,8 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
   }, [editing, commandIndex]);
   const [draft, setDraft] = useState({ ...command.data });
   const [tempRaw, setTempRaw] = useState(command.data.body_temperature != null ? String(command.data.body_temperature) : '');
+  const [bpSite, setBpSite] = useState(command.data.blood_pressure_position_and_site != null ? String(command.data.blood_pressure_position_and_site) : '');
+  const [note, setNote] = useState(command.data.note || '');
   const [errors, setErrors] = useState({});
 
   const updateField = (key, raw) => {
@@ -98,11 +128,16 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
         if (pairErr) newErrors[f.pair] = pairErr;
       }
     }
+    if (note.length > 150) newErrors.note = 'Max 150 characters';
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
+    delete data.blood_pressure_position_and_site;
+    delete data.note;
+    if (bpSite !== '') data.blood_pressure_position_and_site = parseInt(bpSite, 10);
+    if (note.trim()) data.note = note.trim();
     onEdit(commandIndex, data);
     setEditing(false);
   };
@@ -111,6 +146,8 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
     setDraft({ ...command.data });
     setErrors({});
     setTempRaw(command.data.body_temperature != null ? String(command.data.body_temperature) : '');
+    setBpSite(command.data.blood_pressure_position_and_site != null ? String(command.data.blood_pressure_position_and_site) : '');
+    setNote(command.data.note || '');
     setEditing(false);
   };
 
@@ -169,6 +206,34 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
             `;
           })}
         </div>
+        <div class="vitals-extra-fields">
+          <div class="history-form-field">
+            <label class="history-form-label">BP Position & Site</label>
+            <select class="history-form-input" value=${bpSite} onChange=${(e) => setBpSite(e.target.value)}>
+              <option value="">None</option>
+              ${BP_SITE_GROUPS.map(group => html`
+                <optgroup label=${group} key=${group}>
+                  ${BP_SITE_OPTIONS.filter(o => o.group === group).map(o => html`
+                    <option key=${o.value} value=${o.value}>${o.label}</option>
+                  `)}
+                </optgroup>
+              `)}
+            </select>
+          </div>
+          <div class="history-form-field">
+            <label class="history-form-label">Comment</label>
+            <input
+              type="text"
+              class="history-form-input"
+              maxLength=${150}
+              value=${note}
+              onInput=${(e) => setNote(e.target.value)}
+              placeholder="Optional note (max 150 characters)"
+            />
+            <div class="char-counter${note.length > 130 ? note.length > 150 ? ' over-limit' : ' near-limit' : ''}">${note.length} / 150</div>
+            ${errors.note && html`<span class="vitals-error">${errors.note}</span>`}
+          </div>
+        </div>
         <div class="command-row-actions">
           <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
           <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
@@ -193,6 +258,13 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
       }
     }
   });
+  if (command.data.blood_pressure_position_and_site != null) {
+    const label = bpSiteLabel(command.data.blood_pressure_position_and_site);
+    if (label) items.push(html`<span class="vitals-item" key="bp_site"><strong>Site</strong> ${label}</span>`);
+  }
+  if (command.data.note) {
+    items.push(html`<span class="vitals-item" key="note"><strong>Note</strong> ${command.data.note}</span>`);
+  }
 
   return html`
     <div class="vitals-row" onClick=${() => !readOnly && setEditing(true)}>
