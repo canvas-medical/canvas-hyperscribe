@@ -28,12 +28,14 @@ class TaskParser(CommandParser):
             due_date = date.fromisoformat(raw_due)
 
         labels = data.get("labels") or None
+        comment = data.get("comment") or None
 
         return TaskCommand(
             title=str(data.get("title", "")),
             due_date=due_date,
             assign_to=assign_to,
             labels=labels,
+            comment=comment,
             note_uuid=note_uuid,
             command_uuid=command_uuid,
         )

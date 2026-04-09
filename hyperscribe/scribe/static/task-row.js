@@ -31,6 +31,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
   const [dueDate, setDueDate] = useState(command.data.due_date || '');
   const [assignTo, setAssignTo] = useState(command.data.assign_to || null);
   const [selectedLabels, setSelectedLabels] = useState(command.data.labels || []);
+  const [comment, setComment] = useState(command.data.comment || '');
   const [availableLabels, setAvailableLabels] = useState([]);
   const titleRef = useRef(null);
 
@@ -55,6 +56,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
       due_date: dueDate || null,
       assign_to: assignTo,
       labels: selectedLabels.length > 0 ? selectedLabels : null,
+      comment: comment.trim() || null,
     });
     setEditing(false);
   };
@@ -68,6 +70,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
     setDueDate(command.data.due_date || '');
     setAssignTo(command.data.assign_to || null);
     setSelectedLabels(command.data.labels || []);
+    setComment(command.data.comment || '');
     setEditing(false);
   };
 
@@ -172,6 +175,16 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
               </div>
             </div>
           `}
+          <div class="history-form-field">
+            <label class="history-form-label">Comment</label>
+            <textarea
+              class="history-form-input"
+              rows="2"
+              value=${comment}
+              onInput=${(e) => setComment(e.target.value)}
+              placeholder="Optional comment..."
+            />
+          </div>
           <div class="questionnaire-form-actions">
             <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
             <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
@@ -186,6 +199,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
   const aLabel = assigneeLabel();
   if (aLabel) details.push(aLabel);
   if (command.data.labels && command.data.labels.length) details.push(command.data.labels.join(', '));
+  if (command.data.comment) details.push(`Comment: ${command.data.comment}`);
 
   return html`
     <div class="task-row" onClick=${() => !readOnly && setEditing(true)}>

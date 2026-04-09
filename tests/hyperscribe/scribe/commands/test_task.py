@@ -67,3 +67,22 @@ def test_build_empty_data_defaults() -> None:
     assert cmd.title == ""
     assert cmd.due_date is None
     assert cmd.assign_to is None
+
+
+def test_build_with_comment() -> None:
+    parser = TaskParser()
+    cmd = parser.build({"title": "Follow up", "comment": "Call in 2 weeks"}, "note-uuid", "cmd-uuid")
+    assert cmd.title == "Follow up"
+    assert cmd.comment == "Call in 2 weeks"
+
+
+def test_build_without_comment() -> None:
+    parser = TaskParser()
+    cmd = parser.build({"title": "Follow up"}, "note-uuid", "cmd-uuid")
+    assert cmd.comment is None
+
+
+def test_build_empty_comment() -> None:
+    parser = TaskParser()
+    cmd = parser.build({"title": "Follow up", "comment": ""}, "note-uuid", "cmd-uuid")
+    assert cmd.comment is None
