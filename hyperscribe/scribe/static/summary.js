@@ -225,6 +225,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [transcriptCollapsed, setTranscriptCollapsed] = useState(false);
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
+  const addNowAttemptedRef = useRef([]);
 
   // Recording hook.
   const recording = useRecording(noteId, initialData?.transcript);
@@ -293,6 +294,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             setRecommendations(cached.recommendations || []);
             setUnmatchedConditions(cached.unmatched_conditions || []);
             setDiagnosisSuggestions(cached.diagnosis_suggestions || {});
+            // Repopulate Add Now attempted entries from cached items for verification merge.
+            addNowAttemptedRef.current = [
+              ...(cached.commands || []),
+              ...(cached.recommendations || []),
+            ]
+              .filter(c => c._added_now && c.command_uuid)
+              .map(c => ({
+                command_uuid: c.command_uuid,
+                command_type: c.command_type,
+                display: (c.display || '').slice(0, 80),
+              }));
             logEvent('CACHE_LOADED', { hasNote: !!cached.note, commandCount: (cached.commands || []).length });
             return;
           }
@@ -349,7 +361,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // Auto-verify on load when approved with command UUIDs.
   useEffect(() => {
     if (!approved || verificationResult) return;
-    const withUuids = commands.filter(c => c.command_uuid);
+    const withUuids = [
+      ...commands.filter(c => c.command_uuid),
+      ...recommendations.filter(c => c.command_uuid),
+    ];
     if (withUuids.length === 0) return;
     const attempted = withUuids.map(c => ({
       command_uuid: c.command_uuid,
@@ -376,7 +391,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }
     verify();
     return () => { cancelled = true; };
-  }, [approved, noteId]);
+  }, [approved, noteId, commands, recommendations]);
 
   const handleGenerate = useCallback(async () => {
     logEvent('GENERATE_START');
@@ -1160,13 +1175,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         const hasPrescriptions = commands.some(c => c.display && RX_SET.has(c.command_type))
           || recommendations.some(c => c.display && !c.rejected && RX_SET.has(c.command_type));
         logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length, effectCount: data.inserted, hasPendingMetadata: (data.metadata_pending?.length || 0) > 0 });
-        // Verify commands were actually created.
-          if (data.attempted && data.attempted.length > 0) {
-              try {
+        // Verify commands were actually created (include Add Now items).
+        const allAttempted = [...addNowAttemptedRef.current, ...(data.attempted || [])];
+        if (allAttempted.length > 0) {
+          try {
             const verifyRes = await fetch(`${API_BASE}/verify-commands`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ note_uuid: noteId, attempted: data.attempted }),
+              body: JSON.stringify({ note_uuid: noteId, attempted: allAttempted }),
             });
             const verifyData = await verifyRes.json();
             const failedCount = verifyData.failed?.length || 0;
@@ -1183,8 +1199,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           } catch (verifyErr) {
             console.error('Verification failed:', verifyErr);
           }
-          }
-          setApproved(true);
+        }
+        setApproved(true);
           if (!hasPrescriptions) {
             try {
               await fetch(`${API_BASE}/sign-note`, {
@@ -1241,13 +1257,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           });
         } catch (metaErr) { console.error('Add Now metadata failed:', metaErr); }
       }
+      // Track attempted entry for verification merge with Approve All.
+      const attemptedEntry = data.attempted && data.attempted[0];
+      if (attemptedEntry) {
+        addNowAttemptedRef.current.push(attemptedEntry);
+      }
       if (isRecommendation) {
         setRecommendations(prev => prev.map((rec, i) =>
-          i === index ? { ...rec, already_documented: true, accepted: true, _added_now: true, _adding: false } : rec
+          i === index ? { ...rec, already_documented: true, accepted: true, _added_now: true, _adding: false, command_uuid: attemptedEntry?.command_uuid || null } : rec
         ));
       } else {
         setCommands(prev => prev.map((cmd, i) =>
-          i === index ? { ...cmd, already_documented: true, _added_now: true, _adding: false } : cmd
+          i === index ? { ...cmd, already_documented: true, _added_now: true, _adding: false, command_uuid: attemptedEntry?.command_uuid || null } : cmd
         ));
       }
       logEvent('ADD_NOW_SUCCESS', { commandType: command.command_type, index });
