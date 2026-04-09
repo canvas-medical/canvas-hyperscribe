@@ -133,7 +133,7 @@ def test_get_transcript_success(mock_note: MagicMock, mock_transcript: MagicMock
     result = view.get_transcript()
 
     assert result[0].status_code == HTTPStatus.OK
-    assert json.loads(result[0].content) == {"items": items, "finalized": True}
+    assert json.loads(result[0].content) == {"items": items, "finalized": True, "started": True}
 
 
 @patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
@@ -147,7 +147,7 @@ def test_get_transcript_empty(mock_note: MagicMock, mock_transcript: MagicMock) 
     result = view.get_transcript()
 
     assert result[0].status_code == HTTPStatus.OK
-    assert json.loads(result[0].content) == {"items": [], "finalized": False}
+    assert json.loads(result[0].content) == {"items": [], "finalized": False, "started": False}
 
 
 def test_get_transcript_missing_note_id() -> None:
