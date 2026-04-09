@@ -21,8 +21,12 @@ function addDays(days) {
   return d.toISOString().split('T')[0];
 }
 
-export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, readOnly }) {
+export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, readOnly, onEditingChange }) {
   const [editing, setEditing] = useState(!command.display);
+  useEffect(() => {
+    onEditingChange?.(commandIndex, editing);
+    return () => onEditingChange?.(commandIndex, false);
+  }, [editing, commandIndex]);
   const [title, setTitle] = useState(command.data.title || '');
   const [dueDate, setDueDate] = useState(command.data.due_date || '');
   const [assignTo, setAssignTo] = useState(command.data.assign_to || null);
