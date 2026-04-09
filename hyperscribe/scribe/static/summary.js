@@ -687,6 +687,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           if (newData.body_temperature != null) vParts.push(`Temp ${newData.body_temperature} °F`);
           if (newData.height != null) vParts.push(`Height ${newData.height} in`);
           if (newData.weight_lbs != null) vParts.push(`Weight ${newData.weight_lbs} lbs`);
+          if (newData.blood_pressure_position_and_site != null) {
+            const siteLabels = {
+              0: 'Sitting, Right Upper Arm', 1: 'Sitting, Left Upper Arm',
+              2: 'Sitting, Right Lower Arm', 3: 'Sitting, Left Lower Arm',
+              4: 'Standing, Right Upper Arm', 5: 'Standing, Left Upper Arm',
+              6: 'Standing, Right Lower Arm', 7: 'Standing, Left Lower Arm',
+              8: 'Supine, Right Upper Arm', 9: 'Supine, Left Upper Arm',
+              10: 'Supine, Right Lower Arm', 11: 'Supine, Left Lower Arm',
+            };
+            const label = siteLabels[newData.blood_pressure_position_and_site];
+            if (label) vParts.push(`Site: ${label}`);
+          }
+          if (newData.note) vParts.push(`Note: ${newData.note}`);
           return { ...cmd, data: newData, display: vParts.join(', ') || 'Vitals' };
         }
         if (type === 'medication_statement') {

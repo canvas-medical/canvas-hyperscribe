@@ -53,11 +53,14 @@ def test_build() -> None:
         "pulse": 72,
         "respiration_rate": 16,
         "oxygen_saturation": 98,
+        "blood_pressure_position_and_site": 1,
+        "note": "Patient was anxious",
     }
     with patch("hyperscribe.scribe.commands.vitals.VitalsCommand") as mock_cmd:
         mock_cmd.return_value = MagicMock()
         parser.build(data, "note-uuid-789", "cmd-uuid")
 
+    mock_cmd.BloodPressureSite.assert_called_once_with(1)
     mock_cmd.assert_called_once_with(
         height=None,
         weight_lbs=None,
@@ -67,6 +70,35 @@ def test_build() -> None:
         pulse=72,
         respiration_rate=16,
         oxygen_saturation=98,
+        blood_pressure_position_and_site=mock_cmd.BloodPressureSite.return_value,
+        note="Patient was anxious",
         note_uuid="note-uuid-789",
+        command_uuid="cmd-uuid",
+    )
+
+
+def test_build_without_new_fields() -> None:
+    parser = VitalsParser()
+    data = {
+        "blood_pressure_systole": 120,
+        "blood_pressure_diastole": 80,
+        "pulse": 72,
+    }
+    with patch("hyperscribe.scribe.commands.vitals.VitalsCommand") as mock_cmd:
+        mock_cmd.return_value = MagicMock()
+        parser.build(data, "note-uuid", "cmd-uuid")
+
+    mock_cmd.assert_called_once_with(
+        height=None,
+        weight_lbs=None,
+        body_temperature=None,
+        blood_pressure_systole=120,
+        blood_pressure_diastole=80,
+        pulse=72,
+        respiration_rate=None,
+        oxygen_saturation=None,
+        blood_pressure_position_and_site=None,
+        note=None,
+        note_uuid="note-uuid",
         command_uuid="cmd-uuid",
     )
