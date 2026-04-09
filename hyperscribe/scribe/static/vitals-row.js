@@ -1,5 +1,5 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
-import { useState } from 'https://esm.sh/preact@10.25.4/hooks';
+import { useState, useEffect } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
@@ -48,9 +48,13 @@ function validateField(key, value) {
   return null;
 }
 
-export function VitalsRow({ command, commandIndex, onEdit, readOnly }) {
+export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingChange }) {
   const hasData = Object.values(command.data || {}).some(v => v != null);
   const [editing, setEditing] = useState(!readOnly && !hasData);
+  useEffect(() => {
+    onEditingChange?.(commandIndex, editing);
+    return () => onEditingChange?.(commandIndex, false);
+  }, [editing, commandIndex]);
   const [draft, setDraft] = useState({ ...command.data });
   const [tempRaw, setTempRaw] = useState(command.data.body_temperature != null ? String(command.data.body_temperature) : '');
   const [errors, setErrors] = useState({});

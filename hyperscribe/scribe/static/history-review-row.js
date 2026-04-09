@@ -37,9 +37,13 @@ function DiffToggle({ templateText, currentText }) {
   `;
 }
 
-export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly, textareaRows }) {
+export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly, textareaRows, onEditingChange }) {
   const sections = (command.data && command.data.sections) || [];
   const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    onEditingChange?.(commandIndex, editing);
+    return () => onEditingChange?.(commandIndex, false);
+  }, [editing, commandIndex]);
   const [drafts, setDrafts] = useState(sections.map(s => s.text || ''));
   const firstRef = useRef(null);
 

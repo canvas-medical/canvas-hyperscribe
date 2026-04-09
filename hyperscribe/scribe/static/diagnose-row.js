@@ -24,12 +24,20 @@ function formatIcdCode(raw) {
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
-export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions, onAccept }) {
+export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions, onAccept, onEditingChange }) {
   const data = command.data || {};
   const hasCode = !!data.icd10_code;
 
   const [editingCode, setEditingCode] = useState(!hasCode);
   const [editingText, setEditingText] = useState(false);
+  useEffect(() => {
+    onEditingChange?.(`${commandIndex}:code`, editingCode);
+    return () => onEditingChange?.(`${commandIndex}:code`, false);
+  }, [editingCode, commandIndex]);
+  useEffect(() => {
+    onEditingChange?.(`${commandIndex}:text`, editingText);
+    return () => onEditingChange?.(`${commandIndex}:text`, false);
+  }, [editingText, commandIndex]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);

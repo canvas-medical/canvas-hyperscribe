@@ -17,10 +17,14 @@ const html = htm.bind(h);
 const CHARGE_SEARCH_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const CHARGE_DEBOUNCE_MS = 300;
 
-function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeCpts }) {
+function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeCpts, onEditingChange }) {
   const data = command.data || {};
   const hasCpt = !!data.cpt_code;
   const [editing, setEditing] = useState(!hasCpt);
+  useEffect(() => {
+    onEditingChange?.(commandIndex, editing);
+    return () => onEditingChange?.(commandIndex, false);
+  }, [editing, commandIndex]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -370,9 +374,13 @@ const DEBOUNCE_MS = 300;
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
 
-function AssessNarrative({ command, commandIndex, onEdit, readOnly }) {
+function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingChange }) {
   const data = command.data || {};
   const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    onEditingChange?.(commandIndex, editing);
+    return () => onEditingChange?.(commandIndex, false);
+  }, [editing, commandIndex]);
   const [narrative, setNarrative] = useState(data.narrative || '');
   const textareaRef = useRef(null);
 
@@ -559,7 +567,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, onEditingChange }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   // In approved (readOnly) mode, only show items that actually made it into the note.
@@ -596,6 +604,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 commandIndex=${entry.index}
                 onEdit=${onEditCommand}
                 readOnly=${readOnly}
+                onEditingChange=${onEditingChange}
               />
             </div>
           `;
@@ -640,6 +649,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                               commandIndex=${entry.index}
                               onEdit=${onEditCommand}
                               readOnly=${readOnly}
+                              onEditingChange=${onEditingChange}
                             />
                           </div>
                         </div>
@@ -673,6 +683,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             readOnly=${readOnly || isRejected}
                             suggestions=${suggestions}
                             onAccept=${handleAcceptDiagnose}
+                            onEditingChange=${onEditingChange}
                           />
                         </div>
                         ${!readOnly && html`
@@ -748,6 +759,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
                     readOnly=${readOnly}
+                    onEditingChange=${onEditingChange}
                   />
                 </div>
                 ${planResolves.map(re => html`
@@ -791,6 +803,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       commandIndex=${entry.index}
                       onEdit=${onEditCommand}
                       readOnly=${readOnly}
+                      onEditingChange=${onEditingChange}
                     />
                   </div>
                 `)}
@@ -815,6 +828,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onEdit=${onEditCommand}
                     readOnly=${readOnly}
                     textareaRows=${2}
+                    onEditingChange=${onEditingChange}
                   />
                 </div>
               </div>
@@ -841,6 +855,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           alertFacilityEnabled=${alertFacilityEnabled}
                           readOnly=${readOnly || entry.command.already_documented}
+                          onEditingChange=${onEditingChange}
                         />
                       </div>
                       ${!readOnly && html`
@@ -864,6 +879,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           alertFacilityEnabled=${alertFacilityEnabled}
                           readOnly=${readOnly || entry.command.already_documented}
+                          onEditingChange=${onEditingChange}
                         />
                       </div>
                       ${!readOnly && html`
@@ -890,6 +906,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onEdit=${onEditRecommendation}
                           alertFacilityEnabled=${alertFacilityEnabled}
                           readOnly=${readOnly || entry.command.already_documented || isRejected}
+                          onEditingChange=${onEditingChange}
                         />
                       </div>
                       <div class="recommendation-actions">
@@ -961,6 +978,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
                           readOnly=${readOnly}
+                          onEditingChange=${onEditingChange}
                         />
                       </div>
                       ${!readOnly && html`
@@ -979,6 +997,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
                           readOnly=${readOnly}
+                          onEditingChange=${onEditingChange}
                         />
                       </div>
                       ${!readOnly && html`
@@ -999,6 +1018,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditRecommendation}
                           readOnly=${readOnly || entry.command.already_documented || isRejected}
+                          onEditingChange=${onEditingChange}
                         />
                       </div>
                       <div class="recommendation-actions">
@@ -1065,6 +1085,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       onEdit=${onEditCommand}
                       onDelete=${onDeleteCommand}
                       readOnly=${readOnly}
+                      onEditingChange=${onEditingChange}
                     />
                   </div>
                   ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1120,6 +1141,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 onEdit=${onEditCommand}
                 readOnly=${readOnly}
                 textareaRows=${2}
+                onEditingChange=${onEditingChange}
               />
             </div>
           `;
@@ -1142,6 +1164,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onDelete=${onDeleteCommand}
                     assignees=${assignees}
                     readOnly=${readOnly || entry.command.already_documented}
+                    onEditingChange=${onEditingChange}
                   />
                 </div>
                 ${!readOnly && html`<div class="recommendation-actions">
@@ -1194,6 +1217,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     noteId=${noteId}
                     staffId=${staffId}
                     staffName=${staffName}
+                    onEditingChange=${onEditingChange}
                   />
                 </div>
                 ${!readOnly && html`<div class="recommendation-actions">
@@ -1216,6 +1240,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
+                    onEditingChange=${onEditingChange}
                   />
                 </div>
                 ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1234,6 +1259,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
                     readOnly=${readOnly}
+                    onEditingChange=${onEditingChange}
                   />
                 </div>
                 ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1276,6 +1302,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       onEdit=${onEditCommand}
                       onDelete=${onDeleteCommand}
                       readOnly=${readOnly}
+                      onEditingChange=${onEditingChange}
                     />
                   </div>
                   ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1367,6 +1394,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   onDelete=${onDeleteCommand}
                   readOnly=${readOnly}
                   excludeCpts=${allChecklistCpts}
+                  onEditingChange=${onEditingChange}
                 />
               </div>
               ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1413,6 +1441,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       staffId=${staffId}
                       staffName=${staffName}
                       isRecommendation=${true}
+                      onEditingChange=${onEditingChange}
                     />
                   </div>
                   <div class="recommendation-actions">
@@ -1469,6 +1498,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       staffId=${staffId}
                       staffName=${staffName}
                       isRecommendation=${true}
+                      onEditingChange=${onEditingChange}
                     />
                   </div>
                   <div class="recommendation-actions">

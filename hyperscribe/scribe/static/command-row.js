@@ -14,10 +14,14 @@ const DATA_FIELD = {
   lab_results: 'narrative',
 };
 
-export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
+export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {
   const field = DATA_FIELD[command.command_type];
   const isNew = onDelete && !command.display;
   const [editing, setEditing] = useState(isNew);
+  useEffect(() => {
+    onEditingChange?.(commandIndex, editing);
+    return () => onEditingChange?.(commandIndex, false);
+  }, [editing, commandIndex]);
   const [value, setValue] = useState(field ? (command.data[field] || '') : '');
   const textareaRef = useRef(null);
 
