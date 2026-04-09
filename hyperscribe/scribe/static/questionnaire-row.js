@@ -1,5 +1,5 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
-import { useState, useRef, useCallback } from 'https://esm.sh/preact@10.25.4/hooks';
+import { useState, useRef, useCallback, useEffect } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
@@ -258,9 +258,13 @@ function countAnswered(questions) {
   }).length;
 }
 
-export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
+export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
+  useEffect(() => {
+    onEditingChange?.(commandIndex, editing);
+    return () => onEditingChange?.(commandIndex, false);
+  }, [editing, commandIndex]);
 
   const handleCancel = () => {
     if (isNew) {

@@ -24,8 +24,12 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityEnabled }) {
+export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityEnabled, onEditingChange }) {
   const [editing, setEditing] = useState(!command.display);
+  useEffect(() => {
+    onEditingChange?.(commandIndex, editing);
+    return () => onEditingChange?.(commandIndex, false);
+  }, [editing, commandIndex]);
   const [query, setQuery] = useState(command.data.medication_text || '');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
