@@ -222,7 +222,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // Template state.
   const [templates, setTemplates] = useState(initialData?.templates ?? []);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [mode, setMode] = useState(initSummary?.mode ?? null);
+  const [mode, setMode] = useState(() => {
+    const cached = initSummary?.mode ?? null;
+    // Dead state recovery: mode was persisted but recording was never started (e.g.
+    // mic failure persisted mode before startRecording could revert it).
+    if (cached !== null && !initSummary?.note && !initialData?.transcript?.started) {
+      return null;
+    }
+    return cached;
+  });
   const [transcriptCollapsed, setTranscriptCollapsed] = useState(false);
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
@@ -529,6 +537,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }
   }, [recording.finalized, mode, noteData, approved]);
 
+
   const handleSelectTemplate = useCallback((e) => {
     const templateName = e.target.value;
     if (!templateName) {
@@ -609,10 +618,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     });
   }, [templates, noteData, approved, recommendations, unmatchedConditions, diagnosisSuggestions, saveSummaryToCache]);
 
-  const handleStartAI = useCallback(() => {
+  const handleStartAI = useCallback(async () => {
     logEvent('START_AI');
     setMode('ai');
-    recording.startRecording();
+    const ok = await recording.startRecording();
+    if (!ok) {
+      logEvent('START_AI_FAILED');
+      setMode(null);
+    }
   }, [recording]);
 
   const handleStartManual = useCallback(() => {

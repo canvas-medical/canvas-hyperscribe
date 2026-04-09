@@ -160,8 +160,8 @@ def _load_transcript(note_id: str) -> dict[str, Any]:
     note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
     row = ScribeTranscript.objects.filter(note_id=note_dbid).values("items", "finalized").first()
     if row:
-        return {"items": row["items"], "finalized": row["finalized"]}
-    return {"items": [], "finalized": False}
+        return {"items": row["items"], "finalized": row["finalized"], "started": True}
+    return {"items": [], "finalized": False, "started": False}
 
 
 def _save_summary(note_id: str, payload: dict[str, Any]) -> None:

@@ -25,13 +25,15 @@ function cleanupAudio(audioCtxRef, streamRef, workletNodeRef) {
  */
 export function useRecording(noteId, initialTranscript) {
   const [status, setStatus] = useState(() => {
-    if (initialTranscript?.items?.length > 0 && !initialTranscript.finalized) return 'paused';
+    if (initialTranscript?.started && !initialTranscript.finalized) return 'paused';
     return 'idle';
   });
   const [entries, setEntries] = useState(() => initialTranscript?.items ?? []);
   const [error, setError] = useState(null);
   const [finalized, setFinalized] = useState(() => initialTranscript?.finalized ?? false);
 
+  const statusRef = useRef(status);
+  statusRef.current = status;
   const clientRef = useRef(null);
   const audioCtxRef = useRef(null);
   const streamRef = useRef(null);
@@ -135,7 +137,7 @@ export function useRecording(noteId, initialTranscript) {
   const [lastSaved, setLastSaved] = useState(null);
 
   const saveTranscriptToCache = useCallback(async () => {
-    if (!noteId || entriesRef.current.length === 0) return;
+    if (!noteId) return;
     try {
       await fetch(`${API_BASE}/save-transcript`, {
         method: 'POST',
@@ -160,6 +162,7 @@ export function useRecording(noteId, initialTranscript) {
     }
     const ok = await connectAndRecord();
     if (ok) setStatus('recording');
+    return ok;
   }, [connectAndRecord]);
 
   const pauseRecording = useCallback(async () => {
@@ -215,10 +218,9 @@ export function useRecording(noteId, initialTranscript) {
         const data = await res.json();
         if (!cancelled && data.items && data.items.length > 0) {
           setEntries(data.items);
-          // Non-finalized transcript with entries means recording was paused before refresh.
-          if (!data.finalized) {
-            setStatus('paused');
-          }
+        }
+        if (!cancelled && data.started && !data.finalized) {
+          setStatus('paused');
         }
         if (!cancelled && data.finalized) {
           setFinalized(true);
@@ -241,7 +243,7 @@ export function useRecording(noteId, initialTranscript) {
   // Cleanup on unmount — save transcript via sendBeacon before destroying resources.
   useEffect(() => {
     return () => {
-      if (noteId && entriesRef.current.length > 0) {
+      if (noteId && (entriesRef.current.length > 0 || statusRef.current !== 'idle')) {
         const payload = new Blob(
           [JSON.stringify({ note_id: noteId, transcript: { items: entriesRef.current } })],
           { type: 'application/json' },
