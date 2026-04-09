@@ -142,7 +142,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -193,6 +193,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddNow=${(isPlan || isObjective) ? onAddNow : null}
         hideRejected=${hideRejected}
         alertFacilityEnabled=${alertFacilityEnabled}
+        onEditingChange=${onEditingChange}
       />`;
     })
     .filter(Boolean);
@@ -226,6 +227,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
   const addNowAttemptedRef = useRef([]);
+
+  const [editingFields, setEditingFields] = useState(new Set());
 
   // Recording hook.
   const recording = useRecording(noteId, initialData?.transcript);
@@ -894,6 +897,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setRecommendations(prev => prev.filter((_, i) => i !== index));
   }, []);
 
+  const handleEditingChange = useCallback((key, isEditing) => {
+    setEditingFields(prev => {
+      const next = new Set(prev);
+      if (isEditing) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+
   const handleAddAllergy = useCallback(() => {
     logEvent('ADD_ALLERGY');
     if (approved) return;
@@ -1367,6 +1379,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   ).length + recommendations.filter(c =>
     !c.already_documented && c.display && !c.accepted && !c.rejected
   ).length;
+  const hasUnsavedEdits = editingFields.size > 0;
 
   // Ensure sections with ad-hoc buttons are always present even if Nabla omits them.
   const ENSURE_KEYS = new Map([
@@ -1553,6 +1566,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddNow: approved ? null : handleAddNow,
           hideRejected,
           alertFacilityEnabled,
+          onEditingChange: handleEditingChange,
         })}
       </div>
       ${verificationResult && html`<${VerificationSummary} result=${verificationResult} />`}
@@ -1575,7 +1589,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </div>
           ` : confirming ? html`
             <div class="approve-confirm-block">
-              <button class="insert-btn confirm" onClick=${handleInsert}>${hasRxCommands ? 'Confirm: Accept and review prescriptions' : 'Confirm: Accept and sign'}</button>
+              ${hasUnsavedEdits && html`
+                <div class="summary-footer-warning">
+                  ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
+                </div>
+              `}
+              <button class="insert-btn confirm" disabled=${hasUnsavedEdits} onClick=${handleInsert}>${hasRxCommands ? 'Confirm: Accept and review prescriptions' : 'Confirm: Accept and sign'}</button>
               <button class="approve-cancel" onClick=${() => setConfirming(false)}>Cancel</button>
             </div>
           ` : html`
@@ -1590,7 +1609,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${undecidedRecommendationCount} ${undecidedRecommendationCount === 1 ? 'recommendation needs' : 'recommendations need'} a decision, ${undecidedRecommendationCount === 1 ? 'it has' : 'they have'} not been accepted nor rejected: ${undecidedTypes.map(t => UNDECIDED_LABELS[t] || t).join(', ')}
                 </div>
               `}
-              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0} onClick=${() => setConfirming(true)}>${hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign'}</button>
+              ${hasUnsavedEdits && html`
+                <div class="summary-footer-warning">
+                  ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
+                </div>
+              `}
+              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits} onClick=${() => setConfirming(true)}>${hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign'}</button>
               <div class="approve-warning">This action is permanent and cannot be undone.</div>
             </div>
           `}

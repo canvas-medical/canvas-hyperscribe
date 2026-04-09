@@ -18,8 +18,12 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly }) {
+export function AllergyRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {
   const [editing, setEditing] = useState(!command.display);
+  useEffect(() => {
+    onEditingChange?.(commandIndex, editing);
+    return () => onEditingChange?.(commandIndex, false);
+  }, [editing, commandIndex]);
   const [query, setQuery] = useState(command.data.allergy_text || '');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
