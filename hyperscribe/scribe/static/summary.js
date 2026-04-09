@@ -722,7 +722,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           return { ...cmd, data: newData, display: newData.allergy_text || '' };
         }
         if (type === 'task') {
-          return { ...cmd, data: newData, display: newData.title || '' };
+          const parts = [newData.title || ''];
+          if (newData.comment) parts.push(`Comment: ${newData.comment}`);
+          return { ...cmd, data: newData, display: parts.join(' \u2014 ') };
         }
         if (type === 'prescribe' || type === 'refill' || type === 'adjust_prescription') {
           return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '' };
