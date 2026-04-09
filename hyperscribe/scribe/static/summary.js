@@ -1556,11 +1556,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           </div>
           <div class="mic-blocked-content">
             <strong>Microphone Access Blocked</strong>
-            <p>Your browser is blocking microphone access. On iPad: open <strong>Settings \u203A Chrome \u203A Microphone</strong> and enable, then refresh.</p>
+            <p>Your browser is blocking microphone access. On iPad: open <strong>Settings \u203A Chrome \u203A Microphone</strong> and enable it, then tap Retry.</p>
           </div>
           <div class="mic-blocked-actions">
-            <a class="mic-blocked-btn mic-blocked-btn-settings" href="app-settings:">Open Chrome Settings</a>
-            <button class="mic-blocked-btn mic-blocked-btn-refresh" onClick=${() => window.location.reload()}>Refresh Page</button>
+            <button class="mic-blocked-btn mic-blocked-btn-refresh" onClick=${() => recording.retryMicPermission()}>Retry</button>
           </div>
         </div>
       `}

@@ -101,7 +101,6 @@ export function useRecording(noteId, initialTranscript) {
         audio: { sampleRate: TARGET_SAMPLE_RATE, channelCount: 1, echoCancellation: true },
       });
     } catch (err) {
-      setError('Microphone access denied');
       setMicBlocked(true);
       client.end();
       clientRef.current = null;
@@ -318,6 +317,22 @@ export function useRecording(noteId, initialTranscript) {
     return () => { if (permStatus) permStatus.onchange = null; };
   }, []);
 
+  // Re-check microphone permission without reloading the page.
+  const retryMicPermission = useCallback(async () => {
+    try {
+      const perm = await navigator.permissions.query({ name: 'microphone' });
+      setMicBlocked(perm.state === 'denied');
+    } catch {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+        setMicBlocked(false);
+      } catch {
+        setMicBlocked(true);
+      }
+    }
+  }, []);
+
   // Cleanup on unmount — save transcript via sendBeacon before destroying resources.
   useEffect(() => {
     return () => {
@@ -338,6 +353,6 @@ export function useRecording(noteId, initialTranscript) {
 
   return {
     status, entries, error, finalized, lastSaved, audioLevel, silenceWarning, micBlocked, micPrompting,
-    startRecording, pauseRecording, resumeRecording, finishRecording,
+    startRecording, pauseRecording, resumeRecording, finishRecording, retryMicPermission,
   };
 }
