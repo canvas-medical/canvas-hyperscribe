@@ -224,9 +224,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [mode, setMode] = useState(() => {
     const cached = initSummary?.mode ?? null;
-    // Dead state recovery: mode was persisted but recording was never started (e.g.
-    // mic failure persisted mode before startRecording could revert it).
-    if (cached !== null && !initSummary?.note && !initialData?.transcript?.started) {
+    // Dead state recovery: ai mode was persisted but recording was never started (e.g.
+    // mic failure persisted mode before startRecording could revert it). Only applies
+    // to 'ai' — manual mode legitimately has no transcript.
+    if (cached === 'ai' && !initSummary?.note && !initialData?.transcript?.started) {
       return null;
     }
     return cached;
