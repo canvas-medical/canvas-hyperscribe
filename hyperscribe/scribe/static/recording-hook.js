@@ -46,6 +46,7 @@ export function useRecording(noteId, initialTranscript) {
   const lastAudioTimeRef = useRef(null);
   const silenceTimerRef = useRef(null);
   const silenceDingPlayedRef = useRef(false);
+  const dingBufferRef = useRef(null);
 
   const statusRef = useRef(status);
   statusRef.current = status;
@@ -289,9 +290,21 @@ export function useRecording(noteId, initialTranscript) {
       const elapsed = (Date.now() - (lastAudioTimeRef.current || Date.now())) / 1000;
       if (elapsed >= SILENCE_WARNING_SECONDS) {
         setSilenceWarning(true);
-        if (!silenceDingPlayedRef.current) {
+        if (!silenceDingPlayedRef.current && audioCtxRef.current) {
           silenceDingPlayedRef.current = true;
-          new Audio(DING_URL).play().catch(() => {});
+          const ctx = audioCtxRef.current;
+          (async () => {
+            try {
+              if (!dingBufferRef.current) {
+                const res = await fetch(DING_URL);
+                dingBufferRef.current = await ctx.decodeAudioData(await res.arrayBuffer());
+              }
+              const src = ctx.createBufferSource();
+              src.buffer = dingBufferRef.current;
+              src.connect(ctx.destination);
+              src.start();
+            } catch { /* ignore playback errors */ }
+          })();
         }
       }
     }, 2000);
