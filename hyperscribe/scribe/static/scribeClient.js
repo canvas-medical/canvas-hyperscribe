@@ -27,6 +27,11 @@ function int16ArrayToBase64(int16Array) {
 
 const MAX_RECONNECT_ATTEMPTS = 10;
 const END_TIMEOUT_MS = 60000;
+// If we have in-flight audio and the server hasn't responded in this long,
+// consider the connection dead. Browser offline events and WebSocket close
+// detection are unreliable on macOS — this catches it at the application level.
+const STALE_CONNECTION_MS = 5000;
+const HEALTH_CHECK_INTERVAL_MS = 2000;
 
 class NablaScribeClient {
   /**
@@ -58,6 +63,10 @@ class NablaScribeClient {
     this._reconnectAttempts = 0;
     this._reconnectTimer = null;
 
+    // Connection health check.
+    this._lastServerMessageTime = 0;
+    this._healthCheckInterval = null;
+
     // End-of-session state.
     this._ending = false;
     this._endSent = false;
@@ -82,6 +91,12 @@ class NablaScribeClient {
    */
   connect() {
     this._initialConnect = true;
+    // Use browser offline/online events for instant network-loss detection.
+    // WebSocket close can take 30-60s over TCP; these fire immediately.
+    this._offlineHandler = () => this._handleOffline();
+    this._onlineHandler = () => this._handleOnline();
+    window.addEventListener('offline', this._offlineHandler);
+    window.addEventListener('online', this._onlineHandler);
     return new Promise((resolve, reject) => {
       this._connectResolve = resolve;
       this._connectReject = reject;
@@ -158,6 +173,7 @@ class NablaScribeClient {
       clearTimeout(this._reconnectTimer);
       this._reconnectTimer = null;
     }
+    this._removeEventListeners();
     if (this._ws) {
       this._ws.close();
       this._ws = null;
@@ -183,6 +199,8 @@ class NablaScribeClient {
     ws.onopen = () => {
       this._ws = ws;
       this._reconnectAttempts = 0;
+      this._lastServerMessageTime = Date.now();
+      this._startHealthCheck();
       this._sendConfig();
       this._flush();
 
@@ -205,6 +223,7 @@ class NablaScribeClient {
     ws.onmessage = (event) => this._handleMessage(event.data);
 
     ws.onclose = () => {
+      this._stopHealthCheck();
       if (this._ws === ws) this._ws = null;
 
       if (this._intentionalClose) {
@@ -236,12 +255,73 @@ class NablaScribeClient {
     }
   }
 
+  /** @private — Periodically check for a stale connection. */
+  _startHealthCheck() {
+    this._stopHealthCheck();
+    this._healthCheckInterval = setInterval(() => {
+      if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
+      if (this._inflightSamples === 0) return;
+      if (Date.now() - this._lastServerMessageTime > STALE_CONNECTION_MS) {
+        this._abortConnection();
+      }
+    }, HEALTH_CHECK_INTERVAL_MS);
+  }
+
+  /** @private */
+  _stopHealthCheck() {
+    if (this._healthCheckInterval) {
+      clearInterval(this._healthCheckInterval);
+      this._healthCheckInterval = null;
+    }
+  }
+
+  /**
+   * @private
+   * Immediately abandon the current WebSocket without waiting for the TCP
+   * close handshake (which can take 30+ seconds on a dead connection).
+   * Fires onDisconnect and begins reconnection right away.
+   */
+  _abortConnection() {
+    this._stopHealthCheck();
+    if (this._ws) {
+      const ws = this._ws;
+      this._ws = null;
+      ws.onclose = () => {};
+      ws.onerror = () => {};
+      ws.onmessage = () => {};
+      ws.close();
+    }
+    this.onDisconnect();
+    this._markSentAsUnsent();
+    this._scheduleReconnect();
+  }
+
   /** @private — Re-queue sent-but-unacknowledged chunks for resend after reconnect. */
   _markSentAsUnsent() {
     for (const chunk of this._buffer) {
       if (chunk.sent) chunk.sent = false;
     }
     this._inflightSamples = 0;
+  }
+
+  /** @private — Browser went offline; proactively close the WebSocket. */
+  _handleOffline() {
+    if (this._initialConnect || this._intentionalClose) return;
+    if (this._ws) this._abortConnection();
+  }
+
+  /** @private — Browser came back online; reconnect immediately. */
+  _handleOnline() {
+    if (this._intentionalClose || this._initialConnect) return;
+    // Cancel any pending backoff timer and reconnect now.
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+    if (!this._ws) {
+      this._reconnectAttempts = 0;
+      this._createWebSocket();
+    }
   }
 
   /** @private */
@@ -251,6 +331,9 @@ class NablaScribeClient {
       this._resolveEnd();
       return;
     }
+    // Don't waste reconnect attempts while the browser reports offline.
+    // _handleOnline will kick off reconnection when network returns.
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
     const delay = Math.min(1000 * Math.pow(2, this._reconnectAttempts), 30000);
     this._reconnectAttempts++;
     this._reconnectTimer = setTimeout(() => this._createWebSocket(), delay);
@@ -294,6 +377,8 @@ class NablaScribeClient {
     } catch {
       return;
     }
+
+    this._lastServerMessageTime = Date.now();
 
     switch (msg.type) {
       case 'TRANSCRIPT_ITEM':
@@ -354,6 +439,18 @@ class NablaScribeClient {
   }
 
   /** @private */
+  _removeEventListeners() {
+    if (this._offlineHandler) {
+      window.removeEventListener('offline', this._offlineHandler);
+      this._offlineHandler = null;
+    }
+    if (this._onlineHandler) {
+      window.removeEventListener('online', this._onlineHandler);
+      this._onlineHandler = null;
+    }
+  }
+
+  /** @private */
   _resolveEnd() {
     if (this._endTimeout) {
       clearTimeout(this._endTimeout);
@@ -363,6 +460,8 @@ class NablaScribeClient {
       clearTimeout(this._reconnectTimer);
       this._reconnectTimer = null;
     }
+    this._stopHealthCheck();
+    this._removeEventListeners();
     const resolve = this._endResolve;
     this._endResolve = null;
     this.onEnd();

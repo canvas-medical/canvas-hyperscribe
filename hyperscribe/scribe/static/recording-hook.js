@@ -90,7 +90,13 @@ export function useRecording(noteId, initialTranscript) {
       client.onTranscriptItem = handleTranscriptItem;
       client.onError = (msg) => setError(msg);
       client.onDisconnect = () => setConnectionLost(true);
-      client.onReconnect = () => setConnectionLost(false);
+      client.onReconnect = () => {
+        setConnectionLost(false);
+        // Promote non-final (partial) entries to final — they'll never be
+        // finalized through the normal flow since the old WebSocket session
+        // is gone, and the ACK'd audio that produced them won't be replayed.
+        setEntries(prev => prev.map(e => e.is_final ? e : { ...e, is_final: true }));
+      };
       await client.connect();
     } catch (err) {
       setError('Failed to connect to transcription service');
