@@ -84,15 +84,25 @@ export function useRecording(noteId, initialTranscript) {
       return false;
     }
 
+    const refreshConfig = async () => {
+      const res = await fetch(`${API_BASE}/config`, { cache: 'no-store' });
+      return res.json();
+    };
+
     let client;
     try {
-      client = createScribeClient(config);
+      client = createScribeClient({ ...config, refreshConfig });
       client.onTranscriptItem = handleTranscriptItem;
       client.onError = (msg, code) => {
         if (code === 83011) {
           // Stream timeout — Nabla closes the connection if a stream receives
           // no audio for 10s. Not actionable for the user; the client will
           // reconnect and replay buffered audio automatically.
+          return;
+        }
+        if (code === 50025) {
+          // JWT expired — the client will refresh the token and reconnect
+          // automatically. Not actionable for the user.
           return;
         }
         setError(code ? `${msg} (${code})` : msg);
