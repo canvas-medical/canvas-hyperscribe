@@ -142,22 +142,151 @@ h2 { margin-bottom: 4px; }
 .recording-dot {
   width: 8px;
   height: 8px;
-  background: #fff;
+  background: #991b1b;
   border-radius: 50%;
-  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.recording-dot-live {
+  transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+}
+
+.recording-dot-paused {
+  opacity: 0.5;
 }
 
 .recording-banner.paused {
   background: #f5a623;
 }
 
-.recording-banner.paused .recording-dot {
-  animation: none;
+/* Microphone permission prompting */
+.mic-prompting-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #eef6ff;
+  color: #1a5276;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid #aed6f1;
+  animation: fade-in 0.3s ease-out;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+.mic-prompting-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #aed6f1;
+  border-top-color: #2980b9;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Microphone blocked banner */
+.mic-blocked-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 12px 16px;
+  padding: 16px;
+  background: #fdf2f2;
+  border: 1px solid #e8aaaa;
+  border-radius: 8px;
+  animation: fade-in 0.3s ease-out;
+}
+
+.mic-blocked-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #fce4e4;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mic-blocked-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.mic-blocked-content > strong {
+  display: block;
+  font-size: 14px;
+  color: #922;
+  margin-bottom: 4px;
+}
+
+.mic-blocked-content p {
+  margin: 0;
+  font-size: 13px;
+  color: #733;
+  line-height: 1.4;
+}
+
+.mic-blocked-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.mic-blocked-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+}
+
+.mic-blocked-btn-refresh {
+  background: #fff;
+  color: #333;
+  border: 1px solid #ccc;
+}
+
+/* Connection lost warning */
+.connection-lost-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fce4e4;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid #f87171;
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Silence warning */
+.silence-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fef3cd;
+  color: #856404;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid #ffc107;
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Transcript entries */

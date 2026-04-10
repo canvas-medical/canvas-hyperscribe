@@ -1,7 +1,7 @@
 /**
  * AudioWorklet processor that converts float32 audio samples to PCM16 Int16Array.
  * Batches ~96ms of audio (128 samples/quantum x 24 quanta = 3072 samples at 16kHz)
- * before posting to the main thread.
+ * before posting to the main thread. Also computes RMS audio level per batch.
  */
 
 const BATCH_QUANTA = 24; // 128 * 24 = 3072 samples ≈ 192ms at 16kHz
@@ -34,13 +34,16 @@ class RawPcm16Processor extends AudioWorkletProcessor {
     const totalLength = this._buffer.reduce((sum, chunk) => sum + chunk.length, 0);
     const pcm16 = new Int16Array(totalLength);
     let offset = 0;
+    let sumSquares = 0;
     for (const chunk of this._buffer) {
       for (let i = 0; i < chunk.length; i++) {
         const s = Math.max(-1, Math.min(1, chunk[i]));
+        sumSquares += s * s;
         pcm16[offset++] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
     }
-    this.port.postMessage(pcm16);
+    const rms = Math.sqrt(sumSquares / totalLength);
+    this.port.postMessage({ type: 'audio', pcm16, rms });
     this._buffer = [];
     this._quantaCount = 0;
   }
