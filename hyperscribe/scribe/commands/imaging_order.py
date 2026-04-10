@@ -5,6 +5,7 @@ from typing import Any
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.commands.commands.imaging_order import ImagingOrderCommand
 from canvas_sdk.commands.constants import ServiceProvider
+from canvas_sdk.effects import Effect
 
 from hyperscribe.scribe.commands.base import CommandParser
 
@@ -60,3 +61,6 @@ class ImagingOrderParser(CommandParser):
             note_uuid=note_uuid,
             command_uuid=command_uuid,
         )
+
+    def post_originate_effects(self, command: _BaseCommand, proposal: dict[str, Any] | None = None) -> list[Effect]:
+        return [command.sign()]
