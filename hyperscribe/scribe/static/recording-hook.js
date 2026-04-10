@@ -330,19 +330,14 @@ export function useRecording(noteId, initialTranscript) {
     return () => { if (permStatus) permStatus.onchange = null; };
   }, []);
 
-  // Re-check microphone permission without reloading the page.
+  // Re-request microphone permission without reloading the page.
   const retryMicPermission = useCallback(async () => {
     try {
-      const perm = await navigator.permissions.query({ name: 'microphone' });
-      setMicBlocked(perm.state === 'denied');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+      setMicBlocked(false);
     } catch {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop());
-        setMicBlocked(false);
-      } catch {
-        setMicBlocked(true);
-      }
+      setMicBlocked(true);
     }
   }, []);
 
