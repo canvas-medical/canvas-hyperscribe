@@ -1501,7 +1501,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         <div class="transcript-panel">
           <button class="transcript-panel-header ${isRecording ? '' : 'finalized'}" onClick=${() => setTranscriptCollapsed(prev => !prev)}>
             <div class="transcript-panel-status ${isRecording ? '' : 'finalized'}">
-              ${isRecording && html`<span class="recording-dot"></span>`}
+              ${isRecording && recording.status === 'recording' && html`
+                <span class="recording-dot recording-dot-live"
+                  style=${{
+                    transform: `scale(${1 + Math.min(recording.audioLevel * 8, 1)})`,
+                    opacity: 0.6 + Math.min(recording.audioLevel * 6, 0.4),
+                  }}
+                ></span>
+              `}
+              ${isRecording && recording.status === 'paused' && html`<span class="recording-dot recording-dot-paused"></span>`}
               <span>${isRecording
                 ? (recording.status === 'paused' ? 'Paused' : 'Recording in progress')
                 : 'Transcript'}</span>
@@ -1529,6 +1537,47 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                 : html`<p class="transcript-placeholder">Transcript will appear here as you speak...</p>`}
             </div>
           `}
+        </div>
+      `}
+      ${recording.micPrompting && html`
+        <div class="mic-prompting-banner">
+          <div class="mic-prompting-spinner" />
+          <span>Waiting for microphone permission…</span>
+        </div>
+      `}
+      ${recording.micBlocked && html`
+        <div class="mic-blocked-banner">
+          <div class="mic-blocked-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#c0392b">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+              <line x1="3" y1="3" x2="21" y2="21" stroke="#c0392b" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="mic-blocked-content">
+            <strong>Microphone Access Blocked</strong>
+            <p>Microphone permission is required to record. Tap the button below to allow access.</p>
+          </div>
+          <div class="mic-blocked-actions">
+            <button class="mic-blocked-btn mic-blocked-btn-refresh" onClick=${() => recording.retryMicPermission()}>Enable Microphone</button>
+          </div>
+        </div>
+      `}
+      ${recording.connectionLost && recording.status === 'recording' && html`
+        <div class="connection-lost-warning">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
+            <path d="M24 8.98C20.93 5.9 16.69 4 12 4S3.07 5.9 0 8.98L12 21 24 8.98zM2.92 9.07C5.51 7.08 8.67 6 12 6s6.49 1.08 9.08 3.07l-1.43 1.43C17.5 8.94 14.86 8 12 8s-5.5.94-7.65 2.51L2.92 9.07zM12 18l-6.22-6.22C7.84 10.14 9.82 9.25 12 9.25s4.16.89 6.22 2.53L12 18z"/>
+            <line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          Connection lost — reconnecting. Audio is being buffered locally.
+        </div>
+      `}
+      ${recording.silenceWarning && recording.status === 'recording' && html`
+        <div class="silence-warning">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          No audio detected — check your microphone permissions and make sure it is not muted
         </div>
       `}
       ${recording.error && html`<p class="error" style="padding: 0 16px;">${recording.error}</p>`}
