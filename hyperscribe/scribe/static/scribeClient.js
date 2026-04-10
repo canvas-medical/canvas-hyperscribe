@@ -75,7 +75,7 @@ class NablaScribeClient {
 
     /** @type {function(object): void} */
     this.onTranscriptItem = () => {};
-    /** @type {function(string): void} */
+    /** @type {function(string, number=): void} */
     this.onError = () => {};
     /** @type {function(): void} */
     this.onEnd = () => {};
@@ -399,7 +399,8 @@ class NablaScribeClient {
         // Server will close the connection after this.
         break;
       case 'ERROR':
-        this.onError(msg.message || 'Unknown error');
+      case 'ERROR_MESSAGE':
+        this.onError(msg.message || 'Unknown error', msg.code);
         break;
     }
   }

@@ -88,7 +88,15 @@ export function useRecording(noteId, initialTranscript) {
     try {
       client = createScribeClient(config);
       client.onTranscriptItem = handleTranscriptItem;
-      client.onError = (msg) => setError(msg);
+      client.onError = (msg, code) => {
+        if (code === 83011) {
+          // Stream timeout — Nabla closes the connection if a stream receives
+          // no audio for 10s. Not actionable for the user; the client will
+          // reconnect and replay buffered audio automatically.
+          return;
+        }
+        setError(code ? `${msg} (${code})` : msg);
+      };
       client.onDisconnect = () => setConnectionLost(true);
       client.onReconnect = () => {
         setConnectionLost(false);
