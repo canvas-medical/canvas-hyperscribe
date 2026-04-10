@@ -43,6 +43,7 @@ export function useRecording(noteId, initialTranscript) {
   const [silenceWarning, setSilenceWarning] = useState(false);
   const [micBlocked, setMicBlocked] = useState(false);
   const [micPrompting, setMicPrompting] = useState(false);
+  const [connectionLost, setConnectionLost] = useState(false);
   const lastAudioTimeRef = useRef(null);
   const silenceTimerRef = useRef(null);
   const silenceDingPlayedRef = useRef(false);
@@ -88,6 +89,8 @@ export function useRecording(noteId, initialTranscript) {
       client = createScribeClient(config);
       client.onTranscriptItem = handleTranscriptItem;
       client.onError = (msg) => setError(msg);
+      client.onDisconnect = () => setConnectionLost(true);
+      client.onReconnect = () => setConnectionLost(false);
       await client.connect();
     } catch (err) {
       setError('Failed to connect to transcription service');
@@ -151,6 +154,7 @@ export function useRecording(noteId, initialTranscript) {
     cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
     setAudioLevel(0);
     setSilenceWarning(false);
+    setConnectionLost(false);
     if (silenceTimerRef.current) {
       clearInterval(silenceTimerRef.current);
       silenceTimerRef.current = null;
@@ -160,6 +164,9 @@ export function useRecording(noteId, initialTranscript) {
       clientRef.current = null;
       client.onError = () => {};
       client.onEnd = () => {};
+      client.onDisconnect = () => {};
+      client.onReconnect = () => {};
+      // end() drains any buffered audio before closing.
       await client.end();
       client.onTranscriptItem = () => {};
     }
@@ -360,7 +367,7 @@ export function useRecording(noteId, initialTranscript) {
   }, []);
 
   return {
-    status, entries, error, finalized, lastSaved, audioLevel, silenceWarning, micBlocked, micPrompting,
+    status, entries, error, finalized, lastSaved, audioLevel, silenceWarning, micBlocked, micPrompting, connectionLost,
     startRecording, pauseRecording, resumeRecording, finishRecording, retryMicPermission,
   };
 }
