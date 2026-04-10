@@ -1242,20 +1242,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }
         }
         setApproved(true);
-          if (!hasPrescriptions) {
-            try {
-              await fetch(`${API_BASE}/sign-note`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ note_uuid: noteId }),
-              });
-              logEvent('NOTE_SIGNED');
-            } catch (signErr) {
-              console.error('Failed to sign note:', signErr);
-            }
-          }
-          const port = window.__canvasPort && window.__canvasPort();
-          if (port) port.postMessage({ type: 'CLOSE_MODAL' });
+        // if (!hasPrescriptions) {
+        //   try {
+        //     await fetch(`${API_BASE}/sign-note`, {
+        //       method: 'POST',
+        //       headers: { 'Content-Type': 'application/json' },
+        //       body: JSON.stringify({ note_uuid: noteId }),
+        //     });
+        //     logEvent('NOTE_SIGNED');
+        //   } catch (signErr) {
+        //     console.error('Failed to sign note:', signErr);
+        //   }
+        // }
+        const port = window.__canvasPort && window.__canvasPort();
+        if (port) port.postMessage({ type: 'CLOSE_MODAL' });
       }
     } catch (err) {
       setError('Failed to insert commands');
