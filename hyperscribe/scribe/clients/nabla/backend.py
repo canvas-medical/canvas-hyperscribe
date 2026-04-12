@@ -252,6 +252,23 @@ class NablaBackend(ScribeBackend):
                     "level_of_detail": "DEFAULT",
                     "custom_instruction": hpi_custom_instructions,
                 },
+                {
+                    "section_key": "SOCIAL_HISTORY",
+                    "custom_instruction": (
+                        "Be thorough. Include all relevant details discussed for: "
+                        "Living Situation, Social Support, Caregiving Resources, "
+                        "Occupation, Alcohol, Tobacco, Recreational Drugs, and Exposures."
+                    ),
+                },
+                {
+                    "section_key": "FAMILY_HISTORY",
+                    "custom_instruction": (
+                        "Be thorough. Document all family members mentioned, their relationship "
+                        "to the patient, and any medical conditions, causes of death, or congenital "
+                        "conditions discussed. Distinguish between the patient's own history and "
+                        "family members' history."
+                    ),
+                },
             ],
         }
         if patient_context is not None:
