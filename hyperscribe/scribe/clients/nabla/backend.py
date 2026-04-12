@@ -264,7 +264,7 @@ class NablaBackend(ScribeBackend):
                     "section_key": "FAMILY_HISTORY",
                     "custom_instruction": (
                         "Be thorough. Document all family members mentioned, their relationship "
-                        "to the patient, and any medical conditions, causes of death, or congenital "
+                        "to the patient, and any medical conditions, causes of death, or "
                         "conditions discussed. Distinguish between the patient's own history and "
                         "family members' history."
                     ),
