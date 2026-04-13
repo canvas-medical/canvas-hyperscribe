@@ -20,7 +20,7 @@ from hyperscribe.scribe.clients.nabla.client import NablaClient
 
 _NABLA_API_VERSION = "2026-02-20"
 _NOTE_LOCALE = "ENGLISH_US"
-_NOTE_TEMPLATE = "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+_NOTE_TEMPLATE = "PSYCHIATRY_MULTIPLE_SECTIONS"
 
 
 class NablaBackend(ScribeBackend):
@@ -245,12 +245,33 @@ class NablaBackend(ScribeBackend):
             "note_template": _NOTE_TEMPLATE,
             "note_locale": _NOTE_LOCALE,
             "note_sections_customization": [
-                {"section_key": "ASSESSMENT_AND_PLAN", "style": "BULLET_POINTS", "split_by_problem": True},
+                {"section_key": "ASSESSMENT", "style": "BULLET_POINTS"},
+                {
+                    "section_key": "PLAN",
+                    "style": "BULLET_POINTS",
+                    "custom_instruction": "Organize by problem, with the plan for each problem grouped together.",
+                },
                 {
                     "section_key": "HISTORY_OF_PRESENT_ILLNESS",
                     "style": "PARAGRAPH",
-                    "level_of_detail": "DEFAULT",
                     "custom_instruction": hpi_custom_instructions,
+                },
+                {
+                    "section_key": "SOCIAL_HISTORY",
+                    "custom_instruction": (
+                        "Be thorough. Include all relevant details discussed for: "
+                        "Living Situation, Social Support, Caregiving Resources, "
+                        "Occupation, Alcohol, Tobacco, Recreational Drugs, and Exposures."
+                    ),
+                },
+                {
+                    "section_key": "FAMILY_HISTORY",
+                    "custom_instruction": (
+                        "Be thorough. Document all family members mentioned, their relationship "
+                        "to the patient, and any medical conditions, causes of death, or "
+                        "conditions discussed. Distinguish between the patient's own history and "
+                        "family members' history."
+                    ),
                 },
             ],
         }
