@@ -273,6 +273,14 @@ class NablaBackend(ScribeBackend):
                         "family members' history."
                     ),
                 },
+                {
+                    "section_key": "REVIEW_OF_SYSTEMS",
+                    "custom_instruction": (
+                        "Focus on psychiatric review of systems. Use these categories: "
+                        "Depressive Symptoms, Anxiety Symptoms, Sleep, Appetite, "
+                        "SI/HI, Hallucinations, Delusions/Paranoia, Manic Symptoms."
+                    ),
+                },
             ],
         }
         if patient_context is not None:
