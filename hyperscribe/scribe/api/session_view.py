@@ -624,7 +624,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         patient_context = _parse_patient_context(data)
         visit_template_name = str(data.get("selected_template_name", "") or "")
         try:
-            note = backend.generate_note(transcript, patient_context=patient_context, visit_template_name=visit_template_name)
+            note = backend.generate_note(
+                transcript, patient_context=patient_context, visit_template_name=visit_template_name,
+            )
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
 
@@ -867,7 +869,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         patient_context = _parse_patient_context(data)
         visit_template_name = str(data.get("selected_template_name", "") or "")
         try:
-            note = backend.generate_note(transcript, patient_context=patient_context, visit_template_name=visit_template_name)
+            note = backend.generate_note(
+                transcript, patient_context=patient_context, visit_template_name=visit_template_name,
+            )
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
         return [
