@@ -20,7 +20,10 @@ from hyperscribe.scribe.clients.nabla.client import NablaClient
 
 _NABLA_API_VERSION = "2026-02-20"
 _NOTE_LOCALE = "ENGLISH_US"
-_NOTE_TEMPLATE = "PSYCHIATRY_MULTIPLE_SECTIONS"
+_NOTE_TEMPLATE = "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+_PSYCHIATRY_NOTE_TEMPLATE = "PSYCHIATRY_MULTIPLE_SECTIONS"
+
+_PSYCHIATRY_TEMPLATE_NAMES: frozenset[str] = frozenset({"Psychiatry"})
 
 
 class NablaBackend(ScribeBackend):
@@ -48,8 +51,9 @@ class NablaBackend(ScribeBackend):
         transcript: Transcript,
         *,
         patient_context: PatientContext | None = None,
+        visit_template_name: str = "",
     ) -> ClinicalNote:
-        payload = self._build_note_payload(transcript, patient_context)
+        payload = self._build_note_payload(transcript, patient_context, visit_template_name=visit_template_name)
         raw = self._rest_client.generate_note(payload)
         self._last_raw_note_response = raw
         return self._parse_note(raw)
@@ -204,7 +208,11 @@ class NablaBackend(ScribeBackend):
     def _build_note_payload(
         transcript: Transcript,
         patient_context: PatientContext | None,
+        *,
+        visit_template_name: str = "",
     ) -> dict[str, Any]:
+        is_psychiatry = visit_template_name in _PSYCHIATRY_TEMPLATE_NAMES
+
         # Build the HPI opening line with concrete demographics when available.
         if patient_context is not None:
             name = patient_context.name or "[PATIENT_NAME]"
@@ -232,19 +240,28 @@ class NablaBackend(ScribeBackend):
             "Musculoskeletal:"
         )
 
-        payload: dict[str, Any] = {
-            "transcript_items": [
-                {
-                    "text": item.text,
-                    "speaker_type": item.speaker or "UNSPECIFIED",
-                    "start_offset_ms": item.start_offset_ms,
-                    "end_offset_ms": item.end_offset_ms,
-                }
-                for item in transcript.items
-            ],
-            "note_template": _NOTE_TEMPLATE,
-            "note_locale": _NOTE_LOCALE,
-            "note_sections_customization": [
+        # Shared custom instructions for all templates.
+        social_history_instruction = {
+            "section_key": "SOCIAL_HISTORY",
+            "custom_instruction": (
+                "Be thorough. Include all relevant details discussed for: "
+                "Living Situation, Social Support, Caregiving Resources, "
+                "Occupation, Alcohol, Tobacco, Recreational Drugs, and Exposures."
+            ),
+        }
+        family_history_instruction = {
+            "section_key": "FAMILY_HISTORY",
+            "custom_instruction": (
+                "Be thorough. Document all family members mentioned, their relationship "
+                "to the patient, and any medical conditions, causes of death, or "
+                "conditions discussed. Distinguish between the patient's own history and "
+                "family members' history."
+            ),
+        }
+
+        if is_psychiatry:
+            note_template = _PSYCHIATRY_NOTE_TEMPLATE
+            sections_customization = [
                 {"section_key": "ASSESSMENT", "style": "BULLET_POINTS"},
                 {
                     "section_key": "PLAN",
@@ -256,23 +273,8 @@ class NablaBackend(ScribeBackend):
                     "style": "PARAGRAPH",
                     "custom_instruction": hpi_custom_instructions,
                 },
-                {
-                    "section_key": "SOCIAL_HISTORY",
-                    "custom_instruction": (
-                        "Be thorough. Include all relevant details discussed for: "
-                        "Living Situation, Social Support, Caregiving Resources, "
-                        "Occupation, Alcohol, Tobacco, Recreational Drugs, and Exposures."
-                    ),
-                },
-                {
-                    "section_key": "FAMILY_HISTORY",
-                    "custom_instruction": (
-                        "Be thorough. Document all family members mentioned, their relationship "
-                        "to the patient, and any medical conditions, causes of death, or "
-                        "conditions discussed. Distinguish between the patient's own history and "
-                        "family members' history."
-                    ),
-                },
+                social_history_instruction,
+                family_history_instruction,
                 {
                     "section_key": "MENTAL_HEALTH_EXAM",
                     "custom_instruction": (
@@ -281,7 +283,34 @@ class NablaBackend(ScribeBackend):
                         "SI/HI, Hallucinations, Delusions/Paranoia, Manic Symptoms."
                     ),
                 },
+            ]
+        else:
+            note_template = _NOTE_TEMPLATE
+            sections_customization = [
+                {"section_key": "ASSESSMENT_AND_PLAN", "style": "BULLET_POINTS", "split_by_problem": True},
+                {
+                    "section_key": "HISTORY_OF_PRESENT_ILLNESS",
+                    "style": "PARAGRAPH",
+                    "level_of_detail": "DEFAULT",
+                    "custom_instruction": hpi_custom_instructions,
+                },
+                social_history_instruction,
+                family_history_instruction,
+            ]
+
+        payload: dict[str, Any] = {
+            "transcript_items": [
+                {
+                    "text": item.text,
+                    "speaker_type": item.speaker or "UNSPECIFIED",
+                    "start_offset_ms": item.start_offset_ms,
+                    "end_offset_ms": item.end_offset_ms,
+                }
+                for item in transcript.items
             ],
+            "note_template": note_template,
+            "note_locale": _NOTE_LOCALE,
+            "note_sections_customization": sections_customization,
         }
         if patient_context is not None:
             structured_context: dict[str, Any] = {

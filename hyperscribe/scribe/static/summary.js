@@ -417,6 +417,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           note_id: noteId,
           note_uuid: noteId,
           patient_id: patientId,
+          selected_template_name: selectedTemplate?.name || null,
           template_ros_sections: selectedTemplate?.ros_sections || null,
           template_pe_sections: selectedTemplate?.pe_sections || null,
           patient_context: {
