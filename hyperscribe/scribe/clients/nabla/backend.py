@@ -274,9 +274,9 @@ class NablaBackend(ScribeBackend):
                     ),
                 },
                 {
-                    "section_key": "REVIEW_OF_SYSTEMS",
+                    "section_key": "MENTAL_HEALTH_EXAM",
                     "custom_instruction": (
-                        "Focus on psychiatric review of systems. Use these categories: "
+                        "Be thorough. Use these categories: "
                         "Depressive Symptoms, Anxiety Symptoms, Sleep, Appetite, "
                         "SI/HI, Hallucinations, Delusions/Paranoia, Manic Symptoms."
                     ),
