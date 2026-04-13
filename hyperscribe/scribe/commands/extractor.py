@@ -97,8 +97,15 @@ def parse_ros_subsections(text: str) -> list[dict[str, str]]:
 
 
 def _extract_ros(note: ClinicalNote) -> CommandProposal | None:
-    """Extract review_of_systems section into an ROS command with per-system subsections."""
+    """Extract review_of_systems or mental_health_exam section into an ROS command.
+
+    Prefer mental_health_exam when present (psychiatry template) over the
+    generic review_of_systems.
+    """
     ros_section = next(
+        (s for s in note.sections if s.key.lower() == "mental_health_exam" and s.text.strip()),
+        None,
+    ) or next(
         (s for s in note.sections if s.key.lower() == "review_of_systems" and s.text.strip()),
         None,
     )
