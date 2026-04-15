@@ -26,7 +26,7 @@ function int16ArrayToBase64(int16Array) {
 }
 
 const MAX_RECONNECT_ATTEMPTS = 10;
-const END_TIMEOUT_MS = 60000;
+const END_TIMEOUT_MS = 30000;
 // If we have in-flight audio and the server hasn't responded in this long,
 // consider the connection dead. Browser offline events and WebSocket close
 // detection are unreliable on macOS — this catches it at the application level.
