@@ -108,7 +108,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
       ...data,
       icd10_code: result.code,
       icd10_display: display,
-      condition_header: display,
+      condition_header: data._original_header || data.condition_header || display,
       _original_header: data._original_header || data.condition_header || '',
       accepted: true,
       rejected: false,
@@ -159,13 +159,17 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   const conditionHeader = data.condition_header || command.display;
   const formattedCode = hasCode ? formatIcdCode(data.icd10_code) : null;
   const title = hasCode
-    ? html`<span class="diagnose-icd-prefix${readOnly ? '' : ' clickable'}" onClick=${() => !readOnly && handleClearCode()} title=${readOnly ? formattedCode : 'Click to change diagnosis'}>${formattedCode}</span> ${data.icd10_display || conditionHeader}`
+    ? html`<span class="diagnose-icd-prefix${readOnly ? '' : ' clickable'}" onClick=${() => !readOnly && handleClearCode()} title=${readOnly ? formattedCode : 'Click to change diagnosis'}>${formattedCode}</span> ${conditionHeader}`
     : conditionHeader;
+  const icdSubtitle = hasCode && data.icd10_display && data.icd10_display !== conditionHeader
+    ? data.icd10_display
+    : null;
 
   return html`
     <div class="diagnose-row" ref=${containerRef}>
       <div class="diagnose-row-header">
         <span class="diagnose-row-title">${title}</span>
+        ${icdSubtitle && html`<div class="diagnose-icd-subtitle">${icdSubtitle}</div>`}
       </div>
 
       ${editingCode && !readOnly && html`

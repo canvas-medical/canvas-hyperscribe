@@ -193,6 +193,41 @@ def test_match_condition_empty_header() -> None:
 # --- split_plan_into_diagnoses ---
 
 
+def test_split_plan_display_preserves_original_header() -> None:
+    """Display should always be the original A&P header, not the ICD-10 display."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {
+                "narrative": (
+                    "Chronic diastolic heart failure with hypoxemia, hypotension, "
+                    "and polyuria secondary to diuretic therapy\n"
+                    "- Adjust diuretics\n- Monitor renal function"
+                )
+            },
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "Hypotension",
+                "coding": [{"code": "I95.9", "display": "Hypotension, unspecified"}],
+            },
+        ],
+    }
+    updated, _ = split_plan_into_diagnoses(commands, section_conditions)
+    assert len(updated) == 1
+    assert updated[0]["command_type"] == "diagnose"
+    # The ICD code is matched via substring, but the display must stay as the original header.
+    assert updated[0]["data"]["icd10_code"] == "I95.9"
+    assert updated[0]["display"] == (
+        "Chronic diastolic heart failure with hypoxemia, hypotension, "
+        "and polyuria secondary to diuretic therapy"
+    )
+    assert updated[0]["data"]["condition_header"] == updated[0]["display"]
+
+
 def test_split_plan_into_diagnoses_basic() -> None:
     commands = [
         {"command_type": "rfv", "data": {"comment": "Pain"}, "section_key": "chief_complaint"},

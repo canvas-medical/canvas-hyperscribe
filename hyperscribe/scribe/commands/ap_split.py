@@ -200,7 +200,7 @@ def split_plan_into_diagnoses(
             icd = next((cd for cd in (matched.get("coding") or []) if cd.get("code")), None)
             matched_set.add(id(matched))
         if icd and matched:
-            display = icd.get("display") or matched.get("display") or block.header
+            display = block.header
             icd10_code: str | None = icd["code"]
             icd10_display = icd.get("display") or matched.get("display") or ""
         else:
