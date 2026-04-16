@@ -25,6 +25,7 @@ class ScribeBackend(ABC):
         transcript: Transcript,
         *,
         patient_context: PatientContext | None = None,
+        visit_template_name: str = "",
     ) -> ClinicalNote: ...
 
     @abstractmethod

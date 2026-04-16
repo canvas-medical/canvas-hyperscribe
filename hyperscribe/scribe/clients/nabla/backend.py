@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Any
 
@@ -21,6 +22,9 @@ from hyperscribe.scribe.clients.nabla.client import NablaClient
 _NABLA_API_VERSION = "2026-02-20"
 _NOTE_LOCALE = "ENGLISH_US"
 _NOTE_TEMPLATE = "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+_PSYCHIATRY_NOTE_TEMPLATE = "PSYCHIATRY_MULTIPLE_SECTIONS"
+
+_PSYCHIATRY_TEMPLATE_NAMES: frozenset[str] = frozenset({"Psychiatry"})
 
 
 class NablaBackend(ScribeBackend):
@@ -48,8 +52,9 @@ class NablaBackend(ScribeBackend):
         transcript: Transcript,
         *,
         patient_context: PatientContext | None = None,
+        visit_template_name: str = "",
     ) -> ClinicalNote:
-        payload = self._build_note_payload(transcript, patient_context)
+        payload = self._build_note_payload(transcript, patient_context, visit_template_name=visit_template_name)
         raw = self._rest_client.generate_note(payload)
         self._last_raw_note_response = raw
         return self._parse_note(raw)
@@ -105,7 +110,125 @@ class NablaBackend(ScribeBackend):
             else:
                 sections.append(NoteSection(key=key, title=title, text=text))
 
+        # When using a template that returns separate "assessment" and "plan"
+        # sections (e.g. PSYCHIATRY_MULTIPLE_SECTIONS), merge them into a single
+        # "assessment_and_plan" section formatted so that parse_ap_blocks() can
+        # split it into header+body blocks for ICD-10 matching.
+        #
+        # The psychiatry template doesn't support split_by_problem, so the Plan
+        # section comes back as flat bullets like "- Problem: plan details...".
+        # We reformat Plan bullets into non-bullet headers + bullet bodies by
+        # splitting on the first colon, which matches the structure that
+        # parse_ap_blocks expects (non-bullet header → bullet body lines).
+        keys = {s.key.lower() for s in sections}
+        if "assessment" in keys and "plan" in keys and "assessment_and_plan" not in keys:
+            assessment = next(s for s in sections if s.key.lower() == "assessment")
+            plan = next(s for s in sections if s.key.lower() == "plan")
+            merged_text = NablaBackend._reformat_plan_as_ap(assessment.text, plan.text)
+            merged = NoteSection(
+                key="assessment_and_plan",
+                title="Assessment & Plan",
+                text=merged_text,
+            )
+            sections = [s for s in sections if s.key.lower() not in ("assessment", "plan")]
+            sections.append(merged)
+
         return ClinicalNote(title=note_data.get("title", ""), sections=sections)
+
+    @staticmethod
+    def _strip_bullet(line: str) -> str:
+        """Remove leading bullet prefix (-, *, •) from a line."""
+        stripped = line.strip()
+        if re.match(r"^[-•*]\s", stripped):
+            return stripped[2:].strip()
+        return stripped
+
+    @staticmethod
+    def _reformat_plan_as_ap(assessment_text: str, plan_text: str) -> str:
+        """Merge separate Assessment and Plan sections into a single A&P block.
+
+        The psychiatry template returns Assessment as bullet-point impressions
+        and Plan as bullets like "- Problem: plan details...".
+
+        parse_ap_blocks() needs non-bullet headers to create blocks that
+        match_condition() can map to ICD-10 codes. We produce:
+
+            Depression and mood disturbance
+            - Persistent depressive disorder with prominent bereavement
+            - Initiate cross-taper from citalopram to sertraline 50 mg
+
+        Each plan problem becomes a header. Assessment items are matched to
+        plan blocks by word overlap and included as body content alongside
+        plan details, so that both clinical impressions and actions appear
+        under each diagnosis.
+        """
+        # Parse assessment items.
+        assessment_items: list[str] = []
+        for line in assessment_text.split("\n"):
+            item = NablaBackend._strip_bullet(line)
+            if item:
+                assessment_items.append(item)
+
+        # Parse plan items into (header, body) pairs.
+        plan_blocks: list[tuple[str, str]] = []
+        for line in plan_text.split("\n"):
+            stripped = NablaBackend._strip_bullet(line)
+            if not stripped:
+                continue
+            if ":" in stripped:
+                header, body = stripped.split(":", 1)
+                header = header.strip()
+                body = body.strip()
+                if header:
+                    plan_blocks.append((header, body))
+                elif body:
+                    plan_blocks.append(("", body))
+            else:
+                plan_blocks.append((stripped, ""))
+
+        if not plan_blocks:
+            # No plan items — just return assessment as plain headers.
+            return "\n\n".join(assessment_items)
+
+        # Match each assessment item to the best plan block by word overlap.
+        block_assessments: dict[int, list[str]] = {i: [] for i in range(len(plan_blocks))}
+        for item in assessment_items:
+            item_words = set(NablaBackend._significant_words(item))
+            if not item_words:
+                block_assessments[0].append(item)
+                continue
+            best_idx = 0
+            best_score = 0.0
+            for i, (header, _) in enumerate(plan_blocks):
+                header_words = set(NablaBackend._significant_words(header))
+                if not header_words:
+                    continue
+                overlap = len(item_words & header_words) / min(len(item_words), len(header_words))
+                if overlap > best_score:
+                    best_score = overlap
+                    best_idx = i
+            block_assessments[best_idx].append(item)
+
+        # Build merged blocks: header + assessment bullets + plan bullets.
+        output: list[str] = []
+        for i, (header, body) in enumerate(plan_blocks):
+            lines = [header] if header else []
+            for a in block_assessments.get(i, []):
+                lines.append(f"- {a}")
+            if body:
+                lines.append(f"- {body}")
+            output.append("\n".join(lines))
+
+        return "\n\n".join(output)
+
+    @staticmethod
+    def _significant_words(text: str) -> list[str]:
+        """Extract lowercase words, filtering short and common ones."""
+        _stop = {"a", "an", "the", "of", "and", "or", "with", "without", "in",
+                 "on", "for", "to", "by", "is", "are", "was", "were", "not", "no",
+                 "due", "related", "primarily", "currently", "approximately"}
+        cleaned = re.sub(r"[^a-z0-9\s]", "", text.lower())
+        return [w for w in cleaned.split() if len(w) > 2 and w not in _stop]
 
     @staticmethod
     def _normalize_marker(line: str) -> str:
@@ -204,7 +327,11 @@ class NablaBackend(ScribeBackend):
     def _build_note_payload(
         transcript: Transcript,
         patient_context: PatientContext | None,
+        *,
+        visit_template_name: str = "",
     ) -> dict[str, Any]:
+        is_psychiatry = visit_template_name in _PSYCHIATRY_TEMPLATE_NAMES
+
         # Build the HPI opening line with concrete demographics when available.
         if patient_context is not None:
             name = patient_context.name or "[PATIENT_NAME]"
@@ -231,6 +358,82 @@ class NablaBackend(ScribeBackend):
             "with a 1-3 word name (e.g. General, HEENT, Cardiovascular). Never exceed three words."
         )
 
+        # Shared custom instructions for all templates.
+        social_history_instruction = {
+            "section_key": "SOCIAL_HISTORY",
+            "custom_instruction": (
+                "Document only the patient's own social history, and only what is actually "
+                "discussed in this encounter. Do not attribute anyone else's family, children, "
+                "activities, or history to the patient; exclude social details belonging to the "
+                "clinician, a caregiver, or a companion in the room. Never state that a topic was "
+                "not discussed or that no information was provided. If the patient's own social "
+                "history is not discussed, leave this section empty."
+            ),
+        }
+        family_history_instruction = {
+            "section_key": "FAMILY_HISTORY",
+            "custom_instruction": (
+                "Family history covers medical conditions or causes of death in the patient's "
+                "own biological relatives — not social anecdotes or a healthy relative's "
+                "activities. Document only what is actually discussed; name the relative and "
+                "relationship. Do not attribute the relatives of the clinician, a caregiver, or "
+                "a companion in the room to the patient; when the relationship or speaker is "
+                'unclear, omit rather than guess. Never add filler such as "no other family '
+                'history discussed." If none is discussed, leave empty.'
+            ),
+        }
+        physical_exam_instruction = {
+            "section_key": "PHYSICAL_EXAM",
+            "custom_instruction": (
+                "Do not include any vital sign measurements in this section. "
+                "Specifically, exclude heart rate (pulse, HR), "
+                "blood pressure (BP), oxygen saturation (SpO2), and "
+                "respiratory rate (breaths per minute, RR) — "
+                "vital signs belong in the Vitals section."
+            ),
+        }
+
+        if is_psychiatry:
+            note_template = _PSYCHIATRY_NOTE_TEMPLATE
+            sections_customization = [
+                {"section_key": "ASSESSMENT", "style": "BULLET_POINTS"},
+                {
+                    "section_key": "PLAN",
+                    "style": "BULLET_POINTS",
+                    "custom_instruction": "Organize by problem, with the plan for each problem grouped together.",
+                },
+                {
+                    "section_key": "HISTORY_OF_PRESENT_ILLNESS",
+                    "style": "PARAGRAPH",
+                    "custom_instruction": hpi_custom_instructions,
+                },
+                social_history_instruction,
+                family_history_instruction,
+                {
+                    "section_key": "MENTAL_HEALTH_EXAM",
+                    "custom_instruction": (
+                        "Be thorough. Use these categories: "
+                        "Depressive Symptoms, Anxiety Symptoms, Sleep, Appetite, "
+                        "SI/HI, Hallucinations, Delusions/Paranoia, Manic Symptoms."
+                    ),
+                },
+                physical_exam_instruction,
+            ]
+        else:
+            note_template = _NOTE_TEMPLATE
+            sections_customization = [
+                {"section_key": "ASSESSMENT_AND_PLAN", "style": "BULLET_POINTS", "split_by_problem": True},
+                {
+                    "section_key": "HISTORY_OF_PRESENT_ILLNESS",
+                    "style": "PARAGRAPH",
+                    "level_of_detail": "DETAILED",
+                    "custom_instruction": hpi_custom_instructions,
+                },
+                social_history_instruction,
+                family_history_instruction,
+                physical_exam_instruction,
+            ]
+
         payload: dict[str, Any] = {
             "transcript_items": [
                 {
@@ -241,50 +444,9 @@ class NablaBackend(ScribeBackend):
                 }
                 for item in transcript.items
             ],
-            "note_template": _NOTE_TEMPLATE,
+            "note_template": note_template,
             "note_locale": _NOTE_LOCALE,
-            "note_sections_customization": [
-                {"section_key": "ASSESSMENT_AND_PLAN", "style": "BULLET_POINTS", "split_by_problem": True},
-                {
-                    "section_key": "HISTORY_OF_PRESENT_ILLNESS",
-                    "style": "PARAGRAPH",
-                    "level_of_detail": "DETAILED",
-                    "custom_instruction": hpi_custom_instructions,
-                },
-                {
-                    "section_key": "SOCIAL_HISTORY",
-                    "custom_instruction": (
-                        "Document only the patient's own social history, and only what is actually "
-                        "discussed in this encounter. Do not attribute anyone else's family, children, "
-                        "activities, or history to the patient; exclude social details belonging to the "
-                        "clinician, a caregiver, or a companion in the room. Never state that a topic was "
-                        "not discussed or that no information was provided. If the patient's own social "
-                        "history is not discussed, leave this section empty."
-                    ),
-                },
-                {
-                    "section_key": "FAMILY_HISTORY",
-                    "custom_instruction": (
-                        "Family history covers medical conditions or causes of death in the patient's "
-                        "own biological relatives — not social anecdotes or a healthy relative's "
-                        "activities. Document only what is actually discussed; name the relative and "
-                        "relationship. Do not attribute the relatives of the clinician, a caregiver, or "
-                        "a companion in the room to the patient; when the relationship or speaker is "
-                        'unclear, omit rather than guess. Never add filler such as "no other family '
-                        'history discussed." If none is discussed, leave empty.'
-                    ),
-                },
-                {
-                    "section_key": "PHYSICAL_EXAM",
-                    "custom_instruction": (
-                        "Do not include any vital sign measurements in this section. "
-                        "Specifically, exclude heart rate (pulse, HR), "
-                        "blood pressure (BP), oxygen saturation (SpO2), and "
-                        "respiratory rate (breaths per minute, RR) — "
-                        "vital signs belong in the Vitals section."
-                    ),
-                },
-            ],
+            "note_sections_customization": sections_customization,
         }
         if patient_context is not None:
             structured_context: dict[str, Any] = {
