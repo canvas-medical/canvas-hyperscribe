@@ -279,9 +279,8 @@ class NablaBackend(ScribeBackend):
             }
             if patient_context.birth_date:
                 structured_context["patient_demographics"]["birth_date"] = patient_context.birth_date
-            if patient_context.gender:
-                structured_context["patient_demographics"]["gender"] = NablaBackend._GENDER_API_MAP.get(
-                    patient_context.gender, patient_context.gender.upper()
-                )
+            mapped_gender = NablaBackend._GENDER_API_MAP.get(patient_context.gender, "")
+            if mapped_gender:
+                structured_context["patient_demographics"]["gender"] = mapped_gender
             payload["structured_context"] = structured_context
         return payload

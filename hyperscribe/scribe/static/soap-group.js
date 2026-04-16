@@ -1522,6 +1522,54 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             </div>
           `;
         })()}
+        ${(() => {
+          if (title !== 'ASSESSMENT & PLAN') return null;
+          const taskRecs = visibleRecs
+            .map(cmd => ({ command: cmd, index: cmd._origIndex }))
+            .filter(e => e.command.command_type === 'task');
+          if (taskRecs.length === 0) return null;
+          return html`
+            <div class="subsection">
+              <div class="subsection-title">Recommended Tasks</div>
+              ${taskRecs.map(entry => {
+                const isAccepted = entry.command.accepted && !entry.command.rejected;
+                const isRejected = entry.command.rejected;
+                return html`
+                <div class="content-block recommendation-block rec-task${isRejected ? ' rec-rejected' : ''}" key=${'rec-task-' + entry.index}>
+                  <div class="recommendation-content">
+                    <${TaskRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditRecommendation}
+                      onDelete=${onDeleteRecommendation}
+                      assignees=${assignees}
+                      readOnly=${readOnly || entry.command.already_documented || isRejected}
+                      onEditingChange=${onEditingChange}
+                    />
+                    ${entry.command.data.reason && html`<div class="rec-reason">${entry.command.data.reason}</div>`}
+                    ${entry.command.data.due_date_hint && html`<div class="rec-hint">Suggested timing: ${entry.command.data.due_date_hint}</div>`}
+                    ${entry.command.data.assignee_hint && html`<div class="rec-hint">Suggested assignee: ${entry.command.data.assignee_hint}</div>`}
+                  </div>
+                  <div class="recommendation-actions">
+                    ${entry.command.already_documented
+                      ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
+                      : !readOnly && html`
+                          ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                          ${isAccepted && html`<span class="rec-accepted-badge">Accepted</span>`}
+                          ${onAddNow && isAccepted && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
+                          ${!entry.command._adding && html`
+                            <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                            <button type="button" class="rec-btn ${isAccepted ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                          `}
+                        `
+                    }
+                  </div>
+                </div>
+                `;
+              })}
+            </div>
+          `;
+        })()}
         ${onAddTask && html`
           <div class="ad-hoc-buttons">
             <button type="button" class="ad-hoc-btn" onClick=${onAddTask}>+ Task</button>
