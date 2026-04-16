@@ -55,9 +55,9 @@ def test_find_task_matches_basic() -> None:
     t = _transcript(
         [
             _item("I have a headache", "patient", 0, 2000),
-            _item("Let's schedule a follow up", "provider", 3000, 5000),
+            _item("Add a task for the follow up", "provider", 3000, 5000),
             _item("Sounds good", "patient", 6000, 7000),
-            _item("We also need to add a task for labs", "provider", 8000, 10000),
+            _item("We also need a task for labs", "provider", 8000, 10000),
         ]
     )
     matches = find_task_matches(t)
@@ -77,27 +77,18 @@ def test_find_task_matches_no_matches() -> None:
 def test_find_task_matches_case_insensitive() -> None:
     t = _transcript(
         [
-            _item("FOLLOW UP in two weeks", "provider", 0, 2000),
-            _item("Schedule that please", "provider", 3000, 4000),
+            _item("Add a TASK for the labs", "provider", 0, 2000),
+            _item("Another Task here", "provider", 3000, 4000),
         ]
     )
     matches = find_task_matches(t)
     assert len(matches) == 2
 
 
-def test_find_task_matches_hyphenated() -> None:
+def test_find_task_matches_plural() -> None:
     t = _transcript(
         [
-            _item("We need a follow-up", "provider", 0, 2000),
-        ]
-    )
-    assert len(find_task_matches(t)) == 1
-
-
-def test_find_task_matches_todo_variant() -> None:
-    t = _transcript(
-        [
-            _item("Add that to the to-do list", "provider", 0, 2000),
+            _item("We have some tasks to do", "provider", 0, 2000),
         ]
     )
     assert len(find_task_matches(t)) == 1
@@ -225,7 +216,7 @@ def test_build_user_prompt_skips_empty_sections() -> None:
 def test_recommend_extracts_tasks() -> None:
     t = _transcript(
         [
-            _item("Let's schedule a follow-up in two weeks", "provider", 60_000, 62_000),
+            _item("Add a task to schedule a follow-up in two weeks", "provider", 60_000, 62_000),
         ]
     )
     note = _make_note([NoteSection(key="plan", title="Plan", text="Follow up in 2 weeks.")])
@@ -259,8 +250,8 @@ def test_recommend_extracts_tasks() -> None:
 def test_recommend_multiple_tasks() -> None:
     t = _transcript(
         [
-            _item("Schedule follow-up", "provider", 60_000, 62_000),
-            _item("Also remind me to call the patient", "provider", 300_000, 302_000),
+            _item("Add a task for the follow-up", "provider", 60_000, 62_000),
+            _item("Another task to call the patient", "provider", 300_000, 302_000),
         ]
     )
     note = _make_note([NoteSection(key="plan", title="Plan", text="Follow up.")])
@@ -307,7 +298,7 @@ def test_recommend_no_keywords() -> None:
 
 
 def test_recommend_llm_error() -> None:
-    t = _transcript([_item("Schedule a follow-up", "provider", 0, 2000)])
+    t = _transcript([_item("Add a task for the follow-up", "provider", 0, 2000)])
     note = _make_note([NoteSection(key="plan", title="Plan", text="Follow up.")])
     client = MagicMock()
     client.request.return_value = LlmResponse(
@@ -319,7 +310,7 @@ def test_recommend_llm_error() -> None:
 
 
 def test_recommend_llm_exception() -> None:
-    t = _transcript([_item("Schedule a follow-up", "provider", 0, 2000)])
+    t = _transcript([_item("Add a task for the follow-up", "provider", 0, 2000)])
     note = _make_note([NoteSection(key="plan", title="Plan", text="Follow up.")])
     client = MagicMock()
     client.request.side_effect = Exception("Network error")
@@ -327,7 +318,7 @@ def test_recommend_llm_exception() -> None:
 
 
 def test_recommend_malformed_response() -> None:
-    t = _transcript([_item("Schedule a follow-up", "provider", 0, 2000)])
+    t = _transcript([_item("Add a task for the follow-up", "provider", 0, 2000)])
     note = _make_note([NoteSection(key="plan", title="Plan", text="Follow up.")])
     client = MagicMock()
     client.request.return_value = LlmResponse(
@@ -339,14 +330,14 @@ def test_recommend_malformed_response() -> None:
 
 
 def test_recommend_empty_tasks() -> None:
-    t = _transcript([_item("Schedule a follow-up", "provider", 0, 2000)])
+    t = _transcript([_item("Add a task for the follow-up", "provider", 0, 2000)])
     note = _make_note([NoteSection(key="plan", title="Plan", text="Follow up.")])
     client = _make_client({"tasks": []})
     assert TaskRecommender().recommend(note, client, transcript=t) == []
 
 
 def test_recommend_skips_blank_titles() -> None:
-    t = _transcript([_item("Schedule a follow-up", "provider", 0, 2000)])
+    t = _transcript([_item("Add a task for the follow-up", "provider", 0, 2000)])
     note = _make_note([NoteSection(key="plan", title="Plan", text="Follow up.")])
     client = _make_client(
         {
@@ -362,7 +353,7 @@ def test_recommend_skips_blank_titles() -> None:
 
 
 def test_recommend_with_assignee_and_comment() -> None:
-    t = _transcript([_item("Have the front desk schedule a follow-up", "provider", 0, 2000)])
+    t = _transcript([_item("Add a task for the front desk to handle", "provider", 0, 2000)])
     note = _make_note([NoteSection(key="plan", title="Plan", text="Follow up.")])
     client = _make_client(
         {

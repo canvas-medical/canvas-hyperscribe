@@ -19,16 +19,6 @@ from hyperscribe.scribe.recommendations.schemas import TaskRecommendationList
 
 _TASK_KEYWORDS = [
     r"\btasks?\b",
-    r"\bfollow[\s-]?ups?\b",
-    r"\bto[\s-]?dos?\b",
-    r"\breminds?\b",
-    r"\breminders?\b",
-    r"\bschedul(?:e|ing)\b",
-    r"\bbook(?:ing)?\b",
-    r"\bcall\s+back\b",
-    r"\bcheck\s+back\b",
-    r"\breturn\s+(?:in|visit)\b",
-    r"\bcome\s+back\b",
 ]
 _KEYWORD_PATTERN = re.compile("|".join(_TASK_KEYWORDS), re.IGNORECASE)
 _WINDOW_MS = 120_000  # 2 minutes
@@ -39,10 +29,9 @@ _SYSTEM_PROMPT = (
     "1. Transcript windows from a patient-provider encounter where task-related language was detected.\n"
     "2. The full structured clinical note for context.\n\n"
     "Extract actionable post-visit tasks for the care team. Examples:\n"
-    "- Follow-up appointments (e.g. 'schedule follow-up in 2 weeks')\n"
-    "- Calls to make (e.g. 'call patient with results')\n"
-    "- Patient education or instructions to send\n"
-    "- Prior authorizations to submit\n\n"
+    "- Add a task to make calls (e.g. 'call patient with results')\n"
+    "- Add a task to call patient with instructions\n"
+    "- Add a task to check if patient is being followed by a specialty\n\n"
     "For each task, provide:\n"
     "- A clear, concise title a staff member can act on\n"
     "- due_date_hint if the provider mentioned timing (relative or absolute)\n"

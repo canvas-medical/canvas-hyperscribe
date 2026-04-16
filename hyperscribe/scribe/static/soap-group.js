@@ -1546,7 +1546,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       readOnly=${readOnly || entry.command.already_documented || isRejected}
                       onEditingChange=${onEditingChange}
                     />
-                    ${entry.command.data.reason && html`<div class="rec-reason">${entry.command.data.reason}</div>`}
                     ${entry.command.data.due_date_hint && html`<div class="rec-hint">Suggested timing: ${entry.command.data.due_date_hint}</div>`}
                     ${entry.command.data.assignee_hint && html`<div class="rec-hint">Suggested assignee: ${entry.command.data.assignee_hint}</div>`}
                   </div>
