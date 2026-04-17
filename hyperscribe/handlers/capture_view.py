@@ -206,6 +206,38 @@ class CaptureView(SimpleAPI):
         content_type = CycleData.content_type_text()
         return self._add_cycle(content, content_type)
 
+    @api.post("/capture/transcript-session/<patient_id>/<note_id>")
+    def transcript_session_post(self) -> list[Response | Effect]:
+        body = self.request.json()
+        transcript = body.get("transcript", "")
+        if not isinstance(transcript, str) or not transcript.strip():
+            return [Response(b"'transcript' must be a non-empty string", HTTPStatus.BAD_REQUEST)]
+
+        identification = IdentificationParameters(
+            patient_uuid=self.request.path_params["patient_id"],
+            note_uuid=self.request.path_params["note_id"],
+            provider_uuid=str(Note.objects.get(id=self.request.path_params["note_id"]).provider.id),
+            canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
+        )
+
+        stop_and_go = StopAndGo(identification.note_uuid)
+        stop_and_go.add_waiting_cycle().set_ended(True).save()
+        cycle = stop_and_go.waiting_cycles()[-1]
+
+        aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
+        path_s3 = CycleData.s3_key_path(identification, cycle)
+        response = AwsS3(aws_s3).upload_binary_to_s3(path_s3, transcript.encode(), CycleData.content_type_text())
+        if response.status_code != HTTPStatus.OK:
+            log.info(f"Failed to save transcript with status {response.status_code}: {str(response.content)}")
+            if not response.status_code:
+                return [Response(b"Failed to save transcript (AWS S3 failure)", HTTPStatus.SERVICE_UNAVAILABLE)]
+            return [Response(response.content, HTTPStatus(response.status_code))]
+
+        user_id = self.request.headers.get("canvas-logged-in-user-id")
+        executor.submit(Helper.with_cleanup(self.run_commander), identification, user_id)
+
+        return [Response(f"Transcript session cycle {cycle} started".encode(), HTTPStatus.CREATED)]
+
     def _draft_key(self) -> str:
         patient_uuid = self.request.path_params["patient_id"]
         note_uuid = self.request.path_params["note_id"]
