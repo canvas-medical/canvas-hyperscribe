@@ -1,6 +1,8 @@
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
+from canvas_sdk.commands.constants import ClinicalQuantity
+
 from hyperscribe.scribe.commands.prescription import PrescriptionParser
 
 
@@ -66,6 +68,45 @@ def test_build_minimal() -> None:
     assert call_kwargs["refills"] is None
     assert call_kwargs["substitutions"] is None
     assert call_kwargs["note_to_pharmacist"] is None
+
+
+def test_build_with_complete_clinical_quantity() -> None:
+    """ClinicalQuantity with all fields (ndc + qualifier + description) is passed through."""
+    parser = PrescriptionParser()
+    data = {
+        "sig": "Take 1 tablet daily",
+        "type_to_dispense": "00093314705",
+        "representative_ndc": "00093314705",
+        "type_to_dispense_label": "Tablet",
+    }
+    with patch("hyperscribe.scribe.commands.prescription.PrescribeCommand") as mock_cmd:
+        mock_cmd.Substitutions = MagicMock()
+        mock_cmd.return_value = MagicMock()
+        parser.build(data, "note-uuid", "cmd-uuid")
+
+    qty: ClinicalQuantity = mock_cmd.call_args.kwargs["type_to_dispense"]
+    assert qty["representative_ndc"] == "00093314705"
+    assert qty["ncpdp_quantity_qualifier_code"] == "00093314705"
+    assert qty["description"] == "Tablet"
+
+
+def test_build_with_partial_clinical_quantity() -> None:
+    """ClinicalQuantity without display is valid — description is NotRequired."""
+    parser = PrescriptionParser()
+    data = {
+        "sig": "Take 1 tablet daily",
+        "type_to_dispense": "C48477",
+        "representative_ndc": "00093314705",
+    }
+    with patch("hyperscribe.scribe.commands.prescription.PrescribeCommand") as mock_cmd:
+        mock_cmd.Substitutions = MagicMock()
+        mock_cmd.return_value = MagicMock()
+        parser.build(data, "note-uuid", "cmd-uuid")
+
+    qty: ClinicalQuantity = mock_cmd.call_args.kwargs["type_to_dispense"]
+    assert qty["representative_ndc"] == "00093314705"
+    assert qty["ncpdp_quantity_qualifier_code"] == "C48477"
+    assert "description" not in qty
 
 
 def test_build_invalid_quantity_ignored() -> None:
