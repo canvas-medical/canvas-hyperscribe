@@ -53,6 +53,7 @@ class AdjustPrescriptionParser(CommandParser):
             type_to_dispense = ClinicalQuantity(
                 representative_ndc=representative_ndc,
                 ncpdp_quantity_qualifier_code=raw_type,
+                **({"description": label} if (label := data.get("type_to_dispense_label")) else {}),
             )
 
         prescriber_id = self._resolve_prescriber(note_uuid)
