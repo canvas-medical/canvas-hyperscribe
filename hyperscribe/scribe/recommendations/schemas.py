@@ -87,6 +87,29 @@ class ReconciliationResult(BaseModelLlmJson):
     )
 
 
+class TaskRecommendation(BaseModelLlmJson):
+    title: str = Field(description="Concise task title (e.g. 'Schedule follow-up in 2 weeks')")
+    due_date_hint: str | None = Field(
+        default=None,
+        description="Relative or absolute due date if mentioned (e.g. '2 weeks', 'next Monday')",
+    )
+    assignee_hint: str | None = Field(
+        default=None,
+        description="Who should handle this task if mentioned (e.g. 'front desk', 'nurse')",
+    )
+    comment: str | None = Field(default=None, description="Additional details or context for the task")
+    reason: str = Field(
+        description="The transcript excerpt or context that prompted this task recommendation",
+    )
+
+
+class TaskRecommendationList(BaseModelLlmJson):
+    tasks: list[TaskRecommendation] = Field(
+        default_factory=list,
+        description="List of tasks extracted from the transcript and clinical note",
+    )
+
+
 class DiagnosisSuggestion(BaseModelLlmJson):
     condition_text: str = Field(description="The original condition text")
     icd10_codes: list[str] = Field(description="2-3 ICD-10 codes (e.g. R519, G43009)")

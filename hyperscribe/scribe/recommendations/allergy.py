@@ -9,7 +9,7 @@ from canvas_sdk.clients.llms.libraries import LlmAnthropic
 from canvas_sdk.commands.commands.allergy import AllergenType
 
 from hyperscribe.libraries.canvas_science import CanvasScience
-from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection
+from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import AllergyRecommendationList
 
@@ -56,7 +56,9 @@ def _resolve_allergy(keywords: str, cache: dict[str, dict[str, int] | None] | No
 
 
 class AllergyRecommender(BaseRecommender):
-    def recommend(self, note: ClinicalNote, client: LlmAnthropic) -> list[CommandProposal]:
+    def recommend(
+        self, note: ClinicalNote, client: LlmAnthropic, transcript: Transcript | None = None
+    ) -> list[CommandProposal]:
         all_keys = [s.key for s in note.sections]
         log.info(f"AllergyRecommender: note section keys={all_keys}, filtering by {_RELEVANT_KEYS}")
         sections = [s for s in note.sections if s.key.lower() in _RELEVANT_KEYS and s.text.strip()]
