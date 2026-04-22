@@ -758,7 +758,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
                 patient_id = str(data.get("patient_id", ""))
                 zip_codes = resolve_zip_codes(patient_id, note_id) or None
-                rec_proposals = recommend_commands(note, api_key, zip_codes=zip_codes)
+                rec_proposals = recommend_commands(note, api_key, zip_codes=zip_codes, transcript=transcript)
                 annotate_duplicates(rec_proposals, note_uuid)
                 recommendations_list = [
                     {

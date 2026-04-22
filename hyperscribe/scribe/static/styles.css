@@ -1469,3 +1469,10 @@ h2 { margin-bottom: 4px; }
 .signed-note-icon { font-size: 48px; margin-bottom: 16px; }
 .signed-note-title { font-size: 20px; font-weight: 700; color: #111; margin-bottom: 8px; }
 .signed-note-message { font-size: 15px; color: #6b7280; max-width: 480px; line-height: 1.5; }
+
+/* Task recommendation extras */
+.rec-reason {
+    font-size: 12px; color: #6b7280; font-style: italic;
+    margin-top: 4px; padding-left: 12px; border-left: 2px solid #e5e7eb;
+}
+.rec-hint { font-size: 11px; color: #9ca3af; margin-top: 2px; }
