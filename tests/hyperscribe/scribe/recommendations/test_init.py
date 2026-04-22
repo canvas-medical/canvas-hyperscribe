@@ -55,6 +55,7 @@ def test_recommend_commands_calls_all_recommenders(mock_llm_cls: MagicMock) -> N
             return_value=[rx_proposal],
         ) as mock_rx,
         patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.TaskRecommender.recommend", return_value=[]),
     ):
         note = _make_note()
         proposals = recommend_commands(note, "test-api-key")
@@ -63,9 +64,9 @@ def test_recommend_commands_calls_all_recommenders(mock_llm_cls: MagicMock) -> N
     assert proposals[0].command_type == "medication_statement"
     assert proposals[1].command_type == "allergy"
     assert proposals[2].command_type == "prescribe"
-    mock_med.assert_called_once_with(note, mock_client)
-    mock_allergy.assert_called_once_with(note, mock_client)
-    mock_rx.assert_called_once_with(note, mock_client)
+    mock_med.assert_called_once_with(note, mock_client, transcript=None)
+    mock_allergy.assert_called_once_with(note, mock_client, transcript=None)
+    mock_rx.assert_called_once_with(note, mock_client, transcript=None)
 
 
 @patch("hyperscribe.scribe.recommendations.LlmAnthropic")
@@ -77,11 +78,12 @@ def test_recommend_commands_creates_client_with_settings(mock_llm_cls: MagicMock
         patch("hyperscribe.scribe.recommendations.AllergyRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.PrescriptionRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.TaskRecommender.recommend", return_value=[]),
     ):
         recommend_commands(_make_note(), "my-api-key")
 
     # Each recommender gets its own client instance
-    assert mock_llm_cls.call_count == 4
+    assert mock_llm_cls.call_count == 5
     for call in mock_llm_cls.call_args_list:
         settings = call.args[0]
         assert settings.api_key == "my-api-key"
@@ -114,6 +116,7 @@ def test_recommend_commands_handles_recommender_exception(mock_llm_cls: MagicMoc
             return_value=[],
         ),
         patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.TaskRecommender.recommend", return_value=[]),
     ):
         proposals = recommend_commands(_make_note(), "test-api-key")
 
@@ -131,6 +134,7 @@ def test_recommend_commands_empty_note(mock_llm_cls: MagicMock) -> None:
         patch("hyperscribe.scribe.recommendations.AllergyRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.PrescriptionRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.TaskRecommender.recommend", return_value=[]),
     ):
         note = ClinicalNote(title="Empty", sections=[])
         proposals = recommend_commands(note, "test-api-key")
