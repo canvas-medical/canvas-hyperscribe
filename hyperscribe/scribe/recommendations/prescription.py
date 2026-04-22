@@ -8,7 +8,7 @@ from logger import log
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 
 from hyperscribe.libraries.canvas_science import CanvasScience
-from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection
+from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import PrescriptionRecommendationList
 from hyperscribe.structures.medication_detail import MedicationDetail
@@ -55,7 +55,9 @@ def _resolve_prescription(
 
 
 class PrescriptionRecommender(BaseRecommender):
-    def recommend(self, note: ClinicalNote, client: LlmAnthropic) -> list[CommandProposal]:
+    def recommend(
+        self, note: ClinicalNote, client: LlmAnthropic, transcript: Transcript | None = None
+    ) -> list[CommandProposal]:
         all_keys = [s.key for s in note.sections]
         log.info(f"PrescriptionRecommender: note section keys={all_keys}, filtering by {_RELEVANT_KEYS}")
         sections = [s for s in note.sections if s.key.lower() in _RELEVANT_KEYS and s.text.strip()]

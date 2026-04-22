@@ -96,6 +96,18 @@ def test_generate_note_with_patient_context() -> None:
     assert "Jane Doe" in payload["note_sections_customization"][1]["custom_instruction"]
 
 
+def test_generate_note_with_unknown_gender_omits_field() -> None:
+    backend, mock_rest_client = _make_backend()
+    mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+
+    ctx = PatientContext(name="Pat Smith", birth_date="1985-01-01", gender="UNK")
+    backend.generate_note(Transcript(), patient_context=ctx)
+
+    payload = mock_rest_client.generate_note.call_args.args[0]
+    demographics = payload["structured_context"]["patient_demographics"]
+    assert "gender" not in demographics
+
+
 def test_generate_note_without_patient_context() -> None:
     backend, mock_rest_client = _make_backend()
     mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
