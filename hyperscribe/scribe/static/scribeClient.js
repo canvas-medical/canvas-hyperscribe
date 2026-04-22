@@ -26,7 +26,7 @@ function int16ArrayToBase64(int16Array) {
 }
 
 const MAX_RECONNECT_ATTEMPTS = 10;
-const END_TIMEOUT_MS = 60000;
+const END_TIMEOUT_MS = 30000;
 // If we have in-flight audio and the server hasn't responded in this long,
 // consider the connection dead. Browser offline events and WebSocket close
 // detection are unreliable on macOS — this catches it at the application level.
@@ -42,9 +42,13 @@ class NablaScribeClient {
    * @param {string} config.encoding
    * @param {string[]} config.speech_locales
    * @param {string} config.stream_id
+   * @param {function(): Promise<object>} [config.refreshConfig] — async callback
+   *   that returns a fresh config object (with a new access_token) when the
+   *   current token has expired. Called before each reconnect attempt.
    */
   constructor(config) {
     this._config = config;
+    this._refreshConfig = config.refreshConfig || null;
     this._ws = null;
     this._nextSeqId = 0;
 
@@ -320,8 +324,29 @@ class NablaScribeClient {
     }
     if (!this._ws) {
       this._reconnectAttempts = 0;
-      this._createWebSocket();
+      this._reconnect();
     }
+  }
+
+  /**
+   * @private
+   * Fetch fresh tokens from the backend and reconnect. Called by
+   * _scheduleReconnect and _handleOnline so that an expired JWT is
+   * replaced before the new WebSocket handshake.
+   */
+  async _reconnect() {
+    if (this._refreshConfig) {
+      try {
+        const freshConfig = await this._refreshConfig();
+        if (freshConfig && freshConfig.access_token) {
+          this._config.access_token = freshConfig.access_token;
+        }
+      } catch {
+        // Fall through with existing token — the connect attempt will fail
+        // and trigger another retry via the normal backoff path.
+      }
+    }
+    this._createWebSocket();
   }
 
   /** @private */
@@ -336,7 +361,7 @@ class NablaScribeClient {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return;
     const delay = Math.min(1000 * Math.pow(2, this._reconnectAttempts), 30000);
     this._reconnectAttempts++;
-    this._reconnectTimer = setTimeout(() => this._createWebSocket(), delay);
+    this._reconnectTimer = setTimeout(() => this._reconnect(), delay);
   }
 
   /**

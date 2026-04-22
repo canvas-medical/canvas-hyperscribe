@@ -84,15 +84,25 @@ export function useRecording(noteId, initialTranscript) {
       return false;
     }
 
+    const refreshConfig = async () => {
+      const res = await fetch(`${API_BASE}/config`, { cache: 'no-store' });
+      return res.json();
+    };
+
     let client;
     try {
-      client = createScribeClient(config);
+      client = createScribeClient({ ...config, refreshConfig });
       client.onTranscriptItem = handleTranscriptItem;
       client.onError = (msg, code) => {
         if (code === 83011) {
           // Stream timeout — Nabla closes the connection if a stream receives
           // no audio for 10s. Not actionable for the user; the client will
           // reconnect and replay buffered audio automatically.
+          return;
+        }
+        if (code === 50025) {
+          // JWT expired — the client will refresh the token and reconnect
+          // automatically. Not actionable for the user.
           return;
         }
         setError(code ? `${msg} (${code})` : msg);
@@ -164,7 +174,7 @@ export function useRecording(noteId, initialTranscript) {
     return true;
   }, [handleTranscriptItem]);
 
-  const disconnectAll = useCallback(async () => {
+  const disconnectAll = useCallback(async ({ force = false } = {}) => {
     cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
     setAudioLevel(0);
     setSilenceWarning(false);
@@ -180,8 +190,13 @@ export function useRecording(noteId, initialTranscript) {
       client.onEnd = () => {};
       client.onDisconnect = () => {};
       client.onReconnect = () => {};
-      // end() drains any buffered audio before closing.
-      await client.end();
+      if (force) {
+        // forceEnd() closes immediately without draining the buffer.
+        client.forceEnd();
+      } else {
+        // end() drains any buffered audio before closing.
+        await client.end();
+      }
       client.onTranscriptItem = () => {};
     }
   }, []);
@@ -247,7 +262,7 @@ export function useRecording(noteId, initialTranscript) {
 
   const finishRecording = useCallback(async () => {
     setStatus('finishing');
-    await disconnectAll();
+    await disconnectAll({ force: true });
     // Save transcript with finalized flag.
     if (noteId && entriesRef.current.length > 0) {
       try {
@@ -362,10 +377,15 @@ export function useRecording(noteId, initialTranscript) {
     }
   }, []);
 
+  const finalizedRef = useRef(finalized);
+  finalizedRef.current = finalized;
+
   // Cleanup on unmount — save transcript via sendBeacon before destroying resources.
+  // Skip if the transcript is already finalized to avoid overwriting finalized=true
+  // with the default finalized=false.
   useEffect(() => {
     return () => {
-      if (noteId && (entriesRef.current.length > 0 || statusRef.current !== 'idle')) {
+      if (noteId && !finalizedRef.current && (entriesRef.current.length > 0 || statusRef.current !== 'idle')) {
         const payload = new Blob(
           [JSON.stringify({ note_id: noteId, transcript: { items: entriesRef.current } })],
           { type: 'application/json' },
