@@ -200,7 +200,9 @@ def test_resolve_item_by_index_logs_warning_on_name_mismatch(mock_log):
     assert result is not None
     assert result.label == expected
 
-    exp_calls = [call.warning("Index 0 (Condition A) does not match name (Condition B), falling back to name-based lookup")]
+    exp_calls = [
+        call.warning("Index 0 (Condition A) does not match name (Condition B), falling back to name-based lookup")
+    ]
     assert mock_log.mock_calls == exp_calls
 
 
