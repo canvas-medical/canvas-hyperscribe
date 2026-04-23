@@ -599,12 +599,92 @@ def test_transcript_session_post(stop_and_go, executor, helper, cycle_data, aws_
     assert note_db.mock_calls == []
     reset_mocks()
 
+    # note not found
+    note_db.filter.return_value.first.side_effect = [None]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        json=lambda: {"transcript": "theTranscript"},
+    )
+    result = tested.transcript_session_post()
+    expected = [Response(b"The note is incorrect", HTTPStatus.BAD_REQUEST)]
+    assert result == expected
+
+    assert stop_and_go.mock_calls == []
+    assert executor.mock_calls == []
+    assert helper.mock_calls == []
+    assert cycle_data.mock_calls == []
+    assert aws_s3.mock_calls == []
+    assert log.mock_calls == []
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
+    assert note_db.mock_calls == exp_calls
+    reset_mocks()
+
+    # note not editable
+    note_db.filter.return_value.first.side_effect = [
+        SimpleNamespace(dbid=42, provider=SimpleNamespace(id="theProviderId")),
+    ]
+    helper.editable_note.side_effect = [False]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        json=lambda: {"transcript": "theTranscript"},
+    )
+    result = tested.transcript_session_post()
+    expected = [Response(b"The note is not editable", HTTPStatus.BAD_REQUEST)]
+    assert result == expected
+
+    assert stop_and_go.mock_calls == []
+    assert executor.mock_calls == []
+    exp_calls = [call.editable_note(42)]
+    assert helper.mock_calls == exp_calls
+    assert cycle_data.mock_calls == []
+    assert aws_s3.mock_calls == []
+    assert log.mock_calls == []
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
+    assert note_db.mock_calls == exp_calls
+    reset_mocks()
+
+    # hyperscribe has already run (cycle() > 0)
+    note_db.filter.return_value.first.side_effect = [
+        SimpleNamespace(dbid=42, provider=SimpleNamespace(id="theProviderId")),
+    ]
+    helper.editable_note.side_effect = [True]
+    stop_and_go.get.return_value.cycle.side_effect = [5]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        json=lambda: {"transcript": "theTranscript"},
+    )
+    result = tested.transcript_session_post()
+    expected = [Response(b"Hyperscribe has already run for this note", HTTPStatus.BAD_REQUEST)]
+    assert result == expected
+
+    assert executor.mock_calls == []
+    exp_calls = [call.editable_note(42)]
+    assert helper.mock_calls == exp_calls
+    assert cycle_data.mock_calls == []
+    exp_calls = [
+        call.get("theNoteId"),
+        call.get().cycle(),
+    ]
+    assert stop_and_go.mock_calls == exp_calls
+    assert aws_s3.mock_calls == []
+    assert log.mock_calls == []
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
+    assert note_db.mock_calls == exp_calls
+    reset_mocks()
+
     # AWS S3 upload failure with valid status code
-    stop_and_go.return_value.waiting_cycles.side_effect = [[21]]
+    stop_and_go.get.return_value.cycle.side_effect = [0]
+    stop_and_go.get.return_value.waiting_cycles.side_effect = [[21]]
+    helper.editable_note.side_effect = [True]
     cycle_data.s3_key_path.side_effect = ["theS3Path"]
     cycle_data.content_type_text.side_effect = ["text/plain"]
     aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"theProblem", status_code=501)]
-    note_db.get.side_effect = [SimpleNamespace(provider=SimpleNamespace(id="theProviderId"))]
+    note_db.filter.return_value.first.side_effect = [
+        SimpleNamespace(dbid=42, provider=SimpleNamespace(id="theProviderId")),
+    ]
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
@@ -615,15 +695,17 @@ def test_transcript_session_post(stop_and_go, executor, helper, cycle_data, aws_
     assert result == expected
 
     assert executor.mock_calls == []
-    assert helper.mock_calls == []
+    exp_calls = [call.editable_note(42)]
+    assert helper.mock_calls == exp_calls
     exp_calls = [call.s3_key_path(identification, 21), call.content_type_text()]
     assert cycle_data.mock_calls == exp_calls
     exp_calls = [
-        call("theNoteId"),
-        call().add_waiting_cycle(),
-        call().add_waiting_cycle().set_ended(True),
-        call().add_waiting_cycle().set_ended().save(),
-        call().waiting_cycles(),
+        call.get("theNoteId"),
+        call.get().cycle(),
+        call.get().add_waiting_cycle(),
+        call.get().add_waiting_cycle().set_ended(True),
+        call.get().add_waiting_cycle().set_ended().save(),
+        call.get().waiting_cycles(),
     ]
     assert stop_and_go.mock_calls == exp_calls
     exp_calls = [
@@ -633,16 +715,20 @@ def test_transcript_session_post(stop_and_go, executor, helper, cycle_data, aws_
     assert aws_s3.mock_calls == exp_calls
     exp_calls = [call.info("Failed to save transcript with status 501: b'theProblem'")]
     assert log.mock_calls == exp_calls
-    exp_calls = [call.get(id="theNoteId")]
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
     assert note_db.mock_calls == exp_calls
     reset_mocks()
 
     # AWS S3 upload failure with None status code
-    stop_and_go.return_value.waiting_cycles.side_effect = [[21]]
+    stop_and_go.get.return_value.cycle.side_effect = [0]
+    stop_and_go.get.return_value.waiting_cycles.side_effect = [[21]]
+    helper.editable_note.side_effect = [True]
     cycle_data.s3_key_path.side_effect = ["theS3Path"]
     cycle_data.content_type_text.side_effect = ["text/plain"]
     aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=None, status_code=None)]
-    note_db.get.side_effect = [SimpleNamespace(provider=SimpleNamespace(id="theProviderId"))]
+    note_db.filter.return_value.first.side_effect = [
+        SimpleNamespace(dbid=42, provider=SimpleNamespace(id="theProviderId")),
+    ]
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
@@ -653,15 +739,17 @@ def test_transcript_session_post(stop_and_go, executor, helper, cycle_data, aws_
     assert result == expected
 
     assert executor.mock_calls == []
-    assert helper.mock_calls == []
+    exp_calls = [call.editable_note(42)]
+    assert helper.mock_calls == exp_calls
     exp_calls = [call.s3_key_path(identification, 21), call.content_type_text()]
     assert cycle_data.mock_calls == exp_calls
     exp_calls = [
-        call("theNoteId"),
-        call().add_waiting_cycle(),
-        call().add_waiting_cycle().set_ended(True),
-        call().add_waiting_cycle().set_ended().save(),
-        call().waiting_cycles(),
+        call.get("theNoteId"),
+        call.get().cycle(),
+        call.get().add_waiting_cycle(),
+        call.get().add_waiting_cycle().set_ended(True),
+        call.get().add_waiting_cycle().set_ended().save(),
+        call.get().waiting_cycles(),
     ]
     assert stop_and_go.mock_calls == exp_calls
     exp_calls = [
@@ -671,16 +759,20 @@ def test_transcript_session_post(stop_and_go, executor, helper, cycle_data, aws_
     assert aws_s3.mock_calls == exp_calls
     exp_calls = [call.info("Failed to save transcript with status None: None")]
     assert log.mock_calls == exp_calls
-    exp_calls = [call.get(id="theNoteId")]
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
     assert note_db.mock_calls == exp_calls
     reset_mocks()
 
     # successful upload
-    stop_and_go.return_value.waiting_cycles.side_effect = [[21]]
+    stop_and_go.get.return_value.cycle.side_effect = [0]
+    stop_and_go.get.return_value.waiting_cycles.side_effect = [[21]]
+    helper.editable_note.side_effect = [True]
     cycle_data.s3_key_path.side_effect = ["theS3Path"]
     cycle_data.content_type_text.side_effect = ["text/plain"]
     aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"Good", status_code=200)]
-    note_db.get.side_effect = [SimpleNamespace(provider=SimpleNamespace(id="theProviderId"))]
+    note_db.filter.return_value.first.side_effect = [
+        SimpleNamespace(dbid=42, provider=SimpleNamespace(id="theProviderId")),
+    ]
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
@@ -693,16 +785,17 @@ def test_transcript_session_post(stop_and_go, executor, helper, cycle_data, aws_
 
     exp_calls = [call.submit(helper.with_cleanup.return_value, identification, "theUserId")]
     assert executor.mock_calls == exp_calls
-    exp_calls = [call.with_cleanup(tested.run_commander)]
+    exp_calls = [call.editable_note(42), call.with_cleanup(tested.run_commander)]
     assert helper.mock_calls == exp_calls
     exp_calls = [call.s3_key_path(identification, 21), call.content_type_text()]
     assert cycle_data.mock_calls == exp_calls
     exp_calls = [
-        call("theNoteId"),
-        call().add_waiting_cycle(),
-        call().add_waiting_cycle().set_ended(True),
-        call().add_waiting_cycle().set_ended().save(),
-        call().waiting_cycles(),
+        call.get("theNoteId"),
+        call.get().cycle(),
+        call.get().add_waiting_cycle(),
+        call.get().add_waiting_cycle().set_ended(True),
+        call.get().add_waiting_cycle().set_ended().save(),
+        call.get().waiting_cycles(),
     ]
     assert stop_and_go.mock_calls == exp_calls
     exp_calls = [
@@ -711,7 +804,7 @@ def test_transcript_session_post(stop_and_go, executor, helper, cycle_data, aws_
     ]
     assert aws_s3.mock_calls == exp_calls
     assert log.mock_calls == []
-    exp_calls = [call.get(id="theNoteId")]
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
     assert note_db.mock_calls == exp_calls
     reset_mocks()
 

@@ -213,14 +213,24 @@ class CaptureView(SimpleAPI):
         if not isinstance(transcript, str) or not transcript.strip():
             return [Response(b"'transcript' must be a non-empty string", HTTPStatus.BAD_REQUEST)]
 
+        patient_id = self.request.path_params["patient_id"]
+        note_id = self.request.path_params["note_id"]
+
+        note_db = Note.objects.filter(id=note_id).first()
+        if not note_db:
+            return [Response(b"The note is incorrect", HTTPStatus.BAD_REQUEST)]
+        if not Helper.editable_note(note_db.dbid):
+            return [Response(b"The note is not editable", HTTPStatus.BAD_REQUEST)]
+
         identification = IdentificationParameters(
-            patient_uuid=self.request.path_params["patient_id"],
-            note_uuid=self.request.path_params["note_id"],
-            provider_uuid=str(Note.objects.get(id=self.request.path_params["note_id"]).provider.id),
+            patient_uuid=patient_id,
+            note_uuid=note_id,
+            provider_uuid=str(note_db.provider.id),
             canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
         )
-
-        stop_and_go = StopAndGo(identification.note_uuid)
+        stop_and_go = StopAndGo.get(identification.note_uuid)
+        if stop_and_go.cycle() > 0:
+            return [Response(b"Hyperscribe has already run for this note", HTTPStatus.BAD_REQUEST)]
         stop_and_go.add_waiting_cycle().set_ended(True).save()
         cycle = stop_and_go.waiting_cycles()[-1]
 
