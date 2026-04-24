@@ -70,20 +70,28 @@ def test_constants():
 
 @patch.object(Authenticator, "check")
 def test_authenticate(check):
-    view = helper_instance()
-    view.request = SimpleNamespace(query_params={"ts": "123", "sig": "abc"})
-    creds = Credentials(view.request)
+    tested = helper_instance()
+    tested.request = SimpleNamespace(query_params={"ts": "123", "sig": "abc"})
+    creds = Credentials(tested.request)
 
     # False case
-    check.return_value = False
-    assert view.authenticate(creds) is False
-    check.assert_called_once_with("signingKey", Constants.API_SIGNED_EXPIRATION_SECONDS, {"ts": "123", "sig": "abc"})
+    check.side_effect = [False]
+    result = tested.authenticate(creds)
+    expected = False
+    assert result is expected
+
+    exp_calls = [call("signingKey", Constants.API_SIGNED_EXPIRATION_SECONDS, {"ts": "123", "sig": "abc"})]
+    assert check.mock_calls == exp_calls
     check.reset_mock()
 
     # True case
-    check.return_value = True
-    assert view.authenticate(creds) is True
-    check.assert_called_once()
+    check.side_effect = [True]
+    result = tested.authenticate(creds)
+    expected = True
+    assert result is expected
+
+    exp_calls = [call("signingKey", Constants.API_SIGNED_EXPIRATION_SECONDS, {"ts": "123", "sig": "abc"})]
+    assert check.mock_calls == exp_calls
 
 
 @patch("hyperscribe.handlers.capture_view.requests_post")
@@ -104,17 +112,17 @@ def test_trigger_render(authenticator, helper, requests_post):
     expected = "theResponse"
     assert result == expected
 
-    calls = [
+    exp_calls = [
         call.presigned_url_no_params(
             "signingKey",
             "theHost/plugin-io/api/hyperscribe/capture/render/thePatientId/theNoteId/theUserId",
         )
     ]
-    assert authenticator.mock_calls == calls
-    calls = [call.canvas_host("customerIdentifier")]
-    assert helper.mock_calls == calls
-    calls = [call("theUrl", headers={"Content-Type": "application/json"}, verify=True, timeout=None)]
-    assert requests_post.mock_calls == calls
+    assert authenticator.mock_calls == exp_calls
+    exp_calls = [call.canvas_host("customerIdentifier")]
+    assert helper.mock_calls == exp_calls
+    exp_calls = [call("theUrl", headers={"Content-Type": "application/json"}, verify=True, timeout=None)]
+    assert requests_post.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -148,14 +156,14 @@ def test_session_progress_log(progress):
     )
     tested = helper_instance()
     tested.session_progress_log("thePatientId", "theNoteId", "theProgress")
-    calls = [
+    exp_calls = [
         call.send_to_user(
             identification,
             settings,
             [ProgressMessage(message="theProgress", section="events:7")],
         )
     ]
-    assert progress.mock_calls == calls
+    assert progress.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -192,7 +200,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
     expected = [HTMLResponse(content="<html/>", status_code=HTTPStatus(200))]
     assert result == expected
 
-    calls = [
+    exp_calls = [
         call.presigned_url("signingKey", "/plugin-io/api/hyperscribe/progress", {"note_id": "the-00-note"}),
         call.presigned_url_no_params(
             "signingKey",
@@ -227,8 +235,8 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
             "/plugin-io/api/hyperscribe/draft/the-00-patient/the-00-note",
         ),
     ]
-    assert authenticator.mock_calls == calls
-    calls = [
+    assert authenticator.mock_calls == exp_calls
+    exp_calls = [
         call(
             "templates/hyperscribe.html",
             {
@@ -255,25 +263,25 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
             },
         ),
     ]
-    assert render_to_string.mock_calls == calls
-    calls = [
+    assert render_to_string.mock_calls == exp_calls
+    exp_calls = [
         call.get("the-00-note"),
         call.get().is_ended(),
         call.get().is_paused(),
         call.get().cycle(),
         call.get().is_paused(),
     ]
-    assert stop_and_go.mock_calls == calls
-    calls = [call.canvas_ws_host("customerIdentifier")]
-    assert helper.mock_calls == calls
-    calls = [
+    assert stop_and_go.mock_calls == exp_calls
+    exp_calls = [call.canvas_ws_host("customerIdentifier")]
+    assert helper.mock_calls == exp_calls
+    exp_calls = [
         call.customizations(
             AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketLogs"),
             "customerIdentifier",
             "the-00-user",
         )
     ]
-    assert customization.mock_calls == calls
+    assert customization.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -290,8 +298,8 @@ def test_new_session_post(session_progress_log):
     result = tested.new_session_post()
     assert result == []
 
-    calls = [call("thePatientId", "theNoteId", "started")]
-    assert session_progress_log.mock_calls == calls
+    exp_calls = [call("thePatientId", "theNoteId", "started")]
+    assert session_progress_log.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -459,16 +467,16 @@ def test_audio_chunk_post(add_cycle, webm_prefix, log):
     expected = [Response(b"Good", HTTPStatus(200))]
     assert result == expected
 
-    calls = [call(b"theAudio", "audio/test")]
-    assert add_cycle.mock_calls == calls
+    exp_calls = [call(b"theAudio", "audio/test")]
+    assert add_cycle.mock_calls == exp_calls
     assert webm_prefix.mock_calls == []
-    calls = [
+    exp_calls = [
         call.info("audio_form_part.name: audio"),
         call.info("audio_form_part.filename: chunk_000_other"),
         call.info("len(audio_form_part.content): 8"),
         call.info("audio_form_part.content_type: audio/test"),
     ]
-    assert log.mock_calls == calls
+    assert log.mock_calls == exp_calls
     reset_mocks()
     # -- later chunk
     add_cycle.side_effect = [[Response(b"Good", HTTPStatus(200))]]
@@ -489,17 +497,17 @@ def test_audio_chunk_post(add_cycle, webm_prefix, log):
     expected = [Response(b"Good", HTTPStatus(200))]
     assert result == expected
 
-    calls = [call(b"thePrefixedAudio", "audio/test")]
-    assert add_cycle.mock_calls == calls
-    calls = [call.add_prefix(b"theAudio")]
-    assert webm_prefix.mock_calls == calls
-    calls = [
+    exp_calls = [call(b"thePrefixedAudio", "audio/test")]
+    assert add_cycle.mock_calls == exp_calls
+    exp_calls = [call.add_prefix(b"theAudio")]
+    assert webm_prefix.mock_calls == exp_calls
+    exp_calls = [
         call.info("audio_form_part.name: audio"),
         call.info("audio_form_part.filename: chunk_123_other"),
         call.info("len(audio_form_part.content): 8"),
         call.info("audio_form_part.content_type: audio/test"),
     ]
-    assert log.mock_calls == calls
+    assert log.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -518,8 +526,286 @@ def test_transcript_chunk_post(add_cycle):
     expected = [Response(b"Good", HTTPStatus(200))]
     assert result == expected
 
-    calls = [call(b"theTranscript", "text/plain")]
-    assert add_cycle.mock_calls == calls
+    exp_calls = [call(b"theTranscript", "text/plain")]
+    assert add_cycle.mock_calls == exp_calls
+    reset_mocks()
+
+
+@patch.object(Note, "objects")
+@patch("hyperscribe.handlers.capture_view.log")
+@patch("hyperscribe.handlers.capture_view.AwsS3")
+@patch("hyperscribe.handlers.capture_view.CycleData")
+@patch("hyperscribe.handlers.capture_view.Helper")
+@patch("hyperscribe.handlers.capture_view.executor")
+@patch("hyperscribe.handlers.capture_view.StopAndGo")
+def test_transcript_session_post(stop_and_go, executor, helper, cycle_data, aws_s3, log, note_db):
+    def reset_mocks():
+        stop_and_go.reset_mock()
+        executor.reset_mock()
+        helper.reset_mock()
+        cycle_data.reset_mock()
+        aws_s3.reset_mock()
+        log.reset_mock()
+        note_db.reset_mock()
+
+    aws_s3_credentials = AwsS3Credentials(
+        aws_key="theKey",
+        aws_secret="theSecret",
+        region="theRegion",
+        bucket="theBucketLogs",
+    )
+    identification = IdentificationParameters(
+        patient_uuid="thePatientId",
+        note_uuid="theNoteId",
+        provider_uuid="theProviderId",
+        canvas_instance="customerIdentifier",
+    )
+
+    tested = helper_instance()
+
+    # invalid transcript: not a string
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        json=lambda: {"transcript": 123},
+    )
+    result = tested.transcript_session_post()
+    expected = [Response(b"'transcript' must be a non-empty string", HTTPStatus.BAD_REQUEST)]
+    assert result == expected
+
+    assert stop_and_go.mock_calls == []
+    assert executor.mock_calls == []
+    assert helper.mock_calls == []
+    assert cycle_data.mock_calls == []
+    assert aws_s3.mock_calls == []
+    assert log.mock_calls == []
+    assert note_db.mock_calls == []
+    reset_mocks()
+
+    # invalid transcript: whitespace only
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        json=lambda: {"transcript": "   "},
+    )
+    result = tested.transcript_session_post()
+    expected = [Response(b"'transcript' must be a non-empty string", HTTPStatus.BAD_REQUEST)]
+    assert result == expected
+
+    assert stop_and_go.mock_calls == []
+    assert executor.mock_calls == []
+    assert helper.mock_calls == []
+    assert cycle_data.mock_calls == []
+    assert aws_s3.mock_calls == []
+    assert log.mock_calls == []
+    assert note_db.mock_calls == []
+    reset_mocks()
+
+    # note not found
+    note_db.filter.return_value.first.side_effect = [None]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        json=lambda: {"transcript": "theTranscript"},
+    )
+    result = tested.transcript_session_post()
+    expected = [Response(b"The note is incorrect", HTTPStatus.BAD_REQUEST)]
+    assert result == expected
+
+    assert stop_and_go.mock_calls == []
+    assert executor.mock_calls == []
+    assert helper.mock_calls == []
+    assert cycle_data.mock_calls == []
+    assert aws_s3.mock_calls == []
+    assert log.mock_calls == []
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
+    assert note_db.mock_calls == exp_calls
+    reset_mocks()
+
+    # note not editable
+    note_db.filter.return_value.first.side_effect = [
+        SimpleNamespace(dbid=42, provider=SimpleNamespace(id="theProviderId")),
+    ]
+    helper.editable_note.side_effect = [False]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        json=lambda: {"transcript": "theTranscript"},
+    )
+    result = tested.transcript_session_post()
+    expected = [Response(b"The note is not editable", HTTPStatus.BAD_REQUEST)]
+    assert result == expected
+
+    assert stop_and_go.mock_calls == []
+    assert executor.mock_calls == []
+    exp_calls = [call.editable_note(42)]
+    assert helper.mock_calls == exp_calls
+    assert cycle_data.mock_calls == []
+    assert aws_s3.mock_calls == []
+    assert log.mock_calls == []
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
+    assert note_db.mock_calls == exp_calls
+    reset_mocks()
+
+    # hyperscribe has already run (cycle() > 0)
+    note_db.filter.return_value.first.side_effect = [
+        SimpleNamespace(dbid=42, provider=SimpleNamespace(id="theProviderId")),
+    ]
+    helper.editable_note.side_effect = [True]
+    stop_and_go.get.return_value.cycle.side_effect = [5]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        json=lambda: {"transcript": "theTranscript"},
+    )
+    result = tested.transcript_session_post()
+    expected = [Response(b"Hyperscribe has already run for this note", HTTPStatus.BAD_REQUEST)]
+    assert result == expected
+
+    assert executor.mock_calls == []
+    exp_calls = [call.editable_note(42)]
+    assert helper.mock_calls == exp_calls
+    assert cycle_data.mock_calls == []
+    exp_calls = [
+        call.get("theNoteId"),
+        call.get().cycle(),
+    ]
+    assert stop_and_go.mock_calls == exp_calls
+    assert aws_s3.mock_calls == []
+    assert log.mock_calls == []
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
+    assert note_db.mock_calls == exp_calls
+    reset_mocks()
+
+    # AWS S3 upload failure with valid status code
+    stop_and_go.get.return_value.cycle.side_effect = [0]
+    stop_and_go.get.return_value.waiting_cycles.side_effect = [[21]]
+    helper.editable_note.side_effect = [True]
+    cycle_data.s3_key_path.side_effect = ["theS3Path"]
+    cycle_data.content_type_text.side_effect = ["text/plain"]
+    aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"theProblem", status_code=501)]
+    note_db.filter.return_value.first.side_effect = [
+        SimpleNamespace(dbid=42, provider=SimpleNamespace(id="theProviderId")),
+    ]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        json=lambda: {"transcript": "theTranscript"},
+    )
+    result = tested.transcript_session_post()
+    expected = [Response(b"theProblem", HTTPStatus(501))]
+    assert result == expected
+
+    assert executor.mock_calls == []
+    exp_calls = [call.editable_note(42)]
+    assert helper.mock_calls == exp_calls
+    exp_calls = [call.s3_key_path(identification, 21), call.content_type_text()]
+    assert cycle_data.mock_calls == exp_calls
+    exp_calls = [
+        call.get("theNoteId"),
+        call.get().cycle(),
+        call.get().add_waiting_cycle(),
+        call.get().add_waiting_cycle().set_ended(True),
+        call.get().add_waiting_cycle().set_ended().save(),
+        call.get().waiting_cycles(),
+    ]
+    assert stop_and_go.mock_calls == exp_calls
+    exp_calls = [
+        call(aws_s3_credentials),
+        call().upload_binary_to_s3("theS3Path", b"theTranscript", "text/plain"),
+    ]
+    assert aws_s3.mock_calls == exp_calls
+    exp_calls = [call.info("Failed to save transcript with status 501: b'theProblem'")]
+    assert log.mock_calls == exp_calls
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
+    assert note_db.mock_calls == exp_calls
+    reset_mocks()
+
+    # AWS S3 upload failure with None status code
+    stop_and_go.get.return_value.cycle.side_effect = [0]
+    stop_and_go.get.return_value.waiting_cycles.side_effect = [[21]]
+    helper.editable_note.side_effect = [True]
+    cycle_data.s3_key_path.side_effect = ["theS3Path"]
+    cycle_data.content_type_text.side_effect = ["text/plain"]
+    aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=None, status_code=None)]
+    note_db.filter.return_value.first.side_effect = [
+        SimpleNamespace(dbid=42, provider=SimpleNamespace(id="theProviderId")),
+    ]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        json=lambda: {"transcript": "theTranscript"},
+    )
+    result = tested.transcript_session_post()
+    expected = [Response(b"Failed to save transcript (AWS S3 failure)", HTTPStatus.SERVICE_UNAVAILABLE)]
+    assert result == expected
+
+    assert executor.mock_calls == []
+    exp_calls = [call.editable_note(42)]
+    assert helper.mock_calls == exp_calls
+    exp_calls = [call.s3_key_path(identification, 21), call.content_type_text()]
+    assert cycle_data.mock_calls == exp_calls
+    exp_calls = [
+        call.get("theNoteId"),
+        call.get().cycle(),
+        call.get().add_waiting_cycle(),
+        call.get().add_waiting_cycle().set_ended(True),
+        call.get().add_waiting_cycle().set_ended().save(),
+        call.get().waiting_cycles(),
+    ]
+    assert stop_and_go.mock_calls == exp_calls
+    exp_calls = [
+        call(aws_s3_credentials),
+        call().upload_binary_to_s3("theS3Path", b"theTranscript", "text/plain"),
+    ]
+    assert aws_s3.mock_calls == exp_calls
+    exp_calls = [call.info("Failed to save transcript with status None: None")]
+    assert log.mock_calls == exp_calls
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
+    assert note_db.mock_calls == exp_calls
+    reset_mocks()
+
+    # successful upload
+    stop_and_go.get.return_value.cycle.side_effect = [0]
+    stop_and_go.get.return_value.waiting_cycles.side_effect = [[21]]
+    helper.editable_note.side_effect = [True]
+    cycle_data.s3_key_path.side_effect = ["theS3Path"]
+    cycle_data.content_type_text.side_effect = ["text/plain"]
+    aws_s3.return_value.upload_binary_to_s3.side_effect = [SimpleNamespace(content=b"Good", status_code=200)]
+    note_db.filter.return_value.first.side_effect = [
+        SimpleNamespace(dbid=42, provider=SimpleNamespace(id="theProviderId")),
+    ]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        json=lambda: {"transcript": "theTranscript"},
+        headers={"canvas-logged-in-user-id": "theUserId"},
+    )
+    result = tested.transcript_session_post()
+    expected = [Response(b"Transcript session cycle 21 started", HTTPStatus.CREATED)]
+    assert result == expected
+
+    exp_calls = [call.submit(helper.with_cleanup.return_value, identification, "theUserId")]
+    assert executor.mock_calls == exp_calls
+    exp_calls = [call.editable_note(42), call.with_cleanup(tested.run_commander)]
+    assert helper.mock_calls == exp_calls
+    exp_calls = [call.s3_key_path(identification, 21), call.content_type_text()]
+    assert cycle_data.mock_calls == exp_calls
+    exp_calls = [
+        call.get("theNoteId"),
+        call.get().cycle(),
+        call.get().add_waiting_cycle(),
+        call.get().add_waiting_cycle().set_ended(True),
+        call.get().add_waiting_cycle().set_ended().save(),
+        call.get().waiting_cycles(),
+    ]
+    assert stop_and_go.mock_calls == exp_calls
+    exp_calls = [
+        call(aws_s3_credentials),
+        call().upload_binary_to_s3("theS3Path", b"theTranscript", "text/plain"),
+    ]
+    assert aws_s3.mock_calls == exp_calls
+    assert log.mock_calls == []
+    exp_calls = [call.filter(id="theNoteId"), call.filter().first()]
+    assert note_db.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -545,11 +831,11 @@ def test_draft_chunk_post(get_cache):
     expected = [Response(status_code=HTTPStatus(201))]
     assert result == expected
 
-    calls = [
+    exp_calls = [
         call(),
         call().set("draft_thePatientId_theNoteId", "theTranscript"),
     ]
-    assert get_cache.mock_calls == calls
+    assert get_cache.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -570,11 +856,11 @@ def test_draft_chunk_get(get_cache):
     ]
     assert result == expected
 
-    calls = [
+    exp_calls = [
         call(),
         call().get("draft_thePatientId_theNoteId"),
     ]
-    assert get_cache.mock_calls == calls
+    assert get_cache.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -631,24 +917,24 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
 
     assert executor.mock_calls == []
     assert helper.mock_calls == []
-    calls = [call.s3_key_path(identification, 21)]
-    assert cycle_data.mock_calls == calls
-    calls = [call.get("theNoteId")]
-    assert stop_and_go.mock_calls == calls
-    calls = [
+    exp_calls = [call.s3_key_path(identification, 21)]
+    assert cycle_data.mock_calls == exp_calls
+    exp_calls = [call.get("theNoteId")]
+    assert stop_and_go.mock_calls == exp_calls
+    exp_calls = [
         call(aws_s3_credentials),
         call().upload_binary_to_s3("theS3Path", b"theContent", "content/type"),
     ]
-    assert aws_s3.mock_calls == calls
-    calls = [call.info("Failed to save chunk 21 with status 501: b'theProblem'")]
-    assert log.mock_calls == calls
-    calls = [call.get(id="theNoteId")]
-    assert note_db.mock_calls == calls
-    calls = [
+    assert aws_s3.mock_calls == exp_calls
+    exp_calls = [call.info("Failed to save chunk 21 with status 501: b'theProblem'")]
+    assert log.mock_calls == exp_calls
+    exp_calls = [call.get(id="theNoteId")]
+    assert note_db.mock_calls == exp_calls
+    exp_calls = [
         call.add_waiting_cycle(),
         call.add_waiting_cycle().save(),
     ]
-    assert stop_and_go_not_running.mock_calls == calls
+    assert stop_and_go_not_running.mock_calls == exp_calls
     assert stop_and_go_is_running.mock_calls == []
     reset_mocks()
     # -- invalid response from AWS S3
@@ -667,24 +953,24 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
 
     assert executor.mock_calls == []
     assert helper.mock_calls == []
-    calls = [call.s3_key_path(identification, 21)]
-    assert cycle_data.mock_calls == calls
-    calls = [call.get("theNoteId")]
-    assert stop_and_go.mock_calls == calls
-    calls = [
+    exp_calls = [call.s3_key_path(identification, 21)]
+    assert cycle_data.mock_calls == exp_calls
+    exp_calls = [call.get("theNoteId")]
+    assert stop_and_go.mock_calls == exp_calls
+    exp_calls = [
         call(aws_s3_credentials),
         call().upload_binary_to_s3("theS3Path", b"theContent", "content/type"),
     ]
-    assert aws_s3.mock_calls == calls
-    calls = [call.info("Failed to save chunk 21 with status None: None")]
-    assert log.mock_calls == calls
-    calls = [call.get(id="theNoteId")]
-    assert note_db.mock_calls == calls
-    calls = [
+    assert aws_s3.mock_calls == exp_calls
+    exp_calls = [call.info("Failed to save chunk 21 with status None: None")]
+    assert log.mock_calls == exp_calls
+    exp_calls = [call.get(id="theNoteId")]
+    assert note_db.mock_calls == exp_calls
+    exp_calls = [
         call.add_waiting_cycle(),
         call.add_waiting_cycle().save(),
     ]
-    assert stop_and_go_not_running.mock_calls == calls
+    assert stop_and_go_not_running.mock_calls == exp_calls
     assert stop_and_go_is_running.mock_calls == []
     reset_mocks()
     # AWS S3 upload succeeded
@@ -703,27 +989,27 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
     expected = [Response(b"Chunk 21 saved OK", HTTPStatus(201))]
     assert result == expected
 
-    calls = [call.submit(helper.with_cleanup.return_value, identification, "theUserId")]
-    assert executor.mock_calls == calls
-    calls = [call.with_cleanup(tested.run_commander)]
-    assert helper.mock_calls == calls
-    calls = [call.s3_key_path(identification, 21)]
-    assert cycle_data.mock_calls == calls
-    calls = [call.get("theNoteId")]
-    assert stop_and_go.mock_calls == calls
-    calls = [
+    exp_calls = [call.submit(helper.with_cleanup.return_value, identification, "theUserId")]
+    assert executor.mock_calls == exp_calls
+    exp_calls = [call.with_cleanup(tested.run_commander)]
+    assert helper.mock_calls == exp_calls
+    exp_calls = [call.s3_key_path(identification, 21)]
+    assert cycle_data.mock_calls == exp_calls
+    exp_calls = [call.get("theNoteId")]
+    assert stop_and_go.mock_calls == exp_calls
+    exp_calls = [
         call(aws_s3_credentials),
         call().upload_binary_to_s3("theS3Path", b"theContent", "content/type"),
     ]
-    assert aws_s3.mock_calls == calls
+    assert aws_s3.mock_calls == exp_calls
     assert log.mock_calls == []
-    calls = [call.get(id="theNoteId")]
-    assert note_db.mock_calls == calls
-    calls = [
+    exp_calls = [call.get(id="theNoteId")]
+    assert note_db.mock_calls == exp_calls
+    exp_calls = [
         call.add_waiting_cycle(),
         call.add_waiting_cycle().save(),
     ]
-    assert stop_and_go_not_running.mock_calls == calls
+    assert stop_and_go_not_running.mock_calls == exp_calls
     assert stop_and_go_is_running.mock_calls == []
     reset_mocks()
     # -- commander is running
@@ -743,24 +1029,24 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
 
     assert executor.mock_calls == []
     assert helper.mock_calls == []
-    calls = [call.s3_key_path(identification, 28)]
-    assert cycle_data.mock_calls == calls
-    calls = [call.get("theNoteId")]
-    assert stop_and_go.mock_calls == calls
-    calls = [
+    exp_calls = [call.s3_key_path(identification, 28)]
+    assert cycle_data.mock_calls == exp_calls
+    exp_calls = [call.get("theNoteId")]
+    assert stop_and_go.mock_calls == exp_calls
+    exp_calls = [
         call(aws_s3_credentials),
         call().upload_binary_to_s3("theS3Path", b"theContent", "content/type"),
     ]
-    assert aws_s3.mock_calls == calls
+    assert aws_s3.mock_calls == exp_calls
     assert log.mock_calls == []
-    calls = [call.get(id="theNoteId")]
-    assert note_db.mock_calls == calls
+    exp_calls = [call.get(id="theNoteId")]
+    assert note_db.mock_calls == exp_calls
     assert stop_and_go_not_running.mock_calls == []
-    calls = [
+    exp_calls = [
         call.add_waiting_cycle(),
         call.add_waiting_cycle().save(),
     ]
-    assert stop_and_go_is_running.mock_calls == calls
+    assert stop_and_go_is_running.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -785,14 +1071,14 @@ def test_render_effect_post(stop_and_go):
     result = tested.render_effect_post()
     assert result == effects
 
-    calls = [
+    exp_calls = [
         call.get("noteId"),
         call.get().paused_effects(),
         call.get().reset_paused_effect(),
         call.get().reset_paused_effect().set_delay(),
         call.get().reset_paused_effect().set_delay().save(),
     ]
-    assert stop_and_go.mock_calls == calls
+    assert stop_and_go.mock_calls == exp_calls
     reset_mocks()
 
     # there are NO paused effects
@@ -801,11 +1087,11 @@ def test_render_effect_post(stop_and_go):
     result = tested.render_effect_post()
     assert result == []
 
-    calls = [
+    exp_calls = [
         call.get("noteId"),
         call.get().paused_effects(),
     ]
-    assert stop_and_go.mock_calls == calls
+    assert stop_and_go.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -863,7 +1149,7 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     expected = [Response(content=b"Storage is not made available", status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
     assert result == expected
 
-    calls = [
+    exp_calls = [
         call(
             AwsS3Credentials(
                 aws_key="theKey",
@@ -874,7 +1160,7 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
         ),
         call().is_ready(),
     ]
-    assert aws_s3.mock_calls == calls
+    assert aws_s3.mock_calls == exp_calls
     assert mock_datetime.mock_calls == []
     reset_mocks()
 
@@ -892,7 +1178,7 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     expected = [Response(content=b"Feedback saved OK", status_code=HTTPStatus.CREATED)]
     assert result == expected
 
-    calls = [
+    exp_calls = [
         call(
             AwsS3Credentials(
                 aws_key="theKey",
@@ -907,16 +1193,16 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
             "theFeedback",
         ),
     ]
-    assert aws_s3.mock_calls == calls
-    calls = [call.now(timezone.utc)]
-    assert mock_datetime.mock_calls == calls
-    expected_data = NotionFeedbackRecord(
+    assert aws_s3.mock_calls == exp_calls
+    exp_calls = [call.now(timezone.utc)]
+    assert mock_datetime.mock_calls == exp_calls
+    exp_data = NotionFeedbackRecord(
         instance="customerIdentifier",
         note_uuid="theNoteId",
         date_time=date_0.strftime("%Y%m%d-%H%M%S"),
         feedback="theFeedback",
     ).to_json("theNotionFeedbackDatabaseId")
-    calls = [
+    exp_calls = [
         call(
             Constants.VENDOR_NOTION_API_BASE_URL,
             headers={
@@ -924,10 +1210,10 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
                 "Content-Type": "application/json",
                 "Notion-Version": Constants.VENDOR_NOTION_API_VERSION,
             },
-            data=expected_data,
+            data=exp_data,
         )
     ]
-    assert requests_post.mock_calls == calls
+    assert requests_post.mock_calls == exp_calls
     reset_mocks()
 
     # Notion API failure
@@ -947,6 +1233,42 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
         match="Feedback failed to save via Notion API, status 500, text: Internal Server Error",
     ):
         tested.feedback_post()
+
+    exp_calls = [
+        call(
+            AwsS3Credentials(
+                aws_key="theKey",
+                aws_secret="theSecret",
+                region="theRegion",
+                bucket="theBucketLogs",
+            )
+        ),
+        call().is_ready(),
+        call().upload_text_to_s3(
+            "hyperscribe-customerIdentifier/feedback/theNoteId/20250829-101457",
+            "theFeedback",
+        ),
+    ]
+    assert aws_s3.mock_calls == exp_calls
+    exp_calls = [call.now(timezone.utc)]
+    assert mock_datetime.mock_calls == exp_calls
+    exp_calls = [
+        call(
+            Constants.VENDOR_NOTION_API_BASE_URL,
+            headers={
+                "Authorization": "Bearer theNotionAPIKey",
+                "Content-Type": "application/json",
+                "Notion-Version": Constants.VENDOR_NOTION_API_VERSION,
+            },
+            data=NotionFeedbackRecord(
+                instance="customerIdentifier",
+                note_uuid="theNoteId",
+                date_time=date_0.strftime("%Y%m%d-%H%M%S"),
+                feedback="theFeedback",
+            ).to_json("theNotionFeedbackDatabaseId"),
+        )
+    ]
+    assert requests_post.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -1001,8 +1323,8 @@ def test_run_reviewer(session_progress_log, log, implemented_commands, llm_decis
     tested.secrets["AuditLLMDecisions"] = "theNoteId"
     tested.run_reviewer(identification, date_0, 7)
 
-    calls = [call("patientId", "noteId", "EOF")]
-    assert session_progress_log.mock_calls == calls
+    exp_calls = [call("patientId", "noteId", "EOF")]
+    assert session_progress_log.mock_calls == exp_calls
     assert log.mock_calls == []
     assert implemented_commands.mock_calls == []
     assert llm_decision_reviewer.mock_calls == []
@@ -1033,17 +1355,17 @@ def test_run_reviewer(session_progress_log, log, implemented_commands, llm_decis
 
     tested.run_reviewer(identification, date_0, 7)
 
-    calls = [
+    exp_calls = [
         call.info("  => final audit started...noteId / 7 cycles"),
         call.info("  => final audit done (noteId / 7 cycles)"),
     ]
-    assert log.mock_calls == calls
-    calls = [call.schema_key2instruction()]
-    assert implemented_commands.mock_calls == calls
+    assert log.mock_calls == exp_calls
+    exp_calls = [call.schema_key2instruction()]
+    assert implemented_commands.mock_calls == exp_calls
 
-    calls = [call("patientId", "noteId", "EOF")]
-    assert session_progress_log.mock_calls == calls
-    calls = [
+    exp_calls = [call("patientId", "noteId", "EOF")]
+    assert session_progress_log.mock_calls == exp_calls
+    exp_calls = [
         call.review(
             identification,
             settings,
@@ -1058,13 +1380,13 @@ def test_run_reviewer(session_progress_log, log, implemented_commands, llm_decis
             7,
         ),
     ]
-    assert llm_decision_reviewer.mock_calls == calls
+    assert llm_decision_reviewer.mock_calls == exp_calls
     assert progress.mock_calls == []
-    calls = [
+    exp_calls = [
         call.filter(patient__id="patientId", note__id="noteId", state="staged"),
         call.filter().order_by("dbid"),
     ]
-    assert command_db.mock_calls == calls
+    assert command_db.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -1177,11 +1499,11 @@ def test_run_commander(
     assert run_reviewer.mock_calls == []
     assert session_progress_log.mock_calls == []
     assert log.mock_calls == []
-    calls = [
+    exp_calls = [
         call.get("noteId"),
         call.get().is_running(),
     ]
-    assert stop_and_go.mock_calls == calls
+    assert stop_and_go.mock_calls == exp_calls
     assert memory_log.mock_calls == []
     assert progress.mock_calls == []
     assert commander.mock_calls == []
@@ -1211,15 +1533,15 @@ def test_run_commander(
 
         tested.run_commander(identification, "theUserId")
 
-        calls = [
+        exp_calls = [
             call("patientId", "noteId", "theUserId"),
             call("patientId", "noteId", "theUserId"),
         ]
-        assert trigger_render.mock_calls == calls
+        assert trigger_render.mock_calls == exp_calls
         assert run_reviewer.mock_calls == exp_call_reviewed
         assert session_progress_log.mock_calls == exp_call_progress
         assert log.mock_calls == []
-        calls = [
+        exp_calls = [
             call.get("noteId"),
             call.get().is_running(),
             call.get().set_running(True),
@@ -1247,36 +1569,36 @@ def test_run_commander(
             call.get().is_ended(),
         ]
         if is_ended:
-            calls.extend(
+            exp_calls.extend(
                 [
                     call.get().created(),
                     call.get().cycle(),
                 ]
             )
-        assert stop_and_go.mock_calls == calls
-        calls = [
+        assert stop_and_go.mock_calls == exp_calls
+        exp_calls = [
             call.instance(identification, "main", credentials),
             call.instance().output("SDK: theVersion - Text: theVendorTextLLM - Audio: theVendorAudioLLM - Workers: 5"),
             call.end_session("noteId"),
             call.end_session("noteId"),
             call.end_session("noteId"),
         ]
-        assert memory_log.mock_calls == calls
+        assert memory_log.mock_calls == exp_calls
         assert progress.mock_calls == []
-        calls = [
+        exp_calls = [
             call.compute_cycle(identification, settings[0], credentials, 2),
             call.compute_cycle(identification, settings[0], credentials, 3),
             call.compute_cycle(identification, settings[0], credentials, 4),
         ]
-        assert commander.mock_calls == calls
-        calls = [
+        assert commander.mock_calls == exp_calls
+        exp_calls = [
             call.end_session("noteId"),
             call.end_session("noteId"),
             call.end_session("noteId"),
         ]
-        assert llm_turns_store.mock_calls == calls
-        calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier", "theUserId")]
-        assert customization.mock_calls == calls
+        assert llm_turns_store.mock_calls == exp_calls
+        exp_calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier", "theUserId")]
+        assert customization.mock_calls == exp_calls
         reset_mocks()
 
     # error in Commander.compute_audio
@@ -1294,13 +1616,13 @@ def test_run_commander(
     assert trigger_render.mock_calls == []
     assert run_reviewer.mock_calls == []
     assert session_progress_log.mock_calls == []
-    calls = [
+    exp_calls = [
         call.info("************************"),
         call.error("Error while running commander: Test error", exc_info=True),
         call.info("************************"),
     ]
-    assert log.mock_calls == calls
-    calls = [
+    assert log.mock_calls == exp_calls
+    exp_calls = [
         call.get("noteId"),
         call.get().is_running(),
         call.get().set_running(True),
@@ -1313,16 +1635,16 @@ def test_run_commander(
         call.get().set_running().save(),
         call.get().is_ended(),
     ]
-    assert stop_and_go.mock_calls == calls
-    calls = [
+    assert stop_and_go.mock_calls == exp_calls
+    exp_calls = [
         call.instance(identification, "main", credentials),
         call.instance().output("SDK: theVersion - Text: theVendorTextLLM - Audio: theVendorAudioLLM - Workers: 5"),
     ]
-    assert memory_log.mock_calls == calls
+    assert memory_log.mock_calls == exp_calls
     assert progress.mock_calls == []
-    calls = [call.compute_cycle(identification, settings[1], credentials, 7)]
-    assert commander.mock_calls == calls
+    exp_calls = [call.compute_cycle(identification, settings[1], credentials, 7)]
+    assert commander.mock_calls == exp_calls
     assert llm_turns_store.mock_calls == []
-    calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier", "theUserId")]
-    assert customization.mock_calls == calls
+    exp_calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier", "theUserId")]
+    assert customization.mock_calls == exp_calls
     reset_mocks()
