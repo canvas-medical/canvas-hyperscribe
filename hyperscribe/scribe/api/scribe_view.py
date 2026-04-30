@@ -51,6 +51,7 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
         patient_birth_date = patient.birth_date.isoformat() if patient.birth_date else ""
         patient_gender = str(patient.sex_at_birth) if patient.sex_at_birth else ""
         note_editable = Helper.editable_note(note.dbid)
+        is_author = bool(note.provider and str(note.provider.id) == str(staff_id))
 
         # Use the provider stored with the transcript (the user who recorded it).
         # Fall back to the note author, then a generic label.
@@ -85,6 +86,7 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
                 "staff_name": logged_in_staff.credentialed_name,
                 "debug_mode": "true" if self.secrets.get("ScribeDebugStaffers") else "",
                 "note_editable": "true" if note_editable else "",
+                "is_author": "true" if is_author else "",
                 "alert_facility_enabled": "true" if self.secrets.get("AlertFacilityEnabled") else "",
                 "initial_data": _safe_json(initial_data),
             },

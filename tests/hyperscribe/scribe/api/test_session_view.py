@@ -4,6 +4,7 @@ from http import HTTPStatus
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
 from django.db.models import QuerySet
 
 from canvas_sdk.effects.simple_api import JSONResponse
@@ -28,6 +29,18 @@ from hyperscribe.scribe.backend.models import (
 
 # Disable automatic route resolution
 ScribeSessionView._ROUTES = {}
+
+
+@pytest.fixture(autouse=True)
+def _bypass_authorize_edit(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default to authorized for the existing endpoint tests so they don't need
+    to mock the Note/Helper.editable_note interaction the auth check performs.
+    Tests that exercise the auth helper directly use a separate test file."""
+    if request.node.get_closest_marker("no_authorize_bypass"):
+        return
+    from hyperscribe.scribe.api import session_view
+
+    monkeypatch.setattr(session_view, "_authorize_edit", lambda *_args, **_kwargs: None)
 
 
 def _helper_instance(staff_id: str = "staff-key-abc") -> ScribeSessionView:
@@ -803,7 +816,7 @@ def test_insert_metadata_success(mock_meta: MagicMock) -> None:
             "metadata": {"alert_facility": "true"},
         },
     ]
-    view.request = SimpleNamespace(body=json.dumps({"pending": pending}))
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid", "pending": pending}))
     result = view.post_insert_metadata()
 
     assert result[0].status_code == HTTPStatus.OK
@@ -816,7 +829,7 @@ def test_insert_metadata_success(mock_meta: MagicMock) -> None:
 
 def test_insert_metadata_empty_pending() -> None:
     view = _helper_instance()
-    view.request = SimpleNamespace(body=json.dumps({"pending": []}))
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid", "pending": []}))
     result = view.post_insert_metadata()
 
     assert result[0].status_code == HTTPStatus.OK
