@@ -8,8 +8,9 @@ from canvas_sdk.v1.data.note import Note as RealNote
 from hyperscribe.scribe.api.session_view import _authorize_edit
 
 
-def _note_dict(dbid: int, provider_id: str | None) -> dict[str, object]:
-    return {"dbid": dbid, "provider__id": provider_id}
+def _mock_note(dbid: int, provider_id: str | None) -> SimpleNamespace:
+    provider = SimpleNamespace(id=provider_id) if provider_id is not None else None
+    return SimpleNamespace(dbid=dbid, provider=provider)
 
 
 def _request(staff_id: str = "staff-1") -> SimpleNamespace:
@@ -25,7 +26,7 @@ def test_authorize_edit_missing_note_uuid() -> None:
 
 @patch("hyperscribe.scribe.api.session_view.Note")
 def test_authorize_edit_note_not_found(mock_note: MagicMock) -> None:
-    mock_note.objects.values.return_value.get.side_effect = RealNote.DoesNotExist
+    mock_note.objects.select_related.return_value.get.side_effect = RealNote.DoesNotExist
     mock_note.DoesNotExist = RealNote.DoesNotExist
 
     result = _authorize_edit("note-uuid", _request())
@@ -37,7 +38,7 @@ def test_authorize_edit_note_not_found(mock_note: MagicMock) -> None:
 @patch("hyperscribe.scribe.api.session_view.Helper.editable_note", return_value=False)
 @patch("hyperscribe.scribe.api.session_view.Note")
 def test_authorize_edit_note_not_editable(mock_note: MagicMock, _editable: MagicMock) -> None:
-    mock_note.objects.values.return_value.get.return_value = _note_dict(42, "staff-1")
+    mock_note.objects.select_related.return_value.get.return_value = _mock_note(42, "staff-1")
 
     result = _authorize_edit("note-uuid", _request())
     assert result is not None
@@ -48,7 +49,7 @@ def test_authorize_edit_note_not_editable(mock_note: MagicMock, _editable: Magic
 @patch("hyperscribe.scribe.api.session_view.Helper.editable_note", return_value=True)
 @patch("hyperscribe.scribe.api.session_view.Note")
 def test_authorize_edit_no_provider(mock_note: MagicMock, _editable: MagicMock) -> None:
-    mock_note.objects.values.return_value.get.return_value = _note_dict(42, None)
+    mock_note.objects.select_related.return_value.get.return_value = _mock_note(42, None)
 
     result = _authorize_edit("note-uuid", _request())
     assert result is not None
@@ -59,7 +60,7 @@ def test_authorize_edit_no_provider(mock_note: MagicMock, _editable: MagicMock) 
 @patch("hyperscribe.scribe.api.session_view.Helper.editable_note", return_value=True)
 @patch("hyperscribe.scribe.api.session_view.Note")
 def test_authorize_edit_different_provider(mock_note: MagicMock, _editable: MagicMock) -> None:
-    mock_note.objects.values.return_value.get.return_value = _note_dict(42, "other-staff")
+    mock_note.objects.select_related.return_value.get.return_value = _mock_note(42, "other-staff")
 
     result = _authorize_edit("note-uuid", _request("staff-1"))
     assert result is not None
@@ -70,7 +71,7 @@ def test_authorize_edit_different_provider(mock_note: MagicMock, _editable: Magi
 @patch("hyperscribe.scribe.api.session_view.Helper.editable_note", return_value=True)
 @patch("hyperscribe.scribe.api.session_view.Note")
 def test_authorize_edit_missing_staff_id(mock_note: MagicMock, _editable: MagicMock) -> None:
-    mock_note.objects.values.return_value.get.return_value = _note_dict(42, "staff-1")
+    mock_note.objects.select_related.return_value.get.return_value = _mock_note(42, "staff-1")
 
     result = _authorize_edit("note-uuid", _request(""))
     assert result is not None
@@ -80,9 +81,8 @@ def test_authorize_edit_missing_staff_id(mock_note: MagicMock, _editable: MagicM
 @patch("hyperscribe.scribe.api.session_view.Helper.editable_note", return_value=True)
 @patch("hyperscribe.scribe.api.session_view.Note")
 def test_authorize_edit_matching_provider(mock_note: MagicMock, editable: MagicMock) -> None:
-    mock_note.objects.values.return_value.get.return_value = _note_dict(42, "staff-1")
+    mock_note.objects.select_related.return_value.get.return_value = _mock_note(42, "staff-1")
 
     result = _authorize_edit("note-uuid", _request("staff-1"))
     assert result is None
     editable.assert_called_once_with(42)
-    mock_note.objects.values.assert_called_once_with("dbid", "provider__id")

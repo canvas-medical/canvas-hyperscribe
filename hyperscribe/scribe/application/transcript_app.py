@@ -7,6 +7,8 @@ from canvas_sdk.events import Event
 from canvas_sdk.v1.data.staff import Staff
 
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
+from hyperscribe.models.scribe import ScribeSummary, ScribeTranscript
 from hyperscribe.structures.settings import Settings
 
 _CACHE_KEY_PREFIX = "scribe_transcript:"
@@ -48,6 +50,31 @@ def is_scribe_visible(secrets: dict[str, str], event: Event) -> bool:
         return False
 
 
+def _scribe_tab_has_content(note_dbid: int) -> bool:
+    """Return True when the Scribe tab has meaningful documentation.
+
+    Used to decide whether to hide the tab on locked notes that were never
+    used. Covers manual-mode users (who may have a ScribeSummary row from
+    template selection but no actual content) by inspecting the persisted
+    payloads instead of relying on row existence alone.
+    """
+    items = ScribeTranscript.objects.filter(note_id=note_dbid).values_list("items", flat=True).first()
+    if items:
+        return True
+
+    summary = (
+        ScribeSummary.objects.filter(note_id=note_dbid)
+        .values("note_data", "commands", "approved")
+        .first()
+    )
+    if not summary:
+        return False
+    if summary["approved"] or summary["commands"]:
+        return True
+    sections = (summary.get("note_data") or {}).get("sections") or []
+    return any((s.get("text") or "").strip() for s in sections)
+
+
 def is_debug_visible(secrets: dict[str, str], event: Event) -> bool:
     """Return True when debug apps (Audit, Cache) should be visible for this staff."""
     if not is_scribe_visible(secrets, event):
@@ -71,7 +98,13 @@ class ScribeApp(NoteApplication):
         return self.secrets.get(Constants.SECRET_SCRIBE_TAB_NAME) or "Scribe"
 
     def open_by_default(self) -> bool:
-        """Return True when no transcript has been saved yet or it hasn't been finalized."""
+        # Defer to the legacy Canvas note tab when the note is locked AND the
+        # Scribe tab was never used for documentation, so users land on the
+        # canonical note instead of an empty Scribe surface. The tab itself
+        # remains in the tab bar for users who want to inspect it.
+        note_dbid = self.event.context.get("note_id")
+        if note_dbid and not Helper.editable_note(note_dbid) and not _scribe_tab_has_content(note_dbid):
+            return False
         return True
 
     def visible(self) -> bool:
