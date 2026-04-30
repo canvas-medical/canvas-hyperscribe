@@ -33,6 +33,7 @@ from canvas_sdk.v1.data.patient import Patient
 
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
 
 import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
 from hyperscribe.scribe.backend import (
@@ -68,6 +69,31 @@ def _format_icd10_code(raw: str) -> str:
     if len(code) > 3:
         return code[:3] + "." + code[3:]
     return code
+
+
+def _authorize_edit(note_uuid: str, request: Any) -> JSONResponse | None:
+    """Return a JSONResponse to short-circuit when the staff cannot edit the note's Scribe tab.
+
+    Authorized when the note exists, is in an editable state, and the logged-in
+    staff (from `canvas-logged-in-user-id` request header) matches the note's
+    provider. Returns None on success.
+    """
+    if not note_uuid:
+        return JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)
+    try:
+        note = Note.objects.select_related("provider").get(id=note_uuid)
+    except Note.DoesNotExist:
+        return JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)
+    if not Helper.editable_note(note.dbid):
+        return JSONResponse({"error": "Note is not editable"}, status_code=HTTPStatus.FORBIDDEN)
+    headers = getattr(request, "headers", {}) or {}
+    staff_id = headers.get("canvas-logged-in-user-id") or ""
+    if not staff_id or not note.provider or str(note.provider.id) != str(staff_id):
+        return JSONResponse(
+            {"error": "Only the note author can modify the Scribe tab"},
+            status_code=HTTPStatus.FORBIDDEN,
+        )
+    return None
 
 
 def audit_event(note_uuid: str, event_type: str, details: dict[str, Any] | None = None) -> None:
@@ -516,9 +542,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = str(data.get("note_id", ""))
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_id, self.request):
+            return [denial]
+        staff_id = self.request.headers.get("canvas-logged-in-user-id") or ""
         items = data.get("transcript", {}).get("items", [])
         finalized = bool(data.get("finalized", False))
-        staff_id = self.request.headers.get("canvas-logged-in-user-id") or ""
         _save_transcript(note_id, items, finalized=finalized, provider_id=staff_id)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
@@ -541,6 +569,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = str(data.get("note_id", ""))
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_id, self.request):
+            return [denial]
         payload: dict[str, Any] = {
             "note": data.get("note", {}),
             "commands": data.get("commands", []),
@@ -593,6 +623,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = str(data.get("note_id", ""))
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_id, self.request):
+            return [denial]
 
         total = len(SUMMARY_STEPS)
 
@@ -1057,6 +1089,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_uuid = str(data.get("note_uuid", ""))
         if not note_uuid:
             return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
         commands = data.get("commands", [])
         validation_errors = validate_proposals(commands)
         if validation_errors:
@@ -1104,6 +1138,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             data: dict[str, Any] = json.loads(self.request.body)
         except (json.JSONDecodeError, ValueError) as exc:
             return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_uuid = str(data.get("note_uuid", ""))
+        if not note_uuid:
+            return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
         pending = data.get("pending", [])
         if not pending:
             return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK)]
@@ -1172,6 +1211,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_uuid = str(data.get("note_uuid", ""))
         if not note_uuid:
             return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
         audit_event(note_uuid, "SIGN_NOTE", {})
         note_effect = NoteEffect(instance_id=note_uuid)
         return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK), note_effect.lock(), note_effect.sign()]

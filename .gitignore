@@ -1,4 +1,3 @@
-.gitignore
 .idea/
 __pycache__
 debug/
@@ -11,9 +10,12 @@ cases_runs/
 evaluations.db
 local_env.sh
 .claude
-evaluations.db
-local_env.sh
 **/.DS_Store
 .DS_Store
 .cpa-workflow-artifacts/
 artifacts/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+*.egg-info/
