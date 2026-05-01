@@ -2233,6 +2233,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // deliberately cleared the indication.
         return { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral', accepted: true, _indicationTouched: true };
       }
+      if (type === 'lab_order') {
+        const isComplete = !!newData.lab_partner
+          && Array.isArray(newData.tests_order_codes) && newData.tests_order_codes.length > 0
+          && Array.isArray(newData.diagnosis_codes) && newData.diagnosis_codes.length > 0;
+        const tests = (newData.test_names && newData.test_names.length) ? newData.test_names.join(', ') : '';
+        return { ...cmd, command_type: type, data: newData, display: tests || cmd.display, accepted: isComplete };
+      }
       return { ...cmd, data: newData, accepted: true };
     }));
   }, [canEdit]);
@@ -3366,7 +3373,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral', lab_order: 'lab order' };
   // Module-scope `isRxIncomplete` is the single source of truth — see top of file.
   const _isRxIncomplete = isRxIncomplete;
-  const _isLabIncomplete = (d) => !d.lab_partner || !d.tests_order_codes || d.tests_order_codes.length === 0;
+  const _isLabIncomplete = (d) => !d.lab_partner || !d.tests_order_codes || d.tests_order_codes.length === 0 || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
   const _isImagingIncomplete = (d) => !d.image_code || !d.service_provider || !d.ordering_provider_id || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
   const _isReferIncomplete = (d) => !d.service_provider || !d.clinical_question || !d.notes_to_specialist || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
   const incompleteTypes = [];
@@ -3393,6 +3400,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (c.command_type === 'refer' && _isReferIncomplete(c.data)) {
       if (!incompleteTypes.includes('refer')) incompleteTypes.push('refer');
     }
+    if (c.command_type === 'lab_order' && _isLabIncomplete(c.data)) {
+      if (!incompleteTypes.includes('lab_order')) incompleteTypes.push('lab_order');
+    }
   }
   const incompleteCount = commands.filter(c =>
     !c.already_documented && c.display && (
@@ -3404,7 +3414,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   ).length + recommendations.filter(c =>
     !c.already_documented && c.display && !c.rejected && (
       ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && _isRxIncomplete(c.data)) ||
-      (c.command_type === 'refer' && _isReferIncomplete(c.data))
+      (c.command_type === 'refer' && _isReferIncomplete(c.data)) ||
+      (c.command_type === 'lab_order' && _isLabIncomplete(c.data))
     )
   ).length;
   const UNDECIDED_LABELS = { medication_statement: 'medication', allergy: 'allergy', prescribe: 'prescription', refill: 'prescription', adjust_prescription: 'prescription', refer: 'referral' };

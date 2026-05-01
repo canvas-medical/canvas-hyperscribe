@@ -10,6 +10,7 @@ from canvas_sdk.clients.llms.structures.settings import LlmSettingsAnthropic
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, Transcript
 from hyperscribe.scribe.recommendations.allergy import AllergyRecommender
 from hyperscribe.scribe.recommendations.base import BaseRecommender
+from hyperscribe.scribe.recommendations.lab import LabRecommender
 from hyperscribe.scribe.recommendations.medication_statement import MedicationRecommender
 from hyperscribe.scribe.recommendations.prescription import PrescriptionRecommender
 from hyperscribe.scribe.recommendations.refer import ReferRecommender
@@ -70,6 +71,7 @@ def _build_recommenders(
         # zip_codes is intentionally not passed: referrals are recommended
         # generically (specialty only), without a provider lookup.
         ReferRecommender(),
+        LabRecommender(),
         TaskRecommender(),
     ]
 
