@@ -1508,7 +1508,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          <span>This note is locked. To make changes, amend the note first.</span>
+          <span>Scribe documentation is incomplete. Click <strong>Amend</strong> in the note footer to finish.</span>
         </div>
       `}
       ${readOnlyReason === 'non_author' && html`
