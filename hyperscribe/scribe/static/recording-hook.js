@@ -119,18 +119,25 @@ export function useRecording(noteId, initialTranscript) {
 
   // Nabla restarts start_offset_ms from 0 on every (re)connection, so a fresh
   // post-resume partial would interleave into the middle of pre-pause content
-  // when sorted chronologically. We add a per-session base — recalculated at
+  // when sorted chronologically. We add a per-session base — captured at
   // connect time from the current entries' max end offset — so the displayed
-  // offsets stay monotonically increasing across pause/resume cycles. New ids
-  // synthesized via normalizeEntry inherit the session-shifted start so they
-  // remain distinct between sessions.
+  // offsets stay monotonically increasing across pause/resume cycles.
+  //
+  // The offset is captured into the *client's onTranscriptItem closure* at
+  // connect time rather than read from a shared ref. This closes a race in
+  // the pause-immediate-resume path: late drain events from the prior client
+  // would otherwise pick up the new session's offset (because the ref had
+  // already been recomputed when resume opened the new connection). With
+  // per-client binding, each client's late events keep their own offset and
+  // session B's events get the new one.
   const sessionOffsetMsRef = useRef(0);
 
-  const handleTranscriptItem = useCallback((item) => {
+  const handleTranscriptItem = useCallback((item, sessionOffsetMs) => {
+    const offset = sessionOffsetMs || 0;
     const adjusted = {
       ...item,
-      start_offset_ms: (item.start_offset_ms || 0) + sessionOffsetMsRef.current,
-      end_offset_ms: (item.end_offset_ms || 0) + sessionOffsetMsRef.current,
+      start_offset_ms: (item.start_offset_ms || 0) + offset,
+      end_offset_ms: (item.end_offset_ms || 0) + offset,
     };
     const normalized = normalizeEntry(adjusted);
     setEntries(prev => {
@@ -219,13 +226,18 @@ export function useRecording(noteId, initialTranscript) {
   }, []);
 
   const connectAndRecord = useCallback(async () => {
-    // Capture the session base offset before any new transcript items arrive.
+    // Capture the session base offset for THIS connection. Bound into the
+    // client.onTranscriptItem closure below so late drain events from a
+    // prior pause/resume cycle keep using their own session's offset and
+    // can't pick up the new value mid-flight.
+    //
     // First start: entries is empty → 0. Resume: max end_offset of what's
     // already there, so new offsets continue monotonically from that point.
-    sessionOffsetMsRef.current = entriesRef.current.reduce(
+    const sessionOffsetMs = entriesRef.current.reduce(
       (max, e) => Math.max(max, e.end_offset_ms || e.start_offset_ms || 0),
       0,
     );
+    sessionOffsetMsRef.current = sessionOffsetMs;
     let config;
     try {
       const res = await fetch(`${API_BASE}/config`, { cache: 'no-store' });
@@ -247,7 +259,11 @@ export function useRecording(noteId, initialTranscript) {
     let client;
     try {
       client = createScribeClient({ ...config, refreshConfig });
-      client.onTranscriptItem = handleTranscriptItem;
+      // Bind THIS client's session offset into its handler closure. Any
+      // late events delivered through this client (drain after pause,
+      // post-reauth replays, etc.) will apply this offset, not whatever
+      // the next connectAndRecord captures.
+      client.onTranscriptItem = (item) => handleTranscriptItem(item, sessionOffsetMs);
       client.onError = (msg, code) => {
         if (code === 83011) {
           // Stream timeout — Nabla closes the connection if a stream receives
