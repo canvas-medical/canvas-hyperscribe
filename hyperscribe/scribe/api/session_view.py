@@ -77,18 +77,22 @@ def _authorize_edit(note_uuid: str, request: Any) -> JSONResponse | None:
     Authorized when the note exists, is in an editable state, and the logged-in
     staff (from `canvas-logged-in-user-id` request header) matches the note's
     provider. Returns None on success.
+
+    Uses `.values()` to fetch only the two scalars we need — this runs on every
+    mutating endpoint, so we want it cheap.
     """
     if not note_uuid:
         return JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)
     try:
-        note = Note.objects.select_related("provider").get(id=note_uuid)
+        note = Note.objects.values("dbid", "provider__id").get(id=note_uuid)
     except Note.DoesNotExist:
         return JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)
-    if not Helper.editable_note(note.dbid):
+    if not Helper.editable_note(note["dbid"]):
         return JSONResponse({"error": "Note is not editable"}, status_code=HTTPStatus.FORBIDDEN)
     headers = getattr(request, "headers", {}) or {}
     staff_id = headers.get("canvas-logged-in-user-id") or ""
-    if not staff_id or not note.provider or str(note.provider.id) != str(staff_id):
+    provider_id = note.get("provider__id")
+    if not staff_id or not provider_id or str(provider_id) != str(staff_id):
         return JSONResponse(
             {"error": "Only the note author can modify the Scribe tab"},
             status_code=HTTPStatus.FORBIDDEN,
