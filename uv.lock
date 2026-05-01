@@ -3,11 +3,11 @@ revision = 3
 requires-python = ">=3.11, <3.13"
 
 [options]
-exclude-newer = "2026-03-25T15:55:08.978231Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P7D"
 
 [options.exclude-newer-package]
-canvas = { timestamp = "2026-04-01T15:55:07.978266Z", span = "PT1S" }
+canvas = { timestamp = "0001-01-01T00:00:00Z", span = "PT1S" }
 
 [[package]]
 name = "annotated-doc"
@@ -87,7 +87,7 @@ wheels = [
 
 [[package]]
 name = "canvas"
-version = "0.127.0"
+version = "0.140.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cookiecutter" },
@@ -123,9 +123,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ab/b4/f85ae513ab5974844dc847292bad47a8292456ac438797d57a8dd5ec9e2a/canvas-0.127.0.tar.gz", hash = "sha256:dc8f2db4cd39756bfa1f2cfbfdb018efadcec8c22c67a84cb3b2ae12f588b4f9", size = 2366735, upload-time = "2026-03-31T13:45:56.996Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d8/50/2312c78ad36432a0cb14999314bc0dd03a310ee84bcb76266ef5015c1911/canvas-0.140.1.tar.gz", hash = "sha256:d84ce1a0e5bc16dd89eb8e0762c11f8ae25e80dbf242926b0aaac6d9f3844224", size = 2374562, upload-time = "2026-04-29T16:21:38.448Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/be/a40ccc906f9669914a76d6a785d69cfd5dec97713df4fefe4fd76b9dd721/canvas-0.127.0-py3-none-any.whl", hash = "sha256:af2ca93d0118f51b303a41d92f37634faf95bfa341c00c73a3b428438f8ab1d6", size = 2658768, upload-time = "2026-03-31T13:45:55.068Z" },
+    { url = "https://files.pythonhosted.org/packages/b2/71/013ad10129bf506810fcd521909fe72b04ad10065a99df9137b1d183dc70/canvas-0.140.1-py3-none-any.whl", hash = "sha256:25cd1722597d5e598904cbc21e22b4770eb6b9ca269b9992a04d37926e2d7a0e", size = 2671232, upload-time = "2026-04-29T16:21:36.304Z" },
 ]
 
 [package.optional-dependencies]
@@ -625,8 +625,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "canvas", specifier = ">=0.58.1" },
-    { name = "canvas", extras = ["test-utils"], specifier = ">=0.58.1" },
+    { name = "canvas", specifier = ">=0.137.0" },
+    { name = "canvas", extras = ["test-utils"], specifier = ">=0.137.0" },
     { name = "ffmpeg-python", specifier = ">=0.2.0" },
     { name = "mypy", specifier = ">=1.15.0" },
 ]

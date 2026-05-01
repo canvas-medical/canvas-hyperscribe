@@ -120,3 +120,56 @@ class DiagnosisSuggestionList(BaseModelLlmJson):
         default_factory=list,
         description="List of diagnosis suggestions per condition",
     )
+
+
+class LabTestEntry(BaseModelLlmJson):
+    name: str = Field(description="Display name of the test (e.g. 'Complete Blood Count')")
+    keywords: str = Field(
+        description="Comma-separated synonyms for compendium search (max 5)",
+    )
+
+
+class LabRecommendation(BaseModelLlmJson):
+    tests: list[LabTestEntry] = Field(
+        description="Tests intended to be ordered together as one requisition",
+    )
+    fasting_required: bool | None = Field(
+        default=None,
+        description="True if provider mentioned fasting; null if not discussed",
+    )
+    comment: str | None = Field(
+        default=None,
+        description="Brief note about the order (max 128 chars)",
+    )
+    reason: str = Field(
+        description="Note excerpt or paraphrase explaining why the provider is ordering this",
+    )
+
+
+class LabRecommendationList(BaseModelLlmJson):
+    orders: list[LabRecommendation] = Field(
+        default_factory=list,
+        description="List of lab orders extracted from the clinical note",
+    )
+
+
+class AoeAnswer(BaseModelLlmJson):
+    test_order_code: str = Field(description="The order_code of the test this answer is for")
+    question_code: str = Field(description="The AOE question code")
+    answer: str = Field(
+        description=(
+            "Answer value. For select/radio: the matching choice's `value`. "
+            "For text: short faithful free text. For date: ISO date. "
+            "For boolean/numeric: the literal value."
+        ),
+    )
+    confidence: str = Field(
+        description=("'high' if directly stated in transcript, 'medium' if clearly inferable, 'low' if guessed"),
+    )
+
+
+class AoeAnswerList(BaseModelLlmJson):
+    answers: list[AoeAnswer] = Field(
+        default_factory=list,
+        description="List of AOE answers extracted from the transcript",
+    )
