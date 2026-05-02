@@ -131,6 +131,13 @@ export function useRecording(noteId, initialTranscript) {
   // per-client binding, each client's late events keep their own offset and
   // session B's events get the new one.
   const sessionOffsetMsRef = useRef(0);
+  // Wall-clock anchor for the recording. Set lazily on the first connect of
+  // this hook instance; persists across pause/resume and internal reconnects
+  // so per-session offsets stay aligned to true wall-clock time. When we
+  // hydrate from a saved transcript, the anchor is back-dated by the saved
+  // entries' max end_offset so previously-saved audio time lines up with the
+  // continuing wall-clock timeline.
+  const recordingStartedAtMsRef = useRef(0);
 
   const handleTranscriptItem = useCallback((item, sessionOffsetMs) => {
     const offset = sessionOffsetMs || 0;
@@ -226,18 +233,32 @@ export function useRecording(noteId, initialTranscript) {
   }, []);
 
   const connectAndRecord = useCallback(async () => {
-    // Capture the session base offset for THIS connection. Bound into the
-    // client.onTranscriptItem closure below so late drain events from a
-    // prior pause/resume cycle keep using their own session's offset and
-    // can't pick up the new value mid-flight.
+    // Session offset for THIS scribeClient instance. Stored in a mutable
+    // holder (not a closed-over const) so internal reconnects — JWT refresh,
+    // network blip, anything that triggers scribeClient._reconnect() — can
+    // recompute it without going through connectAndRecord again.
     //
-    // First start: entries is empty → 0. Resume: max end_offset of what's
-    // already there, so new offsets continue monotonically from that point.
-    const sessionOffsetMs = entriesRef.current.reduce(
-      (max, e) => Math.max(max, e.end_offset_ms || e.start_offset_ms || 0),
-      0,
-    );
-    sessionOffsetMsRef.current = sessionOffsetMs;
+    // Each new Nabla session restarts start_offset_ms at 0, so we have to
+    // shift incoming offsets by "wall-clock time since the recording
+    // started." That makes the displayed timeline match the actual visit
+    // duration rather than collapsing to the spoken-audio duration.
+    //
+    // Anchor the recording start the first time this hook connects. If
+    // we're hydrating from a saved transcript, back-date the anchor by the
+    // saved max end_offset so subsequent items continue the saved timeline.
+    if (recordingStartedAtMsRef.current === 0) {
+      const savedMaxEnd = entriesRef.current.reduce(
+        (max, e) => Math.max(max, e.end_offset_ms || e.start_offset_ms || 0),
+        0,
+      );
+      recordingStartedAtMsRef.current = Date.now() - savedMaxEnd;
+    }
+    const sessionOffsetHolder = { current: 0 };
+    const refreshSessionOffset = () => {
+      sessionOffsetHolder.current = Date.now() - recordingStartedAtMsRef.current;
+      sessionOffsetMsRef.current = sessionOffsetHolder.current;
+    };
+    refreshSessionOffset();
     let config;
     try {
       const res = await fetch(`${API_BASE}/config`, { cache: 'no-store' });
@@ -259,11 +280,11 @@ export function useRecording(noteId, initialTranscript) {
     let client;
     try {
       client = createScribeClient({ ...config, refreshConfig });
-      // Bind THIS client's session offset into its handler closure. Any
-      // late events delivered through this client (drain after pause,
-      // post-reauth replays, etc.) will apply this offset, not whatever
-      // the next connectAndRecord captures.
-      client.onTranscriptItem = (item) => handleTranscriptItem(item, sessionOffsetMs);
+      // Bind THIS client's session-offset holder into its handler closure.
+      // Reading holder.current at delivery time (not at bind time) means
+      // when onReconnect bumps the offset for a fresh Nabla session, the
+      // very next item this client processes already uses the new value.
+      client.onTranscriptItem = (item) => handleTranscriptItem(item, sessionOffsetHolder.current);
       client.onError = (msg, code) => {
         if (code === 83011) {
           // Stream timeout — Nabla closes the connection if a stream receives
@@ -285,6 +306,13 @@ export function useRecording(noteId, initialTranscript) {
         // finalized through the normal flow since the old WebSocket session
         // is gone, and the ACK'd audio that produced them won't be replayed.
         finalizePartials();
+        // Recompute the session offset for the NEW Nabla session. Nabla
+        // restarts start_offset_ms at 0 on every fresh WebSocket, so unless
+        // we bump the offset to the current max end_offset, every item from
+        // this point forward would land back at 0:00 in the displayed
+        // timeline. Runs after finalizePartials so partials' end_offset is
+        // included in the max.
+        refreshSessionOffset();
       };
       await client.connect();
     } catch (err) {
