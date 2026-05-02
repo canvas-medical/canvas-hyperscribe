@@ -18,6 +18,7 @@ from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.pylon import Pylon
 from hyperscribe.libraries.customization import Customization
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
@@ -28,7 +29,7 @@ from hyperscribe.libraries.stop_and_go import StopAndGo
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.cycle_data import CycleData
 from hyperscribe.structures.identification_parameters import IdentificationParameters
-from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
+from hyperscribe.structures.pylon_feedback_record import PylonFeedbackRecord
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.webm_prefix import WebmPrefix
@@ -319,27 +320,41 @@ class CaptureView(SimpleAPI):
         store_path = f"hyperscribe-{canvas_instance}/feedback/{note_id}/{now}"
         client_s3.upload_text_to_s3(store_path, feedback.value)  # feedback is a StringFormPart
 
-        notion_feedback = NotionFeedbackRecord(
+        user_email = None
+        user_id = self.request.headers.get("canvas-logged-in-user-id")
+        if user_id:
+            from canvas_sdk.v1.data.staff import Staff
+
+            try:
+                staff = Staff.objects.select_related("user").get(id=user_id)
+                user_email = staff.user.email if staff.user else None
+            except Staff.DoesNotExist:
+                log.warning(f"Staff not found for user_id: {user_id}")
+
+        pylon = Pylon(self.secrets[Constants.SECRET_PYLON_API_KEY])
+        account_id = pylon.search_account(canvas_instance)
+
+        pylon_feedback = PylonFeedbackRecord(
             instance=canvas_instance,
             note_uuid=note_id,
             date_time=now,
             feedback=feedback.value,
+            requester_email=user_email,
         )
-        url = Constants.VENDOR_NOTION_API_BASE_URL
-        headers = {
-            "Authorization": f"Bearer {self.secrets[Constants.SECRET_NOTION_API_KEY]}",
-            "Content-Type": "application/json",
-            "Notion-Version": Constants.VENDOR_NOTION_API_VERSION,
-        }
-        data = notion_feedback.to_json(self.secrets[Constants.SECRET_NOTION_FEEDBACK_DATABASE_ID])
-        resp = requests_post(url, headers=headers, data=data)
-        log.info(f"Notion response status: {resp.status_code}")
+        issue_params = pylon_feedback.to_issue_params()
+        resp = pylon.create_issue(
+            tags=["hyperscribe-feedback"],
+            requester_email=user_email,
+            account_id=account_id,
+            **issue_params,
+        )
+        log.info(f"Pylon response status: {resp.status_code}")
         if resp.status_code != 200:
             # Raise this directly so that Sentry alerts us
             # Background: https://github.com/canvas-medical/canvas-hyperscribe/issues/111
             # End user will see "Error: Server error: 500" and that is fine
-            log.info(f"Notion response status {resp.status_code}, text: {resp.text}")
-            raise RuntimeError(f"Feedback failed to save via Notion API, status {resp.status_code}, text: {resp.text}")
+            log.info(f"Pylon response status {resp.status_code}, text: {resp.text}")
+            raise RuntimeError(f"Feedback failed to save via Pylon API, status {resp.status_code}, text: {resp.text}")
 
         return [Response(b"Feedback saved OK", HTTPStatus.CREATED)]
 

@@ -48,8 +48,7 @@ class Constants:
     VENDOR_ELEVEN_LABS = "ElevenLabs"
     VENDOR_GOOGLE = "Google"
     VENDOR_OPENAI = "OpenAI"
-    VENDOR_NOTION_API_VERSION = "2022-06-28"
-    VENDOR_NOTION_API_BASE_URL = "https://api.notion.com/v1/pages"
+    VENDOR_PYLON_API_BASE_URL = "https://api.usepylon.com"
     #
     FAUX_NOTE_UUID = "_NoteUuid"
     FAUX_PATIENT_UUID = "_PatientUuid"
@@ -123,8 +122,7 @@ class Constants:
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
     SECRET_TEXT_LLM_KEY = "KeyTextLLM"
     SECRET_TEXT_LLM_VENDOR = "VendorTextLLM"
-    SECRET_NOTION_FEEDBACK_DATABASE_ID = "NotionFeedbackDatabaseId"
-    SECRET_NOTION_API_KEY = "NotionAPIKey"
+    SECRET_PYLON_API_KEY = "PylonAPIKey"
     SECRET_TRIAL_STAFFERS_LIST = "TrialStaffersList"
     # JSON credentials which take precedence over the secrets
     AWS_S3_CREDENTIALS_LOGS = "S3CredentialsLogs"
