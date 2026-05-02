@@ -4,18 +4,56 @@ from unittest.mock import patch, call
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.pylon import Pylon
 
+EXPECTED_HEADERS = {
+    "Authorization": "Bearer test-key",
+    "Content-Type": "application/json",
+}
+
+
+def _search_json(query: str) -> dict:
+    return {
+        "filter": {
+            "field": "name",
+            "operator": "string_contains",
+            "value": query,
+        },
+        "limit": 10,
+    }
+
 
 @patch("hyperscribe.libraries.pylon.requests_post")
-def test_search_account_found(mock_post):
+def test_search_account_exact_match(mock_post):
     mock_post.return_value = SimpleNamespace(
         status_code=200,
         json=lambda: {
-            "data": [
-                {"id": "acc-1", "name": "Other Instance"},
-                {"id": "acc-2", "name": "my-instance production"},
-            ]
+            "data": [{"id": "acc-1", "name": "my-instance"}],
         },
     )
+
+    pylon = Pylon("test-key")
+    result = pylon.search_account("my-instance")
+    assert result == "acc-1"
+
+    calls = [
+        call(
+            f"{Constants.VENDOR_PYLON_API_BASE_URL}/accounts/search",
+            headers=EXPECTED_HEADERS,
+            json=_search_json("my-instance"),
+        )
+    ]
+    assert mock_post.mock_calls == calls
+
+
+@patch("hyperscribe.libraries.pylon.requests_post")
+def test_search_account_dehyphenated_match(mock_post):
+    no_match = SimpleNamespace(status_code=200, json=lambda: {"data": []})
+    match = SimpleNamespace(
+        status_code=200,
+        json=lambda: {
+            "data": [{"id": "acc-2", "name": "MyInstance"}],
+        },
+    )
+    mock_post.side_effect = [no_match, match]
 
     pylon = Pylon("test-key")
     result = pylon.search_account("my-instance")
@@ -24,97 +62,97 @@ def test_search_account_found(mock_post):
     calls = [
         call(
             f"{Constants.VENDOR_PYLON_API_BASE_URL}/accounts/search",
-            headers={
-                "Authorization": "Bearer test-key",
-                "Content-Type": "application/json",
-            },
-            json={"query": "my-instance"},
-        )
+            headers=EXPECTED_HEADERS,
+            json=_search_json("my-instance"),
+        ),
+        call(
+            f"{Constants.VENDOR_PYLON_API_BASE_URL}/accounts/search",
+            headers=EXPECTED_HEADERS,
+            json=_search_json("MyInstance"),
+        ),
     ]
     assert mock_post.mock_calls == calls
 
 
 @patch("hyperscribe.libraries.pylon.requests_post")
-def test_search_account_not_found_fallback_found(mock_post):
-    no_match_response = SimpleNamespace(
+def test_search_account_fallback_found(mock_post):
+    no_match = SimpleNamespace(status_code=200, json=lambda: {"data": []})
+    fallback_match = SimpleNamespace(
         status_code=200,
         json=lambda: {
-            "data": [
-                {"id": "acc-1", "name": "Other Instance"},
-            ]
+            "data": [{"id": "acc-99", "name": "Canvas Test Account"}],
         },
     )
-    fallback_response = SimpleNamespace(
-        status_code=200,
-        json=lambda: {
-            "data": [
-                {"id": "acc-99", "name": "Canvas Test Account"},
-            ]
-        },
-    )
-    mock_post.side_effect = [no_match_response, fallback_response]
+    mock_post.side_effect = [no_match, no_match, fallback_match]
 
     pylon = Pylon("test-key")
     result = pylon.search_account("my-instance")
     assert result == "acc-99"
 
-    expected_headers = {
-        "Authorization": "Bearer test-key",
-        "Content-Type": "application/json",
-    }
     calls = [
         call(
             f"{Constants.VENDOR_PYLON_API_BASE_URL}/accounts/search",
-            headers=expected_headers,
-            json={"query": "my-instance"},
+            headers=EXPECTED_HEADERS,
+            json=_search_json("my-instance"),
         ),
         call(
             f"{Constants.VENDOR_PYLON_API_BASE_URL}/accounts/search",
-            headers=expected_headers,
-            json={"query": Constants.VENDOR_PYLON_FALLBACK_ACCOUNT},
+            headers=EXPECTED_HEADERS,
+            json=_search_json("MyInstance"),
+        ),
+        call(
+            f"{Constants.VENDOR_PYLON_API_BASE_URL}/accounts/search",
+            headers=EXPECTED_HEADERS,
+            json=_search_json(Constants.VENDOR_PYLON_FALLBACK_ACCOUNT),
         ),
     ]
     assert mock_post.mock_calls == calls
 
 
 @patch("hyperscribe.libraries.pylon.requests_post")
-def test_search_account_not_found_fallback_not_found(mock_post):
-    empty_response = SimpleNamespace(
-        status_code=200,
-        json=lambda: {"data": []},
-    )
-    mock_post.side_effect = [empty_response, empty_response]
+def test_search_account_all_miss(mock_post):
+    no_match = SimpleNamespace(status_code=200, json=lambda: {"data": []})
+    mock_post.side_effect = [no_match, no_match, no_match]
 
     pylon = Pylon("test-key")
     result = pylon.search_account("my-instance")
     assert result is None
-
-    assert mock_post.call_count == 2
+    assert mock_post.call_count == 3
 
 
 @patch("hyperscribe.libraries.pylon.requests_post")
-def test_search_account_api_error(mock_post):
-    error_response = SimpleNamespace(
-        status_code=500,
-        text="Internal Server Error",
-    )
-    empty_response = SimpleNamespace(
-        status_code=200,
-        json=lambda: {"data": []},
-    )
-    mock_post.side_effect = [error_response, empty_response]
+def test_search_account_api_error_falls_through(mock_post):
+    error = SimpleNamespace(status_code=500, text="Internal Server Error")
+    no_match = SimpleNamespace(status_code=200, json=lambda: {"data": []})
+    mock_post.side_effect = [error, no_match, no_match]
 
     pylon = Pylon("test-key")
     result = pylon.search_account("my-instance")
     assert result is None
+    assert mock_post.call_count == 3
 
+
+@patch("hyperscribe.libraries.pylon.requests_post")
+def test_search_account_no_hyphens_skips_dehyphenated(mock_post):
+    no_match = SimpleNamespace(status_code=200, json=lambda: {"data": []})
+    fallback_match = SimpleNamespace(
+        status_code=200,
+        json=lambda: {
+            "data": [{"id": "acc-99", "name": "Canvas Test Account"}],
+        },
+    )
+    # No hyphens means only 2 searches: exact + fallback (no dehyphenated)
+    mock_post.side_effect = [no_match, fallback_match]
+
+    pylon = Pylon("test-key")
+    result = pylon.search_account("myinstance")
+    assert result == "acc-99"
     assert mock_post.call_count == 2
 
 
 @patch("hyperscribe.libraries.pylon.requests_post")
 def test_create_issue_all_fields(mock_post):
-    mock_response = SimpleNamespace(status_code=200)
-    mock_post.return_value = mock_response
+    mock_post.return_value = SimpleNamespace(status_code=200)
 
     pylon = Pylon("test-key")
     result = pylon.create_issue(
@@ -129,10 +167,7 @@ def test_create_issue_all_fields(mock_post):
     calls = [
         call(
             f"{Constants.VENDOR_PYLON_API_BASE_URL}/issues",
-            headers={
-                "Authorization": "Bearer test-key",
-                "Content-Type": "application/json",
-            },
+            headers=EXPECTED_HEADERS,
             json={
                 "title": "Test Issue",
                 "body_html": "<p>Body</p>",
@@ -147,8 +182,7 @@ def test_create_issue_all_fields(mock_post):
 
 @patch("hyperscribe.libraries.pylon.requests_post")
 def test_create_issue_minimal_fields(mock_post):
-    mock_response = SimpleNamespace(status_code=200)
-    mock_post.return_value = mock_response
+    mock_post.return_value = SimpleNamespace(status_code=200)
 
     pylon = Pylon("test-key")
     result = pylon.create_issue(
@@ -160,10 +194,7 @@ def test_create_issue_minimal_fields(mock_post):
     calls = [
         call(
             f"{Constants.VENDOR_PYLON_API_BASE_URL}/issues",
-            headers={
-                "Authorization": "Bearer test-key",
-                "Content-Type": "application/json",
-            },
+            headers=EXPECTED_HEADERS,
             json={
                 "title": "Test Issue",
                 "body_html": "<p>Body</p>",
