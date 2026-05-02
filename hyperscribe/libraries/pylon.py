@@ -13,24 +13,37 @@ class Pylon:
         }
 
     def search_account(self, instance_name: str) -> str | None:
-        account_id = self._find_account(instance_name)
-        if account_id is None:
-            fallback = Constants.VENDOR_PYLON_FALLBACK_ACCOUNT
-            log.info(f"No Pylon account matched '{instance_name}', falling back to '{fallback}'")
-            account_id = self._find_account(Constants.VENDOR_PYLON_FALLBACK_ACCOUNT)
-        return account_id
+        # Try exact name first, then without hyphens (e.g. "new-instance" -> "NewInstance")
+        candidates = [instance_name]
+        dehyphenated = instance_name.replace("-", " ").title().replace(" ", "")
+        if dehyphenated != instance_name:
+            candidates.append(dehyphenated)
+        for candidate in candidates:
+            account_id = self._find_account(candidate)
+            if account_id is not None:
+                return account_id
+            log.info(f"No Pylon account matched '{candidate}'")
+        fallback = Constants.VENDOR_PYLON_FALLBACK_ACCOUNT
+        log.info(f"Falling back to '{fallback}'")
+        return self._find_account(fallback)
 
     def _find_account(self, query: str) -> str | None:
         resp = requests_post(
             f"{self.base_url}/accounts/search",
             headers=self.headers,
-            json={"query": query},
+            json={
+                "filter": {
+                    "field": "name",
+                    "operator": "string_contains",
+                    "value": query,
+                },
+                "limit": 10,
+            },
         )
         if resp.status_code == 200:
             accounts = resp.json().get("data", [])
-            for account in accounts:
-                if query.lower() in account.get("name", "").lower():
-                    return str(account["id"])
+            if accounts:
+                return str(accounts[0]["id"])
         else:
             log.warning(f"Pylon account search failed: {resp.status_code}, {resp.text}")
         return None
