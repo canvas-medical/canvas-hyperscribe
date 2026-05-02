@@ -50,6 +50,7 @@ class Constants:
     VENDOR_NABLA = "Nabla"
     VENDOR_OPENAI = "OpenAI"
     VENDOR_PYLON_API_BASE_URL = "https://api.usepylon.com"
+    VENDOR_PYLON_FALLBACK_ACCOUNT = "Canvas Test Account"
     #
     FAUX_NOTE_UUID = "_NoteUuid"
     FAUX_PATIENT_UUID = "_PatientUuid"

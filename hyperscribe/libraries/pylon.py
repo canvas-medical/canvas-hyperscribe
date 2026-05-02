@@ -13,15 +13,23 @@ class Pylon:
         }
 
     def search_account(self, instance_name: str) -> str | None:
+        account_id = self._find_account(instance_name)
+        if account_id is None:
+            fallback = Constants.VENDOR_PYLON_FALLBACK_ACCOUNT
+            log.info(f"No Pylon account matched '{instance_name}', falling back to '{fallback}'")
+            account_id = self._find_account(Constants.VENDOR_PYLON_FALLBACK_ACCOUNT)
+        return account_id
+
+    def _find_account(self, query: str) -> str | None:
         resp = requests_post(
             f"{self.base_url}/accounts/search",
             headers=self.headers,
-            json={"query": instance_name},
+            json={"query": query},
         )
         if resp.status_code == 200:
             accounts = resp.json().get("data", [])
             for account in accounts:
-                if instance_name.lower() in account.get("name", "").lower():
+                if query.lower() in account.get("name", "").lower():
                     return str(account["id"])
         else:
             log.warning(f"Pylon account search failed: {resp.status_code}, {resp.text}")
