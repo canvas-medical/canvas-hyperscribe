@@ -49,8 +49,7 @@ class Constants:
     VENDOR_GOOGLE = "Google"
     VENDOR_NABLA = "Nabla"
     VENDOR_OPENAI = "OpenAI"
-    VENDOR_NOTION_API_VERSION = "2022-06-28"
-    VENDOR_NOTION_API_BASE_URL = "https://api.notion.com/v1/pages"
+    VENDOR_PYLON_API_BASE_URL = "https://api.usepylon.com"
     #
     FAUX_NOTE_UUID = "_NoteUuid"
     FAUX_PATIENT_UUID = "_PatientUuid"
@@ -123,7 +122,6 @@ class Constants:
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
     SECRET_TEXT_LLM_KEY = "KeyTextLLM"
     SECRET_TEXT_LLM_VENDOR = "VendorTextLLM"
-    SECRET_NOTION_FEEDBACK_DATABASE_ID = "NotionFeedbackDatabaseId"
     SECRET_SCRIBE_BACKEND = "ScribeBackend"  # JSON: {"vendor": "nabla", "region": "us", ...}
     SECRET_SCRIBE_NOTE_TYPES = "ScribeNoteTypes"  # Comma-separated note type names
     SECRET_ALERT_FACILITY_COMMANDS = "AlertFacilityCommands"  # Comma-separated command types
@@ -135,7 +133,7 @@ class Constants:
     # the AI produced it, and the merge is one provider click per card.
     # Unset/blank = no button on any of them; the manual Template menu still works.
     SECRET_SCRIBE_EXAM_TEMPLATE_MERGE = "ScribeExamTemplateMerge"
-    SECRET_NOTION_API_KEY = "NotionAPIKey"
+    SECRET_PYLON_API_KEY = "PylonAPIKey"
     SECRET_MODALITY = "Modality"
     SECRET_SCRIBE_TAB_NAME = "ScribeTabName"
     # Strict "true" enables hiding the chart-section command buttons while the
