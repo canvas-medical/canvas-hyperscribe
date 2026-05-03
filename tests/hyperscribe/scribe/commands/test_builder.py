@@ -121,7 +121,7 @@ def test_build_effects_empty_list() -> None:
 
 
 def test_build_effects_medication_with_alert_facility() -> None:
-    """Medication statement with alert_facility produces metadata_pending."""
+    """Medication statement with alert_facility=True writes Yes to metadata_pending."""
     proposals: list[dict[str, Any]] = [
         {
             "command_type": "medication_statement",
@@ -136,20 +136,24 @@ def test_build_effects_medication_with_alert_facility() -> None:
         inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
         mock_med.return_value = inst
 
-        effects, metadata_pending, attempted = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+        effects, metadata_pending, attempted = build_effects(
+            proposals,
+            "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            {"AlertFacilityEnabled": True},
+        )
 
     assert len(effects) == 2  # 1 originate + 1 commit
     assert effects[0] == "med_originate"
     assert len(metadata_pending) == 1
     assert metadata_pending[0]["command_uuid"] == "d6a96b19-a087-458a-9619-b46537a8c121"
     assert metadata_pending[0]["command_type"] == "medication_statement"
-    assert metadata_pending[0]["metadata"] == {"alert_facility": "true"}
+    assert metadata_pending[0]["metadata"] == {"alert_facility": "Yes"}
     assert len(attempted) == 1
     assert attempted[0]["command_type"] == "medication_statement"
 
 
-def test_build_effects_medication_without_alert_facility() -> None:
-    """Medication statement without alert_facility produces no metadata_pending."""
+def test_build_effects_medication_alert_facility_false_writes_no() -> None:
+    """When the feature is on, an unset/false alert_facility is persisted as 'No'."""
     proposals: list[dict[str, Any]] = [
         {
             "command_type": "medication_statement",
@@ -164,9 +168,37 @@ def test_build_effects_medication_without_alert_facility() -> None:
         inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
         mock_med.return_value = inst
 
+        effects, metadata_pending, attempted = build_effects(
+            proposals,
+            "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            {"AlertFacilityEnabled": True},
+        )
+
+    assert len(effects) == 2
+    assert len(metadata_pending) == 1
+    assert metadata_pending[0]["metadata"] == {"alert_facility": "No"}
+
+
+def test_build_effects_medication_alert_facility_disabled() -> None:
+    """When the feature flag is off, no alert_facility metadata is emitted."""
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "medication_statement",
+            "data": {"medication_text": "Lisinopril 10mg", "alert_facility": True},
+        },
+    ]
+    with patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med:
+        inst = MagicMock()
+        inst.originate.return_value = "med_originate"
+        inst.commit.return_value = "med_commit"
+        inst.command_uuid = "d6a96b19-a087-458a-9619-b46537a8c121"
+        inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+        mock_med.return_value = inst
+
+        # No feature_flags arg → defaults to disabled.
         effects, metadata_pending, attempted = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
 
-    assert len(effects) == 2  # 1 originate + 1 commit
+    assert len(effects) == 2
     assert metadata_pending == []
 
 
@@ -179,17 +211,70 @@ def test_build_metadata_effects() -> None:
             "command_uuid": "d6a96b19-a087-458a-9619-b46537a8c121",
             "command_type": "medication_statement",
             "note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
-            "metadata": {"alert_facility": "true"},
+            "metadata": {"alert_facility": "Yes"},
         },
     ]
     stub = MagicMock()
     stub.upsert_metadata.return_value = "upsert_effect"
-    with patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub):
+    with (
+        patch("hyperscribe.scribe.commands.builder.Command") as mock_command,
+        patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub),
+    ):
+        mock_command.objects.filter.return_value.exists.return_value = True
         effects = build_metadata_effects(pending)
 
     assert len(effects) == 1
     assert effects[0] == "upsert_effect"
-    stub.upsert_metadata.assert_called_once_with("alert_facility", "true")
+    stub.upsert_metadata.assert_called_once_with("alert_facility", "Yes")
+
+
+def test_build_metadata_effects_skips_when_command_not_visible() -> None:
+    """If the command never shows up in the DB, the upsert is skipped (not raised)."""
+    from hyperscribe.scribe.commands.builder import _BUILDERS
+
+    pending: list[dict[str, Any]] = [
+        {
+            "command_uuid": "d6a96b19-a087-458a-9619-b46537a8c121",
+            "command_type": "medication_statement",
+            "note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            "metadata": {"alert_facility": "Yes"},
+        },
+    ]
+    stub = MagicMock()
+    with (
+        patch("hyperscribe.scribe.commands.builder.Command") as mock_command,
+        patch("hyperscribe.scribe.commands.builder.time.sleep"),
+        patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub),
+    ):
+        mock_command.objects.filter.return_value.exists.return_value = False
+        effects = build_metadata_effects(pending)
+
+    assert effects == []
+    stub.upsert_metadata.assert_not_called()
+
+
+def test_build_metadata_effects_swallows_upsert_errors() -> None:
+    """If upsert_metadata raises (e.g. SDK validation), other items still process."""
+    from hyperscribe.scribe.commands.builder import _BUILDERS
+
+    pending: list[dict[str, Any]] = [
+        {
+            "command_uuid": "d6a96b19-a087-458a-9619-b46537a8c121",
+            "command_type": "medication_statement",
+            "note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            "metadata": {"alert_facility": "Yes"},
+        },
+    ]
+    stub = MagicMock()
+    stub.upsert_metadata.side_effect = RuntimeError("simulated SDK validation failure")
+    with (
+        patch("hyperscribe.scribe.commands.builder.Command") as mock_command,
+        patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub),
+    ):
+        mock_command.objects.filter.return_value.exists.return_value = True
+        effects = build_metadata_effects(pending)
+
+    assert effects == []
 
 
 def test_build_metadata_effects_empty() -> None:

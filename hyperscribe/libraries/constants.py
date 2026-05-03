@@ -128,6 +128,12 @@ class Constants:
     SECRET_SCRIBE_BACKEND = "ScribeBackend"  # JSON: {"vendor": "nabla", "region": "us", ...}
     SECRET_SCRIBE_NOTE_TYPES = "ScribeNoteTypes"  # Comma-separated note type names
     SECRET_ALERT_FACILITY_ENABLED = "AlertFacilityEnabled"
+    # Alert facility command-metadata contract — must match the gtm-extensions
+    # `alert_facility_fields` plugin so downstream consumers see the same shape
+    # regardless of whether the value was written by Scribe or the form plugin.
+    ALERT_FACILITY_KEY = "alert_facility"
+    ALERT_FACILITY_VALUE_YES = "Yes"
+    ALERT_FACILITY_VALUE_NO = "No"
     SECRET_SCRIBE_DEBUG_STAFFERS = "ScribeDebugStaffers"  # Comma-separated staff keys for debug apps
     SECRET_VISIT_TEMPLATES = "VisitTemplates"  # JSON: {"templates": [...]}
     SECRET_NOTION_API_KEY = "NotionAPIKey"

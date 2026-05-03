@@ -1115,7 +1115,10 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     status_code=HTTPStatus.BAD_REQUEST,
                 )
             ]
-        effects, metadata_pending, attempted = build_effects(commands, note_uuid)
+        feature_flags = {
+            Constants.SECRET_ALERT_FACILITY_ENABLED: bool(self.secrets.get(Constants.SECRET_ALERT_FACILITY_ENABLED)),
+        }
+        effects, metadata_pending, attempted = build_effects(commands, note_uuid, feature_flags)
         audit_event(
             note_uuid,
             "INSERT_COMMANDS",
@@ -1131,6 +1134,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     for c in commands
                 ],
                 "metadata_pending_count": len(metadata_pending),
+                "alert_facility_enabled": feature_flags[Constants.SECRET_ALERT_FACILITY_ENABLED],
+                "metadata_pending_keys": [
+                    {
+                        "command_type": p.get("command_type", ""),
+                        "keys": list((p.get("metadata") or {}).keys()),
+                    }
+                    for p in metadata_pending
+                ],
             },
         )
         return [
@@ -1156,11 +1167,33 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not note_uuid:
             return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         if denial := _authorize_edit(note_uuid, self.request):
+            audit_event(note_uuid, "INSERT_METADATA_DENIED", {})
             return [denial]
         pending = data.get("pending", [])
         if not pending:
             return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK)]
+
+        audit_event(
+            note_uuid,
+            "INSERT_METADATA_REQUEST",
+            {
+                "pending_count": len(pending),
+                "items": [
+                    {
+                        "command_uuid": str(p.get("command_uuid", "")),
+                        "command_type": p.get("command_type", ""),
+                        "metadata_keys": list((p.get("metadata") or {}).keys()),
+                    }
+                    for p in pending
+                ],
+            },
+        )
         effects = build_metadata_effects(pending)
+        audit_event(
+            note_uuid,
+            "INSERT_METADATA_RESULT",
+            {"requested": len(pending), "effects_built": len(effects)},
+        )
         return [JSONResponse({"ok": True, "metadata_count": len(effects)}, status_code=HTTPStatus.OK), *effects]
 
     @api.post("/verify-commands")
