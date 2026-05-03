@@ -121,6 +121,7 @@ const SKELETON_SECTIONS = [
   { key: 'assessment_and_plan', title: 'Assessment & Plan', text: '' },
 ];
 
+const FINALIZE_LABEL = 'Finalizing transcript';
 const PROGRESS_STEPS = [
   'Generating note',
   'Structuring the note',
@@ -128,6 +129,9 @@ const PROGRESS_STEPS = [
   'Generating recommendations',
   'Suggesting diagnoses',
 ];
+// Total steps shown to the user = "Finalizing transcript" + the server-driven
+// SUMMARY_STEPS pipeline. Used for the % progress calculation.
+const TOTAL_PROGRESS_STEPS = PROGRESS_STEPS.length + 1;
 
 function buildCommandBySectionKey(commands) {
   const map = {};
@@ -199,7 +203,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, alertFacilityEnabled = false, initialData = null }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, initialData = null }) {
   const initSummary = initialData?.summary ?? null;
   const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
@@ -233,6 +237,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     return cached;
   });
   const [transcriptCollapsed, setTranscriptCollapsed] = useState(false);
+  // Auto-scroll the transcript body to the latest entry whenever live capture
+  // is producing or refining content. We deliberately don't try to "respect"
+  // a user's scroll-up while recording — clinicians want to keep seeing the
+  // running transcription as proof the capture is working, and the scroll
+  // would just keep losing fights with new entries anyway. Once the session
+  // is finalized, entries stop changing and the user can scroll freely.
+  const transcriptBodyRef = useRef(null);
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
   const addNowAttemptedRef = useRef([]);
@@ -241,6 +252,24 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   // Recording hook.
   const recording = useRecording(noteId, initialData?.transcript);
+
+  // Keep the transcript pinned to the latest entry as new ones stream in or
+  // get refined (in-place partial updates, speaker-attribution flips, etc.).
+  // RAF defers the scroll until after layout so scrollHeight reflects the
+  // post-update height. Skipped once the recording is finalized so we don't
+  // yank a user reading the saved transcript on later mounts.
+  useEffect(() => {
+    if (transcriptCollapsed) return;
+    if (recording.finalized) return;
+    const el = transcriptBodyRef.current;
+    if (!el) return;
+    const rafId = requestAnimationFrame(() => {
+      const node = transcriptBodyRef.current;
+      if (!node) return;
+      node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [recording.entries, transcriptCollapsed, recording.finalized]);
 
   const [showSavedToast, setShowSavedToast] = useState(false);
   useEffect(() => {
@@ -266,6 +295,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [noteId]);
 
   const noteLocked = !isNoteEditable && !approved;
+  const canEdit = isAuthor && isNoteEditable && !approved;
+  // Lock takes precedence over authorship in the banner messaging.
+  const readOnlyReason = noteLocked
+    ? 'locked'
+    : (!isAuthor && !approved ? 'non_author' : null);
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved, extras = {}) => {
     try {
@@ -540,6 +574,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
 
   const handleSelectTemplate = useCallback((e) => {
+    if (!canEdit) return;
     const templateName = e.target.value;
     if (!templateName) {
       logEvent('DESELECT_TEMPLATE');
@@ -617,9 +652,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
       return updated;
     });
-  }, [templates, noteData, approved, recommendations, unmatchedConditions, diagnosisSuggestions, saveSummaryToCache]);
+  }, [templates, noteData, approved, canEdit, recommendations, unmatchedConditions, diagnosisSuggestions, saveSummaryToCache]);
 
   const handleStartAI = useCallback(async () => {
+    if (!canEdit) return;
     logEvent('START_AI');
     setMode('ai');
     const ok = await recording.startRecording();
@@ -627,9 +663,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       logEvent('START_AI_FAILED');
       setMode(null);
     }
-  }, [recording]);
+  }, [recording, canEdit]);
 
   const handleStartManual = useCallback(() => {
+    if (!canEdit) return;
     logEvent('START_MANUAL');
     setMode('manual');
     // Pre-populate empty commands for all narrative sections so they render as editable text areas.
@@ -654,7 +691,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
       return [...manualCommands, ...existing];
     });
-  }, [selectedTemplate]);
+  }, [selectedTemplate, canEdit]);
 
 
   // Compute unmatched conditions when loading from old cache format (no unmatched_conditions key).
@@ -681,7 +718,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const handleEdit = useCallback((index, newData, newType) => {
     logEvent('EDIT_COMMAND', { index, commandType: newType || commands[index]?.command_type, sectionKey: commands[index]?.section_key, data: newData });
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => {
       const updated = prev.map((cmd, i) => {
         if (i !== index) return cmd;
@@ -795,21 +832,21 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return updated;
     });
-  }, [approved, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+  }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
   const handleDelete = useCallback((index) => {
     logEvent('DELETE_COMMAND', { index, commandType: commands[index]?.command_type });
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => {
       const updated = prev.filter((_, i) => i !== index);
       saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return updated;
     });
-  }, [approved, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+  }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
   const handleAddTask = useCallback(() => {
     logEvent('ADD_TASK');
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: 'task',
       display: '',
@@ -818,11 +855,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddOrder = useCallback(() => {
     logEvent('ADD_ORDER');
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: 'prescribe',
       display: '',
@@ -831,11 +868,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddPlan = useCallback(() => {
     logEvent('ADD_PLAN');
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: 'plan',
       display: '',
@@ -844,11 +881,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddHistory = useCallback((commandType) => {
     logEvent('ADD_HISTORY', { type: commandType });
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: commandType,
       display: '',
@@ -857,11 +894,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_history_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddMedication = useCallback(() => {
     logEvent('ADD_MEDICATION');
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: 'medication_statement',
       display: '',
@@ -870,11 +907,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_objective_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddVitals = useCallback(() => {
     logEvent('ADD_VITALS');
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: 'vitals',
       display: '',
@@ -883,9 +920,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_objective_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleEditRecommendation = useCallback((index, newData, newType) => {
+    if (!canEdit) return;
     logEvent('EDIT_REC', { index, commandType: newType, data: newData });
     setRecommendations(prev => prev.map((cmd, i) => {
       if (i !== index) return cmd;
@@ -905,26 +943,29 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       }
       return { ...cmd, data: newData, accepted: true };
     }));
-  }, []);
+  }, [canEdit]);
 
   const handleAcceptRecommendation = useCallback((index) => {
+    if (!canEdit) return;
     logEvent('ACCEPT_REC', { index });
     setRecommendations(prev => prev.map((cmd, i) =>
       i === index ? { ...cmd, accepted: true, rejected: false } : cmd
     ));
-  }, []);
+  }, [canEdit]);
 
   const handleRejectRecommendation = useCallback((index) => {
+    if (!canEdit) return;
     logEvent('REJECT_REC', { index });
     setRecommendations(prev => prev.map((cmd, i) =>
       i === index ? { ...cmd, rejected: true, accepted: false } : cmd
     ));
-  }, []);
+  }, [canEdit]);
 
   const handleDeleteRecommendation = useCallback((index) => {
+    if (!canEdit) return;
     logEvent('DELETE_REC', { index });
     setRecommendations(prev => prev.filter((_, i) => i !== index));
-  }, []);
+  }, [canEdit]);
 
   const handleEditingChange = useCallback((key, isEditing) => {
     setEditingFields(prev => {
@@ -937,7 +978,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const handleAddAllergy = useCallback(() => {
     logEvent('ADD_ALLERGY');
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: 'allergy',
       display: '',
@@ -946,11 +987,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_objective_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddStopMedication = useCallback(() => {
     logEvent('ADD_STOP_MED');
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: 'stop_medication',
       display: '',
@@ -959,11 +1000,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_objective_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddRemoveAllergy = useCallback(() => {
     logEvent('ADD_REMOVE_ALLERGY');
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: 'remove_allergy',
       display: '',
@@ -972,11 +1013,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_objective_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddResolveCondition = useCallback(() => {
     logEvent('ADD_RESOLVE_CONDITION');
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: 'resolve_condition',
       display: '',
@@ -985,11 +1026,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddQuestionnaire = useCallback(() => {
     logEvent('ADD_QUESTIONNAIRE');
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: 'questionnaire',
       display: '',
@@ -998,11 +1039,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_subjective_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddCharge = useCallback(() => {
     logEvent('ADD_CHARGE');
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => [...prev, {
       command_type: 'perform',
       display: '',
@@ -1011,11 +1052,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       section_key: '_charges_ad_hoc',
       already_documented: false,
     }]);
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddTemplateCharge = useCallback((cptCode, description) => {
     logEvent('ADD_TEMPLATE_CHARGE', { cptCode, description });
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => {
       // Re-select if already exists but deselected.
       const existing = prev.find(c => c.command_type === 'perform' && c.data.cpt_code === cptCode);
@@ -1035,21 +1076,21 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         already_documented: false,
       }];
     });
-  }, [approved]);
+  }, [canEdit]);
 
   const handleRemoveChargeByCpt = useCallback((cptCode) => {
     logEvent('REMOVE_CHARGE', { cptCode });
-    if (approved) return;
+    if (!canEdit) return;
     setCommands(prev => prev.map(c =>
       c.command_type === 'perform' && c.data.cpt_code === cptCode
         ? { ...c, selected: false }
         : c
     ));
-  }, [approved]);
+  }, [canEdit]);
 
   const handleAddCondition = useCallback((icd10Code, icd10Display, conditionId) => {
     logEvent('ADD_CONDITION', { icd10Code, display: icd10Display });
-    if (approved) return;
+    if (!canEdit) return;
     const apKey = commands.find(c =>
       (c.command_type === 'diagnose' || c.command_type === 'assess') && ['assessment_and_plan', 'plan'].includes(c.section_key)
     )?.section_key || 'assessment_and_plan';
@@ -1092,10 +1133,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (icd10Code) {
       setUnmatchedConditions(prev => prev.filter(c => !(c.coding || []).some(cd => cd.code === icd10Code)));
     }
-  }, [approved, commands]);
+  }, [canEdit, commands]);
 
   const handleInsert = useCallback(async () => {
-    if (approved || inserting) return;
+    if (!canEdit || inserting) return;
     setValidationError(null);
     logEvent('APPROVE_START', { totalCommands: commands.length, commandTypes: commands.map(c => c.command_type) });
     setInserting(true);
@@ -1191,7 +1232,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             await fetch(`${API_BASE}/insert-metadata`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pending: data.metadata_pending }),
+              body: JSON.stringify({ note_uuid: noteId, pending: data.metadata_pending }),
             });
           } catch (metaErr) {
             console.error('Failed to insert metadata:', metaErr);
@@ -1266,9 +1307,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     } finally {
       setInserting(false);
     }
-  }, [commands, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions, approved, inserting]);
+  }, [commands, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions, canEdit, inserting]);
 
   const handleAddNow = useCallback(async (command, isRecommendation, index) => {
+    if (!canEdit) return;
     logEvent('ADD_NOW', { commandType: command.command_type, isRecommendation, index });
     // Mark as adding to show spinner and prevent double-clicks.
     const setAdding = (flag) => {
@@ -1294,7 +1336,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           await fetch(`${API_BASE}/insert-metadata`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pending: data.metadata_pending }),
+            body: JSON.stringify({ note_uuid: noteId, pending: data.metadata_pending }),
           });
         } catch (metaErr) { console.error('Add Now metadata failed:', metaErr); }
       }
@@ -1318,7 +1360,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       setAdding(false);
       logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index });
     }
-  }, [noteId]);
+  }, [noteId, canEdit]);
 
 
   const commandBySectionKey = buildCommandBySectionKey(commands);
@@ -1346,7 +1388,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const RX_TYPES = new Set(['prescribe', 'refill', 'adjust_prescription']);
   const hasRxCommands = commands.some(c => c.display && RX_TYPES.has(c.command_type))
     || recommendations.some(c => c.display && !c.rejected && RX_TYPES.has(c.command_type));
-  const showFooter = !approved && (mode === 'manual' || insertableCount > 0);
+  // Accept and Sign is only offered once the user has committed to a flow
+  // and reached its natural completion point. Manual mode shows it as soon
+  // as the user opts in (so they can sign with empty / template-only fields
+  // if that's what they want). AI mode requires recording to be finalized
+  // AND the note to have been generated — we don't want a half-finished
+  // transcript or an in-flight LLM call to be signable.
+  const aiFlowComplete = mode === 'ai' && recording.finalized && noteData !== null;
+  const showFooter = canEdit && (mode === 'manual' || aiFlowComplete);
 
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral', lab_order: 'lab order' };
   const _isRxIncomplete = (d) => !d.fdb_code || !d.sig || d.quantity_to_dispense == null || !d.type_to_dispense || d.refills == null;
@@ -1428,25 +1477,51 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     return missing.length > 0 ? [...base, ...missing] : base;
   })();
   const isRecording = recording.status === 'recording' || recording.status === 'paused';
-  const showTopControls = !approved && !noteData && !isRecording && !recording.finalized && !generating && mode === null;
+  // Suppress "Recording in progress" / "Paused" labels (and the recording dot)
+  // once a note has been generated or the transcript was finalized — at that
+  // point the transcript is a static record, not a live capture.
+  const transcriptHeaderIsLive = isRecording && !noteData && !recording.finalized;
+  const showTopControls = canEdit && !noteData && !isRecording && !recording.finalized && !generating && mode === null;
 
-  if (noteLocked) {
-    return html`
-      <div class="summary-container">
-        <div class="signed-note-block">
-          <div class="signed-note-icon">${'\uD83D\uDD12'}</div>
-          <h2 class="signed-note-title">Note Locked</h2>
-          <p class="signed-note-message">
-            This note is no longer editable. To make changes, please amend the note first.
-          </p>
-        </div>
-      </div>
-    `;
+  // Unified progress display: "Finalizing transcript" is step 0 of a sequence
+  // that continues through the server-driven generate pipeline. Showing one
+  // bar that ticks across all 6 steps gives the user a clear sense of motion
+  // during the speaker-attribution wait + LLM run rather than a long stretch
+  // of dead "Finalizing..." text followed by a separate progress bar.
+  const isFinalizing = recording.status === 'finishing';
+  const isInGenerationPipeline = generating || (recording.finalized && mode === 'ai' && !noteData);
+  const showProgressBanner = isFinalizing || isInGenerationPipeline;
+  let progressIndex = 0;
+  let progressLabel = FINALIZE_LABEL;
+  if (!isFinalizing && isInGenerationPipeline) {
+    const serverStep = Math.max(progress.step, 0);
+    progressIndex = serverStep + 1; // +1 because finalize occupies index 0
+    progressLabel = PROGRESS_STEPS[serverStep] || PROGRESS_STEPS[0];
   }
+  const progressPct = Math.max(((progressIndex + 1) / TOTAL_PROGRESS_STEPS) * 100, 5);
 
   return html`
-    <div class="summary-container">
-      ${!approved && html`
+    <div class=${`summary-container${!canEdit && !approved ? ' summary-container--readonly' : ''}`}>
+      ${readOnlyReason === 'locked' && html`
+        <div class="readonly-banner" role="status" aria-live="polite">
+          <svg class="readonly-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <span>Scribe documentation is incomplete. Click <strong>Amend</strong> in the note footer to finish.</span>
+        </div>
+      `}
+      ${readOnlyReason === 'non_author' && html`
+        <div class="readonly-banner" role="status" aria-live="polite">
+          <svg class="readonly-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>Read-only — only the note author can edit the Scribe tab.</span>
+        </div>
+      `}
+      ${canEdit && html`
         <div class="unified-top-bar">
           ${templates.length > 0 && html`
             <select
@@ -1487,9 +1562,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               <${FinishRecordingButton} onFinish=${recording.finishRecording} />
             </div>
           `}
-          ${recording.status === 'finishing' && html`
-            <span class="generating-label">Finalizing transcript...</span>
-          `}
           ${false && debugMode && noteData && !approved && !generating && !isRecording && html`
             <button class="regenerate-btn" onClick=${handleGenerate} disabled=${!selectedTemplate}>
               Regenerate${!selectedTemplate ? ' (select visit type)' : ''}
@@ -1499,9 +1571,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       `}
       ${(isRecording || recording.entries.length > 0) && html`
         <div class="transcript-panel">
-          <button class="transcript-panel-header ${isRecording ? '' : 'finalized'}" onClick=${() => setTranscriptCollapsed(prev => !prev)}>
-            <div class="transcript-panel-status ${isRecording ? '' : 'finalized'}">
-              ${isRecording && recording.status === 'recording' && html`
+          <button class="transcript-panel-header ${transcriptHeaderIsLive ? '' : 'finalized'}" onClick=${() => setTranscriptCollapsed(prev => !prev)}>
+            <div class="transcript-panel-status ${transcriptHeaderIsLive ? '' : 'finalized'}">
+              ${transcriptHeaderIsLive && recording.status === 'recording' && html`
                 <span class="recording-dot recording-dot-live"
                   style=${{
                     transform: `scale(${1 + Math.min(recording.audioLevel * 8, 1)})`,
@@ -1509,17 +1581,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   }}
                 ></span>
               `}
-              ${isRecording && recording.status === 'paused' && html`<span class="recording-dot recording-dot-paused"></span>`}
-              <span>${isRecording
+              ${transcriptHeaderIsLive && recording.status === 'paused' && html`<span class="recording-dot recording-dot-paused"></span>`}
+              <span>${transcriptHeaderIsLive
                 ? (recording.status === 'paused' ? 'Paused' : 'Recording in progress')
                 : 'Transcript'}</span>
-              ${!isRecording && html`<span class="transcript-entry-count">(${recording.entries.filter(e => e.is_final).length})</span>`}
+              ${!transcriptHeaderIsLive && html`<span class="transcript-entry-count">(${recording.entries.filter(e => e.is_final).length})</span>`}
             </div>
             <span class="transcript-panel-toggle">${transcriptCollapsed ? 'Show' : 'Hide'}</span>
           </button>
           ${showSavedToast && html`<div class="transcript-saved-toast">Transcript saved</div>`}
           ${!transcriptCollapsed && html`
-            <div class="transcript-panel-body">
+            <div class="transcript-panel-body" ref=${transcriptBodyRef}>
               ${recording.entries.length > 0
                 ? html`
                   <div class="transcript-list">
@@ -1581,20 +1653,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         </div>
       `}
       ${recording.error && html`<p class="error" style="padding: 0 16px;">${recording.error}</p>`}
-      ${generating && html`
+      ${showProgressBanner && html`
         <div class="summary-generating-banner">
-          <div class="generating-bar" style="width: ${Math.max(((progress.step + 1) / PROGRESS_STEPS.length) * 100, 5)}%" />
-          <span class="generating-label">${PROGRESS_STEPS[Math.max(progress.step, 0)] || 'Generating...'}...</span>
+          <div class="generating-bar" style="width: ${progressPct}%" />
+          <span class="generating-label">${progressLabel}...</span>
         </div>
       `}
-      ${!noteData && !generating && recording.finalized && mode === 'ai' && html`
+      ${canEdit && !noteData && !generating && recording.finalized && mode === 'ai' && html`
         <div class="summary-generate-banner">
           <p class="summary-banner-description">Recording complete. Generate a structured summary from your transcript.</p>
           <button class="generate-btn" onClick=${handleGenerate}>Generate Summary</button>
         </div>
       `}
       ${error && html`<p class="error" style="padding: 0 16px;">${error}</p>`}
-      ${!approved && recommendations.length > 0 && html`
+      ${canEdit && recommendations.length > 0 && html`
         <div class="hide-rejected-toggle">
           <label class="hide-rejected-label" onClick=${() => setHideRejected(prev => !prev)}>
             <div class="toggle-switch${hideRejected ? ' on' : ''}">
@@ -1612,22 +1684,22 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           subjectiveAdHocCommands,
           chargeAdHocCommands,
           assignees,
-          onAddTask: approved ? null : handleAddTask,
-          onAddOrder: approved ? null : handleAddOrder,
-          onAddPlan: approved ? null : handleAddPlan,
-          onAddVitals: approved ? null : handleAddVitals,
-          onAddMedication: approved ? null : handleAddMedication,
-          onAddAllergy: approved ? null : handleAddAllergy,
-          onAddStopMedication: approved ? null : handleAddStopMedication,
-          onAddRemoveAllergy: approved ? null : handleAddRemoveAllergy,
-          onAddResolveCondition: approved ? null : handleAddResolveCondition,
-          onAddHistory: approved ? null : handleAddHistory,
-          onAddQuestionnaire: approved ? null : handleAddQuestionnaire,
-          onAddCharge: approved ? null : handleAddCharge,
-          onAddTemplateCharge: approved ? null : handleAddTemplateCharge,
-          onRemoveChargeByCpt: approved ? null : handleRemoveChargeByCpt,
+          onAddTask: canEdit ? handleAddTask : null,
+          onAddOrder: canEdit ? handleAddOrder : null,
+          onAddPlan: canEdit ? handleAddPlan : null,
+          onAddVitals: canEdit ? handleAddVitals : null,
+          onAddMedication: canEdit ? handleAddMedication : null,
+          onAddAllergy: canEdit ? handleAddAllergy : null,
+          onAddStopMedication: canEdit ? handleAddStopMedication : null,
+          onAddRemoveAllergy: canEdit ? handleAddRemoveAllergy : null,
+          onAddResolveCondition: canEdit ? handleAddResolveCondition : null,
+          onAddHistory: canEdit ? handleAddHistory : null,
+          onAddQuestionnaire: canEdit ? handleAddQuestionnaire : null,
+          onAddCharge: canEdit ? handleAddCharge : null,
+          onAddTemplateCharge: canEdit ? handleAddTemplateCharge : null,
+          onRemoveChargeByCpt: canEdit ? handleRemoveChargeByCpt : null,
           templateCharges: selectedTemplate ? (selectedTemplate.charges || []) : [],
-          readOnly: approved,
+          readOnly: !canEdit,
           sectionConditions,
           patientId,
           noteId,
@@ -1638,10 +1710,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onDeleteRecommendation: handleDeleteRecommendation,
           onAcceptRecommendation: handleAcceptRecommendation,
           onRejectRecommendation: handleRejectRecommendation,
-          onAddCondition: approved ? null : handleAddCondition,
+          onAddCondition: canEdit ? handleAddCondition : null,
           unmatchedConditions,
           diagnosisSuggestions,
-          onAddNow: approved ? null : handleAddNow,
+          onAddNow: canEdit ? handleAddNow : null,
           hideRejected,
           alertFacilityEnabled,
           onEditingChange: handleEditingChange,

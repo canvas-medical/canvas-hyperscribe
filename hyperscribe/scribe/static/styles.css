@@ -388,6 +388,36 @@ h2 { margin-bottom: 4px; }
   background: #fff;
 }
 
+/* Read-only / locked state: subtle desaturation + dim. The actual disabling of
+   inputs is handled by row-level `readOnly` props; this class only sets the
+   visual cue. */
+.summary-container--readonly .summary-body,
+.summary-container--readonly .transcript-panel,
+.summary-container--readonly .summary-generating-banner,
+.summary-container--readonly .summary-generate-banner,
+.summary-container--readonly .verification-banner {
+  opacity: 0.65;
+  filter: saturate(0.85);
+  transition: opacity 120ms ease-out;
+}
+
+.readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: #f5f6f8;
+  border-bottom: 1px solid #e8e8ec;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.readonly-banner-icon {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
 .summary-header {
   display: flex;
   align-items: center;
@@ -1460,15 +1490,6 @@ h2 { margin-bottom: 4px; }
 .audit-expand { font-size: 10px; color: #999; cursor: pointer; }
 .audit-details { width: 100%; margin: 4px 0 0; padding: 8px; font-family: 'SF Mono', Monaco, monospace; font-size: 11px; background: #f5f5f8; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; color: #333; }
 .audit-empty { padding: 24px; text-align: center; color: #999; font-size: 14px; }
-
-/* Signed-note blocking screen */
-.signed-note-block {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 60px 24px; text-align: center; min-height: 300px;
-}
-.signed-note-icon { font-size: 48px; margin-bottom: 16px; }
-.signed-note-title { font-size: 20px; font-weight: 700; color: #111; margin-bottom: 8px; }
-.signed-note-message { font-size: 15px; color: #6b7280; max-width: 480px; line-height: 1.5; }
 
 /* Task recommendation extras */
 .rec-reason {
