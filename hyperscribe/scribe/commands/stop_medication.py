@@ -5,6 +5,7 @@ from typing import Any
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.commands.commands.stop_medication import StopMedicationCommand
 
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.scribe.commands.base import CommandParser
 
 
@@ -31,15 +32,22 @@ class StopMedicationParser(CommandParser):
             command_uuid=command_uuid,
         )
 
-    def pending_metadata(self, command: _BaseCommand, proposal: dict[str, Any] | None = None) -> dict[str, Any] | None:
-        if proposal and proposal.get("data", {}).get("alert_facility"):
-            return {
-                "command_uuid": command.command_uuid,
-                "command_type": self.command_type,
-                "note_uuid": command.note_uuid,
-                "metadata": {"alert_facility": "true"},
-            }
-        return None
+    def pending_metadata(
+        self,
+        command: _BaseCommand,
+        proposal: dict[str, Any] | None = None,
+        feature_flags: dict[str, bool] | None = None,
+    ) -> dict[str, Any] | None:
+        if not (feature_flags or {}).get(Constants.SECRET_ALERT_FACILITY_ENABLED):
+            return None
+        chose_yes = bool((proposal or {}).get("data", {}).get("alert_facility"))
+        value = Constants.ALERT_FACILITY_VALUE_YES if chose_yes else Constants.ALERT_FACILITY_VALUE_NO
+        return {
+            "command_uuid": command.command_uuid,
+            "command_type": self.command_type,
+            "note_uuid": command.note_uuid,
+            "metadata": {Constants.ALERT_FACILITY_KEY: value},
+        }
 
     def build_stub(self, command_uuid: str, note_uuid: str) -> _BaseCommand:
         return StopMedicationCommand(command_uuid=command_uuid, note_uuid=note_uuid)

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import time
 import uuid
 from typing import Any
 
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.effects import Effect
+from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
+from logger import log
 
 from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.adjust_prescription import AdjustPrescriptionParser
@@ -103,7 +106,9 @@ def validate_proposals(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def build_effects(
-    proposals: list[dict[str, Any]], note_uuid: str
+    proposals: list[dict[str, Any]],
+    note_uuid: str,
+    feature_flags: dict[str, bool] | None = None,
 ) -> tuple[list[Effect], list[dict[str, Any]], list[dict[str, Any]]]:
     """Convert selected command proposals into Canvas SDK Effects.
 
@@ -135,7 +140,7 @@ def build_effects(
 
     metadata_pending: list[dict[str, Any]] = []
     for builder, command, proposal in built:
-        meta = builder.pending_metadata(command, proposal)
+        meta = builder.pending_metadata(command, proposal, feature_flags)
         if meta:
             metadata_pending.append(meta)
 
@@ -151,14 +156,76 @@ def build_effects(
     return effects, metadata_pending, attempted
 
 
+_METADATA_DB_WAIT_ATTEMPTS = 6
+_METADATA_DB_WAIT_INTERVAL_SECONDS = 0.25
+
+
+def _wait_for_command(command_uuid: str) -> bool:
+    """Poll the DB for the just-committed command before requesting metadata upsert.
+
+    Phase 1 returns the originate/commit effects with the API response; Canvas
+    then applies them asynchronously. The SDK's upsert_metadata runs a *synchronous*
+    DB existence check at effect-build time (see canvas_sdk.effects.command_metadata.base),
+    so without this wait the second request often races phase 1 and the validator
+    raises before any effect leaves the plugin.
+    """
+    for attempt in range(_METADATA_DB_WAIT_ATTEMPTS):
+        if Command.objects.filter(id=command_uuid).exists():
+            if attempt > 0:
+                log.info("metadata: command %s visible after %d retries", command_uuid, attempt)
+            return True
+        time.sleep(_METADATA_DB_WAIT_INTERVAL_SECONDS)
+    return False
+
+
 def build_metadata_effects(pending: list[dict[str, Any]]) -> list[Effect]:
-    """Phase 2: build upsert_metadata effects for commands that now exist in the DB."""
+    """Phase 2: build upsert_metadata effects for commands that now exist in the DB.
+
+    Each item is processed defensively: if the command is not yet visible after a
+    bounded wait, or if the SDK's upsert validation fails for any reason, we log
+    and skip rather than 500'ing the entire batch.
+    """
     effects: list[Effect] = []
     for item in pending:
-        builder = _BUILDERS.get(item.get("command_type", ""))
+        command_type = item.get("command_type", "")
+        command_uuid = item.get("command_uuid", "")
+        note_uuid = item.get("note_uuid", "")
+        metadata = item.get("metadata", {}) or {}
+
+        builder = _BUILDERS.get(command_type)
         if builder is None:
+            log.warning("metadata: unknown command_type=%r (uuid=%s)", command_type, command_uuid)
             continue
-        command = builder.build_stub(item["command_uuid"], item["note_uuid"])
-        for key, value in item.get("metadata", {}).items():
-            effects.append(command.upsert_metadata(key, value))
+        if not command_uuid or not metadata:
+            log.warning("metadata: skipping malformed item: %r", item)
+            continue
+
+        if not _wait_for_command(command_uuid):
+            log.warning(
+                "metadata: command %s (%s) not visible in DB after %d attempts; skipping upsert of %s",
+                command_uuid,
+                command_type,
+                _METADATA_DB_WAIT_ATTEMPTS,
+                list(metadata.keys()),
+            )
+            continue
+
+        try:
+            command = builder.build_stub(command_uuid, note_uuid)
+            for key, value in metadata.items():
+                effects.append(command.upsert_metadata(key, value))
+                log.info(
+                    "metadata: queued upsert command=%s type=%s key=%s value=%s",
+                    command_uuid,
+                    command_type,
+                    key,
+                    value,
+                )
+        except Exception:
+            log.exception(
+                "metadata: upsert_metadata failed for command=%s type=%s keys=%s",
+                command_uuid,
+                command_type,
+                list(metadata.keys()),
+            )
     return effects
