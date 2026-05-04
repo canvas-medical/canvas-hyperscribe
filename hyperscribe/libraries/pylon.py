@@ -1,7 +1,11 @@
+from typing import Any
+
 from requests import Response, post as requests_post
 
 from hyperscribe.libraries.constants import Constants
 from logger import log
+
+REQUEST_TIMEOUT = 10
 
 
 class Pylon:
@@ -14,18 +18,20 @@ class Pylon:
 
     def search_account(self, instance_name: str) -> str | None:
         # Try exact name first, then without hyphens (e.g. "new-instance" -> "NewInstance")
+        # Instance slugs are always lowercase kebab-case
         candidates = [instance_name]
-        dehyphenated = instance_name.replace("-", " ").title().replace(" ", "")
+        dehyphenated = "".join(part.capitalize() for part in instance_name.split("-"))
         if dehyphenated != instance_name:
             candidates.append(dehyphenated)
         for candidate in candidates:
             account_id = self._find_account(candidate)
             if account_id is not None:
                 return account_id
-            log.info(f"No Pylon account matched '{candidate}'")
         fallback = Constants.VENDOR_PYLON_FALLBACK_ACCOUNT
-        log.info(f"Falling back to '{fallback}'")
-        return self._find_account(fallback)
+        account_id = self._find_account(fallback)
+        if account_id is None:
+            log.warning(f"No Pylon account found for '{instance_name}' (tried {candidates} and fallback '{fallback}')")
+        return account_id
 
     def _find_account(self, query: str) -> str | None:
         resp = requests_post(
@@ -39,6 +45,7 @@ class Pylon:
                 },
                 "limit": 10,
             },
+            timeout=REQUEST_TIMEOUT,
         )
         if resp.status_code == 200:
             accounts = resp.json().get("data", [])
@@ -56,7 +63,7 @@ class Pylon:
         account_id: str | None = None,
         tags: list[str] | None = None,
     ) -> Response:
-        payload: dict = {"title": title, "body_html": body_html}
+        payload: dict[str, Any] = {"title": title, "body_html": body_html}
         if account_id:
             payload["account_id"] = account_id
         if requester_email:
@@ -67,4 +74,5 @@ class Pylon:
             f"{self.base_url}/issues",
             headers=self.headers,
             json=payload,
+            timeout=REQUEST_TIMEOUT,
         )
