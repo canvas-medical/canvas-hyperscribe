@@ -1406,11 +1406,25 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             const list = attemptedQueue.get((t.cmd.display || '').slice(0, 80));
             if (!list || list.length === 0) continue;
             const attempted = list.shift();
-            const stamped = { ...t.cmd, command_uuid: attempted.command_uuid };
+            // Stamp ONLY the command_uuid onto the cached entry. Do NOT
+            // overwrite command_type or data with the as-sent shape — the
+            // Charges matrix and other UIs still read those fields after
+            // approval (e.g., buildRankedDiagnoses filters on
+            // command_type === 'diagnose' and reads data.icd10_code).
+            // Replacing them with the converted assess shape erases
+            // converted diagnoses from the read-only matrix display. The
+            // future Scribe↔note diff feature can apply per-type adapters
+            // at comparison time; that complexity belongs there, not here.
             if (t.src === 'commands') {
-              updatedCommands[t.srcIdx] = { ...updatedCommands[t.srcIdx], ...stamped };
+              updatedCommands[t.srcIdx] = {
+                ...updatedCommands[t.srcIdx],
+                command_uuid: attempted.command_uuid,
+              };
             } else {
-              updatedRecommendations[t.srcIdx] = { ...updatedRecommendations[t.srcIdx], ...stamped };
+              updatedRecommendations[t.srcIdx] = {
+                ...updatedRecommendations[t.srcIdx],
+                command_uuid: attempted.command_uuid,
+              };
             }
           }
           setCommands(updatedCommands);
