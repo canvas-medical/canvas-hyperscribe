@@ -41,6 +41,11 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.medication_text || '');
   const [sig, setSig] = useState(command.data.sig || '');
   const [alertFacility, setAlertFacility] = useState(!!command.data.alert_facility);
+  // Only show the alert-facility control when the field exists on the command's
+  // data. Legacy commands committed before this feature have `alert_facility`
+  // undefined; for those we hide the control rather than render an unchecked
+  // box that would imply the user explicitly answered "No".
+  const hasAlertFacilityField = command.data.alert_facility !== undefined;
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -106,7 +111,8 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   };
 
   const handleSave = () => {
-    const newData = { ...command.data, medication_text: selectedDisplay, sig, alert_facility: alertFacility };
+    const newData = { ...command.data, medication_text: selectedDisplay, sig };
+    if (hasAlertFacilityField) newData.alert_facility = alertFacility;
     if (selectedFdb) {
       newData.fdb_code = selectedFdb;
     } else {
@@ -142,6 +148,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
 
   const renderAlertControl = (value, onSet, isReadOnly) => {
     if (!alertFacilityEnabled) return null;
+    if (!hasAlertFacilityField) return null;
     const stop = (e) => { e.stopPropagation(); };
     return html`
       <label class="alert-facility-check${isReadOnly ? ' read-only' : ''}" onClick=${stop}>

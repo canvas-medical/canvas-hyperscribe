@@ -902,7 +902,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setCommands(prev => [...prev, {
       command_type: 'medication_statement',
       display: '',
-      data: { medication_text: '', fdb_code: null, sig: '' },
+      data: { medication_text: '', fdb_code: null, sig: '', alert_facility: false },
       selected: true,
       section_key: '_objective_ad_hoc',
       already_documented: false,
@@ -995,7 +995,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setCommands(prev => [...prev, {
       command_type: 'stop_medication',
       display: '',
-      data: { medication_id: null, medication_name: '', rationale: '' },
+      data: { medication_id: null, medication_name: '', rationale: '', alert_facility: false },
       selected: true,
       section_key: '_objective_ad_hoc',
       already_documented: false,

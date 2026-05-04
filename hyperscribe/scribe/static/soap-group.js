@@ -196,7 +196,10 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
   }
 
   const itemName = data[config.nameField] || '';
-  const showAlertControl = type === 'stop_medication' && alertFacilityEnabled;
+  // Hide the alert-facility control on legacy commands where the field was
+  // never set (matches MedicationRow). New ad-hoc adds initialize it to false
+  // so the control shows for them.
+  const showAlertControl = type === 'stop_medication' && alertFacilityEnabled && data.alert_facility !== undefined;
   const alertOn = !!data.alert_facility;
   const stopProp = (e) => { e.stopPropagation(); };
   const handleAlertChange = (e) => {
@@ -645,7 +648,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             // If the A&P has been split into per-condition commands, render each diagnose as DiagnoseRow and assess as CommandRow.
             const hasConditionCommands = isPlan && cmds.some(e => e.command.command_type === 'diagnose' || e.command.command_type === 'assess');
             if (hasConditionCommands) {
-              const unmatched = unmatchedConditions || [];
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${s.title}</div>
@@ -717,29 +719,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                     `;
                   })}
-                  ${!readOnly && unmatched.length > 0 && html`
-                    <div class="diagnose-suggestions" style="margin-top: 12px;">
-                      <div class="history-form-label">Other detected conditions</div>
-                      <div class="diagnose-suggestions-list">
-                        ${unmatched.map(c => {
-                          const codes = (c.coding || []).filter(cd => cd.code);
-                          const code = codes[0];
-                          if (!code) return null;
-                          const stripped = code.code.replace(/\./g, '');
-                          const formatted = stripped.length > 3 ? stripped.slice(0, 3) + '.' + stripped.slice(3) : stripped;
-                          const display = c.display || code.display || formatted;
-                          return html`
-                            <button
-                              key=${code.code}
-                              type="button"
-                              class="diagnose-suggestion-btn"
-                              onClick=${() => onAddCondition && onAddCondition(code.code, display)}
-                            ><strong>${formatted}</strong>${' '}${display}</button>
-                          `;
-                        })}
-                      </div>
-                    </div>
-                  `}
                   ${(visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition')).map(re => html`
                     <div class="content-block recommendation-block rec-removal" key=${re.index}>
                       <div class="recommendation-content">
