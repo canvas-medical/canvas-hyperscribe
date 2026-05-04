@@ -219,7 +219,7 @@ def test_compute_no_assessments_match_returns_empty(
     ])
     mock_summary_cls.objects.filter.return_value.first.return_value = summary
     # Assessments exist but their codings don't match the wanted ICD.
-    mock_assessment_cls.objects.filter.return_value.select_related.return_value = [
+    mock_assessment_cls.objects.filter.return_value.select_related.return_value.prefetch_related.return_value = [
         _fake_assessment("a-1", "I10"),
     ]
     handler = _make_handler()
@@ -245,7 +245,7 @@ def test_compute_no_billing_line_item_returns_empty(
         {"command_type": "perform", "data": {"cpt_code": "99213", "linked_icd10_codes": ["E11.9"]}},
     ])
     mock_summary_cls.objects.filter.return_value.first.return_value = summary
-    mock_assessment_cls.objects.filter.return_value.select_related.return_value = [
+    mock_assessment_cls.objects.filter.return_value.select_related.return_value.prefetch_related.return_value = [
         _fake_assessment("a-1", "E11.9"),
     ]
     mock_bli_cls.objects.filter.return_value.values_list.return_value = []
@@ -284,7 +284,7 @@ def test_compute_emits_update_with_translated_assessment_ids(
         {"command_type": "diagnose", "data": {"icd10_code": "E11.9"}},
     ])
     mock_summary_cls.objects.filter.return_value.first.return_value = summary
-    mock_assessment_cls.objects.filter.return_value.select_related.return_value = [
+    mock_assessment_cls.objects.filter.return_value.select_related.return_value.prefetch_related.return_value = [
         _fake_assessment("a-1", "E119"),  # undotted form → still matches via _strip
         _fake_assessment("a-2", "I10"),
         _fake_assessment("a-3", "K21.9"),  # not wanted for this CPT
@@ -325,7 +325,7 @@ def test_compute_skips_assessments_with_no_condition(
     mock_summary_cls.objects.filter.return_value.first.return_value = summary
     # Assessment without a condition is silently skipped.
     no_condition = SimpleNamespace(id="a-noop", condition=None)
-    mock_assessment_cls.objects.filter.return_value.select_related.return_value = [
+    mock_assessment_cls.objects.filter.return_value.select_related.return_value.prefetch_related.return_value = [
         no_condition,
         _fake_assessment("a-1", "E11.9"),
     ]
@@ -361,7 +361,7 @@ def test_compute_emits_one_effect_per_billing_line_item(
         {"command_type": "perform", "data": {"cpt_code": "99213", "linked_icd10_codes": ["E11.9"]}},
     ])
     mock_summary_cls.objects.filter.return_value.first.return_value = summary
-    mock_assessment_cls.objects.filter.return_value.select_related.return_value = [
+    mock_assessment_cls.objects.filter.return_value.select_related.return_value.prefetch_related.return_value = [
         _fake_assessment("a-1", "E11.9"),
     ]
     mock_bli_cls.objects.filter.return_value.values_list.return_value = ["bli-1", "bli-2"]
@@ -400,7 +400,7 @@ def test_compute_dedupes_links_across_multiple_perform_entries_for_same_cpt(
         {"command_type": "perform", "data": {"cpt_code": "99213", "linked_icd10_codes": ["E11.9", "I10"]}},
     ])
     mock_summary_cls.objects.filter.return_value.first.return_value = summary
-    mock_assessment_cls.objects.filter.return_value.select_related.return_value = [
+    mock_assessment_cls.objects.filter.return_value.select_related.return_value.prefetch_related.return_value = [
         _fake_assessment("a-1", "E11.9"),
         _fake_assessment("a-2", "I10"),
     ]
@@ -439,7 +439,7 @@ def test_compute_first_assessment_wins_on_icd_collision(
         {"command_type": "perform", "data": {"cpt_code": "99213", "linked_icd10_codes": ["E11.9"]}},
     ])
     mock_summary_cls.objects.filter.return_value.first.return_value = summary
-    mock_assessment_cls.objects.filter.return_value.select_related.return_value = [
+    mock_assessment_cls.objects.filter.return_value.select_related.return_value.prefetch_related.return_value = [
         _fake_assessment("a-first", "E11.9"),
         _fake_assessment("a-second", "E11.9"),
     ]

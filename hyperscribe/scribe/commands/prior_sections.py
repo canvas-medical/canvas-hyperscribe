@@ -73,7 +73,10 @@ def get_prior_section_data(note_id: str) -> dict[str, Any]:
         log.info("prior_sections: no note_id supplied")
         return empty
     try:
-        note = Note.objects.get(id=note_id)
+        # Only the three fields we actually use downstream (id, patient_id,
+        # provider_id). Avoids materializing the full Note row for what is
+        # effectively a primary-key lookup feeding two scalar FK comparisons.
+        note = Note.objects.only("id", "patient_id", "provider_id").get(id=note_id)
     except Exception:
         log.exception("prior_sections: failed to load current note %s", note_id)
         return empty

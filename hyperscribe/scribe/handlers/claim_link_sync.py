@@ -96,8 +96,14 @@ class ClaimLinkSync(BaseHandler):
         # Each Assessment hangs off a Condition whose `codings` carry the
         # ICD-10 code. System strings vary across Canvas internals so we
         # match purely on normalized code rather than filtering by system.
+        # `prefetch_related("condition__codings")` collapses the per-assessment
+        # codings lookup (would be N+1) into a single batched query.
         icd_to_assessment: dict[str, str] = {}
-        assessments = Assessment.objects.filter(note_id=note.dbid).select_related("condition")
+        assessments = (
+            Assessment.objects.filter(note_id=note.dbid)
+            .select_related("condition")
+            .prefetch_related("condition__codings")
+        )
         for assess in assessments:
             cond = assess.condition
             if not cond:
