@@ -88,10 +88,6 @@ def get_prior_section_data(note_id: str) -> dict[str, Any]:
         return empty
 
     now = datetime.now(timezone.utc)
-    log.info(
-        "prior_sections: lookup patient=%s provider=%s excluding note=%s states=%s",
-        note.patient_id, note.provider_id, note_id, _FINALIZED_STATES,
-    )
 
     try:
         base = (
@@ -105,37 +101,20 @@ def get_prior_section_data(note_id: str) -> dict[str, Any]:
             .exclude(note_id=note.id)
             .select_related("note")
         )
-        # Diagnostic count — separate from .first() so we can see how many
-        # candidate commands existed before we picked the most-recent one.
-        candidate_count = base.count()
         pe_cmd = base.filter(schema_key=_PE_KEY).order_by("-note__datetime_of_service").first()
         ros_cmd = base.filter(schema_key=_ROS_KEY).order_by("-note__datetime_of_service").first()
     except Exception:
         log.exception("prior_sections: query failed for note %s", note_id)
         return empty
 
-    log.info(
-        "prior_sections: candidates=%s pe_found=%s ros_found=%s",
-        candidate_count,
-        bool(pe_cmd),
-        bool(ros_cmd),
-    )
-
     try:
-        result = {
+        return {
             "physical_exam": _command_to_payload(pe_cmd),
             "review_of_systems": _command_to_payload(ros_cmd),
         }
     except Exception:
         log.exception("prior_sections: payload build failed for note %s", note_id)
         return empty
-
-    log.info(
-        "prior_sections: returning pe=%s ros=%s",
-        "payload" if result["physical_exam"] else "None",
-        "payload" if result["review_of_systems"] else "None",
-    )
-    return result
 
 
 def _command_to_payload(cmd: Command | None) -> dict[str, Any] | None:
@@ -146,43 +125,26 @@ def _command_to_payload(cmd: Command | None) -> dict[str, Any] | None:
     is_dict = isinstance(raw, dict)
     data: dict[str, Any] = raw if is_dict else {}
 
-    # Diagnostic: where does the HTML actually live? Log the keys we see and
-    # try a few likely fields. Older Hyperscribe versions used different
-    # template markup; this also covers print_content as a fallback.
-    keys = list(data.keys()) if is_dict else type(raw).__name__
-    log.info(
-        "prior_sections: cmd %s schema=%s data_type=%s keys=%s",
-        cmd.id, cmd.schema_key, type(raw).__name__, keys,
-    )
-
+    # Try the candidate HTML-bearing fields in order. `content` is the modern
+    # CustomCommand layout; the others are fallbacks for older Hyperscribe
+    # markup. Each value is base64-decoded if it parses as base64; otherwise
+    # treated as already-decoded HTML.
     candidates: list[str] = []
     if is_dict:
         for key in ("content", "print_content", "html", "body"):
             value = data.get(key)
             if isinstance(value, str) and value:
-                decoded = _maybe_b64decode(value)
-                candidates.append(decoded)
-                log.info(
-                    "prior_sections: cmd %s key=%s raw_len=%d decoded_len=%d sample=%r",
-                    cmd.id, key, len(value), len(decoded), decoded[:200],
-                )
+                candidates.append(_maybe_b64decode(value))
     elif isinstance(raw, str):
-        decoded = _maybe_b64decode(raw)
-        candidates.append(decoded)
-        log.info(
-            "prior_sections: cmd %s data is raw string raw_len=%d decoded_len=%d sample=%r",
-            cmd.id, len(raw), len(decoded), decoded[:200],
-        )
+        candidates.append(_maybe_b64decode(raw))
 
     sections: list[dict[str, str]] = []
     for html in candidates:
         sections = parse_ros_pe_html(html)
         if sections:
-            log.info("prior_sections: cmd %s parsed %d sections", cmd.id, len(sections))
             break
 
     if not sections:
-        log.info("prior_sections: cmd %s no sections parseable from %d candidate field(s)", cmd.id, len(candidates))
         return None
     note = cmd.note
     return {

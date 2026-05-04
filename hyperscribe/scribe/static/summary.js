@@ -194,7 +194,7 @@ function isInsertableCommand(c) {
   return true;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, priorSections, onEditingChange, onReorderCommand, onToggleCptLink, rankedDiagnoses } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, priorSections, onEditingChange, onReorderCommand, onToggleCptLink, rankedDiagnoses } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -224,7 +224,6 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddResolveCondition=${isPlan ? onAddResolveCondition : null}
         onAddHistory=${isHistory ? onAddHistory : null}
         onAddQuestionnaire=${isSubjective ? onAddQuestionnaire : null}
-        onAddCharge=${isCharges ? onAddCharge : null}
         onAddTemplateCharge=${isCharges ? onAddTemplateCharge : null}
         onRemoveChargeByCpt=${isCharges ? onRemoveChargeByCpt : null}
         templateCharges=${isCharges ? templateCharges : null}
@@ -1161,19 +1160,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }]);
   }, [canEdit]);
 
-  const handleAddCharge = useCallback(() => {
-    logEvent('ADD_CHARGE');
-    if (!canEdit) return;
-    setCommands(prev => [...prev, {
-      command_type: 'perform',
-      display: '',
-      data: { cpt_code: null, description: '', notes: '' },
-      selected: true,
-      section_key: '_charges_ad_hoc',
-      already_documented: false,
-    }]);
-  }, [canEdit]);
-
   const handleAddTemplateCharge = useCallback((cptCode, description) => {
     logEvent('ADD_TEMPLATE_CHARGE', { cptCode, description });
     if (!canEdit) return;
@@ -1889,7 +1875,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddResolveCondition: canEdit ? handleAddResolveCondition : null,
           onAddHistory: canEdit ? handleAddHistory : null,
           onAddQuestionnaire: canEdit ? handleAddQuestionnaire : null,
-          onAddCharge: canEdit ? handleAddCharge : null,
           onAddTemplateCharge: canEdit ? handleAddTemplateCharge : null,
           onRemoveChargeByCpt: canEdit ? handleRemoveChargeByCpt : null,
           templateCharges: selectedTemplate ? (selectedTemplate.charges || []) : [],
