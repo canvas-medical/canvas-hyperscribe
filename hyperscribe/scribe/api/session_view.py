@@ -1207,8 +1207,15 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         attempted: list[dict[str, Any]] = data.get("attempted", [])
         if not note_uuid or not attempted:
             return [JSONResponse({"verified": [], "failed": []}, status_code=HTTPStatus.OK)]
+        # Note-author authorization, matching /insert-commands and
+        # /insert-metadata. Without this, any authenticated staff session
+        # could probe whether arbitrary command UUIDs exist on any note.
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
 
-        uuids = [a["command_uuid"] for a in attempted]
+        # Skip malformed entries (missing or falsy command_uuid) so a bad
+        # client payload doesn't 500 the request.
+        uuids = [a["command_uuid"] for a in attempted if a.get("command_uuid")]
         cmd_rows = {
             str(row["id"]): row
             for row in Command.objects.filter(
@@ -1219,7 +1226,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         verified: list[dict[str, Any]] = []
         failed: list[dict[str, Any]] = []
         for a in attempted:
-            row = cmd_rows.get(a["command_uuid"])
+            uuid = a.get("command_uuid")
+            row = cmd_rows.get(uuid) if uuid else None
             if row and row["anchor_object_dbid"]:
                 verified.append(a)
             else:

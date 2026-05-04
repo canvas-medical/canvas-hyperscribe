@@ -846,6 +846,130 @@ def test_insert_metadata_invalid_json() -> None:
     assert "Invalid JSON" in json.loads(result[0].content)["error"]
 
 
+# --- /verify-commands ---
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_verify_commands_all_anchored(mock_command_cls: MagicMock, _audit: MagicMock) -> None:
+    """Every attempted UUID resolves to a Command with anchor_object_dbid → all verified."""
+    mock_command_cls.objects.filter.return_value.values.return_value = [
+        {"id": "uuid-1", "anchor_object_type": "Condition", "anchor_object_dbid": 100},
+        {"id": "uuid-2", "anchor_object_type": "Medication", "anchor_object_dbid": 200},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-key-abc"},
+        body=json.dumps({
+            "note_uuid": "note-uuid",
+            "attempted": [
+                {"command_uuid": "uuid-1", "command_type": "diagnose", "display": "X"},
+                {"command_uuid": "uuid-2", "command_type": "medication_statement", "display": "Y"},
+            ],
+        }),
+    )
+    result = view.post_verify_commands()
+    payload = json.loads(result[0].content)
+    assert len(payload["verified"]) == 2
+    assert payload["failed"] == []
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_verify_commands_separates_anchor_and_not_found(
+    mock_command_cls: MagicMock, _audit: MagicMock,
+) -> None:
+    """Mix of: anchored (verified), no anchor (failed/no_anchor), and not in DB (failed/not_found)."""
+    mock_command_cls.objects.filter.return_value.values.return_value = [
+        {"id": "uuid-1", "anchor_object_type": "Condition", "anchor_object_dbid": 100},
+        {"id": "uuid-2", "anchor_object_type": "Medication", "anchor_object_dbid": None},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-key-abc"},
+        body=json.dumps({
+            "note_uuid": "note-uuid",
+            "attempted": [
+                {"command_uuid": "uuid-1", "command_type": "x", "display": "a"},
+                {"command_uuid": "uuid-2", "command_type": "y", "display": "b"},
+                {"command_uuid": "uuid-3", "command_type": "z", "display": "c"},
+            ],
+        }),
+    )
+    result = view.post_verify_commands()
+    payload = json.loads(result[0].content)
+    assert [v["command_uuid"] for v in payload["verified"]] == ["uuid-1"]
+    failed_by_uuid = {f["command_uuid"]: f["reason"] for f in payload["failed"]}
+    assert failed_by_uuid == {"uuid-2": "no_anchor", "uuid-3": "not_found"}
+
+
+def test_verify_commands_missing_note_uuid_returns_empty() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"attempted": [{"command_uuid": "x"}]}))
+    result = view.post_verify_commands()
+    assert json.loads(result[0].content) == {"verified": [], "failed": []}
+
+
+def test_verify_commands_empty_attempted_returns_empty() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid", "attempted": []}))
+    result = view.post_verify_commands()
+    assert json.loads(result[0].content) == {"verified": [], "failed": []}
+
+
+def test_verify_commands_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_verify_commands()
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.no_authorize_bypass
+@patch("hyperscribe.scribe.api.session_view.Helper")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_verify_commands_denies_non_author(mock_note: MagicMock, mock_helper: MagicMock) -> None:
+    """A staff session that isn't the note's author gets a 403 — the new
+    note-author authorization gate, matching /insert-commands behavior."""
+    mock_note.objects.values.return_value.get.return_value = {"dbid": 1, "provider__id": "other-staff"}
+    mock_helper.editable_note.return_value = True
+    view = _helper_instance(staff_id="not-the-author")
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "not-the-author"},
+        body=json.dumps({
+            "note_uuid": "note-uuid",
+            "attempted": [{"command_uuid": "uuid-1", "command_type": "x", "display": "a"}],
+        }),
+    )
+    result = view.post_verify_commands()
+    assert result[0].status_code == HTTPStatus.FORBIDDEN
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_verify_commands_skips_malformed_entries_without_command_uuid(
+    mock_command_cls: MagicMock, _audit: MagicMock,
+) -> None:
+    """Entries missing a command_uuid don't 500 — they're skipped (treated as
+    not-found in the per-attempted loop)."""
+    mock_command_cls.objects.filter.return_value.values.return_value = [
+        {"id": "uuid-1", "anchor_object_type": "Condition", "anchor_object_dbid": 100},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-key-abc"},
+        body=json.dumps({
+            "note_uuid": "note-uuid",
+            "attempted": [
+                {"command_uuid": "uuid-1", "command_type": "x", "display": "a"},
+                {"command_type": "y", "display": "b"},  # malformed: no command_uuid
+                {"command_uuid": "", "command_type": "z", "display": "c"},  # empty falsy
+            ],
+        }),
+    )
+    result = view.post_verify_commands()
+    assert result[0].status_code == HTTPStatus.OK
+
+
 # --- sign-note ---
 
 
