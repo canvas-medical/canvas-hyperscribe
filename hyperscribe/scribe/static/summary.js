@@ -146,7 +146,26 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, priorSections, onEditingChange } = {}) {
+// Derives the ordered list of claim-eligible diagnoses for the Charges matrix.
+// Rank is the position in the filtered list — never persisted as a field.
+// Reordering = swapping array positions in commands[].
+function buildRankedDiagnoses(commands) {
+  const ranked = [];
+  commands.forEach((cmd, index) => {
+    if (cmd.command_type !== 'diagnose') return;
+    if (cmd.data?.rejected) return;
+    if (!cmd.data?.accepted) return;
+    if (!cmd.data?.icd10_code) return;
+    ranked.push({
+      index,
+      icd10_code: String(cmd.data.icd10_code),
+      icd10_display: cmd.data.icd10_display || cmd.display || '',
+    });
+  });
+  return ranked.map((entry, i) => ({ ...entry, number: i + 1 }));
+}
+
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, priorSections, onEditingChange, onReorderCommand, onToggleCptLink, rankedDiagnoses } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -199,6 +218,9 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         alertFacilityEnabled=${alertFacilityEnabled}
         priorSections=${(isObjective || isSubjective) ? priorSections : null}
         onEditingChange=${onEditingChange}
+        onReorderCommand=${(isPlan || isCharges) ? onReorderCommand : null}
+        onToggleCptLink=${isCharges ? onToggleCptLink : null}
+        rankedDiagnoses=${(isPlan || isCharges) ? rankedDiagnoses : null}
       />`;
     })
     .filter(Boolean);
@@ -735,6 +757,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     logEvent('EDIT_COMMAND', { index, commandType: newType || commands[index]?.command_type, sectionKey: commands[index]?.section_key, data: newData });
     if (!canEdit) return;
     setCommands(prev => {
+      // Track when a diagnose comes off the claim (accepted->unaccepted or
+      // non-rejected->rejected) so we can auto-prune the orphaned ICD code
+      // from every CPT's linked_icd10_codes list. Otherwise CPTs end up
+      // referencing diagnoses that won't be on the claim.
+      let icdToPrune = null;
+      const before = prev[index];
+      const beforeIsDx = before?.command_type === 'diagnose';
+      const wasAccepted = beforeIsDx && before?.data?.accepted === true;
+      const wasRejected = beforeIsDx && before?.data?.rejected === true;
       const updated = prev.map((cmd, i) => {
         if (i !== index) return cmd;
         const type = newType || cmd.command_type;
@@ -835,6 +866,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           const display = newData.icd10_display || newData.condition_header || cmd.display;
           const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
           const rejected = newData.rejected || false;
+          const cameOffClaim = (wasAccepted && !accepted) || (!wasRejected && rejected);
+          if (cameOffClaim && newData.icd10_code) {
+            icdToPrune = String(newData.icd10_code);
+          }
           return { ...cmd, command_type: type, data: { ...newData, accepted, rejected }, display };
         }
         if (type === 'assess') {
@@ -844,8 +879,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         const text = newData[field] || '';
         return { ...cmd, data: newData, display: text };
       });
-      saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
-      return updated;
+      const pruned = icdToPrune
+        ? updated.map(cmd => {
+            if (cmd.command_type !== 'perform') return cmd;
+            const links = cmd.data?.linked_icd10_codes;
+            if (!Array.isArray(links) || !links.includes(icdToPrune)) return cmd;
+            return {
+              ...cmd,
+              data: { ...cmd.data, linked_icd10_codes: links.filter(c => c !== icdToPrune) },
+            };
+          })
+        : updated;
+      saveSummaryToCache(noteData, pruned, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
+      return pruned;
     });
   }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
@@ -854,6 +900,48 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (!canEdit) return;
     setCommands(prev => {
       const updated = prev.filter((_, i) => i !== index);
+      saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
+      return updated;
+    });
+  }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+
+  // Reorder commands by absolute index. Splice-out + splice-in works regardless
+  // of direction because splice operates on the modified array; non-diagnose
+  // commands interleaved between diagnoses are preserved in their relative
+  // positions.
+  const handleReorderCommand = useCallback((fromIndex, toIndex) => {
+    if (!canEdit) return;
+    if (fromIndex === toIndex) return;
+    setCommands(prev => {
+      if (fromIndex < 0 || toIndex < 0 || fromIndex >= prev.length || toIndex >= prev.length) return prev;
+      const updated = [...prev];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
+      return updated;
+    });
+  }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+
+  // Toggle a CPT->ICD link. Stores ICD code strings (not positions) so
+  // reordering diagnoses can't corrupt linkage. Hard cap at 4 enforced here
+  // — the picker also disables unchecked cells when the column is at cap so
+  // the user can't reach this branch via the UI, but the guard is the
+  // source of truth.
+  const handleToggleCptLink = useCallback((cptIndex, icdCode) => {
+    if (!canEdit || !icdCode) return;
+    setCommands(prev => {
+      const cmd = prev[cptIndex];
+      if (!cmd || cmd.command_type !== 'perform') return prev;
+      const current = Array.isArray(cmd.data?.linked_icd10_codes) ? cmd.data.linked_icd10_codes : [];
+      let next;
+      if (current.includes(icdCode)) {
+        next = current.filter(c => c !== icdCode);
+      } else {
+        if (current.length >= 4) return prev;
+        next = [...current, icdCode];
+      }
+      const updated = [...prev];
+      updated[cptIndex] = { ...cmd, data: { ...cmd.data, linked_icd10_codes: next } };
       saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return updated;
     });
@@ -1474,6 +1562,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   ).length;
   const hasUnsavedEdits = editingFields.size > 0;
 
+  // Active perform commands (CPTs) with no diagnosis link — blocks Accept &
+  // Sign. The 4-max isn't validated here; the picker disables unchecked
+  // cells when the column is at cap.
+  const unlinkedCptCount = commands.filter(c =>
+    c.command_type === 'perform'
+    && c.data?.cpt_code
+    && c.selected !== false
+    && !c.already_documented
+    && !(Array.isArray(c.data?.linked_icd10_codes) && c.data.linked_icd10_codes.length > 0)
+  ).length;
+
+  const rankedDiagnoses = buildRankedDiagnoses(commands);
+
   // Ensure sections with ad-hoc buttons are always present even if Nabla omits them.
   const ENSURE_KEYS = new Map([
     ['vitals', { key: 'vitals', title: 'Vitals', text: '' }],
@@ -1733,6 +1834,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           alertFacilityEnabled,
           priorSections,
           onEditingChange: handleEditingChange,
+          onReorderCommand: canEdit ? handleReorderCommand : null,
+          onToggleCptLink: canEdit ? handleToggleCptLink : null,
+          rankedDiagnoses,
         })}
       </div>
       ${verificationResult && html`<${VerificationSummary} result=${verificationResult} />`}
@@ -1780,7 +1884,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
                 </div>
               `}
-              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits} onClick=${() => setConfirming(true)}>${hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign'}</button>
+              ${unlinkedCptCount > 0 && html`
+                <div class="summary-footer-warning">
+                  ${unlinkedCptCount} ${unlinkedCptCount === 1 ? 'charge is' : 'charges are'} missing a diagnosis link \u2014 every CPT must link to 1\u20134 diagnoses.
+                </div>
+              `}
+              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits || unlinkedCptCount > 0} onClick=${() => setConfirming(true)}>${hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign'}</button>
               <div class="approve-warning">This action is permanent and cannot be undone.</div>
             </div>
           `}

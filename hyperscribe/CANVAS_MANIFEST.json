@@ -172,6 +172,15 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.scribe.handlers.claim_link_sync:ClaimLinkSync",
+        "description": "On perform-command commit, writes Scribe's CPT-to-ICD picks to BillingLineItem.assessment_ids (diagnosis pointers)",
+        "data_access": {
+          "event": "PERFORM_COMMAND__POST_COMMIT",
+          "read": [],
+          "write": []
+        }
       }
     ],
     "applications": [

@@ -17,18 +17,22 @@ const html = htm.bind(h);
 const CHARGE_SEARCH_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const CHARGE_DEBOUNCE_MS = 300;
 
-function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeCpts, onEditingChange }) {
-  const data = command.data || {};
-  const hasCpt = !!data.cpt_code;
-  const [editing, setEditing] = useState(!hasCpt);
-  useEffect(() => {
-    onEditingChange?.(commandIndex, editing);
-    return () => onEditingChange?.(commandIndex, false);
-  }, [editing, commandIndex]);
+// Inline "+ Charge" cell rendered in the trailing column header of the
+// Charges matrix. Two states: idle dashed pill button, or open input +
+// dropdown. The dropdown uses position:fixed so it escapes the matrix
+// wrapper's overflow-x:auto clip; coordinates recompute on scroll
+// (capture phase, to catch ancestor scrolls including the wrapper itself)
+// and on resize.
+function AddChargeCell({ excludeCpts, onAddTemplateCharge, ctaLabel }) {
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [dropPos, setDropPos] = useState(null);
+  const cellRef = useRef(null);
+  const inputRef = useRef(null);
+  const dropdownRef = useRef(null);
   const timer = useRef(null);
 
   const doSearch = useCallback(async (q) => {
@@ -40,13 +44,50 @@ function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeC
       const json = await res.json();
       setResults(json.results || []);
     } catch (err) {
-      console.error('Charge search failed:', err);
       setResults([]);
     } finally {
       setSearching(false);
       setSearched(true);
     }
   }, [excludeCpts]);
+
+  useEffect(() => {
+    if (!open) { setDropPos(null); return; }
+    const DROP_WIDTH = 320;
+    const update = () => {
+      if (!inputRef.current) return;
+      const r = inputRef.current.getBoundingClientRect();
+      let left = r.right - DROP_WIDTH;
+      if (left < 8) left = 8;
+      if (left + DROP_WIDTH > window.innerWidth - 8) {
+        left = Math.max(8, window.innerWidth - 8 - DROP_WIDTH);
+      }
+      setDropPos({ top: Math.round(r.bottom + 4), left: Math.round(left), width: DROP_WIDTH });
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
+
+  // Outside-click must check both the cell ref AND the dropdown ref because
+  // the dropdown lives in a different DOM subtree once it's fixed-positioned.
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e) => {
+      if (cellRef.current && cellRef.current.contains(e.target)) return;
+      if (dropdownRef.current && dropdownRef.current.contains(e.target)) return;
+      setOpen(false);
+      setQuery('');
+      setResults([]);
+      setSearched(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
 
   const handleInput = (e) => {
     const val = e.target.value;
@@ -56,63 +97,56 @@ function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeC
   };
 
   const handleSelect = (r) => {
-    onEdit(commandIndex, {
-      ...data,
-      cpt_code: r.cpt_code,
-      description: r.short_name || r.full_name || '',
-      notes: data.notes || '',
-    });
+    onAddTemplateCharge && onAddTemplateCharge(r.cpt_code, r.short_name || r.full_name || '');
+    setOpen(false);
     setQuery('');
     setResults([]);
     setSearched(false);
-    setEditing(false);
   };
 
-  const handleRemove = (e) => {
-    e.stopPropagation();
-    onDelete(commandIndex);
-  };
-
-  if (!hasCpt || editing) {
+  if (!open) {
+    const tip = ctaLabel || 'Add charge';
     return html`
-      <div class="charge-row">
-        <div class="history-form-field" style="position: relative;">
-          <input
-            type="text"
-            class="history-form-input"
-            value=${query}
-            onInput=${handleInput}
-            placeholder="Search CPT code or description..."
-            autoFocus
-          />
-          ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
-          ${results.length > 0 && html`
-            <div class="history-search-dropdown">
-              ${results.map(r => html`
-                <div
-                  key=${r.cpt_code}
-                  class="history-search-result"
-                  onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
-                >
-                  <strong>${r.cpt_code}</strong>${' '}${r.short_name || r.full_name}
-                </div>
-              `)}
-            </div>
-          `}
-          ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-            <div class="history-search-dropdown">
-              <div class="history-search-result search-no-results">No charges found</div>
-            </div>
-          `}
-        </div>
+      <div class="cm-add-col-search${ctaLabel ? ' cm-add-col-search--cta' : ''}" ref=${cellRef}>
+        <button
+          type="button"
+          class="cm-add-col-btn"
+          onClick=${() => setOpen(true)}
+          title=${tip}
+          aria-label=${tip}
+        ></button>
+        ${ctaLabel && html`<span class="cm-add-col-cta-label">${ctaLabel}</span>`}
       </div>
     `;
   }
-
   return html`
-    <div class="charge-view" onClick=${() => !readOnly && setEditing(true)}>
-      <span class="charge-view-code">${data.cpt_code}</span>
-      <span class="charge-view-desc">${data.description || ''}</span>
+    <div class="cm-add-col-search cm-add-col-search--open" ref=${cellRef}>
+      <input
+        ref=${inputRef}
+        type="text"
+        class="cm-add-col-input"
+        autoFocus
+        value=${query}
+        onInput=${handleInput}
+        placeholder="CPT code or description"
+        onKeyDown=${(e) => { if (e.key === 'Escape') { setOpen(false); setQuery(''); setResults([]); setSearched(false); } }}
+      />
+      ${dropPos && results.length > 0 && html`
+        <div ref=${dropdownRef} class="cm-add-col-dropdown" style=${`top:${dropPos.top}px;left:${dropPos.left}px;width:${dropPos.width}px;`}>
+          ${results.map(r => html`
+            <div
+              key=${r.cpt_code}
+              class="cm-add-col-result"
+              onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
+            ><strong>${r.cpt_code}</strong> ${r.short_name || r.full_name}</div>
+          `)}
+        </div>
+      `}
+      ${dropPos && !searching && searched && results.length === 0 && query.length >= 2 && html`
+        <div ref=${dropdownRef} class="cm-add-col-dropdown" style=${`top:${dropPos.top}px;left:${dropPos.left}px;width:${dropPos.width}px;`}>
+          <div class="cm-add-col-result cm-add-col-empty">No charges found</div>
+        </div>
+      `}
     </div>
   `;
 }
@@ -593,7 +627,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, priorSections, onEditingChange }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, priorSections, onEditingChange, onReorderCommand, onToggleCptLink, rankedDiagnoses }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   // In approved (readOnly) mode, only show items that actually made it into the note.
@@ -1337,96 +1371,235 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             </div>
           `;
         })()}
-        ${(() => {
-          // Build unified checklist: template charges + manually added charges.
-          // A charge is "selected" if its command exists AND has selected=true.
-          const chargeCommands = visibleAdHoc
-            .filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code);
-          const selectedCpts = new Set(
-            chargeCommands.filter(e => e.command.selected !== false).map(e => e.command.data.cpt_code)
-          );
+        ${title === 'CHARGES' && (() => {
+          // Charges matrix — diagnoses on rows, CPTs on columns, checkbox
+          // link cells, drag-reorderable on both axes.
+          //
+          // Rank is the position of an accepted diagnose command within
+          // commands[]; the 1-based number is derived at render time, never
+          // persisted. CPT->ICD links are stored as ICD code strings on
+          // perform.data.linked_icd10_codes so reordering can't corrupt
+          // linkage. Min 1 / max 4 enforced in the picker.
 
-          // Template charges (checked if selected command exists).
-          const templateItems = (templateCharges || []).map(c => ({
-            cpt_code: c.cpt_code,
-            description: c.description,
-            isAdded: selectedCpts.has(c.cpt_code),
+          const rankList = rankedDiagnoses || [];
+
+          const chargeCommands = visibleAdHoc
+            .filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code && e.command.selected !== false);
+          const activeCpts = chargeCommands.map(e => ({
+            index: e.index,
+            cpt_code: e.command.data.cpt_code,
+            description: e.command.data.description || '',
+            linked: Array.isArray(e.command.data.linked_icd10_codes) ? e.command.data.linked_icd10_codes : [],
+          }));
+          const activeCptSet = new Set(activeCpts.map(c => c.cpt_code));
+
+          // Template pills above the matrix — toggle each defined CPT on/off
+          // as a column. Suppressed in read-only.
+          const templatePills = (templateCharges || []).map(t => ({
+            cpt_code: t.cpt_code,
+            description: t.description,
+            active: activeCptSet.has(t.cpt_code),
           }));
 
-          // Manually added charges not in the template list (show even if deselected).
-          const templateCpts = new Set((templateCharges || []).map(c => c.cpt_code));
-          const adHocItems = chargeCommands
-            .filter(e => !templateCpts.has(e.command.data.cpt_code))
-            .map(e => ({
-              cpt_code: e.command.data.cpt_code,
-              description: e.command.data.description || '',
-              isAdded: e.command.selected !== false,
-            }));
+          // Translate "type rank N into the row currently at rank M" → a
+          // splice from absolute index of rank-M to absolute index of rank-N.
+          // splice-out + splice-in preserves non-diagnose commands interleaved
+          // between diagnoses.
+          const commitRank = (fromRank, toRank) => {
+            if (!onReorderCommand) return;
+            if (fromRank === toRank) return;
+            if (toRank < 1 || toRank > rankList.length) return;
+            const fromEntry = rankList[fromRank - 1];
+            const toEntry = rankList[toRank - 1];
+            if (!fromEntry || !toEntry) return;
+            onReorderCommand(fromEntry.index, toEntry.index);
+          };
 
-          const allItems = [...templateItems, ...adHocItems];
-          const visibleCharges = readOnly ? allItems.filter(c => c.isAdded) : allItems;
-          if (visibleCharges.length === 0) return null;
+          // Two MIME types so a dx-drag never drops onto a CPT row, and vice
+          // versa. dataTransfer carries the absolute commands[] index of the
+          // dragged row/column — no useRef needed (which wouldn't work
+          // correctly inside this IIFE anyway).
+          const DX_MIME = 'application/x-scribe-reorder-dx';
+          const CPT_MIME = 'application/x-scribe-reorder-cpt';
+
+          const makeDragStart = (kind, fromIndex) => (e) => {
+            // Suppress drag from clicks on interactive children — clicking
+            // a rank input or × button shouldn't start a drag.
+            if (e.target.closest && e.target.closest('input, button, select, textarea')) {
+              e.preventDefault();
+              return;
+            }
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData(kind === 'dx' ? DX_MIME : CPT_MIME, String(fromIndex));
+            e.currentTarget.classList.add('cm-dragging');
+          };
+          const makeDragEnd = (e) => {
+            e.currentTarget.classList.remove('cm-dragging');
+            // Clear any lingering .cm-drag-over across the matrix in case a
+            // drop target re-rendered mid-drag.
+            const matrix = e.currentTarget.closest('.charge-matrix');
+            if (matrix) {
+              matrix.querySelectorAll('.cm-drag-over').forEach(el => el.classList.remove('cm-drag-over'));
+            }
+          };
+          const makeDragOver = (kind) => (e) => {
+            const mime = kind === 'dx' ? DX_MIME : CPT_MIME;
+            if (!e.dataTransfer.types || !Array.from(e.dataTransfer.types).includes(mime)) return;
+            e.preventDefault();
+            e.currentTarget.classList.add('cm-drag-over');
+          };
+          const makeDragLeave = (e) => {
+            e.currentTarget.classList.remove('cm-drag-over');
+          };
+          const makeDrop = (kind, toIndex) => (e) => {
+            const mime = kind === 'dx' ? DX_MIME : CPT_MIME;
+            if (!e.dataTransfer.types || !Array.from(e.dataTransfer.types).includes(mime)) return;
+            e.preventDefault();
+            e.currentTarget.classList.remove('cm-drag-over');
+            const fromStr = e.dataTransfer.getData(mime);
+            const fromIndex = parseInt(fromStr, 10);
+            if (!Number.isFinite(fromIndex) || fromIndex === toIndex) return;
+            onReorderCommand && onReorderCommand(fromIndex, toIndex);
+          };
+
+          const showAddCell = !readOnly && !!onAddTemplateCharge;
+          const showTemplatePills = !readOnly && templatePills.length > 0;
+          const totalCols = 1 + activeCpts.length + (showAddCell ? 1 : 0);
+
+          // Empty state: no diagnoses AND no CPTs. Show only the trigger UI.
+          if (rankList.length === 0 && activeCpts.length === 0) {
+            return html`
+              <div class="charge-matrix-wrapper">
+                ${showTemplatePills && html`
+                  <div class="charge-template-pills">
+                    ${templatePills.map(p => html`
+                      <button type="button" key=${p.cpt_code} class="charge-pill${p.active ? ' charge-pill--active' : ''}" onClick=${() => p.active ? (onRemoveChargeByCpt && onRemoveChargeByCpt(p.cpt_code)) : (onAddTemplateCharge && onAddTemplateCharge(p.cpt_code, p.description))}>
+                        <span class="charge-pill-code">${p.cpt_code}</span>
+                        <span class="charge-pill-desc">${p.description}</span>
+                      </button>
+                    `)}
+                  </div>
+                `}
+                <div class="cm-empty cm-empty--standalone">Add a diagnosis to the Plan and a charge to begin linking.</div>
+                ${showAddCell && html`<div class="cm-empty-add"><${AddChargeCell} excludeCpts=${activeCptSet} onAddTemplateCharge=${onAddTemplateCharge} /></div>`}
+              </div>
+            `;
+          }
 
           return html`
-            <div class="charge-checklist">
-              ${visibleCharges.map(c => html`
-                <label
-                  key=${c.cpt_code}
-                  class="charge-check-item${c.isAdded ? ' checked' : ''}${readOnly ? ' read-only' : ''}"
-                >
-                  <input
-                    type="checkbox"
-                    checked=${c.isAdded}
-                    disabled=${readOnly}
-                    onChange=${() => {
-                      if (c.isAdded) {
-                        onRemoveChargeByCpt && onRemoveChargeByCpt(c.cpt_code);
-                      } else {
-                        onAddTemplateCharge && onAddTemplateCharge(c.cpt_code, c.description);
-                      }
-                    }}
-                  />
-                  <span class="charge-check-code">${c.cpt_code}</span>
-                  <span class="charge-check-desc">${c.description}</span>
-                </label>
-              `)}
+            <div class="charge-matrix-wrapper">
+              ${showTemplatePills && html`
+                <div class="charge-template-pills">
+                  ${templatePills.map(p => html`
+                    <button type="button" key=${p.cpt_code} class="charge-pill${p.active ? ' charge-pill--active' : ''}" onClick=${() => p.active ? (onRemoveChargeByCpt && onRemoveChargeByCpt(p.cpt_code)) : (onAddTemplateCharge && onAddTemplateCharge(p.cpt_code, p.description))}>
+                      <span class="charge-pill-code">${p.cpt_code}</span>
+                      <span class="charge-pill-desc">${p.description}</span>
+                    </button>
+                  `)}
+                </div>
+              `}
+              <table class="charge-matrix">
+                <thead>
+                  <tr>
+                    <th class="cm-corner" aria-hidden="true"></th>
+                    ${activeCpts.map(c => html`
+                      <th
+                        key=${c.cpt_code}
+                        class="cm-cpt-col-head cm-draggable"
+                        draggable=${!readOnly}
+                        onDragStart=${makeDragStart('cpt', c.index)}
+                        onDragEnd=${makeDragEnd}
+                        onDragOver=${makeDragOver('cpt')}
+                        onDragLeave=${makeDragLeave}
+                        onDrop=${makeDrop('cpt', c.index)}
+                      >
+                        <span class="cm-cpt-code">${c.cpt_code}</span>
+                        <span class="cm-cpt-desc">${c.description}</span>
+                        ${!readOnly && html`<button type="button" class="cm-cpt-remove" title="Remove charge" aria-label="Remove charge" onClick=${(e) => { e.stopPropagation(); onRemoveChargeByCpt && onRemoveChargeByCpt(c.cpt_code); }}>×</button>`}
+                      </th>
+                    `)}
+                    ${showAddCell && html`<th class="cm-add-col-head${activeCpts.length === 0 ? ' cm-add-col-head--cta' : ' cm-add-col-head--separated'}"><${AddChargeCell} excludeCpts=${activeCptSet} onAddTemplateCharge=${onAddTemplateCharge} ctaLabel=${activeCpts.length === 0 ? 'Add a charge to begin linking' : null} /></th>`}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rankList.length === 0 && activeCpts.length > 0 && html`
+                    <tr><td class="cm-empty" colspan=${totalCols}>Add a diagnosis to the Plan to begin linking.</td></tr>
+                  `}
+                  ${rankList.map(r => html`
+                    <tr key=${r.index}>
+                      <th
+                        scope="row"
+                        class="cm-dx-row-head cm-draggable"
+                        draggable=${!readOnly}
+                        onDragStart=${makeDragStart('dx', r.index)}
+                        onDragEnd=${makeDragEnd}
+                        onDragOver=${makeDragOver('dx')}
+                        onDragLeave=${makeDragLeave}
+                        onDrop=${makeDrop('dx', r.index)}
+                      >
+                        <span class="cm-dx-row-inner">
+                          ${readOnly
+                            ? html`<span class="cm-rank-pill">${r.number}</span>`
+                            : html`<input
+                                type="number"
+                                class="diagnose-rank-input"
+                                min="1"
+                                max=${rankList.length}
+                                defaultValue=${r.number}
+                                key=${`rank-${r.index}-${r.number}-${rankList.length}`}
+                                aria-label="Diagnosis rank"
+                                onBlur=${(e) => {
+                                  const v = parseInt(e.target.value, 10);
+                                  if (!Number.isFinite(v)) { e.target.value = String(r.number); return; }
+                                  const clamped = Math.max(1, Math.min(rankList.length, v));
+                                  if (clamped !== r.number) commitRank(r.number, clamped);
+                                }}
+                                onKeyDown=${(e) => {
+                                  if (e.key === 'Enter') e.target.blur();
+                                  else if (e.key === 'Escape') { e.target.value = String(r.number); e.target.blur(); }
+                                }}
+                              />`}
+                          <span class="cm-icd-code">${r.icd10_code}</span>
+                          <span class="cm-icd-desc">${r.icd10_display}</span>
+                        </span>
+                      </th>
+                      ${activeCpts.map(c => {
+                        const linked = c.linked.includes(r.icd10_code);
+                        const colAtCap = !linked && c.linked.length >= 4;
+                        return html`<td key=${c.cpt_code} class="cm-link-cell${linked ? ' cm-link-cell--on' : ''}">
+                          <input
+                            type="checkbox"
+                            checked=${linked}
+                            disabled=${readOnly || colAtCap}
+                            title=${colAtCap ? 'Max 4 diagnoses per CPT' : ''}
+                            aria-label=${`Link ${r.icd10_code} to ${c.cpt_code}`}
+                            onChange=${() => onToggleCptLink && onToggleCptLink(c.index, r.icd10_code)}
+                          />
+                        </td>`;
+                      })}
+                      ${showAddCell && html`<td class="cm-add-col-pad${activeCpts.length > 0 ? ' cm-add-col-pad--separated' : ''}" />`}
+                    </tr>
+                  `)}
+                </tbody>
+                ${activeCpts.length > 0 && html`
+                  <tfoot>
+                    <tr>
+                      <td class="cm-status-label" aria-hidden="true"></td>
+                      ${activeCpts.map(c => {
+                        const n = c.linked.length;
+                        const ok = n >= 1 && n <= 4;
+                        return html`<td key=${c.cpt_code} class="cm-status-footer-cell">
+                          <span class="cm-status-pill${ok ? ' cm-status-pill--ok' : ' cm-status-pill--warn'}">${n} / 4${ok ? ' ✓' : ''}</span>
+                        </td>`;
+                      })}
+                      ${showAddCell && html`<td class="cm-add-col-pad${activeCpts.length > 0 ? ' cm-add-col-pad--separated' : ''}" />`}
+                    </tr>
+                  </tfoot>
+                `}
+              </table>
             </div>
           `;
         })()}
-        ${(() => {
-          // Render search inputs for charges being added (no cpt_code yet).
-          // In readOnly mode, pending charges (no CPT) were never inserted — skip them.
-          if (readOnly) return null;
-          const pending = visibleAdHoc.filter(
-            e => e.command.command_type === 'perform' && !e.command.data.cpt_code
-          );
-          if (pending.length === 0) return null;
-          const allChecklistCpts = new Set([
-            ...(templateCharges || []).map(c => c.cpt_code),
-            ...visibleAdHoc.filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code).map(e => e.command.data.cpt_code),
-          ]);
-          return pending.map(entry => html`
-            <div class="content-block recommendation-block rec-charge" key=${entry.index}>
-              <div class="recommendation-content">
-                <${ChargeRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
-                  excludeCpts=${allChecklistCpts}
-                  onEditingChange=${onEditingChange}
-                />
-              </div>
-              ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
-            </div>
-          `);
-        })()}
-        ${onAddCharge && !readOnly && html`
-          <div class="ad-hoc-buttons">
-            <button type="button" class="ad-hoc-btn" onClick=${onAddCharge}>+ Charge</button>
-          </div>
-        `}
         ${(() => {
           // Render Rx recommendations in the PLAN group (raw prescription text is suppressed above).
           if (title !== 'ASSESSMENT & PLAN') return null;

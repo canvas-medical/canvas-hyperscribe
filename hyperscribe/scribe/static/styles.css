@@ -1719,3 +1719,462 @@ h2 { margin-bottom: 4px; }
     margin-top: 4px; padding-left: 12px; border-left: 2px solid #e5e7eb;
 }
 .rec-hint { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Charges matrix — diagnoses on rows, CPTs on columns, checkbox link cells.
+   Aesthetic: refined clinical archive. Hairline rules, generous spacing,
+   tabular monospace figures, navy as the only accent, hover-revealed
+   secondary controls. Lives in its own card surface so it reads as a
+   distinct "billing instrument" within the SOAP layout.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.charge-matrix-wrapper {
+  --cm-ink: #0b1f33;
+  --cm-ink-soft: #4b5563;
+  --cm-ink-muted: #6b7280;
+  --cm-ink-faint: #9ca3af;
+  --cm-rule: #eef0f3;
+  --cm-rule-strong: #e2e6ea;
+  --cm-surface: #ffffff;
+  --cm-surface-2: #fafbfc;
+  --cm-surface-3: #f4f6f8;
+  --cm-navy: #052B49;
+  --cm-navy-2: #0a3a62;
+  --cm-navy-tint: #eaf1f8;
+  --cm-icd: #0f5132;
+  --cm-icd-tint: #ecfdf5;
+  --cm-warn: #b1422c;
+  --cm-warn-tint: #fdf3f0;
+  background: var(--cm-surface);
+  border: 1px solid var(--cm-rule-strong);
+  border-radius: 14px;
+  padding: 10px 14px 2px;
+  margin: 4px 0 6px;
+  box-shadow: 0 1px 2px rgba(11, 31, 51, 0.03), 0 6px 18px rgba(11, 31, 51, 0.04);
+  overflow-x: auto;
+}
+
+.charge-matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  min-width: 520px;
+  font-size: 13px;
+  color: var(--cm-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Header / body / footer surfaces. Hairline rules — no heavy borders.
+   Header cells top-align so CPT codes line up across columns regardless
+   of description length; shorter descriptions just leave empty space
+   below rather than pushing the CPT code to a different y-coordinate. */
+.charge-matrix thead th { background: transparent; border-bottom: 1px solid var(--cm-rule-strong); font-weight: 600; vertical-align: top; padding-bottom: 8px; }
+.charge-matrix tbody th, .charge-matrix tbody td { background: var(--cm-surface); border-bottom: 1px solid var(--cm-rule); transition: background-color 0.15s ease; }
+.charge-matrix tbody tr:last-child th, .charge-matrix tbody tr:last-child td { border-bottom: 1px solid var(--cm-rule-strong); }
+.charge-matrix tbody tr:hover th, .charge-matrix tbody tr:hover td { background: var(--cm-surface-2); }
+.charge-matrix tfoot td { background: transparent; padding-top: 6px; padding-bottom: 2px; }
+
+/* Corner cell — intentionally empty; it just reserves the diagnosis column
+   width. ICD chips and rank pills make the row content self-evident. */
+.cm-corner {
+  padding: 0;
+  min-width: 240px;
+}
+
+/* Per-CPT column header (drag handle). Hover reveals × remove button. */
+.cm-cpt-col-head {
+  padding: 4px 14px 8px;
+  text-align: center;
+  min-width: 150px;
+  max-width: 220px;
+  position: relative;
+  border-left: 1px solid var(--cm-rule);
+}
+.cm-cpt-code {
+  display: block;
+  font-family: 'SF Mono', Monaco, ui-monospace, monospace;
+  font-weight: 700;
+  color: var(--cm-navy);
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+.cm-cpt-desc {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--cm-ink-muted);
+  margin-top: 4px;
+  line-height: 1.35;
+  font-weight: 400;
+}
+.cm-cpt-remove {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  color: var(--cm-ink-faint);
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 999px;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.cm-cpt-col-head:hover .cm-cpt-remove,
+.cm-cpt-remove:focus-visible { opacity: 1; transform: scale(1); }
+.cm-cpt-remove:hover { background: var(--cm-warn-tint); color: var(--cm-warn); }
+
+/* Trailing column header — inline "+ Charge" picker.
+   At rest: narrow column with a circular plus button. The cell grows
+   naturally when the search input opens (240px min-width on the input
+   pushes the column wide), then collapses when it closes.
+   When no CPTs exist yet, --cta variant widens the cell and shows a
+   labelled call-to-action so the empty-charges state isn't a lone icon
+   floating in the corner. --separated variant adds a hairline rule on
+   the left to clearly divide the add-affordance from data columns. */
+.cm-add-col-head { padding: 4px 6px 8px; text-align: center; min-width: 44px; width: 1%; white-space: nowrap; vertical-align: top; }
+.cm-add-col-head--separated { border-left: 1px solid var(--cm-rule-strong); padding-left: 12px; }
+.cm-add-col-pad--separated { border-left: 1px solid var(--cm-rule); }
+.cm-add-col-head--cta { min-width: 280px; padding-left: 16px; padding-right: 16px; text-align: left; vertical-align: middle; }
+.cm-add-col-search { position: relative; display: inline-flex; }
+.cm-add-col-search--cta { display: inline-flex; align-items: center; gap: 12px; }
+.cm-add-col-cta-label {
+  font-size: 13px;
+  color: var(--cm-ink-soft);
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+}
+.cm-add-col-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font: inherit;
+  color: var(--cm-navy);
+  background: transparent;
+  border: 1px dashed #b9c4d0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.cm-add-col-btn::before {
+  content: "+";
+  display: block;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+  margin-top: -2px;
+}
+.cm-add-col-btn:hover { border-color: var(--cm-navy); border-style: solid; background: var(--cm-navy-tint); }
+.cm-add-col-btn:active { transform: scale(0.94); }
+.cm-add-col-input {
+  width: 240px;
+  min-width: 240px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--cm-ink);
+  border: 1px solid var(--cm-navy);
+  border-radius: 8px;
+  background: var(--cm-surface);
+}
+.cm-add-col-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(5, 43, 73, 0.12); }
+/* Fixed-positioned dropdown — escapes the wrapper's overflow:auto clip. */
+.cm-add-col-dropdown {
+  position: fixed;
+  z-index: 9999;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--cm-surface);
+  border: 1px solid var(--cm-rule-strong);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(11, 31, 51, 0.12), 0 2px 6px rgba(11, 31, 51, 0.06);
+  padding: 4px;
+}
+.cm-add-col-result {
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--cm-ink);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.1s ease;
+}
+.cm-add-col-result:hover { background: var(--cm-navy-tint); }
+.cm-add-col-result strong { font-family: 'SF Mono', Monaco, ui-monospace, monospace; color: var(--cm-navy); margin-right: 8px; font-weight: 700; }
+.cm-add-col-empty { color: var(--cm-ink-faint); font-style: italic; cursor: default; }
+.cm-add-col-empty:hover { background: transparent; }
+.cm-add-col-pad { background: transparent !important; border-bottom: none !important; }
+
+/* Per-DX row header (drag handle). Rank + ICD code + display rendered as
+   a flex inner so wrapped description lines stay in the description
+   column instead of falling under the rank pill. */
+.cm-dx-row-head {
+  padding: 6px 12px 6px 16px;
+  text-align: left;
+  vertical-align: middle;
+  font-weight: 500;
+  position: relative;
+}
+.cm-dx-row-inner {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.cm-dx-row-inner > .diagnose-rank-input,
+.cm-dx-row-inner > .cm-rank-pill,
+.cm-dx-row-inner > .cm-icd-code {
+  flex: 0 0 auto;
+}
+.cm-dx-row-inner > .cm-icd-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  word-break: break-word;
+  line-height: 1.35;
+}
+.cm-dx-row-head .cm-icd-code {
+  font-family: 'SF Mono', Monaco, ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--cm-icd);
+  background: var(--cm-icd-tint);
+  border: 1px solid #c8ebd6;
+  padding: 1px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+.cm-dx-row-head .cm-icd-desc { color: var(--cm-ink); font-weight: 500; }
+.cm-rank-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--cm-rule-strong);
+  border-radius: 6px;
+  background: var(--cm-surface-3);
+  color: var(--cm-ink);
+  font-weight: 700;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Rank input — feels like a precision instrument: tight, mono, tabular. */
+.diagnose-rank-input {
+  width: 32px;
+  height: 22px;
+  padding: 0 2px;
+  font: inherit;
+  font-family: 'SF Mono', Monaco, ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--cm-ink);
+  border: 1px solid var(--cm-rule-strong);
+  border-radius: 6px;
+  background: var(--cm-surface-3);
+  transition: border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease;
+}
+.diagnose-rank-input:hover { background: var(--cm-surface); border-color: #cbd2da; }
+.diagnose-rank-input:focus { outline: none; background: var(--cm-surface); border-color: var(--cm-navy); box-shadow: 0 0 0 3px rgba(5, 43, 73, 0.10); }
+.diagnose-rank-input::-webkit-outer-spin-button,
+.diagnose-rank-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.diagnose-rank-input { -moz-appearance: textfield; }
+
+/* Link cells. Custom checkbox: navy chip with white check when on. The cell
+   itself shows a faint mint tint when linked — present but not loud. */
+.cm-link-cell {
+  padding: 6px 12px;
+  text-align: center;
+  vertical-align: middle;
+  min-width: 64px;
+  border-left: 1px solid var(--cm-rule);
+  transition: background-color 0.15s ease;
+}
+.cm-link-cell--on { background: var(--cm-icd-tint) !important; }
+.cm-link-cell input[type="checkbox"] {
+  /* Custom-styled checkbox replaces browser default. */
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 5px;
+  background: var(--cm-surface);
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.12s ease, background-color 0.12s ease, transform 0.08s ease;
+  vertical-align: middle;
+}
+.cm-link-cell input[type="checkbox"]:hover:not(:disabled):not(:checked) { border-color: var(--cm-navy); background: var(--cm-navy-tint); }
+.cm-link-cell input[type="checkbox"]:checked {
+  border-color: var(--cm-navy);
+  background: var(--cm-navy);
+}
+.cm-link-cell input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.cm-link-cell input[type="checkbox"]:active:not(:disabled) { transform: scale(0.92); }
+.cm-link-cell input[type="checkbox"]:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(5, 43, 73, 0.18); }
+.cm-link-cell input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.4; }
+
+/* Empty states. */
+.cm-empty {
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--cm-ink-muted);
+  font-size: 13px;
+  font-style: italic;
+}
+.cm-empty--standalone {
+  padding: 18px 16px;
+  text-align: center;
+  color: var(--cm-ink-muted);
+  font-size: 13px;
+  font-style: italic;
+  border: 1px dashed var(--cm-rule-strong);
+  border-radius: 10px;
+  background: var(--cm-surface-2);
+  margin: 2px 0 6px;
+}
+.cm-empty-add { margin: 0 0 6px; display: flex; justify-content: center; }
+
+/* Footer status pills. Tabular numerics, refined sizing. */
+.cm-status-label {
+  color: var(--cm-ink-faint);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 6px 12px 2px;
+}
+.cm-status-footer-cell { text-align: center; padding: 6px 12px 2px; border-left: 1px solid transparent; }
+.cm-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: 'SF Mono', Monaco, ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.cm-status-pill--ok { background: var(--cm-icd-tint); color: var(--cm-icd); border: 1px solid #c8ebd6; }
+.cm-status-pill--warn { background: var(--cm-warn-tint); color: var(--cm-warn); border: 1px solid #f1c5b8; }
+
+/* Template pills row above the matrix. Smaller, tracked, refined. */
+.charge-template-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--cm-rule);
+}
+.charge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cm-navy);
+  background: var(--cm-surface);
+  border: 1px solid var(--cm-rule-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.charge-pill:hover { border-color: var(--cm-navy); background: var(--cm-navy-tint); }
+.charge-pill:active { transform: translateY(1px); }
+.charge-pill--active { background: var(--cm-navy); color: #fff; border-color: var(--cm-navy); }
+.charge-pill--active:hover { background: var(--cm-navy-2); border-color: var(--cm-navy-2); color: #fff; }
+.charge-pill-code { font-family: 'SF Mono', Monaco, ui-monospace, monospace; font-weight: 700; letter-spacing: 0.02em; }
+.charge-pill-desc { font-weight: 500; opacity: 0.85; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Drag affordances. Vertical-dot grip indicator on hover; dashed drop zone. */
+.cm-draggable { cursor: grab; user-select: none; position: relative; transition: opacity 0.15s ease; }
+.cm-draggable:active { cursor: grabbing; }
+.cm-dx-row-head.cm-draggable::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 6px;
+  height: 14px;
+  transform: translateY(-50%);
+  background-image:
+    radial-gradient(circle, var(--cm-ink-faint) 1px, transparent 1.2px),
+    radial-gradient(circle, var(--cm-ink-faint) 1px, transparent 1.2px);
+  background-size: 3px 5px;
+  background-position: 0 0, 3px 0;
+  background-repeat: repeat-y;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.cm-cpt-col-head.cm-draggable::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 14px;
+  height: 5px;
+  transform: translateX(-50%);
+  background-image:
+    radial-gradient(circle, var(--cm-ink-faint) 1px, transparent 1.2px),
+    radial-gradient(circle, var(--cm-ink-faint) 1px, transparent 1.2px);
+  background-size: 5px 3px;
+  background-position: 0 0, 0 3px;
+  background-repeat: repeat-x;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.cm-draggable:hover::before { opacity: 0.65; }
+.cm-draggable.cm-dragging { opacity: 0.45; }
+.cm-draggable.cm-drag-over {
+  background: var(--cm-navy-tint) !important;
+  box-shadow: inset 0 0 0 2px var(--cm-navy);
+}
+.cm-draggable input,
+.cm-draggable button,
+.cm-draggable select,
+.cm-draggable textarea { cursor: auto; }
+
+/* Mobile breakpoint: shrink minimums + soften padding. */
+@media (max-width: 560px) {
+  .charge-matrix-wrapper { padding: 8px 10px 2px; border-radius: 12px; }
+  .charge-matrix { min-width: 380px; font-size: 12px; }
+  .cm-corner { min-width: 170px; padding-left: 8px; padding-right: 8px; }
+  .cm-cpt-col-head { min-width: 110px; max-width: 150px; padding-left: 10px; padding-right: 10px; }
+  .cm-cpt-desc { font-size: 10px; }
+  .cm-cpt-remove { opacity: 1; transform: scale(1); }
+  .cm-link-cell { min-width: 48px; padding: 4px 6px; }
+  .cm-dx-row-head { padding: 5px 8px 5px 12px; }
+  .charge-pill-desc { max-width: 110px; }
+  .cm-add-col-input { max-width: 180px; }
+}
