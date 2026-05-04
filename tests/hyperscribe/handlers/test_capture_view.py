@@ -1181,7 +1181,7 @@ def test_feedback_post(aws_s3, mock_pylon, mock_datetime):
         form_data=lambda: {"feedback": StringFormPart(name="feedback", value="theFeedback")},
         headers={"canvas-logged-in-user-id": "theUserId"},
     )
-    with patch("canvas_sdk.v1.data.staff.Staff") as mock_staff_cls:
+    with patch("hyperscribe.handlers.capture_view.Staff") as mock_staff_cls:
         mock_staff_cls.objects.select_related.return_value.get.return_value = mock_staff
         result = tested.feedback_post()
         mock_staff_cls.objects.select_related.assert_called_once_with("user")
@@ -1284,6 +1284,43 @@ def test_feedback_post(aws_s3, mock_pylon, mock_datetime):
     ):
         tested.feedback_post()
 
+    exp_calls = [
+        call(
+            AwsS3Credentials(
+                aws_key="theKey",
+                aws_secret="theSecret",
+                region="theRegion",
+                bucket="theBucketLogs",
+            )
+        ),
+        call().is_ready(),
+        call().upload_text_to_s3(
+            "hyperscribe-customerIdentifier/feedback/theNoteId/20250829-101457",
+            "theFeedback",
+        ),
+    ]
+    assert aws_s3.mock_calls == exp_calls
+    exp_calls = [call.now(timezone.utc)]
+    assert mock_datetime.mock_calls == exp_calls
+
+    issue_params = PylonFeedbackRecord(
+        instance="customerIdentifier",
+        note_uuid="theNoteId",
+        date_time=date_0.strftime("%Y%m%d-%H%M%S"),
+        feedback="theFeedback",
+        requester_email=None,
+    ).to_issue_params()
+    exp_calls = [
+        call("thePylonAPIKey"),
+        call().search_account("customerIdentifier"),
+        call().create_issue(
+            tags=["hyperscribe-feedback"],
+            requester_email=None,
+            account_id=None,
+            **issue_params,
+        ),
+    ]
+    assert mock_pylon.mock_calls == exp_calls
     reset_mocks()
 
 

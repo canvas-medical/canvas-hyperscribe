@@ -10,6 +10,7 @@ from canvas_sdk.templates import render_to_string
 from canvas_sdk.utils.http import ThreadPoolExecutor
 from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
+from canvas_sdk.v1.data.staff import Staff
 from logger import log
 from requests import post as requests_post
 
@@ -321,10 +322,9 @@ class CaptureView(SimpleAPI):
         client_s3.upload_text_to_s3(store_path, feedback.value)  # feedback is a StringFormPart
 
         user_email = None
+        # canvas-logged-in-user-id is set by Canvas's reverse proxy; not user-controllable
         user_id = self.request.headers.get("canvas-logged-in-user-id")
         if user_id:
-            from canvas_sdk.v1.data.staff import Staff
-
             try:
                 staff = Staff.objects.select_related("user").get(id=user_id)
                 user_email = staff.user.email if staff.user else None
