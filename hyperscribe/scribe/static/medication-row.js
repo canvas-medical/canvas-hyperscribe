@@ -41,11 +41,13 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.medication_text || '');
   const [sig, setSig] = useState(command.data.sig || '');
   const [alertFacility, setAlertFacility] = useState(!!command.data.alert_facility);
-  // Only show the alert-facility control when the field exists on the command's
-  // data. Legacy commands committed before this feature have `alert_facility`
-  // undefined; for those we hide the control rather than render an unchecked
-  // box that would imply the user explicitly answered "No".
-  const hasAlertFacilityField = command.data.alert_facility !== undefined;
+  // Show the alert-facility control whenever the command is in-flight (not
+  // yet committed to the chart) OR when the field is explicitly defined.
+  // The only case we hide is a legacy already-documented command that
+  // pre-dates this feature — for those, rendering an unchecked box would
+  // imply the user explicitly answered "No" when in fact no answer exists.
+  const hasAlertFacilityField =
+    command.data.alert_facility !== undefined || !command.already_documented;
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 

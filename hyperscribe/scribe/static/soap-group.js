@@ -196,10 +196,14 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
   }
 
   const itemName = data[config.nameField] || '';
-  // Hide the alert-facility control on legacy commands where the field was
-  // never set (matches MedicationRow). New ad-hoc adds initialize it to false
-  // so the control shows for them.
-  const showAlertControl = type === 'stop_medication' && alertFacilityEnabled && data.alert_facility !== undefined;
+  // Show the alert-facility control whenever the command is in-flight (not
+  // yet committed to the chart) OR when the field is explicitly defined.
+  // The only hide case is a legacy already-documented command that pre-dates
+  // this feature.
+  const showAlertControl =
+    type === 'stop_medication' &&
+    alertFacilityEnabled &&
+    (data.alert_facility !== undefined || !command.already_documented);
   const alertOn = !!data.alert_facility;
   const stopProp = (e) => { e.stopPropagation(); };
   const handleAlertChange = (e) => {
@@ -589,7 +593,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, onEditingChange }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, priorSections, onEditingChange }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   // In approved (readOnly) mode, only show items that actually made it into the note.
@@ -826,6 +830,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onEdit=${onEditCommand}
                     readOnly=${readOnly}
                     textareaRows=${2}
+                    priorSection=${priorSections?.physical_exam || null}
                     onEditingChange=${onEditingChange}
                   />
                 </div>
@@ -1156,6 +1161,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 onEdit=${onEditCommand}
                 readOnly=${readOnly}
                 textareaRows=${2}
+                priorSection=${priorSections?.review_of_systems || null}
                 onEditingChange=${onEditingChange}
               />
             </div>

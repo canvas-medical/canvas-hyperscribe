@@ -55,6 +55,7 @@ from hyperscribe.scribe.commands.builder import (
     validate_proposals,
 )
 from hyperscribe.scribe.commands.extractor import extract_commands, parse_ros_subsections
+from hyperscribe.scribe.commands.prior_sections import get_prior_section_data
 from hyperscribe.scribe.recommendations import recommend_commands
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
 from hyperscribe.scribe.recommendations.reconciliation import reconcile_sections
@@ -341,11 +342,18 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
 
 def _load_initial_data(note_id: str, secrets: dict[str, str]) -> dict[str, Any]:
     """Compile all data needed for the Scribe UI initial render."""
+    # Best-effort: never let prior_sections lookup break the Scribe UI render.
+    try:
+        prior_sections = get_prior_section_data(note_id)
+    except Exception:
+        log.exception("_load_initial_data: prior_sections lookup failed for note %s", note_id)
+        prior_sections = {"physical_exam": None, "review_of_systems": None}
     return {
         "transcript": _load_transcript(note_id),
         "summary": _load_summary(note_id),
         "assignees": _load_assignees(),
         "templates": _load_templates(secrets),
+        "prior_sections": prior_sections,
     }
 
 

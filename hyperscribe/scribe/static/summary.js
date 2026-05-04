@@ -146,7 +146,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, priorSections, onEditingChange } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -197,6 +197,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddNow=${(isPlan || isObjective) ? onAddNow : null}
         hideRejected=${hideRejected}
         alertFacilityEnabled=${alertFacilityEnabled}
+        priorSections=${(isObjective || isSubjective) ? priorSections : null}
         onEditingChange=${onEditingChange}
       />`;
     })
@@ -225,6 +226,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   // Template state.
   const [templates, setTemplates] = useState(initialData?.templates ?? []);
+  // Prior visit reference data (most recent same-author PE/ROS for this patient).
+  // Read once from the session-init payload; not re-fetched while the user works.
+  const priorSections = initialData?.prior_sections ?? null;
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [mode, setMode] = useState(() => {
     const cached = initSummary?.mode ?? null;
@@ -439,7 +443,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     return () => { cancelled = true; };
   }, [approved, noteId, commands, recommendations]);
 
+  // Synchronous in-flight guard. The `generating` React state updates async,
+  // so it can't reliably block re-entry — particularly when (a) the user
+  // double-taps Generate/Regenerate, or (b) the auto-generate-on-finalize
+  // effect re-runs because handleGenerate's useCallback identity changes
+  // mid-flight. A second concurrent call without the in-flight guard
+  // overwrites the first's result, including dropping the selected
+  // template's ROS/PE sections from the request body.
+  const generatingRef = useRef(false);
   const handleGenerate = useCallback(async () => {
+    if (generatingRef.current) return;
+    generatingRef.current = true;
     logEvent('GENERATE_START');
     setGenerating(true);
     setError(null);
@@ -494,6 +508,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       setError('Failed to generate summary');
       logEvent('GENERATE_ERROR', { error: err.message });
     } finally {
+      generatingRef.current = false;
       setGenerating(false);
     }
   }, [noteId, selectedTemplate, commands, mode]);
@@ -1563,8 +1578,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </div>
           `}
           ${false && debugMode && noteData && !approved && !generating && !isRecording && html`
-            <button class="regenerate-btn" onClick=${handleGenerate} disabled=${!selectedTemplate}>
-              Regenerate${!selectedTemplate ? ' (select visit type)' : ''}
+            <button class="regenerate-btn" onClick=${handleGenerate} disabled=${!selectedTemplate || generating}>
+              ${generating ? 'Generating…' : `Regenerate${!selectedTemplate ? ' (select visit type)' : ''}`}
             </button>
           `}
         </div>
@@ -1662,7 +1677,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       ${canEdit && !noteData && !generating && recording.finalized && mode === 'ai' && html`
         <div class="summary-generate-banner">
           <p class="summary-banner-description">Recording complete. Generate a structured summary from your transcript.</p>
-          <button class="generate-btn" onClick=${handleGenerate}>Generate Summary</button>
+          <button class="generate-btn" onClick=${handleGenerate} disabled=${generating}>${generating ? 'Generating…' : 'Generate Summary'}</button>
         </div>
       `}
       ${error && html`<p class="error" style="padding: 0 16px;">${error}</p>`}
@@ -1716,6 +1731,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddNow: canEdit ? handleAddNow : null,
           hideRejected,
           alertFacilityEnabled,
+          priorSections,
           onEditingChange: handleEditingChange,
         })}
       </div>

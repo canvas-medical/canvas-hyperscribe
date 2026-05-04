@@ -1004,28 +1004,127 @@ h2 { margin-bottom: 4px; }
 /* History Review */
 .history-review-row { cursor: pointer; padding: 4px; border-radius: 8px; }
 .history-review-row.deselected { opacity: 0.45; }
-.history-review-row.editing { cursor: default; display: flex; flex-direction: column; gap: 16px; }
-.history-review-row.editing .command-row-textarea { width: 100%; min-height: 100px; }
-.history-review-row.editing .command-row-textarea[rows] { min-height: 0; }
-.history-subsection { margin-bottom: 12px; }
+.history-review-row.editing { cursor: default; }
+
+/* Each subsection is a single inline line: "Title: text". View and edit modes
+   share the same layout so clicking into the card does not shift anything. */
+.history-subsection {
+  display: block; margin-bottom: 4px; line-height: 1.55;
+  font-size: 14px; color: #333;
+}
 .history-subsection:last-child { margin-bottom: 0; }
-.history-subsection-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.history-subsection-title { font-size: 13px; font-weight: 700; color: #555; text-transform: uppercase; }
-.history-subsection-text { font-size: 15px; line-height: 1.6; color: #333; white-space: pre-line; }
-.history-divider { border: none; border-top: 1px solid #f0f0f0; margin: 8px 0; }
-.reconciliation-badge {
-  font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px;
-  white-space: nowrap; line-height: 1.4; cursor: pointer; user-select: none;
+.history-subsection-title {
+  font-weight: 700; color: #555; margin-right: 6px;
+  font-size: 13px; letter-spacing: 0.2px;
 }
-.reconciliation-badge.updated { background: #dbeafe; color: #1d4ed8; }
-.reconciliation-badge.updated:hover { background: #bfdbfe; }
-.reconciliation-diff {
-  margin-top: 6px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0;
-  border-radius: 6px; font-size: 13px;
+.history-subsection-text { font-size: 14px; color: #333; white-space: pre-line; }
+
+/* Inline editable textarea — visually a peer of .history-subsection-text.
+   field-sizing: content auto-grows the box to fit the content. */
+.history-subsection-edit {
+  display: inline; vertical-align: top;
+  font-family: inherit; font-size: 14px; line-height: 1.55; color: #333;
+  background: transparent; border: none; padding: 0;
+  width: calc(100% - 0px); min-width: 0;
+  resize: none; overflow: hidden;
+  field-sizing: content;
+  white-space: pre-wrap; word-break: break-word;
+  outline: none;
 }
-.reconciliation-diff-label { font-weight: 600; color: #888; margin-bottom: 4px; font-size: 12px; }
-.reconciliation-diff-text { color: #666; line-height: 1.6; white-space: pre-line; }
+.history-subsection-edit:hover { background: #fafafa; }
+.history-subsection-edit:focus {
+  background: #fff;
+  box-shadow: inset 0 -1px 0 #052B49;
+}
+.history-subsection-edit::placeholder { color: #c0c0c0; font-style: italic; }
+
+.history-review-actions { clear: both; display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0; }
+.history-review-hint { margin-right: auto; font-size: 12px; color: #9ca3af; font-style: italic; }
 .positive-finding { font-weight: 700; color: #1a1a1a; }
+
+/* Reconciliation: an icon-only trigger floated to the top-right of a
+   History Review-style card. The SVG fills the click target so the visible
+   "info" glyph matches the clickable area exactly. Subsection text wraps
+   around the floated icon instead of getting pushed below. */
+.history-reconciliation-trigger {
+  float: right;
+  display: inline-block;
+  width: 22px; height: 22px; padding: 0;
+  margin: 0 0 2px 8px;
+  background: transparent; border: none;
+  color: #94a3b8;
+  cursor: pointer; user-select: none;
+  transition: color 0.15s;
+}
+.history-reconciliation-trigger:hover,
+.history-reconciliation-trigger.open { color: #052B49; }
+.history-reconciliation-trigger svg { width: 22px; height: 22px; display: block; }
+
+/* Prior visit trigger — same floating pattern, sits next to the
+   reconciliation icon. Slate by default, amber when active so the two
+   triggers (and the inline blocks they reveal) are visually distinct. */
+.history-prior-trigger {
+  float: right;
+  display: inline-block;
+  width: 22px; height: 22px; padding: 0;
+  margin: 0 0 2px 6px;
+  background: transparent; border: none;
+  color: #94a3b8;
+  cursor: pointer; user-select: none;
+  transition: color 0.15s;
+}
+.history-prior-trigger:hover,
+.history-prior-trigger.open { color: #b45309; }
+.history-prior-trigger svg { width: 22px; height: 22px; display: block; }
+
+/* Inline "last visit" block revealed beneath each subsection that has a
+   matching prior-note section. Distinct amber palette so it never gets
+   confused with the slate "was" reconciliation block when both are open. */
+.history-subsection-prior {
+  display: block;
+  margin: 4px 0 6px 14px;
+  padding: 4px 10px;
+  background: #fffbeb;
+  border-left: 2px solid #f59e0b;
+  border-radius: 0 4px 4px 0;
+  line-height: 1.5;
+}
+.history-subsection-prior-label {
+  display: inline-block; min-width: 64px;
+  margin-right: 8px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+  color: #b45309; text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.history-subsection-prior-text {
+  font-size: 13px; color: #78350f; font-style: italic;
+  white-space: pre-line; word-break: break-word;
+}
+
+/* Inline "was" sub-line revealed beneath a changed subsection when the
+   reconciliation trigger is open. Renders as a softly tinted block with a
+   left accent border so it reads as supporting context rather than a peer
+   of the current text. */
+.history-subsection-was {
+  display: block;
+  margin: 4px 0 6px 14px;
+  padding: 4px 10px;
+  background: #f9fafb;
+  border-left: 2px solid #cbd5e1;
+  border-radius: 0 4px 4px 0;
+  line-height: 1.5;
+}
+.history-subsection-was-label {
+  display: inline-block; min-width: 28px;
+  margin-right: 6px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+  color: #94a3b8; text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.history-subsection-was-text {
+  font-size: 13px; color: #64748b; font-style: italic;
+  white-space: pre-line; word-break: break-word;
+}
 
 /* Dev seed panel (DEV_MOCK transcript paste box) */
 .dev-seed-panel { padding: 24px; }
