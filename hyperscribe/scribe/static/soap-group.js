@@ -121,7 +121,7 @@ function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeC
 
 const REMOVAL_TYPES = new Set(['stop_medication', 'remove_allergy', 'resolve_condition']);
 
-function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, alertFacilityEnabled }) {
+function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, alertFacilityEnabled, excludedItemIds }) {
   const data = command.data || {};
   const type = command.command_type;
   const hasItem = !!(data.medication_id || data.allergy_id || data.condition_id);
@@ -170,56 +170,74 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
     onDelete(commandIndex);
   };
 
+  // Hide entries already selected by another in-flight stop_medication card
+  // (dedup is by id, so duplicate names with distinct ids stay selectable).
+  const visibleItems = excludedItemIds && excludedItemIds.size > 0
+    ? items.filter(item => !excludedItemIds.has(item.id))
+    : items;
+
   if (!hasItem) {
+    const allFiltered = items.length > 0 && visibleItems.length === 0;
     return html`
       <div class="removal-row">
         ${loading
           ? html`<span class="removal-loading">Loading...</span>`
-          : items.length > 0
+          : visibleItems.length > 0
             ? html`<select class="removal-select" onChange=${handleSelectChange} autoFocus>
                 <option value="">${config.placeholder}</option>
-                ${items.map(item => html`<option key=${item.id} value=${item.id}>${item.name}</option>`)}
+                ${visibleItems.map(item => html`<option key=${item.id} value=${item.id}>${item.name}</option>`)}
               </select>`
-            : html`<span class="removal-empty">No active ${config.labelPlural}</span>`
+            : allFiltered
+              ? html`<span class="removal-empty">All ${config.labelPlural} already selected</span>`
+              : html`<span class="removal-empty">No active ${config.labelPlural}</span>`
         }
       </div>
     `;
   }
 
   const itemName = data[config.nameField] || '';
+  const showAlertControl = type === 'stop_medication' && alertFacilityEnabled;
+  const alertOn = !!data.alert_facility;
+  const stopProp = (e) => { e.stopPropagation(); };
+  const handleAlertChange = (e) => {
+    if (readOnly) return;
+    onEdit(commandIndex, { ...data, alert_facility: e.target.checked });
+  };
   return html`
-    <div class="removal-row${readOnly ? ' read-only' : ''}">
-      <span class="removal-action-label">${config.actionLabel}</span>
-      <span class="removal-item-name">${itemName}</span>
-      ${type === 'stop_medication' && readOnly && (data.rationale || data.alert_facility) && html`
-        <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">
-          ${data.rationale || ''}
-          ${alertFacilityEnabled && data.alert_facility && html`<span class="badge badge-alert" style="margin-left: 6px;">Alert Facility</span>`}
-        </div>
-      `}
+    <div class="removal-row compact${readOnly ? ' read-only' : ''}">
+      <span class="removal-name-line">
+        <span class="removal-action-label">${config.actionLabel}</span>
+        <span class="removal-item-name">${itemName}</span>
+      </span>
+      ${type === 'stop_medication'
+        ? html`
+            <input
+              type="text"
+              class="removal-rationale-input"
+              value=${data.rationale || ''}
+              onInput=${(e) => onEdit(commandIndex, { ...data, rationale: e.target.value })}
+              placeholder=${readOnly ? '' : 'Optional reason for stopping'}
+              disabled=${readOnly}
+            />
+          `
+        : html`<span class="removal-rationale-slot"></span>`
+      }
+      ${showAlertControl
+        ? html`
+            <label class="alert-facility-check${readOnly ? ' read-only' : ''}" onClick=${stopProp}>
+              <input
+                type="checkbox"
+                checked=${alertOn}
+                disabled=${readOnly}
+                onChange=${handleAlertChange}
+              />
+              <span class="alert-facility-check-box">${ICON_CHECK_SMALL}</span>
+              <span class="alert-facility-check-text">Alert facility</span>
+            </label>
+          `
+        : html`<span class="alert-facility-slot"></span>`
+      }
     </div>
-    ${type === 'stop_medication' && hasItem && !readOnly && html`
-      <div class="history-form-field" style="margin-top: 8px;">
-        <label class="history-form-label">Rationale</label>
-        <input
-          type="text"
-          class="history-form-input"
-          value=${data.rationale || ''}
-          onInput=${(e) => onEdit(commandIndex, { ...data, rationale: e.target.value })}
-          placeholder="Reason for stopping..."
-        />
-      </div>
-      ${alertFacilityEnabled && html`
-      <div class="history-form-field" style="margin-top: 8px;">
-        <label class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: !data.alert_facility })}>
-          <div class="toggle-switch${data.alert_facility ? ' on' : ''}">
-            <div class="toggle-knob" />
-          </div>
-          Alert Facility
-        </label>
-      </div>
-      `}
-    `}
   `;
 }
 
@@ -373,6 +391,7 @@ const DEBOUNCE_MS = 300;
 
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+const ICON_CHECK_SMALL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
 
 function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingChange }) {
   const data = command.data || {};
@@ -839,12 +858,27 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const medRecs = visibleRecs
               .map(cmd => ({ command: cmd, index: cmd._origIndex }))
               .filter(e => e.command.command_type === 'medication_statement');
-            const adHocMeds = visibleAdHoc.filter(e => e.command.command_type === 'medication_statement');
-            const adHocStopMeds = visibleAdHoc.filter(e => e.command.command_type === 'stop_medication');
-            if (cmds || medRecs.length > 0 || adHocMeds.length > 0 || adHocStopMeds.length > 0 || onAddMedication) {
+            // adHocs (manual + and - additions) render together at the
+            // bottom in chronological add-order so a new card always lands
+            // at the end of the visible stack regardless of type.
+            const adHocs = visibleAdHoc
+              .filter(e =>
+                e.command.command_type === 'medication_statement' ||
+                e.command.command_type === 'stop_medication'
+              )
+              .slice()
+              .sort((a, b) => a.index - b.index);
+            const stoppedMedicationIds = new Set(
+              adHocs
+                .filter(e => e.command.command_type === 'stop_medication')
+                .map(e => e.command.data && e.command.data.medication_id)
+                .filter(Boolean)
+            );
+            if (cmds || medRecs.length > 0 || adHocs.length > 0 || onAddMedication) {
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">Med List Updates</div>
+                  <div class="med-list-grid">
                   ${(cmds || []).map(entry => html`
                     <div class="content-block recommendation-block rec-medication" key=${entry.index}>
                       <div class="recommendation-content">
@@ -860,35 +894,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                       ${!readOnly && html`
                         <div class="recommendation-actions">
-                          ${entry.command.already_documented
-                            ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
-                            : onAddNow && entry.command.display && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, false, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`
-                          }
-                          ${!entry.command.already_documented && !entry.command._adding && html`<button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>`}
-                        </div>
-                      `}
-                    </div>
-                  `)}
-                  ${adHocMeds.map(entry => html`
-                    <div class="content-block recommendation-block rec-medication" key=${entry.index}>
-                      <div class="recommendation-content">
-                        <${MedicationRow}
-                          command=${entry.command}
-                          commandIndex=${entry.index}
-                          onEdit=${onEditCommand}
-                          onDelete=${onDeleteCommand}
-                          alertFacilityEnabled=${alertFacilityEnabled}
-                          readOnly=${readOnly || entry.command.already_documented}
-                          onEditingChange=${onEditingChange}
-                        />
-                      </div>
-                      ${!readOnly && html`
-                        <div class="recommendation-actions">
-                          ${entry.command.already_documented
-                            ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
-                            : onAddNow && entry.command.display && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, false, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`
-                          }
-                          ${!entry.command.already_documented && !entry.command._adding && html`<button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>`}
+                          ${entry.command.already_documented && html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`}
+                          ${!entry.command.already_documented && !entry.command._adding && html`
+                            <button type="button" class="rec-btn rec-btn-muted" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                            <button type="button" class="rec-btn rec-btn-accept" title="Accepted" aria-label="Accepted">${ICON_CHECK}</button>
+                          `}
                         </div>
                       `}
                     </div>
@@ -914,8 +924,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
                           : !readOnly && html`
                               ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
-                              ${isAccepted && html`<span class="rec-accepted-badge">Accepted</span>`}
-                              ${onAddNow && isAccepted && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
                               ${!entry.command._adding && html`
                                 <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
                                 <button type="button" class="rec-btn ${isAccepted ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
@@ -926,28 +934,56 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                     `;
                   })}
-                  ${adHocStopMeds.map(entry => html`
-                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
-                      <div class="recommendation-content">
-                        <${RemovalRow}
-                          command=${entry.command}
-                          commandIndex=${entry.index}
-                          onEdit=${onEditCommand}
-                          onDelete=${onDeleteCommand}
-                          readOnly=${readOnly || entry.command.already_documented}
-                          patientId=${patientId}
-                          alertFacilityEnabled=${alertFacilityEnabled}
-                        />
+                  ${adHocs.map(entry => entry.command.command_type === 'medication_statement'
+                    ? html`
+                      <div class="content-block recommendation-block rec-medication" key=${'adhoc-med-' + entry.index}>
+                        <div class="recommendation-content">
+                          <${MedicationRow}
+                            command=${entry.command}
+                            commandIndex=${entry.index}
+                            onEdit=${onEditCommand}
+                            onDelete=${onDeleteCommand}
+                            alertFacilityEnabled=${alertFacilityEnabled}
+                            readOnly=${readOnly || entry.command.already_documented}
+                            onEditingChange=${onEditingChange}
+                          />
+                        </div>
+                        ${!readOnly && html`
+                          <div class="recommendation-actions">
+                            ${entry.command.already_documented && html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`}
+                            ${!entry.command.already_documented && !entry.command._adding && html`
+                              <button type="button" class="rec-btn rec-btn-muted" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                              <button type="button" class="rec-btn rec-btn-accept" title="Accepted" aria-label="Accepted">${ICON_CHECK}</button>
+                            `}
+                          </div>
+                        `}
                       </div>
-                      ${!readOnly && html`<div class="recommendation-actions">
-                        ${entry.command.already_documented
-                          ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
-                          : onAddNow && entry.command.display && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, false, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`
-                        }
-                        ${!entry.command.already_documented && !entry.command._adding && html`<button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>`}
-                      </div>`}
-                    </div>
-                  `)}
+                    `
+                    : html`
+                      <div class="content-block recommendation-block rec-removal" key=${'adhoc-stop-' + entry.index}>
+                        <div class="recommendation-content">
+                          <${RemovalRow}
+                            command=${entry.command}
+                            commandIndex=${entry.index}
+                            onEdit=${onEditCommand}
+                            onDelete=${onDeleteCommand}
+                            readOnly=${readOnly || entry.command.already_documented}
+                            patientId=${patientId}
+                            alertFacilityEnabled=${alertFacilityEnabled}
+                            excludedItemIds=${stoppedMedicationIds}
+                          />
+                        </div>
+                        ${!readOnly && html`<div class="recommendation-actions">
+                          ${entry.command.already_documented && html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`}
+                          ${!entry.command.already_documented && !entry.command._adding && html`
+                            <button type="button" class="rec-btn rec-btn-muted" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
+                            <button type="button" class="rec-btn ${entry.command.display ? 'rec-btn-accept' : 'rec-btn-muted'}" title=${entry.command.display ? 'Accepted' : 'Awaiting medication selection'} aria-label=${entry.command.display ? 'Accepted' : 'Awaiting medication selection'}>${ICON_CHECK}</button>
+                          `}
+                        </div>`}
+                      </div>
+                    `
+                  )}
+                  </div>
                   ${(onAddMedication || onAddStopMedication) && !readOnly && html`
                     <div class="ad-hoc-buttons">
                       ${onAddMedication && html`<button type="button" class="ad-hoc-btn" onClick=${onAddMedication}>+ Medication</button>`}

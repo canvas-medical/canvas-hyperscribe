@@ -484,7 +484,130 @@ h2 { margin-bottom: 4px; }
 .toggle-switch.on { background: #16a34a; }
 .toggle-knob { width: 16px; height: 16px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
 .toggle-switch.on .toggle-knob { left: 18px; }
-.alert-facility-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #6b7280; cursor: pointer; user-select: none; }
+/* Alert facility — single checkbox + label. Universal pattern, lowest
+   cognitive load: empty box = off, navy filled box with check = on.
+   Label weight stays constant across states (the checkbox shape carries
+   the signal); whole label is the click target. */
+.alert-facility-check {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 500; line-height: 1;
+  color: #6b7280; cursor: pointer; user-select: none; flex-shrink: 0;
+  white-space: nowrap;
+}
+.alert-facility-check input { position: absolute; opacity: 0; pointer-events: none; }
+.alert-facility-check-box {
+  width: 18px; height: 18px; flex-shrink: 0;
+  border: 1.5px solid #d1d5db; border-radius: 4px; background: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.alert-facility-check-box svg { width: 12px; height: 12px; color: #fff; opacity: 0; transition: opacity 0.15s; }
+.alert-facility-check:hover:not(.read-only) .alert-facility-check-box { border-color: #052B49; }
+.alert-facility-check input:checked + .alert-facility-check-box { background: #052B49; border-color: #052B49; }
+.alert-facility-check input:checked + .alert-facility-check-box svg { opacity: 1; }
+.alert-facility-check.read-only { cursor: default; }
+.alert-facility-check.read-only:hover .alert-facility-check-box { border-color: #d1d5db; }
+.alert-facility-check input:focus-visible + .alert-facility-check-box { outline: 2px solid #052B49; outline-offset: 2px; }
+
+/* Compact single-row layout for medication-statement and stop-medication cards.
+   When wrapped in `.med-list-grid`, .med-card-row collapses (display: contents)
+   so name/sig/alert become items of the section grid (see .med-list-grid). */
+.med-card-row { display: flex; align-items: baseline; gap: 12px; min-width: 0; flex: 1; flex-wrap: wrap; }
+.med-card-name { font-size: 14px; font-weight: 600; color: #1f2937; word-break: break-word; }
+.med-card-sig { font-size: 13px; color: #6b7280; font-style: italic; word-break: break-word; }
+.med-card-spacer { flex: 1; min-width: 12px; }
+.medication-row.compact { padding: 0; gap: 12px; flex-wrap: nowrap; }
+.medication-row.editing .history-form { gap: 10px; }
+.med-form-actions-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+.med-form-actions-row .alert-facility-check { margin-right: auto; }
+
+.removal-row.compact { padding: 0; gap: 12px; flex-wrap: nowrap; align-items: center; }
+.removal-row.compact .removal-item-name { font-size: 14px; font-weight: 600; color: #1f2937; flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* Rationale input: looks like static italic text at rest so it aligns visually
+   with the sig column on med-statement rows (same x position, same color, same
+   italic). Padding/border are zero at rest to avoid offsetting the text. */
+.removal-rationale-input { flex: 1; min-width: 0; padding: 0; font-family: inherit; font-size: 13px; color: #6b7280; font-style: italic; border: none; background: transparent; }
+.removal-rationale-input:hover:not(:focus):not(:disabled) { background: #fafafa; }
+.removal-rationale-input:focus { outline: none; background: #fff; color: #1f2937; font-style: normal; box-shadow: inset 0 -1px 0 #052B49; }
+.removal-rationale-input:disabled { cursor: default; }
+.removal-rationale-input::placeholder { color: #9ca3af; font-style: italic; }
+
+/* Compact medication / stop-medication cards. Action buttons shrink to 30px
+   to free vertical space while staying tap-comfortable. */
+.content-block.recommendation-block.rec-medication,
+.content-block.recommendation-block.rec-removal {
+  padding: 8px 14px; margin-bottom: 6px;
+  border: 1.5px solid #e8e8ec; border-radius: 8px;
+}
+.recommendation-block:has(.medication-row.compact),
+.recommendation-block:has(.removal-row.compact) { align-items: center; }
+.recommendation-block:has(.medication-row.compact) .recommendation-actions,
+.recommendation-block:has(.removal-row.compact) .recommendation-actions { padding-top: 0; gap: 6px; margin-left: 12px; }
+.rec-medication .rec-accepted-badge,
+.rec-removal .rec-accepted-badge { display: none; }
+.rec-medication .recommendation-actions .rec-btn,
+.rec-removal .recommendation-actions .rec-btn { width: 30px; height: 30px; border-radius: 5px; }
+.rec-medication .recommendation-actions .rec-btn svg,
+.rec-removal .recommendation-actions .rec-btn svg { width: 15px; height: 15px; }
+.rec-medication .recommendation-actions .rec-btn-add-now,
+.rec-removal .recommendation-actions .rec-btn-add-now { height: 30px; padding: 0 10px; font-size: 12px; border-radius: 5px; border-width: 1px; }
+
+/* Med List Updates: subgrid layout aligns name, sig/rationale, and alert
+   facility checkboxes into vertical columns across all rows in the section.
+   Stop-medication rows put their STOP label inline with the name, so the
+   name column has no extra gutter at the left for medication-statement rows. */
+.med-list-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(160px, max-content)   /* col 1: name (with inline STOP for stop-medication) */
+    minmax(80px, 1fr)            /* col 2: sig / rationale */
+    auto                         /* col 3: alert facility checkbox */
+    auto;                        /* col 4: card actions */
+  column-gap: 16px;
+  row-gap: 6px;
+}
+.med-list-grid > .content-block.recommendation-block {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+  margin-bottom: 0;
+}
+/* Flatten wrappers so leaf elements participate in the section grid via subgrid. */
+.med-list-grid .recommendation-content,
+.med-list-grid .medication-row.compact,
+.med-list-grid .med-card-row,
+.med-list-grid .removal-row.compact { display: contents; }
+/* Grid items get their column-fitting overrides (no flex-shrink, allow wrap). */
+.med-list-grid .med-card-name { white-space: normal; min-width: 0; }
+.med-list-grid .med-card-sig { white-space: normal; min-width: 0; }
+.med-list-grid .removal-name-line { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.med-list-grid .removal-name-line .removal-item-name { white-space: normal; min-width: 0; flex: 0 1 auto; }
+/* Editing state: card breaks out of the grid so the form gets normal block layout. */
+.med-list-grid > .content-block.recommendation-block:has(.medication-row.editing) {
+  display: block;
+}
+.med-list-grid > .content-block.recommendation-block:has(.medication-row.editing) .recommendation-content,
+.med-list-grid > .content-block.recommendation-block:has(.medication-row.editing) .medication-row.editing { display: block; }
+/* Hover affordance lives on the card now (the row has display:contents). */
+.med-list-grid > .content-block.recommendation-block:hover:not(:has(.medication-row.editing)):not(.rec-rejected) {
+  background: #fafafa;
+}
+/* Empty placeholder slots so columns line up even when the row has no
+   rationale or no alert toggle (e.g. recommendations without alert facility). */
+.removal-rationale-slot,
+.alert-facility-slot { display: inline-block; }
+
+/* No-item stop-medication row (the "Select medication to stop..." dropdown):
+   span across the name + sig + alert columns so the action buttons stay in
+   col 4 and align with the rest of the section. */
+.med-list-grid > .content-block.recommendation-block .removal-row:not(.compact) {
+  grid-column: 1 / span 3;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.med-list-grid .removal-row:not(.compact) .removal-select { max-width: 360px; }
 
 .summary-section {
   margin-bottom: 24px;

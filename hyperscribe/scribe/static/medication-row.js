@@ -6,6 +6,7 @@ const html = htm.bind(h);
 
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+const ICON_CHECK_SMALL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -139,13 +140,30 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     }
   };
 
+  const renderAlertControl = (value, onSet, isReadOnly) => {
+    if (!alertFacilityEnabled) return null;
+    const stop = (e) => { e.stopPropagation(); };
+    return html`
+      <label class="alert-facility-check${isReadOnly ? ' read-only' : ''}" onClick=${stop}>
+        <input
+          type="checkbox"
+          checked=${value}
+          disabled=${isReadOnly}
+          onChange=${(e) => { if (!isReadOnly) onSet(e.target.checked); }}
+        />
+        <span class="alert-facility-check-box">${ICON_CHECK_SMALL}</span>
+        <span class="alert-facility-check-text">Alert facility</span>
+      </label>
+    `;
+  };
+
   // Already documented — non-clickable, dimmed.
   if (command.already_documented) {
     return html`
-      <div class="medication-row documented">
-        <div class="order-view">
-          <div class="order-view-name">${command.display}</div>
-          ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
+      <div class="medication-row compact documented">
+        <div class="med-card-row">
+          <span class="med-card-name">${command.display}</span>
+          <span class="med-card-sig">${command.data.sig || ''}</span>
         </div>
       </div>
     `;
@@ -198,17 +216,8 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
               placeholder="e.g. Take 1 tablet daily"
             />
           </div>
-          ${alertFacilityEnabled && html`
-          <div class="history-form-field">
-            <label class="alert-facility-toggle" onClick=${() => setAlertFacility(prev => !prev)}>
-              <div class="toggle-switch${alertFacility ? ' on' : ''}">
-                <div class="toggle-knob" />
-              </div>
-              Alert Facility
-            </label>
-          </div>
-          `}
-          <div class="questionnaire-form-actions">
+          <div class="med-form-actions-row">
+            ${renderAlertControl(alertFacility, (next) => setAlertFacility(next), false)}
             <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
             <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
           </div>
@@ -218,13 +227,17 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   }
 
   // View mode.
+  const handleRowClick = () => { if (!readOnly) setEditing(true); };
+  const handleSetInRow = (next) => {
+    onEdit(commandIndex, { ...command.data, alert_facility: next });
+  };
   return html`
-    <div class="medication-row"
-         onClick=${() => !readOnly && setEditing(true)}>
-      <div class="order-view">
-        <div class="order-view-name">${command.display}</div>
-        ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
-        ${alertFacilityEnabled && command.data.alert_facility && html`<span class="badge badge-alert">Alert Facility</span>`}
+    <div class="medication-row compact"
+         onClick=${handleRowClick}>
+      <div class="med-card-row">
+        <span class="med-card-name">${command.display}</span>
+        <span class="med-card-sig">${command.data.sig || ''}</span>
+        ${renderAlertControl(!!command.data.alert_facility, handleSetInRow, readOnly)}
       </div>
     </div>
   `;
