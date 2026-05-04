@@ -165,6 +165,35 @@ function buildRankedDiagnoses(commands) {
   return ranked.map((entry, i) => ({ ...entry, number: i + 1 }));
 }
 
+// Single source of truth for "will this command be sent to the backend on
+// Accept & Sign?". Used by both the in-progress count ("Inserting X
+// commands") and the actual bulk-insert filter inside handleInsert so the
+// two numbers always match. Also matches the verification banner's count
+// (verified+failed) since AddNow items are no longer merged into the
+// verification request.
+const SECTION_TYPES_WITH_SECTIONS = new Set(['physical_exam', 'ros', 'chart_review', 'history_review']);
+const _isRxIncomplete = (d) => !d.fdb_code || !d.sig || d.quantity_to_dispense == null || !d.type_to_dispense || d.refills == null;
+const _isLabIncomplete = (d) => !d.lab_partner || !d.tests_order_codes || d.tests_order_codes.length === 0;
+const _isImagingIncomplete = (d) => !d.image_code || !d.service_provider || !d.ordering_provider_id || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
+const _isReferIncomplete = (d) => !d.service_provider || !d.clinical_question || !d.notes_to_specialist || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
+
+function isInsertableCommand(c) {
+  if (!c || !c.command_type) return false;
+  if (c.already_documented) return false;
+  // Section types with structured sections are insertable even without display text.
+  if (!c.display && !(SECTION_TYPES_WITH_SECTIONS.has(c.command_type) && c.data?.sections?.length > 0)) return false;
+  const t = c.command_type;
+  const d = c.data || {};
+  if (t === 'imaging_order' && _isImagingIncomplete(d)) return false;
+  if (t === 'prescribe' && _isRxIncomplete(d)) return false;
+  if ((t === 'refill' || t === 'adjust_prescription') && !d.fdb_code) return false;
+  if (t === 'lab_order' && _isLabIncomplete(d)) return false;
+  if (t === 'refer' && _isReferIncomplete(d)) return false;
+  if (t === 'perform' && (!d.cpt_code || c.selected === false)) return false;
+  if (t === 'diagnose' && (!d.icd10_code || !d.accepted)) return false;
+  return true;
+}
+
 function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, priorSections, onEditingChange, onReorderCommand, onToggleCptLink, rankedDiagnoses } = {}) {
   return SOAP_GROUPS
     .map(group => {
@@ -272,7 +301,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const transcriptBodyRef = useRef(null);
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
-  const addNowAttemptedRef = useRef([]);
 
   const [editingFields, setEditingFields] = useState(new Set());
 
@@ -366,17 +394,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             setRecommendations(cached.recommendations || []);
             setUnmatchedConditions(cached.unmatched_conditions || []);
             setDiagnosisSuggestions(cached.diagnosis_suggestions || {});
-            // Repopulate Add Now attempted entries from cached items for verification merge.
-            addNowAttemptedRef.current = [
-              ...(cached.commands || []),
-              ...(cached.recommendations || []),
-            ]
-              .filter(c => c._added_now && c.command_uuid)
-              .map(c => ({
-                command_uuid: c.command_uuid,
-                command_type: c.command_type,
-                display: (c.display || '').slice(0, 80),
-              }));
             logEvent('CACHE_LOADED', { hasNote: !!cached.note, commandCount: (cached.commands || []).length });
             return;
           }
@@ -1247,31 +1264,35 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // Persist approved state to cache early so a page reload can't re-submit.
     saveSummaryToCache(noteData, commands, true, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
 
-    const SECTION_TYPES = new Set(['physical_exam', 'ros', 'chart_review', 'history_review']);
-    const insertable = commands.filter(c => {
-      if (c.already_documented) return false;
-      if (!c.display && !(SECTION_TYPES.has(c.command_type) && c.data?.sections?.length > 0)) return false;
-      if (c.command_type === 'imaging_order' && (!c.data.image_code || !c.data.service_provider || !c.data.ordering_provider_id || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
-      if (c.command_type === 'prescribe' && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
-      if ((c.command_type === 'refill' || c.command_type === 'adjust_prescription') && !c.data.fdb_code) return false;
-      if (c.command_type === 'lab_order' && (!c.data.lab_partner || !c.data.tests_order_codes || c.data.tests_order_codes.length === 0)) return false;
-      if (c.command_type === 'refer' && (!c.data.service_provider || !c.data.clinical_question || !c.data.notes_to_specialist || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
-      if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
-      return true;
-    });
-    const dropped = commands.filter(c => !c.already_documented && !insertable.includes(c));
+    // Origin-tracked pipeline. Each item being inserted carries a tag of
+    // its source array (`commands` or `recommendations`) and its index in
+    // that array. The tag rides through the diagnose→assess conversion
+    // and the RX-first sort, so when `data.attempted` returns we can write
+    // each UUID back to the exact source slot — no display-string heuristic.
+    const taggedCommands = commands
+      .map((cmd, srcIdx) => ({ cmd, src: 'commands', srcIdx }))
+      .filter(({ cmd }) => isInsertableCommand(cmd));
+    const dropped = commands.filter(c => !c.already_documented && !isInsertableCommand(c));
     if (dropped.length > 0) {
       logEvent('COMMANDS_FILTERED', { dropped: dropped.map(c => ({
         type: c.command_type, display: (c.display || '').slice(0, 80), sectionKey: c.section_key,
         reason: !c.display ? 'empty_display' : c.selected === false ? 'deselected' : 'validation',
       })) });
     }
-    const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
-    let allInsertable = [...insertable, ...acceptedRecs]
-      .map(({ _template_inserted, ...c }) => c); // Strip internal marker.
+    const taggedRecs = recommendations
+      .map((rec, srcIdx) => ({ cmd: rec, src: 'recommendations', srcIdx }))
+      .filter(({ cmd }) => cmd.accepted && !cmd.already_documented && cmd.display);
 
-    // Convert diagnose commands: match against patient conditions to decide assess vs diagnose.
-    // Skip diagnose commands with no ICD code (provider didn't select one).
+    // Strip the internal `_template_inserted` marker from the cmd payload
+    // (kept on the source array entry; not sent to the backend).
+    let tagged = [...taggedCommands, ...taggedRecs].map(t => {
+      const { _template_inserted, ...stripped } = t.cmd;
+      return { ...t, cmd: stripped };
+    });
+
+    // Convert diagnose→assess for ICDs that match an existing patient
+    // condition. Preserves the {src, srcIdx} tag through the transform so
+    // the post-insert write-back lands on the correct source slot.
     try {
       const condRes = await fetch(
         `${API_BASE}/patient-conditions?patient_id=${encodeURIComponent(patientId)}`
@@ -1279,35 +1300,38 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       const condData = await condRes.json();
       const patientConditions = condData.conditions || [];
 
-      allInsertable = allInsertable
-        .filter(c => c.command_type !== 'diagnose' || (c.data.icd10_code && c.data.accepted))
-        .map(c => {
-          if (c.command_type !== 'diagnose') return c;
-          const code = (c.data.icd10_code || '').replace('.', '').toUpperCase();
-          const match = patientConditions.find(pc => {
-            const pcCode = (pc.code || '').replace('.', '').toUpperCase();
-            return pcCode === code;
-          });
-          if (match) {
-            return {
-              ...c,
-              command_type: 'assess',
-              data: {
-                condition_id: match.condition_id,
-                narrative: c.data.today_assessment || '',
-                background: c.data.background || null,
-                status: null,
-              },
-            };
-          }
-          return c;
+      tagged = tagged.map(t => {
+        if (t.cmd.command_type !== 'diagnose') return t;
+        const code = (t.cmd.data.icd10_code || '').replace('.', '').toUpperCase();
+        const match = patientConditions.find(pc => {
+          const pcCode = (pc.code || '').replace('.', '').toUpperCase();
+          return pcCode === code;
         });
+        if (!match) return t;
+        return {
+          ...t,
+          cmd: {
+            ...t.cmd,
+            command_type: 'assess',
+            data: {
+              condition_id: match.condition_id,
+              narrative: t.cmd.data.today_assessment || '',
+              background: t.cmd.data.background || null,
+              status: null,
+            },
+          },
+        };
+      });
     } catch (err) {
       console.error('Failed to fetch patient conditions for assess check:', err);
     }
-    // Prescriptions first so they appear at the top of the note.
+
+    // Prescriptions first so they appear at the top of the note. Sort the
+    // tagged list directly so the {src, srcIdx} tag stays paired with cmd.
     const RX_SET = new Set(['prescribe', 'refill', 'adjust_prescription']);
-    allInsertable.sort((a, b) => (RX_SET.has(a.command_type) ? 0 : 1) - (RX_SET.has(b.command_type) ? 0 : 1));
+    tagged.sort((a, b) => (RX_SET.has(a.cmd.command_type) ? 0 : 1) - (RX_SET.has(b.cmd.command_type) ? 0 : 1));
+
+    const allInsertable = tagged.map(t => t.cmd);
     logEvent('COMMANDS_SENDING', { commands: allInsertable.map(c => ({
       type: c.command_type, display: (c.display || '').slice(0, 80), sectionKey: c.section_key,
     })) });
@@ -1341,18 +1365,58 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             console.error('Failed to insert metadata:', metaErr);
           }
         }
-        // Stamp commands with their UUIDs and save immediately (before modal closes).
+        // Origin-tracked write-back. The `tagged` list above carries each
+        // sent item's source array + index, so we know exactly which slot
+        // in `commands` or `recommendations` to update — regardless of
+        // type conversions, RX-first reordering, or display collisions.
+        //
+        // FIFO multimap by display string handles the rare case of two
+        // items in a single batch sharing identical display: each tagged
+        // item shifts the next attempted entry off the queue, so duplicate
+        // displays pair in iteration order rather than colliding on a
+        // shared map key. Backend silent drops surface here as an empty
+        // queue for that display — we leave the cached entry untouched
+        // (no UUID stamped) rather than guessing.
+        //
+        // What lands in cache: each inserted entry gets command_uuid plus
+        // its post-conversion command_type and data — i.e., the exact
+        // shape that was sent to originate(), matching what's in
+        // Command.data on the live note. This makes future note↔Scribe
+        // diffing a UUID join + deep-equality check, no per-type adapters.
         let updatedCommands = commands;
+        let updatedRecommendations = recommendations;
         if (data.attempted && data.attempted.length > 0) {
-          const uuidMap = new Map(data.attempted.map(a => [`${a.command_type}:${a.display}`, a.command_uuid]));
-          updatedCommands = commands.map(cmd => {
-            const key = `${cmd.command_type}:${(cmd.display || '').slice(0, 80)}`;
-            const uuid = uuidMap.get(key);
-            return uuid ? { ...cmd, command_uuid: uuid } : cmd;
-          });
+          const attemptedQueue = new Map();
+          for (const a of data.attempted) {
+            const display = a.display || '';
+            const list = attemptedQueue.get(display) || [];
+            list.push(a);
+            attemptedQueue.set(display, list);
+          }
+          updatedCommands = [...commands];
+          updatedRecommendations = [...recommendations];
+          for (const t of tagged) {
+            // Backend truncates `display` to 80 chars in data.attempted
+            // (builder.py L151), so the queue keys are 80-char strings.
+            // Slice the lookup to match — without this, any command whose
+            // display exceeds 80 chars (hpi, vitals, plan, ros, physical_exam,
+            // lab_results, long-named performs) misses the queue and never
+            // gets a command_uuid stamped, which the auto-verify-on-load
+            // effect then surfaces as a smaller "verified" count.
+            const list = attemptedQueue.get((t.cmd.display || '').slice(0, 80));
+            if (!list || list.length === 0) continue;
+            const attempted = list.shift();
+            const stamped = { ...t.cmd, command_uuid: attempted.command_uuid };
+            if (t.src === 'commands') {
+              updatedCommands[t.srcIdx] = { ...updatedCommands[t.srcIdx], ...stamped };
+            } else {
+              updatedRecommendations[t.srcIdx] = { ...updatedRecommendations[t.srcIdx], ...stamped };
+            }
+          }
           setCommands(updatedCommands);
+          setRecommendations(updatedRecommendations);
           saveSummaryToCache(noteData, updatedCommands, true, {
-            recommendations, unmatched_conditions: unmatchedConditions,
+            recommendations: updatedRecommendations, unmatched_conditions: unmatchedConditions,
             diagnosis_suggestions: diagnosisSuggestions,
             selected_template_name: selectedTemplate?.name || null, mode,
           });
@@ -1360,8 +1424,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         const hasPrescriptions = commands.some(c => c.display && RX_SET.has(c.command_type))
           || recommendations.some(c => c.display && !c.rejected && RX_SET.has(c.command_type));
         logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length, effectCount: data.inserted, hasPendingMetadata: (data.metadata_pending?.length || 0) > 0 });
-        // Verify commands were actually created (include Add Now items).
-        const allAttempted = [...addNowAttemptedRef.current, ...(data.attempted || [])];
+        // Verify the commands this Accept & Sign just attempted to insert.
+        // Add Now items aren't merged in here — they were already verified
+        // synchronously when the user clicked Add Now, and including them
+        // would inflate Y above the X shown in the in-progress message
+        // ("Inserting X commands"), making the count appear inconsistent.
+        const allAttempted = data.attempted || [];
         if (allAttempted.length > 0) {
           try {
             const verifyRes = await fetch(`${API_BASE}/verify-commands`, {
@@ -1443,11 +1511,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           });
         } catch (metaErr) { console.error('Add Now metadata failed:', metaErr); }
       }
-      // Track attempted entry for verification merge with Approve All.
       const attemptedEntry = data.attempted && data.attempted[0];
-      if (attemptedEntry) {
-        addNowAttemptedRef.current.push(attemptedEntry);
-      }
       if (isRecommendation) {
         setRecommendations(prev => prev.map((rec, i) =>
           i === index ? { ...rec, already_documented: true, accepted: true, _added_now: true, _adding: false, command_uuid: attemptedEntry?.command_uuid || null } : rec
@@ -1483,10 +1547,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     .map((cmd, index) => ({ command: cmd, index }))
     .filter(entry => entry.command.section_key === '_charges_ad_hoc');
 
-  const insertableCount = commands.filter(c => {
-    if (c.command_type === 'diagnose') return c.data.icd10_code && c.data.accepted && c.display;
-    return !c.already_documented && c.display;
-  }).length
+  // Same predicate as the actual bulk-insert filter (see handleInsert), so
+  // the in-progress "Inserting X commands" count and the post-insert
+  // verification "All X inserted" count refer to the exact same set.
+  const insertableCount = commands.filter(isInsertableCommand).length
     + recommendations.filter(c => c.accepted && !c.already_documented && c.display).length;
   const RX_TYPES = new Set(['prescribe', 'refill', 'adjust_prescription']);
   const hasRxCommands = commands.some(c => c.display && RX_TYPES.has(c.command_type))
