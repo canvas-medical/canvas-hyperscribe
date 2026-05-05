@@ -73,10 +73,15 @@ def get_prior_section_data(note_id: str) -> dict[str, Any]:
         log.info("prior_sections: no note_id supplied")
         return empty
     try:
-        # Only the three fields we actually use downstream (id, patient_id,
-        # provider_id). Avoids materializing the full Note row for what is
-        # effectively a primary-key lookup feeding two scalar FK comparisons.
-        note = Note.objects.only("id", "patient_id", "provider_id").get(id=note_id)
+        # Only the four fields we actually use downstream (id, dbid,
+        # patient_id, provider_id). Avoids materializing the full Note row
+        # for what is effectively a primary-key lookup feeding two scalar FK
+        # comparisons. dbid is required by the .exclude clause below — it
+        # filters on Command.note_id which targets Note's BigAutoField PK,
+        # NOT the UUID id field. Passing note.id (a uuid.UUID) into that
+        # filter would compile to a 128-bit integer parameter that overflows
+        # the bigint column and silently fails the whole query.
+        note = Note.objects.only("id", "dbid", "patient_id", "provider_id").get(id=note_id)
     except Exception:
         log.exception("prior_sections: failed to load current note %s", note_id)
         return empty
@@ -98,7 +103,11 @@ def get_prior_section_data(note_id: str) -> dict[str, Any]:
                 note__datetime_of_service__lte=now,
                 schema_key__in=(_PE_KEY, _ROS_KEY),
             )
-            .exclude(note_id=note.id)
+            # note_id targets Note's BigAutoField PK (dbid), NOT id (UUID).
+            # Pass note.dbid here — note.id would compile to a 128-bit int
+            # that overflows bigint and triggers the silent-empty failure
+            # mode in the surrounding try/except.
+            .exclude(note_id=note.dbid)
             .select_related("note")
         )
         pe_cmd = base.filter(schema_key=_PE_KEY).order_by("-note__datetime_of_service").first()

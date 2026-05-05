@@ -39,7 +39,12 @@ def test_returns_empty_when_note_does_not_exist(mock_note_cls):
 @patch("hyperscribe.scribe.commands.prior_sections.Note")
 def test_returns_payloads_for_each_command_type(mock_note_cls, mock_command_cls) -> None:
     # Note lookup for the current note
-    current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
+    # dbid is intentionally distinct from id (UUID): the .exclude clause in
+    # production filters Command.note_id which targets Note.dbid (BigAutoField),
+    # NOT Note.id (UUID). Tests that pre-dated this distinction had id="cur"
+    # and no dbid, which let the bug `.exclude(note_id=note.id)` pass on a
+    # MagicMock without anyone noticing.
+    current_note = SimpleNamespace(id="cur", dbid=778, patient_id="p1", provider_id="prov1")
     mock_note_cls.objects.only.return_value.get.return_value = current_note
 
     # Build expected prior commands
@@ -82,12 +87,24 @@ def test_returns_payloads_for_each_command_type(mock_note_cls, mock_command_cls)
     assert result["review_of_systems"]["sections"] == [
         {"title": "Constitutional", "text": "denies fever"},
     ]
+    # Regression guard: .exclude must use Note.dbid (BigAutoField PK), not
+    # Note.id (UUID). Passing a UUID into the bigint FK column compiles to
+    # a 128-bit integer parameter that overflows and silently fails the
+    # whole query in the surrounding try/except. Empirically verified by a
+    # round-3 review finding that the prior PE/ROS reference UI was
+    # silently non-functional in production for every patient.
+    mock_command_cls.objects.filter.return_value.exclude.assert_called_once_with(note_id=778)
 
 
 @patch("hyperscribe.scribe.commands.prior_sections.Command")
 @patch("hyperscribe.scribe.commands.prior_sections.Note")
 def test_returns_none_for_command_type_with_no_prior_match(mock_note_cls, mock_command_cls) -> None:
-    current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
+    # dbid is intentionally distinct from id (UUID): the .exclude clause in
+    # production filters Command.note_id which targets Note.dbid (BigAutoField),
+    # NOT Note.id (UUID). Tests that pre-dated this distinction had id="cur"
+    # and no dbid, which let the bug `.exclude(note_id=note.id)` pass on a
+    # MagicMock without anyone noticing.
+    current_note = SimpleNamespace(id="cur", dbid=778, patient_id="p1", provider_id="prov1")
     mock_note_cls.objects.only.return_value.get.return_value = current_note
 
     base = MagicMock()
@@ -103,7 +120,12 @@ def test_returns_none_for_command_type_with_no_prior_match(mock_note_cls, mock_c
 @patch("hyperscribe.scribe.commands.prior_sections.Command")
 @patch("hyperscribe.scribe.commands.prior_sections.Note")
 def test_returns_none_when_html_yields_no_sections(mock_note_cls, mock_command_cls) -> None:
-    current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
+    # dbid is intentionally distinct from id (UUID): the .exclude clause in
+    # production filters Command.note_id which targets Note.dbid (BigAutoField),
+    # NOT Note.id (UUID). Tests that pre-dated this distinction had id="cur"
+    # and no dbid, which let the bug `.exclude(note_id=note.id)` pass on a
+    # MagicMock without anyone noticing.
+    current_note = SimpleNamespace(id="cur", dbid=778, patient_id="p1", provider_id="prov1")
     mock_note_cls.objects.only.return_value.get.return_value = current_note
 
     pe_cmd = _make_command("<p>some unrecognizable garbage</p>")
@@ -127,7 +149,12 @@ def test_returns_none_when_html_yields_no_sections(mock_note_cls, mock_command_c
 @patch("hyperscribe.scribe.commands.prior_sections.Command")
 @patch("hyperscribe.scribe.commands.prior_sections.Note")
 def test_swallows_query_exceptions(mock_note_cls, mock_command_cls) -> None:
-    current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
+    # dbid is intentionally distinct from id (UUID): the .exclude clause in
+    # production filters Command.note_id which targets Note.dbid (BigAutoField),
+    # NOT Note.id (UUID). Tests that pre-dated this distinction had id="cur"
+    # and no dbid, which let the bug `.exclude(note_id=note.id)` pass on a
+    # MagicMock without anyone noticing.
+    current_note = SimpleNamespace(id="cur", dbid=778, patient_id="p1", provider_id="prov1")
     mock_note_cls.objects.only.return_value.get.return_value = current_note
     mock_command_cls.objects.filter.side_effect = RuntimeError("DB down")
     assert get_prior_section_data("cur") == {"physical_exam": None, "review_of_systems": None}
@@ -187,7 +214,12 @@ def test_returns_empty_when_payload_build_raises(
     mock_note_cls, mock_command_cls, mock_parse_html,
 ) -> None:
     """Lines 126-128: if _command_to_payload raises, swallow and return empty."""
-    current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
+    # dbid is intentionally distinct from id (UUID): the .exclude clause in
+    # production filters Command.note_id which targets Note.dbid (BigAutoField),
+    # NOT Note.id (UUID). Tests that pre-dated this distinction had id="cur"
+    # and no dbid, which let the bug `.exclude(note_id=note.id)` pass on a
+    # MagicMock without anyone noticing.
+    current_note = SimpleNamespace(id="cur", dbid=778, patient_id="p1", provider_id="prov1")
     mock_note_cls.objects.only.return_value.get.return_value = current_note
 
     pe_cmd = _make_command("<div><b>Heart:</b> RRR</div>", source_note_id="note-pe")
@@ -215,7 +247,12 @@ def test_returns_empty_when_payload_build_raises(
 def test_handles_command_with_raw_string_data(mock_note_cls, mock_command_cls) -> None:
     """Lines 166-172: cmd.data is a raw string (not a dict) — covered by the
     `elif isinstance(raw, str)` branch in _command_to_payload."""
-    current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
+    # dbid is intentionally distinct from id (UUID): the .exclude clause in
+    # production filters Command.note_id which targets Note.dbid (BigAutoField),
+    # NOT Note.id (UUID). Tests that pre-dated this distinction had id="cur"
+    # and no dbid, which let the bug `.exclude(note_id=note.id)` pass on a
+    # MagicMock without anyone noticing.
+    current_note = SimpleNamespace(id="cur", dbid=778, patient_id="p1", provider_id="prov1")
     mock_note_cls.objects.only.return_value.get.return_value = current_note
 
     raw_html = "<div><b>Heart:</b> RRR</div>"
