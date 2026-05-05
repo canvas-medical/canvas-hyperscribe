@@ -9,6 +9,23 @@ import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/
 
 const html = htm.bind(h);
 
+// Mirrors hyperscribe/scribe/commands/_rx_validation.py and the canvas-core
+// Prescribe schema. Prescribe / Refill / Adjust Prescription all funnel
+// through the same schema during REVIEW, and any missing required field
+// causes the transaction to roll back even though /insert-commands has
+// already returned 200. Keep this predicate aligned with the server-side
+// validate_rx_payload function — they MUST agree on the required-field set.
+const RX_COMMAND_TYPES = new Set(['prescribe', 'refill', 'adjust_prescription']);
+const isRxIncomplete = (d) =>
+  !d
+  || !d.fdb_code
+  || !d.sig
+  || d.quantity_to_dispense == null || d.quantity_to_dispense === ''
+  || !d.type_to_dispense
+  || d.refills == null || d.refills === ''
+  || (d.substitutions !== 'allowed' && d.substitutions !== 'not_allowed');
+const isRxCommand = (cmd) => RX_COMMAND_TYPES.has(cmd?.command_type);
+
 function formatTime(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -1149,8 +1166,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.already_documented) return false;
       if (!c.display && !(SECTION_TYPES.has(c.command_type) && c.data?.sections?.length > 0)) return false;
       if (c.command_type === 'imaging_order' && (!c.data.image_code || !c.data.service_provider || !c.data.ordering_provider_id || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
-      if (c.command_type === 'prescribe' && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
-      if ((c.command_type === 'refill' || c.command_type === 'adjust_prescription') && !c.data.fdb_code) return false;
+      // All three Rx command types share the same canvas-core schema and must
+      // satisfy the same required-field set; using one predicate keeps the
+      // Approve filter, the Add Now gate, and the Save button gate aligned.
+      if (isRxCommand(c) && isRxIncomplete(c.data)) return false;
       if (c.command_type === 'lab_order' && (!c.data.lab_partner || !c.data.tests_order_codes || c.data.tests_order_codes.length === 0)) return false;
       if (c.command_type === 'refer' && (!c.data.service_provider || !c.data.clinical_question || !c.data.notes_to_specialist || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
@@ -1320,6 +1339,22 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         setCommands(prev => prev.map((cmd, i) => i === index ? { ...cmd, _adding: flag } : cmd));
       }
     };
+    // Client-side gate: don't ship incomplete Rx commands to the server.
+    // The server still validates (validate_rx_payload), but failing fast
+    // here gives instant feedback and keeps the audit log clean of avoidable
+    // VALIDATION_FAILED events. The same predicate guards the Approve filter
+    // and the Save button so the three paths stay in sync.
+    if (isRxCommand(command) && isRxIncomplete(command.data)) {
+      logEvent('ADD_NOW_BLOCKED', { commandType: command.command_type, reason: 'rx_incomplete', index });
+      setValidationError([
+        {
+          command_type: command.command_type,
+          display: (command.display || '').slice(0, 80),
+          errors: ['Fill in medication, sig, quantity, dispense type, refills, and substitutions before adding this prescription.'],
+        },
+      ]);
+      return;
+    }
     setAdding(true);
     try {
       const { _template_inserted, ...payload } = command;
@@ -1329,7 +1364,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         body: JSON.stringify({ note_uuid: noteId, commands: [payload] }),
       });
       const data = await res.json();
-      if (data.error) { setAdding(false); logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index }); return; }
+      if (data.error) {
+        setAdding(false);
+        // Surface server-side validation errors (e.g. medication not active
+        // on patient) so the user can see exactly what went wrong instead of
+        // the previous silent-fail behavior.
+        if (data.validation_errors) setValidationError(data.validation_errors);
+        logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index, error: data.error, validation_errors: data.validation_errors });
+        return;
+      }
       // Phase 2: insert metadata if needed (e.g. alert_facility).
       if (data.metadata_pending && data.metadata_pending.length > 0) {
         try {
@@ -1398,7 +1441,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const showFooter = canEdit && (mode === 'manual' || aiFlowComplete);
 
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral', lab_order: 'lab order' };
-  const _isRxIncomplete = (d) => !d.fdb_code || !d.sig || d.quantity_to_dispense == null || !d.type_to_dispense || d.refills == null;
+  // Module-scope `isRxIncomplete` is the single source of truth — see top of file.
+  const _isRxIncomplete = isRxIncomplete;
   const _isLabIncomplete = (d) => !d.lab_partner || !d.tests_order_codes || d.tests_order_codes.length === 0;
   const _isImagingIncomplete = (d) => !d.image_code || !d.service_provider || !d.ordering_provider_id || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
   const _isReferIncomplete = (d) => !d.service_provider || !d.clinical_question || !d.notes_to_specialist || !d.diagnosis_codes || d.diagnosis_codes.length === 0;

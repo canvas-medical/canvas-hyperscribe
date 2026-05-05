@@ -1,14 +1,60 @@
 from decimal import Decimal
+from typing import Any
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from canvas_sdk.commands.constants import ClinicalQuantity
 
 from hyperscribe.scribe.commands.prescription import PrescriptionParser
 
 
+def _good_data(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "fdb_code": "285665",
+        "sig": "Take 1 tablet by mouth daily",
+        "quantity_to_dispense": 30,
+        "type_to_dispense": "C48480",
+        "refills": 2,
+        "substitutions": "allowed",
+    }
+    data.update(overrides)
+    return data
+
+
 def test_extract_returns_none() -> None:
     parser = PrescriptionParser()
     assert parser.extract("Lisinopril 10mg") is None
+
+
+# ---- validate(): canvas-core required-field coverage ----------------------
+
+
+def test_validate_clean_payload_returns_no_errors() -> None:
+    assert PrescriptionParser().validate(_good_data()) == []
+
+
+@pytest.mark.parametrize(
+    "field,fragment",
+    [
+        ("fdb_code", "Medication"),
+        ("sig", "Sig"),
+        ("quantity_to_dispense", "Quantity to dispense"),
+        ("type_to_dispense", "Dispense type"),
+        ("refills", "Refills"),
+        ("substitutions", "Substitutions"),
+    ],
+)
+def test_validate_each_required_field(field: str, fragment: str) -> None:
+    errors = PrescriptionParser().validate(_good_data(**{field: None}))
+    assert any(fragment in e for e in errors), errors
+
+
+def test_validate_note_to_pharmacist_uses_210_char_limit() -> None:
+    """Regression: previously the parser accepted up to 1024 chars."""
+    over = _good_data(note_to_pharmacist="x" * 211)
+    errors = PrescriptionParser().validate(over)
+    assert any("210" in e for e in errors)
 
 
 def test_build_full() -> None:
