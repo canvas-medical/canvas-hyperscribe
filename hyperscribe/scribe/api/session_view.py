@@ -101,6 +101,32 @@ def _authorize_edit(note_uuid: str, request: Any) -> JSONResponse | None:
     return None
 
 
+def _authorize_read_as_author(note_uuid: str, request: Any) -> JSONResponse | None:
+    """Same author-only check as `_authorize_edit`, minus the editability gate.
+
+    Use on read-only endpoints (e.g. /verify-commands) that need probe defense
+    — i.e. block staff who aren't the note's author from learning the existence
+    of arbitrary command UUIDs — but must remain reachable AFTER the note is
+    locked or signed (otherwise legit post-sign reloads by the actual author
+    would 403 indefinitely).
+    """
+    if not note_uuid:
+        return JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)
+    try:
+        note = Note.objects.values("provider__id").get(id=note_uuid)
+    except Note.DoesNotExist:
+        return JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)
+    headers = getattr(request, "headers", {}) or {}
+    staff_id = headers.get("canvas-logged-in-user-id") or ""
+    provider_id = note.get("provider__id")
+    if not staff_id or not provider_id or str(provider_id) != str(staff_id):
+        return JSONResponse(
+            {"error": "Only the note author can read this Scribe tab data"},
+            status_code=HTTPStatus.FORBIDDEN,
+        )
+    return None
+
+
 def audit_event(note_uuid: str, event_type: str, details: dict[str, Any] | None = None) -> None:
     """Append an audit event to the ScribeAuditLog from the backend."""
     from datetime import datetime, timezone
@@ -1207,12 +1233,18 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         attempted: list[dict[str, Any]] = data.get("attempted", [])
         if not note_uuid or not attempted:
             return [JSONResponse({"verified": [], "failed": []}, status_code=HTTPStatus.OK)]
-        # Note-author authorization, matching /insert-commands and
-        # /insert-metadata. Without this, any authenticated staff session
-        # could probe whether arbitrary command UUIDs exist on any note.
-        # Audit-log the denial for parity with /insert-metadata so probe
-        # attempts have a plugin-level audit trail.
-        if denial := _authorize_edit(note_uuid, self.request):
+        # Note-author authorization. Uses the read-only variant
+        # (`_authorize_read_as_author`) — NOT `_authorize_edit` — because
+        # /verify-commands is a read-only endpoint and must stay reachable
+        # for the legitimate author after the note transitions to LKD/SGN.
+        # The auto-verify-on-load effect calls this on every reload of an
+        # approved note; gating on editability would 403 every legit
+        # post-sign reload, render a misleading "All 0 commands inserted"
+        # banner (because fetch resolves on 4xx and `data.failed` is
+        # missing), and pollute the probe-defense audit signal with rows
+        # from real authors. Audit-log the denial for parity with
+        # /insert-metadata so probe attempts still have a trail.
+        if denial := _authorize_read_as_author(note_uuid, self.request):
             audit_event(note_uuid, "VERIFY_COMMANDS_DENIED", {})
             return [denial]
 

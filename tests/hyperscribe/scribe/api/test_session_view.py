@@ -41,6 +41,7 @@ def _bypass_authorize_edit(request: pytest.FixtureRequest, monkeypatch: pytest.M
     from hyperscribe.scribe.api import session_view
 
     monkeypatch.setattr(session_view, "_authorize_edit", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(session_view, "_authorize_read_as_author", lambda *_args, **_kwargs: None)
 
 
 def _helper_instance(staff_id: str = "staff-key-abc") -> ScribeSessionView:
@@ -926,16 +927,14 @@ def test_verify_commands_invalid_json() -> None:
 
 @pytest.mark.no_authorize_bypass
 @patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.Helper")
 @patch("hyperscribe.scribe.api.session_view.Note")
 def test_verify_commands_denies_non_author(
-    mock_note: MagicMock, mock_helper: MagicMock, mock_audit: MagicMock,
+    mock_note: MagicMock, mock_audit: MagicMock,
 ) -> None:
     """A staff session that isn't the note's author gets a 403 AND a
     VERIFY_COMMANDS_DENIED audit_event so probe attempts have a plugin-level
     audit trail (matching the /insert-metadata pattern)."""
-    mock_note.objects.values.return_value.get.return_value = {"dbid": 1, "provider__id": "other-staff"}
-    mock_helper.editable_note.return_value = True
+    mock_note.objects.values.return_value.get.return_value = {"provider__id": "other-staff"}
     view = _helper_instance(staff_id="not-the-author")
     view.request = SimpleNamespace(
         headers={"canvas-logged-in-user-id": "not-the-author"},
@@ -947,6 +946,46 @@ def test_verify_commands_denies_non_author(
     result = view.post_verify_commands()
     assert result[0].status_code == HTTPStatus.FORBIDDEN
     mock_audit.assert_called_once_with("note-uuid", "VERIFY_COMMANDS_DENIED", {})
+
+
+@pytest.mark.no_authorize_bypass
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("canvas_sdk.v1.data.command.Command")
+@patch("hyperscribe.scribe.api.session_view.Helper")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_verify_commands_allows_author_after_note_signed(
+    mock_note: MagicMock, mock_helper: MagicMock, mock_command_cls: MagicMock, mock_audit: MagicMock,
+) -> None:
+    """The legitimate author must still be able to verify commands AFTER the
+    note transitions to LKD/SGN — the auto-verify-on-load effect runs on
+    every reload of an approved note. /verify-commands is read-only and
+    uses _authorize_read_as_author, which deliberately omits the
+    editability check that gates the mutating sibling endpoints. Without
+    that distinction, every legit post-sign reload would 403 and the
+    banner would render a misleading 'All 0 commands inserted'."""
+    # Editable_note is intentionally NOT consulted by the read-only auth
+    # helper, so even if it would say False (locked/signed note), the
+    # author should still get through.
+    mock_helper.editable_note.return_value = False
+    mock_note.objects.values.return_value.get.return_value = {"provider__id": "the-author"}
+    mock_command_cls.objects.filter.return_value.values.return_value = [
+        {"id": "uuid-1", "anchor_object_type": "Condition", "anchor_object_dbid": 100},
+    ]
+    view = _helper_instance(staff_id="the-author")
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "the-author"},
+        body=json.dumps({
+            "note_uuid": "note-uuid",
+            "attempted": [{"command_uuid": "uuid-1", "command_type": "diagnose", "display": "x"}],
+        }),
+    )
+    result = view.post_verify_commands()
+    assert result[0].status_code == HTTPStatus.OK
+    payload = json.loads(result[0].content)
+    assert len(payload["verified"]) == 1
+    # No DENIED audit on the success path.
+    deny_calls = [c for c in mock_audit.call_args_list if c.args[1] == "VERIFY_COMMANDS_DENIED"]
+    assert deny_calls == []
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")

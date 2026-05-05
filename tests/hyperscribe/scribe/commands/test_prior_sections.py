@@ -31,7 +31,7 @@ def test_returns_empty_when_note_does_not_exist(mock_note_cls):
         pass
 
     mock_note_cls.DoesNotExist = DoesNotExist
-    mock_note_cls.objects.select_related.return_value.get.side_effect = DoesNotExist
+    mock_note_cls.objects.only.return_value.get.side_effect = DoesNotExist
     assert get_prior_section_data("missing") == {"physical_exam": None, "review_of_systems": None}
 
 
@@ -40,7 +40,7 @@ def test_returns_empty_when_note_does_not_exist(mock_note_cls):
 def test_returns_payloads_for_each_command_type(mock_note_cls, mock_command_cls) -> None:
     # Note lookup for the current note
     current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
-    mock_note_cls.objects.select_related.return_value.get.return_value = current_note
+    mock_note_cls.objects.only.return_value.get.return_value = current_note
 
     # Build expected prior commands
     pe_cmd = _make_command(
@@ -88,7 +88,7 @@ def test_returns_payloads_for_each_command_type(mock_note_cls, mock_command_cls)
 @patch("hyperscribe.scribe.commands.prior_sections.Note")
 def test_returns_none_for_command_type_with_no_prior_match(mock_note_cls, mock_command_cls) -> None:
     current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
-    mock_note_cls.objects.select_related.return_value.get.return_value = current_note
+    mock_note_cls.objects.only.return_value.get.return_value = current_note
 
     base = MagicMock()
     none_qs = MagicMock()
@@ -104,7 +104,7 @@ def test_returns_none_for_command_type_with_no_prior_match(mock_note_cls, mock_c
 @patch("hyperscribe.scribe.commands.prior_sections.Note")
 def test_returns_none_when_html_yields_no_sections(mock_note_cls, mock_command_cls) -> None:
     current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
-    mock_note_cls.objects.select_related.return_value.get.return_value = current_note
+    mock_note_cls.objects.only.return_value.get.return_value = current_note
 
     pe_cmd = _make_command("<p>some unrecognizable garbage</p>")
     base = MagicMock()
@@ -128,7 +128,7 @@ def test_returns_none_when_html_yields_no_sections(mock_note_cls, mock_command_c
 @patch("hyperscribe.scribe.commands.prior_sections.Note")
 def test_swallows_query_exceptions(mock_note_cls, mock_command_cls) -> None:
     current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
-    mock_note_cls.objects.select_related.return_value.get.return_value = current_note
+    mock_note_cls.objects.only.return_value.get.return_value = current_note
     mock_command_cls.objects.filter.side_effect = RuntimeError("DB down")
     assert get_prior_section_data("cur") == {"physical_exam": None, "review_of_systems": None}
 
@@ -159,14 +159,14 @@ def test_returns_empty_when_note_get_raises(mock_note_cls) -> None:
     """Lines 77-79: any exception from Note.objects.get is caught and the
     empty payload is returned. (Distinct from the DoesNotExist test above,
     which uses select_related setup.)"""
-    mock_note_cls.objects.get.side_effect = RuntimeError("db unavailable")
+    mock_note_cls.objects.only.return_value.get.side_effect = RuntimeError("db unavailable")
     assert get_prior_section_data("any-id") == {"physical_exam": None, "review_of_systems": None}
 
 
 @patch("hyperscribe.scribe.commands.prior_sections.Note")
 def test_returns_empty_when_note_missing_patient_id(mock_note_cls) -> None:
     """Lines 80-85: an inert note (no patient_id) yields the empty payload."""
-    mock_note_cls.objects.get.return_value = SimpleNamespace(
+    mock_note_cls.objects.only.return_value.get.return_value = SimpleNamespace(
         id="cur", patient_id=None, provider_id="prov1",
     )
     assert get_prior_section_data("cur") == {"physical_exam": None, "review_of_systems": None}
@@ -174,7 +174,7 @@ def test_returns_empty_when_note_missing_patient_id(mock_note_cls) -> None:
 
 @patch("hyperscribe.scribe.commands.prior_sections.Note")
 def test_returns_empty_when_note_missing_provider_id(mock_note_cls) -> None:
-    mock_note_cls.objects.get.return_value = SimpleNamespace(
+    mock_note_cls.objects.only.return_value.get.return_value = SimpleNamespace(
         id="cur", patient_id="p1", provider_id=None,
     )
     assert get_prior_section_data("cur") == {"physical_exam": None, "review_of_systems": None}
@@ -188,8 +188,7 @@ def test_returns_empty_when_payload_build_raises(
 ) -> None:
     """Lines 126-128: if _command_to_payload raises, swallow and return empty."""
     current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
-    mock_note_cls.objects.select_related.return_value.get.return_value = current_note
-    mock_note_cls.objects.get.return_value = current_note
+    mock_note_cls.objects.only.return_value.get.return_value = current_note
 
     pe_cmd = _make_command("<div><b>Heart:</b> RRR</div>", source_note_id="note-pe")
     base = MagicMock()
@@ -217,8 +216,7 @@ def test_handles_command_with_raw_string_data(mock_note_cls, mock_command_cls) -
     """Lines 166-172: cmd.data is a raw string (not a dict) — covered by the
     `elif isinstance(raw, str)` branch in _command_to_payload."""
     current_note = SimpleNamespace(id="cur", patient_id="p1", provider_id="prov1")
-    mock_note_cls.objects.select_related.return_value.get.return_value = current_note
-    mock_note_cls.objects.get.return_value = current_note
+    mock_note_cls.objects.only.return_value.get.return_value = current_note
 
     raw_html = "<div><b>Heart:</b> RRR</div>"
     pe_note = SimpleNamespace(

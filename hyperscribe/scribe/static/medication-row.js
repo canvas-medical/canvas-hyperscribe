@@ -41,6 +41,15 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.medication_text || '');
   const [sig, setSig] = useState(command.data.sig || '');
   const [alertFacility, setAlertFacility] = useState(!!command.data.alert_facility);
+  // Resync local state to prop changes. The view-mode checkbox writes
+  // straight through to command.data via onEdit (see handleSetInRow below),
+  // so a provider can flip alert_facility without ever entering the form.
+  // Without this resync, opening the form to edit and clicking Save would
+  // overwrite the up-to-date command.data with the stale local alertFacility
+  // (initial mount value), silently reverting the provider's view-mode toggle.
+  useEffect(() => {
+    setAlertFacility(!!command.data.alert_facility);
+  }, [command.data.alert_facility]);
   // Show the alert-facility control whenever the command is in-flight (not
   // yet committed to the chart) OR when the field is explicitly defined.
   // The only case we hide is a legacy already-documented command that

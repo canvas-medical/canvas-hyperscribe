@@ -168,9 +168,22 @@ def _wait_for_command(command_uuid: str) -> bool:
     DB existence check at effect-build time (see canvas_sdk.effects.command_metadata.base),
     so without this wait the second request often races phase 1 and the validator
     raises before any effect leaves the plugin.
+
+    The .exists() call is wrapped defensively: a transient ORM exception
+    (connection drop, transaction abort, pool exhaustion) on a single check
+    must NOT escape and 500 the whole /insert-metadata batch. Treat any
+    failure as "not yet visible" and retry through the existing cap; if every
+    retry hits the same fault, return False so the caller's per-item
+    try/except path drops just that one item with a logged warning instead
+    of taking down every alert_facility write in the batch.
     """
     for attempt in range(_METADATA_DB_WAIT_ATTEMPTS):
-        if Command.objects.filter(id=command_uuid).exists():
+        try:
+            visible = Command.objects.filter(id=command_uuid).exists()
+        except Exception:
+            log.exception("metadata: existence check failed for %s (attempt %d)", command_uuid, attempt)
+            visible = False
+        if visible:
             if attempt > 0:
                 log.info("metadata: command %s visible after %d retries", command_uuid, attempt)
             return True
