@@ -149,12 +149,20 @@ function buildCommandBySectionKey(commands) {
 // Derives the ordered list of claim-eligible diagnoses for the Charges matrix.
 // Rank is the position in the filtered list — never persisted as a field.
 // Reordering = swapping array positions in commands[].
+//
+// Accepts both `diagnose` (the AI/LLM-proposed path that needs an explicit
+// `accepted` flag) and `assess` (the path used by "+ Add Condition" when the
+// provider picks an existing patient condition — implicitly accepted, has
+// `data.icd10_code` populated). Without `assess` here, the routine
+// chronic-condition follow-up workflow (existing condition + a CPT) would
+// strand the matrix without rows and the unlinkedCptCount guard would
+// permanently block Accept & Sign.
 function buildRankedDiagnoses(commands) {
   const ranked = [];
   commands.forEach((cmd, index) => {
-    if (cmd.command_type !== 'diagnose') return;
+    if (cmd.command_type !== 'diagnose' && cmd.command_type !== 'assess') return;
     if (cmd.data?.rejected) return;
-    if (!cmd.data?.accepted) return;
+    if (cmd.command_type === 'diagnose' && !cmd.data?.accepted) return;
     if (!cmd.data?.icd10_code) return;
     ranked.push({
       index,
