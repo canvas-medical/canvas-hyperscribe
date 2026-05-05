@@ -577,16 +577,26 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   //      inferred value so the row self-heals on this load.
   // The transcript record was never touched by _save_summary, so transcript
   // state is a reliable signal of which mode the session actually used.
+  //
+  // The manual branch must wait for `recording.hydrated` (transcript fetch
+  // has completed) before firing. Without that gate, an AI row whose mode
+  // column was wiped could be permanently flipped to manual: in the cache
+  // load path the summary fetch sets `noteData` while the transcript fetch
+  // is still in flight, so a render could observe
+  //   mode === null && noteData !== null && recording.finalized === false
+  // even though the row is actually an AI session whose transcript just
+  // hasn't arrived yet. Setting mode='manual' there persists incorrectly.
   useEffect(() => {
     if (mode !== null || approved) return;
     if (recording.finalized) {
       // Recording was finalized → AI mode session.
       setMode('ai');
-    } else if (noteData !== null && !initialData?.transcript?.started) {
-      // Note generated but no recording was ever started → manual mode session.
+    } else if (recording.hydrated && noteData !== null && !recording.started) {
+      // Transcript fetch completed AND the server confirms no transcript was
+      // ever started → manual mode session.
       setMode('manual');
     }
-  }, [recording.finalized, mode, noteData, approved]);
+  }, [recording.finalized, recording.hydrated, recording.started, mode, noteData, approved]);
 
 
   const handleSelectTemplate = useCallback((e) => {
@@ -596,9 +606,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       logEvent('DESELECT_TEMPLATE');
       setSelectedTemplate(null);
       setCommands(prev => prev.filter(c => !c._template_inserted));
+      // Send an explicit empty string (not null) to clear the column.
+      // post_save_summary strips null values so the autosave can fire with a
+      // briefly-null selectedTemplate without wiping persisted state; the
+      // deselect path needs the opposite — it must reach _save_summary so the
+      // column actually clears. "" is the supported "clear" sentinel.
       saveSummaryToCache(noteData, commands, approved, {
         recommendations, unmatched_conditions: unmatchedConditions,
-        diagnosis_suggestions: diagnosisSuggestions, selected_template_name: null,
+        diagnosis_suggestions: diagnosisSuggestions, selected_template_name: '',
       });
       return;
     }

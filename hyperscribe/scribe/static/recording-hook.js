@@ -98,6 +98,14 @@ export function useRecording(noteId, initialTranscript) {
   );
   const [error, setError] = useState(null);
   const [finalized, setFinalized] = useState(() => initialTranscript?.finalized ?? false);
+  // `started` mirrors the server-side signal: was a ScribeTranscript row ever
+  // created for this note? `hydrated` flips to true after the cache fetch
+  // completes so callers can distinguish "transcript fetch hasn't finished
+  // yet" from "transcript fetch finished and the note has no recording".
+  // Both default to true when SSR data was provided so consumers don't wait
+  // on a fetch that never runs.
+  const [started, setStarted] = useState(() => initialTranscript?.started ?? false);
+  const [hydrated, setHydrated] = useState(() => !!initialTranscript);
   const [audioLevel, setAudioLevel] = useState(0);
   const [silenceWarning, setSilenceWarning] = useState(false);
   const [micBlocked, setMicBlocked] = useState(false);
@@ -434,6 +442,7 @@ export function useRecording(noteId, initialTranscript) {
     if (ok) {
       setMicBlocked(false);
       setStatus('recording');
+      setStarted(true);
     }
     return ok;
   }, [connectAndRecord]);
@@ -531,6 +540,9 @@ export function useRecording(noteId, initialTranscript) {
         if (!cancelled && data.items && data.items.length > 0) {
           setEntries(promoteStalePartials(sortEntries(data.items.map(normalizeEntry))));
         }
+        if (!cancelled && data.started) {
+          setStarted(true);
+        }
         if (!cancelled && data.started && !data.finalized) {
           setStatus('paused');
         }
@@ -539,6 +551,10 @@ export function useRecording(noteId, initialTranscript) {
         }
       } catch (err) {
         console.error('Failed to load transcript:', err);
+      } finally {
+        // Always mark hydrated, even on fetch failure — otherwise mode
+        // recovery effects that gate on `hydrated` would block forever.
+        if (!cancelled) setHydrated(true);
       }
     }
     load();
@@ -634,7 +650,7 @@ export function useRecording(noteId, initialTranscript) {
   }, []);
 
   return {
-    status, entries, error, finalized, lastSaved, audioLevel, silenceWarning, micBlocked, micPrompting, connectionLost,
+    status, entries, error, finalized, started, hydrated, lastSaved, audioLevel, silenceWarning, micBlocked, micPrompting, connectionLost,
     startRecording, pauseRecording, resumeRecording, finishRecording, retryMicPermission,
   };
 }
