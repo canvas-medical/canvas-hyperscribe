@@ -1096,7 +1096,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if denial := _authorize_edit(note_uuid, self.request):
             return [denial]
         commands = data.get("commands", [])
-        validation_errors = validate_proposals(commands)
+        # Pass the note_uuid so refill / adjust_prescription parsers can verify
+        # the source medication is active on the patient before we ORIGINATE.
+        # This catches the failure mode where REVIEW raises ValidationError and
+        # rolls back the transaction while insert-commands still returns 200.
+        validation_errors = validate_proposals(commands, note_uuid=note_uuid)
         if validation_errors:
             audit_event(note_uuid, "VALIDATION_FAILED", {"errors": validation_errors})
             return [

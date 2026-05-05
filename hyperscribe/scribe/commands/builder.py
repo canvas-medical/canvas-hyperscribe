@@ -83,14 +83,37 @@ def annotate_duplicates(proposals: list[CommandProposal], note_uuid: str) -> Non
         builder.annotate_duplicates(proposals, note)
 
 
-def validate_proposals(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Validate all proposals. Returns list of {command_type, display, errors} for failures."""
+def validate_proposals(
+    proposals: list[dict[str, Any]],
+    note_uuid: str | None = None,
+) -> list[dict[str, Any]]:
+    """Validate all proposals. Returns list of {command_type, display, errors} for failures.
+
+    When ``note_uuid`` is supplied, parsers that implement
+    ``validate_against_patient`` also get a chance to verify chart state
+    (e.g. that a refill/adjust_prescription's ``fdb_code`` resolves to an
+    active medication on the note's patient). The DB-touching validation is
+    skipped when ``note_uuid`` is None or empty so unit tests can call this
+    function without a database.
+    """
     validation_errors: list[dict[str, Any]] = []
     for proposal in proposals:
         builder = _BUILDERS.get(proposal.get("command_type", ""))
         if builder is None:
             continue
-        errors = builder.validate(proposal.get("data", {}))
+        data = proposal.get("data", {})
+        errors = list(builder.validate(data))
+        # Layer 2: chart-state validation (only the Rx parsers implement this).
+        # Skip this step if we already failed on shape errors — the SDK call
+        # is wasted work if the payload won't even build.
+        if not errors and note_uuid:
+            chart_validator = getattr(builder, "validate_against_patient", None)
+            if callable(chart_validator):
+                try:
+                    chart_errors = chart_validator(data, note_uuid)
+                except Exception:  # pragma: no cover — fail open if DB is flaky
+                    chart_errors = []
+                errors.extend(chart_errors)
         if errors:
             validation_errors.append(
                 {

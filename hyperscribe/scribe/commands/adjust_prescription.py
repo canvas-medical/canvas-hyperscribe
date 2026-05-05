@@ -8,8 +8,10 @@ from canvas_sdk.commands.commands.adjust_prescription import AdjustPrescriptionC
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from canvas_sdk.commands.constants import ClinicalQuantity
 from canvas_sdk.effects import Effect
+from canvas_sdk.v1.data.medication import Medication, Status
 from canvas_sdk.v1.data.note import Note
 
+from hyperscribe.scribe.commands._rx_validation import validate_rx_payload
 from hyperscribe.scribe.commands.base import CommandParser
 
 
@@ -23,11 +25,52 @@ class AdjustPrescriptionParser(CommandParser):
         return None
 
     def validate(self, data: dict[str, Any]) -> list[str]:
+        # adjust_prescription requires the source medication's fdb_code
+        # (the existing prescription being adjusted) AND optionally a
+        # ``new_fdb_code`` if the user is swapping to a different medication.
+        return validate_rx_payload(
+            data,
+            require_fdb_code=True,
+            allow_change_medication_to=True,
+        )
+
+    def validate_against_patient(self, data: dict[str, Any], note_uuid: str) -> list[str]:
+        """Verify the source ``fdb_code`` resolves to an active patient medication.
+
+        ``AdjustPrescriptionCommand`` inherits from ``RefillCommand``, which
+        runs this same check during ``review()`` and raises ``ValidationError``.
+        Catching it here gives a much clearer error than the generic
+        ``"Medication with fdb_code X does not exist."`` from the SDK and
+        keeps a half-applied ``ORIGINATE`` from getting committed.
+
+        This is a database-touching check, so it lives outside ``validate()``
+        and is only invoked by ``validate_proposals_with_note`` paths.
+        """
         errors: list[str] = []
-        if len(str(data.get("sig") or "")) > 1000:
-            errors.append("Sig exceeds 1000 characters")
-        if len(data.get("note_to_pharmacist") or "") > 1024:
-            errors.append("Note to pharmacist exceeds 1024 characters")
+        fdb_code = (data.get("fdb_code") or "").strip()
+        if not fdb_code:
+            return errors
+        try:
+            patient_id = (
+                Note.objects.values_list("patient_id", flat=True).get(id=note_uuid)
+            )
+        except Note.DoesNotExist:
+            errors.append("Note not found; cannot verify the source medication")
+            return errors
+        if not patient_id:
+            errors.append("Note has no patient; cannot verify the source medication")
+            return errors
+        if not (
+            Medication.objects.filter(
+                status=Status.ACTIVE,
+                codings__code=fdb_code,
+                patient_id=patient_id,
+            ).exists()
+        ):
+            errors.append(
+                "The selected medication is not active on this patient — "
+                "adjust prescription requires an existing active medication"
+            )
         return errors
 
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
@@ -67,7 +110,10 @@ class AdjustPrescriptionParser(CommandParser):
             type_to_dispense=type_to_dispense,
             refills=int(data["refills"]) if data.get("refills") is not None else None,
             substitutions=substitutions,
-            note_to_pharmacist=(data.get("note_to_pharmacist") or "")[:1024] or None,
+            # canvas-core caps note_to_pharmacist at 210 chars (Surescripts NewRx
+            # wire limit); validate_rx_payload rejects longer strings before we
+            # get here, so this truncation is a defense-in-depth safety net.
+            note_to_pharmacist=(data.get("note_to_pharmacist") or "")[:210] or None,
             pharmacy=data.get("pharmacy") or None,
             prescriber_id=prescriber_id,
             note_uuid=note_uuid,
