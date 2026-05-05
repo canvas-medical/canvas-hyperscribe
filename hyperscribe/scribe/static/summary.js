@@ -565,10 +565,26 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     return () => window.removeEventListener('beforeunload', handler);
   }, [inserting, activeRecording]);
 
-  // Set mode to 'ai' if we load a finalized transcript from cache (returning to a previous session).
+  // Mode recovery: if the row has no mode set, infer it from transcript and
+  // note state. Two cases share this path:
+  //   1. Returning to a session that finalized recording but never generated
+  //      the note (the original "resume" case).
+  //   2. Loading a row whose mode column was wiped to "" by an old version
+  //      of _save_summary (the autosave race fixed in this PR). Without
+  //      this branch, note authors with already-wiped rows would still see
+  //      no "Approve and Sign" footer — only a manual DB update could
+  //      recover them. Once setMode runs, the next autosave persists the
+  //      inferred value so the row self-heals on this load.
+  // The transcript record was never touched by _save_summary, so transcript
+  // state is a reliable signal of which mode the session actually used.
   useEffect(() => {
-    if (recording.finalized && mode === null && !noteData && !approved) {
+    if (mode !== null || approved) return;
+    if (recording.finalized) {
+      // Recording was finalized → AI mode session.
       setMode('ai');
+    } else if (noteData !== null && !initialData?.transcript?.started) {
+      // Note generated but no recording was ever started → manual mode session.
+      setMode('manual');
     }
   }, [recording.finalized, mode, noteData, approved]);
 
@@ -580,14 +596,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       logEvent('DESELECT_TEMPLATE');
       setSelectedTemplate(null);
       setCommands(prev => prev.filter(c => !c._template_inserted));
-      // Send "" (not null) so the backend treats this as an explicit clear.
-      // The save-summary endpoint now treats null as "no info, don't touch"
-      // so the autosave race during template resolution can no longer wipe
-      // the column. Explicit deselect therefore has to signal clearing with
-      // an empty string.
       saveSummaryToCache(noteData, commands, approved, {
         recommendations, unmatched_conditions: unmatchedConditions,
-        diagnosis_suggestions: diagnosisSuggestions, selected_template_name: '',
+        diagnosis_suggestions: diagnosisSuggestions, selected_template_name: null,
       });
       return;
     }
