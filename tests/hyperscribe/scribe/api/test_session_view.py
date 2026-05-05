@@ -322,6 +322,103 @@ def test_save_summary_defaults(mock_note: MagicMock, mock_summary: MagicMock) ->
     assert call_kwargs.kwargs["defaults"]["approved"] is False
 
 
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_save_summary_omits_template_and_mode_when_missing(
+    mock_note: MagicMock, mock_summary: MagicMock
+) -> None:
+    """A partial save that does not include selected_template_name or mode must
+    NOT rewrite those columns. The front-end's debounced autosave fires before
+    the cached template has been resolved against the loaded template list;
+    rewriting the columns to "" on every partial save would put the row in a
+    self-reinforcing dead state where the "Approve and Sign" footer is hidden.
+    """
+    mock_note.objects.values_list.return_value.get.return_value = 77
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note_id": "77",
+                "note": {"title": "SOAP", "sections": []},
+                "commands": [],
+                "approved": False,
+                "selected_template_name": None,
+                "mode": None,
+            }
+        )
+    )
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    call_kwargs = mock_summary.objects.update_or_create.call_args
+    defaults = call_kwargs.kwargs["defaults"]
+    assert "selected_template_name" not in defaults
+    assert "mode" not in defaults
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_save_summary_writes_template_and_mode_when_provided(
+    mock_note: MagicMock, mock_summary: MagicMock
+) -> None:
+    """Non-empty values for selected_template_name and mode are persisted."""
+    mock_note.objects.values_list.return_value.get.return_value = 88
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note_id": "88",
+                "note": {},
+                "commands": [],
+                "approved": False,
+                "selected_template_name": "Annual Physical",
+                "mode": "ai",
+            }
+        )
+    )
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    call_kwargs = mock_summary.objects.update_or_create.call_args
+    defaults = call_kwargs.kwargs["defaults"]
+    assert defaults["selected_template_name"] == "Annual Physical"
+    assert defaults["mode"] == "ai"
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_save_summary_empty_string_clears_template(
+    mock_note: MagicMock, mock_summary: MagicMock
+) -> None:
+    """An explicit empty string is the supported way to clear a template
+    selection: the front-end's deselect handler sends "" (not null), and the
+    backend writes that through to the column."""
+    mock_note.objects.values_list.return_value.get.return_value = 99
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note_id": "99",
+                "note": {},
+                "commands": [],
+                "approved": False,
+                "selected_template_name": "",
+            }
+        )
+    )
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    call_kwargs = mock_summary.objects.update_or_create.call_args
+    defaults = call_kwargs.kwargs["defaults"]
+    assert defaults["selected_template_name"] == ""
+    # mode was not in the payload, so it stays out of defaults.
+    assert "mode" not in defaults
+
+
 # --- /generate-note ---
 
 

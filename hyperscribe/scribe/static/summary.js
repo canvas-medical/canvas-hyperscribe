@@ -580,9 +580,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       logEvent('DESELECT_TEMPLATE');
       setSelectedTemplate(null);
       setCommands(prev => prev.filter(c => !c._template_inserted));
+      // Send "" (not null) so the backend treats this as an explicit clear.
+      // The save-summary endpoint now treats null as "no info, don't touch"
+      // so the autosave race during template resolution can no longer wipe
+      // the column. Explicit deselect therefore has to signal clearing with
+      // an empty string.
       saveSummaryToCache(noteData, commands, approved, {
         recommendations, unmatched_conditions: unmatchedConditions,
-        diagnosis_suggestions: diagnosisSuggestions, selected_template_name: null,
+        diagnosis_suggestions: diagnosisSuggestions, selected_template_name: '',
       });
       return;
     }

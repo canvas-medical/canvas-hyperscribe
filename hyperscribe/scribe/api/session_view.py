@@ -203,9 +203,22 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
         "recommendations": payload.get("recommendations") or [],
         "unmatched_conditions": payload.get("unmatched_conditions") or [],
         "diagnosis_suggestions": payload.get("diagnosis_suggestions") or {},
-        "selected_template_name": payload.get("selected_template_name") or "",
-        "mode": payload.get("mode") or "",
     }
+    # selected_template_name and mode are only persisted when the caller
+    # explicitly includes the key. They must NOT be coerced to "" on every
+    # partial save: the front-end runs a debounced autosave that fires before
+    # the cached template name has been resolved against the loaded template
+    # list, so selectedTemplate is briefly null and the autosave would wipe
+    # the column. An empty mode then hides the "Approve and Sign" footer
+    # (showFooter requires mode === 'manual' || (mode === 'ai' && ...)),
+    # leaving the row in a self-reinforcing dead state. post_save_summary
+    # already filters out null values, so missing here means "client did not
+    # send it" and we leave the existing value alone. An explicit empty
+    # string still clears the column.
+    if "selected_template_name" in payload:
+        defaults["selected_template_name"] = payload["selected_template_name"] or ""
+    if "mode" in payload:
+        defaults["mode"] = payload["mode"] or ""
     if "raw_response" in payload:
         defaults["raw_response"] = payload["raw_response"]
     ScribeSummary.objects.update_or_create(note_id=note_dbid, defaults=defaults)
