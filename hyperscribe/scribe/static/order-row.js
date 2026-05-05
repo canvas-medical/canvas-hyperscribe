@@ -1276,8 +1276,8 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label${rxMissing.has('sig') ? ' field-missing' : ''}">Sig *</label>
-                  <input class="history-form-input${rxMissing.has('sig') ? ' input-missing' : ''}" type="text" maxLength=1000 value=${sig} onInput=${(e) => setSig(e.target.value)} placeholder="e.g. Take 1 tablet by mouth daily" />
-                  <div class="char-counter${sig.length > 900 ? sig.length > 1000 ? ' over-limit' : ' near-limit' : ''}">${sig.length} / 1000</div>
+                  <input class="history-form-input${rxMissing.has('sig') ? ' input-missing' : ''}" type="text" maxLength=${SIG_MAX_LENGTH} value=${sig} onInput=${(e) => setSig(e.target.value)} placeholder="e.g. Take 1 tablet by mouth daily" />
+                  <div class="char-counter${sig.length > SIG_MAX_LENGTH - 100 ? sig.length > SIG_MAX_LENGTH ? ' over-limit' : ' near-limit' : ''}">${sig.length} / ${SIG_MAX_LENGTH}</div>
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label">Note to Pharmacist</label>
