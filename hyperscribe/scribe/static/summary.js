@@ -146,6 +146,38 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
+// Strip from every perform.data.linked_icd10_codes any ICD that was claim-
+// eligible before the mutation but isn't anymore. Driven by the diff of
+// `buildRankedDiagnoses(prev)` vs `buildRankedDiagnoses(next)` so it covers
+// every workflow that drops an ICD off the matrix:
+//   - diagnose toggled accepted -> unaccepted
+//   - diagnose toggled non-rejected -> rejected
+//   - diagnose's ICD cleared via the search dropdown
+//   - diagnose's ICD changed to a different code (clear + select two-step)
+//   - assess or diagnose deleted via the row x button
+// Without this, `unlinkedCptCount`'s `length > 0` check passes with stale
+// codes that ClaimLinkSync can't resolve to any Assessment, so the BLI
+// ships with empty assessment_ids and the link is silently lost.
+function pruneOrphanedLinks(prevCommands, nextCommands) {
+  const before = new Set(buildRankedDiagnoses(prevCommands).map(d => d.icd10_code));
+  if (before.size === 0) return nextCommands;
+  const after = new Set(buildRankedDiagnoses(nextCommands).map(d => d.icd10_code));
+  // Bail fast if no ICD fell off the ranked set.
+  let anyOrphaned = false;
+  for (const code of before) {
+    if (!after.has(code)) { anyOrphaned = true; break; }
+  }
+  if (!anyOrphaned) return nextCommands;
+  return nextCommands.map(cmd => {
+    if (cmd.command_type !== 'perform') return cmd;
+    const links = cmd.data?.linked_icd10_codes;
+    if (!Array.isArray(links) || links.length === 0) return cmd;
+    const filtered = links.filter(c => after.has(c));
+    if (filtered.length === links.length) return cmd;
+    return { ...cmd, data: { ...cmd.data, linked_icd10_codes: filtered } };
+  });
+}
+
 // Derives the ordered list of claim-eligible diagnoses for the Charges matrix.
 // Rank is the position in the filtered list — never persisted as a field.
 // Reordering = swapping array positions in commands[].
@@ -781,15 +813,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     logEvent('EDIT_COMMAND', { index, commandType: newType || commands[index]?.command_type, sectionKey: commands[index]?.section_key, data: newData });
     if (!canEdit) return;
     setCommands(prev => {
-      // Track when a diagnose comes off the claim (accepted->unaccepted or
-      // non-rejected->rejected) so we can auto-prune the orphaned ICD code
-      // from every CPT's linked_icd10_codes list. Otherwise CPTs end up
-      // referencing diagnoses that won't be on the claim.
-      let icdToPrune = null;
-      const before = prev[index];
-      const beforeIsDx = before?.command_type === 'diagnose';
-      const wasAccepted = beforeIsDx && before?.data?.accepted === true;
-      const wasRejected = beforeIsDx && before?.data?.rejected === true;
       const updated = prev.map((cmd, i) => {
         if (i !== index) return cmd;
         const type = newType || cmd.command_type;
@@ -890,10 +913,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           const display = newData.icd10_display || newData.condition_header || cmd.display;
           const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
           const rejected = newData.rejected || false;
-          const cameOffClaim = (wasAccepted && !accepted) || (!wasRejected && rejected);
-          if (cameOffClaim && newData.icd10_code) {
-            icdToPrune = String(newData.icd10_code);
-          }
           return { ...cmd, command_type: type, data: { ...newData, accepted, rejected }, display };
         }
         if (type === 'assess') {
@@ -903,17 +922,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         const text = newData[field] || '';
         return { ...cmd, data: newData, display: text };
       });
-      const pruned = icdToPrune
-        ? updated.map(cmd => {
-            if (cmd.command_type !== 'perform') return cmd;
-            const links = cmd.data?.linked_icd10_codes;
-            if (!Array.isArray(links) || !links.includes(icdToPrune)) return cmd;
-            return {
-              ...cmd,
-              data: { ...cmd.data, linked_icd10_codes: links.filter(c => c !== icdToPrune) },
-            };
-          })
-        : updated;
+      const pruned = pruneOrphanedLinks(prev, updated);
       saveSummaryToCache(noteData, pruned, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return pruned;
     });
@@ -924,8 +933,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (!canEdit) return;
     setCommands(prev => {
       const updated = prev.filter((_, i) => i !== index);
-      saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
-      return updated;
+      // Same orphan-prune as handleEdit. Routine path: provider deletes an
+      // assess (or diagnose) row via the x button, leaving its ICD stale in
+      // every CPT's linked_icd10_codes.
+      const pruned = pruneOrphanedLinks(prev, updated);
+      saveSummaryToCache(noteData, pruned, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
+      return pruned;
     });
   }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
@@ -1320,10 +1333,29 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       console.error('Failed to fetch patient conditions for assess check:', err);
     }
 
-    // Prescriptions first so they appear at the top of the note. Sort the
-    // tagged list directly so the {src, srcIdx} tag stays paired with cmd.
+    // Priority-class sort. Three concerns are encoded in one stable sort:
+    //   class 0 — Rx (prescribe/refill/adjust): float to top so the user
+    //             sees prescriptions first in the note.
+    //   class 1 — A&P (diagnose/assess): MUST originate+commit BEFORE any
+    //             perform, otherwise ClaimLinkSync fires on the perform's
+    //             POST_COMMIT before the corresponding Assessment exists in
+    //             the DB and the BLI's assessment_ids ship empty. The
+    //             builder pipeline does all-originates-then-all-commits,
+    //             so the only safe ordering is A&P-before-perform within
+    //             the input array.
+    //   class 2 — everything else (rfv, hpi, vitals, ros, plan, etc.).
+    //   class 3 — perform (charges): MUST follow A&P per the above.
+    //   `tagged.sort` is stable, so within a class the user's original
+    //   ordering (or the source-array order) is preserved.
     const RX_SET = new Set(['prescribe', 'refill', 'adjust_prescription']);
-    tagged.sort((a, b) => (RX_SET.has(a.cmd.command_type) ? 0 : 1) - (RX_SET.has(b.cmd.command_type) ? 0 : 1));
+    const AP_SET = new Set(['diagnose', 'assess']);
+    const _sortClass = (t) => {
+      if (RX_SET.has(t.cmd.command_type)) return 0;
+      if (AP_SET.has(t.cmd.command_type)) return 1;
+      if (t.cmd.command_type === 'perform') return 3;
+      return 2;
+    };
+    tagged.sort((a, b) => _sortClass(a) - _sortClass(b));
 
     const allInsertable = tagged.map(t => t.cmd);
     logEvent('COMMANDS_SENDING', { commands: allInsertable.map(c => ({

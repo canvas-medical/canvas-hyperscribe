@@ -925,11 +925,15 @@ def test_verify_commands_invalid_json() -> None:
 
 
 @pytest.mark.no_authorize_bypass
+@patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.Helper")
 @patch("hyperscribe.scribe.api.session_view.Note")
-def test_verify_commands_denies_non_author(mock_note: MagicMock, mock_helper: MagicMock) -> None:
-    """A staff session that isn't the note's author gets a 403 — the new
-    note-author authorization gate, matching /insert-commands behavior."""
+def test_verify_commands_denies_non_author(
+    mock_note: MagicMock, mock_helper: MagicMock, mock_audit: MagicMock,
+) -> None:
+    """A staff session that isn't the note's author gets a 403 AND a
+    VERIFY_COMMANDS_DENIED audit_event so probe attempts have a plugin-level
+    audit trail (matching the /insert-metadata pattern)."""
     mock_note.objects.values.return_value.get.return_value = {"dbid": 1, "provider__id": "other-staff"}
     mock_helper.editable_note.return_value = True
     view = _helper_instance(staff_id="not-the-author")
@@ -942,6 +946,7 @@ def test_verify_commands_denies_non_author(mock_note: MagicMock, mock_helper: Ma
     )
     result = view.post_verify_commands()
     assert result[0].status_code == HTTPStatus.FORBIDDEN
+    mock_audit.assert_called_once_with("note-uuid", "VERIFY_COMMANDS_DENIED", {})
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")

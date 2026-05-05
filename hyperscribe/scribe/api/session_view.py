@@ -1210,7 +1210,10 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         # Note-author authorization, matching /insert-commands and
         # /insert-metadata. Without this, any authenticated staff session
         # could probe whether arbitrary command UUIDs exist on any note.
+        # Audit-log the denial for parity with /insert-metadata so probe
+        # attempts have a plugin-level audit trail.
         if denial := _authorize_edit(note_uuid, self.request):
+            audit_event(note_uuid, "VERIFY_COMMANDS_DENIED", {})
             return [denial]
 
         # Skip malformed entries (missing or falsy command_uuid) so a bad

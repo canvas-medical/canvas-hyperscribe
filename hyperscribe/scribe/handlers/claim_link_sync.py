@@ -3,10 +3,18 @@
 When a perform command commits, Canvas has already created its
 BillingLineItem. We replay the ICDs the provider checked in the Charges
 matrix as the BLI's assessment_ids ("diagnosis pointers") — the canonical
-pre-claim path. Hyperscribe's builder originates and commits in commands[]
-order, with the A&P (diagnose + assess) ahead of the Charges section, so
-by the time PERFORM_COMMAND__POST_COMMIT fires for a CPT all the relevant
-Assessments are already committed and resolvable.
+pre-claim path.
+
+Ordering invariant (load-bearing). Hyperscribe's builder.build_effects
+runs all originates first, then all commits, in the input commands[]
+order. So `commands=[perform, assess]` would produce
+`[orig_perform, orig_assess, commit_perform, commit_assess]`, and Canvas
+dispatches PERFORM_COMMAND__POST_COMMIT on commit_perform — before
+commit_assess runs and the Assessment lands in the DB. To prevent that
+race, summary.js's handleInsert sorts the outgoing commands so A&P
+(diagnose/assess) ALWAYS precedes perform, regardless of how the user
+appended them. With that sort enforced, by the time this handler fires
+for a CPT, every relevant Assessment is committed and resolvable.
 
 Translation chain:
 
