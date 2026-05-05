@@ -84,8 +84,17 @@ class ClaimLinkSync(BaseHandler):
             return []
 
         # Find the matching perform proposal(s) in the matrix payload and
-        # collect every linked ICD they declared.
-        wanted: set[str] = set()
+        # collect every linked ICD they declared, preserving the provider's
+        # click/rank order. Order is load-bearing: BillingLineItem.assessment_ids
+        # IS the diagnosis-pointer sequence on CMS-1500 box 24E, where
+        # position 1 is the primary diagnosis for the line item and drives
+        # medical-necessity edits, payer routing, and primary-dx-driven
+        # reimbursement. The frontend's `handleToggleCptLink` writes
+        # `next = [...current, icdCode]` to preserve click order; this loop
+        # must propagate that ordering all the way to `assessment_ids` —
+        # using a `set` here would destroy it via hash-randomized iteration.
+        wanted: list[str] = []
+        seen: set[str] = set()
         for entry in summary.commands:
             if entry.get("command_type") != "perform":
                 continue
@@ -93,8 +102,13 @@ class ClaimLinkSync(BaseHandler):
             if d.get("cpt_code") != cpt:
                 continue
             links = d.get("linked_icd10_codes")
-            if isinstance(links, list):
-                wanted.update(_strip(c) for c in links if c)
+            if not isinstance(links, list):
+                continue
+            for c in links:
+                stripped = _strip(c)
+                if stripped and stripped not in seen:
+                    seen.add(stripped)
+                    wanted.append(stripped)
         if not wanted:
             # Provider didn't link this CPT to anything in the matrix —
             # leave the BLI as-is rather than silently unlinking defaults.
@@ -125,7 +139,7 @@ class ClaimLinkSync(BaseHandler):
         if not target_assessment_ids:
             log.info(
                 "ClaimLinkSync: cpt=%s wanted=%s no matching Assessments on note %s",
-                cpt, sorted(wanted), note.id,
+                cpt, wanted, note.id,
             )
             return []
 

@@ -297,9 +297,14 @@ def test_compute_emits_update_with_translated_assessment_ids(
 
     assert effects == ["effect-1"]
     # Verify the call passed the right BLI id and a translated assessment_ids list.
+    # Assert exact list equality (NOT sorted): the linked_icd10_codes
+    # ordering is the provider's intended primary-vs-secondary diagnosis
+    # pointer order on CMS-1500 box 24E. linked_icd10_codes was ["E11.9",
+    # "I10"], so the resulting assessment_ids must be ["a-1", "a-2"] in
+    # that order — a hash-randomized set in the handler would scramble it.
     call_kwargs = mock_update_cls.call_args.kwargs
     assert call_kwargs["billing_line_item_id"] == "bli-1"
-    assert sorted(call_kwargs["assessment_ids"]) == ["a-1", "a-2"]
+    assert call_kwargs["assessment_ids"] == ["a-1", "a-2"]
 
 
 @patch("hyperscribe.scribe.handlers.claim_link_sync.UpdateBillingLineItem")
@@ -411,8 +416,11 @@ def test_compute_dedupes_links_across_multiple_perform_entries_for_same_cpt(
     handler.compute()
 
     sent_ids = mock_update_cls.call_args.kwargs["assessment_ids"]
-    # Two distinct assessments, in any order.
-    assert sorted(sent_ids) == ["a-1", "a-2"]
+    # Order matters (CMS-1500 box 24E primary-vs-secondary). The first
+    # entry's [E11.9] establishes the position, the second entry's
+    # [E11.9, I10] adds I10 at the end. Dedup is append-if-not-seen,
+    # so the resulting order is deterministic: [E11.9, I10] -> [a-1, a-2].
+    assert sent_ids == ["a-1", "a-2"]
 
 
 @patch("hyperscribe.scribe.handlers.claim_link_sync.UpdateBillingLineItem")
@@ -450,3 +458,57 @@ def test_compute_first_assessment_wins_on_icd_collision(
     handler.compute()
 
     assert mock_update_cls.call_args.kwargs["assessment_ids"] == ["a-first"]
+
+
+@patch("hyperscribe.scribe.handlers.claim_link_sync.UpdateBillingLineItem")
+@patch("hyperscribe.scribe.handlers.claim_link_sync.BillingLineItem")
+@patch("hyperscribe.scribe.handlers.claim_link_sync.Assessment")
+@patch("hyperscribe.scribe.handlers.claim_link_sync.ScribeSummary")
+@patch("hyperscribe.scribe.handlers.claim_link_sync.Command")
+def test_compute_preserves_provider_click_order_for_diagnosis_pointers(
+    mock_command_cls: MagicMock,
+    mock_summary_cls: MagicMock,
+    mock_assessment_cls: MagicMock,
+    mock_bli_cls: MagicMock,
+    mock_update_cls: MagicMock,
+) -> None:
+    """Regression guard for the `wanted: set[str]` ordering bug: the order
+    of `linked_icd10_codes` IS the diagnosis-pointer sequence on CMS-1500
+    box 24E (primary, secondary, …). The previous implementation used a
+    set, which scrambled order via hash-randomized iteration. This test
+    feeds the codes in REVERSE alphabetical order and asserts the same
+    reverse order survives all the way to assessment_ids — a sorted or
+    set-iterated impl would reorder them and fail."""
+    cmd = SimpleNamespace(
+        id="x", data={"perform": {"value": "99213"}},
+        note=SimpleNamespace(dbid=1, id="note-uuid"),
+    )
+    mock_command_cls.objects.select_related.return_value.get.return_value = cmd
+    # Provider clicked the cells in reverse-alphabetical order: M, K, I, E.
+    summary = SimpleNamespace(commands=[
+        {"command_type": "perform", "data": {
+            "cpt_code": "99213",
+            "linked_icd10_codes": ["M54.5", "K21.9", "I10", "E11.9"],
+        }},
+    ])
+    mock_summary_cls.objects.filter.return_value.first.return_value = summary
+    # Assessments returned in a DIFFERENT order than the linked_icd10_codes,
+    # to confirm the order is driven by the click order, not the assessment
+    # query order.
+    mock_assessment_cls.objects.filter.return_value.select_related.return_value.prefetch_related.return_value = [
+        _fake_assessment("a-e119", "E11.9"),
+        _fake_assessment("a-i10", "I10"),
+        _fake_assessment("a-k219", "K21.9"),
+        _fake_assessment("a-m545", "M54.5"),
+    ]
+    mock_bli_cls.objects.filter.return_value.values_list.return_value = ["bli-1"]
+    mock_update_cls.return_value.apply.return_value = "effect-1"
+
+    handler = _make_handler()
+    handler.compute()
+
+    # Strict list equality. assessment_ids must follow the click order
+    # ["M54.5", "K21.9", "I10", "E11.9"] → ["a-m545", "a-k219", "a-i10", "a-e119"].
+    assert mock_update_cls.call_args.kwargs["assessment_ids"] == [
+        "a-m545", "a-k219", "a-i10", "a-e119",
+    ]
