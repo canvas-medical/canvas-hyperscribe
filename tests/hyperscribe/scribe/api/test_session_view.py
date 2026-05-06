@@ -1144,7 +1144,7 @@ def test_get_ordering_providers_returns_all_results(mock_staff_cls: MagicMock) -
 
 @patch("hyperscribe.scribe.api.session_view.Staff")
 def test_get_ordering_providers_with_search_query(mock_staff_cls: MagicMock) -> None:
-    staff_objects = [SimpleNamespace(id="key-jd", credentialed_name="Julie Dutton NP")]
+    staff_objects = [SimpleNamespace(id="key-001", credentialed_name="Provider 001 MD")]
     filtered_qs = MagicMock(spec=QuerySet)
     filtered_qs.__iter__.return_value = iter(staff_objects)
     ordered_qs = MagicMock(spec=QuerySet)
@@ -1156,12 +1156,12 @@ def test_get_ordering_providers_with_search_query(mock_staff_cls: MagicMock) -> 
     mock_staff_cls.objects.filter.return_value = initial_qs
 
     view = _helper_instance()
-    view.request.query_params = {"query": "Dutton"}
+    view.request.query_params = {"query": "Provider"}
     result = view.get_ordering_providers()
 
     assert result[0].status_code == HTTPStatus.OK
     data = json.loads(result[0].content)
-    assert data["providers"] == [{"id": "key-jd", "label": "Julie Dutton NP"}]
+    assert data["providers"] == [{"id": "key-001", "label": "Provider 001 MD"}]
     # The endpoint should have applied the search filter on top of the ordered queryset.
     assert ordered_qs.filter.called
 
