@@ -1108,6 +1108,64 @@ def test_get_assignees_empty(mock_staff_cls: MagicMock, mock_team_cls: MagicMock
     assert data["assignees"] == []
 
 
+# --- /ordering-providers ---
+
+
+@patch("hyperscribe.scribe.api.session_view.Staff")
+def test_get_ordering_providers_returns_all_results(mock_staff_cls: MagicMock) -> None:
+    """Regression: the endpoint must return every eligible provider, not a fixed slice.
+
+    Previously the response was capped at the alphabetically-first 50 providers,
+    which silently dropped real prescribers (e.g. anyone with a last name past
+    "Cu...") on customers with larger staff rosters.
+    """
+    staff_objects = [
+        SimpleNamespace(id=f"key-{i}", credentialed_name=f"Provider {i:03d} MD")
+        for i in range(75)
+    ]
+    ordered_qs = MagicMock(spec=QuerySet)
+    ordered_qs.__iter__.return_value = iter(staff_objects)
+    distinct_qs = MagicMock(spec=QuerySet)
+    distinct_qs.order_by.return_value = ordered_qs
+    initial_qs = MagicMock(spec=QuerySet)
+    initial_qs.distinct.return_value = distinct_qs
+    mock_staff_cls.objects.filter.return_value = initial_qs
+
+    view = _helper_instance()
+    result = view.get_ordering_providers()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    providers = data["providers"]
+    assert len(providers) == 75
+    assert providers[0] == {"id": "key-0", "label": "Provider 000 MD"}
+    assert providers[-1] == {"id": "key-74", "label": "Provider 074 MD"}
+
+
+@patch("hyperscribe.scribe.api.session_view.Staff")
+def test_get_ordering_providers_with_search_query(mock_staff_cls: MagicMock) -> None:
+    staff_objects = [SimpleNamespace(id="key-jd", credentialed_name="Julie Dutton NP")]
+    filtered_qs = MagicMock(spec=QuerySet)
+    filtered_qs.__iter__.return_value = iter(staff_objects)
+    ordered_qs = MagicMock(spec=QuerySet)
+    ordered_qs.filter.return_value = filtered_qs
+    distinct_qs = MagicMock(spec=QuerySet)
+    distinct_qs.order_by.return_value = ordered_qs
+    initial_qs = MagicMock(spec=QuerySet)
+    initial_qs.distinct.return_value = distinct_qs
+    mock_staff_cls.objects.filter.return_value = initial_qs
+
+    view = _helper_instance()
+    view.request.query_params = {"query": "Dutton"}
+    result = view.get_ordering_providers()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["providers"] == [{"id": "key-jd", "label": "Julie Dutton NP"}]
+    # The endpoint should have applied the search filter on top of the ordered queryset.
+    assert ordered_qs.filter.called
+
+
 # --- /recommend-commands ---
 
 

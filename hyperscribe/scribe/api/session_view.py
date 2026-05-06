@@ -1588,7 +1588,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         )
         if query:
             qs = qs.filter(Q(first_name__icontains=query) | Q(last_name__icontains=query))
-        providers = [{"id": str(s.id), "label": s.credentialed_name} for s in qs[:50]]
+        providers = [{"id": str(s.id), "label": s.credentialed_name} for s in qs]
         return [JSONResponse({"providers": providers}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-imaging-centers")
