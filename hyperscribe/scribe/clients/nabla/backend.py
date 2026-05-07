@@ -246,19 +246,7 @@ class NablaBackend(ScribeBackend):
             "note_template": _NOTE_TEMPLATE,
             "note_locale": _NOTE_LOCALE,
             "note_sections_customization": [
-                {
-                    "section_key": "ASSESSMENT_AND_PLAN",
-                    "style": "BULLET_POINTS",
-                    "split_by_problem": True,
-                    "custom_instruction": (
-                        "Each problem should represent a diagnosable clinical condition with a "
-                        "corresponding ICD-10 code. Use the provider's own problem headers when stated. "
-                        "Do NOT create separate problems for equipment or supply orders, referral "
-                        "logistics, medication refill logistics, or administrative tasks. These items "
-                        "should be included as bullet points WITHIN the assessment of the relevant "
-                        "clinical condition they support."
-                    ),
-                },
+                {"section_key": "ASSESSMENT_AND_PLAN", "style": "BULLET_POINTS", "split_by_problem": True},
                 {
                     "section_key": "HISTORY_OF_PRESENT_ILLNESS",
                     "style": "PARAGRAPH",
