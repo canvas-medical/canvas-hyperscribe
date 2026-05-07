@@ -491,6 +491,30 @@ class TestPsychiatryTemplateMatching:
         section_keys = [s["section_key"] for s in payload["note_sections_customization"]]
         assert "MENTAL_HEALTH_EXAM" not in section_keys
 
+    def test_psychiatry_hpi_omits_medical_ros_scaffold(self) -> None:
+        backend, mock_rest_client = _make_backend()
+        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+        backend.generate_note(Transcript(), visit_template_name="Psychiatry")
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        hpi_section = next(s for s in payload["note_sections_customization"]
+                          if s["section_key"] == "HISTORY_OF_PRESENT_ILLNESS")
+        instruction = hpi_section["custom_instruction"]
+        assert "General:" not in instruction
+        assert "HEENT:" not in instruction
+        assert "Musculoskeletal:" not in instruction
+
+    def test_generic_hpi_includes_medical_ros_scaffold(self) -> None:
+        backend, mock_rest_client = _make_backend()
+        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+        backend.generate_note(Transcript(), visit_template_name="")
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        hpi_section = next(s for s in payload["note_sections_customization"]
+                          if s["section_key"] == "HISTORY_OF_PRESENT_ILLNESS")
+        instruction = hpi_section["custom_instruction"]
+        assert "General:" in instruction
+        assert "HEENT:" in instruction
+        assert "Musculoskeletal:" in instruction
+
 
 class TestAPMerge:
     """Verify AP merge only runs for psychiatry template."""

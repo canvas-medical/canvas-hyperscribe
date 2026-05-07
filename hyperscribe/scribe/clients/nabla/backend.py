@@ -352,21 +352,30 @@ class NablaBackend(ScribeBackend):
         else:
             opening = "'[PATIENT_NAME] is a [AGE]-year-old [GENDER] who presents today for [CHIEF COMPLAINT].'"
 
-        # Combined HPI + ROS instruction. Nabla folds ROS into the end of HPI, so this
-        # one string drives both; it is subject to a 700-character limit. The ROS is no
-        # longer a fixed system list — Nabla picks clinically-appropriate systems — but
-        # the format is constrained so the downstream parsers still work: a standalone
-        # "ROS" marker line (for _split_ros) and "System: findings" rows with 1-3 word
-        # labels (for parse_ros_subsections).
-        hpi_custom_instructions = (
+        # HPI base guidance, shared by all templates.
+        hpi_base_instructions = (
             f"Open with one sentence in this exact format: {opening}\n"
             "After it, write complete sentences with a clear subject; do not restate the name or "
-            "age, and avoid fragments. Use any dictated structured summary as the PRIMARY source.\n"
-            "End with a complete Review of Systems covering whatever systems are clinically "
-            "appropriate (you choose them), with positive and negative findings. To parse it: a "
-            'line containing only "ROS", then each system on its own line as "System: findings", '
-            "with a 1-3 word name (e.g. General, HEENT, Cardiovascular). Never exceed three words."
+            "age, and avoid fragments. Use any dictated structured summary as the PRIMARY source."
         )
+
+        # Generic visits embed a medical ROS at the end of the HPI; psychiatry
+        # visits get their ROS from the dedicated MENTAL_HEALTH_EXAM section, so
+        # the HPI omits the redundant medical ROS block. The ROS is no longer a
+        # fixed system list — Nabla picks clinically-appropriate systems — but
+        # the format is constrained so the downstream parsers still work: a
+        # standalone "ROS" marker line (for _split_ros) and "System: findings"
+        # rows with 1-3 word labels (for parse_ros_subsections).
+        if is_psychiatry:
+            hpi_custom_instructions = hpi_base_instructions
+        else:
+            hpi_custom_instructions = (
+                hpi_base_instructions + "\n"
+                "End with a complete Review of Systems covering whatever systems are clinically "
+                "appropriate (you choose them), with positive and negative findings. To parse it: a "
+                'line containing only "ROS", then each system on its own line as "System: findings", '
+                "with a 1-3 word name (e.g. General, HEENT, Cardiovascular). Never exceed three words."
+            )
 
         # Shared custom instructions for all templates.
         social_history_instruction = {
