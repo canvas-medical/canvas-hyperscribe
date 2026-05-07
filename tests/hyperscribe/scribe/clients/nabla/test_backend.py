@@ -561,6 +561,32 @@ class TestAPMerge:
         assert len(ap_sections) == 1
         assert ap_sections[0].text == "Already merged"
 
+    def test_merge_ap_assessment_only(self) -> None:
+        """When Nabla omits PLAN, assessment alone should still produce an A&P section."""
+        raw = {
+            "title": "Psych Note",
+            "sections": [
+                {"key": "ASSESSMENT", "title": "Assessment", "text": "- Depression\n- Anxiety"},
+            ],
+        }
+        result = NablaBackend._parse_note(raw, merge_ap=True)
+        keys = [s.key for s in result.sections]
+        assert "assessment_and_plan" in keys
+        assert "ASSESSMENT" not in keys
+
+    def test_merge_ap_plan_only(self) -> None:
+        """When Nabla omits ASSESSMENT, plan alone should still produce an A&P section."""
+        raw = {
+            "title": "Psych Note",
+            "sections": [
+                {"key": "PLAN", "title": "Plan", "text": "- Depression: Start SSRI"},
+            ],
+        }
+        result = NablaBackend._parse_note(raw, merge_ap=True)
+        keys = [s.key for s in result.sections]
+        assert "assessment_and_plan" in keys
+        assert "PLAN" not in keys
+
 
 class TestReformatPlanAsAP:
     """Test _reformat_plan_as_ap word overlap matching and output formatting."""
@@ -605,6 +631,34 @@ class TestReformatPlanAsAP:
         assert len(blocks) == 3
         assert "Alpha bravo" in blocks[1]
         assert "Charlie delta" in blocks[2]
+
+    def test_low_overlap_not_matched(self) -> None:
+        """Items sharing only a generic medical word should NOT match (>= 0.5 threshold)."""
+        assessment = "- Patient denies any disorder symptoms today"
+        plan = "- Major depressive disorder: Continue sertraline"
+        result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+        blocks = result.split("\n\n")
+        # Assessment should be standalone (overlap < 0.5 after medical stop word filtering)
+        assert len(blocks) == 2
+        assert "Patient denies" not in blocks[0]
+
+    def test_colonless_bullet_attaches_to_previous(self) -> None:
+        """Plan bullets without a colon attach to the previous block, not as standalone."""
+        assessment = "- Depression"
+        plan = "- Depression: Continue sertraline\n- Order CBC and TSH\n- Schedule follow-up in 2 weeks"
+        result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+        blocks = result.split("\n\n")
+        # All plan items should be in 1 block (colon-less items attach to Depression)
+        assert len(blocks) == 1
+        assert "Order CBC and TSH" in blocks[0]
+        assert "Schedule follow-up in 2 weeks" in blocks[0]
+
+    def test_colonless_bullet_first_becomes_standalone(self) -> None:
+        """A colon-less bullet with no prior group becomes a standalone header."""
+        assessment = ""
+        plan = "- Order CBC and TSH"
+        result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+        assert "Order CBC and TSH" in result
 
     def test_duplicate_plan_headers_coalesced(self) -> None:
         """Multiple plan bullets for the same problem should produce one block."""
@@ -672,4 +726,13 @@ class TestSignificantWords:
         assert "attention" in words
         assert "deficit" in words
         assert "hyperactivity" in words
-        assert "disorder" in words
+        # "disorder" is filtered as a medical stop word (aligned with ap_split)
+        assert "disorder" not in words
+
+    def test_filters_medical_stop_words(self) -> None:
+        words = NablaBackend._significant_words("Major depressive disorder, chronic type")
+        assert "major" in words
+        assert "depressive" in words
+        assert "disorder" not in words
+        assert "chronic" not in words
+        assert "type" not in words

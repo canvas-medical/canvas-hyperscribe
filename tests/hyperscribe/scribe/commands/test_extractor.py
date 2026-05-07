@@ -646,3 +646,56 @@ def test_review_of_systems_used_when_no_mental_health_exam() -> None:
     ros_proposals = [p for p in proposals if p.command_type == "ros"]
     assert len(ros_proposals) == 1
     assert ros_proposals[0].data["sections"][0]["title"] == "General"
+
+
+def test_mental_health_exam_fallback_uses_correct_label() -> None:
+    """When mental_health_exam has no parseable headers, fallback label should be 'Mental Health Exam'."""
+    note = ClinicalNote(
+        title="Psych Note",
+        sections=[
+            NoteSection(
+                key="MENTAL_HEALTH_EXAM",
+                title="Mental Status Exam",
+                text="Patient appears stable today with improved insight and no active SI/HI.",
+            ),
+        ],
+    )
+    proposals = extract_commands(note)
+    ros_proposals = [p for p in proposals if p.command_type == "ros"]
+    assert len(ros_proposals) == 1
+    assert ros_proposals[0].data["sections"][0]["title"] == "Mental Health Exam"
+    assert ros_proposals[0].data["sections"][0]["key"] == "mental_health_exam"
+
+
+def test_review_of_systems_fallback_uses_correct_label() -> None:
+    """When review_of_systems has no parseable headers, fallback label should be 'Review of Systems'."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(
+                key="review_of_systems",
+                title="Review of Systems",
+                text="No acute complaints reported by patient.",
+            ),
+        ],
+    )
+    proposals = extract_commands(note)
+    ros_proposals = [p for p in proposals if p.command_type == "ros"]
+    assert len(ros_proposals) == 1
+    assert ros_proposals[0].data["sections"][0]["title"] == "Review of Systems"
+    assert ros_proposals[0].data["sections"][0]["key"] == "review_of_systems"
+
+
+def test_parse_ros_subsections_preserves_pre_header_narrative() -> None:
+    """Narrative text before the first category header should be preserved."""
+    text = (
+        "Patient appears stable today with improved insight.\n"
+        "Depressive Symptoms: Persistent low mood, anhedonia.\n"
+        "Anxiety Symptoms: Mild worry about job."
+    )
+    result = parse_ros_subsections(text)
+    assert len(result) == 2
+    # Pre-header narrative should be prepended to the first subsection
+    assert "Patient appears stable" in result[0]["text"]
+    assert "Persistent low mood" in result[0]["text"]
+    assert result[0]["title"] == "Depressive Symptoms"

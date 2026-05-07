@@ -122,10 +122,10 @@ class NablaBackend(ScribeBackend):
         # splitting on the first colon, which matches the structure that
         # parse_ap_blocks expects (non-bullet header → bullet body lines).
         keys = {s.key.lower() for s in sections}
-        if merge_ap and "assessment" in keys and "plan" in keys and "assessment_and_plan" not in keys:
-            assessment = next(s for s in sections if s.key.lower() == "assessment")
-            plan = next(s for s in sections if s.key.lower() == "plan")
-            merged_text = NablaBackend._reformat_plan_as_ap(assessment.text, plan.text)
+        if merge_ap and ("assessment" in keys or "plan" in keys) and "assessment_and_plan" not in keys:
+            assessment_text = next((s.text for s in sections if s.key.lower() == "assessment"), "")
+            plan_text = next((s.text for s in sections if s.key.lower() == "plan"), "")
+            merged_text = NablaBackend._reformat_plan_as_ap(assessment_text, plan_text)
             merged = NoteSection(
                 key="assessment_and_plan",
                 title="Assessment & Plan",
@@ -184,15 +184,23 @@ class NablaBackend(ScribeBackend):
                 header, body = stripped.split(":", 1)
                 header = header.strip()
                 body = body.strip()
+                key = header.lower() if header else ""
+                if key not in plan_groups:
+                    plan_groups[key] = []
+                    plan_order.append(key)
+                if body:
+                    plan_groups[key].append(body)
             else:
-                header = stripped
-                body = ""
-            key = header.lower() if header else ""
-            if key not in plan_groups:
-                plan_groups[key] = []
-                plan_order.append(key)
-            if body:
-                plan_groups[key].append(body)
+                # Colon-less bullets (e.g. "Order CBC" or "Schedule follow-up")
+                # are cross-cutting actions, not diagnoses. Attach to the most
+                # recent plan group's body to avoid phantom diagnose commands.
+                if plan_order:
+                    plan_groups[plan_order[-1]].append(stripped)
+                else:
+                    # No prior group exists — treat as a standalone header.
+                    key = stripped.lower()
+                    plan_groups[key] = []
+                    plan_order.append(key)
 
         # Build coalesced (header, bodies) list preserving first-seen order.
         plan_blocks: list[tuple[str, list[str]]] = []
@@ -234,7 +242,7 @@ class NablaBackend(ScribeBackend):
                 if overlap > best_score:
                     best_score = overlap
                     best_idx = i
-            if best_score > 0.0:
+            if best_score >= 0.5:
                 block_assessments[best_idx].append(item)
             else:
                 unmatched_assessments.append(item)
@@ -257,10 +265,16 @@ class NablaBackend(ScribeBackend):
 
     @staticmethod
     def _significant_words(text: str) -> list[str]:
-        """Extract lowercase words, filtering short and common ones."""
+        """Extract lowercase words, filtering short, common, and generic medical ones."""
         _stop = {"a", "an", "the", "of", "and", "or", "with", "without", "in",
                  "on", "for", "to", "by", "is", "are", "was", "were", "not", "no",
-                 "due", "related", "primarily", "currently", "approximately"}
+                 "due", "related", "primarily", "currently", "approximately",
+                 # Generic medical wildcards — aligned with ap_split._STOP_WORDS
+                 # to avoid false matches on shared diagnostic nouns.
+                 "disorder", "disease", "syndrome", "condition", "type",
+                 "acute", "chronic", "primary", "secondary",
+                 "possible", "probable", "likely", "suspected",
+                 "unspecified", "specified", "other"}
         cleaned = re.sub(r"[^a-z0-9\s]", " ", text.lower())
         return [w for w in cleaned.split() if len(w) > 2 and w not in _stop]
 

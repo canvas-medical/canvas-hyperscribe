@@ -82,8 +82,18 @@ def parse_ros_subsections(text: str) -> list[dict[str, str]]:
                             "text": "\n".join(current_lines).strip(),
                         }
                     )
-                current_title = label.strip()
-                current_lines = [rest.strip()] if rest.strip() else []
+                    current_title = label.strip()
+                    current_lines = [rest.strip()] if rest.strip() else []
+                elif current_lines:
+                    # Pre-header narrative: prepend to the first subsection's body
+                    # so it isn't silently dropped (relevant for mental_health_exam
+                    # where raw section text may start with narrative prose).
+                    pre_text = "\n".join(current_lines).strip()
+                    current_title = label.strip()
+                    current_lines = [pre_text] + ([rest.strip()] if rest.strip() else [])
+                else:
+                    current_title = label.strip()
+                    current_lines = [rest.strip()] if rest.strip() else []
                 continue
         current_lines.append(line)
 
@@ -116,7 +126,14 @@ def _extract_ros(note: ClinicalNote) -> CommandProposal | None:
     subsections = parse_ros_subsections(ros_section.text)
     if not subsections:
         # Fall back to a single section if no system headers were detected.
-        subsections = [{"key": "review_of_systems", "title": "Review of Systems", "text": ros_section.text.strip()}]
+        # Use the source section's key/title so mental_health_exam content
+        # isn't mislabeled as "Review of Systems".
+        fallback_key = ros_section.key.lower()
+        fallback_title = (
+            "Mental Health Exam" if fallback_key == "mental_health_exam"
+            else "Review of Systems"
+        )
+        subsections = [{"key": fallback_key, "title": fallback_title, "text": ros_section.text.strip()}]
     display = " | ".join(s["title"] for s in subsections)
     return CommandProposal(
         command_type="ros",
