@@ -24,7 +24,7 @@ _NOTE_LOCALE = "ENGLISH_US"
 _NOTE_TEMPLATE = "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
 _PSYCHIATRY_NOTE_TEMPLATE = "PSYCHIATRY_MULTIPLE_SECTIONS"
 
-_PSYCHIATRY_TEMPLATE_NAMES: frozenset[str] = frozenset({"Psychiatry"})
+_PSYCHIATRY_TEMPLATE_NAMES: frozenset[str] = frozenset({"psychiatry", "psychiatry visit"})
 
 
 class NablaBackend(ScribeBackend):
@@ -54,10 +54,11 @@ class NablaBackend(ScribeBackend):
         patient_context: PatientContext | None = None,
         visit_template_name: str = "",
     ) -> ClinicalNote:
+        is_psychiatry = visit_template_name.strip().lower() in _PSYCHIATRY_TEMPLATE_NAMES
         payload = self._build_note_payload(transcript, patient_context, visit_template_name=visit_template_name)
         raw = self._rest_client.generate_note(payload)
         self._last_raw_note_response = raw
-        return self._parse_note(raw)
+        return self._parse_note(raw, merge_ap=is_psychiatry)
 
     # Section keys that we synthesize locally and Nabla does not recognise.
     _LOCAL_ONLY_KEYS: frozenset[str] = frozenset({"review_of_systems"})
@@ -87,7 +88,7 @@ class NablaBackend(ScribeBackend):
     }
 
     @staticmethod
-    def _parse_note(raw: dict[str, Any]) -> ClinicalNote:
+    def _parse_note(raw: dict[str, Any], *, merge_ap: bool = False) -> ClinicalNote:
         # The note content may be nested under a "note" key (API >= 2026-02-20).
         note_data = raw.get("note", raw)
         sections: list[NoteSection] = []
@@ -110,10 +111,10 @@ class NablaBackend(ScribeBackend):
             else:
                 sections.append(NoteSection(key=key, title=title, text=text))
 
-        # When using a template that returns separate "assessment" and "plan"
-        # sections (e.g. PSYCHIATRY_MULTIPLE_SECTIONS), merge them into a single
-        # "assessment_and_plan" section formatted so that parse_ap_blocks() can
-        # split it into header+body blocks for ICD-10 matching.
+        # When using the psychiatry template (merge_ap=True), merge separate
+        # "assessment" and "plan" sections into a single "assessment_and_plan"
+        # section formatted so that parse_ap_blocks() can split it into
+        # header+body blocks for ICD-10 matching.
         #
         # The psychiatry template doesn't support split_by_problem, so the Plan
         # section comes back as flat bullets like "- Problem: plan details...".
@@ -121,7 +122,7 @@ class NablaBackend(ScribeBackend):
         # splitting on the first colon, which matches the structure that
         # parse_ap_blocks expects (non-bullet header → bullet body lines).
         keys = {s.key.lower() for s in sections}
-        if "assessment" in keys and "plan" in keys and "assessment_and_plan" not in keys:
+        if merge_ap and "assessment" in keys and "plan" in keys and "assessment_and_plan" not in keys:
             assessment = next(s for s in sections if s.key.lower() == "assessment")
             plan = next(s for s in sections if s.key.lower() == "plan")
             merged_text = NablaBackend._reformat_plan_as_ap(assessment.text, plan.text)
@@ -191,11 +192,13 @@ class NablaBackend(ScribeBackend):
             return "\n\n".join(assessment_items)
 
         # Match each assessment item to the best plan block by word overlap.
+        # Items with no overlap stay as standalone header-only blocks.
         block_assessments: dict[int, list[str]] = {i: [] for i in range(len(plan_blocks))}
+        unmatched_assessments: list[str] = []
         for item in assessment_items:
             item_words = set(NablaBackend._significant_words(item))
             if not item_words:
-                block_assessments[0].append(item)
+                unmatched_assessments.append(item)
                 continue
             best_idx = 0
             best_score = 0.0
@@ -207,7 +210,10 @@ class NablaBackend(ScribeBackend):
                 if overlap > best_score:
                     best_score = overlap
                     best_idx = i
-            block_assessments[best_idx].append(item)
+            if best_score > 0.0:
+                block_assessments[best_idx].append(item)
+            else:
+                unmatched_assessments.append(item)
 
         # Build merged blocks: header + assessment bullets + plan bullets.
         output: list[str] = []
@@ -218,6 +224,10 @@ class NablaBackend(ScribeBackend):
             if body:
                 lines.append(f"- {body}")
             output.append("\n".join(lines))
+
+        # Append unmatched assessment items as standalone header-only blocks.
+        for item in unmatched_assessments:
+            output.append(item)
 
         return "\n\n".join(output)
 
@@ -330,7 +340,7 @@ class NablaBackend(ScribeBackend):
         *,
         visit_template_name: str = "",
     ) -> dict[str, Any]:
-        is_psychiatry = visit_template_name in _PSYCHIATRY_TEMPLATE_NAMES
+        is_psychiatry = visit_template_name.strip().lower() in _PSYCHIATRY_TEMPLATE_NAMES
 
         # Build the HPI opening line with concrete demographics when available.
         if patient_context is not None:
