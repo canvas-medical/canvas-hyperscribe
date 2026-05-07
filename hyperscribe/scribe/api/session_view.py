@@ -842,6 +842,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             "note": note_dict,
             "commands": commands_list,
             "approved": False,
+            "mode": data.get("mode", "ai"),
+            "selected_template_name": data.get("selected_template_name", ""),
             "recommendations": recommendations_list,
             "unmatched_conditions": unmatched_conditions,
             "diagnosis_suggestions": diagnosis_suggestions,
