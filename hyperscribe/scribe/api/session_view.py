@@ -842,6 +842,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             "unmatched_conditions": unmatched_conditions,
             "diagnosis_suggestions": diagnosis_suggestions,
             "interaction_warnings": interaction_warnings,
+            "mode": str(data.get("mode") or ""),
+            "selected_template_name": str(data.get("selected_template_name") or ""),
         }
         if raw_response is not None:
             summary_payload["raw_response"] = raw_response
