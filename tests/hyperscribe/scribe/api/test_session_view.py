@@ -1366,6 +1366,67 @@ def test_generate_summary_success(
     mock_summary.objects.update_or_create.assert_called_once()
 
 
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_preserves_mode_and_template(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_summary: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """generate-summary must persist mode and selected_template_name so the
+    approve button remains visible even if the frontend callback never fires."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 55
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "I have a headache", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 2000}],
+        "finalized": True,
+    }
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="SOAP Note",
+        sections=[NoteSection(key="chief_complaint", title="CC", text="Headache.")],
+    )
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    mock_backend._last_raw_note_response = None
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({
+            "note_id": "55",
+            "note_uuid": "55",
+            "mode": "ai",
+            "selected_template_name": "Subsequent Visit",
+        })
+    )
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    # Verify _save_summary was called with mode and selected_template_name.
+    save_call = mock_summary.objects.update_or_create.call_args
+    defaults = save_call.kwargs.get("defaults") or save_call[1].get("defaults", {})
+    assert defaults["mode"] == "ai"
+    assert defaults["selected_template_name"] == "Subsequent Visit"
+
+
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
 def test_generate_summary_missing_note_id(get_backend: MagicMock) -> None:
     get_backend.return_value = MagicMock()
