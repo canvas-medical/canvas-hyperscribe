@@ -24,7 +24,7 @@ _NOTE_LOCALE = "ENGLISH_US"
 _NOTE_TEMPLATE = "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
 _PSYCHIATRY_NOTE_TEMPLATE = "PSYCHIATRY_MULTIPLE_SECTIONS"
 
-_PSYCHIATRY_TEMPLATE_NAMES: frozenset[str] = frozenset({"psychiatry", "psychiatry visit"})
+_PSYCHIATRY_TEMPLATE_NAMES: frozenset[str] = frozenset({"Psychiatry"})
 
 
 class NablaBackend(ScribeBackend):
@@ -54,7 +54,7 @@ class NablaBackend(ScribeBackend):
         patient_context: PatientContext | None = None,
         visit_template_name: str = "",
     ) -> ClinicalNote:
-        is_psychiatry = visit_template_name.strip().lower() in _PSYCHIATRY_TEMPLATE_NAMES
+        is_psychiatry = visit_template_name in _PSYCHIATRY_TEMPLATE_NAMES
         payload = self._build_note_payload(transcript, patient_context, visit_template_name=visit_template_name)
         raw = self._rest_client.generate_note(payload)
         self._last_raw_note_response = raw
@@ -340,7 +340,7 @@ class NablaBackend(ScribeBackend):
         *,
         visit_template_name: str = "",
     ) -> dict[str, Any]:
-        is_psychiatry = visit_template_name.strip().lower() in _PSYCHIATRY_TEMPLATE_NAMES
+        is_psychiatry = visit_template_name in _PSYCHIATRY_TEMPLATE_NAMES
 
         # Build the HPI opening line with concrete demographics when available.
         if patient_context is not None:
