@@ -216,12 +216,12 @@ class NablaBackend(ScribeBackend):
             opening = "'[PATIENT_NAME] is a [AGE]-year-old [GENDER] who presents today for [CHIEF COMPLAINT].'"
 
         hpi_custom_instructions = (
-            f"Begin with a single opening sentence in this exact format: {opening}\n"
+            f"Begin this section with a single opening sentence in this exact format: {opening}\n"
             "If the provider dictates a structured summary, use it as the PRIMARY source.\n"
             "Write in complete sentences with clear subjects. "
-            "Do not use sentence fragments or omit the subject. "
-            "Use formal medical terminology and a professional clinical tone throughout.\n"
-            "Include ROS at the end and add positive and negative symptoms as mentioned.\n"
+            "Do not use sentence fragments or omit the subject of a sentence. "
+            "Use formal medical terminology and a professional clinical narrative tone throughout.\n"
+            "Include ROS at the end of this section and add positive and negative symptoms as mentioned.\n"
             "ROS\n"
             "General:\n"
             "Skin:\n"
