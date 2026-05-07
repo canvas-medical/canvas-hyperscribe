@@ -606,6 +606,33 @@ class TestReformatPlanAsAP:
         assert "Alpha bravo" in blocks[1]
         assert "Charlie delta" in blocks[2]
 
+    def test_duplicate_plan_headers_coalesced(self) -> None:
+        """Multiple plan bullets for the same problem should produce one block."""
+        assessment = "- Depression and low mood"
+        plan = "- Depression: Start sertraline 50mg\n- Depression: Titrate weekly to 100mg\n- Anxiety: Continue therapy"
+        result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+        blocks = result.split("\n\n")
+        # 2 blocks: Depression (coalesced with assessment) and Anxiety
+        assert len(blocks) == 2
+        depression_block = blocks[0]
+        assert "Depression" in depression_block
+        assert "- Start sertraline 50mg" in depression_block
+        assert "- Titrate weekly to 100mg" in depression_block
+        assert "- Depression and low mood" in depression_block
+        anxiety_block = blocks[1]
+        assert "Anxiety" in anxiety_block
+        assert "- Continue therapy" in anxiety_block
+
+    def test_duplicate_headers_case_insensitive(self) -> None:
+        """Headers differing only in case should be coalesced."""
+        assessment = ""
+        plan = "- depression: Start SSRI\n- Depression: Add therapy"
+        result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+        blocks = result.split("\n\n")
+        assert len(blocks) == 1
+        assert "- Start SSRI" in blocks[0]
+        assert "- Add therapy" in blocks[0]
+
     def test_empty_plan_returns_assessment_headers(self) -> None:
         assessment = "- Depression\n- Anxiety"
         plan = ""
@@ -637,5 +664,12 @@ class TestSignificantWords:
     def test_strips_punctuation(self) -> None:
         words = NablaBackend._significant_words("Depression (F32.9), active")
         assert "depression" in words
-        assert "f329" in words
+        assert "f32" in words
         assert "active" in words
+
+    def test_splits_hyphenated_words(self) -> None:
+        words = NablaBackend._significant_words("Attention-Deficit/Hyperactivity Disorder")
+        assert "attention" in words
+        assert "deficit" in words
+        assert "hyperactivity" in words
+        assert "disorder" in words

@@ -170,8 +170,12 @@ class NablaBackend(ScribeBackend):
             if item:
                 assessment_items.append(item)
 
-        # Parse plan items into (header, body) pairs.
-        plan_blocks: list[tuple[str, str]] = []
+        # Parse plan items into (header, bodies) groups, coalescing duplicate
+        # headers so that multiple bullets for the same problem (e.g.
+        # "- Depression: Start sertraline" + "- Depression: Titrate weekly")
+        # produce a single block instead of duplicate diagnose commands.
+        plan_groups: dict[str, list[str]] = {}
+        plan_order: list[str] = []
         for line in plan_text.split("\n"):
             stripped = NablaBackend._strip_bullet(line)
             if not stripped:
@@ -180,12 +184,32 @@ class NablaBackend(ScribeBackend):
                 header, body = stripped.split(":", 1)
                 header = header.strip()
                 body = body.strip()
-                if header:
-                    plan_blocks.append((header, body))
-                elif body:
-                    plan_blocks.append(("", body))
             else:
-                plan_blocks.append((stripped, ""))
+                header = stripped
+                body = ""
+            key = header.lower() if header else ""
+            if key not in plan_groups:
+                plan_groups[key] = []
+                plan_order.append(key)
+            if body:
+                plan_groups[key].append(body)
+
+        # Build coalesced (header, bodies) list preserving first-seen order.
+        plan_blocks: list[tuple[str, list[str]]] = []
+        for key in plan_order:
+            # Use the original-cased header from the first occurrence.
+            display_header = key  # fallback
+            for line in plan_text.split("\n"):
+                s = NablaBackend._strip_bullet(line)
+                if s and ":" in s:
+                    h = s.split(":", 1)[0].strip()
+                    if h.lower() == key:
+                        display_header = h
+                        break
+                elif s and s.lower() == key:
+                    display_header = s
+                    break
+            plan_blocks.append((display_header, plan_groups[key]))
 
         if not plan_blocks:
             # No plan items — just return assessment as plain headers.
@@ -217,12 +241,12 @@ class NablaBackend(ScribeBackend):
 
         # Build merged blocks: header + assessment bullets + plan bullets.
         output: list[str] = []
-        for i, (header, body) in enumerate(plan_blocks):
+        for i, (header, bodies) in enumerate(plan_blocks):
             lines = [header] if header else []
             for a in block_assessments.get(i, []):
                 lines.append(f"- {a}")
-            if body:
-                lines.append(f"- {body}")
+            for b in bodies:
+                lines.append(f"- {b}")
             output.append("\n".join(lines))
 
         # Append unmatched assessment items as standalone header-only blocks.
@@ -237,7 +261,7 @@ class NablaBackend(ScribeBackend):
         _stop = {"a", "an", "the", "of", "and", "or", "with", "without", "in",
                  "on", "for", "to", "by", "is", "are", "was", "were", "not", "no",
                  "due", "related", "primarily", "currently", "approximately"}
-        cleaned = re.sub(r"[^a-z0-9\s]", "", text.lower())
+        cleaned = re.sub(r"[^a-z0-9\s]", " ", text.lower())
         return [w for w in cleaned.split() if len(w) > 2 and w not in _stop]
 
     @staticmethod
