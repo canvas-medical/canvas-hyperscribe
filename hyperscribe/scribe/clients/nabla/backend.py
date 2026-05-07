@@ -216,20 +216,17 @@ class NablaBackend(ScribeBackend):
             opening = "'[PATIENT_NAME] is a [AGE]-year-old [GENDER] who presents today for [CHIEF COMPLAINT].'"
 
         hpi_custom_instructions = (
-            f"Begin this section with a single opening sentence in this exact format: {opening}\n"
-            "Write in complete sentences with clear subjects. "
-            "Do not use sentence fragments or omit the subject of a sentence. "
-            "Use formal medical terminology and a professional clinical narrative tone throughout.\n"
-            "Include ROS at the end of this section and add positive and negative symptoms as mentioned.\n"
+            f"Begin with: {opening}\n"
+            "If the provider dictates a structured summary, use it as the PRIMARY source. "
+            "Conversation provides supporting detail only.\n"
+            "Complete sentences, formal medical terminology throughout.\n"
+            "Include: visit context, HPI with onset/duration/severity, functional status, devices in use.\n"
+            "Append ROS with positive and negative findings as mentioned.\n"
             "ROS\n"
-            "General:\n"
-            "Skin:\n"
-            "HEENT:\n"
-            "Cardiovascular:\n"
-            "Respiratory:\n"
-            "Gastrointestinal:\n"
-            "Genitourinary:\n"
-            "Musculoskeletal:"
+            "Constitutional:\nEyes:\nEars:\nNose:\nMouth/Throat/Voice:\nNeck:\n"
+            "Cardiovascular:\nRespiratory:\nGastrointestinal:\nGenitourinary:\n"
+            "Musculoskeletal:\nSkin/Dermatologic:\nNeurological:\nPsychiatric:\n"
+            "Endocrine:\nHematologic/Lymphatic:\nOther:"
         )
 
         payload: dict[str, Any] = {
@@ -245,7 +242,19 @@ class NablaBackend(ScribeBackend):
             "note_template": _NOTE_TEMPLATE,
             "note_locale": _NOTE_LOCALE,
             "note_sections_customization": [
-                {"section_key": "ASSESSMENT_AND_PLAN", "style": "BULLET_POINTS", "split_by_problem": True},
+                {
+                    "section_key": "ASSESSMENT_AND_PLAN",
+                    "style": "BULLET_POINTS",
+                    "split_by_problem": True,
+                    "custom_instruction": (
+                        "Each problem should represent a diagnosable clinical condition with a "
+                        "corresponding ICD-10 code. Use the provider's own problem headers when stated. "
+                        "Do NOT create separate problems for equipment or supply orders, referral "
+                        "logistics, medication refill logistics, or administrative tasks. These items "
+                        "should be included as bullet points WITHIN the assessment of the relevant "
+                        "clinical condition they support."
+                    ),
+                },
                 {
                     "section_key": "HISTORY_OF_PRESENT_ILLNESS",
                     "style": "PARAGRAPH",
