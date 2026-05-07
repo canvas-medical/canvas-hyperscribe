@@ -448,40 +448,16 @@ def test_parse_normalized_data_empty() -> None:
 
 
 class TestPsychiatryTemplateMatching:
-    """Verify case-insensitive visit template name matching."""
+    """Verify visit template name matching.
 
-    def test_exact_match(self) -> None:
+    The template name comes from the /visit-templates endpoint (server-controlled),
+    so it's always exactly "Psychiatry" — no need for case-insensitive matching.
+    """
+
+    def test_psychiatry_selects_psychiatry_template(self) -> None:
         backend, mock_rest_client = _make_backend()
         mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
         backend.generate_note(Transcript(), visit_template_name="Psychiatry")
-        payload = mock_rest_client.generate_note.call_args.args[0]
-        assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
-
-    def test_lowercase_match(self) -> None:
-        backend, mock_rest_client = _make_backend()
-        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
-        backend.generate_note(Transcript(), visit_template_name="psychiatry")
-        payload = mock_rest_client.generate_note.call_args.args[0]
-        assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
-
-    def test_uppercase_match(self) -> None:
-        backend, mock_rest_client = _make_backend()
-        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
-        backend.generate_note(Transcript(), visit_template_name="PSYCHIATRY")
-        payload = mock_rest_client.generate_note.call_args.args[0]
-        assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
-
-    def test_psychiatry_visit_match(self) -> None:
-        backend, mock_rest_client = _make_backend()
-        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
-        backend.generate_note(Transcript(), visit_template_name="Psychiatry Visit")
-        payload = mock_rest_client.generate_note.call_args.args[0]
-        assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
-
-    def test_whitespace_trimmed(self) -> None:
-        backend, mock_rest_client = _make_backend()
-        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
-        backend.generate_note(Transcript(), visit_template_name="  Psychiatry  ")
         payload = mock_rest_client.generate_note.call_args.args[0]
         assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
 
