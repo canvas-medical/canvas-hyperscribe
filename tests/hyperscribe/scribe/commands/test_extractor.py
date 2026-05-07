@@ -582,3 +582,67 @@ def test_extract_vitals_with_telemetry_out_of_range_pulse_refused() -> None:
     # Pulse was refused but BP survived → still regex source.
     assert result.source == "regex"
     assert "pulse" not in result.proposal.data
+
+
+# --- mental_health_exam preference ---
+
+
+def test_mental_health_exam_preferred_over_review_of_systems() -> None:
+    """When both mental_health_exam and review_of_systems exist, prefer mental_health_exam."""
+    note = ClinicalNote(
+        title="Psych Note",
+        sections=[
+            NoteSection(
+                key="review_of_systems",
+                title="Review of Systems",
+                text="General: No fever.\nSkin: No rash.",
+            ),
+            NoteSection(
+                key="MENTAL_HEALTH_EXAM",
+                title="Mental Status Exam",
+                text="Depressive Symptoms: Denied\nAnxiety Symptoms: Irritability noted",
+            ),
+        ],
+    )
+    proposals = extract_commands(note)
+    ros_proposals = [p for p in proposals if p.command_type == "ros"]
+    assert len(ros_proposals) == 1
+    assert ros_proposals[0].data["sections"][0]["title"] == "Depressive Symptoms"
+
+
+def test_mental_health_exam_only() -> None:
+    """mental_health_exam alone produces an ROS command."""
+    note = ClinicalNote(
+        title="Psych Note",
+        sections=[
+            NoteSection(
+                key="MENTAL_HEALTH_EXAM",
+                title="Mental Status Exam",
+                text="Hallucinations: Auditory denied\nDelusions/Paranoia: Recurring paranoid thoughts",
+            ),
+        ],
+    )
+    proposals = extract_commands(note)
+    ros_proposals = [p for p in proposals if p.command_type == "ros"]
+    assert len(ros_proposals) == 1
+    secs = ros_proposals[0].data["sections"]
+    assert any(s["title"] == "Hallucinations" for s in secs)
+    assert any(s["title"] == "Delusions/Paranoia" for s in secs)
+
+
+def test_review_of_systems_used_when_no_mental_health_exam() -> None:
+    """Without mental_health_exam, falls back to review_of_systems."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(
+                key="review_of_systems",
+                title="Review of Systems",
+                text="General: No fever.\nSkin: No rash.",
+            ),
+        ],
+    )
+    proposals = extract_commands(note)
+    ros_proposals = [p for p in proposals if p.command_type == "ros"]
+    assert len(ros_proposals) == 1
+    assert ros_proposals[0].data["sections"][0]["title"] == "General"

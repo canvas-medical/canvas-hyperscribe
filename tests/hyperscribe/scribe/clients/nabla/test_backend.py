@@ -442,3 +442,200 @@ def test_parse_normalized_data_empty() -> None:
     assert isinstance(result, NormalizedData)
     assert result.conditions == []
     assert result.observations == []
+
+
+# --- Psychiatry template tests ---
+
+
+class TestPsychiatryTemplateMatching:
+    """Verify case-insensitive visit template name matching."""
+
+    def test_exact_match(self) -> None:
+        backend, mock_rest_client = _make_backend()
+        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+        backend.generate_note(Transcript(), visit_template_name="Psychiatry")
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
+
+    def test_lowercase_match(self) -> None:
+        backend, mock_rest_client = _make_backend()
+        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+        backend.generate_note(Transcript(), visit_template_name="psychiatry")
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
+
+    def test_uppercase_match(self) -> None:
+        backend, mock_rest_client = _make_backend()
+        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+        backend.generate_note(Transcript(), visit_template_name="PSYCHIATRY")
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
+
+    def test_psychiatry_visit_match(self) -> None:
+        backend, mock_rest_client = _make_backend()
+        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+        backend.generate_note(Transcript(), visit_template_name="Psychiatry Visit")
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
+
+    def test_whitespace_trimmed(self) -> None:
+        backend, mock_rest_client = _make_backend()
+        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+        backend.generate_note(Transcript(), visit_template_name="  Psychiatry  ")
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
+
+    def test_non_psychiatry_uses_generic(self) -> None:
+        backend, mock_rest_client = _make_backend()
+        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+        backend.generate_note(Transcript(), visit_template_name="Primary Care")
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+
+    def test_empty_name_uses_generic(self) -> None:
+        backend, mock_rest_client = _make_backend()
+        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+        backend.generate_note(Transcript(), visit_template_name="")
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+
+    def test_psychiatry_payload_has_mental_health_exam(self) -> None:
+        backend, mock_rest_client = _make_backend()
+        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+        backend.generate_note(Transcript(), visit_template_name="Psychiatry")
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        section_keys = [s["section_key"] for s in payload["note_sections_customization"]]
+        assert "MENTAL_HEALTH_EXAM" in section_keys
+
+    def test_generic_payload_has_no_mental_health_exam(self) -> None:
+        backend, mock_rest_client = _make_backend()
+        mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+        backend.generate_note(Transcript(), visit_template_name="")
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        section_keys = [s["section_key"] for s in payload["note_sections_customization"]]
+        assert "MENTAL_HEALTH_EXAM" not in section_keys
+
+
+class TestAPMerge:
+    """Verify AP merge only runs for psychiatry template."""
+
+    def test_merge_ap_when_psychiatry(self) -> None:
+        raw = {
+            "title": "Psych Note",
+            "sections": [
+                {"key": "ASSESSMENT", "title": "Assessment", "text": "- Depression\n- Anxiety"},
+                {"key": "PLAN", "title": "Plan", "text": "- Depression: Start SSRI\n- Anxiety: Continue therapy"},
+            ],
+        }
+        result = NablaBackend._parse_note(raw, merge_ap=True)
+        keys = [s.key for s in result.sections]
+        assert "assessment_and_plan" in keys
+        assert "ASSESSMENT" not in keys
+        assert "PLAN" not in keys
+
+    def test_no_merge_ap_when_generic(self) -> None:
+        raw = {
+            "title": "Note",
+            "sections": [
+                {"key": "ASSESSMENT", "title": "Assessment", "text": "- Depression"},
+                {"key": "PLAN", "title": "Plan", "text": "- Start SSRI"},
+            ],
+        }
+        result = NablaBackend._parse_note(raw, merge_ap=False)
+        keys = [s.key for s in result.sections]
+        assert "assessment_and_plan" not in keys
+        assert "ASSESSMENT" in keys
+        assert "PLAN" in keys
+
+    def test_no_merge_when_assessment_and_plan_already_exists(self) -> None:
+        raw = {
+            "title": "Note",
+            "sections": [
+                {"key": "assessment_and_plan", "title": "A&P", "text": "Already merged"},
+                {"key": "ASSESSMENT", "title": "Assessment", "text": "- Depression"},
+                {"key": "PLAN", "title": "Plan", "text": "- Start SSRI"},
+            ],
+        }
+        result = NablaBackend._parse_note(raw, merge_ap=True)
+        ap_sections = [s for s in result.sections if s.key == "assessment_and_plan"]
+        assert len(ap_sections) == 1
+        assert ap_sections[0].text == "Already merged"
+
+
+class TestReformatPlanAsAP:
+    """Test _reformat_plan_as_ap word overlap matching and output formatting."""
+
+    def test_basic_merge(self) -> None:
+        assessment = "- Depression with low mood"
+        plan = "- Depression: Start sertraline 50mg"
+        result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+        assert "Depression" in result
+        assert "- Depression with low mood" in result
+        assert "- Start sertraline 50mg" in result
+
+    def test_multiple_blocks(self) -> None:
+        assessment = "- Depression\n- Anxiety disorder"
+        plan = "- Depression: Start SSRI\n- Anxiety: Continue therapy"
+        result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+        # Depression assessment should be under Depression plan, not Anxiety
+        blocks = result.split("\n\n")
+        assert len(blocks) == 2
+        assert "Depression" in blocks[0]
+        assert "- Depression" in blocks[0]
+        assert "Anxiety" in blocks[1]
+
+    def test_unmatched_assessment_becomes_standalone(self) -> None:
+        """Assessment items with no word overlap should NOT pile under block 0."""
+        assessment = "- Completely unrelated finding xyz"
+        plan = "- Depression: Start SSRI\n- Anxiety: Continue therapy"
+        result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+        blocks = result.split("\n\n")
+        # Should be 3 blocks: Depression, Anxiety, and the unmatched standalone
+        assert len(blocks) == 3
+        assert "Completely unrelated finding xyz" in blocks[2]
+        # The unmatched item should NOT appear under the Depression block
+        assert "unrelated" not in blocks[0]
+
+    def test_multiple_unmatched_all_standalone(self) -> None:
+        assessment = "- Alpha bravo\n- Charlie delta"
+        plan = "- Depression: Start SSRI"
+        result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+        blocks = result.split("\n\n")
+        # 1 plan block + 2 standalone unmatched items
+        assert len(blocks) == 3
+        assert "Alpha bravo" in blocks[1]
+        assert "Charlie delta" in blocks[2]
+
+    def test_empty_plan_returns_assessment_headers(self) -> None:
+        assessment = "- Depression\n- Anxiety"
+        plan = ""
+        result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+        assert result == "Depression\n\nAnxiety"
+
+    def test_empty_assessment(self) -> None:
+        assessment = ""
+        plan = "- Depression: Start SSRI"
+        result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+        assert "Depression" in result
+        assert "Start SSRI" in result
+
+
+class TestSignificantWords:
+    """Test _significant_words filtering."""
+
+    def test_filters_stop_words(self) -> None:
+        words = NablaBackend._significant_words("the patient is in pain")
+        assert "the" not in words
+        assert "patient" in words
+        assert "pain" in words
+
+    def test_filters_short_words(self) -> None:
+        words = NablaBackend._significant_words("a to be or go")
+        # All <=2 chars or stop words
+        assert words == []
+
+    def test_strips_punctuation(self) -> None:
+        words = NablaBackend._significant_words("Depression (F32.9), active")
+        assert "depression" in words
+        assert "f329" in words
+        assert "active" in words
