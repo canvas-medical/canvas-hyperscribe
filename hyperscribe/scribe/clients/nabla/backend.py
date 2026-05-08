@@ -217,6 +217,7 @@ class NablaBackend(ScribeBackend):
 
         hpi_custom_instructions = (
             f"Begin this section with a single opening sentence in this exact format: {opening}\n"
+            "If the provider dictates a structured summary, use it as the PRIMARY source.\n"
             "Write in complete sentences with clear subjects. "
             "Do not use sentence fragments or omit the subject of a sentence. "
             "Use formal medical terminology and a professional clinical narrative tone throughout.\n"
