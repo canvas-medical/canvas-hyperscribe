@@ -516,6 +516,36 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": "Update failed"}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
+    @api.post("/repair-mode")
+    def post_repair_mode(self) -> list[Union[Response, Effect]]:
+        """Bulk-set mode='ai' on ScribeSummary rows where mode is empty.
+
+        This is a one-time repair endpoint for KOALA-5435. Sessions that
+        completed generate-summary before the mode-preservation fix have
+        mode='' which prevents the approve button from rendering.
+
+        Optional body: {"dry_run": true} to preview without writing.
+        """
+        try:
+            body: dict[str, Any] = json.loads(self.request.body) if self.request.body else {}
+        except (json.JSONDecodeError, ValueError):
+            body = {}
+        dry_run = body.get("dry_run", False)
+
+        qs = ScribeSummary.objects.filter(mode="")
+        count = qs.count()
+
+        if not dry_run and count > 0:
+            qs.update(mode="ai")
+            log.info(f"repair-mode: set mode='ai' on {count} ScribeSummary rows")
+
+        return [
+            JSONResponse(
+                {"status": "ok", "repaired": count, "dry_run": dry_run},
+                status_code=HTTPStatus.OK,
+            )
+        ]
+
     @api.get("/config")
     def get_config(self) -> list[Union[Response, Effect]]:
         try:
