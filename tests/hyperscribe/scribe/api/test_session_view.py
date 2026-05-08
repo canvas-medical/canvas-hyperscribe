@@ -1485,6 +1485,79 @@ def test_generate_summary_preserves_mode_and_template(
     assert defaults["selected_template_name"] == "Subsequent Visit"
 
 
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_preserves_mode_from_db_when_not_in_request(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_summary: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """When the frontend doesn't send mode/selected_template_name (which is
+    the normal case), generate-summary should fall back to the existing DB
+    values instead of overwriting them to empty strings."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 55
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "I have a headache", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 2000}],
+        "finalized": True,
+    }
+    # Simulate an existing summary with mode and template already set.
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
+        "note_data": {},
+        "commands": [],
+        "approved": False,
+        "recommendations": [],
+        "unmatched_conditions": [],
+        "diagnosis_suggestions": {},
+        "selected_template_name": "Subsequent Visit",
+        "mode": "ai",
+    }
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="SOAP Note",
+        sections=[NoteSection(key="chief_complaint", title="CC", text="Headache.")],
+    )
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    mock_backend._last_raw_note_response = None
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    # Frontend request does NOT include mode or selected_template_name.
+    view.request = SimpleNamespace(
+        body=json.dumps({
+            "note_id": "55",
+            "note_uuid": "55",
+        })
+    )
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    save_call = mock_summary.objects.update_or_create.call_args
+    defaults = save_call.kwargs.get("defaults") or save_call[1].get("defaults", {})
+    assert defaults["mode"] == "ai", f"Expected 'ai' but got '{defaults['mode']}' — mode was not preserved from DB"
+    assert defaults["selected_template_name"] == "Subsequent Visit", (
+        f"Expected 'Subsequent Visit' but got '{defaults['selected_template_name']}'"
+    )
+
+
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
 def test_generate_summary_missing_note_id(get_backend: MagicMock) -> None:
     get_backend.return_value = MagicMock()
