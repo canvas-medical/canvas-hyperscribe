@@ -1205,6 +1205,64 @@ def test_get_assignees_empty(mock_staff_cls: MagicMock, mock_team_cls: MagicMock
     assert data["assignees"] == []
 
 
+# --- /ordering-providers ---
+
+
+@patch("hyperscribe.scribe.api.session_view.Staff")
+def test_get_ordering_providers_returns_all_results(mock_staff_cls: MagicMock) -> None:
+    """Regression: the endpoint must return every eligible provider, not a fixed slice.
+
+    Previously the response was capped at the alphabetically-first 50 providers,
+    which silently dropped real prescribers (e.g. anyone with a last name past
+    "Cu...") on customers with larger staff rosters.
+    """
+    staff_objects = [
+        SimpleNamespace(id=f"key-{i}", credentialed_name=f"Provider {i:03d} MD")
+        for i in range(75)
+    ]
+    ordered_qs = MagicMock(spec=QuerySet)
+    ordered_qs.__iter__.return_value = iter(staff_objects)
+    distinct_qs = MagicMock(spec=QuerySet)
+    distinct_qs.order_by.return_value = ordered_qs
+    initial_qs = MagicMock(spec=QuerySet)
+    initial_qs.distinct.return_value = distinct_qs
+    mock_staff_cls.objects.filter.return_value = initial_qs
+
+    view = _helper_instance()
+    result = view.get_ordering_providers()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    providers = data["providers"]
+    assert len(providers) == 75
+    assert providers[0] == {"id": "key-0", "label": "Provider 000 MD"}
+    assert providers[-1] == {"id": "key-74", "label": "Provider 074 MD"}
+
+
+@patch("hyperscribe.scribe.api.session_view.Staff")
+def test_get_ordering_providers_with_search_query(mock_staff_cls: MagicMock) -> None:
+    staff_objects = [SimpleNamespace(id="key-001", credentialed_name="Provider 001 MD")]
+    filtered_qs = MagicMock(spec=QuerySet)
+    filtered_qs.__iter__.return_value = iter(staff_objects)
+    ordered_qs = MagicMock(spec=QuerySet)
+    ordered_qs.filter.return_value = filtered_qs
+    distinct_qs = MagicMock(spec=QuerySet)
+    distinct_qs.order_by.return_value = ordered_qs
+    initial_qs = MagicMock(spec=QuerySet)
+    initial_qs.distinct.return_value = distinct_qs
+    mock_staff_cls.objects.filter.return_value = initial_qs
+
+    view = _helper_instance()
+    view.request.query_params = {"query": "Provider"}
+    result = view.get_ordering_providers()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["providers"] == [{"id": "key-001", "label": "Provider 001 MD"}]
+    # The endpoint should have applied the search filter on top of the ordered queryset.
+    assert ordered_qs.filter.called
+
+
 # --- /recommend-commands ---
 
 
@@ -1461,6 +1519,67 @@ def test_generate_summary_success(
     assert data["recommendations"][0]["command_type"] == "medication_statement"
     # Summary should be saved to database.
     mock_summary.objects.update_or_create.assert_called_once()
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_preserves_mode_and_template(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_summary: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """generate-summary must persist mode and selected_template_name so the
+    approve button remains visible even if the frontend callback never fires."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 55
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "I have a headache", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 2000}],
+        "finalized": True,
+    }
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="SOAP Note",
+        sections=[NoteSection(key="chief_complaint", title="CC", text="Headache.")],
+    )
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    mock_backend._last_raw_note_response = None
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({
+            "note_id": "55",
+            "note_uuid": "55",
+            "mode": "ai",
+            "selected_template_name": "Subsequent Visit",
+        })
+    )
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    # Verify _save_summary was called with mode and selected_template_name.
+    save_call = mock_summary.objects.update_or_create.call_args
+    defaults = save_call.kwargs.get("defaults") or save_call[1].get("defaults", {})
+    assert defaults["mode"] == "ai"
+    assert defaults["selected_template_name"] == "Subsequent Visit"
 
 
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")

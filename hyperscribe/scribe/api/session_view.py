@@ -855,6 +855,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             "unmatched_conditions": unmatched_conditions,
             "diagnosis_suggestions": diagnosis_suggestions,
             "interaction_warnings": interaction_warnings,
+            "mode": str(data.get("mode") or ""),
+            "selected_template_name": str(data.get("selected_template_name") or ""),
         }
         if raw_response is not None:
             summary_payload["raw_response"] = raw_response
@@ -1601,7 +1603,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         )
         if query:
             qs = qs.filter(Q(first_name__icontains=query) | Q(last_name__icontains=query))
-        providers = [{"id": str(s.id), "label": s.credentialed_name} for s in qs[:50]]
+        providers = [{"id": str(s.id), "label": s.credentialed_name} for s in qs]
         return [JSONResponse({"providers": providers}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-imaging-centers")
