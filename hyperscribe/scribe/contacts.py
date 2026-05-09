@@ -53,30 +53,53 @@ def _format_contact(c: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_GENERIC_ADDRESS_MARKER = "1111"
+
+
+def _is_generic_contact(contact: dict[str, Any]) -> bool:
+    """Return True for generic/placeholder contacts (e.g. 'Psychiatry TBD') that should
+    always appear regardless of geo-filter."""
+    address = contact.get("businessAddress") or ""
+    return _GENERIC_ADDRESS_MARKER in address
+
+
 def search_refer_providers(
     query: str,
     zip_codes: list[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Search the science-service contacts database and return formatted results."""
+    """Search the science-service contacts database and return formatted results.
+
+    Generic contacts (address containing '1111') are always included alongside
+    geo-filtered results so providers can refer to specialty categories like
+    'Psychiatry TBD' regardless of patient location.
+    """
     if not query:
         return []
 
     try:
-        # Try zip-filtered first for local results, fall back to unfiltered.
+        local_results: list[dict[str, Any]] = []
         if zip_codes:
             params = f"?search={query}&business_postal_code__in={','.join(zip_codes)}"
             resp = science_http.get_json(f"/contacts/{params}")
-            raw_results = (resp.json() or {}).get("results", [])
-            if raw_results:
-                return [_format_contact(c) for c in raw_results]
+            local_results = (resp.json() or {}).get("results", [])
+
+        # Always run unfiltered search to pick up generic/TBD entries.
         params = f"?search={query}"
         resp = science_http.get_json(f"/contacts/{params}")
-        raw_results = (resp.json() or {}).get("results", [])
+        all_results = (resp.json() or {}).get("results", [])
     except Exception:
         log.exception("Refer provider search failed")
         return []
 
-    return [_format_contact(c) for c in raw_results]
+    if local_results:
+        # Merge: local geo-filtered results + any generic contacts from the
+        # unfiltered set that weren't already in the local results.
+        seen = {(c.get("firstName"), c.get("lastName"), c.get("specialty")) for c in local_results}
+        generic = [c for c in all_results if _is_generic_contact(c)
+                   and (c.get("firstName"), c.get("lastName"), c.get("specialty")) not in seen]
+        return [_format_contact(c) for c in local_results + generic]
+
+    return [_format_contact(c) for c in all_results]
 
 
 def resolve_zip_codes(patient_id: str = "", note_id: str = "") -> list[str]:
