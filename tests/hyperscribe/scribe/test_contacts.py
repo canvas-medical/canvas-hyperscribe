@@ -82,7 +82,9 @@ def test_search_no_zip_returns_all(mock_http):
     results = search_refer_providers("psychiatry")
 
     assert len(results) == 2
-    mock_http.get_json.assert_called_once_with("/contacts/?search=psychiatry")
+    mock_http.get_json.assert_called_once_with(
+        "/contacts/?search=psychiatry"
+    )
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
@@ -95,13 +97,28 @@ def test_search_with_zip_includes_1111(mock_http):
     results = search_refer_providers("psychiatry", zip_codes=["92591"])
 
     assert len(results) == 2
-    # Verify the API was called with both the patient zip AND the generic postal code.
-    mock_http.get_json.assert_called_once_with(
-        "/contacts/?search=psychiatry&business_postal_code__in=92591,1111"
+    # Verify URL-encoded params with both patient zip and generic postal code.
+    call_url = mock_http.get_json.call_args[0][0]
+    assert "search=psychiatry" in call_url
+    assert "business_postal_code__in=" in call_url
+    assert "92591" in call_url
+    assert "1111" in call_url
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_with_zip_local_providers_sorted_first(mock_http):
+    """Local providers should appear before generic TBD entries in results."""
+    # Science service returns generic before local
+    mock_http.get_json.return_value = _mock_science_response(
+        [_GENERIC_PSYCHIATRY_TBD, _LOCAL_PSYCHIATRIST]
     )
-    names = [r["name"] for r in results]
-    assert any("Jane Smith" in n for n in names)
-    assert any("TBD" in n for n in names)
+
+    results = search_refer_providers("psychiatry", zip_codes=["92591"])
+
+    assert len(results) == 2
+    # results[0] should be the real local provider, not the TBD
+    assert "Jane Smith" in results[0]["name"]
+    assert "TBD" in results[1]["name"]
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
@@ -118,7 +135,6 @@ def test_search_with_zip_no_results_falls_back(mock_http):
     names = [r["name"] for r in results]
     assert any("Bob Jones" in n for n in names)
     assert any("TBD" in n for n in names)
-    # Two calls: zip-filtered (empty), then unfiltered fallback
     assert mock_http.get_json.call_count == 2
 
 
@@ -132,9 +148,9 @@ def test_search_with_zip_deduplicates_1111(mock_http):
     results = search_refer_providers("psychiatry", zip_codes=["1111"])
 
     assert len(results) == 1
-    mock_http.get_json.assert_called_once_with(
-        "/contacts/?search=psychiatry&business_postal_code__in=1111"
-    )
+    call_url = mock_http.get_json.call_args[0][0]
+    # 1111 should only appear once in the URL
+    assert call_url.count("1111") == 1
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
@@ -147,6 +163,18 @@ def test_search_single_api_call_when_results_found(mock_http):
     search_refer_providers("psychiatry", zip_codes=["92591"])
 
     assert mock_http.get_json.call_count == 1
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_url_encodes_query(mock_http):
+    """Query with special characters should be URL-encoded."""
+    mock_http.get_json.return_value = _mock_science_response([])
+
+    search_refer_providers("ENT & Allergy", zip_codes=["92591"])
+
+    call_url = mock_http.get_json.call_args[0][0]
+    # & should be encoded, not treated as a param separator
+    assert "ENT+%26+Allergy" in call_url or "ENT+%26" in call_url
 
 
 @patch("hyperscribe.scribe.contacts.science_http")

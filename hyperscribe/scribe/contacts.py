@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlencode
 
 from canvas_sdk.v1.data import Note
 from canvas_sdk.v1.data.patient import PatientAddress
@@ -74,14 +75,17 @@ def search_refer_providers(
             # Include generic postal code so TBD/placeholder providers always
             # appear alongside local results — single API call.
             all_zips = list(dict.fromkeys(zip_codes + [_GENERIC_POSTAL_CODE]))
-            params = f"?search={query}&business_postal_code__in={','.join(all_zips)}"
-            resp = science_http.get_json(f"/contacts/{params}")
+            params = urlencode({"search": query, "business_postal_code__in": ",".join(all_zips)})
+            resp = science_http.get_json(f"/contacts/?{params}")
             raw_results = (resp.json() or {}).get("results", [])
             if raw_results:
+                # Sort real providers before generic placeholders so callers
+                # picking results[0] get a local match, not a TBD entry.
+                raw_results.sort(key=lambda c: _GENERIC_POSTAL_CODE in (c.get("businessAddress") or ""))
                 return [_format_contact(c) for c in raw_results]
         # No zip codes, or zip-filtered returned nothing — fall back to unfiltered.
-        params = f"?search={query}"
-        resp = science_http.get_json(f"/contacts/{params}")
+        params = urlencode({"search": query})
+        resp = science_http.get_json(f"/contacts/?{params}")
         raw_results = (resp.json() or {}).get("results", [])
     except Exception:
         log.exception("Refer provider search failed")
