@@ -12,6 +12,7 @@ const DATA_FIELD = {
   hpi: 'narrative',
   plan: 'narrative',
   lab_results: 'narrative',
+  imaging_results: 'narrative',
 };
 
 export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {

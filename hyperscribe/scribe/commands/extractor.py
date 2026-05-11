@@ -183,6 +183,23 @@ def _extract_lab_results(note: ClinicalNote) -> CommandProposal | None:
     )
 
 
+def _extract_image_results(note: ClinicalNote) -> CommandProposal | None:
+    """Extract imaging_results section into an Image Results command."""
+    image_section = next(
+        (s for s in note.sections if s.key.lower() == "imaging_results" and s.text.strip()),
+        None,
+    )
+    if image_section is None:
+        return None
+    text = image_section.text.strip()
+    return CommandProposal(
+        command_type="imaging_results",
+        display=text,
+        data={"narrative": text},
+        section_key="imaging_results",
+    )
+
+
 def extract_commands(note: ClinicalNote) -> list[CommandProposal]:
     """Map ClinicalNote sections to CommandProposal list (deterministic, no LLM)."""
     proposals: list[CommandProposal] = []
@@ -216,5 +233,9 @@ def extract_commands(note: ClinicalNote) -> list[CommandProposal]:
     lab_proposal = _extract_lab_results(note)
     if lab_proposal is not None:
         proposals.append(lab_proposal)
+
+    image_proposal = _extract_image_results(note)
+    if image_proposal is not None:
+        proposals.append(image_proposal)
 
     return proposals

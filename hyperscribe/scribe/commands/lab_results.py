@@ -15,12 +15,34 @@ def _to_ascii_html(text: str) -> str:
 
 
 def _narrative_to_html(text: str) -> str:
-    """Convert lab results narrative text into structured HTML."""
-    # Split on "- " at the start of items (handles both newline-separated and inline).
-    items = [item.strip() for item in re.split(r"\s*-\s+", text) if item.strip()]
-    if not items:
-        return f"<p>{_to_ascii_html(text)}</p>"
-    return "<ul>" + "".join(f"<li>{_to_ascii_html(item)}</li>" for item in items) + "</ul>"
+    """Convert lab results narrative text into structured HTML.
+
+    Lines starting with ``- `` become bullet items in a ``<ul>``. Consecutive
+    non-bullet lines collapse into a single ``<p>`` with ``<br>`` between
+    lines. A blank line starts a new block, so the user's paragraph breaks
+    survive into the chart-rendered view.
+    """
+    blocks = re.split(r"\n\s*\n+", text)
+    parts: list[str] = []
+    for block in blocks:
+        lines = [line.strip() for line in block.split("\n") if line.strip()]
+        i = 0
+        while i < len(lines):
+            if lines[i].startswith("- "):
+                bullets: list[str] = []
+                while i < len(lines) and lines[i].startswith("- "):
+                    bullets.append(lines[i][2:].strip())
+                    i += 1
+                parts.append(
+                    "<ul>" + "".join(f"<li>{_to_ascii_html(b)}</li>" for b in bullets) + "</ul>"
+                )
+            else:
+                paragraph: list[str] = []
+                while i < len(lines) and not lines[i].startswith("- "):
+                    paragraph.append(_to_ascii_html(lines[i]))
+                    i += 1
+                parts.append("<p>" + "<br>".join(paragraph) + "</p>")
+    return "".join(parts)
 
 
 class LabResultsParser(CommandParser):
