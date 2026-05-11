@@ -15,7 +15,7 @@ def _to_ascii_html(text: str) -> str:
 
 
 def _narrative_to_html(text: str) -> str:
-    """Convert lab results narrative text into structured HTML.
+    """Convert image results narrative text into structured HTML.
 
     Lines starting with ``- `` become bullet items in a ``<ul>``. Consecutive
     non-bullet lines collapse into a single ``<p>`` with ``<br>`` between
@@ -45,8 +45,8 @@ def _narrative_to_html(text: str) -> str:
     return "".join(parts)
 
 
-class LabResultsParser(CommandParser):
-    command_type = "lab_results"
+class ImageResultsParser(CommandParser):
+    command_type = "imaging_results"
     data_field = "narrative"
 
     def extract(self, text: str) -> None:
@@ -56,7 +56,7 @@ class LabResultsParser(CommandParser):
         narrative = str(data.get("narrative", ""))
         html = _narrative_to_html(narrative) if narrative else ""
         return CustomCommand(
-            schema_key="labResult",
+            schema_key="imageResult",
             content=html,
             note_uuid=note_uuid,
             command_uuid=command_uuid,
