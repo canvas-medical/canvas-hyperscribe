@@ -118,6 +118,42 @@ def test_generate_note_without_patient_context() -> None:
     assert "structured_context" not in payload
 
 
+def test_generate_note_physical_exam_excludes_vitals() -> None:
+    backend, mock_rest_client = _make_backend()
+    mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+
+    backend.generate_note(Transcript())
+
+    payload = mock_rest_client.generate_note.call_args.args[0]
+    pe_entries = [
+        entry
+        for entry in payload["note_sections_customization"]
+        if entry.get("section_key") == "PHYSICAL_EXAM"
+    ]
+    assert len(pe_entries) == 1, "expected exactly one PHYSICAL_EXAM customization entry"
+    pe_entry = pe_entries[0]
+
+    instruction = pe_entry["custom_instruction"]
+    instruction_lower = instruction.lower()
+
+    # The four vital signs called out in the requirement, each in long form and
+    # in its common abbreviation/synonym, so the prompt blocks paraphrased leaks.
+    required_terms = (
+        "heart rate", "pulse", "hr",
+        "blood pressure", "bp",
+        "oxygen saturation", "spo2",
+        "breaths per minute", "respiratory rate", "rr",
+    )
+    for term in required_terms:
+        assert term in instruction_lower, f"missing exclusion term {term!r}"
+
+    # Hard-imperative phrasing rather than a soft suggestion.
+    assert "do not" in instruction_lower or "exclude" in instruction_lower
+
+    # Names the destination section so the model has somewhere to put the data.
+    assert "vitals section" in instruction_lower
+
+
 def test_generate_normalized_data() -> None:
     backend, mock_rest_client = _make_backend()
     mock_rest_client.generate_normalized_data.return_value = {
