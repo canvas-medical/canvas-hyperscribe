@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import re
 from typing import Any
 
@@ -10,8 +11,17 @@ from hyperscribe.scribe.commands.base import CommandParser
 
 
 def _to_ascii_html(text: str) -> str:
-    """Convert non-ASCII characters to HTML entities so they survive JSON serialization."""
-    return "".join(c if ord(c) < 128 else f"&#{ord(c)};" for c in text)
+    """Escape HTML metacharacters and convert non-ASCII to numeric entities.
+
+    The result is shipped as ``CustomCommand.content`` and rendered as HTML
+    by the chart, so ``<``, ``>``, ``&``, ``"``, ``'`` must be entity-escaped
+    to prevent both garbled markup from benign clinical text (``K+ <3.0``)
+    and script injection from untrusted transcript/textarea input.
+    """
+    return "".join(
+        c if ord(c) < 128 else f"&#{ord(c)};"
+        for c in html.escape(text, quote=True)
+    )
 
 
 def _narrative_to_html(text: str) -> str:
