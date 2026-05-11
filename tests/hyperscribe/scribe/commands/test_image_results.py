@@ -127,3 +127,30 @@ def test_build_with_empty_narrative_passes_empty_content() -> None:
         note_uuid="note-uuid",
         command_uuid="cmd-uuid",
     )
+
+
+def test_narrative_to_html_escapes_less_than_in_clinical_text() -> None:
+    # K+ <3.0 used to render as malformed markup; now becomes &lt;.
+    assert _narrative_to_html("- K+ <3.0 mmol/L") == "<ul><li>K+ &lt;3.0 mmol/L</li></ul>"
+
+
+def test_narrative_to_html_escapes_greater_than_in_clinical_text() -> None:
+    assert _narrative_to_html("- BP > 140/90") == "<ul><li>BP &gt; 140/90</li></ul>"
+
+
+def test_narrative_to_html_escapes_ampersand() -> None:
+    assert _narrative_to_html("Q&A about results") == "<p>Q&amp;A about results</p>"
+
+
+def test_narrative_to_html_escapes_script_tag_injection() -> None:
+    out = _narrative_to_html("<script>alert(1)</script>")
+    assert "<script>" not in out
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in out
+
+
+def test_narrative_to_html_handles_combined_non_ascii_and_metacharacter() -> None:
+    out = _narrative_to_html("Café reading 98° was <2 mmHg")
+    assert "&#233;" in out  # é
+    assert "&#176;" in out  # °
+    assert "&lt;2" in out
+    assert "<2" not in out
