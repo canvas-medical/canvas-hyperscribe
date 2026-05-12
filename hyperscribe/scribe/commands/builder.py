@@ -17,6 +17,7 @@ from hyperscribe.scribe.commands.diagnose import DiagnoseParser
 from hyperscribe.scribe.commands.family_history import FamilyHistoryParser
 from hyperscribe.scribe.commands.history_review import HistoryReviewParser
 from hyperscribe.scribe.commands.hpi import HpiParser
+from hyperscribe.scribe.commands.image_results import ImageResultsParser
 from hyperscribe.scribe.commands.imaging_order import ImagingOrderParser
 from hyperscribe.scribe.commands.lab_order import LabOrderParser
 from hyperscribe.scribe.commands.lab_results import LabResultsParser
@@ -49,6 +50,7 @@ _BUILDERS: dict[str, CommandParser] = {
     "history_review": HistoryReviewParser(),
     "hpi": HpiParser(),
     "imaging_order": ImagingOrderParser(),
+    "imaging_results": ImageResultsParser(),
     "lab_order": LabOrderParser(),
     "lab_results": LabResultsParser(),
     "medicalHistory": MedicalHistoryParser(),
