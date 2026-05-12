@@ -79,8 +79,13 @@ class CommandParser(ABC):
         except Exception:
             return []
 
-    def pending_metadata(self, command: _BaseCommand, proposal: dict[str, Any] | None = None) -> dict[str, Any] | None:
-        """Return metadata to upsert in phase 2, or None. Override per command type."""
+    def pending_metadata(
+        self,
+        command: _BaseCommand,
+        proposal: dict[str, Any] | None = None,
+        feature_flags: dict[str, bool] | None = None,
+    ) -> dict[str, Any] | None:
+        """Return metadata to upsert, or None. Override per command type."""
         return None
 
     def build_stub(self, command_uuid: str, note_uuid: str) -> _BaseCommand:
