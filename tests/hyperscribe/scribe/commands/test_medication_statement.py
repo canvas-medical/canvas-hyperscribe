@@ -240,3 +240,45 @@ def test_annotate_duplicates_no_patient(
     ]
     MedicationParser().annotate_duplicates(proposals, mock_note)
     assert proposals[0].already_documented is False
+
+
+def _make_med_command() -> MagicMock:
+    cmd = MagicMock()
+    cmd.command_uuid = "00000000-0000-0000-0000-000000000001"
+    cmd.note_uuid = "00000000-0000-0000-0000-000000000aaa"
+    return cmd
+
+
+def test_pending_metadata_flag_off_returns_none() -> None:
+    cmd = _make_med_command()
+    proposal = {"data": {"alert_facility": True}}
+    assert MedicationParser().pending_metadata(cmd, proposal, feature_flags={}) is None
+    assert MedicationParser().pending_metadata(cmd, proposal, feature_flags=None) is None
+    assert (
+        MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": False})
+        is None
+    )
+
+
+def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
+    cmd = _make_med_command()
+    proposal = {"data": {"alert_facility": True}}
+    result = MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
+    assert result == {
+        "command_uuid": cmd.command_uuid,
+        "command_type": "medication_statement",
+        "note_uuid": cmd.note_uuid,
+        "metadata": {"alert_facility": "Yes"},
+    }
+
+
+def test_pending_metadata_flag_on_alert_falsy_defaults_to_no() -> None:
+    cmd = _make_med_command()
+    for proposal in (
+        {"data": {"alert_facility": False}},
+        {"data": {}},
+        None,
+    ):
+        result = MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
+        assert result is not None
+        assert result["metadata"] == {"alert_facility": "No"}

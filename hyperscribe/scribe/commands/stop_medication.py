@@ -31,15 +31,21 @@ class StopMedicationParser(CommandParser):
             command_uuid=command_uuid,
         )
 
-    def pending_metadata(self, command: _BaseCommand, proposal: dict[str, Any] | None = None) -> dict[str, Any] | None:
-        if proposal and proposal.get("data", {}).get("alert_facility"):
-            return {
-                "command_uuid": command.command_uuid,
-                "command_type": self.command_type,
-                "note_uuid": command.note_uuid,
-                "metadata": {"alert_facility": "true"},
-            }
-        return None
+    def pending_metadata(
+        self,
+        command: _BaseCommand,
+        proposal: dict[str, Any] | None = None,
+        feature_flags: dict[str, bool] | None = None,
+    ) -> dict[str, Any] | None:
+        if not (feature_flags or {}).get("AlertFacilityEnabled"):
+            return None
+        truthy = bool(proposal and proposal.get("data", {}).get("alert_facility"))
+        return {
+            "command_uuid": command.command_uuid,
+            "command_type": self.command_type,
+            "note_uuid": command.note_uuid,
+            "metadata": {"alert_facility": "Yes" if truthy else "No"},
+        }
 
     def build_stub(self, command_uuid: str, note_uuid: str) -> _BaseCommand:
         return StopMedicationCommand(command_uuid=command_uuid, note_uuid=note_uuid)

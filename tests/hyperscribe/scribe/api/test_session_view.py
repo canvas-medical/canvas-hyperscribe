@@ -734,7 +734,7 @@ def test_insert_commands_success(mock_build: MagicMock) -> None:
     assert len(result) == 3  # JSONResponse + 2 effects
     assert result[1] is mock_effect_1
     assert result[2] is mock_effect_2
-    mock_build.assert_called_once_with(commands, "note-uuid-123")
+    mock_build.assert_called_once_with(commands, "note-uuid-123", {"AlertFacilityEnabled": False})
 
 
 @patch("hyperscribe.scribe.api.session_view.build_effects")

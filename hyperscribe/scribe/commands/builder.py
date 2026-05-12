@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import logging
+import json
 import uuid
 from typing import Any
 
+from canvas_generated.messages.effects_pb2 import Effect as _RawEffect
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.effects import Effect
 from canvas_sdk.v1.data.note import Note
@@ -39,8 +40,6 @@ from hyperscribe.scribe.commands.stop_medication import StopMedicationParser
 from hyperscribe.scribe.commands.surgical_history import SurgicalHistoryParser
 from hyperscribe.scribe.commands.task import TaskParser
 from hyperscribe.scribe.commands.vitals import VitalsParser
-
-log = logging.getLogger(__name__)
 
 
 _BUILDERS: dict[str, CommandParser] = {
@@ -88,43 +87,14 @@ def annotate_duplicates(proposals: list[CommandProposal], note_uuid: str) -> Non
         builder.annotate_duplicates(proposals, note)
 
 
-def validate_proposals(
-    proposals: list[dict[str, Any]],
-    note_uuid: str | None = None,
-) -> list[dict[str, Any]]:
-    """Validate all proposals. Returns list of {command_type, display, errors} for failures.
-
-    When ``note_uuid`` is supplied, parsers that implement
-    ``validate_against_patient`` also get a chance to verify chart state
-    (e.g. that a refill/adjust_prescription's ``fdb_code`` resolves to an
-    active medication on the note's patient). The DB-touching validation is
-    skipped when ``note_uuid`` is None or empty so unit tests can call this
-    function without a database.
-    """
+def validate_proposals(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Validate all proposals. Returns list of {command_type, display, errors} for failures."""
     validation_errors: list[dict[str, Any]] = []
     for proposal in proposals:
         builder = _BUILDERS.get(proposal.get("command_type", ""))
         if builder is None:
             continue
-        data = proposal.get("data", {})
-        errors = list(builder.validate(data))
-        # Layer 2: chart-state validation (only the Rx parsers implement this).
-        # Skip this step if we already failed on shape errors — the SDK call
-        # is wasted work if the payload won't even build.
-        if not errors and note_uuid:
-            chart_validator = getattr(builder, "validate_against_patient", None)
-            if callable(chart_validator):
-                try:
-                    chart_errors = chart_validator(data, note_uuid)
-                except Exception:
-                    # Fail open so transient DB issues don't block all writes,
-                    # but log so schema drift / programming errors surface in
-                    # the audit log instead of silently passing through.
-                    log.exception(
-                        "chart_validator raised in validate_proposals; failing open",
-                    )
-                    chart_errors = []
-                errors.extend(chart_errors)
+        errors = builder.validate(proposal.get("data", {}))
         if errors:
             validation_errors.append(
                 {
@@ -136,18 +106,52 @@ def validate_proposals(
     return validation_errors
 
 
+def _build_unvalidated_metadata_effect(
+    command: _BaseCommand, key: str, value: str
+) -> _RawEffect:
+    """Construct UPSERT_COMMAND_METADATA directly. The SDK helper
+    validates Command.objects.filter(...).exists() at Python build time,
+    which fails before originate has been applied. Canvas processes effects
+    sequentially, so originate (STAGED) -> metadata (apply-time check passes)
+    -> commit (COMMITTED with metadata attached) all in one response."""
+    return _RawEffect(
+        type="UPSERT_COMMAND_METADATA",
+        payload=json.dumps(
+            {
+                "data": {
+                    "schema_key": command.Meta.key,
+                    "command_id": str(command.command_uuid),
+                    "key": key,
+                    "value": value,
+                },
+            }
+        ),
+    )
+
+
 def build_effects(
-    proposals: list[dict[str, Any]], note_uuid: str
+    proposals: list[dict[str, Any]],
+    note_uuid: str,
+    feature_flags: dict[str, bool] | None = None,
 ) -> tuple[list[Effect], list[dict[str, Any]], list[dict[str, Any]]]:
     """Convert selected command proposals into Canvas SDK Effects.
 
     Each command is originated individually so a single failure doesn't
-    take down unrelated commands. Post-originate effects (commit/review)
-    follow immediately since Canvas processes effects sequentially.
+    take down unrelated commands. Effect order in the returned list is:
 
-    Returns (effects, metadata_pending, attempted) where:
-    - metadata_pending: items needing a second request for metadata upsert
-    - attempted: list of {command_uuid, command_type, display} for verification
+        originate_A, originate_B, ...,
+        metadata_A, metadata_B, ...,    # only when pending_metadata is non-empty
+        commit_A,   commit_B,   ...,
+
+    Canvas processes effects sequentially, so by the time a metadata effect
+    runs the corresponding originate effect has populated the Command row
+    in the DB; by the time the commit effect runs, the metadata row is
+    already attached to the (still STAGED) command.
+
+    Returns (effects, metadata_pending, attempted). `metadata_pending` is
+    always empty now (metadata is emitted inline); kept in the signature so
+    the legacy `/insert-metadata` pathway continues to be a no-op without
+    requiring a separate route change.
     """
     built: list[tuple[CommandParser, _BaseCommand, dict[str, Any]]] = []
     for proposal in proposals:
@@ -165,13 +169,14 @@ def build_effects(
         effects.append(command.originate())
 
     for builder, command, proposal in built:
-        effects.extend(builder.post_originate_effects(command, proposal))
+        meta = builder.pending_metadata(command, proposal, feature_flags)
+        if not meta:
+            continue
+        for key, value in (meta.get("metadata") or {}).items():
+            effects.append(_build_unvalidated_metadata_effect(command, key, value))
 
-    metadata_pending: list[dict[str, Any]] = []
     for builder, command, proposal in built:
-        meta = builder.pending_metadata(command, proposal)
-        if meta:
-            metadata_pending.append(meta)
+        effects.extend(builder.post_originate_effects(command, proposal))
 
     attempted = [
         {
@@ -182,7 +187,7 @@ def build_effects(
         for builder, command, proposal in built
     ]
 
-    return effects, metadata_pending, attempted
+    return effects, [], attempted
 
 
 def build_metadata_effects(pending: list[dict[str, Any]]) -> list[Effect]:
