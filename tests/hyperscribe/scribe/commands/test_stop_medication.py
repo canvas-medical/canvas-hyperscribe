@@ -48,3 +48,49 @@ def test_command_type() -> None:
 
 def test_data_field_is_none() -> None:
     assert StopMedicationParser().data_field is None
+
+
+def _make_stop_command() -> MagicMock:
+    cmd = MagicMock()
+    cmd.command_uuid = "00000000-0000-0000-0000-0000000000b1"
+    cmd.note_uuid = "00000000-0000-0000-0000-0000000000bb"
+    return cmd
+
+
+def test_pending_metadata_flag_off_returns_none() -> None:
+    cmd = _make_stop_command()
+    proposal = {"data": {"alert_facility": True}}
+    assert StopMedicationParser().pending_metadata(cmd, proposal, feature_flags={}) is None
+    assert StopMedicationParser().pending_metadata(cmd, proposal, feature_flags=None) is None
+    assert (
+        StopMedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": False})
+        is None
+    )
+
+
+def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
+    cmd = _make_stop_command()
+    proposal = {"data": {"alert_facility": True}}
+    result = StopMedicationParser().pending_metadata(
+        cmd, proposal, feature_flags={"AlertFacilityEnabled": True}
+    )
+    assert result == {
+        "command_uuid": cmd.command_uuid,
+        "command_type": "stop_medication",
+        "note_uuid": cmd.note_uuid,
+        "metadata": {"alert_facility": "Yes"},
+    }
+
+
+def test_pending_metadata_flag_on_alert_falsy_defaults_to_no() -> None:
+    cmd = _make_stop_command()
+    for proposal in (
+        {"data": {"alert_facility": False}},
+        {"data": {}},
+        None,
+    ):
+        result = StopMedicationParser().pending_metadata(
+            cmd, proposal, feature_flags={"AlertFacilityEnabled": True}
+        )
+        assert result is not None
+        assert result["metadata"] == {"alert_facility": "No"}
