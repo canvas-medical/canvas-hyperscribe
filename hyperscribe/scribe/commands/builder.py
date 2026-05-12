@@ -4,7 +4,6 @@ import json
 import uuid
 from typing import Any
 
-from canvas_generated.messages.effects_pb2 import Effect as _RawEffect
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.effects import Effect
 from canvas_sdk.v1.data.note import Note
@@ -108,13 +107,18 @@ def validate_proposals(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _build_unvalidated_metadata_effect(
     command: _BaseCommand, key: str, value: str
-) -> _RawEffect:
+) -> Effect:
     """Construct UPSERT_COMMAND_METADATA directly. The SDK helper
     validates Command.objects.filter(...).exists() at Python build time,
     which fails before originate has been applied. Canvas processes effects
     sequentially, so originate (STAGED) -> metadata (apply-time check passes)
-    -> commit (COMMITTED with metadata attached) all in one response."""
-    return _RawEffect(
+    -> commit (COMMITTED with metadata attached) all in one response.
+
+    Note: `Effect` is imported from `canvas_sdk.effects` (which re-exports the
+    protobuf class) rather than the raw `canvas_generated.messages.effects_pb2`
+    path, because the plugin-runner sandbox allowlists the former but not the
+    latter."""
+    return Effect(
         type="UPSERT_COMMAND_METADATA",
         payload=json.dumps(
             {
