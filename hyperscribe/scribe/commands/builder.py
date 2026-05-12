@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import time
 import uuid
 from typing import Any
 
+from canvas_generated.messages.effects_pb2 import Effect as _RawEffect
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.effects import Effect
 from canvas_sdk.v1.data.command import Command
@@ -107,6 +109,42 @@ def validate_proposals(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return validation_errors
 
 
+def _build_unvalidated_metadata_effect(
+    command: _BaseCommand, key: str, value: str
+) -> _RawEffect:
+    """Construct an UPSERT_COMMAND_METADATA effect directly, skipping the
+    SDK helper's build-time command-existence check.
+
+    Why bypass: `command.upsert_metadata(...)` validates synchronously that
+    the Command row already exists in the DB (canvas_sdk/effects/command_metadata/base.py).
+    At the moment build_effects runs, the originate effect for the command
+    hasn't been applied yet, so the validator would always fail. By emitting
+    a hand-built UPSERT_COMMAND_METADATA effect into the same returned list
+    AFTER the originate and BEFORE the commit, Canvas's sequential effect
+    processor applies originate first (command row appears as STAGED),
+    then this metadata effect (apply-time SDK check passes — the staged
+    row exists), then commit (the row transitions to COMMITTED with the
+    metadata already attached).
+
+    Payload shape mirrors what `_CommandMetadata(...).upsert(...)` produces
+    in the SDK; pinned in tests so a future SDK schema change is caught at
+    CI time, not at runtime.
+    """
+    return _RawEffect(
+        type="UPSERT_COMMAND_METADATA",
+        payload=json.dumps(
+            {
+                "data": {
+                    "schema_key": command.Meta.key,
+                    "command_id": str(command.command_uuid),
+                    "key": key,
+                    "value": value,
+                },
+            }
+        ),
+    )
+
+
 def build_effects(
     proposals: list[dict[str, Any]],
     note_uuid: str,
@@ -115,11 +153,21 @@ def build_effects(
     """Convert selected command proposals into Canvas SDK Effects.
 
     Each command is originated individually so a single failure doesn't
-    take down unrelated commands. Post-originate effects (commit/review)
-    follow immediately since Canvas processes effects sequentially.
+    take down unrelated commands. Effect order in the returned list is:
+
+        originate_A, originate_B, ...,
+        metadata_A, metadata_B, ...,    # only when pending_metadata is non-empty
+        commit_A,   commit_B,   ...,
+
+    Canvas processes effects sequentially, so by the time a metadata effect
+    runs, the corresponding originate effect has populated the Command row
+    in the DB; by the time the commit effect runs, the metadata row is
+    already attached to the (still STAGED) command. Net result: metadata
+    lands on the command BEFORE the commit, in a single round-trip.
 
     Returns (effects, metadata_pending, attempted) where:
-    - metadata_pending: items needing a second request for metadata upsert
+    - metadata_pending: kept for backward compatibility with /insert-metadata
+      but always empty now (metadata is emitted inline above).
     - attempted: list of {command_uuid, command_type, display} for verification
     """
     built: list[tuple[CommandParser, _BaseCommand, dict[str, Any]]] = []
@@ -134,17 +182,26 @@ def build_effects(
         return [], [], []
 
     effects: list[Effect] = []
+    # 1. Originate every command first so the rows exist (STAGED) by the
+    #    time later effects in this batch run.
     for _, command, _ in built:
         effects.append(command.originate())
 
-    for builder, command, proposal in built:
-        effects.extend(builder.post_originate_effects(command, proposal))
-
-    metadata_pending: list[dict[str, Any]] = []
+    # 2. Metadata for any command whose parser declared a pending_metadata.
+    #    Interleaved BEFORE the commits so the metadata lands on the still-
+    #    staged command.
     for builder, command, proposal in built:
         meta = builder.pending_metadata(command, proposal, feature_flags)
-        if meta:
-            metadata_pending.append(meta)
+        if not meta:
+            continue
+        for key, value in (meta.get("metadata") or {}).items():
+            effects.append(_build_unvalidated_metadata_effect(command, key, value))
+
+    # 3. Commit (and any other post-originate effects). Metadata is now on
+    #    the row, so the commit transitions a fully-decorated staged command
+    #    to COMMITTED.
+    for builder, command, proposal in built:
+        effects.extend(builder.post_originate_effects(command, proposal))
 
     attempted = [
         {
@@ -155,7 +212,9 @@ def build_effects(
         for builder, command, proposal in built
     ]
 
-    return effects, metadata_pending, attempted
+    # metadata_pending stays empty — the inline metadata effects above mean
+    # the legacy two-phase /insert-metadata pathway has nothing to do.
+    return effects, [], attempted
 
 
 _METADATA_DB_WAIT_ATTEMPTS = 6

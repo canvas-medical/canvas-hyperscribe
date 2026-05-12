@@ -121,7 +121,12 @@ def test_build_effects_empty_list() -> None:
 
 
 def test_build_effects_medication_with_alert_facility() -> None:
-    """Medication statement with alert_facility=True writes Yes to metadata_pending."""
+    """Medication with alert_facility=True emits originate → metadata → commit in
+    a single batch. The metadata effect lands BETWEEN originate and commit so
+    Canvas attaches it to the staged command before the commit transitions it
+    to COMMITTED. metadata_pending stays empty (legacy phase-2 has nothing to do)."""
+    import json
+
     proposals: list[dict[str, Any]] = [
         {
             "command_type": "medication_statement",
@@ -134,6 +139,7 @@ def test_build_effects_medication_with_alert_facility() -> None:
         inst.commit.return_value = "med_commit"
         inst.command_uuid = "d6a96b19-a087-458a-9619-b46537a8c121"
         inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+        inst.Meta.key = "medicationStatement"
         mock_med.return_value = inst
 
         effects, metadata_pending, attempted = build_effects(
@@ -142,18 +148,41 @@ def test_build_effects_medication_with_alert_facility() -> None:
             {"AlertFacilityEnabled": True},
         )
 
-    assert len(effects) == 2  # 1 originate + 1 commit
+    # Three effects in strict order: originate, metadata, commit.
+    assert len(effects) == 3
     assert effects[0] == "med_originate"
-    assert len(metadata_pending) == 1
-    assert metadata_pending[0]["command_uuid"] == "d6a96b19-a087-458a-9619-b46537a8c121"
-    assert metadata_pending[0]["command_type"] == "medication_statement"
-    assert metadata_pending[0]["metadata"] == {"alert_facility": "Yes"}
+    assert effects[2] == "med_commit"
+
+    # The middle effect is a raw protobuf UPSERT_COMMAND_METADATA with the
+    # exact payload shape the SDK's BaseMetadata.upsert produces. Pinning
+    # the type + payload here so any future SDK schema change for this
+    # effect type is caught at CI time (the helper bypasses the SDK's
+    # build-time validator, so we don't get that signal at runtime).
+    meta_effect = effects[1]
+    # Effect.type is a proto enum (int at runtime). Compare by enum-name so
+    # the test stays readable + breaks loudly if the enum is renamed.
+    from canvas_generated.messages.effects_pb2 import EffectType
+    assert EffectType.Name(meta_effect.type) == "UPSERT_COMMAND_METADATA"
+    assert json.loads(meta_effect.payload) == {
+        "data": {
+            "schema_key": "medicationStatement",
+            "command_id": "d6a96b19-a087-458a-9619-b46537a8c121",
+            "key": "alert_facility",
+            "value": "Yes",
+        },
+    }
+
+    # Legacy phase-2 list is empty — all metadata went out inline.
+    assert metadata_pending == []
     assert len(attempted) == 1
     assert attempted[0]["command_type"] == "medication_statement"
 
 
 def test_build_effects_medication_alert_facility_false_writes_no() -> None:
-    """When the feature is on, an unset/false alert_facility is persisted as 'No'."""
+    """When the feature is on, an unset/false alert_facility is persisted as 'No'
+    and the metadata effect is still emitted inline (between originate and commit)."""
+    import json
+
     proposals: list[dict[str, Any]] = [
         {
             "command_type": "medication_statement",
@@ -166,6 +195,7 @@ def test_build_effects_medication_alert_facility_false_writes_no() -> None:
         inst.commit.return_value = "med_commit"
         inst.command_uuid = "d6a96b19-a087-458a-9619-b46537a8c121"
         inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+        inst.Meta.key = "medicationStatement"
         mock_med.return_value = inst
 
         effects, metadata_pending, attempted = build_effects(
@@ -174,9 +204,11 @@ def test_build_effects_medication_alert_facility_false_writes_no() -> None:
             {"AlertFacilityEnabled": True},
         )
 
-    assert len(effects) == 2
-    assert len(metadata_pending) == 1
-    assert metadata_pending[0]["metadata"] == {"alert_facility": "No"}
+    assert len(effects) == 3
+    assert effects[0] == "med_originate"
+    assert effects[2] == "med_commit"
+    assert json.loads(effects[1].payload)["data"]["value"] == "No"
+    assert metadata_pending == []
 
 
 def test_build_effects_medication_alert_facility_disabled() -> None:
