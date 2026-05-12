@@ -46,6 +46,7 @@ class MedicationParser(CommandParser):
             data={
                 "medication_text": lines[0],
                 "fdb_code": _unstructured_coding(lines[0]),
+                "alert_facility": True,
             },
         )
 
@@ -57,6 +58,7 @@ class MedicationParser(CommandParser):
                 data={
                     "medication_text": line,
                     "fdb_code": _unstructured_coding(line),
+                    "alert_facility": True,
                 },
             )
             for line in _parse_medication_lines(text)

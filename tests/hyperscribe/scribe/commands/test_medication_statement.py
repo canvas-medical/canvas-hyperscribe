@@ -53,11 +53,13 @@ def test_extract_all_multiple() -> None:
     assert proposals[0].data == {
         "medication_text": "Lisinopril 10mg",
         "fdb_code": _unstructured_coding("Lisinopril 10mg"),
+        "alert_facility": True,
     }
     assert proposals[1].display == "Metformin 500mg"
     assert proposals[1].data == {
         "medication_text": "Metformin 500mg",
         "fdb_code": _unstructured_coding("Metformin 500mg"),
+        "alert_facility": True,
     }
 
 

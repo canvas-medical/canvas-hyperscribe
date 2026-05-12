@@ -103,6 +103,7 @@ class MedicationRecommender(BaseRecommender):
                         "medication_text": display,
                         "fdb_code": fdb_code,
                         "sig": med.sig,
+                        "alert_facility": True,
                     },
                     section_key="_recommended",
                 )
