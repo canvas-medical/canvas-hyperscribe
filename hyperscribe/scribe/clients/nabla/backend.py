@@ -270,6 +270,16 @@ class NablaBackend(ScribeBackend):
                         "family members' history."
                     ),
                 },
+                {
+                    "section_key": "PHYSICAL_EXAM",
+                    "custom_instruction": (
+                        "Do not include any vital sign measurements in this section. "
+                        "Specifically, exclude heart rate (pulse, HR), "
+                        "blood pressure (BP), oxygen saturation (SpO2), and "
+                        "respiratory rate (breaths per minute, RR) — "
+                        "vital signs belong in the Vitals section."
+                    ),
+                },
             ],
         }
         if patient_context is not None:
