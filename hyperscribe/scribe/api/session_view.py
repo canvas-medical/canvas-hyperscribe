@@ -1115,7 +1115,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     status_code=HTTPStatus.BAD_REQUEST,
                 )
             ]
-        effects, metadata_pending, attempted = build_effects(commands, note_uuid)
+        feature_flags = {"AlertFacilityEnabled": bool(self.secrets.get("AlertFacilityEnabled"))}
+        effects, metadata_pending, attempted = build_effects(commands, note_uuid, feature_flags)
         audit_event(
             note_uuid,
             "INSERT_COMMANDS",
