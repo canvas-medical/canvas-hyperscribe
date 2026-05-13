@@ -464,6 +464,66 @@ def test_get_summary_does_not_heal_template_only_session(
 @patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
 @patch("hyperscribe.scribe.api.session_view.ScribeSummary")
 @patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_does_not_heal_when_start_ai_failed(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    """When recording.startRecording() fails (mic permission denied, device
+    error, transcription backend unreachable), summary.js logs
+    [START_AI, START_AI_FAILED] and resets mode to null. The heal must treat
+    START_*_FAILED as cancelling its preceding START_* — otherwise it would
+    write mode='ai' to a session that never actually recorded, hiding the
+    Start AI / Start Manual buttons and locking the user out."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row()
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "SELECT_TEMPLATE"},
+        {"type": "START_AI"},
+        {"type": "START_AI_FAILED"},
+    ]
+    mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = None
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] is None
+    mock_summary.objects.filter.return_value.update.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_heals_to_ai_when_user_retries_after_failed_start(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    """A failed START_AI cancels itself, but a subsequent successful START_AI
+    (user grants mic permission and retries) still heals to 'ai'."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
+        note_data={"sections": [{"key": "hpi", "text": "Pain"}]},
+    )
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "START_AI"},
+        {"type": "START_AI_FAILED"},
+        {"type": "START_AI"},
+    ]
+    mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = None
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] == "ai"
+    mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="ai")
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
 def test_get_summary_no_ops_response_when_cas_loses_to_concurrent_save(
     mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
 ) -> None:
