@@ -203,12 +203,33 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
         "recommendations": payload.get("recommendations") or [],
         "unmatched_conditions": payload.get("unmatched_conditions") or [],
         "diagnosis_suggestions": payload.get("diagnosis_suggestions") or {},
-        "selected_template_name": payload.get("selected_template_name") or "",
-        "mode": payload.get("mode") or "",
     }
+    if "selected_template_name" in payload:
+        defaults["selected_template_name"] = payload["selected_template_name"] or ""
+    if "mode" in payload:
+        defaults["mode"] = payload["mode"] or ""
     if "raw_response" in payload:
         defaults["raw_response"] = payload["raw_response"]
     ScribeSummary.objects.update_or_create(note_id=note_dbid, defaults=defaults)
+
+
+def _infer_mode_for_heal(note_dbid: int, summary_has_content: bool) -> str:
+    """Pick the user's mode from session artifacts. '' means no signal — don't heal."""
+    events = (
+        ScribeAuditLog.objects.filter(note_id=note_dbid).values_list("events", flat=True).first()
+    ) or []
+    last_start = ""
+    for event in events:
+        event_type = event.get("type") if isinstance(event, dict) else None
+        if event_type == "START_AI":
+            last_start = "ai"
+        elif event_type == "START_MANUAL":
+            last_start = "manual"
+    if last_start:
+        return last_start
+    if ScribeTranscript.objects.filter(note_id=note_dbid).values_list("items", flat=True).first():
+        return "ai"
+    return "manual" if summary_has_content else ""
 
 
 def _load_summary(note_id: str) -> dict[str, Any] | None:
@@ -227,18 +248,25 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
         )
         .first()
     )
-    if row:
-        return {
-            "note": row["note_data"] or None,
-            "commands": row["commands"] or [],
-            "approved": row["approved"],
-            "recommendations": row["recommendations"] or [],
-            "unmatched_conditions": row["unmatched_conditions"] or [],
-            "diagnosis_suggestions": row["diagnosis_suggestions"] or {},
-            "selected_template_name": row["selected_template_name"] or None,
-            "mode": row["mode"] or None,
-        }
-    return None
+    if not row:
+        return None
+    mode = row["mode"] or ""
+    if not mode:
+        summary_has_content = bool(row["note_data"]) or bool(row["commands"])
+        inferred = _infer_mode_for_heal(note_dbid, summary_has_content)
+        if inferred:
+            ScribeSummary.objects.filter(note_id=note_dbid).update(mode=inferred)
+            mode = inferred
+    return {
+        "note": row["note_data"] or None,
+        "commands": row["commands"] or [],
+        "approved": row["approved"],
+        "recommendations": row["recommendations"] or [],
+        "unmatched_conditions": row["unmatched_conditions"] or [],
+        "diagnosis_suggestions": row["diagnosis_suggestions"] or {},
+        "selected_template_name": row["selected_template_name"] or None,
+        "mode": mode or None,
+    }
 
 
 def _load_assignees() -> list[dict[str, Any]]:
