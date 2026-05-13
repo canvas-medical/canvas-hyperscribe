@@ -879,10 +879,10 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 log.exception("suggest_diagnoses failed (non-critical)")
 
         # ── Save to database ──
-        # Fall back to existing DB values for mode and selected_template_name
-        # when the request doesn't include them (the standard frontend flow
-        # sets these earlier in the session, not in the generate-summary call).
-        existing = _load_summary(note_id)
+        # `mode` and `selected_template_name` are owned by the session lifecycle
+        # (Start AI / Start Manual, template picker) — generate-summary only
+        # forwards them when the frontend explicitly sends them. Omitting the
+        # key here lets `_save_summary`'s guard preserve the DB column.
         summary_payload: dict[str, Any] = {
             "note": note_dict,
             "commands": commands_list,
@@ -891,13 +891,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             "unmatched_conditions": unmatched_conditions,
             "diagnosis_suggestions": diagnosis_suggestions,
             "interaction_warnings": interaction_warnings,
-            "mode": str(data.get("mode") or (existing or {}).get("mode") or ""),
-            "selected_template_name": str(
-                data.get("selected_template_name")
-                or (existing or {}).get("selected_template_name")
-                or ""
-            ),
         }
+        if "mode" in data:
+            summary_payload["mode"] = data["mode"]
+        if "selected_template_name" in data:
+            summary_payload["selected_template_name"] = data["selected_template_name"]
         if raw_response is not None:
             summary_payload["raw_response"] = raw_response
         _save_summary(note_id, summary_payload)
