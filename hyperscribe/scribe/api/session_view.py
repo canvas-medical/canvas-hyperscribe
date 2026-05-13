@@ -213,7 +213,7 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
     ScribeSummary.objects.update_or_create(note_id=note_dbid, defaults=defaults)
 
 
-def _infer_mode_for_heal(note_dbid: int, summary_has_content: bool) -> str:
+def _infer_mode_for_heal(note_dbid: int, has_user_content: bool) -> str:
     """Pick the user's mode from session artifacts. '' means no signal — don't heal."""
     events = (
         ScribeAuditLog.objects.filter(note_id=note_dbid).values_list("events", flat=True).first()
@@ -229,7 +229,24 @@ def _infer_mode_for_heal(note_dbid: int, summary_has_content: bool) -> str:
         return last_start
     if ScribeTranscript.objects.filter(note_id=note_dbid).values_list("items", flat=True).first():
         return "ai"
-    return "manual" if summary_has_content else ""
+    return "manual" if has_user_content else ""
+
+
+def _has_user_authored_content(row: dict[str, Any]) -> bool:
+    """True iff the row has note content the user actually authored.
+
+    Template-inserted commands (carrying ``_template_inserted: true``) are
+    mechanical artifacts of a template selection, not evidence of manual
+    authorship — they must not trip the "content without recording → manual"
+    fallback in the heal.
+    """
+    if row["note_data"]:
+        return True
+    commands = row["commands"] or []
+    return any(
+        isinstance(cmd, dict) and not cmd.get("_template_inserted")
+        for cmd in commands
+    )
 
 
 def _load_summary(note_id: str) -> dict[str, Any] | None:
@@ -252,11 +269,11 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
         return None
     mode = row["mode"] or ""
     if not mode:
-        summary_has_content = bool(row["note_data"]) or bool(row["commands"])
-        inferred = _infer_mode_for_heal(note_dbid, summary_has_content)
+        inferred = _infer_mode_for_heal(note_dbid, _has_user_authored_content(row))
         if inferred:
-            ScribeSummary.objects.filter(note_id=note_dbid, mode="").update(mode=inferred)
-            mode = inferred
+            updated = ScribeSummary.objects.filter(note_id=note_dbid, mode="").update(mode=inferred)
+            if updated:
+                mode = inferred
     return {
         "note": row["note_data"] or None,
         "commands": row["commands"] or [],

@@ -428,6 +428,67 @@ def test_get_summary_does_not_heal_truly_empty_row(
     mock_summary.objects.filter.return_value.update.assert_not_called()
 
 
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_does_not_heal_template_only_session(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    """A note where the user picked a template but never clicked Start AI /
+    Start Manual must NOT be healed to 'manual'. Template-inserted commands
+    aren't user-authored content, and healing to 'manual' would hide the
+    Start buttons and disable the template dropdown — locking the user out."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
+        commands=[
+            {"command_type": "ros", "_template_inserted": True},
+            {"command_type": "physical_exam", "_template_inserted": True},
+        ],
+    )
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "SELECT_TEMPLATE", "details": {"name": "Subsequent Visit"}},
+    ]
+    mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = None
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] is None
+    mock_summary.objects.filter.return_value.update.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_no_ops_response_when_cas_loses_to_concurrent_save(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    """If a concurrent /save-summary commits a real mode between this
+    request's stale read and the heal write, the CAS UPDATE matches 0 rows.
+    The response must not claim the inferred mode — it would contradict
+    what's now persisted in the DB."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
+        note_data={"sections": [{"key": "hpi", "text": "Pain"}]},
+    )
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "START_AI"},
+    ]
+    mock_summary.objects.filter.return_value.update.return_value = 0
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] is None
+    mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="ai")
+
+
 # --- /save-summary ---
 
 
