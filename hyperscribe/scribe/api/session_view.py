@@ -225,6 +225,8 @@ def _infer_mode_for_heal(note_dbid: int, has_user_content: bool) -> str:
             last_start = "ai"
         elif event_type == "START_MANUAL":
             last_start = "manual"
+        elif event_type in ("START_AI_FAILED", "START_MANUAL_FAILED"):
+            last_start = ""
     if last_start:
         return last_start
     if ScribeTranscript.objects.filter(note_id=note_dbid).values_list("items", flat=True).first():
