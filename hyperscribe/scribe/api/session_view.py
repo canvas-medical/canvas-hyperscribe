@@ -255,7 +255,7 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
         summary_has_content = bool(row["note_data"]) or bool(row["commands"])
         inferred = _infer_mode_for_heal(note_dbid, summary_has_content)
         if inferred:
-            ScribeSummary.objects.filter(note_id=note_dbid).update(mode=inferred)
+            ScribeSummary.objects.filter(note_id=note_dbid, mode="").update(mode=inferred)
             mode = inferred
     return {
         "note": row["note_data"] or None,
