@@ -504,6 +504,55 @@ def test_save_summary_omits_mode_and_template_when_absent(
     assert "selected_template_name" not in defaults
 
 
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_save_summary_clears_template_when_explicitly_null(
+    mock_note: MagicMock, mock_summary: MagicMock
+) -> None:
+    """Deselecting the visit template sends `selected_template_name: null`,
+    which must clear the DB column (write '') rather than be silently dropped."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note_id": "42",
+                "note": {},
+                "commands": [],
+                "approved": False,
+                "selected_template_name": None,
+            }
+        )
+    )
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    defaults = mock_summary.objects.update_or_create.call_args.kwargs["defaults"]
+    assert defaults["selected_template_name"] == ""
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_save_summary_clears_mode_when_explicitly_null(
+    mock_note: MagicMock, mock_summary: MagicMock
+) -> None:
+    """Symmetric to template deselect: explicit `mode: null` clears the column."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {"note_id": "42", "note": {}, "commands": [], "approved": False, "mode": None}
+        )
+    )
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    defaults = mock_summary.objects.update_or_create.call_args.kwargs["defaults"]
+    assert defaults["mode"] == ""
+
+
 # --- /generate-note ---
 
 

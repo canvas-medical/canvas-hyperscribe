@@ -608,17 +608,17 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             "commands": data.get("commands", []),
             "approved": bool(data.get("approved", False)),
         }
-        if data.get("recommendations") is not None:
+        if "recommendations" in data:
             payload["recommendations"] = data["recommendations"]
-        if data.get("unmatched_conditions") is not None:
+        if "unmatched_conditions" in data:
             payload["unmatched_conditions"] = data["unmatched_conditions"]
-        if data.get("diagnosis_suggestions") is not None:
+        if "diagnosis_suggestions" in data:
             payload["diagnosis_suggestions"] = data["diagnosis_suggestions"]
-        if data.get("interaction_warnings") is not None:
+        if "interaction_warnings" in data:
             payload["interaction_warnings"] = data["interaction_warnings"]
-        if data.get("selected_template_name") is not None:
+        if "selected_template_name" in data:
             payload["selected_template_name"] = data["selected_template_name"]
-        if data.get("mode") is not None:
+        if "mode" in data:
             payload["mode"] = data["mode"]
         _save_summary(note_id, payload)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
