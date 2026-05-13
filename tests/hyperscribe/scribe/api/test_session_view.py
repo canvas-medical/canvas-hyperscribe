@@ -301,6 +301,7 @@ def test_get_summary_heals_blank_mode_from_start_ai(
 
     assert result[0].status_code == HTTPStatus.OK
     assert json.loads(result[0].content)["mode"] == "ai"
+    mock_summary.objects.filter.assert_any_call(note_id=42, mode="")
     mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="ai")
     mock_transcript.objects.filter.assert_not_called()
 
@@ -326,6 +327,7 @@ def test_get_summary_heals_blank_mode_from_start_manual(
 
     assert result[0].status_code == HTTPStatus.OK
     assert json.loads(result[0].content)["mode"] == "manual"
+    mock_summary.objects.filter.assert_any_call(note_id=42, mode="")
     mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="manual")
 
 
@@ -351,6 +353,7 @@ def test_get_summary_last_start_wins_when_user_toggled(
 
     assert result[0].status_code == HTTPStatus.OK
     assert json.loads(result[0].content)["mode"] == "manual"
+    mock_summary.objects.filter.assert_any_call(note_id=42, mode="")
     mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="manual")
 
 
@@ -376,6 +379,7 @@ def test_get_summary_heals_to_ai_from_transcript_items(
 
     assert result[0].status_code == HTTPStatus.OK
     assert json.loads(result[0].content)["mode"] == "ai"
+    mock_summary.objects.filter.assert_any_call(note_id=42, mode="")
     mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="ai")
 
 
@@ -399,6 +403,7 @@ def test_get_summary_heals_to_manual_when_content_without_recording(
 
     assert result[0].status_code == HTTPStatus.OK
     assert json.loads(result[0].content)["mode"] == "manual"
+    mock_summary.objects.filter.assert_any_call(note_id=42, mode="")
     mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="manual")
 
 
