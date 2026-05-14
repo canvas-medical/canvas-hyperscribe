@@ -1255,12 +1255,21 @@ h2 { margin-bottom: 4px; }
 .questionnaire-form { flex: 1; width: 100%; min-width: 0; }
 .questionnaire-header { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 14px; letter-spacing: 0.01em; }
 /* Strict 2-column grid, row-by-row reading order. Q1 top-left, Q2 top-right, Q3 next-row-left, etc.
-   When the count is odd, the last row's right cell is empty — accepted trade-off for predictable layout. */
-.questionnaire-questions-2col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; row-gap: 20px; align-items: start; }
-.questionnaire-question { min-width: 0; padding: 2px 0; }
+   align-items: stretch equalizes cell heights within a row so per-cell border-bottoms line up as a clean
+   horizontal divider between rows. row-gap is 0 — padding + border carries the separation. */
+.questionnaire-questions-2col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; row-gap: 0; align-items: stretch; }
+.questionnaire-question { min-width: 0; padding: 14px 0; border-bottom: 1px solid #f3f4f6; }
+.questionnaire-question:last-child { border-bottom: none; padding-bottom: 4px; }
+/* When the count is even, the second-to-last cell sits in the bottom row too — remove its border to
+   avoid a dangling half-line at the card's bottom-left. (When count is odd, this selector matches nothing
+   because second-to-last is at an even position.) */
+.questionnaire-question:nth-last-child(2):nth-child(odd) { border-bottom: none; padding-bottom: 4px; }
 .questionnaire-question-label { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 8px; overflow-wrap: anywhere; line-height: 1.35; }
 @media (max-width: 600px) {
-  .questionnaire-questions-2col { grid-template-columns: 1fr; column-gap: 0; row-gap: 16px; }
+  .questionnaire-questions-2col { grid-template-columns: 1fr; column-gap: 0; }
+  /* In single-column mode, every cell is its own row — restore the divider on the second-to-last cell
+     so consecutive questions stay visually separated. */
+  .questionnaire-question:nth-last-child(2):nth-child(odd) { border-bottom: 1px solid #f3f4f6; padding-bottom: 14px; }
 }
 /* Chip-style options for radio and checkbox questions. Pills wrap naturally; no stretching, no matrix. */
 .questionnaire-chips { display: flex; flex-flow: row wrap; gap: 6px; }
@@ -1309,8 +1318,9 @@ h2 { margin-bottom: 4px; }
 .questionnaire-form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f0f0f0; }
 
 /* Read-only expanded response list */
-.questionnaire-readonly-list { margin: 4px 4px 2px; padding: 4px 0 0; border-top: 1px solid #f0f0f0; display: flex; flex-direction: column; gap: 2px; }
-.questionnaire-readonly-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); column-gap: 12px; align-items: baseline; padding: 1px 0; line-height: 1.35; }
+.questionnaire-readonly-list { margin: 4px 4px 2px; padding: 4px 0 0; border-top: 1px solid #f3f4f6; display: flex; flex-direction: column; }
+.questionnaire-readonly-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); column-gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid #f3f4f6; line-height: 1.35; }
+.questionnaire-readonly-row:last-child { border-bottom: none; padding-bottom: 2px; }
 .questionnaire-readonly-label { font-size: 13px; font-weight: 600; color: #4b5563; margin: 0; }
 .questionnaire-readonly-value { font-size: 13px; color: #1f2937; margin: 0; min-width: 0; word-break: break-word; }
 .questionnaire-readonly-answer { color: #1f2937; }
