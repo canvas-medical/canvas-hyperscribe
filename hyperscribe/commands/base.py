@@ -23,7 +23,7 @@ class Base:
         cache: LimitedCache,
         identification: IdentificationParameters,
         permissions: TemplatePermissions,
-    ):
+    ) -> None:
         self.settings = settings
         self.identification = identification
         self.cache = cache

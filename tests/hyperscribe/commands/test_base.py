@@ -95,87 +95,6 @@ def test_class_name():
     assert result == expected
 
 
-def test_command_type():
-    tested = Base
-    with pytest.raises(NotImplementedError):
-        _ = tested.command_type()
-
-
-def test_schema_key():
-    tested = helper_instance()
-    with pytest.raises(NotImplementedError):
-        _ = tested.schema_key()
-
-
-def test_note_section():
-    tested = Base
-    with pytest.raises(NotImplementedError):
-        _ = tested.note_section()
-
-
-def test_staged_command_extract():
-    tested = helper_instance()
-    with pytest.raises(NotImplementedError):
-        _ = tested.staged_command_extract({})
-
-
-@patch.object(Base, "class_name")
-def test_custom_prompt(class_name):
-    def reset_mocks():
-        class_name.reset_mock()
-
-    tested = helper_instance()
-    tests = [
-        ("Command1", "Prompt1"),
-        ("Command2", "Prompt2"),
-        ("Command3", ""),  # <-- not active
-        ("Command4", ""),
-        ("Command5", ""),  # <--- unknown
-    ]
-    for class_name_side_effect, expected in tests:
-        class_name.side_effect = [class_name_side_effect]
-        result = tested.custom_prompt()
-        assert result == expected, f"---> {class_name_side_effect}"
-
-        calls = [call()]
-        assert class_name.mock_calls == calls
-        reset_mocks()
-
-
-def test_command_from_json():
-    chatter = MagicMock()
-    tested = helper_instance()
-    with pytest.raises(NotImplementedError):
-        instruction = InstructionWithParameters(
-            uuid="theUuid",
-            index=7,
-            instruction="theInstruction",
-            information="theInformation",
-            is_new=False,
-            is_updated=True,
-            previous_information="thePreviousInformation",
-            parameters={"key": "value"},
-        )
-        _ = tested.command_from_json(instruction, chatter)
-    assert chatter.mock_calls == []
-
-
-def test_add_code2description():
-    tested = helper_instance()
-    assert tested._arguments_code2description == {}
-
-    tested.add_code2description("code1", "description1")
-    tested.add_code2description("code2", "description2")
-    tested.add_code2description("code3", "description3")
-    tested.add_code2description("code2", "description4")
-    expected = {
-        "code1": "description1",
-        "code2": "description4",
-        "code3": "description3",
-    }
-    assert tested._arguments_code2description == expected
-
-
 @pytest.mark.parametrize(
     "items, index, name, expected_label",
     [
@@ -244,37 +163,138 @@ def test_add_code2description():
     ],
 )
 def test_resolve_item_by_index(items, index, name, expected_label):
-    result = Base.resolve_item_by_index(items, index, name)
+    tested = Base
+    result = tested.resolve_item_by_index(items, index, name)
     if expected_label is None:
         assert result is None
     else:
+        expected = expected_label
         assert result is not None
-        assert result.label == expected_label
+        assert result.label == expected
 
 
 @patch("hyperscribe.commands.base.log")
 def test_resolve_item_by_index_logs_warning_on_out_of_range(mock_log):
-    items = [CodedItem(uuid="uuid1", label="Condition A", code="A01")]
-    result = Base.resolve_item_by_index(items, 5, "Condition A")
+    tested = Base
+    result = tested.resolve_item_by_index([CodedItem(uuid="uuid1", label="Condition A", code="A01")], 5, "Condition A")
+    expected = "Condition A"
     assert result is not None
-    assert result.label == "Condition A"
-    assert mock_log.mock_calls == [
-        call.warning("Index 5 out of range for 1 items, falling back to name-based lookup"),
-    ]
+    assert result.label == expected
+
+    exp_calls = [call.warning("Index 5 out of range for 1 items, falling back to name-based lookup")]
+    assert mock_log.mock_calls == exp_calls
 
 
 @patch("hyperscribe.commands.base.log")
 def test_resolve_item_by_index_logs_warning_on_name_mismatch(mock_log):
-    items = [
-        CodedItem(uuid="uuid1", label="Condition A", code="A01"),
-        CodedItem(uuid="uuid2", label="Condition B", code="B02"),
-    ]
-    result = Base.resolve_item_by_index(items, 0, "Condition B")
+    tested = Base
+    result = tested.resolve_item_by_index(
+        [
+            CodedItem(uuid="uuid1", label="Condition A", code="A01"),
+            CodedItem(uuid="uuid2", label="Condition B", code="B02"),
+        ],
+        0,
+        "Condition B",
+    )
+    expected = "Condition B"
     assert result is not None
-    assert result.label == "Condition B"
-    assert mock_log.mock_calls == [
-        call.warning("Index 0 (Condition A) does not match name (Condition B), falling back to name-based lookup"),
+    assert result.label == expected
+
+    exp_calls = [
+        call.warning("Index 0 (Condition A) does not match name (Condition B), falling back to name-based lookup")
     ]
+    assert mock_log.mock_calls == exp_calls
+
+
+@patch("hyperscribe.commands.base.log")
+def test_resolve_item_by_index__out_of_range_no_name(mock_log):
+    tested = Base
+    result = tested.resolve_item_by_index([CodedItem(uuid="uuid1", label="Condition A", code="A01")], 5, None)
+    assert result is None
+
+    exp_calls = [call.warning("Index 5 out of range for 1 items, falling back to name-based lookup")]
+    assert mock_log.mock_calls == exp_calls
+
+
+def test_command_type():
+    tested = Base
+    with pytest.raises(NotImplementedError):
+        _ = tested.command_type()
+
+
+def test_schema_key():
+    tested = helper_instance()
+    with pytest.raises(NotImplementedError):
+        _ = tested.schema_key()
+
+
+def test_note_section():
+    tested = Base
+    with pytest.raises(NotImplementedError):
+        _ = tested.note_section()
+
+
+def test_staged_command_extract():
+    tested = helper_instance()
+    with pytest.raises(NotImplementedError):
+        _ = tested.staged_command_extract({})
+
+
+@patch.object(Base, "class_name")
+def test_custom_prompt(class_name):
+    def reset_mocks():
+        class_name.reset_mock()
+
+    tested = helper_instance()
+    tests = [
+        ("Command1", "Prompt1"),
+        ("Command2", "Prompt2"),
+        ("Command3", ""),  # <-- not active
+        ("Command4", ""),
+        ("Command5", ""),  # <--- unknown
+    ]
+    for class_name_side_effect, expected in tests:
+        class_name.side_effect = [class_name_side_effect]
+        result = tested.custom_prompt()
+        assert result == expected, f"---> {class_name_side_effect}"
+
+        exp_calls = [call()]
+        assert class_name.mock_calls == exp_calls
+        reset_mocks()
+
+
+def test_command_from_json():
+    chatter = MagicMock()
+    tested = helper_instance()
+    with pytest.raises(NotImplementedError):
+        instruction = InstructionWithParameters(
+            uuid="theUuid",
+            index=7,
+            instruction="theInstruction",
+            information="theInformation",
+            is_new=False,
+            is_updated=True,
+            previous_information="thePreviousInformation",
+            parameters={"key": "value"},
+        )
+        _ = tested.command_from_json(instruction, chatter)
+    assert chatter.mock_calls == []
+
+
+def test_add_code2description():
+    tested = helper_instance()
+    assert tested._arguments_code2description == {}
+
+    tested.add_code2description("code1", "description1")
+    tested.add_code2description("code2", "description2")
+    tested.add_code2description("code3", "description3")
+    tested.add_code2description("code2", "description4")
+    expected = {
+        "code1": "description1",
+        "code2": "description4",
+        "code3": "description3",
+    }
+    assert tested._arguments_code2description == expected
 
 
 @patch("hyperscribe.commands.base.InstructionWithSummary")
@@ -366,8 +386,8 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
     result = tested.command_from_json_with_summary(instruction, chatter)
     assert result is None
 
-    calls = [call(instruction, chatter)]
-    assert command_from_json.mock_calls == calls
+    exp_calls = [call(instruction, chatter)]
+    assert command_from_json.mock_calls == exp_calls
     assert instruction_with_summary.mock_calls == []
     assert chatter.mock_calls == []
     assert command.mock_calls == []
@@ -400,15 +420,15 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
     expected = instruction_with_summary.add_explanation.return_value
     assert result is expected
 
-    calls = [call(instruction, chatter)]
-    assert command_from_json.mock_calls == calls
-    calls = [call.add_explanation(instruction=instruction_with_command, summary="theSummary")]
-    assert instruction_with_summary.mock_calls == calls
-    calls = [
+    exp_calls = [call(instruction, chatter)]
+    assert command_from_json.mock_calls == exp_calls
+    exp_calls = [call.add_explanation(instruction=instruction_with_command, summary="theSummary")]
+    assert instruction_with_summary.mock_calls == exp_calls
+    exp_calls = [
         call.reset_prompts(),
         call.single_conversation(system_prompt, user_prompt, schemas, instruction),
     ]
-    assert chatter.mock_calls == calls
+    assert chatter.mock_calls == exp_calls
     assert command.mock_calls == []
     reset_mocks()
     # -- no chatter response
@@ -419,15 +439,15 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
     expected = instruction_with_summary.add_explanation.return_value
     assert result is expected
 
-    calls = [call(instruction, chatter)]
-    assert command_from_json.mock_calls == calls
-    calls = [call.add_explanation(instruction=instruction_with_command, summary="")]
-    assert instruction_with_summary.mock_calls == calls
-    calls = [
+    exp_calls = [call(instruction, chatter)]
+    assert command_from_json.mock_calls == exp_calls
+    exp_calls = [call.add_explanation(instruction=instruction_with_command, summary="")]
+    assert instruction_with_summary.mock_calls == exp_calls
+    exp_calls = [
         call.reset_prompts(),
         call.single_conversation(system_prompt, user_prompt, schemas, instruction),
     ]
-    assert chatter.mock_calls == calls
+    assert chatter.mock_calls == exp_calls
     assert command.mock_calls == []
     reset_mocks()
 
@@ -500,16 +520,16 @@ def test_command_from_json_custom_prompted(custom_prompt, json_schema, demograph
         result = tested.command_from_json_custom_prompted("theData", chatter)
         assert result == expected
 
-        calls = [call()]
-        assert custom_prompt.mock_calls == calls
-        calls = [call.get(["command_custom_prompt"])]
-        assert json_schema.mock_calls == calls
-        calls = [call(False)]
-        assert demographic.mock_calls == calls
-        calls = [call.now()]
-        assert mock_datetime.mock_calls == calls
-        calls = [call.single_conversation(system_prompt, user_prompt, [{"the": "schema"}], None)]
-        assert chatter.mock_calls == calls
+        exp_calls = [call()]
+        assert custom_prompt.mock_calls == exp_calls
+        exp_calls = [call.get(["command_custom_prompt"])]
+        assert json_schema.mock_calls == exp_calls
+        exp_calls = [call(False)]
+        assert demographic.mock_calls == exp_calls
+        exp_calls = [call.now()]
+        assert mock_datetime.mock_calls == exp_calls
+        exp_calls = [call.single_conversation(system_prompt, user_prompt, [{"the": "schema"}], None)]
+        assert chatter.mock_calls == exp_calls
         reset_mocks()
 
     # there is NO custom prompt
@@ -523,8 +543,8 @@ def test_command_from_json_custom_prompted(custom_prompt, json_schema, demograph
     expected = "theData"
     assert result == expected
 
-    calls = [call()]
-    assert custom_prompt.mock_calls == calls
+    exp_calls = [call()]
+    assert custom_prompt.mock_calls == exp_calls
     assert json_schema.mock_calls == []
     assert demographic.mock_calls == []
     assert mock_datetime.mock_calls == []
@@ -609,18 +629,20 @@ def _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime):
 )
 def test_can_edit_command(permissions, expected):
     tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
+    command_type = MagicMock()
+    command_type.side_effect = [BASE_CMD]
     tested.command_type = command_type
-    load_permissions = MagicMock(return_value=permissions)
+    load_permissions = MagicMock()
+    load_permissions.side_effect = [permissions]
     tested.permissions.load_permissions = load_permissions
 
     result = tested.can_edit_command()
     assert result is expected
 
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
+    exp_calls = [call()]
+    assert command_type.mock_calls == exp_calls
+    exp_calls = [call()]
+    assert load_permissions.mock_calls == exp_calls
 
 
 # -- can_edit_field --------------------------------------------------------
@@ -690,18 +712,20 @@ def test_can_edit_command(permissions, expected):
 )
 def test_can_edit_field(permissions, field_name, expected):
     tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
+    command_type = MagicMock()
+    command_type.side_effect = [BASE_CMD]
     tested.command_type = command_type
-    load_permissions = MagicMock(return_value=permissions)
+    load_permissions = MagicMock()
+    load_permissions.side_effect = [permissions]
     tested.permissions.load_permissions = load_permissions
 
     result = tested.can_edit_field(field_name)
     assert result is expected
 
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
+    exp_calls = [call()]
+    assert command_type.mock_calls == exp_calls
+    exp_calls = [call()]
+    assert load_permissions.mock_calls == exp_calls
 
 
 # -- get_template_instructions ---------------------------------------------
@@ -709,27 +733,31 @@ def test_can_edit_field(permissions, field_name, expected):
 
 def test_get_template_instructions__no_template():
     tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
+    command_type = MagicMock()
+    command_type.side_effect = [BASE_CMD]
     tested.command_type = command_type
-    load_permissions = MagicMock(return_value={})
+    load_permissions = MagicMock()
+    load_permissions.side_effect = [{}]
     tested.permissions.load_permissions = load_permissions
 
     result = tested.get_template_instructions("narrative")
     expected = []
     assert result == expected
 
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
+    exp_calls = [call()]
+    assert command_type.mock_calls == exp_calls
+    exp_calls = [call()]
+    assert load_permissions.mock_calls == exp_calls
 
 
 def test_get_template_instructions__with_instructions():
     tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
+    command_type = MagicMock()
+    command_type.side_effect = [BASE_CMD]
     tested.command_type = command_type
-    load_permissions = MagicMock(
-        return_value={
+    load_permissions = MagicMock()
+    load_permissions.side_effect = [
+        {
             BASE_CMD: {
                 "plugin_can_edit": True,
                 "field_permissions": [
@@ -741,65 +769,69 @@ def test_get_template_instructions__with_instructions():
                 ],
             }
         }
-    )
+    ]
     tested.permissions.load_permissions = load_permissions
 
     result = tested.get_template_instructions("narrative")
     expected = ["symptoms", "duration", "severity"]
     assert result == expected
 
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
+    exp_calls = [call()]
+    assert command_type.mock_calls == exp_calls
+    exp_calls = [call()]
+    assert load_permissions.mock_calls == exp_calls
 
 
 def test_get_template_instructions__field_not_found():
     tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
+    command_type = MagicMock()
+    command_type.side_effect = [BASE_CMD]
     tested.command_type = command_type
-    load_permissions = MagicMock(
-        return_value={
+    load_permissions = MagicMock()
+    load_permissions.side_effect = [
+        {
             BASE_CMD: {
                 "plugin_can_edit": True,
                 "field_permissions": [{"field_name": "other_field", "add_instructions": ["foo"]}],
             }
         }
-    )
+    ]
     tested.permissions.load_permissions = load_permissions
 
     result = tested.get_template_instructions("narrative")
     expected = []
     assert result == expected
 
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
+    exp_calls = [call()]
+    assert command_type.mock_calls == exp_calls
+    exp_calls = [call()]
+    assert load_permissions.mock_calls == exp_calls
 
 
 def test_get_template_instructions__missing_key():
     tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
+    command_type = MagicMock()
+    command_type.side_effect = [BASE_CMD]
     tested.command_type = command_type
-    load_permissions = MagicMock(
-        return_value={
+    load_permissions = MagicMock()
+    load_permissions.side_effect = [
+        {
             BASE_CMD: {
                 "plugin_can_edit": True,
                 "field_permissions": [{"field_name": "narrative", "plugin_can_edit": True}],
             }
         }
-    )
+    ]
     tested.permissions.load_permissions = load_permissions
 
     result = tested.get_template_instructions("narrative")
     expected = []
     assert result == expected
 
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
+    exp_calls = [call()]
+    assert command_type.mock_calls == exp_calls
+    exp_calls = [call()]
+    assert load_permissions.mock_calls == exp_calls
 
 
 # -- get_template_framework ------------------------------------------------
@@ -807,27 +839,31 @@ def test_get_template_instructions__missing_key():
 
 def test_get_template_framework__no_template():
     tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
+    command_type = MagicMock()
+    command_type.side_effect = [BASE_CMD]
     tested.command_type = command_type
-    load_permissions = MagicMock(return_value={})
+    load_permissions = MagicMock()
+    load_permissions.side_effect = [{}]
     tested.permissions.load_permissions = load_permissions
 
     result = tested.get_template_framework("narrative")
     expected = None
     assert result == expected
 
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
+    exp_calls = [call()]
+    assert command_type.mock_calls == exp_calls
+    exp_calls = [call()]
+    assert load_permissions.mock_calls == exp_calls
 
 
 def test_get_template_framework__with_framework():
     tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
+    command_type = MagicMock()
+    command_type.side_effect = [BASE_CMD]
     tested.command_type = command_type
-    load_permissions = MagicMock(
-        return_value={
+    load_permissions = MagicMock()
+    load_permissions.side_effect = [
+        {
             BASE_CMD: {
                 "plugin_can_edit": True,
                 "field_permissions": [
@@ -839,65 +875,69 @@ def test_get_template_framework__with_framework():
                 ],
             }
         }
-    )
+    ]
     tested.permissions.load_permissions = load_permissions
 
     result = tested.get_template_framework("narrative")
     expected = "Patient is a [AGE] year old [GENDER]."
     assert result == expected
 
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
+    exp_calls = [call()]
+    assert command_type.mock_calls == exp_calls
+    exp_calls = [call()]
+    assert load_permissions.mock_calls == exp_calls
 
 
 def test_get_template_framework__field_not_found():
     tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
+    command_type = MagicMock()
+    command_type.side_effect = [BASE_CMD]
     tested.command_type = command_type
-    load_permissions = MagicMock(
-        return_value={
+    load_permissions = MagicMock()
+    load_permissions.side_effect = [
+        {
             BASE_CMD: {
                 "plugin_can_edit": True,
                 "field_permissions": [{"field_name": "other_field", "plugin_edit_framework": "some framework"}],
             }
         }
-    )
+    ]
     tested.permissions.load_permissions = load_permissions
 
     result = tested.get_template_framework("narrative")
     expected = None
     assert result == expected
 
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
+    exp_calls = [call()]
+    assert command_type.mock_calls == exp_calls
+    exp_calls = [call()]
+    assert load_permissions.mock_calls == exp_calls
 
 
 def test_get_template_framework__missing_key():
     tested = helper_instance()
-    command_type = MagicMock(return_value=BASE_CMD)
+    command_type = MagicMock()
+    command_type.side_effect = [BASE_CMD]
     tested.command_type = command_type
-    load_permissions = MagicMock(
-        return_value={
+    load_permissions = MagicMock()
+    load_permissions.side_effect = [
+        {
             BASE_CMD: {
                 "plugin_can_edit": True,
                 "field_permissions": [{"field_name": "narrative", "plugin_can_edit": True}],
             }
         }
-    )
+    ]
     tested.permissions.load_permissions = load_permissions
 
     result = tested.get_template_framework("narrative")
     expected = None
     assert result == expected
 
-    calls = [call()]
-    assert command_type.mock_calls == calls
-    calls = [call()]
-    assert load_permissions.mock_calls == calls
+    exp_calls = [call()]
+    assert command_type.mock_calls == exp_calls
+    exp_calls = [call()]
+    assert load_permissions.mock_calls == exp_calls
 
 
 # -- resolve_framework ----------------------------------------------------
@@ -909,14 +949,21 @@ def test_resolve_framework(mock_get_framework):
 
     # returns cached framework when available
     mock_get_framework.side_effect = ["Cached framework content"]
-    assert tested.resolve_framework("narrative") == "Cached framework content"
-    assert mock_get_framework.mock_calls == [call("narrative")]
+    result = tested.resolve_framework("narrative")
+    expected = "Cached framework content"
+    assert result == expected
+
+    exp_calls = [call("narrative")]
+    assert mock_get_framework.mock_calls == exp_calls
+    mock_get_framework.reset_mock()
 
     # returns None when no framework
-    mock_get_framework.reset_mock()
     mock_get_framework.side_effect = [None]
-    assert tested.resolve_framework("narrative") is None
-    assert mock_get_framework.mock_calls == [call("narrative")]
+    result = tested.resolve_framework("narrative")
+    assert result is None
+
+    exp_calls = [call("narrative")]
+    assert mock_get_framework.mock_calls == exp_calls
 
 
 # -- fill_template_content -------------------------------------------------
@@ -932,14 +979,17 @@ def test_fill_template_content__no_framework_no_instructions(
     chatter = MagicMock()
     instruction = make_instruction()
     tested = helper_instance()
-    mockresolve_framework.return_value = None
-    mock_get_instructions.return_value = []
+    mockresolve_framework.side_effect = [None]
+    mock_get_instructions.side_effect = [[]]
 
     result = tested.fill_template_content("generated", "narrative", instruction, chatter)
 
-    assert result == "generated"
-    assert mockresolve_framework.mock_calls == [call("narrative")]
-    assert mock_get_instructions.mock_calls == [call("narrative")]
+    expected = "generated"
+    assert result == expected
+    exp_calls = [call("narrative")]
+    assert mockresolve_framework.mock_calls == exp_calls
+    exp_calls = [call("narrative")]
+    assert mock_get_instructions.mock_calls == exp_calls
     assert mock_enhance.mock_calls == []
     assert chatter.mock_calls == []
 
@@ -954,16 +1004,20 @@ def test_fill_template_content__no_framework_with_instructions(
     chatter = MagicMock()
     instruction = make_instruction()
     tested = helper_instance()
-    mockresolve_framework.return_value = None
-    mock_get_instructions.return_value = ["symptoms", "duration"]
-    mock_enhance.return_value = "enhanced content"
+    mockresolve_framework.side_effect = [None]
+    mock_get_instructions.side_effect = [["symptoms", "duration"]]
+    mock_enhance.side_effect = ["enhanced content"]
 
     result = tested.fill_template_content("generated", "narrative", instruction, chatter)
 
-    assert result == "enhanced content"
-    assert mockresolve_framework.mock_calls == [call("narrative")]
-    assert mock_get_instructions.mock_calls == [call("narrative")]
-    assert mock_enhance.mock_calls == [call("generated", ["symptoms", "duration"], instruction, chatter)]
+    expected = "enhanced content"
+    assert result == expected
+    exp_calls = [call("narrative")]
+    assert mockresolve_framework.mock_calls == exp_calls
+    exp_calls = [call("narrative")]
+    assert mock_get_instructions.mock_calls == exp_calls
+    exp_calls = [call("generated", ["symptoms", "duration"], instruction, chatter)]
+    assert mock_enhance.mock_calls == exp_calls
     assert chatter.mock_calls == []
 
 
@@ -978,11 +1032,11 @@ def test_fill_template_content_with_framework(
     chatter = MagicMock()
     instruction = make_instruction(information="Patient reports headache for 3 days.")
     tested = helper_instance()
-    mockresolve_framework.return_value = "Patient is a [AGE] year old [GENDER] presenting with [SYMPTOMS]."
-    mock_get_instructions.return_value = ["symptoms", "duration"]
+    mockresolve_framework.side_effect = ["Patient is a [AGE] year old [GENDER] presenting with [SYMPTOMS]."]
+    mock_get_instructions.side_effect = [["symptoms", "duration"]]
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.return_value = [
-        {"enhancedContent": "Patient is a 45 year old male presenting with headache x3d."}
+    chatter.single_conversation.side_effect = [
+        [{"enhancedContent": "Patient is a 45 year old male presenting with headache x3d."}]
     ]
 
     result = tested.fill_template_content("generated headache content", "narrative", instruction, chatter)
@@ -1035,11 +1089,11 @@ def test_fill_template_content_with_framework(
         "```",
         "",
     ]
-    calls = [
+    exp_calls = [
         call.reset_prompts(),
         call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
     ]
-    assert chatter.mock_calls == calls
+    assert chatter.mock_calls == exp_calls
 
 
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
@@ -1053,14 +1107,14 @@ def test_fill_template_content_strips_lit_markers(
     chatter = MagicMock()
     instruction = make_instruction(information="Patient memory concerns noted.")
     tested = helper_instance()
-    mockresolve_framework.return_value = (
+    mockresolve_framework.side_effect = [
         "Patient presenting for assessment.\n"
         "{lit:Current concerns with memory:}\n"
         "{lit:Current concerns with functioning:}"
-    )
-    mock_get_instructions.return_value = []
+    ]
+    mock_get_instructions.side_effect = [[]]
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.return_value = [{"enhancedContent": "filled content"}]
+    chatter.single_conversation.side_effect = [[{"enhancedContent": "filled content"}]]
 
     tested.fill_template_content("generated", "narrative", instruction, chatter)
 
@@ -1111,11 +1165,11 @@ def test_fill_template_content_strips_lit_markers(
         "```",
         "",
     ]
-    calls = [
+    exp_calls = [
         call.reset_prompts(),
         call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
     ]
-    assert chatter.mock_calls == calls
+    assert chatter.mock_calls == exp_calls
 
 
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
@@ -1128,10 +1182,10 @@ def test_fill_template_content_with_framework_no_add_instructions(
 ):
     chatter = MagicMock()
     tested = helper_instance()
-    mockresolve_framework.return_value = "Patient is presenting today."
-    mock_get_instructions.return_value = []
+    mockresolve_framework.side_effect = ["Patient is presenting today."]
+    mock_get_instructions.side_effect = [[]]
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.return_value = [{"enhancedContent": "Patient is presenting today with headache."}]
+    chatter.single_conversation.side_effect = [[{"enhancedContent": "Patient is presenting today with headache."}]]
 
     instruction = make_instruction()
     result = tested.fill_template_content("generated", "narrative", instruction, chatter)
@@ -1184,14 +1238,20 @@ def test_fill_template_content_with_framework_no_add_instructions(
         "```",
         "",
     ]
-    calls = [
+    exp_calls = [
         call.reset_prompts(),
         call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
     ]
-    assert chatter.mock_calls == calls
+    assert chatter.mock_calls == exp_calls
 
 
-@pytest.mark.parametrize("llm_response", [[], [{"enhancedContent": ""}]])
+@pytest.mark.parametrize(
+    ("llm_response",),
+    [
+        pytest.param([], id="empty_response"),
+        pytest.param([{"enhancedContent": ""}], id="empty_content"),
+    ],
+)
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
 @patch("hyperscribe.commands.base.JsonSchema")
@@ -1207,10 +1267,10 @@ def test_fill_template_content_llm_empty_falls_back(
 ):
     chatter = MagicMock()
     tested = helper_instance()
-    mockresolve_framework.return_value = "Template structure here."
-    mock_get_instructions.return_value = ["symptoms"]
+    mockresolve_framework.side_effect = ["Template structure here."]
+    mock_get_instructions.side_effect = [["symptoms"]]
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.return_value = llm_response
+    chatter.single_conversation.side_effect = [llm_response]
 
     instruction = make_instruction()
     result = tested.fill_template_content("generated content", "narrative", instruction, chatter)
@@ -1263,11 +1323,11 @@ def test_fill_template_content_llm_empty_falls_back(
         "```",
         "",
     ]
-    calls = [
+    exp_calls = [
         call.reset_prompts(),
         call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
     ]
-    assert chatter.mock_calls == calls
+    assert chatter.mock_calls == exp_calls
 
 
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
@@ -1290,10 +1350,10 @@ def test_fill_template_content_uses_existing_structure(
     )
     instruction = make_instruction(information="Some prose from transcript")
     tested = helper_instance()
-    mockresolve_framework.return_value = structured_content
-    mock_get_instructions.return_value = []
+    mockresolve_framework.side_effect = [structured_content]
+    mock_get_instructions.side_effect = [[]]
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.return_value = [{"enhancedContent": "Updated structured content"}]
+    chatter.single_conversation.side_effect = [[{"enhancedContent": "Updated structured content"}]]
 
     tested.fill_template_content("generated prose", "narrative", instruction, chatter)
 
@@ -1344,11 +1404,11 @@ def test_fill_template_content_uses_existing_structure(
         "```",
         "",
     ]
-    calls = [
+    exp_calls = [
         call.reset_prompts(),
         call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
     ]
-    assert chatter.mock_calls == calls
+    assert chatter.mock_calls == exp_calls
 
 
 # -- enhance_with_template_instructions ------------------------------------
@@ -1363,11 +1423,12 @@ def test_enhance_with_template_instructions(mock_json_schema, mock_demographic, 
 
     instruction = make_instruction(information="Patient reports headache for 3 days.")
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.return_value = [{"enhancedContent": "Enhanced: headache x3d"}]
+    chatter.single_conversation.side_effect = [[{"enhancedContent": "Enhanced: headache x3d"}]]
 
     result = tested.enhance_with_template_instructions("original", ["symptoms", "duration"], instruction, chatter)
 
-    assert result == "Enhanced: headache x3d"
+    expected = "Enhanced: headache x3d"
+    assert result == expected
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
     assert mock_datetime.mock_calls == [call.now()]
@@ -1410,14 +1471,20 @@ def test_enhance_with_template_instructions(mock_json_schema, mock_demographic, 
         "```",
         "",
     ]
-    calls = [
+    exp_calls = [
         call.reset_prompts(),
         call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
     ]
-    assert chatter.mock_calls == calls
+    assert chatter.mock_calls == exp_calls
 
 
-@pytest.mark.parametrize("llm_response", [[], [{"enhancedContent": ""}]])
+@pytest.mark.parametrize(
+    ("llm_response",),
+    [
+        pytest.param([], id="empty_response"),
+        pytest.param([{"enhancedContent": ""}], id="empty_content"),
+    ],
+)
 @patch("hyperscribe.commands.base.datetime", wraps=datetime)
 @patch.object(LimitedCache, "demographic__str__")
 @patch("hyperscribe.commands.base.JsonSchema")
@@ -1425,12 +1492,13 @@ def test_enhance_with_template_instructions_llm_empty(mock_json_schema, mock_dem
     chatter = MagicMock()
     tested = helper_instance()
     _setup_llm_mocks(mock_json_schema, mock_demographic, mock_datetime)
-    chatter.single_conversation.return_value = llm_response
+    chatter.single_conversation.side_effect = [llm_response]
 
     instruction = make_instruction()
     result = tested.enhance_with_template_instructions("original", ["symptoms"], instruction, chatter)
 
-    assert result == "original"
+    expected = "original"
+    assert result == expected
     assert mock_json_schema.mock_calls == [call.get(["template_enhanced_content"])]
     assert mock_demographic.mock_calls == [call(False)]
     assert mock_datetime.mock_calls == [call.now()]
@@ -1473,8 +1541,8 @@ def test_enhance_with_template_instructions_llm_empty(mock_json_schema, mock_dem
         "```",
         "",
     ]
-    calls = [
+    exp_calls = [
         call.reset_prompts(),
         call.single_conversation(system_prompt, user_prompt, [{"type": "array"}], instruction),
     ]
-    assert chatter.mock_calls == calls
+    assert chatter.mock_calls == exp_calls
