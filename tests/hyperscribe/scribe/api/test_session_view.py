@@ -1160,10 +1160,13 @@ def test_insert_commands_invalid_json() -> None:
 # --- /insert-metadata ---
 
 
+@patch("canvas_sdk.v1.data.command.Command")
 @patch("hyperscribe.scribe.api.session_view.build_metadata_effects")
-def test_insert_metadata_success(mock_meta: MagicMock) -> None:
+def test_insert_metadata_success(mock_meta: MagicMock, mock_command_cls: MagicMock) -> None:
     mock_effect = MagicMock()
     mock_meta.return_value = [mock_effect]
+    # Note-scoping filter: command uuid-1 belongs to note-uuid → authorized.
+    mock_command_cls.objects.filter.return_value.values_list.return_value = ["uuid-1"]
 
     view = _helper_instance()
     pending = [
@@ -1183,6 +1186,44 @@ def test_insert_metadata_success(mock_meta: MagicMock) -> None:
     assert data["metadata_count"] == 1
     assert len(result) == 2
     mock_meta.assert_called_once_with(pending)
+    # Note scoping was applied: query restricts to authorized note_uuid.
+    mock_command_cls.objects.filter.assert_called_once_with(
+        id__in=["uuid-1"], note__id="note-uuid"
+    )
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+@patch("hyperscribe.scribe.api.session_view.build_metadata_effects")
+def test_insert_metadata_rejects_foreign_command_uuid(
+    mock_meta: MagicMock, mock_command_cls: MagicMock
+) -> None:
+    """A pending item carrying a command_uuid belonging to a different note
+    must be dropped before reaching build_metadata_effects, even when the
+    requester is authorized on the top-level note_uuid. Mirrors the
+    `note__id=note_uuid` scoping that /verify-commands uses."""
+    # The filter returns no authorized UUIDs — the supplied command_uuid does
+    # NOT belong to the authorized note.
+    mock_command_cls.objects.filter.return_value.values_list.return_value = []
+
+    view = _helper_instance()
+    pending = [
+        {
+            "command_uuid": "uuid-foreign",
+            "command_type": "medication_statement",
+            "note_uuid": "some-other-note",
+            "metadata": {"alert_facility": "Yes"},
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "authorized-note", "pending": pending}))
+    result = view.post_insert_metadata()
+
+    assert result[0].status_code == HTTPStatus.OK
+    # The pending list passed to build_metadata_effects must be empty —
+    # the foreign uuid was filtered out.
+    mock_meta.assert_called_once_with([])
+    mock_command_cls.objects.filter.assert_called_once_with(
+        id__in=["uuid-foreign"], note__id="authorized-note"
+    )
 
 
 def test_insert_metadata_empty_pending() -> None:
@@ -1280,6 +1321,39 @@ def test_verify_commands_invalid_json() -> None:
     view.request = SimpleNamespace(body="not-json")
     result = view.post_verify_commands()
     assert result[0].status_code == HTTPStatus.BAD_REQUEST
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_verify_commands_tolerates_non_dict_attempted_entries(
+    mock_command_cls: MagicMock, _audit: MagicMock,
+) -> None:
+    """`attempted` may contain non-dict entries (strings, None, lists) if a
+    future client serializes badly. The handler must not 500 — filter to
+    dicts and proceed with the remaining valid entries."""
+    mock_command_cls.objects.filter.return_value.values.return_value = [
+        {"id": "uuid-1", "anchor_object_type": "Medication", "anchor_object_dbid": 42},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-key-abc"},
+        body=json.dumps({
+            "note_uuid": "note-uuid",
+            "attempted": [
+                "oops-not-a-dict",
+                None,
+                ["also-not-a-dict"],
+                {"command_uuid": "uuid-1", "command_type": "medication_statement", "display": "Lisinopril"},
+            ],
+        }),
+    )
+    # Bypass author check for this test — we're exercising the parsing path.
+    with patch("hyperscribe.scribe.api.session_view._authorize_read_as_author", return_value=None):
+        result = view.post_verify_commands()
+    assert result[0].status_code == HTTPStatus.OK
+    payload = json.loads(result[0].content)
+    assert [v["command_uuid"] for v in payload["verified"]] == ["uuid-1"]
+    assert payload["failed"] == []
 
 
 @pytest.mark.no_authorize_bypass

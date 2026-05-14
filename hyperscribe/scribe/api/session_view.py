@@ -1238,6 +1238,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.post("/insert-metadata")
     def post_insert_metadata(self) -> list[Union[Response, Effect]]:
         """Phase 2: upsert command metadata after commands have been created."""
+        from canvas_sdk.v1.data.command import Command
+
         try:
             data: dict[str, Any] = json.loads(self.request.body)
         except (json.JSONDecodeError, ValueError) as exc:
@@ -1252,11 +1254,38 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not pending:
             return [JSONResponse({"ok": True}, status_code=HTTPStatus.OK)]
 
+        # Per-item authorization: `_authorize_edit` above only validates the
+        # top-level note_uuid. Each `pending` item also carries a
+        # `command_uuid` that is otherwise treated as authoritative all the
+        # way down to `command.upsert_metadata(...)`, which writes to the
+        # command identified by command_id alone (the Canvas effect carries
+        # no note_id). Without this filter a note author could supply a
+        # command_uuid belonging to a different note (owned by a different
+        # author) and the metadata write would land on that foreign command.
+        # Mirror the `note__id=note_uuid` scoping that /verify-commands uses
+        # in this same file.
+        pending = [p for p in pending if isinstance(p, dict)]
+        candidate_uuids = [str(p.get("command_uuid", "")) for p in pending if p.get("command_uuid")]
+        authorized_uuids = set(
+            str(u)
+            for u in Command.objects.filter(
+                id__in=candidate_uuids,
+                note__id=note_uuid,
+            ).values_list("id", flat=True)
+        )
+        rejected_count = len(pending) - len([p for p in pending if str(p.get("command_uuid", "")) in authorized_uuids])
+        pending = [p for p in pending if str(p.get("command_uuid", "")) in authorized_uuids]
+        # Force each item's note_uuid to the authorized one so downstream
+        # build_stub uses a trusted value.
+        for p in pending:
+            p["note_uuid"] = note_uuid
+
         audit_event(
             note_uuid,
             "INSERT_METADATA_REQUEST",
             {
                 "pending_count": len(pending),
+                "rejected_count": rejected_count,
                 "items": [
                     {
                         "command_uuid": str(p.get("command_uuid", "")),
@@ -1303,8 +1332,12 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             audit_event(note_uuid, "VERIFY_COMMANDS_DENIED", {})
             return [denial]
 
-        # Skip malformed entries (missing or falsy command_uuid) so a bad
-        # client payload doesn't 500 the request.
+        # Skip malformed entries so a bad client payload doesn't 500. Two
+        # shapes to defend against: non-dict elements (strings, None, lists —
+        # any of which would AttributeError on `.get`), and dict elements
+        # missing a `command_uuid`. Filter to dicts first, then to entries
+        # with a truthy command_uuid.
+        attempted = [a for a in attempted if isinstance(a, dict)]
         uuids = [a["command_uuid"] for a in attempted if a.get("command_uuid")]
         cmd_rows = {
             str(row["id"]): row

@@ -1553,7 +1553,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                                   const v = parseInt(e.target.value, 10);
                                   if (!Number.isFinite(v)) { e.target.value = String(r.number); return; }
                                   const clamped = Math.max(1, Math.min(rankList.length, v));
-                                  if (clamped !== r.number) commitRank(r.number, clamped);
+                                  if (clamped !== r.number) {
+                                    commitRank(r.number, clamped);
+                                  } else if (e.target.value !== String(r.number)) {
+                                    // Out-of-range value that clamped to the current rank (e.g.
+                                    // typing 9 on the last row, or 0/-1 on the first row). No commit
+                                    // fires, so no remount happens and the typed value would persist
+                                    // in this uncontrolled input. Normalize the DOM here for parity
+                                    // with the non-finite reset above.
+                                    e.target.value = String(r.number);
+                                  }
                                 }}
                                 onKeyDown=${(e) => {
                                   if (e.key === 'Enter') e.target.blur();

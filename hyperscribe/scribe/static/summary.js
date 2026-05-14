@@ -486,9 +486,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     return () => { if (commandsSaveRef.current) clearTimeout(commandsSaveRef.current); };
   }, [commands, recommendations, selectedTemplate, mode, approved, inserting]);
 
-  // Auto-verify on load when approved with command UUIDs.
+  // Auto-verify on load when approved with command UUIDs. Author-only: the
+  // /verify-commands backend rejects non-authors via _authorize_read_as_author
+  // (probe defense). Without this gate, a colleague viewing an approved note
+  // would fire the effect, the 403 response wouldn't throw (fetch resolves
+  // on 4xx and data.failed is absent → failedCount=0 → misleading "All 0
+  // commands inserted successfully" banner), and every viewer-load would
+  // write a fake VERIFY_COMMANDS_DENIED audit row that pollutes the actual
+  // probe-defense signal.
   useEffect(() => {
-    if (!approved || verificationResult) return;
+    if (!isAuthor || !approved || verificationResult) return;
     const withUuids = [
       ...commands.filter(c => c.command_uuid),
       ...recommendations.filter(c => c.command_uuid),
@@ -519,7 +526,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }
     verify();
     return () => { cancelled = true; };
-  }, [approved, noteId, commands, recommendations]);
+  }, [isAuthor, approved, noteId, commands, recommendations]);
 
   // Synchronous in-flight guard. The `generating` React state updates async,
   // so it can't reliably block re-entry — particularly when (a) the user
