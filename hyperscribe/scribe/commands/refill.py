@@ -92,7 +92,7 @@ class RefillParser(CommandParser):
         return RefillCommand(
             fdb_code=data.get("fdb_code") or None,
             sig=str(data.get("sig", ""))[:1000],
-            days_supply=int(data["days_supply"]) if data.get("days_supply") is not None else None,
+            days_supply=int(data["days_supply"]) if data.get("days_supply") not in (None, "") else None,
             quantity_to_dispense=quantity,
             type_to_dispense=type_to_dispense,
             refills=int(data["refills"]) if data.get("refills") is not None else None,

@@ -116,6 +116,19 @@ def test_build_minimal() -> None:
     assert call_kwargs["note_to_pharmacist"] is None
 
 
+def test_build_treats_empty_days_supply_as_absent() -> None:
+    """`int('')` raises ValueError. The validator treats '' as 'not provided',
+    so build() must also — otherwise a form that cleared the days_supply
+    field crashes the request with an uncaught ValueError → HTTP 500."""
+    parser = PrescriptionParser()
+    with patch("hyperscribe.scribe.commands.prescription.PrescribeCommand") as mock_cmd:
+        mock_cmd.Substitutions = MagicMock()
+        mock_cmd.return_value = MagicMock()
+        parser.build({"days_supply": ""}, "note-uuid", "cmd-uuid")
+
+    assert mock_cmd.call_args.kwargs["days_supply"] is None
+
+
 def test_build_with_complete_clinical_quantity() -> None:
     """ClinicalQuantity with all fields (ndc + qualifier + description) is passed through."""
     parser = PrescriptionParser()

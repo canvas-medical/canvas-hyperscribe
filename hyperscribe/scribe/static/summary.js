@@ -49,6 +49,28 @@ const isRxIncomplete = (d) => {
 };
 const isRxCommand = (cmd) => RX_COMMAND_TYPES.has(cmd?.command_type);
 
+// Mirrors the refer-completeness gate in the `insertable` filter. Both the
+// Approve filter and the recommendations filter must apply this — the
+// LLM recommender (recommendations/refer.py) does not emit `diagnosis_codes`,
+// so any accepted-without-edit referral would otherwise hit the server's
+// `ReferParser.validate` ("At least one indication is required") and reject
+// the whole batch.
+const isReferIncompleteForApprove = (d) => {
+  if (!d) return true;
+  if (!d.service_provider) return true;
+  if (!d.clinical_question) return true;
+  if (!d.notes_to_specialist) return true;
+  if (!d.diagnosis_codes || d.diagnosis_codes.length === 0) return true;
+  return false;
+};
+// Single source of truth for recommendation-side validation. Returns the
+// failure reason for the COMMANDS_FILTERED audit, or null if insertable.
+const getAcceptedRecFailureReason = (c) => {
+  if (isRxCommand(c) && isRxIncomplete(c.data)) return 'rx_incomplete';
+  if (c.command_type === 'refer' && isReferIncompleteForApprove(c.data)) return 'refer_incomplete';
+  return null;
+};
+
 function formatTime(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -1205,14 +1227,34 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         reason: !c.display ? 'empty_display' : c.selected === false ? 'deselected' : 'validation',
       })) });
     }
-    // Same Rx gate as the insertable filter above — an LLM-generated rec
-    // accepted via the Accept button never opens the OrderRow editor, so
-    // without this check incomplete/invalid Rx payloads slip into the batch
-    // and the server's validate_rx_payload rejects the entire submission.
-    const acceptedRecs = recommendations.filter(
-      c => c.accepted && !c.already_documented && c.display
-           && !(isRxCommand(c) && isRxIncomplete(c.data)),
-    );
+    // The Approve filter for recommendations has to apply the same gates the
+    // insertable filter applies for Rx + refer — recommendations bypass the
+    // OrderRow editor, so without these checks an LLM payload that the
+    // server's validate_rx_payload (or ReferParser.validate) will reject
+    // slips into /insert-commands and tanks the whole batch.
+    const candidateRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
+    const droppedRecs = candidateRecs.filter(c => getAcceptedRecFailureReason(c) !== null);
+    const acceptedRecs = candidateRecs.filter(c => getAcceptedRecFailureReason(c) === null);
+    if (droppedRecs.length > 0) {
+      logEvent('COMMANDS_FILTERED', { dropped: droppedRecs.map(c => ({
+        type: c.command_type, display: (c.display || '').slice(0, 80),
+        reason: getAcceptedRecFailureReason(c),
+      })) });
+      const _errorFor = (c) => getAcceptedRecFailureReason(c) === 'rx_incomplete'
+        ? 'This prescription is missing required fields or contains invalid values (e.g. non-ASCII characters in sig, refills out of range). Open it to fix before approving.'
+        : 'This referral is missing required fields (indications, notes to specialist, clinical question, or service provider). Open it to fix before approving.';
+      setValidationError(droppedRecs.map(c => ({
+        command_type: c.command_type,
+        display: (c.display || '').slice(0, 80),
+        errors: [_errorFor(c)],
+      })));
+      setApproved(false);
+      setConfirming(false);
+      saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+      setInserting(false);
+      logEvent('APPROVE_ERROR', { error: 'accepted_recommendations_invalid', dropped: droppedRecs.length });
+      return;
+    }
     let allInsertable = [...insertable, ...acceptedRecs]
       .map(({ _template_inserted, ...c }) => c); // Strip internal marker.
 
