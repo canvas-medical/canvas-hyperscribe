@@ -145,6 +145,11 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
             return { ...r, selected: ri === rIdx };
           }
           if (ri !== rIdx) return r;
+          // Deselecting a checkbox clears its comment so dead annotations don't persist on disk
+          // or spring back into view if the option is re-selected later.
+          if (field === 'selected' && q.type === TYPE_CHECKBOX && value === false) {
+            return { ...r, selected: false, comment: null };
+          }
           return { ...r, [field]: value };
         });
         return { ...q, responses };
