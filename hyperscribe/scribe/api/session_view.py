@@ -1219,15 +1219,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     }
                     for c in commands
                 ],
-                "metadata_pending_count": len(metadata_pending),
                 "alert_facility_enabled": feature_flags[Constants.SECRET_ALERT_FACILITY_ENABLED],
-                "metadata_pending_keys": [
-                    {
-                        "command_type": p.get("command_type", ""),
-                        "keys": list((p.get("metadata") or {}).keys()),
-                    }
-                    for p in metadata_pending
-                ],
             },
         )
         return [
