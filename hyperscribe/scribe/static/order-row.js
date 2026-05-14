@@ -10,6 +10,17 @@ const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
+// canvas-core caps note_to_pharmacist at 210 chars (Surescripts NewRx wire
+// limit). Exceeding that fails REVIEW with a generic ValidationError, so we
+// stop the user from typing past it instead of letting them save a doomed
+// command. Keep these constants aligned with
+// hyperscribe/scribe/commands/_rx_validation.py.
+const NOTE_TO_PHARMACIST_MAX_LENGTH = 210;
+const SIG_MAX_LENGTH = 1000;
+const REFILLS_MIN = 0;
+const REFILLS_MAX = 99;
+const RX_TAB_KEYS = new Set(['prescribe', 'refill', 'adjust_prescription']);
+
 // Full NCPDP clinical quantity descriptions
 const CLINICAL_QUANTITY_DESCRIPTIONS = [
   { code: 'C48473', label: 'Ampule' },
@@ -1168,12 +1179,25 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
           `}
           <div class="order-form">
             ${(activeTab === 'prescribe' || (REFILL_TABS.has(activeTab) && selectedFdb)) && (() => {
+              // The required-field set here matches
+              // hyperscribe/scribe/commands/_rx_validation.py and the
+              // canvas-core Prescribe schema. Refills must also be 0-99 and
+              // an integer; quantity must be > 0 and not have trailing zeros.
               const rxMissing = new Set();
               if (!selectedFdb) rxMissing.add('medication');
-              if (quantity === '' || quantity == null) rxMissing.add('qty');
+              const qtyNum = quantity === '' || quantity == null ? null : Number(quantity);
+              const qtyStr = String(quantity ?? '').trim();
+              if (qtyNum == null || Number.isNaN(qtyNum) || qtyNum <= 0
+                  || (qtyStr.includes('.') && (qtyStr.endsWith('0') || qtyStr.endsWith('.')))) {
+                rxMissing.add('qty');
+              }
               if (!typeToDispense) rxMissing.add('type');
-              if (!sig) rxMissing.add('sig');
-              if (refills === '' || refills == null) rxMissing.add('refills');
+              if (!sig || sig.length > SIG_MAX_LENGTH) rxMissing.add('sig');
+              const refillsNum = refills === '' || refills == null ? null : Number(refills);
+              if (refillsNum == null || Number.isNaN(refillsNum) || !Number.isInteger(refillsNum)
+                  || refillsNum < REFILLS_MIN || refillsNum > REFILLS_MAX) {
+                rxMissing.add('refills');
+              }
               return html`
               <div class="order-form">
                 <div class="history-form-field" style="position: relative;">
@@ -1243,7 +1267,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   </div>
                   <div class="history-form-field">
                     <label class="history-form-label">Days supply</label>
-                    <input class="history-form-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" placeholder="—" />
+                    <input class="history-form-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" step="1" placeholder="—" />
                   </div>
                   <div class="history-form-field">
                     <label class="history-form-label${rxMissing.has('refills') ? ' field-missing' : ''}">Refills *</label>
@@ -1252,13 +1276,20 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label${rxMissing.has('sig') ? ' field-missing' : ''}">Sig *</label>
-                  <input class="history-form-input${rxMissing.has('sig') ? ' input-missing' : ''}" type="text" maxLength=1000 value=${sig} onInput=${(e) => setSig(e.target.value)} placeholder="e.g. Take 1 tablet by mouth daily" />
-                  <div class="char-counter${sig.length > 900 ? sig.length > 1000 ? ' over-limit' : ' near-limit' : ''}">${sig.length} / 1000</div>
+                  <input class="history-form-input${rxMissing.has('sig') ? ' input-missing' : ''}" type="text" maxLength=${SIG_MAX_LENGTH} value=${sig} onInput=${(e) => setSig(e.target.value)} placeholder="e.g. Take 1 tablet by mouth daily" />
+                  <div class="char-counter${sig.length > SIG_MAX_LENGTH - 100 ? sig.length > SIG_MAX_LENGTH ? ' over-limit' : ' near-limit' : ''}">${sig.length} / ${SIG_MAX_LENGTH}</div>
                 </div>
                 <div class="history-form-field">
                   <label class="history-form-label">Note to Pharmacist</label>
-                  <input class="history-form-input" type="text" maxLength=1024 value=${noteToPharmacist} onInput=${(e) => setNoteToPharmacist(e.target.value)} placeholder="Optional" />
-                  <div class="char-counter${noteToPharmacist.length > 900 ? noteToPharmacist.length > 1024 ? ' over-limit' : ' near-limit' : ''}">${noteToPharmacist.length} / 1024</div>
+                  <input
+                    class="history-form-input"
+                    type="text"
+                    maxLength=${NOTE_TO_PHARMACIST_MAX_LENGTH}
+                    value=${noteToPharmacist}
+                    onInput=${(e) => setNoteToPharmacist(e.target.value)}
+                    placeholder="Optional"
+                  />
+                  <div class="char-counter${noteToPharmacist.length > NOTE_TO_PHARMACIST_MAX_LENGTH - 30 ? noteToPharmacist.length > NOTE_TO_PHARMACIST_MAX_LENGTH ? ' over-limit' : ' near-limit' : ''}">${noteToPharmacist.length} / ${NOTE_TO_PHARMACIST_MAX_LENGTH}</div>
                 </div>
                 <div class="history-form-field" style="position: relative;">
                   <label class="history-form-label">Pharmacy</label>
@@ -1672,7 +1703,49 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
             `}
             <div class="questionnaire-form-actions">
               <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
-              <button type="button" class="form-btn form-btn-save" disabled=${sig.length > 1000 || noteToPharmacist.length > 1024 || labComment.length > 128 || imagingDetails.length > 1024 || imagingComment.length > 1024} onClick=${handleSave}>Save</button>
+              <button
+                type="button"
+                class="form-btn form-btn-save"
+                disabled=${(() => {
+                  // Length-based gating (applies to whichever tab is active).
+                  if (sig.length > SIG_MAX_LENGTH) return true;
+                  if (noteToPharmacist.length > NOTE_TO_PHARMACIST_MAX_LENGTH) return true;
+                  if (labComment.length > 128) return true;
+                  if (imagingDetails.length > 1024) return true;
+                  if (imagingComment.length > 1024) return true;
+                  // Required-field gating for Rx tabs. The same predicate runs
+                  // in summary.js (Approve / Add Now) and in
+                  // _rx_validation.py on the server. Saving an Rx card with
+                  // missing fields previously slipped past every layer and
+                  // failed at REVIEW after the user thought it succeeded.
+                  if (RX_TAB_KEYS.has(activeTab)) {
+                    if (!selectedFdb) return true;
+                    if (!sig) return true;
+                    const qtyNum = quantity === '' || quantity == null ? null : Number(quantity);
+                    const qtyStr = String(quantity ?? '').trim();
+                    if (qtyNum == null || Number.isNaN(qtyNum) || qtyNum <= 0
+                        || (qtyStr.includes('.') && (qtyStr.endsWith('0') || qtyStr.endsWith('.')))) {
+                      return true;
+                    }
+                    if (!typeToDispense) return true;
+                    const refillsNum = refills === '' || refills == null ? null : Number(refills);
+                    if (refillsNum == null || Number.isNaN(refillsNum) || !Number.isInteger(refillsNum)
+                        || refillsNum < REFILLS_MIN || refillsNum > REFILLS_MAX) {
+                      return true;
+                    }
+                    // Days supply: optional, but if present must be a
+                    // non-negative integer (mirrors _validate_days_supply).
+                    if (daysSupply !== '' && daysSupply != null) {
+                      const daysNum = Number(daysSupply);
+                      if (!Number.isFinite(daysNum) || !Number.isInteger(daysNum) || daysNum < 0) return true;
+                    }
+                    // substitutions is a boolean toggle in the UI (true -> "allowed"),
+                    // so it can't be missing — no extra check needed here.
+                  }
+                  return false;
+                })()}
+                onClick=${handleSave}
+              >Save</button>
             </div>
           </div>
         </div>
