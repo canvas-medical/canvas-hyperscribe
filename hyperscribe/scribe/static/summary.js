@@ -1902,7 +1902,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             <div class="approve-block">
               ${incompleteCount > 0 && html`
                 <div class="summary-footer-warning">
-                  ${incompleteCount} incomplete ${incompleteCount === 1 ? 'item' : 'items'} will be skipped: ${incompleteTypes.map(t => INCOMPLETE_LABELS[t]).join(', ')}
+                  ${incompleteCount} incomplete ${incompleteCount === 1 ? 'item' : 'items'} must be fixed or removed before approving: ${incompleteTypes.map(t => INCOMPLETE_LABELS[t]).join(', ')}
                 </div>
               `}
               ${undecidedRecommendationCount > 0 && html`
