@@ -294,9 +294,14 @@ function isComplete(questions) {
   });
 }
 
-// Additive scoring: sum the numeric value of each selected response across radio/checkbox questions,
-// plus the integer value of integer questions. Free-text contributes nothing. Skipped questions are excluded.
-// Returns null when no numeric data could be parsed (e.g. older saved commands missing score_value/code).
+// Additive scoring: sum the numeric score_value of each selected response across radio/checkbox
+// questions, plus the integer value of integer questions. Free-text contributes nothing. Skipped
+// questions are excluded. Returns null when no numeric data could be parsed (e.g. older saved
+// commands that predate the scoring metadata, or unscored questionnaires).
+//
+// Deliberately does NOT fall back to parsing `code`: LOINC question codes ("44249-1") would
+// parseFloat to a non-NaN number and silently masquerade as a clinical score. If a scored
+// questionnaire's score_value is missing, surfacing no score is safer than a fabricated one.
 function computeScore(questions) {
   if (!questions || questions.length === 0) return null;
   let sum = 0;
@@ -312,10 +317,8 @@ function computeScore(questions) {
     }
     for (const r of q.responses) {
       if (!r.selected) continue;
-      const fromScoreValue = parseFloat(r.score_value);
-      const fromCode = parseFloat(r.code);
-      const n = !Number.isNaN(fromScoreValue) ? fromScoreValue : (!Number.isNaN(fromCode) ? fromCode : null);
-      if (n !== null) { sum += n; any = true; }
+      const n = parseFloat(r.score_value);
+      if (!Number.isNaN(n)) { sum += n; any = true; }
     }
   }
   return any ? sum : null;
