@@ -34,7 +34,7 @@ _SECTION_PATTERN = re.compile(
 # refs. The Preact UI renders these section payloads as plain text nodes,
 # which DON'T auto-decode entities — without this decode step, providers
 # would see literal `&#176;`, `&amp;`, etc. in the prior-visit reference UI.
-_NUMERIC_REF = re.compile(r"&#(x[0-9a-fA-F]+|[0-9]+);")
+_NUMERIC_REF = re.compile(r"&#([xX][0-9a-fA-F]+|[0-9]+);")
 _NAMED_REFS = {"&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'"}
 
 

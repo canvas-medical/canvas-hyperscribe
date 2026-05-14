@@ -44,6 +44,7 @@ function AddChargeCell({ excludeCpts, onAddTemplateCharge, ctaLabel }) {
       const json = await res.json();
       setResults(json.results || []);
     } catch (err) {
+      console.error('Charge search failed:', err);
       setResults([]);
     } finally {
       setSearching(false);
@@ -1546,7 +1547,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                                 min="1"
                                 max=${rankList.length}
                                 defaultValue=${r.number}
-                                key=${`rank-${r.index}-${r.number}-${rankList.length}`}
+                                key=${`rank-${r.icd10_code}-${r.number}-${rankList.length}`}
                                 aria-label="Diagnosis rank"
                                 onBlur=${(e) => {
                                   const v = parseInt(e.target.value, 10);

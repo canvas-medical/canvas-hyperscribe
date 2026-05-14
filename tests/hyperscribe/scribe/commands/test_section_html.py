@@ -71,6 +71,13 @@ def test_decodes_hex_numeric_character_references() -> None:
     assert parse_ros_pe_html(html) == [{"title": "HPI", "text": "pt's pain has improved"}]
 
 
+def test_decodes_uppercase_hex_numeric_character_references() -> None:
+    # HTML5 grammar allows uppercase `X` in hex refs. The decode callback already
+    # handles both cases — this test pins the regex so that contract holds.
+    html = "<div><b>HPI:</b> pt&#X27;s pain has improved</div>"
+    assert parse_ros_pe_html(html) == [{"title": "HPI", "text": "pt's pain has improved"}]
+
+
 def test_decodes_named_xml_entity_references() -> None:
     html = "<div><b>Plan:</b> rule out A &amp; B; SBP &lt; 140; &quot;watchful waiting&quot;</div>"
     assert parse_ros_pe_html(html) == [
