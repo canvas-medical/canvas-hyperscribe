@@ -34,6 +34,12 @@ const isRxIncomplete = (d) => {
   if (d.quantity_to_dispense == null || d.quantity_to_dispense === '') return true;
   const qty = Number(d.quantity_to_dispense);
   if (!Number.isFinite(qty) || qty <= 0) return true;
+  // Mirror canvas-core's dispense_quantity_validator and the OrderRow Save
+  // gate: Surescripts NewRx wire format rejects trailing zeros after a
+  // decimal point ("1.0", "10.", "5.20"). Number("30.0") === 30 strips the
+  // shape, so we have to inspect the source string.
+  const qtyStr = String(d.quantity_to_dispense).trim();
+  if (qtyStr.includes('.') && (qtyStr.endsWith('0') || qtyStr.endsWith('.'))) return true;
   // Refills: present, integer in [REFILLS_MIN, REFILLS_MAX].
   if (d.refills == null || d.refills === '') return true;
   const refills = Number(d.refills);
@@ -69,6 +75,25 @@ const getAcceptedRecFailureReason = (c) => {
   if (isRxCommand(c) && isRxIncomplete(c.data)) return 'rx_incomplete';
   if (c.command_type === 'refer' && isReferIncompleteForApprove(c.data)) return 'refer_incomplete';
   return null;
+};
+// Classify a dropped command for the validation-error surface. Mirrors the
+// type-specific gates in the `insertable` filter so the user gets the same
+// per-card error they'd see for a server-side rejection.
+const _commandValidationReason = (c) => {
+  if (isRxCommand(c) && isRxIncomplete(c.data)) return 'rx_incomplete';
+  if (c.command_type === 'refer') return 'refer_incomplete';
+  if (c.command_type === 'imaging_order') return 'imaging_incomplete';
+  if (c.command_type === 'lab_order') return 'lab_incomplete';
+  if (c.command_type === 'perform') return 'perform_incomplete';
+  return 'validation';
+};
+const _validationErrorMessage = (c, reason) => {
+  if (reason === 'rx_incomplete') return 'This prescription is missing required fields or contains invalid values (e.g. non-ASCII characters in sig, refills out of range, trailing-zero quantity). Open it to fix before approving.';
+  if (reason === 'refer_incomplete') return 'This referral is missing required fields (indications, notes to specialist, clinical question, or service provider). Open it to fix before approving.';
+  if (reason === 'imaging_incomplete') return 'This imaging order is missing required fields (image code, service provider, ordering provider, or diagnosis codes). Open it to fix before approving.';
+  if (reason === 'lab_incomplete') return 'This lab order is missing required fields (lab partner or tests). Open it to fix before approving.';
+  if (reason === 'perform_incomplete') return 'This perform command is missing a CPT code. Open it to fix before approving.';
+  return 'This command has invalid values. Open it to fix before approving.';
 };
 
 function formatTime(ms) {
@@ -1235,24 +1260,33 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const candidateRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
     const droppedRecs = candidateRecs.filter(c => getAcceptedRecFailureReason(c) !== null);
     const acceptedRecs = candidateRecs.filter(c => getAcceptedRecFailureReason(c) === null);
-    if (droppedRecs.length > 0) {
-      logEvent('COMMANDS_FILTERED', { dropped: droppedRecs.map(c => ({
-        type: c.command_type, display: (c.display || '').slice(0, 80),
-        reason: getAcceptedRecFailureReason(c),
-      })) });
-      const _errorFor = (c) => getAcceptedRecFailureReason(c) === 'rx_incomplete'
-        ? 'This prescription is missing required fields or contains invalid values (e.g. non-ASCII characters in sig, refills out of range). Open it to fix before approving.'
-        : 'This referral is missing required fields (indications, notes to specialist, clinical question, or service provider). Open it to fix before approving.';
-      setValidationError(droppedRecs.map(c => ({
-        command_type: c.command_type,
-        display: (c.display || '').slice(0, 80),
-        errors: [_errorFor(c)],
+    // Surface client-side validation drops the same way a server 400 would:
+    // setValidationError, revert the optimistic approval, halt. Without this,
+    // a saved command with smart punctuation in sig (OrderRow Save has no
+    // ASCII screen) is dropped from `insertable` and the rest of the batch
+    // POSTs successfully — modal closes, user has no idea the Rx was lost.
+    // Filter dropped commands to `validation` reasons (empty_display and
+    // deselected are intentional user choices, not silent failures).
+    const droppedForValidation = dropped.filter(c => c.display && c.selected !== false);
+    const allValidationFailures = [
+      ...droppedForValidation.map(c => ({ command: c, reason: _commandValidationReason(c) })),
+      ...droppedRecs.map(c => ({ command: c, reason: getAcceptedRecFailureReason(c) })),
+    ];
+    if (allValidationFailures.length > 0) {
+      setValidationError(allValidationFailures.map(({ command, reason }) => ({
+        command_type: command.command_type,
+        display: (command.display || '').slice(0, 80),
+        errors: [_validationErrorMessage(command, reason)],
       })));
       setApproved(false);
       setConfirming(false);
       saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
       setInserting(false);
-      logEvent('APPROVE_ERROR', { error: 'accepted_recommendations_invalid', dropped: droppedRecs.length });
+      logEvent('APPROVE_ERROR', {
+        error: 'client_validation_failed',
+        dropped_commands: droppedForValidation.length,
+        dropped_recs: droppedRecs.length,
+      });
       return;
     }
     let allInsertable = [...insertable, ...acceptedRecs]
