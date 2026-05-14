@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.109.0",
-  "plugin_version": "2026-01-26 v0.2.156 (main)",
+  "plugin_version": "2026-04-17 v0.2.157 (db-20260417-automated-transcript)",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -223,6 +223,12 @@
         "label": "Lab Results",
         "schema_key": "labResult",
         "section": "objective"
+      },
+      {
+        "name": "ImageResults",
+        "label": "Image Results",
+        "schema_key": "imageResult",
+        "section": "objective"
       }
     ],
     "content": [],
@@ -270,9 +276,9 @@
     "VisitTemplates"
   ],
   "tags": {
-    "version_date": "2026-01-26",
-    "version_branch": "main",
-    "version_semantic": "0.2.156"
+    "version_date": "2026-04-17",
+    "version_branch": "db-20260417-automated-transcript",
+    "version_semantic": "0.2.157"
   },
   "custom_data": {
     "namespace": "canvas_medical__scribe",

@@ -1,5 +1,8 @@
+import json
 from typing import Any
 from unittest.mock import MagicMock, patch
+
+from canvas_generated.messages.effects_pb2 import EffectType
 
 from hyperscribe.scribe.commands.builder import build_effects, build_metadata_effects, validate_proposals
 
@@ -120,8 +123,12 @@ def test_build_effects_empty_list() -> None:
     assert attempted == []
 
 
-def test_build_effects_medication_with_alert_facility() -> None:
-    """Medication statement with alert_facility=True writes Yes to metadata_pending."""
+def test_build_effects_medication_with_alert_facility_emits_yes_inline() -> None:
+    """Flag on + alert_facility True: originate, UPSERT_COMMAND_METADATA="Yes" inline, commit.
+
+    Pins the exact protobuf payload so any SDK schema change for
+    UPSERT_COMMAND_METADATA breaks CI rather than silently diverging.
+    """
     proposals: list[dict[str, Any]] = [
         {
             "command_type": "medication_statement",
@@ -134,26 +141,35 @@ def test_build_effects_medication_with_alert_facility() -> None:
         inst.commit.return_value = "med_commit"
         inst.command_uuid = "d6a96b19-a087-458a-9619-b46537a8c121"
         inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+        inst.Meta.key = "medicationStatement"
         mock_med.return_value = inst
 
         effects, metadata_pending, attempted = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
-            {"AlertFacilityEnabled": True},
+            feature_flags={"AlertFacilityEnabled": True},
         )
 
-    assert len(effects) == 2  # 1 originate + 1 commit
+    assert len(effects) == 3
     assert effects[0] == "med_originate"
-    assert len(metadata_pending) == 1
-    assert metadata_pending[0]["command_uuid"] == "d6a96b19-a087-458a-9619-b46537a8c121"
-    assert metadata_pending[0]["command_type"] == "medication_statement"
-    assert metadata_pending[0]["metadata"] == {"alert_facility": "Yes"}
+    assert effects[2] == "med_commit"
+    meta_effect = effects[1]
+    assert EffectType.Name(meta_effect.type) == "UPSERT_COMMAND_METADATA"
+    assert json.loads(meta_effect.payload) == {
+        "data": {
+            "schema_key": "medicationStatement",
+            "command_id": "d6a96b19-a087-458a-9619-b46537a8c121",
+            "key": "alert_facility",
+            "value": "Yes",
+        },
+    }
+    assert metadata_pending == []
     assert len(attempted) == 1
     assert attempted[0]["command_type"] == "medication_statement"
 
 
-def test_build_effects_medication_alert_facility_false_writes_no() -> None:
-    """When the feature is on, an unset/false alert_facility is persisted as 'No'."""
+def test_build_effects_medication_alert_facility_false_writes_no_inline() -> None:
+    """Flag on + alert_facility falsy: still emits inline metadata, value="No"."""
     proposals: list[dict[str, Any]] = [
         {
             "command_type": "medication_statement",
@@ -166,21 +182,22 @@ def test_build_effects_medication_alert_facility_false_writes_no() -> None:
         inst.commit.return_value = "med_commit"
         inst.command_uuid = "d6a96b19-a087-458a-9619-b46537a8c121"
         inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+        inst.Meta.key = "medicationStatement"
         mock_med.return_value = inst
 
         effects, metadata_pending, attempted = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
-            {"AlertFacilityEnabled": True},
+            feature_flags={"AlertFacilityEnabled": True},
         )
 
-    assert len(effects) == 2
-    assert len(metadata_pending) == 1
-    assert metadata_pending[0]["metadata"] == {"alert_facility": "No"}
+    assert len(effects) == 3
+    assert json.loads(effects[1].payload)["data"]["value"] == "No"
+    assert metadata_pending == []
 
 
-def test_build_effects_medication_alert_facility_disabled() -> None:
-    """When the feature flag is off, no alert_facility metadata is emitted."""
+def test_build_effects_medication_alert_facility_flag_off_no_metadata() -> None:
+    """Flag off: no metadata effect emitted, just originate + commit."""
     proposals: list[dict[str, Any]] = [
         {
             "command_type": "medication_statement",
@@ -195,10 +212,14 @@ def test_build_effects_medication_alert_facility_disabled() -> None:
         inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
         mock_med.return_value = inst
 
-        # No feature_flags arg → defaults to disabled.
-        effects, metadata_pending, attempted = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+        effects, metadata_pending, attempted = build_effects(
+            proposals,
+            "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            feature_flags={"AlertFacilityEnabled": False},
+        )
 
     assert len(effects) == 2
+    assert effects == ["med_originate", "med_commit"]
     assert metadata_pending == []
 
 

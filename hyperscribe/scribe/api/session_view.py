@@ -230,12 +230,52 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
         "recommendations": payload.get("recommendations") or [],
         "unmatched_conditions": payload.get("unmatched_conditions") or [],
         "diagnosis_suggestions": payload.get("diagnosis_suggestions") or {},
-        "selected_template_name": payload.get("selected_template_name") or "",
-        "mode": payload.get("mode") or "",
     }
+    if "selected_template_name" in payload:
+        defaults["selected_template_name"] = payload["selected_template_name"] or ""
+    if "mode" in payload:
+        defaults["mode"] = payload["mode"] or ""
     if "raw_response" in payload:
         defaults["raw_response"] = payload["raw_response"]
     ScribeSummary.objects.update_or_create(note_id=note_dbid, defaults=defaults)
+
+
+def _infer_mode_for_heal(note_dbid: int, has_user_content: bool) -> str:
+    """Pick the user's mode from session artifacts. '' means no signal — don't heal."""
+    events = (
+        ScribeAuditLog.objects.filter(note_id=note_dbid).values_list("events", flat=True).first()
+    ) or []
+    last_start = ""
+    for event in events:
+        event_type = event.get("type") if isinstance(event, dict) else None
+        if event_type == "START_AI":
+            last_start = "ai"
+        elif event_type == "START_MANUAL":
+            last_start = "manual"
+        elif event_type in ("START_AI_FAILED", "START_MANUAL_FAILED"):
+            last_start = ""
+    if last_start:
+        return last_start
+    if ScribeTranscript.objects.filter(note_id=note_dbid).values_list("items", flat=True).first():
+        return "ai"
+    return "manual" if has_user_content else ""
+
+
+def _has_user_authored_content(row: dict[str, Any]) -> bool:
+    """True iff the row has note content the user actually authored.
+
+    Template-inserted commands (carrying ``_template_inserted: true``) are
+    mechanical artifacts of a template selection, not evidence of manual
+    authorship — they must not trip the "content without recording → manual"
+    fallback in the heal.
+    """
+    if row["note_data"]:
+        return True
+    commands = row["commands"] or []
+    return any(
+        isinstance(cmd, dict) and not cmd.get("_template_inserted")
+        for cmd in commands
+    )
 
 
 def _load_summary(note_id: str) -> dict[str, Any] | None:
@@ -254,18 +294,25 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
         )
         .first()
     )
-    if row:
-        return {
-            "note": row["note_data"] or None,
-            "commands": row["commands"] or [],
-            "approved": row["approved"],
-            "recommendations": row["recommendations"] or [],
-            "unmatched_conditions": row["unmatched_conditions"] or [],
-            "diagnosis_suggestions": row["diagnosis_suggestions"] or {},
-            "selected_template_name": row["selected_template_name"] or None,
-            "mode": row["mode"] or None,
-        }
-    return None
+    if not row:
+        return None
+    mode = row["mode"] or ""
+    if not mode:
+        inferred = _infer_mode_for_heal(note_dbid, _has_user_authored_content(row))
+        if inferred:
+            updated = ScribeSummary.objects.filter(note_id=note_dbid, mode="").update(mode=inferred)
+            if updated:
+                mode = inferred
+    return {
+        "note": row["note_data"] or None,
+        "commands": row["commands"] or [],
+        "approved": row["approved"],
+        "recommendations": row["recommendations"] or [],
+        "unmatched_conditions": row["unmatched_conditions"] or [],
+        "diagnosis_suggestions": row["diagnosis_suggestions"] or {},
+        "selected_template_name": row["selected_template_name"] or None,
+        "mode": mode or None,
+    }
 
 
 def _load_assignees() -> list[dict[str, Any]]:
@@ -614,17 +661,17 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             "commands": data.get("commands", []),
             "approved": bool(data.get("approved", False)),
         }
-        if data.get("recommendations") is not None:
+        if "recommendations" in data:
             payload["recommendations"] = data["recommendations"]
-        if data.get("unmatched_conditions") is not None:
+        if "unmatched_conditions" in data:
             payload["unmatched_conditions"] = data["unmatched_conditions"]
-        if data.get("diagnosis_suggestions") is not None:
+        if "diagnosis_suggestions" in data:
             payload["diagnosis_suggestions"] = data["diagnosis_suggestions"]
-        if data.get("interaction_warnings") is not None:
+        if "interaction_warnings" in data:
             payload["interaction_warnings"] = data["interaction_warnings"]
-        if data.get("selected_template_name") is not None:
+        if "selected_template_name" in data:
             payload["selected_template_name"] = data["selected_template_name"]
-        if data.get("mode") is not None:
+        if "mode" in data:
             payload["mode"] = data["mode"]
         _save_summary(note_id, payload)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
@@ -868,6 +915,10 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 log.exception("suggest_diagnoses failed (non-critical)")
 
         # ── Save to database ──
+        # `mode` and `selected_template_name` are owned by the session lifecycle
+        # (Start AI / Start Manual, template picker) — generate-summary only
+        # forwards them when the frontend explicitly sends them. Omitting the
+        # key here lets `_save_summary`'s guard preserve the DB column.
         summary_payload: dict[str, Any] = {
             "note": note_dict,
             "commands": commands_list,
@@ -877,6 +928,10 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             "diagnosis_suggestions": diagnosis_suggestions,
             "interaction_warnings": interaction_warnings,
         }
+        if "mode" in data:
+            summary_payload["mode"] = data["mode"]
+        if "selected_template_name" in data:
+            summary_payload["selected_template_name"] = data["selected_template_name"]
         if raw_response is not None:
             summary_payload["raw_response"] = raw_response
         _save_summary(note_id, summary_payload)
@@ -1672,7 +1727,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         )
         if query:
             qs = qs.filter(Q(first_name__icontains=query) | Q(last_name__icontains=query))
-        providers = [{"id": str(s.id), "label": s.credentialed_name} for s in qs[:50]]
+        providers = [{"id": str(s.id), "label": s.credentialed_name} for s in qs]
         return [JSONResponse({"providers": providers}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-imaging-centers")

@@ -2,6 +2,7 @@ import json
 import re
 from http import HTTPStatus
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -228,7 +229,7 @@ def test_get_summary_success(mock_note: MagicMock, mock_summary: MagicMock) -> N
         "unmatched_conditions": [],
         "diagnosis_suggestions": {},
         "selected_template_name": "",
-        "mode": "",
+        "mode": "ai",
     }
 
     view = _helper_instance()
@@ -262,6 +263,291 @@ def test_get_summary_missing_note_id() -> None:
     result = view.get_summary()
 
     assert result[0].status_code == HTTPStatus.BAD_REQUEST
+
+
+# --- _load_summary mode self-heal ---
+
+
+def _heal_summary_row(note_data: Any = None, commands: Any = None) -> dict[str, Any]:
+    return {
+        "note_data": note_data or {},
+        "commands": commands or [],
+        "approved": False,
+        "recommendations": [],
+        "unmatched_conditions": [],
+        "diagnosis_suggestions": {},
+        "selected_template_name": "",
+        "mode": "",
+    }
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_heals_blank_mode_from_start_ai(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
+        note_data={"sections": [{"key": "hpi", "text": "Pain"}]}
+    )
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "START_AI", "ts": "2026-05-12T16:30:25Z"},
+    ]
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] == "ai"
+    mock_summary.objects.filter.assert_any_call(note_id=42, mode="")
+    mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="ai")
+    mock_transcript.objects.filter.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_heals_blank_mode_from_start_manual(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
+        commands=[{"command_type": "hpi"}]
+    )
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "START_MANUAL", "ts": "2026-05-12T16:30:25Z"},
+    ]
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] == "manual"
+    mock_summary.objects.filter.assert_any_call(note_id=42, mode="")
+    mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="manual")
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_last_start_wins_when_user_toggled(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
+        commands=[{"command_type": "hpi"}]
+    )
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "START_AI", "ts": "2026-05-12T16:30:25Z"},
+        {"type": "START_MANUAL", "ts": "2026-05-12T16:31:00Z"},
+    ]
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] == "manual"
+    mock_summary.objects.filter.assert_any_call(note_id=42, mode="")
+    mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="manual")
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_heals_to_ai_from_transcript_items(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
+        note_data={"sections": [{"key": "hpi", "text": "Pain"}]}
+    )
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = []
+    mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"text": "I have a headache", "speaker": "patient"},
+    ]
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] == "ai"
+    mock_summary.objects.filter.assert_any_call(note_id=42, mode="")
+    mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="ai")
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_heals_to_manual_when_content_without_recording(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
+        commands=[{"command_type": "hpi"}]
+    )
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = []
+    mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = None
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] == "manual"
+    mock_summary.objects.filter.assert_any_call(note_id=42, mode="")
+    mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="manual")
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_does_not_heal_truly_empty_row(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row()
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = []
+    mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = None
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] is None
+    mock_summary.objects.filter.return_value.update.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_does_not_heal_template_only_session(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    """A note where the user picked a template but never clicked Start AI /
+    Start Manual must NOT be healed to 'manual'. Template-inserted commands
+    aren't user-authored content, and healing to 'manual' would hide the
+    Start buttons and disable the template dropdown — locking the user out."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
+        commands=[
+            {"command_type": "ros", "_template_inserted": True},
+            {"command_type": "physical_exam", "_template_inserted": True},
+        ],
+    )
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "SELECT_TEMPLATE", "details": {"name": "Subsequent Visit"}},
+    ]
+    mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = None
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] is None
+    mock_summary.objects.filter.return_value.update.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_does_not_heal_when_start_ai_failed(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    """When recording.startRecording() fails (mic permission denied, device
+    error, transcription backend unreachable), summary.js logs
+    [START_AI, START_AI_FAILED] and resets mode to null. The heal must treat
+    START_*_FAILED as cancelling its preceding START_* — otherwise it would
+    write mode='ai' to a session that never actually recorded, hiding the
+    Start AI / Start Manual buttons and locking the user out."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row()
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "SELECT_TEMPLATE"},
+        {"type": "START_AI"},
+        {"type": "START_AI_FAILED"},
+    ]
+    mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = None
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] is None
+    mock_summary.objects.filter.return_value.update.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_heals_to_ai_when_user_retries_after_failed_start(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    """A failed START_AI cancels itself, but a subsequent successful START_AI
+    (user grants mic permission and retries) still heals to 'ai'."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
+        note_data={"sections": [{"key": "hpi", "text": "Pain"}]},
+    )
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "START_AI"},
+        {"type": "START_AI_FAILED"},
+        {"type": "START_AI"},
+    ]
+    mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = None
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] == "ai"
+    mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="ai")
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_no_ops_response_when_cas_loses_to_concurrent_save(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    """If a concurrent /save-summary commits a real mode between this
+    request's stale read and the heal write, the CAS UPDATE matches 0 rows.
+    The response must not claim the inferred mode — it would contradict
+    what's now persisted in the DB."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
+        note_data={"sections": [{"key": "hpi", "text": "Pain"}]},
+    )
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "START_AI"},
+    ]
+    mock_summary.objects.filter.return_value.update.return_value = 0
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["mode"] is None
+    mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="ai")
 
 
 # --- /save-summary ---
@@ -321,6 +607,77 @@ def test_save_summary_defaults(mock_note: MagicMock, mock_summary: MagicMock) ->
     assert result[0].status_code == HTTPStatus.OK
     call_kwargs = mock_summary.objects.update_or_create.call_args
     assert call_kwargs.kwargs["defaults"]["approved"] is False
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_save_summary_omits_mode_and_template_when_absent(
+    mock_note: MagicMock, mock_summary: MagicMock
+) -> None:
+    """Autosave paths that don't send mode / selected_template_name must not
+    overwrite those columns — update_or_create only touches keys present in
+    defaults, so omitting them preserves the existing DB values."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "42", "note": {}, "commands": [], "approved": False})
+    )
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    defaults = mock_summary.objects.update_or_create.call_args.kwargs["defaults"]
+    assert "mode" not in defaults
+    assert "selected_template_name" not in defaults
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_save_summary_clears_template_when_explicitly_null(
+    mock_note: MagicMock, mock_summary: MagicMock
+) -> None:
+    """Deselecting the visit template sends `selected_template_name: null`,
+    which must clear the DB column (write '') rather than be silently dropped."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note_id": "42",
+                "note": {},
+                "commands": [],
+                "approved": False,
+                "selected_template_name": None,
+            }
+        )
+    )
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    defaults = mock_summary.objects.update_or_create.call_args.kwargs["defaults"]
+    assert defaults["selected_template_name"] == ""
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_save_summary_clears_mode_when_explicitly_null(
+    mock_note: MagicMock, mock_summary: MagicMock
+) -> None:
+    """Symmetric to template deselect: explicit `mode: null` clears the column."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {"note_id": "42", "note": {}, "commands": [], "approved": False, "mode": None}
+        )
+    )
+    result = view.post_save_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    defaults = mock_summary.objects.update_or_create.call_args.kwargs["defaults"]
+    assert defaults["mode"] == ""
 
 
 # --- /generate-note ---
@@ -1276,6 +1633,64 @@ def test_get_assignees_empty(mock_staff_cls: MagicMock, mock_team_cls: MagicMock
     assert data["assignees"] == []
 
 
+# --- /ordering-providers ---
+
+
+@patch("hyperscribe.scribe.api.session_view.Staff")
+def test_get_ordering_providers_returns_all_results(mock_staff_cls: MagicMock) -> None:
+    """Regression: the endpoint must return every eligible provider, not a fixed slice.
+
+    Previously the response was capped at the alphabetically-first 50 providers,
+    which silently dropped real prescribers (e.g. anyone with a last name past
+    "Cu...") on customers with larger staff rosters.
+    """
+    staff_objects = [
+        SimpleNamespace(id=f"key-{i}", credentialed_name=f"Provider {i:03d} MD")
+        for i in range(75)
+    ]
+    ordered_qs = MagicMock(spec=QuerySet)
+    ordered_qs.__iter__.return_value = iter(staff_objects)
+    distinct_qs = MagicMock(spec=QuerySet)
+    distinct_qs.order_by.return_value = ordered_qs
+    initial_qs = MagicMock(spec=QuerySet)
+    initial_qs.distinct.return_value = distinct_qs
+    mock_staff_cls.objects.filter.return_value = initial_qs
+
+    view = _helper_instance()
+    result = view.get_ordering_providers()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    providers = data["providers"]
+    assert len(providers) == 75
+    assert providers[0] == {"id": "key-0", "label": "Provider 000 MD"}
+    assert providers[-1] == {"id": "key-74", "label": "Provider 074 MD"}
+
+
+@patch("hyperscribe.scribe.api.session_view.Staff")
+def test_get_ordering_providers_with_search_query(mock_staff_cls: MagicMock) -> None:
+    staff_objects = [SimpleNamespace(id="key-001", credentialed_name="Provider 001 MD")]
+    filtered_qs = MagicMock(spec=QuerySet)
+    filtered_qs.__iter__.return_value = iter(staff_objects)
+    ordered_qs = MagicMock(spec=QuerySet)
+    ordered_qs.filter.return_value = filtered_qs
+    distinct_qs = MagicMock(spec=QuerySet)
+    distinct_qs.order_by.return_value = ordered_qs
+    initial_qs = MagicMock(spec=QuerySet)
+    initial_qs.distinct.return_value = distinct_qs
+    mock_staff_cls.objects.filter.return_value = initial_qs
+
+    view = _helper_instance()
+    view.request.query_params = {"query": "Provider"}
+    result = view.get_ordering_providers()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["providers"] == [{"id": "key-001", "label": "Provider 001 MD"}]
+    # The endpoint should have applied the search filter on top of the ordered queryset.
+    assert ordered_qs.filter.called
+
+
 # --- /recommend-commands ---
 
 
@@ -1532,6 +1947,228 @@ def test_generate_summary_success(
     assert data["recommendations"][0]["command_type"] == "medication_statement"
     # Summary should be saved to database.
     mock_summary.objects.update_or_create.assert_called_once()
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_preserves_mode_and_template(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_summary: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """generate-summary must persist mode and selected_template_name so the
+    approve button remains visible even if the frontend callback never fires."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 55
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "I have a headache", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 2000}],
+        "finalized": True,
+    }
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="SOAP Note",
+        sections=[NoteSection(key="chief_complaint", title="CC", text="Headache.")],
+    )
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    mock_backend._last_raw_note_response = None
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({
+            "note_id": "55",
+            "note_uuid": "55",
+            "mode": "ai",
+            "selected_template_name": "Subsequent Visit",
+        })
+    )
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    # Verify _save_summary was called with mode and selected_template_name.
+    save_call = mock_summary.objects.update_or_create.call_args
+    defaults = save_call.kwargs.get("defaults") or save_call[1].get("defaults", {})
+    assert defaults["mode"] == "ai"
+    assert defaults["selected_template_name"] == "Subsequent Visit"
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_preserves_mode_from_db_when_not_in_request(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_summary: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """When the frontend doesn't send mode/selected_template_name (which is
+    the normal case), generate-summary must NOT put either key into the
+    _save_summary payload — _save_summary's `if key in payload` guard then
+    leaves the DB column alone, preserving whatever the session already set.
+    This is the symmetric counterpart of the GET-path CAS protection: the
+    write path must not fabricate values for fields it doesn't own."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 55
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "I have a headache", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 2000}],
+        "finalized": True,
+    }
+    # Simulate an existing summary with mode and template already set.
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
+        "note_data": {},
+        "commands": [],
+        "approved": False,
+        "recommendations": [],
+        "unmatched_conditions": [],
+        "diagnosis_suggestions": {},
+        "selected_template_name": "Subsequent Visit",
+        "mode": "ai",
+    }
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="SOAP Note",
+        sections=[NoteSection(key="chief_complaint", title="CC", text="Headache.")],
+    )
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    mock_backend._last_raw_note_response = None
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    # Frontend request does NOT include mode or selected_template_name.
+    view.request = SimpleNamespace(
+        body=json.dumps({
+            "note_id": "55",
+            "note_uuid": "55",
+        })
+    )
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    save_call = mock_summary.objects.update_or_create.call_args
+    defaults = save_call.kwargs.get("defaults") or save_call[1].get("defaults", {})
+    assert "mode" not in defaults, (
+        "generate-summary must not write mode when the frontend omits it — "
+        "_save_summary's guard preserves the DB column"
+    )
+    assert "selected_template_name" not in defaults, (
+        "generate-summary must not write selected_template_name when the "
+        "frontend omits it — _save_summary's guard preserves the DB column"
+    )
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_does_not_clobber_concurrent_save_on_cas_miss(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """If a concurrent /save-summary commits a real mode during the heal's
+    inference window inside post_generate_summary's _load_summary call,
+    _load_summary returns mode=None on CAS miss. generate-summary must not
+    forward that None into _save_summary's payload (the prior `str(... or '')`
+    pre-load fallback would have laundered it to '', wiping the concurrent
+    writer's mode back to '')."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 55
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "I have a headache", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 2000}],
+        "finalized": True,
+    }
+    # Legacy wiped row: mode='' triggers heal in _load_summary.
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
+        "note_data": {"sections": [{"key": "hpi", "text": "Pain"}]},
+        "commands": [],
+        "approved": False,
+        "recommendations": [],
+        "unmatched_conditions": [],
+        "diagnosis_suggestions": {},
+        "selected_template_name": "",
+        "mode": "",
+    }
+    # Audit log has START_AI → heal would set mode='ai', but the CAS misses.
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = [
+        {"type": "START_AI"},
+    ]
+    # Simulate concurrent /save-summary committing a real mode during the heal:
+    # the CAS update matches 0 rows.
+    mock_summary.objects.filter.return_value.update.return_value = 0
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="SOAP Note",
+        sections=[NoteSection(key="chief_complaint", title="CC", text="Headache.")],
+    )
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    mock_backend._last_raw_note_response = None
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    # Frontend doesn't include mode in the generate-summary request body.
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "55", "note_uuid": "55"})
+    )
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    defaults = mock_summary.objects.update_or_create.call_args.kwargs["defaults"]
+    assert "mode" not in defaults, (
+        "On CAS miss, generate-summary must leave the mode column alone — "
+        "the concurrent writer's value is now authoritative"
+    )
 
 
 @patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
