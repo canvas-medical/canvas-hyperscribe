@@ -156,6 +156,69 @@ def test_questionnaire_details_success_scored(mock_model: MagicMock, mock_cmd_cl
 
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
+def test_questionnaire_details_preserves_integer_zero_score_value(
+    mock_model: MagicMock, mock_cmd_class: MagicMock
+) -> None:
+    """Integer 0 is a clinically meaningful score on PHQ-9-style instruments ("Not at all" = 0).
+    The serializer must preserve it as the string "0", not collapse it to "" via a falsy coerce."""
+    questionnaire = MagicMock()
+    questionnaire.dbid = 42
+    questionnaire.id = "ext-uuid"
+    questionnaire.name = "PHQ-9"
+    questionnaire.scoring_function_name = "phq9_score"
+    mock_model.objects.get.return_value = questionnaire
+
+    option_zero = MagicMock()
+    option_zero.dbid = 10
+    option_zero.name = "Not at all"
+    option_zero.code = "LA6568-5"
+    option_zero.value = 0  # int 0, not "0" — would be silently dropped by `or ""`
+
+    option_none = MagicMock()
+    option_none.dbid = 11
+    option_none.name = "Unknown"
+    option_none.code = None
+    option_none.value = None
+
+    question = MagicMock()
+    question.id = "1"
+    question.label = "Little interest or pleasure in doing things?"
+    question.type = ResponseOption.TYPE_RADIO
+    question.options = [option_zero, option_none]
+
+    cmd_instance = MagicMock()
+    cmd_instance.questions = [question]
+    mock_cmd_class.return_value = cmd_instance
+
+    view = _helper_instance()
+    view.request.query_params = {"dbid": "42"}
+    result = view.get_questionnaire_details()
+    assert result == [
+        JSONResponse(
+            {
+                "questionnaire_dbid": 42,
+                "questionnaire_name": "PHQ-9",
+                "is_scored": True,
+                "scoring_function_name": "phq9_score",
+                "questions": [
+                    {
+                        "dbid": 1,
+                        "label": "Little interest or pleasure in doing things?",
+                        "type": ResponseOption.TYPE_RADIO,
+                        "options": [
+                            {"dbid": 10, "value": "Not at all", "code": "LA6568-5", "score_value": "0"},
+                            {"dbid": 11, "value": "Unknown", "code": "", "score_value": ""},
+                        ],
+                    }
+                ],
+            },
+            status_code=HTTPStatus.OK,
+        )
+    ]
+
+
+@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_questionnaire_details_success_unscored(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
     questionnaire = MagicMock()
     questionnaire.dbid = 7

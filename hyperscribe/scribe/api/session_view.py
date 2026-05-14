@@ -64,6 +64,13 @@ from hyperscribe.scribe.recommendations.interactions import (
 )
 
 
+def _ensure_str(value: Any) -> str:
+    """Convert None to empty string while preserving 0 / False as their stringified form. Used when
+    serializing questionnaire scoring metadata where integer 0 carries clinical meaning ("Not at all")
+    and must not be conflated with absent data via the falsy-coerce `or ""` idiom."""
+    return "" if value is None else str(value)
+
+
 def _format_icd10_code(raw: str) -> str:
     code = raw.strip().replace(".", "").upper()
     if len(code) > 3:
@@ -346,8 +353,8 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
                 {
                     "dbid": o.dbid,
                     "value": o.name,
-                    "code": getattr(o, "code", "") or "",
-                    "score_value": getattr(o, "value", "") or "",
+                    "code": _ensure_str(getattr(o, "code", None)),
+                    "score_value": _ensure_str(getattr(o, "value", None)),
                 }
                 for o in q.options
             ]
@@ -1835,8 +1842,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 {
                     "dbid": o.dbid,
                     "value": o.name,
-                    "code": getattr(o, "code", "") or "",
-                    "score_value": getattr(o, "value", "") or "",
+                    "code": _ensure_str(getattr(o, "code", None)),
+                    "score_value": _ensure_str(getattr(o, "value", None)),
                 }
                 for o in q.options
             ]
