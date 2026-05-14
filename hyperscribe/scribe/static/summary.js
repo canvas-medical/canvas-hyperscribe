@@ -9,6 +9,68 @@ import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/
 
 const html = htm.bind(h);
 
+// Mirrors hyperscribe/scribe/commands/_rx_validation.py and the canvas-core
+// Prescribe schema. Prescribe / Refill / Adjust Prescription all funnel
+// through the same schema during REVIEW, and any missing or invalid field
+// causes the transaction to roll back even though /insert-commands has
+// already returned 200. Keep this predicate aligned with the server-side
+// validate_rx_payload function — they MUST agree on both presence AND value.
+const RX_COMMAND_TYPES = new Set(['prescribe', 'refill', 'adjust_prescription']);
+const RX_SIG_MAX_LENGTH = 1000;
+const RX_NOTE_TO_PHARMACIST_MAX_LENGTH = 210;
+const RX_REFILLS_MIN = 0;
+const RX_REFILLS_MAX = 99;
+// Mirrors _RE_INVALID_CHARACTERS in _rx_validation.py: Surescripts only allows
+// printable ASCII space..tilde for sig / note_to_pharmacist.
+const RX_NON_ASCII_RE = /[^\x20-\x7E]/;
+const _isBlankString = (v) => typeof v === 'string' && v.trim() === '';
+const isRxIncomplete = (d) => {
+  if (!d) return true;
+  // Required strings (reject null / empty / whitespace-only).
+  if (!d.fdb_code || _isBlankString(d.fdb_code)) return true;
+  if (!d.sig || _isBlankString(d.sig)) return true;
+  if (!d.type_to_dispense) return true;
+  // Quantity: present, parseable, > 0.
+  if (d.quantity_to_dispense == null || d.quantity_to_dispense === '') return true;
+  const qty = Number(d.quantity_to_dispense);
+  if (!Number.isFinite(qty) || qty <= 0) return true;
+  // Refills: present, integer in [REFILLS_MIN, REFILLS_MAX].
+  if (d.refills == null || d.refills === '') return true;
+  const refills = Number(d.refills);
+  if (!Number.isInteger(refills) || refills < RX_REFILLS_MIN || refills > RX_REFILLS_MAX) return true;
+  // Substitutions: enum value required.
+  if (d.substitutions !== 'allowed' && d.substitutions !== 'not_allowed') return true;
+  // Sig: length + Surescripts ASCII charset.
+  if (typeof d.sig === 'string' && (d.sig.length > RX_SIG_MAX_LENGTH || RX_NON_ASCII_RE.test(d.sig))) return true;
+  // Note to pharmacist: optional, but if present must satisfy length + charset.
+  if (typeof d.note_to_pharmacist === 'string' && d.note_to_pharmacist !== ''
+      && (d.note_to_pharmacist.length > RX_NOTE_TO_PHARMACIST_MAX_LENGTH || RX_NON_ASCII_RE.test(d.note_to_pharmacist))) return true;
+  return false;
+};
+const isRxCommand = (cmd) => RX_COMMAND_TYPES.has(cmd?.command_type);
+
+// Mirrors the refer-completeness gate in the `insertable` filter. Both the
+// Approve filter and the recommendations filter must apply this — the
+// LLM recommender (recommendations/refer.py) does not emit `diagnosis_codes`,
+// so any accepted-without-edit referral would otherwise hit the server's
+// `ReferParser.validate` ("At least one indication is required") and reject
+// the whole batch.
+const isReferIncompleteForApprove = (d) => {
+  if (!d) return true;
+  if (!d.service_provider) return true;
+  if (!d.clinical_question) return true;
+  if (!d.notes_to_specialist) return true;
+  if (!d.diagnosis_codes || d.diagnosis_codes.length === 0) return true;
+  return false;
+};
+// Single source of truth for recommendation-side validation. Returns the
+// failure reason for the COMMANDS_FILTERED audit, or null if insertable.
+const getAcceptedRecFailureReason = (c) => {
+  if (isRxCommand(c) && isRxIncomplete(c.data)) return 'rx_incomplete';
+  if (c.command_type === 'refer' && isReferIncompleteForApprove(c.data)) return 'refer_incomplete';
+  return null;
+};
+
 function formatTime(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -1149,8 +1211,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.already_documented) return false;
       if (!c.display && !(SECTION_TYPES.has(c.command_type) && c.data?.sections?.length > 0)) return false;
       if (c.command_type === 'imaging_order' && (!c.data.image_code || !c.data.service_provider || !c.data.ordering_provider_id || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
-      if (c.command_type === 'prescribe' && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
-      if ((c.command_type === 'refill' || c.command_type === 'adjust_prescription') && !c.data.fdb_code) return false;
+      // All three Rx command types share the same canvas-core schema and must
+      // satisfy the same required-field set; using one predicate keeps the
+      // Approve filter, the Add Now gate, and the Save button gate aligned.
+      if (isRxCommand(c) && isRxIncomplete(c.data)) return false;
       if (c.command_type === 'lab_order' && (!c.data.lab_partner || !c.data.tests_order_codes || c.data.tests_order_codes.length === 0)) return false;
       if (c.command_type === 'refer' && (!c.data.service_provider || !c.data.clinical_question || !c.data.notes_to_specialist || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
@@ -1163,7 +1227,34 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         reason: !c.display ? 'empty_display' : c.selected === false ? 'deselected' : 'validation',
       })) });
     }
-    const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
+    // The Approve filter for recommendations has to apply the same gates the
+    // insertable filter applies for Rx + refer — recommendations bypass the
+    // OrderRow editor, so without these checks an LLM payload that the
+    // server's validate_rx_payload (or ReferParser.validate) will reject
+    // slips into /insert-commands and tanks the whole batch.
+    const candidateRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
+    const droppedRecs = candidateRecs.filter(c => getAcceptedRecFailureReason(c) !== null);
+    const acceptedRecs = candidateRecs.filter(c => getAcceptedRecFailureReason(c) === null);
+    if (droppedRecs.length > 0) {
+      logEvent('COMMANDS_FILTERED', { dropped: droppedRecs.map(c => ({
+        type: c.command_type, display: (c.display || '').slice(0, 80),
+        reason: getAcceptedRecFailureReason(c),
+      })) });
+      const _errorFor = (c) => getAcceptedRecFailureReason(c) === 'rx_incomplete'
+        ? 'This prescription is missing required fields or contains invalid values (e.g. non-ASCII characters in sig, refills out of range). Open it to fix before approving.'
+        : 'This referral is missing required fields (indications, notes to specialist, clinical question, or service provider). Open it to fix before approving.';
+      setValidationError(droppedRecs.map(c => ({
+        command_type: c.command_type,
+        display: (c.display || '').slice(0, 80),
+        errors: [_errorFor(c)],
+      })));
+      setApproved(false);
+      setConfirming(false);
+      saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+      setInserting(false);
+      logEvent('APPROVE_ERROR', { error: 'accepted_recommendations_invalid', dropped: droppedRecs.length });
+      return;
+    }
     let allInsertable = [...insertable, ...acceptedRecs]
       .map(({ _template_inserted, ...c }) => c); // Strip internal marker.
 
@@ -1320,6 +1411,22 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         setCommands(prev => prev.map((cmd, i) => i === index ? { ...cmd, _adding: flag } : cmd));
       }
     };
+    // Client-side gate: don't ship incomplete Rx commands to the server.
+    // The server still validates (validate_rx_payload), but failing fast
+    // here gives instant feedback and keeps the audit log clean of avoidable
+    // VALIDATION_FAILED events. The same predicate guards the Approve filter
+    // and the Save button so the three paths stay in sync.
+    if (isRxCommand(command) && isRxIncomplete(command.data)) {
+      logEvent('ADD_NOW_BLOCKED', { commandType: command.command_type, reason: 'rx_incomplete', index });
+      setValidationError([
+        {
+          command_type: command.command_type,
+          display: (command.display || '').slice(0, 80),
+          errors: ['Fill in medication, sig, quantity, dispense type, refills, and substitutions before adding this prescription.'],
+        },
+      ]);
+      return;
+    }
     setAdding(true);
     try {
       const { _template_inserted, ...payload } = command;
@@ -1329,7 +1436,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         body: JSON.stringify({ note_uuid: noteId, commands: [payload] }),
       });
       const data = await res.json();
-      if (data.error) { setAdding(false); logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index }); return; }
+      if (data.error) {
+        setAdding(false);
+        // Surface server-side validation errors (e.g. medication not active
+        // on patient) so the user can see exactly what went wrong instead of
+        // the previous silent-fail behavior.
+        if (data.validation_errors) setValidationError(data.validation_errors);
+        logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index, error: data.error, validation_errors: data.validation_errors });
+        return;
+      }
       // Phase 2: insert metadata if needed (e.g. alert_facility).
       if (data.metadata_pending && data.metadata_pending.length > 0) {
         try {
@@ -1398,7 +1513,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const showFooter = canEdit && (mode === 'manual' || aiFlowComplete);
 
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral', lab_order: 'lab order' };
-  const _isRxIncomplete = (d) => !d.fdb_code || !d.sig || d.quantity_to_dispense == null || !d.type_to_dispense || d.refills == null;
+  // Module-scope `isRxIncomplete` is the single source of truth — see top of file.
+  const _isRxIncomplete = isRxIncomplete;
   const _isLabIncomplete = (d) => !d.lab_partner || !d.tests_order_codes || d.tests_order_codes.length === 0;
   const _isImagingIncomplete = (d) => !d.image_code || !d.service_provider || !d.ordering_provider_id || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
   const _isReferIncomplete = (d) => !d.service_provider || !d.clinical_question || !d.notes_to_specialist || !d.diagnosis_codes || d.diagnosis_codes.length === 0;

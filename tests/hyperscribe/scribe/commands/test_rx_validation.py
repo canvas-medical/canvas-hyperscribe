@@ -93,6 +93,42 @@ def test_quantity_to_dispense_rejects_garbage() -> None:
     assert any("must be a number" in e for e in errors)
 
 
+def test_quantity_to_dispense_rejects_infinity() -> None:
+    """``Decimal('Infinity')`` parses cleanly, is_nan() is False, and <= 0
+    returns False (it's > 0) — so without an is_finite() guard it slips
+    silently into PrescribeCommand and explodes downstream at int() casts."""
+    for inf_input in ("Infinity", "inf", "-Infinity"):
+        errors = validate_rx_payload(_good_payload(quantity_to_dispense=inf_input))
+        assert any("must be a number" in e for e in errors), (inf_input, errors)
+
+
+def test_refills_rejects_non_integer_floats() -> None:
+    """int(10.5) == 10 silently truncates; int(-0.5) == 0 turns a negative
+    refill into a valid 0. Reject non-integer floats up front."""
+    for bad in (10.5, -0.5, 99.99):
+        errors = validate_rx_payload(_good_payload(refills=bad))
+        assert any("integer" in e for e in errors), (bad, errors)
+
+
+def test_refills_rejects_infinity_without_500() -> None:
+    """int(float('inf')) raises OverflowError, which is ArithmeticError —
+    NOT a ValueError. The original except didn't catch it, producing HTTP 500."""
+    errors = validate_rx_payload(_good_payload(refills=float("inf")))
+    assert any("integer" in e for e in errors), errors
+
+
+def test_days_supply_rejects_infinity_without_500() -> None:
+    """Same OverflowError-not-ValueError trap as refills."""
+    errors = validate_rx_payload(_good_payload(days_supply=float("inf")))
+    assert any("integer" in e for e in errors), errors
+
+
+def test_days_supply_rejects_non_integer_floats() -> None:
+    for bad in (10.5, -0.5):
+        errors = validate_rx_payload(_good_payload(days_supply=bad))
+        assert any("integer" in e for e in errors), (bad, errors)
+
+
 def test_quantity_to_dispense_rejects_nan() -> None:
     """``Decimal('nan')`` parses cleanly but comparisons raise InvalidOperation
     — guard or this returns HTTP 500 instead of the structured 400."""

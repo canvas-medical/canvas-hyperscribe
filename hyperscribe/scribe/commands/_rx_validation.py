@@ -70,9 +70,10 @@ def _validate_quantity_to_dispense(value: Any, errors: list[str]) -> None:
     except (InvalidOperation, ValueError, ArithmeticError):
         errors.append("Quantity to dispense must be a number")
         return
-    # Decimal('nan') parses cleanly but any subsequent comparison raises
-    # decimal.InvalidOperation under the default context, so guard explicitly.
-    if decimal_value.is_nan():
+    # Decimal('nan') and Decimal('Infinity') both parse cleanly; NaN raises on
+    # comparison and Infinity slips silently into PrescribeCommand and blows
+    # up at int() conversion downstream. Reject both as non-numeric.
+    if not decimal_value.is_finite():
         errors.append("Quantity to dispense must be a number")
         return
     if decimal_value <= 0:
@@ -91,9 +92,16 @@ def _validate_refills(value: Any, errors: list[str]) -> None:
     if value is None or value == "":
         errors.append("Refills is required")
         return
+    # int(10.5) silently truncates to 10 and int(-0.5) silently truncates to 0
+    # (which then passes the range check). Reject non-integer floats up front
+    # rather than letting a fractional refill count round into a valid value.
+    if isinstance(value, float) and not value.is_integer():
+        errors.append("Refills must be an integer")
+        return
     try:
         refills = int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
+        # OverflowError fires on int(float('inf')); not a subclass of ValueError.
         errors.append("Refills must be an integer")
         return
     if refills < REFILLS_MIN or refills > REFILLS_MAX:
@@ -104,9 +112,12 @@ def _validate_days_supply(value: Any, errors: list[str]) -> None:
     """Optional, but if present must be a non-negative integer."""
     if value is None or value == "":
         return
+    if isinstance(value, float) and not value.is_integer():
+        errors.append("Days supply must be an integer")
+        return
     try:
         days = int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         errors.append("Days supply must be an integer")
         return
     if days < 0:
