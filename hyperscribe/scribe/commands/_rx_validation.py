@@ -70,6 +70,11 @@ def _validate_quantity_to_dispense(value: Any, errors: list[str]) -> None:
     except (InvalidOperation, ValueError, ArithmeticError):
         errors.append("Quantity to dispense must be a number")
         return
+    # Decimal('nan') parses cleanly but any subsequent comparison raises
+    # decimal.InvalidOperation under the default context, so guard explicitly.
+    if decimal_value.is_nan():
+        errors.append("Quantity to dispense must be a number")
+        return
     if decimal_value <= 0:
         errors.append("Quantity to dispense must be greater than 0")
         return

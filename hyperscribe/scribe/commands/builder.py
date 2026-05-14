@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
 
@@ -37,6 +38,8 @@ from hyperscribe.scribe.commands.stop_medication import StopMedicationParser
 from hyperscribe.scribe.commands.surgical_history import SurgicalHistoryParser
 from hyperscribe.scribe.commands.task import TaskParser
 from hyperscribe.scribe.commands.vitals import VitalsParser
+
+log = logging.getLogger(__name__)
 
 
 _BUILDERS: dict[str, CommandParser] = {
@@ -111,7 +114,13 @@ def validate_proposals(
             if callable(chart_validator):
                 try:
                     chart_errors = chart_validator(data, note_uuid)
-                except Exception:  # pragma: no cover — fail open if DB is flaky
+                except Exception:
+                    # Fail open so transient DB issues don't block all writes,
+                    # but log so schema drift / programming errors surface in
+                    # the audit log instead of silently passing through.
+                    log.exception(
+                        "chart_validator raised in validate_proposals; failing open",
+                    )
                     chart_errors = []
                 errors.extend(chart_errors)
         if errors:

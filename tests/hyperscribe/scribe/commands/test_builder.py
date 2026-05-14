@@ -426,3 +426,30 @@ def test_validate_proposals_runs_chart_state_check_when_note_uuid_present() -> N
 
     assert len(errors) == 1
     assert any("not active on this patient" in e for e in errors[0]["errors"])
+
+
+def test_validate_proposals_logs_when_chart_validator_raises(caplog: Any) -> None:
+    """Unexpected exceptions from ``validate_against_patient`` fail open (so
+    transient DB issues don't block writes) but MUST log so schema drift or
+    programming errors are diagnosable from the audit log."""
+    import logging
+    from unittest.mock import patch
+
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "refill", "data": dict(_GOOD_RX_DATA), "display": "Refill"},
+    ]
+
+    with (
+        patch(
+            "hyperscribe.scribe.commands.refill.RefillParser.validate_against_patient",
+            side_effect=RuntimeError("simulated schema drift"),
+        ),
+        caplog.at_level(logging.ERROR, logger="hyperscribe.scribe.commands.builder"),
+    ):
+        errors = validate_proposals(proposals, note_uuid="note-uuid")
+
+    # Fail open — no errors raised to caller.
+    assert errors == []
+    # But the failure is captured in the log for diagnosis.
+    assert any("chart_validator raised" in rec.message for rec in caplog.records)
+    assert any("simulated schema drift" in (rec.exc_text or "") for rec in caplog.records)
