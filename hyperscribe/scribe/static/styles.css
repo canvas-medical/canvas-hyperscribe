@@ -1250,23 +1250,48 @@ h2 { margin-bottom: 4px; }
 .questionnaire-search-result.search-no-results:hover { background: none; }
 
 /* Questionnaire form */
-.questionnaire-header { font-size: 15px; font-weight: 700; color: #333; margin-bottom: 8px; }
-.questionnaire-question { margin-bottom: 10px; }
-.questionnaire-question:last-child { margin-bottom: 0; }
-.questionnaire-question-label { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 6px; }
-/* Options flow horizontally when labels are short and wrap when they're not. Checkbox-with-comment rows opt out via .questionnaire-option-wrap so the comment can sit underneath. */
-.questionnaire-options { display: flex; flex-flow: row wrap; gap: 4px 8px; align-items: flex-start; }
-.questionnaire-option-wrap { flex: 0 1 auto; min-width: 140px; }
-/* Checkbox rows that have an open comment input expand to a full row so the comment sits underneath. */
-.questionnaire-option-wrap:has(.questionnaire-option-comment) { flex: 1 1 100%; }
-.questionnaire-option { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #333; cursor: pointer; padding: 6px 8px; border-radius: 6px; min-width: 140px; }
-.questionnaire-option:hover { background: #f5f7fa; }
-.questionnaire-option input[type="radio"],
-.questionnaire-option input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; }
-.questionnaire-option span { flex: 1; }
-.questionnaire-option-comment { width: 100%; padding: 8px 10px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 6px; margin-top: 4px; margin-left: 28px; }
-.questionnaire-option-comment:focus { outline: none; border-color: #052B49; }
-.questionnaire-text-input { width: 100%; padding: 10px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; }
+/* The form is the only flex item inside .order-row.editing; force it to fill the available width so the
+   two columns sit in actual halves of the card and the Save button reaches the right edge. */
+.questionnaire-form { flex: 1; width: 100%; min-width: 0; }
+.questionnaire-header { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 14px; letter-spacing: 0.01em; }
+/* Strict 2-column grid, row-by-row reading order. Q1 top-left, Q2 top-right, Q3 next-row-left, etc.
+   When the count is odd, the last row's right cell is empty — accepted trade-off for predictable layout. */
+.questionnaire-questions-2col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; row-gap: 20px; align-items: start; }
+.questionnaire-question { min-width: 0; padding: 2px 0; }
+.questionnaire-question-label { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 8px; overflow-wrap: anywhere; line-height: 1.35; }
+@media (max-width: 600px) {
+  .questionnaire-questions-2col { grid-template-columns: 1fr; column-gap: 0; row-gap: 16px; }
+}
+/* Chip-style options for radio and checkbox questions. Pills wrap naturally; no stretching, no matrix. */
+.questionnaire-chips { display: flex; flex-flow: row wrap; gap: 6px; }
+.questionnaire-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.25;
+  color: #1f2937;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.questionnaire-chip:hover { background: #f5f7fa; border-color: #9ca3af; }
+.questionnaire-chip:focus-visible { outline: 2px solid #052B49; outline-offset: 2px; }
+.questionnaire-chip.selected { background: #052B49; border-color: #052B49; color: #fff; }
+.questionnaire-chip.selected:hover { background: #0a3a60; border-color: #0a3a60; }
+/* Faint inline hint clarifying multi-select questions. */
+.questionnaire-question-hint { font-weight: 400; font-size: 12px; color: #6b7280; }
+/* Comments for selected checkbox options, grouped below the chip row. */
+.questionnaire-chip-comments { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e5e7eb; }
+.questionnaire-chip-comment-row { display: flex; align-items: center; gap: 10px; }
+.questionnaire-chip-comment-label { font-size: 12px; font-weight: 600; color: #4b5563; flex-shrink: 0; min-width: 100px; }
+.questionnaire-chip-comment-input { flex: 1; padding: 6px 10px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 6px; }
+.questionnaire-chip-comment-input:focus { outline: none; border-color: #052B49; }
+.questionnaire-text-input { width: 100%; padding: 9px 12px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; }
 .questionnaire-text-input:focus { outline: none; border-color: #052B49; }
 .questionnaire-view-wrap { width: 100%; }
 .questionnaire-view { display: flex; align-items: center; gap: 8px; padding: 4px; cursor: pointer; border-radius: 8px; }

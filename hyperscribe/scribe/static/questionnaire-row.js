@@ -181,7 +181,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
 
   if (!questionnaire) {
     return html`
-      <div>
+      <div class="questionnaire-form">
         ${loading
           ? html`<span class="diag-search-spinner">Loading questionnaire...</span>`
           : html`<${QuestionnaireSearch} onSelect=${handleSelectQuestionnaire} />`
@@ -191,52 +191,58 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
   }
 
   return html`
-    <div>
+    <div class="questionnaire-form">
       <div class="questionnaire-header">${questionnaire.name}</div>
+      <div class="questionnaire-questions-2col">
       ${questionnaire.questions.map((q, qIdx) => html`
         <div class="questionnaire-question" key=${q.dbid}>
-          <div class="questionnaire-question-label">${q.label}</div>
+          <div class="questionnaire-question-label">
+            ${q.label}
+            ${q.type === TYPE_CHECKBOX && html`<span class="questionnaire-question-hint"> · Select all that apply</span>`}
+          </div>
           ${q.type === TYPE_RADIO && html`
-            <div class="questionnaire-options">
+            <div class="questionnaire-chips" role="radiogroup">
               ${q.responses.map((r, rIdx) => html`
-                <div class="questionnaire-option-wrap" key=${r.dbid}>
-                  <label class="questionnaire-option">
-                    <input
-                      type="radio"
-                      name=${'q-' + commandIndex + '-' + q.dbid}
-                      checked=${r.selected}
-                      onChange=${() => handleResponseChange(qIdx, rIdx, 'selected', true)}
-                    />
-                    <span>${r.value}</span>
-                  </label>
-                </div>
+                <button
+                  type="button"
+                  class=${'questionnaire-chip' + (r.selected ? ' selected' : '')}
+                  role="radio"
+                  aria-checked=${r.selected}
+                  key=${r.dbid}
+                  onClick=${() => handleResponseChange(qIdx, rIdx, 'selected', true)}
+                >${r.value}</button>
               `)}
             </div>
           `}
           ${q.type === TYPE_CHECKBOX && html`
-            <div class="questionnaire-options">
+            <div class="questionnaire-chips">
               ${q.responses.map((r, rIdx) => html`
-                <div class="questionnaire-option-wrap" key=${r.dbid}>
-                  <label class="questionnaire-option">
-                    <input
-                      type="checkbox"
-                      checked=${r.selected}
-                      onChange=${(e) => handleResponseChange(qIdx, rIdx, 'selected', e.target.checked)}
-                    />
-                    <span>${r.value}</span>
-                  </label>
-                  ${r.selected && html`
+                <button
+                  type="button"
+                  class=${'questionnaire-chip' + (r.selected ? ' selected' : '')}
+                  role="checkbox"
+                  aria-checked=${r.selected}
+                  key=${r.dbid}
+                  onClick=${() => handleResponseChange(qIdx, rIdx, 'selected', !r.selected)}
+                >${r.value}</button>
+              `)}
+            </div>
+            ${q.responses.some(r => r.selected) && html`
+              <div class="questionnaire-chip-comments">
+                ${q.responses.map((r, rIdx) => r.selected && html`
+                  <div class="questionnaire-chip-comment-row" key=${r.dbid}>
+                    <span class="questionnaire-chip-comment-label">${r.value}</span>
                     <input
                       type="text"
-                      class="questionnaire-option-comment"
+                      class="questionnaire-chip-comment-input"
                       placeholder="Comment (optional)"
                       value=${r.comment || ''}
                       onInput=${(e) => handleResponseChange(qIdx, rIdx, 'comment', e.target.value)}
                     />
-                  `}
-                </div>
-              `)}
-            </div>
+                  </div>
+                `)}
+              </div>
+            `}
           `}
           ${q.type === TYPE_TEXT && html`
             <input
@@ -259,6 +265,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
           `}
         </div>
       `)}
+      </div>
       <div class="questionnaire-form-actions">
         <button type="button" class="form-btn form-btn-cancel" onClick=${onCancel}>Cancel</button>
         <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
