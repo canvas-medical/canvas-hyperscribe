@@ -4,10 +4,6 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
-const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
-const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
-const ICON_CHEVRON = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
-
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
 
@@ -354,7 +350,6 @@ function renderResponse(q) {
 export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
-  const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     onEditingChange?.(commandIndex, editing);
     return () => onEditingChange?.(commandIndex, false);
@@ -391,7 +386,6 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
   const answered = countAnswered(questions);
   const total = questions.length;
   const complete = isComplete(questions);
-  const canExpand = readOnly && total > 0;
   const isScored = !!command.data.is_scored;
   const score = isScored && complete ? computeScore(questions) : null;
   // Pre-approval (editable) cards surface incompleteness with an amber pill so a clinician doesn't miss
@@ -401,18 +395,14 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
         ? html`<span class="questionnaire-status-badge">Not started</span>`
         : html`<span class="questionnaire-status-badge">${answered}/${total} answered</span>`)
     : null;
-
-  const handleCardClick = () => {
-    if (readOnly) {
-      if (canExpand) setExpanded(prev => !prev);
-      return;
-    }
-    setEditing(true);
-  };
+  const showResponses = readOnly && total > 0;
 
   return html`
     <div class="questionnaire-view-wrap">
-      <div class="questionnaire-view" onClick=${handleCardClick}>
+      <div
+        class=${'questionnaire-view' + (readOnly ? ' readonly' : '')}
+        onClick=${readOnly ? null : () => setEditing(true)}
+      >
         <div class="questionnaire-view-content">
           <span class="questionnaire-view-name">${command.display || '(empty)'}</span>
         </div>
@@ -420,13 +410,8 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
         ${score !== null && html`
           <span class="questionnaire-score-badge">Score: ${score}</span>
         `}
-        ${canExpand && html`
-          <span class=${'questionnaire-chevron' + (expanded ? ' expanded' : '')} aria-label=${expanded ? 'Collapse' : 'Expand'}>
-            ${ICON_CHEVRON}
-          </span>
-        `}
       </div>
-      ${canExpand && expanded && html`
+      ${showResponses && html`
         <dl class="questionnaire-readonly-list">
           ${questions.map(q => {
             const answer = renderResponse(q);
