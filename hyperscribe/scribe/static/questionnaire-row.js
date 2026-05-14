@@ -390,9 +390,17 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
   const questions = command.data.questions || [];
   const answered = countAnswered(questions);
   const total = questions.length;
+  const complete = isComplete(questions);
   const canExpand = readOnly && total > 0;
   const isScored = !!command.data.is_scored;
-  const score = isScored && isComplete(questions) ? computeScore(questions) : null;
+  const score = isScored && complete ? computeScore(questions) : null;
+  // Pre-approval (editable) cards surface incompleteness with an amber pill so a clinician doesn't miss
+  // something before signing off. Post-approval (readOnly) cards stay quiet — the score badge alone speaks.
+  const statusBadge = !readOnly && total > 0 && !complete
+    ? (answered === 0
+        ? html`<span class="questionnaire-status-badge">Not started</span>`
+        : html`<span class="questionnaire-status-badge">${answered}/${total} answered</span>`)
+    : null;
 
   const handleCardClick = () => {
     if (readOnly) {
@@ -408,9 +416,7 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
         <div class="questionnaire-view-content">
           <span class="questionnaire-view-name">${command.display || '(empty)'}</span>
         </div>
-        ${total > 0 && html`
-          <span class="questionnaire-answered-badge">${answered}/${total} answered</span>
-        `}
+        ${statusBadge}
         ${score !== null && html`
           <span class="questionnaire-score-badge">Score: ${score}</span>
         `}

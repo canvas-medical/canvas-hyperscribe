@@ -1310,7 +1310,9 @@ h2 { margin-bottom: 4px; }
 .recommendation-block.rec-questionnaire:has(.editing) > .recommendation-actions { display: flex; }
 .questionnaire-view-content { flex: 1; min-width: 0; }
 .questionnaire-view-name { font-size: 15px; color: #333; }
-.questionnaire-answered-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #e8f5e9; color: #2e7d32; white-space: nowrap; flex-shrink: 0; }
+/* Amber status pill — only shown on editable (pre-approval) cards when the questionnaire is incomplete.
+   "Not started" for 0 answered, "X/Y answered" for partial. Post-approval cards omit this entirely. */
+.questionnaire-status-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #fef3c7; color: #92400e; white-space: nowrap; flex-shrink: 0; }
 .questionnaire-score-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #e0e7ff; color: #3730a3; white-space: nowrap; flex-shrink: 0; }
 .questionnaire-chevron { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; color: #6b7280; flex-shrink: 0; transition: transform 0.15s ease; }
 .questionnaire-chevron svg { width: 14px; height: 14px; }
