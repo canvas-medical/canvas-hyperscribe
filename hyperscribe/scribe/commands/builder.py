@@ -201,8 +201,8 @@ _METADATA_DB_WAIT_ATTEMPTS = 6
 _METADATA_DB_WAIT_INTERVAL_SECONDS = 0.25
 
 
-def _wait_for_command(command_uuid: str) -> bool:
-    """Poll the DB for the just-committed command before requesting metadata upsert.
+def _wait_for_command_in_note(command_uuid: str, note_uuid: str) -> bool:
+    """Poll the DB for a just-committed command, scoped to a specific note.
 
     Phase 1 returns the originate/commit effects with the API response; Canvas
     then applies them asynchronously. The SDK's upsert_metadata runs a *synchronous*
@@ -210,9 +210,18 @@ def _wait_for_command(command_uuid: str) -> bool:
     so without this wait the second request often races phase 1 and the validator
     raises before any effect leaves the plugin.
 
+    The query filters on BOTH `id=command_uuid` AND `note__id=note_uuid` so the
+    same retry serves two concerns simultaneously: visibility (race tolerance)
+    and authorization (per-item note scoping). Foreign command_uuids never
+    appear in this scoped filter and are correctly rejected after the retry
+    cap. Race-delayed legitimate commands appear once Canvas finishes applying
+    phase-1's commit effects.
+
     The .exists() call is wrapped defensively: a transient ORM exception
     (connection drop, transaction abort, pool exhaustion) on a single check
-    must NOT escape and 500 the whole /insert-metadata batch. Treat any
+    must NOT escape and 500 the whole /insert-metadata batch. A ValidationError
+    (e.g. malformed UUID string from a direct API caller) is treated identically
+    to "not visible" so a bad input can't crash a legitimate batch. Treat any
     failure as "not yet visible" and retry through the existing cap; if every
     retry hits the same fault, return False so the caller's per-item
     try/except path drops just that one item with a logged warning instead
@@ -220,9 +229,14 @@ def _wait_for_command(command_uuid: str) -> bool:
     """
     for attempt in range(_METADATA_DB_WAIT_ATTEMPTS):
         try:
-            visible = Command.objects.filter(id=command_uuid).exists()
+            visible = Command.objects.filter(id=command_uuid, note__id=note_uuid).exists()
         except Exception:
-            log.exception("metadata: existence check failed for %s (attempt %d)", command_uuid, attempt)
+            log.exception(
+                "metadata: existence check failed for %s in note %s (attempt %d)",
+                command_uuid,
+                note_uuid,
+                attempt,
+            )
             visible = False
         if visible:
             if attempt > 0:
@@ -232,39 +246,66 @@ def _wait_for_command(command_uuid: str) -> bool:
     return False
 
 
-def build_metadata_effects(pending: list[dict[str, Any]]) -> list[Effect]:
-    """Phase 2: build upsert_metadata effects for commands that now exist in the DB.
+def build_metadata_effects(
+    pending: list[dict[str, Any]], note_uuid: str
+) -> tuple[list[Effect], int]:
+    """Phase 2: build upsert_metadata effects for commands that exist on the
+    authorized note.
 
-    Each item is processed defensively: if the command is not yet visible after a
-    bounded wait, or if the SDK's upsert validation fails for any reason, we log
-    and skip rather than 500'ing the entire batch.
+    The per-item `_wait_for_command_in_note` check serves as both the
+    visibility wait (race tolerance for phase-1's async commit application)
+    and the per-item authorization check (the command must belong to
+    `note_uuid`). A foreign command_uuid will never appear in the scoped
+    filter and is rejected after the retry cap; a race-delayed legitimate
+    command will appear once Canvas catches up and proceeds normally.
+
+    The authorized `note_uuid` is also what's passed to `build_stub` —
+    each item's `note_uuid` field is ignored as a defense-in-depth measure
+    against a client trying to smuggle a different note_uuid into the
+    downstream SDK call.
+
+    Each item is processed defensively: if the command is not yet visible
+    after a bounded wait, or if the SDK's upsert validation fails for any
+    reason, we log and skip rather than 500'ing the entire batch.
+
+    Returns `(effects, rejected_count)`. `rejected_count` is the number of
+    items dropped due to visibility/scope failure, malformed input, or SDK
+    exceptions — used by the API layer for audit observability.
     """
     effects: list[Effect] = []
+    rejected = 0
     for item in pending:
         command_type = item.get("command_type", "")
-        command_uuid = item.get("command_uuid", "")
-        note_uuid = item.get("note_uuid", "")
+        command_uuid = str(item.get("command_uuid", ""))
         metadata = item.get("metadata", {}) or {}
 
         builder = _BUILDERS.get(command_type)
         if builder is None:
             log.warning("metadata: unknown command_type=%r (uuid=%s)", command_type, command_uuid)
+            rejected += 1
             continue
         if not command_uuid or not metadata:
             log.warning("metadata: skipping malformed item: %r", item)
+            rejected += 1
             continue
 
-        if not _wait_for_command(command_uuid):
+        if not _wait_for_command_in_note(command_uuid, note_uuid):
             log.warning(
-                "metadata: command %s (%s) not visible in DB after %d attempts; skipping upsert of %s",
+                "metadata: command %s (%s) not visible in note %s after %d attempts; "
+                "skipping upsert of %s",
                 command_uuid,
                 command_type,
+                note_uuid,
                 _METADATA_DB_WAIT_ATTEMPTS,
                 list(metadata.keys()),
             )
+            rejected += 1
             continue
 
         try:
+            # Always use the authorized note_uuid, never the item's. This
+            # decouples the downstream build_stub call from any client-supplied
+            # note_uuid that might disagree with the authorized one.
             command = builder.build_stub(command_uuid, note_uuid)
             for key, value in metadata.items():
                 effects.append(command.upsert_metadata(key, value))
@@ -282,4 +323,5 @@ def build_metadata_effects(pending: list[dict[str, Any]]) -> list[Effect]:
                 command_type,
                 list(metadata.keys()),
             )
-    return effects
+            rejected += 1
+    return effects, rejected

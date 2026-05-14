@@ -1160,13 +1160,11 @@ def test_insert_commands_invalid_json() -> None:
 # --- /insert-metadata ---
 
 
-@patch("canvas_sdk.v1.data.command.Command")
 @patch("hyperscribe.scribe.api.session_view.build_metadata_effects")
-def test_insert_metadata_success(mock_meta: MagicMock, mock_command_cls: MagicMock) -> None:
+def test_insert_metadata_success(mock_meta: MagicMock) -> None:
     mock_effect = MagicMock()
-    mock_meta.return_value = [mock_effect]
-    # Note-scoping filter: command uuid-1 belongs to note-uuid → authorized.
-    mock_command_cls.objects.filter.return_value.values_list.return_value = ["uuid-1"]
+    # build_metadata_effects now returns (effects, rejected_count).
+    mock_meta.return_value = ([mock_effect], 0)
 
     view = _helper_instance()
     pending = [
@@ -1174,7 +1172,7 @@ def test_insert_metadata_success(mock_meta: MagicMock, mock_command_cls: MagicMo
             "command_uuid": "uuid-1",
             "command_type": "medication_statement",
             "note_uuid": "note-uuid",
-            "metadata": {"alert_facility": "true"},
+            "metadata": {"alert_facility": "Yes"},
         },
     ]
     view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid", "pending": pending}))
@@ -1185,38 +1183,29 @@ def test_insert_metadata_success(mock_meta: MagicMock, mock_command_cls: MagicMo
     assert data["ok"] is True
     assert data["metadata_count"] == 1
     assert len(result) == 2
-    # Assert on structural shape of what reached build_metadata_effects, not
-    # identity equality with the input list — the handler rebuilds each item
-    # with a trusted note_uuid, so identity comparison can pass coincidentally.
-    forwarded = mock_meta.call_args[0][0]
-    assert len(forwarded) == 1
-    assert forwarded[0]["command_uuid"] == "uuid-1"
-    assert forwarded[0]["command_type"] == "medication_statement"
-    assert forwarded[0]["note_uuid"] == "note-uuid"  # note_uuid is the authorized one
-    assert forwarded[0]["metadata"] == {"alert_facility": "true"}
-    # Note scoping was applied: query restricts to authorized note_uuid.
-    mock_command_cls.objects.filter.assert_called_once_with(
-        id__in=["uuid-1"], note__id="note-uuid"
-    )
+    # Per-item authz now lives in build_metadata_effects, so the API layer
+    # just forwards the dict-filtered pending list AND the authorized note_uuid.
+    mock_meta.assert_called_once_with(pending, "note-uuid")
 
 
-@patch("canvas_sdk.v1.data.command.Command")
 @patch("hyperscribe.scribe.api.session_view.build_metadata_effects")
-def test_insert_metadata_overwrites_pending_note_uuid_with_authorized(
-    mock_meta: MagicMock, mock_command_cls: MagicMock
-) -> None:
-    """Even when a pending item's command_uuid IS authorized for the top-level
-    note, its own `note_uuid` field is forced to match the authorized one —
-    so a malicious client cannot smuggle a different note_uuid into the
-    downstream build_stub call. Defense-in-depth on the authz invariant."""
-    mock_command_cls.objects.filter.return_value.values_list.return_value = ["uuid-1"]
+def test_insert_metadata_propagates_authorized_note_uuid(mock_meta: MagicMock) -> None:
+    """The API-level handler must pass the authorized (top-level) note_uuid to
+    build_metadata_effects regardless of any per-item note_uuid the client
+    sends. build_metadata_effects then uses that authorized value for BOTH
+    the per-item visibility/scope check AND for build_stub.
+
+    Regression guard against the round-7 race-condition fix moving the per-
+    item authz check into build_metadata_effects — if the note_uuid argument
+    is ever lost in plumbing, this catches it."""
+    mock_meta.return_value = ([], 0)
 
     view = _helper_instance()
     pending = [
         {
             "command_uuid": "uuid-1",
             "command_type": "medication_statement",
-            # Client attempts to set a divergent note_uuid:
+            # Client attempts to smuggle a divergent note_uuid:
             "note_uuid": "smuggled-other-note",
             "metadata": {"alert_facility": "Yes"},
         },
@@ -1224,44 +1213,33 @@ def test_insert_metadata_overwrites_pending_note_uuid_with_authorized(
     view.request = SimpleNamespace(body=json.dumps({"note_uuid": "authorized-note", "pending": pending}))
     view.post_insert_metadata()
 
-    forwarded = mock_meta.call_args[0][0]
-    assert len(forwarded) == 1
-    # The smuggled note_uuid was overwritten with the authorized one.
-    assert forwarded[0]["note_uuid"] == "authorized-note"
+    forwarded_pending, forwarded_note_uuid = mock_meta.call_args[0]
+    assert forwarded_note_uuid == "authorized-note"
+    # The pending dicts are passed through as-is — build_metadata_effects
+    # internally uses the AUTHORIZED note_uuid (the second arg), not the
+    # client-supplied per-item one.
+    assert forwarded_pending[0]["command_uuid"] == "uuid-1"
 
 
-@patch("canvas_sdk.v1.data.command.Command")
 @patch("hyperscribe.scribe.api.session_view.build_metadata_effects")
-def test_insert_metadata_rejects_foreign_command_uuid(
-    mock_meta: MagicMock, mock_command_cls: MagicMock
-) -> None:
-    """A pending item carrying a command_uuid belonging to a different note
-    must be dropped before reaching build_metadata_effects, even when the
-    requester is authorized on the top-level note_uuid. Mirrors the
-    `note__id=note_uuid` scoping that /verify-commands uses."""
-    # The filter returns no authorized UUIDs — the supplied command_uuid does
-    # NOT belong to the authorized note.
-    mock_command_cls.objects.filter.return_value.values_list.return_value = []
+def test_insert_metadata_records_rejected_count_in_audit(mock_meta: MagicMock) -> None:
+    """rejected_count from build_metadata_effects must surface in the audit
+    event so operators can distinguish "everything went through" from "some
+    items were dropped due to visibility race or foreign uuid"."""
+    mock_meta.return_value = ([], 1)  # 1 item rejected
 
     view = _helper_instance()
     pending = [
-        {
-            "command_uuid": "uuid-foreign",
-            "command_type": "medication_statement",
-            "note_uuid": "some-other-note",
-            "metadata": {"alert_facility": "Yes"},
-        },
+        {"command_uuid": "uuid-1", "command_type": "medication_statement", "metadata": {"alert_facility": "Yes"}},
     ]
-    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "authorized-note", "pending": pending}))
-    result = view.post_insert_metadata()
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid", "pending": pending}))
+    with patch("hyperscribe.scribe.api.session_view.audit_event") as mock_audit:
+        view.post_insert_metadata()
 
-    assert result[0].status_code == HTTPStatus.OK
-    # The pending list passed to build_metadata_effects must be empty —
-    # the foreign uuid was filtered out.
-    mock_meta.assert_called_once_with([])
-    mock_command_cls.objects.filter.assert_called_once_with(
-        id__in=["uuid-foreign"], note__id="authorized-note"
-    )
+    # Last audit_event call records the result with rejected_count.
+    last_call = mock_audit.call_args_list[-1]
+    assert last_call.args[1] == "INSERT_METADATA_RESULT"
+    assert last_call.args[2]["rejected_count"] == 1
 
 
 def test_insert_metadata_empty_pending() -> None:
@@ -1359,6 +1337,46 @@ def test_verify_commands_invalid_json() -> None:
     view.request = SimpleNamespace(body="not-json")
     result = view.post_verify_commands()
     assert result[0].status_code == HTTPStatus.BAD_REQUEST
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_verify_commands_tolerates_non_uuid_command_uuid(
+    mock_command_cls: MagicMock, _audit: MagicMock,
+) -> None:
+    """A non-UUID `command_uuid` (e.g. "oops", "12345", "../etc/passwd") would
+    otherwise crash Django's UUIDField coercion inside the bulk Command.objects
+    .filter(id__in=...) call. The endpoint must filter to syntactically-valid
+    UUIDs before that bulk filter so a single malformed entry doesn't 500 the
+    whole batch."""
+    mock_command_cls.objects.filter.return_value.values.return_value = [
+        {"id": "d6a96b19-a087-458a-9619-b46537a8c121", "anchor_object_type": "M", "anchor_object_dbid": 1},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-key-abc"},
+        body=json.dumps({
+            "note_uuid": "note-uuid",
+            "attempted": [
+                {"command_uuid": "not-a-real-uuid", "command_type": "x", "display": "bad"},
+                {"command_uuid": "12345", "command_type": "x", "display": "also bad"},
+                {"command_uuid": "d6a96b19-a087-458a-9619-b46537a8c121", "command_type": "medication_statement", "display": "ok"},
+            ],
+        }),
+    )
+    with patch("hyperscribe.scribe.api.session_view._authorize_read_as_author", return_value=None):
+        result = view.post_verify_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    payload = json.loads(result[0].content)
+    # Bulk filter was called with ONLY the valid UUID — the malformed ones
+    # were filtered out before reaching Django's coercion.
+    filter_kwargs = mock_command_cls.objects.filter.call_args.kwargs
+    assert filter_kwargs["id__in"] == ["d6a96b19-a087-458a-9619-b46537a8c121"]
+    # The valid one verifies; the two malformed ones fall through as "not_found".
+    assert [v["command_uuid"] for v in payload["verified"]] == ["d6a96b19-a087-458a-9619-b46537a8c121"]
+    failed_uuids = {f["command_uuid"]: f["reason"] for f in payload["failed"]}
+    assert failed_uuids == {"not-a-real-uuid": "not_found", "12345": "not_found"}
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")

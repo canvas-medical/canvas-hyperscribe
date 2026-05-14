@@ -1069,26 +1069,49 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }]);
   }, [canEdit]);
 
+  // True when the only diff between two `data` dicts is the `alert_facility`
+  // flag. Used to detect "view-mode facility checkbox toggle" so we DON'T
+  // auto-accept an unreviewed recommendation just because the provider
+  // pre-staged its facility-alert flag — the two intents are independent.
+  const isAlertFacilityOnlyDiff = (oldData, newData) => {
+    const oldKeys = new Set(Object.keys(oldData || {}));
+    const newKeys = new Set(Object.keys(newData || {}));
+    const allKeys = new Set([...oldKeys, ...newKeys]);
+    let alertChanged = false;
+    for (const k of allKeys) {
+      if ((oldData || {})[k] !== (newData || {})[k]) {
+        if (k !== 'alert_facility') return false;
+        alertChanged = true;
+      }
+    }
+    return alertChanged;
+  };
+
   const handleEditRecommendation = useCallback((index, newData, newType) => {
     if (!canEdit) return;
     logEvent('EDIT_REC', { index, commandType: newType, data: newData });
     setRecommendations(prev => prev.map((cmd, i) => {
       if (i !== index) return cmd;
       const type = newType || cmd.command_type;
+      // Preserve the existing accepted state when the diff only touches
+      // alert_facility — clicking the view-mode facility checkbox should
+      // never silently auto-accept an unreviewed recommendation.
+      const onlyAlertChanged = !newType && isAlertFacilityOnlyDiff(cmd.data, newData);
+      const acceptedValue = onlyAlertChanged ? cmd.accepted : true;
       if (type === 'medication_statement') {
-        return { ...cmd, data: newData, display: newData.medication_text || '', accepted: true };
+        return { ...cmd, data: newData, display: newData.medication_text || '', accepted: acceptedValue };
       }
       if (type === 'allergy') {
-        return { ...cmd, data: newData, display: newData.allergy_text || '', accepted: true };
+        return { ...cmd, data: newData, display: newData.allergy_text || '', accepted: acceptedValue };
       }
       if (type === 'prescribe' || type === 'refill' || type === 'adjust_prescription') {
-        return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '', accepted: true };
+        return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '', accepted: acceptedValue };
       }
       if (type === 'refer') {
         const parts = [newData.refer_to_display, newData.clinical_question, newData.priority].filter(Boolean);
-        return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral', accepted: true };
+        return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral', accepted: acceptedValue };
       }
-      return { ...cmd, data: newData, accepted: true };
+      return { ...cmd, data: newData, accepted: acceptedValue };
     }));
   }, [canEdit]);
 

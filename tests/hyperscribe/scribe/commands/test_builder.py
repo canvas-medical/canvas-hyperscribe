@@ -223,15 +223,19 @@ def test_build_effects_medication_alert_facility_flag_off_no_metadata() -> None:
     assert metadata_pending == []
 
 
+_AUTHORIZED_NOTE = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+
+
 def test_build_metadata_effects() -> None:
-    """Phase 2 builds upsert_metadata effects from pending items."""
+    """Phase 2 builds upsert_metadata effects when the command exists on the
+    authorized note."""
     from hyperscribe.scribe.commands.builder import _BUILDERS
 
     pending: list[dict[str, Any]] = [
         {
             "command_uuid": "d6a96b19-a087-458a-9619-b46537a8c121",
             "command_type": "medication_statement",
-            "note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            "note_uuid": _AUTHORIZED_NOTE,
             "metadata": {"alert_facility": "Yes"},
         },
     ]
@@ -239,25 +243,35 @@ def test_build_metadata_effects() -> None:
     stub.upsert_metadata.return_value = "upsert_effect"
     with (
         patch("hyperscribe.scribe.commands.builder.Command") as mock_command,
-        patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub),
+        patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub) as mock_stub,
     ):
         mock_command.objects.filter.return_value.exists.return_value = True
-        effects = build_metadata_effects(pending)
+        effects, rejected = build_metadata_effects(pending, _AUTHORIZED_NOTE)
 
-    assert len(effects) == 1
-    assert effects[0] == "upsert_effect"
+    assert effects == ["upsert_effect"]
+    assert rejected == 0
     stub.upsert_metadata.assert_called_once_with("alert_facility", "Yes")
+    # The per-item visibility check is scoped to BOTH id AND the authorized
+    # note_uuid — this is what makes the same retry serve both the race-
+    # tolerance concern and the per-item authz concern.
+    mock_command.objects.filter.assert_called_with(
+        id="d6a96b19-a087-458a-9619-b46537a8c121", note__id=_AUTHORIZED_NOTE
+    )
+    # build_stub gets the AUTHORIZED note_uuid, not the item's — defense-in-depth.
+    mock_stub.assert_called_once_with("d6a96b19-a087-458a-9619-b46537a8c121", _AUTHORIZED_NOTE)
 
 
 def test_build_metadata_effects_skips_when_command_not_visible() -> None:
-    """If the command never shows up in the DB, the upsert is skipped (not raised)."""
+    """If the command never shows up in the DB, the upsert is skipped (not raised).
+    This is the route that legitimate phase-1-race-delayed commands take when
+    Canvas is slow to apply the commit effects."""
     from hyperscribe.scribe.commands.builder import _BUILDERS
 
     pending: list[dict[str, Any]] = [
         {
             "command_uuid": "d6a96b19-a087-458a-9619-b46537a8c121",
             "command_type": "medication_statement",
-            "note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            "note_uuid": _AUTHORIZED_NOTE,
             "metadata": {"alert_facility": "Yes"},
         },
     ]
@@ -268,10 +282,111 @@ def test_build_metadata_effects_skips_when_command_not_visible() -> None:
         patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub),
     ):
         mock_command.objects.filter.return_value.exists.return_value = False
-        effects = build_metadata_effects(pending)
+        effects, rejected = build_metadata_effects(pending, _AUTHORIZED_NOTE)
 
     assert effects == []
+    assert rejected == 1
     stub.upsert_metadata.assert_not_called()
+
+
+def test_build_metadata_effects_retries_through_phase1_race() -> None:
+    """The visibility wait retries until the command appears. A legitimate
+    command delayed by Canvas's async phase-1 application must NOT be silently
+    dropped — it should retry and succeed.
+
+    Regression guard for the round-7 silent-data-loss bug where the API-layer
+    authz filter ran a synchronous one-shot query with no retry, collapsing
+    `pending` to [] on every race and silently losing alert_facility writes.
+    """
+    from hyperscribe.scribe.commands.builder import _BUILDERS
+
+    pending: list[dict[str, Any]] = [
+        {
+            "command_uuid": "d6a96b19-a087-458a-9619-b46537a8c121",
+            "command_type": "medication_statement",
+            "note_uuid": _AUTHORIZED_NOTE,
+            "metadata": {"alert_facility": "Yes"},
+        },
+    ]
+    stub = MagicMock()
+    stub.upsert_metadata.return_value = "upsert_effect"
+    with (
+        patch("hyperscribe.scribe.commands.builder.Command") as mock_command,
+        patch("hyperscribe.scribe.commands.builder.time.sleep"),
+        patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub),
+    ):
+        # First check returns False (race — Canvas hasn't applied phase-1 yet),
+        # second check returns True (Canvas caught up). Item should still be
+        # accepted, not silently dropped.
+        mock_command.objects.filter.return_value.exists.side_effect = [False, True]
+        effects, rejected = build_metadata_effects(pending, _AUTHORIZED_NOTE)
+
+    assert effects == ["upsert_effect"]
+    assert rejected == 0
+
+
+def test_build_metadata_effects_rejects_foreign_command_uuid() -> None:
+    """Per-item authz: a command_uuid that doesn't belong to the authorized
+    note (e.g. a malicious client supplying a foreign uuid) never satisfies
+    the scoped visibility filter and is rejected after the retry cap."""
+    from hyperscribe.scribe.commands.builder import _BUILDERS
+
+    pending: list[dict[str, Any]] = [
+        {
+            "command_uuid": "00000000-0000-0000-0000-00000000foreign".replace("foreign", "fffffff"),
+            "command_type": "medication_statement",
+            "note_uuid": "smuggled-other-note",  # client-supplied; must be ignored
+            "metadata": {"alert_facility": "Yes"},
+        },
+    ]
+    stub = MagicMock()
+    with (
+        patch("hyperscribe.scribe.commands.builder.Command") as mock_command,
+        patch("hyperscribe.scribe.commands.builder.time.sleep"),
+        patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub),
+    ):
+        # The scoped filter (id AND note__id) NEVER returns True because the
+        # uuid doesn't belong to the authorized note.
+        mock_command.objects.filter.return_value.exists.return_value = False
+        effects, rejected = build_metadata_effects(pending, _AUTHORIZED_NOTE)
+
+    assert effects == []
+    assert rejected == 1
+    # Confirm the scoped filter was queried with the AUTHORIZED note_uuid,
+    # not the smuggled one — that's what makes this a real security check.
+    filter_call = mock_command.objects.filter.call_args
+    assert filter_call.kwargs["note__id"] == _AUTHORIZED_NOTE
+
+
+def test_build_metadata_effects_tolerates_malformed_uuid() -> None:
+    """A non-UUID command_uuid string (from a direct API caller) must not
+    crash — the broad exception handler in _wait_for_command_in_note treats
+    Django's ValidationError as 'not visible' and the retry cap drops it."""
+    from django.core.exceptions import ValidationError
+
+    from hyperscribe.scribe.commands.builder import _BUILDERS
+
+    pending: list[dict[str, Any]] = [
+        {
+            "command_uuid": "not-a-real-uuid",
+            "command_type": "medication_statement",
+            "note_uuid": _AUTHORIZED_NOTE,
+            "metadata": {"alert_facility": "Yes"},
+        },
+    ]
+    stub = MagicMock()
+    with (
+        patch("hyperscribe.scribe.commands.builder.Command") as mock_command,
+        patch("hyperscribe.scribe.commands.builder.time.sleep"),
+        patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub),
+    ):
+        mock_command.objects.filter.return_value.exists.side_effect = ValidationError(
+            "“not-a-real-uuid” is not a valid UUID."
+        )
+        effects, rejected = build_metadata_effects(pending, _AUTHORIZED_NOTE)
+
+    assert effects == []
+    assert rejected == 1
 
 
 def test_build_metadata_effects_swallows_upsert_errors() -> None:
@@ -282,7 +397,7 @@ def test_build_metadata_effects_swallows_upsert_errors() -> None:
         {
             "command_uuid": "d6a96b19-a087-458a-9619-b46537a8c121",
             "command_type": "medication_statement",
-            "note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            "note_uuid": _AUTHORIZED_NOTE,
             "metadata": {"alert_facility": "Yes"},
         },
     ]
@@ -293,15 +408,17 @@ def test_build_metadata_effects_swallows_upsert_errors() -> None:
         patch.object(_BUILDERS["medication_statement"], "build_stub", return_value=stub),
     ):
         mock_command.objects.filter.return_value.exists.return_value = True
-        effects = build_metadata_effects(pending)
+        effects, rejected = build_metadata_effects(pending, _AUTHORIZED_NOTE)
 
     assert effects == []
+    assert rejected == 1
 
 
 def test_build_metadata_effects_empty() -> None:
-    """Empty pending list returns no effects."""
-    effects = build_metadata_effects([])
+    """Empty pending list returns no effects and zero rejections."""
+    effects, rejected = build_metadata_effects([], _AUTHORIZED_NOTE)
     assert effects == []
+    assert rejected == 0
 
 
 def test_build_metadata_effects_unknown_type() -> None:
@@ -310,12 +427,13 @@ def test_build_metadata_effects_unknown_type() -> None:
         {
             "command_uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
             "command_type": "nonexistent_type",
-            "note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            "note_uuid": _AUTHORIZED_NOTE,
             "metadata": {"key": "val"},
         },
     ]
-    effects = build_metadata_effects(pending)
+    effects, rejected = build_metadata_effects(pending, _AUTHORIZED_NOTE)
     assert effects == []
+    assert rejected == 1
 
 
 def test_validate_proposals_all_valid() -> None:
