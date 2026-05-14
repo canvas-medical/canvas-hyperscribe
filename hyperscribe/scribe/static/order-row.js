@@ -1267,7 +1267,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   </div>
                   <div class="history-form-field">
                     <label class="history-form-label">Days supply</label>
-                    <input class="history-form-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" placeholder="—" />
+                    <input class="history-form-input" type="number" value=${daysSupply} onInput=${(e) => setDaysSupply(e.target.value)} min="0" step="1" placeholder="—" />
                   </div>
                   <div class="history-form-field">
                     <label class="history-form-label${rxMissing.has('refills') ? ' field-missing' : ''}">Refills *</label>
@@ -1732,6 +1732,12 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     if (refillsNum == null || Number.isNaN(refillsNum) || !Number.isInteger(refillsNum)
                         || refillsNum < REFILLS_MIN || refillsNum > REFILLS_MAX) {
                       return true;
+                    }
+                    // Days supply: optional, but if present must be a
+                    // non-negative integer (mirrors _validate_days_supply).
+                    if (daysSupply !== '' && daysSupply != null) {
+                      const daysNum = Number(daysSupply);
+                      if (!Number.isFinite(daysNum) || !Number.isInteger(daysNum) || daysNum < 0) return true;
                     }
                     // substitutions is a boolean toggle in the UI (true -> "allowed"),
                     // so it can't be missing — no extra check needed here.

@@ -44,6 +44,12 @@ const isRxIncomplete = (d) => {
   if (d.refills == null || d.refills === '') return true;
   const refills = Number(d.refills);
   if (!Number.isInteger(refills) || refills < RX_REFILLS_MIN || refills > RX_REFILLS_MAX) return true;
+  // Days supply: optional, but if present must be a non-negative integer
+  // (mirrors _validate_days_supply: rejects fractional floats and negatives).
+  if (d.days_supply != null && d.days_supply !== '') {
+    const days = Number(d.days_supply);
+    if (!Number.isFinite(days) || !Number.isInteger(days) || days < 0) return true;
+  }
   // Substitutions: enum value required.
   if (d.substitutions !== 'allowed' && d.substitutions !== 'not_allowed') return true;
   // Sig: length + Surescripts ASCII charset.
@@ -1445,18 +1451,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         setCommands(prev => prev.map((cmd, i) => i === index ? { ...cmd, _adding: flag } : cmd));
       }
     };
-    // Client-side gate: don't ship incomplete Rx commands to the server.
-    // The server still validates (validate_rx_payload), but failing fast
-    // here gives instant feedback and keeps the audit log clean of avoidable
-    // VALIDATION_FAILED events. The same predicate guards the Approve filter
-    // and the Save button so the three paths stay in sync.
-    if (isRxCommand(command) && isRxIncomplete(command.data)) {
-      logEvent('ADD_NOW_BLOCKED', { commandType: command.command_type, reason: 'rx_incomplete', index });
+    // Client-side gate: don't ship incomplete commands to the server. The
+    // server still validates, but failing fast gives instant feedback and
+    // keeps the audit log clean of avoidable VALIDATION_FAILED events. Use
+    // the same getAcceptedRecFailureReason helper as the Approve filter so
+    // Rx and refer gates stay in sync across all three submit paths.
+    const _addNowReason = getAcceptedRecFailureReason(command);
+    if (_addNowReason) {
+      logEvent('ADD_NOW_BLOCKED', { commandType: command.command_type, reason: _addNowReason, index });
       setValidationError([
         {
           command_type: command.command_type,
           display: (command.display || '').slice(0, 80),
-          errors: ['Fill in medication, sig, quantity, dispense type, refills, and substitutions before adding this prescription.'],
+          errors: [_validationErrorMessage(command, _addNowReason)],
         },
       ]);
       return;
@@ -1472,10 +1479,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       const data = await res.json();
       if (data.error) {
         setAdding(false);
-        // Surface server-side validation errors (e.g. medication not active
-        // on patient) so the user can see exactly what went wrong instead of
-        // the previous silent-fail behavior.
-        if (data.validation_errors) setValidationError(data.validation_errors);
+        // Mirror handleInsert's branching so non-validation server errors
+        // (auth 403, "Invalid JSON", etc.) surface as a banner instead of
+        // silently leaving the spinner stopped with no user feedback.
+        if (data.validation_errors) {
+          setValidationError(data.validation_errors);
+        } else {
+          setError(data.error);
+        }
         logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index, error: data.error, validation_errors: data.validation_errors });
         return;
       }
