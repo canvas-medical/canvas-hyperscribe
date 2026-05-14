@@ -93,6 +93,14 @@ def test_quantity_to_dispense_rejects_garbage() -> None:
     assert any("must be a number" in e for e in errors)
 
 
+def test_quantity_to_dispense_rejects_nan() -> None:
+    """``Decimal('nan')`` parses cleanly but comparisons raise InvalidOperation
+    — guard or this returns HTTP 500 instead of the structured 400."""
+    for nan_input in ("nan", "NaN", "-nan"):
+        errors = validate_rx_payload(_good_payload(quantity_to_dispense=nan_input))
+        assert any("must be a number" in e for e in errors), (nan_input, errors)
+
+
 def test_type_to_dispense_required() -> None:
     errors = validate_rx_payload(_good_payload(type_to_dispense=None))
     assert "Dispense type is required" in errors

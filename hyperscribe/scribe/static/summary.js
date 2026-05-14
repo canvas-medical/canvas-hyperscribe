@@ -11,19 +11,42 @@ const html = htm.bind(h);
 
 // Mirrors hyperscribe/scribe/commands/_rx_validation.py and the canvas-core
 // Prescribe schema. Prescribe / Refill / Adjust Prescription all funnel
-// through the same schema during REVIEW, and any missing required field
+// through the same schema during REVIEW, and any missing or invalid field
 // causes the transaction to roll back even though /insert-commands has
 // already returned 200. Keep this predicate aligned with the server-side
-// validate_rx_payload function — they MUST agree on the required-field set.
+// validate_rx_payload function — they MUST agree on both presence AND value.
 const RX_COMMAND_TYPES = new Set(['prescribe', 'refill', 'adjust_prescription']);
-const isRxIncomplete = (d) =>
-  !d
-  || !d.fdb_code
-  || !d.sig
-  || d.quantity_to_dispense == null || d.quantity_to_dispense === ''
-  || !d.type_to_dispense
-  || d.refills == null || d.refills === ''
-  || (d.substitutions !== 'allowed' && d.substitutions !== 'not_allowed');
+const RX_SIG_MAX_LENGTH = 1000;
+const RX_NOTE_TO_PHARMACIST_MAX_LENGTH = 210;
+const RX_REFILLS_MIN = 0;
+const RX_REFILLS_MAX = 99;
+// Mirrors _RE_INVALID_CHARACTERS in _rx_validation.py: Surescripts only allows
+// printable ASCII space..tilde for sig / note_to_pharmacist.
+const RX_NON_ASCII_RE = /[^\x20-\x7E]/;
+const _isBlankString = (v) => typeof v === 'string' && v.trim() === '';
+const isRxIncomplete = (d) => {
+  if (!d) return true;
+  // Required strings (reject null / empty / whitespace-only).
+  if (!d.fdb_code || _isBlankString(d.fdb_code)) return true;
+  if (!d.sig || _isBlankString(d.sig)) return true;
+  if (!d.type_to_dispense) return true;
+  // Quantity: present, parseable, > 0.
+  if (d.quantity_to_dispense == null || d.quantity_to_dispense === '') return true;
+  const qty = Number(d.quantity_to_dispense);
+  if (!Number.isFinite(qty) || qty <= 0) return true;
+  // Refills: present, integer in [REFILLS_MIN, REFILLS_MAX].
+  if (d.refills == null || d.refills === '') return true;
+  const refills = Number(d.refills);
+  if (!Number.isInteger(refills) || refills < RX_REFILLS_MIN || refills > RX_REFILLS_MAX) return true;
+  // Substitutions: enum value required.
+  if (d.substitutions !== 'allowed' && d.substitutions !== 'not_allowed') return true;
+  // Sig: length + Surescripts ASCII charset.
+  if (typeof d.sig === 'string' && (d.sig.length > RX_SIG_MAX_LENGTH || RX_NON_ASCII_RE.test(d.sig))) return true;
+  // Note to pharmacist: optional, but if present must satisfy length + charset.
+  if (typeof d.note_to_pharmacist === 'string' && d.note_to_pharmacist !== ''
+      && (d.note_to_pharmacist.length > RX_NOTE_TO_PHARMACIST_MAX_LENGTH || RX_NON_ASCII_RE.test(d.note_to_pharmacist))) return true;
+  return false;
+};
 const isRxCommand = (cmd) => RX_COMMAND_TYPES.has(cmd?.command_type);
 
 function formatTime(ms) {
@@ -1182,7 +1205,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         reason: !c.display ? 'empty_display' : c.selected === false ? 'deselected' : 'validation',
       })) });
     }
-    const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
+    // Same Rx gate as the insertable filter above — an LLM-generated rec
+    // accepted via the Accept button never opens the OrderRow editor, so
+    // without this check incomplete/invalid Rx payloads slip into the batch
+    // and the server's validate_rx_payload rejects the entire submission.
+    const acceptedRecs = recommendations.filter(
+      c => c.accepted && !c.already_documented && c.display
+           && !(isRxCommand(c) && isRxIncomplete(c.data)),
+    );
     let allInsertable = [...insertable, ...acceptedRecs]
       .map(({ _template_inserted, ...c }) => c); // Strip internal marker.
 
