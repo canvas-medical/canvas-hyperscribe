@@ -1265,20 +1265,26 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         # Mirror the `note__id=note_uuid` scoping that /verify-commands uses
         # in this same file.
         pending = [p for p in pending if isinstance(p, dict)]
+        original_count = len(pending)
         candidate_uuids = [str(p.get("command_uuid", "")) for p in pending if p.get("command_uuid")]
-        authorized_uuids = set(
-            str(u)
-            for u in Command.objects.filter(
-                id__in=candidate_uuids,
-                note__id=note_uuid,
-            ).values_list("id", flat=True)
-        )
-        rejected_count = len(pending) - len([p for p in pending if str(p.get("command_uuid", "")) in authorized_uuids])
-        pending = [p for p in pending if str(p.get("command_uuid", "")) in authorized_uuids]
-        # Force each item's note_uuid to the authorized one so downstream
-        # build_stub uses a trusted value.
-        for p in pending:
-            p["note_uuid"] = note_uuid
+        authorized_uuids: set[str] = set()
+        if candidate_uuids:
+            authorized_uuids = {
+                str(u)
+                for u in Command.objects.filter(
+                    id__in=candidate_uuids,
+                    note__id=note_uuid,
+                ).values_list("id", flat=True)
+            }
+        # Single-pass filter + note_uuid overwrite. Building new dicts (rather
+        # than mutating in place) keeps the loaded JSON unmodified for any
+        # subsequent reader and makes the trusted-value contract obvious.
+        pending = [
+            {**p, "note_uuid": note_uuid}
+            for p in pending
+            if str(p.get("command_uuid", "")) in authorized_uuids
+        ]
+        rejected_count = original_count - len(pending)
 
         audit_event(
             note_uuid,

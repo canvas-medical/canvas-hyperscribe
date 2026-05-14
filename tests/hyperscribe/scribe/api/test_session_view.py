@@ -1185,11 +1185,49 @@ def test_insert_metadata_success(mock_meta: MagicMock, mock_command_cls: MagicMo
     assert data["ok"] is True
     assert data["metadata_count"] == 1
     assert len(result) == 2
-    mock_meta.assert_called_once_with(pending)
+    # Assert on structural shape of what reached build_metadata_effects, not
+    # identity equality with the input list — the handler rebuilds each item
+    # with a trusted note_uuid, so identity comparison can pass coincidentally.
+    forwarded = mock_meta.call_args[0][0]
+    assert len(forwarded) == 1
+    assert forwarded[0]["command_uuid"] == "uuid-1"
+    assert forwarded[0]["command_type"] == "medication_statement"
+    assert forwarded[0]["note_uuid"] == "note-uuid"  # note_uuid is the authorized one
+    assert forwarded[0]["metadata"] == {"alert_facility": "true"}
     # Note scoping was applied: query restricts to authorized note_uuid.
     mock_command_cls.objects.filter.assert_called_once_with(
         id__in=["uuid-1"], note__id="note-uuid"
     )
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+@patch("hyperscribe.scribe.api.session_view.build_metadata_effects")
+def test_insert_metadata_overwrites_pending_note_uuid_with_authorized(
+    mock_meta: MagicMock, mock_command_cls: MagicMock
+) -> None:
+    """Even when a pending item's command_uuid IS authorized for the top-level
+    note, its own `note_uuid` field is forced to match the authorized one —
+    so a malicious client cannot smuggle a different note_uuid into the
+    downstream build_stub call. Defense-in-depth on the authz invariant."""
+    mock_command_cls.objects.filter.return_value.values_list.return_value = ["uuid-1"]
+
+    view = _helper_instance()
+    pending = [
+        {
+            "command_uuid": "uuid-1",
+            "command_type": "medication_statement",
+            # Client attempts to set a divergent note_uuid:
+            "note_uuid": "smuggled-other-note",
+            "metadata": {"alert_facility": "Yes"},
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "authorized-note", "pending": pending}))
+    view.post_insert_metadata()
+
+    forwarded = mock_meta.call_args[0][0]
+    assert len(forwarded) == 1
+    # The smuggled note_uuid was overwritten with the authorized one.
+    assert forwarded[0]["note_uuid"] == "authorized-note"
 
 
 @patch("canvas_sdk.v1.data.command.Command")
