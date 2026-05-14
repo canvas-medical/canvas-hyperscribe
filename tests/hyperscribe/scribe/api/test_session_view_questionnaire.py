@@ -98,19 +98,24 @@ def test_questionnaire_details_not_found(mock_model: MagicMock) -> None:
 
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
-def test_questionnaire_details_success(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
+def test_questionnaire_details_success_scored(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
     questionnaire = MagicMock()
     questionnaire.dbid = 42
     questionnaire.id = "ext-uuid"
     questionnaire.name = "PHQ-9"
+    questionnaire.scoring_function_name = "phq9_score"
     mock_model.objects.get.return_value = questionnaire
 
     option_a = MagicMock()
     option_a.dbid = 10
     option_a.name = "Not at all"
+    option_a.code = "LA6568-5"
+    option_a.value = "0"
     option_b = MagicMock()
     option_b.dbid = 11
     option_b.name = "Several days"
+    option_b.code = "LA6569-3"
+    option_b.value = "1"
 
     question = MagicMock()
     question.id = "1"
@@ -130,14 +135,68 @@ def test_questionnaire_details_success(mock_model: MagicMock, mock_cmd_class: Ma
             {
                 "questionnaire_dbid": 42,
                 "questionnaire_name": "PHQ-9",
+                "is_scored": True,
+                "scoring_function_name": "phq9_score",
                 "questions": [
                     {
                         "dbid": 1,
                         "label": "Little interest or pleasure in doing things?",
                         "type": ResponseOption.TYPE_RADIO,
                         "options": [
-                            {"dbid": 10, "value": "Not at all"},
-                            {"dbid": 11, "value": "Several days"},
+                            {"dbid": 10, "value": "Not at all", "code": "LA6568-5", "score_value": "0"},
+                            {"dbid": 11, "value": "Several days", "code": "LA6569-3", "score_value": "1"},
+                        ],
+                    }
+                ],
+            },
+            status_code=HTTPStatus.OK,
+        )
+    ]
+
+
+@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
+def test_questionnaire_details_success_unscored(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
+    questionnaire = MagicMock()
+    questionnaire.dbid = 7
+    questionnaire.id = "ext-uuid"
+    questionnaire.name = "Intake"
+    questionnaire.scoring_function_name = ""
+    mock_model.objects.get.return_value = questionnaire
+
+    option = MagicMock()
+    option.dbid = 20
+    option.name = "Yes"
+    option.code = ""
+    option.value = ""
+
+    question = MagicMock()
+    question.id = "1"
+    question.label = "Do you smoke?"
+    question.type = ResponseOption.TYPE_RADIO
+    question.options = [option]
+
+    cmd_instance = MagicMock()
+    cmd_instance.questions = [question]
+    mock_cmd_class.return_value = cmd_instance
+
+    view = _helper_instance()
+    view.request.query_params = {"dbid": "7"}
+    result = view.get_questionnaire_details()
+    assert result == [
+        JSONResponse(
+            {
+                "questionnaire_dbid": 7,
+                "questionnaire_name": "Intake",
+                "is_scored": False,
+                "scoring_function_name": "",
+                "questions": [
+                    {
+                        "dbid": 1,
+                        "label": "Do you smoke?",
+                        "type": ResponseOption.TYPE_RADIO,
+                        "options": [
+                            {"dbid": 20, "value": "Yes", "code": "", "score_value": ""},
                         ],
                     }
                 ],

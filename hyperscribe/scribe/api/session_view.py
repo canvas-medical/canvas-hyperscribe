@@ -342,9 +342,24 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
         cmd = QuestionnaireCommand(questionnaire_id=str(q_obj.id), note_uuid="", command_uuid="")
         questions: list[dict[str, Any]] = []
         for q in cmd.questions:
-            options = [{"dbid": o.dbid, "value": o.name} for o in q.options]
+            options = [
+                {
+                    "dbid": o.dbid,
+                    "value": o.name,
+                    "code": getattr(o, "code", "") or "",
+                    "score_value": getattr(o, "value", "") or "",
+                }
+                for o in q.options
+            ]
             questions.append({"dbid": int(q.id), "label": q.label, "type": q.type, "options": options})
-        return {"questionnaire_dbid": q_obj.dbid, "questionnaire_name": q_obj.name, "questions": questions}
+        scoring_function_name = getattr(q_obj, "scoring_function_name", "") or ""
+        return {
+            "questionnaire_dbid": q_obj.dbid,
+            "questionnaire_name": q_obj.name,
+            "is_scored": bool(scoring_function_name),
+            "scoring_function_name": scoring_function_name,
+            "questions": questions,
+        }
 
     result_templates: list[dict[str, Any]] = []
     for tmpl in templates_config:
@@ -1816,7 +1831,15 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         )
         questions = []
         for q in cmd.questions:
-            options = [{"dbid": o.dbid, "value": o.name} for o in q.options]
+            options = [
+                {
+                    "dbid": o.dbid,
+                    "value": o.name,
+                    "code": getattr(o, "code", "") or "",
+                    "score_value": getattr(o, "value", "") or "",
+                }
+                for o in q.options
+            ]
             questions.append(
                 {
                     "dbid": int(q.id),
@@ -1825,11 +1848,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     "options": options,
                 }
             )
+        scoring_function_name = getattr(questionnaire, "scoring_function_name", "") or ""
         return [
             JSONResponse(
                 {
                     "questionnaire_dbid": questionnaire.dbid,
                     "questionnaire_name": questionnaire.name,
+                    "is_scored": bool(scoring_function_name),
+                    "scoring_function_name": scoring_function_name,
                     "questions": questions,
                 },
                 status_code=HTTPStatus.OK,

@@ -6,6 +6,7 @@ const html = htm.bind(h);
 
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+const ICON_CHEVRON = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -93,7 +94,13 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
   const [loading, setLoading] = useState(false);
   const [questionnaire, setQuestionnaire] = useState(
     command.data.questionnaire_dbid
-      ? { dbid: command.data.questionnaire_dbid, name: command.data.questionnaire_name, questions: command.data.questions || [] }
+      ? {
+          dbid: command.data.questionnaire_dbid,
+          name: command.data.questionnaire_name,
+          is_scored: !!command.data.is_scored,
+          scoring_function_name: command.data.scoring_function_name || '',
+          questions: command.data.questions || [],
+        }
       : null
   );
 
@@ -113,11 +120,19 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
         responses: q.options.map(o => ({
           dbid: o.dbid,
           value: (q.type === TYPE_TEXT || q.type === TYPE_INTEGER) ? '' : o.value,
+          code: o.code || '',
+          score_value: o.score_value || '',
           selected: false,
           comment: null,
         })),
       }));
-      setQuestionnaire({ dbid: json.questionnaire_dbid, name: json.questionnaire_name, questions });
+      setQuestionnaire({
+        dbid: json.questionnaire_dbid,
+        name: json.questionnaire_name,
+        is_scored: !!json.is_scored,
+        scoring_function_name: json.scoring_function_name || '',
+        questions,
+      });
     } catch (err) {
       console.error('Failed to load questionnaire details:', err);
     } finally {
@@ -158,6 +173,8 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
     onEdit(commandIndex, {
       questionnaire_dbid: questionnaire.dbid,
       questionnaire_name: questionnaire.name,
+      is_scored: !!questionnaire.is_scored,
+      scoring_function_name: questionnaire.scoring_function_name || '',
       questions: questionnaire.questions,
     }, 'questionnaire');
   };
@@ -182,22 +199,24 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
           ${q.type === TYPE_RADIO && html`
             <div class="questionnaire-options">
               ${q.responses.map((r, rIdx) => html`
-                <label class="questionnaire-option" key=${r.dbid}>
-                  <input
-                    type="radio"
-                    name=${'q-' + commandIndex + '-' + q.dbid}
-                    checked=${r.selected}
-                    onChange=${() => handleResponseChange(qIdx, rIdx, 'selected', true)}
-                  />
-                  <span>${r.value}</span>
-                </label>
+                <div class="questionnaire-option-wrap" key=${r.dbid}>
+                  <label class="questionnaire-option">
+                    <input
+                      type="radio"
+                      name=${'q-' + commandIndex + '-' + q.dbid}
+                      checked=${r.selected}
+                      onChange=${() => handleResponseChange(qIdx, rIdx, 'selected', true)}
+                    />
+                    <span>${r.value}</span>
+                  </label>
+                </div>
               `)}
             </div>
           `}
           ${q.type === TYPE_CHECKBOX && html`
             <div class="questionnaire-options">
               ${q.responses.map((r, rIdx) => html`
-                <div key=${r.dbid}>
+                <div class="questionnaire-option-wrap" key=${r.dbid}>
                   <label class="questionnaire-option">
                     <input
                       type="checkbox"
@@ -250,6 +269,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
 
 function countAnswered(questions) {
   return questions.filter(q => {
+    if (q.skipped === true) return true;
     if (q.type === TYPE_TEXT || q.type === TYPE_INTEGER) {
       const val = (q.responses[0] || {}).value;
       return val !== '' && val !== null && val !== undefined;
@@ -258,9 +278,76 @@ function countAnswered(questions) {
   }).length;
 }
 
+// A questionnaire is "complete" when every question is either answered or explicitly skipped.
+function isComplete(questions) {
+  if (!questions || questions.length === 0) return false;
+  return questions.every(q => {
+    if (q.skipped === true) return true;
+    if (q.type === TYPE_TEXT || q.type === TYPE_INTEGER) {
+      const val = (q.responses[0] || {}).value;
+      return val !== '' && val !== null && val !== undefined;
+    }
+    return q.responses.some(r => r.selected);
+  });
+}
+
+// Additive scoring: sum the numeric value of each selected response across radio/checkbox questions,
+// plus the integer value of integer questions. Free-text contributes nothing. Skipped questions are excluded.
+// Returns null when no numeric data could be parsed (e.g. older saved commands missing score_value/code).
+function computeScore(questions) {
+  if (!questions || questions.length === 0) return null;
+  let sum = 0;
+  let any = false;
+  for (const q of questions) {
+    if (q.skipped === true) continue;
+    if (q.type === TYPE_TEXT) continue;
+    if (q.type === TYPE_INTEGER) {
+      const v = (q.responses[0] || {}).value;
+      const n = parseFloat(v);
+      if (!Number.isNaN(n)) { sum += n; any = true; }
+      continue;
+    }
+    for (const r of q.responses) {
+      if (!r.selected) continue;
+      const fromScoreValue = parseFloat(r.score_value);
+      const fromCode = parseFloat(r.code);
+      const n = !Number.isNaN(fromScoreValue) ? fromScoreValue : (!Number.isNaN(fromCode) ? fromCode : null);
+      if (n !== null) { sum += n; any = true; }
+    }
+  }
+  return any ? sum : null;
+}
+
+// Render the response for a single question in the read-only expanded list.
+// Returns null when the question is unanswered (caller decides how to display).
+function renderResponse(q) {
+  if (q.skipped === true) {
+    return html`<span class="questionnaire-readonly-skipped">Skipped</span>`;
+  }
+  if (q.type === TYPE_TEXT) {
+    const val = (q.responses[0] || {}).value;
+    if (val === '' || val === null || val === undefined) return null;
+    return html`<span class="questionnaire-readonly-answer">${val}</span>`;
+  }
+  if (q.type === TYPE_INTEGER) {
+    const val = (q.responses[0] || {}).value;
+    if (val === '' || val === null || val === undefined) return null;
+    return html`<span class="questionnaire-readonly-answer">${val}</span>`;
+  }
+  const selected = q.responses.filter(r => r.selected);
+  if (selected.length === 0) return null;
+  // Comma-separated for both radio (always one) and checkbox; checkbox comments render inline as "Value (comment)".
+  const parts = selected.map(r => {
+    const comment = (r.comment || '').trim();
+    return comment ? `${r.value} (${comment})` : r.value;
+  });
+  return html`<span class="questionnaire-readonly-answer">${parts.join(', ')}</span>`;
+}
+
 export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
+  const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     onEditingChange?.(commandIndex, editing);
     return () => onEditingChange?.(commandIndex, false);
@@ -296,14 +383,50 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
   const questions = command.data.questions || [];
   const answered = countAnswered(questions);
   const total = questions.length;
+  const canExpand = readOnly && total > 0;
+  const isScored = !!command.data.is_scored;
+  const score = isScored && isComplete(questions) ? computeScore(questions) : null;
+
+  const handleCardClick = () => {
+    if (readOnly) {
+      if (canExpand) setExpanded(prev => !prev);
+      return;
+    }
+    setEditing(true);
+  };
 
   return html`
-    <div class="questionnaire-view" onClick=${() => !readOnly && setEditing(true)}>
-      <div class="questionnaire-view-content">
-        <span class="questionnaire-view-name">${command.display || '(empty)'}</span>
+    <div class="questionnaire-view-wrap">
+      <div class="questionnaire-view" onClick=${handleCardClick}>
+        <div class="questionnaire-view-content">
+          <span class="questionnaire-view-name">${command.display || '(empty)'}</span>
+        </div>
+        ${total > 0 && html`
+          <span class="questionnaire-answered-badge">${answered}/${total} answered</span>
+        `}
+        ${score !== null && html`
+          <span class="questionnaire-score-badge">Score: ${score}</span>
+        `}
+        ${canExpand && html`
+          <span class=${'questionnaire-chevron' + (expanded ? ' expanded' : '')} aria-label=${expanded ? 'Collapse' : 'Expand'}>
+            ${ICON_CHEVRON}
+          </span>
+        `}
       </div>
-      ${total > 0 && html`
-        <span class="questionnaire-answered-badge">${answered}/${total} answered</span>
+      ${canExpand && expanded && html`
+        <dl class="questionnaire-readonly-list">
+          ${questions.map(q => {
+            const answer = renderResponse(q);
+            return html`
+              <div class="questionnaire-readonly-row" key=${q.dbid}>
+                <dt class="questionnaire-readonly-label">${q.label}</dt>
+                <dd class="questionnaire-readonly-value">
+                  ${answer || html`<span class="questionnaire-readonly-empty">—</span>`}
+                </dd>
+              </div>
+            `;
+          })}
+        </dl>
       `}
     </div>
   `;
