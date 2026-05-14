@@ -13,6 +13,7 @@ from canvas_sdk.effects.note.note import Note as NoteEffect
 from canvas_sdk.effects.simple_api import Broadcast, JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from canvas_sdk.commands.commands.allergy import AllergenType
@@ -86,7 +87,11 @@ def _authorize_edit(note_uuid: str, request: Any) -> JSONResponse | None:
         return JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)
     try:
         note = Note.objects.values("dbid", "provider__id").get(id=note_uuid)
-    except Note.DoesNotExist:
+    except (Note.DoesNotExist, ValidationError):
+        # ValidationError fires when note_uuid isn't a syntactically valid
+        # UUID — Django's UUIDField.to_python raises it during query
+        # preparation, before any DB lookup. Treat the same as "not found"
+        # so a malformed direct-API caller doesn't 500 the endpoint.
         return JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)
     if not Helper.editable_note(note["dbid"]):
         return JSONResponse({"error": "Note is not editable"}, status_code=HTTPStatus.FORBIDDEN)
@@ -114,7 +119,9 @@ def _authorize_read_as_author(note_uuid: str, request: Any) -> JSONResponse | No
         return JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)
     try:
         note = Note.objects.values("provider__id").get(id=note_uuid)
-    except Note.DoesNotExist:
+    except (Note.DoesNotExist, ValidationError):
+        # ValidationError fires when note_uuid isn't a syntactically valid
+        # UUID — see _authorize_edit for the same protection.
         return JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)
     headers = getattr(request, "headers", {}) or {}
     staff_id = headers.get("canvas-logged-in-user-id") or ""
