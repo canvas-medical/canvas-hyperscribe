@@ -217,6 +217,7 @@ class NablaBackend(ScribeBackend):
 
         hpi_custom_instructions = (
             f"Begin this section with a single opening sentence in this exact format: {opening}\n"
+            "If the provider dictates a structured summary, use it as the PRIMARY source.\n"
             "Write in complete sentences with clear subjects. "
             "Do not use sentence fragments or omit the subject of a sentence. "
             "Use formal medical terminology and a professional clinical narrative tone throughout.\n"
@@ -267,6 +268,16 @@ class NablaBackend(ScribeBackend):
                         "to the patient, and any medical conditions or causes of death "
                         "discussed. Distinguish between the patient's own history and "
                         "family members' history."
+                    ),
+                },
+                {
+                    "section_key": "PHYSICAL_EXAM",
+                    "custom_instruction": (
+                        "Do not include any vital sign measurements in this section. "
+                        "Specifically, exclude heart rate (pulse, HR), "
+                        "blood pressure (BP), oxygen saturation (SpO2), and "
+                        "respiratory rate (breaths per minute, RR) — "
+                        "vital signs belong in the Vitals section."
                     ),
                 },
             ],

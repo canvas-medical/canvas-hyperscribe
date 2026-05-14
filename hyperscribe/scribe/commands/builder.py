@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from typing import Any
@@ -18,6 +19,7 @@ from hyperscribe.scribe.commands.diagnose import DiagnoseParser
 from hyperscribe.scribe.commands.family_history import FamilyHistoryParser
 from hyperscribe.scribe.commands.history_review import HistoryReviewParser
 from hyperscribe.scribe.commands.hpi import HpiParser
+from hyperscribe.scribe.commands.image_results import ImageResultsParser
 from hyperscribe.scribe.commands.imaging_order import ImagingOrderParser
 from hyperscribe.scribe.commands.lab_order import LabOrderParser
 from hyperscribe.scribe.commands.lab_results import LabResultsParser
@@ -52,6 +54,7 @@ _BUILDERS: dict[str, CommandParser] = {
     "history_review": HistoryReviewParser(),
     "hpi": HpiParser(),
     "imaging_order": ImagingOrderParser(),
+    "imaging_results": ImageResultsParser(),
     "lab_order": LabOrderParser(),
     "lab_results": LabResultsParser(),
     "medicalHistory": MedicalHistoryParser(),
@@ -134,18 +137,57 @@ def validate_proposals(
     return validation_errors
 
 
+def _build_unvalidated_metadata_effect(
+    command: _BaseCommand, key: str, value: str
+) -> Effect:
+    """Construct UPSERT_COMMAND_METADATA directly. The SDK helper
+    validates Command.objects.filter(...).exists() at Python build time,
+    which fails before originate has been applied. Canvas processes effects
+    sequentially, so originate (STAGED) -> metadata (apply-time check passes)
+    -> commit (COMMITTED with metadata attached) all in one response.
+
+    Note: `Effect` is imported from `canvas_sdk.effects` (which re-exports the
+    protobuf class) rather than the raw `canvas_generated.messages.effects_pb2`
+    path, because the plugin-runner sandbox allowlists the former but not the
+    latter."""
+    return Effect(
+        type="UPSERT_COMMAND_METADATA",
+        payload=json.dumps(
+            {
+                "data": {
+                    "schema_key": command.Meta.key,
+                    "command_id": str(command.command_uuid),
+                    "key": key,
+                    "value": value,
+                },
+            }
+        ),
+    )
+
+
 def build_effects(
-    proposals: list[dict[str, Any]], note_uuid: str
+    proposals: list[dict[str, Any]],
+    note_uuid: str,
+    feature_flags: dict[str, bool] | None = None,
 ) -> tuple[list[Effect], list[dict[str, Any]], list[dict[str, Any]]]:
     """Convert selected command proposals into Canvas SDK Effects.
 
     Each command is originated individually so a single failure doesn't
-    take down unrelated commands. Post-originate effects (commit/review)
-    follow immediately since Canvas processes effects sequentially.
+    take down unrelated commands. Effect order in the returned list is:
 
-    Returns (effects, metadata_pending, attempted) where:
-    - metadata_pending: items needing a second request for metadata upsert
-    - attempted: list of {command_uuid, command_type, display} for verification
+        originate_A, originate_B, ...,
+        metadata_A, metadata_B, ...,    # only when pending_metadata is non-empty
+        commit_A,   commit_B,   ...,
+
+    Canvas processes effects sequentially, so by the time a metadata effect
+    runs the corresponding originate effect has populated the Command row
+    in the DB; by the time the commit effect runs, the metadata row is
+    already attached to the (still STAGED) command.
+
+    Returns (effects, metadata_pending, attempted). `metadata_pending` is
+    always empty now (metadata is emitted inline); kept in the signature so
+    the legacy `/insert-metadata` pathway continues to be a no-op without
+    requiring a separate route change.
     """
     built: list[tuple[CommandParser, _BaseCommand, dict[str, Any]]] = []
     for proposal in proposals:
@@ -163,13 +205,14 @@ def build_effects(
         effects.append(command.originate())
 
     for builder, command, proposal in built:
-        effects.extend(builder.post_originate_effects(command, proposal))
+        meta = builder.pending_metadata(command, proposal, feature_flags)
+        if not meta:
+            continue
+        for key, value in (meta.get("metadata") or {}).items():
+            effects.append(_build_unvalidated_metadata_effect(command, key, value))
 
-    metadata_pending: list[dict[str, Any]] = []
     for builder, command, proposal in built:
-        meta = builder.pending_metadata(command, proposal)
-        if meta:
-            metadata_pending.append(meta)
+        effects.extend(builder.post_originate_effects(command, proposal))
 
     attempted = [
         {
@@ -180,7 +223,7 @@ def build_effects(
         for builder, command, proposal in built
     ]
 
-    return effects, metadata_pending, attempted
+    return effects, [], attempted
 
 
 def build_metadata_effects(pending: list[dict[str, Any]]) -> list[Effect]:
