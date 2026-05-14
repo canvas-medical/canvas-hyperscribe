@@ -392,7 +392,7 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
   // something before signing off. Post-approval (readOnly) cards stay quiet — the score badge alone speaks.
   const statusBadge = !readOnly && total > 0 && !complete
     ? (answered === 0
-        ? html`<span class="questionnaire-status-badge">Not started</span>`
+        ? html`<span class="questionnaire-status-badge warning">Not started</span>`
         : html`<span class="questionnaire-status-badge">${answered}/${total} answered</span>`)
     : null;
   const showResponses = readOnly && total > 0;

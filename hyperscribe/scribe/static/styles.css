@@ -1310,9 +1310,12 @@ h2 { margin-bottom: 4px; }
 .recommendation-block.rec-questionnaire:has(.editing) > .recommendation-actions { display: flex; }
 .questionnaire-view-content { flex: 1; min-width: 0; }
 .questionnaire-view-name { font-size: 15px; color: #333; }
-/* Amber status pill — only shown on editable (pre-approval) cards when the questionnaire is incomplete.
-   "Not started" for 0 answered, "X/Y answered" for partial. Post-approval cards omit this entirely. */
-.questionnaire-status-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #fef3c7; color: #92400e; white-space: nowrap; flex-shrink: 0; }
+/* Status pill — only shown on editable (pre-approval) cards when the questionnaire is incomplete.
+   Default is a neutral gray for "X/Y answered" (informational, in-progress). The .warning modifier
+   uses amber for "Not started" — the highest-risk oversight state where the user added the card and
+   never filled anything in. */
+.questionnaire-status-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #f3f4f6; color: #4b5563; white-space: nowrap; flex-shrink: 0; }
+.questionnaire-status-badge.warning { background: #fef3c7; color: #92400e; }
 .questionnaire-score-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #e0e7ff; color: #3730a3; white-space: nowrap; flex-shrink: 0; }
 .questionnaire-view.readonly { cursor: default; }
 .questionnaire-form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f0f0f0; }
