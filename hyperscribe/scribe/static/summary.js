@@ -250,7 +250,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // Set to true after a save-summary 401/403; gates subsequent autosaves so an
   // expired iPad session doesn't fire one POST per state change (KOALA-5475).
   // Reset on visibilitychange so re-auth in another tab is picked up on focus.
+  // Paired with sessionLost state below for the user-facing banner.
   const sessionLostRef = useRef(false);
+  // Mirrors the ref for rendering — the ref is used inside the autosave callback
+  // (always reads fresh) while the state drives the banner re-render.
+  const [sessionLost, setSessionLost] = useState(false);
 
   const [editingFields, setEditingFields] = useState(new Set());
 
@@ -306,6 +310,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     : (!isAuthor && !approved ? 'non_author' : null);
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved, extras = {}) => {
+    // Non-author viewers can't write to the cache — the server's _authorize_edit
+    // check would 403. Skip the request entirely so a read-only viewer doesn't
+    // see the "session expired" banner for what's actually an authorization
+    // mismatch, and so the server isn't pinged on every state change.
+    if (!isAuthor) return;
     // Skip autosave once we've seen an auth failure this focus cycle. Each
     // page change otherwise fires another POST that the server has to reject;
     // Brigade providers on iPad were generating ~2,700 of these per week
@@ -319,12 +328,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
       if (res.status === 401 || res.status === 403) {
         sessionLostRef.current = true;
+        setSessionLost(true);
         console.warn('Scribe save-summary: auth failed (status', res.status, '); pausing autosave until next focus.');
+      } else if (res.ok) {
+        // Clear the banner the first time a save lands cleanly after recovery.
+        // No-op if it was already cleared; React de-dupes same-value setState.
+        setSessionLost(false);
       }
     } catch (err) {
       console.error('Failed to save summary to cache:', err);
     }
-  }, [noteId]);
+  }, [noteId, isAuthor]);
 
   // Clear the auth-failure gate whenever the page comes back into focus, so
   // a user who re-authenticated in another tab resumes autosaving on return.
@@ -1529,6 +1543,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   return html`
     <div class=${`summary-container${!canEdit && !approved ? ' summary-container--readonly' : ''}`}>
+      ${sessionLost && html`
+        <div class="readonly-banner readonly-banner--alert" role="alert" aria-live="assertive">
+          <svg class="readonly-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>Your session has expired — recent edits aren't being saved. Sign in again and reload to continue.</span>
+        </div>
+      `}
       ${readOnlyReason === 'locked' && html`
         <div class="readonly-banner" role="status" aria-live="polite">
           <svg class="readonly-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

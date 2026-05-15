@@ -105,9 +105,7 @@ def validate_proposals(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return validation_errors
 
 
-def _build_unvalidated_metadata_effect(
-    command: _BaseCommand, key: str, value: str
-) -> Effect:
+def _build_unvalidated_metadata_effect(command: _BaseCommand, key: str, value: str) -> Effect:
     """Construct UPSERT_COMMAND_METADATA directly. The SDK helper
     validates Command.objects.filter(...).exists() at Python build time,
     which fails before originate has been applied. Canvas processes effects

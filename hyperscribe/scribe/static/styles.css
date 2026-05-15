@@ -418,6 +418,18 @@ h2 { margin-bottom: 4px; }
   color: #6b7280;
 }
 
+/* Session-lost variant: red/amber treatment so a "your edits aren't saving"
+   banner reads more urgently than the neutral locked / non-author banners. */
+.readonly-banner--alert {
+  background: #fdecea;
+  border-bottom-color: #f5c6c6;
+  color: #8a2424;
+}
+
+.readonly-banner--alert .readonly-banner-icon {
+  color: #c0392b;
+}
+
 .summary-header {
   display: flex;
   align-items: center;
