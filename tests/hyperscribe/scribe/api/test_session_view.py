@@ -610,18 +610,14 @@ def test_save_summary_defaults(mock_note: MagicMock, mock_summary: MagicMock) ->
 
 @patch("hyperscribe.scribe.api.session_view.ScribeSummary")
 @patch("hyperscribe.scribe.api.session_view.Note")
-def test_save_summary_omits_mode_and_template_when_absent(
-    mock_note: MagicMock, mock_summary: MagicMock
-) -> None:
+def test_save_summary_omits_mode_and_template_when_absent(mock_note: MagicMock, mock_summary: MagicMock) -> None:
     """Autosave paths that don't send mode / selected_template_name must not
     overwrite those columns — update_or_create only touches keys present in
     defaults, so omitting them preserves the existing DB values."""
     mock_note.objects.values_list.return_value.get.return_value = 42
 
     view = _helper_instance()
-    view.request = SimpleNamespace(
-        body=json.dumps({"note_id": "42", "note": {}, "commands": [], "approved": False})
-    )
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "42", "note": {}, "commands": [], "approved": False}))
     result = view.post_save_summary()
 
     assert result[0].status_code == HTTPStatus.OK
@@ -632,9 +628,7 @@ def test_save_summary_omits_mode_and_template_when_absent(
 
 @patch("hyperscribe.scribe.api.session_view.ScribeSummary")
 @patch("hyperscribe.scribe.api.session_view.Note")
-def test_save_summary_clears_template_when_explicitly_null(
-    mock_note: MagicMock, mock_summary: MagicMock
-) -> None:
+def test_save_summary_clears_template_when_explicitly_null(mock_note: MagicMock, mock_summary: MagicMock) -> None:
     """Deselecting the visit template sends `selected_template_name: null`,
     which must clear the DB column (write '') rather than be silently dropped."""
     mock_note.objects.values_list.return_value.get.return_value = 42
@@ -660,17 +654,13 @@ def test_save_summary_clears_template_when_explicitly_null(
 
 @patch("hyperscribe.scribe.api.session_view.ScribeSummary")
 @patch("hyperscribe.scribe.api.session_view.Note")
-def test_save_summary_clears_mode_when_explicitly_null(
-    mock_note: MagicMock, mock_summary: MagicMock
-) -> None:
+def test_save_summary_clears_mode_when_explicitly_null(mock_note: MagicMock, mock_summary: MagicMock) -> None:
     """Symmetric to template deselect: explicit `mode: null` clears the column."""
     mock_note.objects.values_list.return_value.get.return_value = 42
 
     view = _helper_instance()
     view.request = SimpleNamespace(
-        body=json.dumps(
-            {"note_id": "42", "note": {}, "commands": [], "approved": False, "mode": None}
-        )
+        body=json.dumps({"note_id": "42", "note": {}, "commands": [], "approved": False, "mode": None})
     )
     result = view.post_save_summary()
 
@@ -1476,10 +1466,7 @@ def test_get_ordering_providers_returns_all_results(mock_staff_cls: MagicMock) -
     which silently dropped real prescribers (e.g. anyone with a last name past
     "Cu...") on customers with larger staff rosters.
     """
-    staff_objects = [
-        SimpleNamespace(id=f"key-{i}", credentialed_name=f"Provider {i:03d} MD")
-        for i in range(75)
-    ]
+    staff_objects = [SimpleNamespace(id=f"key-{i}", credentialed_name=f"Provider {i:03d} MD") for i in range(75)]
     ordered_qs = MagicMock(spec=QuerySet)
     ordered_qs.__iter__.return_value = iter(staff_objects)
     distinct_qs = MagicMock(spec=QuerySet)
@@ -1825,12 +1812,14 @@ def test_generate_summary_preserves_mode_and_template(
     view = _helper_instance()
     view.secrets["AnthropicAPIKey"] = "test-key"
     view.request = SimpleNamespace(
-        body=json.dumps({
-            "note_id": "55",
-            "note_uuid": "55",
-            "mode": "ai",
-            "selected_template_name": "Subsequent Visit",
-        })
+        body=json.dumps(
+            {
+                "note_id": "55",
+                "note_uuid": "55",
+                "mode": "ai",
+                "selected_template_name": "Subsequent Visit",
+            }
+        )
     )
     result = view.post_generate_summary()
 
@@ -1902,10 +1891,12 @@ def test_generate_summary_preserves_mode_from_db_when_not_in_request(
     view.secrets["AnthropicAPIKey"] = "test-key"
     # Frontend request does NOT include mode or selected_template_name.
     view.request = SimpleNamespace(
-        body=json.dumps({
-            "note_id": "55",
-            "note_uuid": "55",
-        })
+        body=json.dumps(
+            {
+                "note_id": "55",
+                "note_uuid": "55",
+            }
+        )
     )
     result = view.post_generate_summary()
 
@@ -1990,9 +1981,7 @@ def test_generate_summary_does_not_clobber_concurrent_save_on_cas_miss(
     view = _helper_instance()
     view.secrets["AnthropicAPIKey"] = "test-key"
     # Frontend doesn't include mode in the generate-summary request body.
-    view.request = SimpleNamespace(
-        body=json.dumps({"note_id": "55", "note_uuid": "55"})
-    )
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "55", "note_uuid": "55"}))
     result = view.post_generate_summary()
 
     assert result[0].status_code == HTTPStatus.OK
