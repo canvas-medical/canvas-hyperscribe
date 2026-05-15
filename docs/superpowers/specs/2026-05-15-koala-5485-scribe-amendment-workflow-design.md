@@ -31,22 +31,23 @@ Per the ticket, the note author should be able to amend the Scribe tab in that s
 
 ### State machine
 
-Four user-facing states for the Scribe tab, driven by `isAuthor`, `isNoteEditable` (from the home-app via WebSocket `NOTE_STATE_CHANGED`), and `approved` (from the plugin's own React state and `ScribeSummary` cache).
+User-facing states for the Scribe tab, driven by `isAuthor`, `isNoteEditable` (from the home-app via WebSocket `NOTE_STATE_CHANGED`), `approved` (from the plugin's own React state and `ScribeSummary` cache), and the new persisted `was_finalized` latch (`ScribeSummary.was_finalized`).
 
-| Note (`isNoteEditable`) | Scribe (`approved`) | UI state | Status pill (top of tab) | Bottom action area |
-|---|---|---|---|---|
-| Editable | False | **Drafting** (current pre-approve) | hidden | "Accept and sign" |
-| Editable | True | **Finalized** | `✓ Charting finalized · [Make changes]` | hidden |
-| Editable | True → False (via "Make changes") | **Amending** | `✏️ Editing charting · click Approve when ready` | "Accept and sign" reappears |
-| Locked | True | **Finalized & note locked** | hidden | hidden; existing "Click Amend in the note footer" banner shows |
-| Locked | False | (rare — note locked before scribe approval) | hidden | hidden; existing locked banner |
+| Note (`isNoteEditable`) | `approved` | `was_finalized` | UI state | Status pill (top of tab) | Bottom action area |
+|---|---|---|---|---|---|
+| Editable | False | False | **Drafting** (current pre-approve) | hidden | "Accept and sign" |
+| Editable | True | True | **Finalized** | `✓ Charting finalized · [Make changes]` | hidden |
+| Editable | False | True | **Amending** | `✏️ Editing charting` | "Accept and sign" reappears |
+| Locked | True | True | **Finalized & note locked** | hidden | hidden; existing "Click Amend in the note footer" banner shows |
+| Locked | False | True | (rare — locked mid-amendment) | hidden | hidden; existing locked banner |
+| Locked | * | False | (rare — note locked without ever finalizing scribe) | hidden | hidden; existing locked banner |
 
-The status pill is gated on `isAuthor && isNoteEditable && (approved || amending)`. Non-author viewers and locked-note states never show the pill — they continue to surface the existing read-only banners they already do.
+The status pill is gated on `isAuthor && isNoteEditable && was_finalized`. Non-author viewers and locked-note states never show the pill — they continue to surface the existing read-only banners they already do. The pill variant (finalized vs amending) is chosen by `approved`.
 
 ### Transitions
 
-- **Drafting → Finalized**: existing Approve flow runs unchanged. Sets `approved=true`, stamps `command_uuid` and `already_documented=true` on each inserted command. Pill appears.
-- **Finalized → Amending**: provider clicks "Make changes" on the pill. `setApproved(false)`. The existing debounced `saveSummaryToCache` fires with `approved=false`, persisting the state in `ScribeSummary`. `canEdit` becomes true (because `!approved`).
+- **Drafting → Finalized**: existing Approve flow runs. Sets `approved=true`. Stamps `command_uuid` on inserted commands; this work also stamps `already_documented=true` alongside `command_uuid` (today's code stamps only the UUID — see "Stamping `already_documented` after Approve" below). Save-summary persists `approved=true`, which on the server-side latches `was_finalized=true`. Pill appears.
+- **Finalized → Amending**: provider clicks "Make changes" on the pill. `setApproved(false)`. The existing debounced `saveSummaryToCache` fires with `approved=false`, persisting the state in `ScribeSummary`. `was_finalized` stays `true` (one-way latch). `canEdit` becomes true (because `!approved`).
 - **Amending → Finalized**: provider clicks Approve. The existing approve flow runs `commands.filter(c => !c.already_documented ...)` so only newly-added commands hit `/insert-commands`. New commands receive `command_uuid` and `already_documented=true`. `setApproved(true)`. Pill returns to `✓ Charting finalized`.
 
 There is no explicit Cancel — empty re-approval (clicking Approve immediately after "Make changes" with no new commands added) is the de-facto back-out path. `/insert-commands` accepts an empty `commands` list and returns `inserted: 0`.
@@ -129,12 +130,31 @@ There is no explicit Cancel — empty re-approval (clicking Approve immediately 
 
 ### Server-side changes
 
-**None.** This is a frontend-only change.
+Small, but not zero. The amendment workflow needs a "has this scribe ever been finalized?" signal that survives reloads, distinct from the live `approved` toggle. Two backend touch points:
 
+**1. `ScribeSummary` model — add `was_finalized: BooleanField(default=False)`** in `hyperscribe/models/scribe.py`. Flips to `True` the first time `approved=True` lands; never resets. Used by the frontend to distinguish:
+- Drafting (`!approved && !was_finalized`) — pill hidden
+- Finalized (`approved && was_finalized`) — finalized pill
+- Amending (`!approved && was_finalized`) — amending pill
+
+Without this, Add Now during drafting (which sets `already_documented=true` on individual commands) is indistinguishable from a post-approval amendment state.
+
+**2. `/save-summary` route handler** in `hyperscribe/scribe/api/session_view.py`:
+- Add `was_finalized` to the allowlisted fields the handler reads from the request body.
+- In `_save_summary`, force `was_finalized=True` whenever `approved=True` is being written (a one-way latch).
+- Add `was_finalized` to the `/summary` GET response so the frontend can read it on reload.
+
+Other server-side observations:
 - `/save-summary` already accepts arbitrary `approved` values via `bool(data.get("approved", False))`.
-- `/insert-commands` already only processes the commands sent in the request body; the frontend filters by `already_documented` before sending.
+- `/insert-commands` already only processes the commands sent in the request body; the frontend filters before sending.
 - `_authorize_edit` already enforces the right gates: note must exist, must be editable, user must be the provider.
-- `ScribeSummary` model has no schema changes — `commands` is `JSONField`, `approved` is `BooleanField`.
+- Existing `_save_summary` tests need a small extension to cover the `was_finalized` latch.
+
+### Stamping `already_documented` after Approve
+
+A bug in the existing flow that this work has to fix: today's full-Approve handler (`summary.js` around line 1294) stamps `command_uuid` on inserted commands but does **not** set `already_documented: true`. The existing `insertable` filter relies on `already_documented`, so re-Approving (which only happened to be impossible because `canEdit` blocked it) would have double-inserted.
+
+For amendment we explicitly re-Approve. Fix: after the post-Approve UUID stamping, also set `already_documented: true` on every command that received a `command_uuid`. This unifies the two flags Add Now had been using and makes the existing `insertable` filter naturally exclude previously-committed commands on re-Approve.
 
 ### Audit logging
 
@@ -157,12 +177,25 @@ The cache (`ScribeSummary`) is the source of truth across reloads.
 
 ## File-level implementation notes
 
-Frontend only. Expect changes in:
+Mostly frontend. Backend touch is small (one field + handler allowlist). Expect changes in:
+
+- `hyperscribe/models/scribe.py`
+  - Add `was_finalized: Any = BooleanField(default=False)` to `ScribeSummary`.
+- `hyperscribe/scribe/api/session_view.py`
+  - `/save-summary` handler: accept `was_finalized` in the request body; force it `True` when `approved=True`; persist via `_save_summary`.
+  - `_save_summary` helper: write the field on the `update_or_create` defaults.
+  - `/summary` GET: include `was_finalized` in the response payload.
+- `tests/hyperscribe/scribe/api/test_session_view.py`
+  - Extend existing `test_save_summary_*` cases to cover the latch (approved=True sets was_finalized; subsequent approved=False keeps was_finalized=True).
+  - Extend `test_get_summary_*` to surface the field.
 
 - `hyperscribe/scribe/static/summary.js`
+  - Read `was_finalized` from the cache on load; track via `useState`.
   - Drop the `!approved` term from `canEdit` (or replace with a per-command guard tied to `already_documented`).
   - Add a "Make changes" handler that flips `setApproved(false)` and emits the new `AMENDMENT_STARTED` audit event.
-  - Render the new status pill at the top of `.summary-container`, gated on the conditions above.
+  - In the existing post-Approve UUID-stamping block (~line 1294), also set `already_documented: true` on commands that received a `command_uuid`.
+  - Set `was_finalized: true` in the save-summary payload whenever `approved=true` is being written.
+  - Render the new status pill at the top of `.summary-container`, gated on `isAuthor && isNoteEditable && was_finalized`. Variant chosen by `approved`.
   - Pass an `isLocked` (or equivalent) prop into per-command row components based on `c.already_documented`.
 - `hyperscribe/scribe/static/styles.css`
   - `.summary-status-pill`, `.summary-status-pill--finalized`, `.summary-status-pill--amending` rules.
@@ -174,16 +207,14 @@ Frontend only. Expect changes in:
   - Hide "Add Now" buttons when in amending mode.
 
 No changes to:
-- `hyperscribe/scribe/api/session_view.py`
 - `hyperscribe/scribe/commands/*`
-- `hyperscribe/models/scribe.py`
-- Any tests.
+- `/insert-commands` route logic — the existing flow handles re-Approve correctly once `already_documented` is stamped after the initial Approve.
 
 ---
 
 ## Testing & verification
 
-Backend: zero code changes, zero new tests.
+Backend: small Python test extensions for the `was_finalized` field on `ScribeSummary` and the latch behavior in `/save-summary` and `/summary` handlers. Existing pytest suite covers structure.
 
 Frontend: no JS test framework available in `canvas-hyperscribe` — verification is manual UAT, drivable via Playwright + DevTools.
 
