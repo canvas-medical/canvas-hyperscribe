@@ -310,11 +310,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     : (!isAuthor && !approved ? 'non_author' : null);
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved, extras = {}) => {
-    // Non-author viewers can't write to the cache — the server's _authorize_edit
-    // check would 403. Skip the request entirely so a read-only viewer doesn't
-    // see the "session expired" banner for what's actually an authorization
-    // mismatch, and so the server isn't pinged on every state change.
+    // Skip the request entirely when we already know the server will reject it.
+    // Avoids surfacing the "session expired" banner for what's actually an
+    // authorization-state issue (non-author, locked note) — those have their
+    // own read-only banner elsewhere. Also cuts server noise.
     if (!isAuthor) return;
+    if (!isNoteEditable) return;
     // Skip autosave once we've seen an auth failure this focus cycle. Each
     // page change otherwise fires another POST that the server has to reject;
     // Brigade providers on iPad were generating ~2,700 of these per week
@@ -326,10 +327,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note_id: noteId, note, commands: cmds, approved: isApproved, ...extras }),
       });
-      if (res.status === 401 || res.status === 403) {
+      if (res.status === 401) {
+        // Real session expiry: surface the banner so the provider knows their
+        // edits aren't being saved.
         sessionLostRef.current = true;
         setSessionLost(true);
-        console.warn('Scribe save-summary: auth failed (status', res.status, '); pausing autosave until next focus.');
+        console.warn('Scribe save-summary: session expired (401); pausing autosave until next focus.');
+      } else if (res.status === 403) {
+        // _authorize_edit denial (note locked or not-author race between the
+        // state-change broadcast and the in-flight POST). Gate further calls
+        // to keep the server quiet, but don't show the session-expired banner —
+        // the actual cause is reflected in the regular read-only banner.
+        sessionLostRef.current = true;
+        console.warn('Scribe save-summary: forbidden (403); pausing autosave.');
       } else if (res.ok) {
         // Clear the banner the first time a save lands cleanly after recovery.
         // No-op if it was already cleared; React de-dupes same-value setState.
@@ -338,7 +348,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     } catch (err) {
       console.error('Failed to save summary to cache:', err);
     }
-  }, [noteId, isAuthor]);
+  }, [noteId, isAuthor, isNoteEditable]);
 
   // Clear the auth-failure gate whenever the page comes back into focus, so
   // a user who re-authenticated in another tab resumes autosaving on return.
