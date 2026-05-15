@@ -247,6 +247,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
   const addNowAttemptedRef = useRef([]);
+  // Set to true after a save-summary 401/403; gates subsequent autosaves so an
+  // expired iPad session doesn't fire one POST per state change (KOALA-5475).
+  // Reset on visibilitychange so re-auth in another tab is picked up on focus.
+  const sessionLostRef = useRef(false);
 
   const [editingFields, setEditingFields] = useState(new Set());
 
@@ -302,16 +306,38 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     : (!isAuthor && !approved ? 'non_author' : null);
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved, extras = {}) => {
+    // Skip autosave once we've seen an auth failure this focus cycle. Each
+    // page change otherwise fires another POST that the server has to reject;
+    // Brigade providers on iPad were generating ~2,700 of these per week
+    // (KOALA-5475). Reset on visibilitychange below.
+    if (sessionLostRef.current) return;
     try {
-      await fetch(`${API_BASE}/save-summary`, {
+      const res = await fetch(`${API_BASE}/save-summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note_id: noteId, note, commands: cmds, approved: isApproved, ...extras }),
       });
+      if (res.status === 401 || res.status === 403) {
+        sessionLostRef.current = true;
+        console.warn('Scribe save-summary: auth failed (status', res.status, '); pausing autosave until next focus.');
+      }
     } catch (err) {
       console.error('Failed to save summary to cache:', err);
     }
   }, [noteId]);
+
+  // Clear the auth-failure gate whenever the page comes back into focus, so
+  // a user who re-authenticated in another tab resumes autosaving on return.
+  // If the session is still bad, the next autosave will set the flag again.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        sessionLostRef.current = false;
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
   // Load summary from cache — skip if initial data was provided server-side.
   useEffect(() => {
