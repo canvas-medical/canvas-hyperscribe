@@ -7,6 +7,7 @@ from typing import Any
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.effects import Effect
 from canvas_sdk.v1.data.note import Note
+from pydantic import ValidationError
 
 from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.adjust_prescription import AdjustPrescriptionParser
@@ -105,9 +106,7 @@ def validate_proposals(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return validation_errors
 
 
-def _build_unvalidated_metadata_effect(
-    command: _BaseCommand, key: str, value: str
-) -> Effect:
+def _build_unvalidated_metadata_effect(command: _BaseCommand, key: str, value: str) -> Effect:
     """Construct UPSERT_COMMAND_METADATA directly. The SDK helper
     validates Command.objects.filter(...).exists() at Python build time,
     which fails before originate has been applied. Canvas processes effects
@@ -133,11 +132,21 @@ def _build_unvalidated_metadata_effect(
     )
 
 
+def _format_pydantic_errors(exc: ValidationError) -> list[str]:
+    """Render pydantic errors as actionable one-liners for the provider UI."""
+    messages: list[str] = []
+    for err in exc.errors():
+        loc = ".".join(str(part) for part in err.get("loc", ())) or "value"
+        msg = err.get("msg", "Invalid value")
+        messages.append(f"{loc}: {msg} (got {err['input']!r})")
+    return messages
+
+
 def build_effects(
     proposals: list[dict[str, Any]],
     note_uuid: str,
     feature_flags: dict[str, bool] | None = None,
-) -> tuple[list[Effect], list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[Effect], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Convert selected command proposals into Canvas SDK Effects.
 
     Each command is originated individually so a single failure doesn't
@@ -152,21 +161,44 @@ def build_effects(
     in the DB; by the time the commit effect runs, the metadata row is
     already attached to the (still STAGED) command.
 
-    Returns (effects, metadata_pending, attempted). `metadata_pending` is
-    always empty now (metadata is emitted inline); kept in the signature so
-    the legacy `/insert-metadata` pathway continues to be a no-op without
-    requiring a separate route change.
+    Returns (effects, metadata_pending, attempted, build_errors). When a
+    proposal fails SDK construction (e.g. a vital outside its pydantic range),
+    that single command is skipped and a structured error in the same shape as
+    ``validate_proposals`` is appended to ``build_errors``; sibling commands
+    still produce effects. ``metadata_pending`` is always empty now (metadata
+    is emitted inline); kept in the signature so the legacy ``/insert-metadata``
+    pathway continues to be a no-op without requiring a separate route change.
     """
     built: list[tuple[CommandParser, _BaseCommand, dict[str, Any]]] = []
+    build_errors: list[dict[str, Any]] = []
     for proposal in proposals:
         builder = _BUILDERS.get(proposal.get("command_type", ""))
         if builder is None:
             continue
-        command = builder.build(proposal.get("data", {}), note_uuid, str(uuid.uuid4()))
+        try:
+            command = builder.build(proposal.get("data", {}), note_uuid, str(uuid.uuid4()))
+        except ValidationError as exc:
+            build_errors.append(
+                {
+                    "command_type": proposal.get("command_type", ""),
+                    "display": (proposal.get("display") or "")[:80],
+                    "errors": _format_pydantic_errors(exc),
+                }
+            )
+            continue
+        except ValueError as exc:
+            build_errors.append(
+                {
+                    "command_type": proposal.get("command_type", ""),
+                    "display": (proposal.get("display") or "")[:80],
+                    "errors": [str(exc)],
+                }
+            )
+            continue
         built.append((builder, command, proposal))
 
     if not built:
-        return [], [], []
+        return [], [], [], build_errors
 
     effects: list[Effect] = []
     for _, command, _ in built:
@@ -191,7 +223,7 @@ def build_effects(
         for builder, command, proposal in built
     ]
 
-    return effects, [], attempted
+    return effects, [], attempted, build_errors
 
 
 def build_metadata_effects(pending: list[dict[str, Any]]) -> list[Effect]:

@@ -82,7 +82,9 @@ def test_build_effects_routes_all_types() -> None:
             inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
             mock.return_value = inst
 
-        effects, metadata_pending, attempted = build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+        effects, metadata_pending, attempted, build_errors = build_effects(
+            proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+        )
 
     # 14 originates + 13 commits + 1 review (prescription)
     assert len(effects) == 28
@@ -110,14 +112,14 @@ def test_build_effects_routes_all_types() -> None:
 
 def test_build_effects_unknown_type_skipped() -> None:
     proposals: list[dict[str, Any]] = [{"command_type": "unknown_type", "data": {"foo": "bar"}}]
-    effects, metadata_pending, attempted = build_effects(proposals, "note-uuid")
+    effects, metadata_pending, attempted, build_errors = build_effects(proposals, "note-uuid")
     assert effects == []
     assert metadata_pending == []
     assert attempted == []
 
 
 def test_build_effects_empty_list() -> None:
-    effects, metadata_pending, attempted = build_effects([], "note-uuid")
+    effects, metadata_pending, attempted, build_errors = build_effects([], "note-uuid")
     assert effects == []
     assert metadata_pending == []
     assert attempted == []
@@ -144,7 +146,7 @@ def test_build_effects_medication_with_alert_facility_emits_yes_inline() -> None
         inst.Meta.key = "medicationStatement"
         mock_med.return_value = inst
 
-        effects, metadata_pending, attempted = build_effects(
+        effects, metadata_pending, attempted, build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
             feature_flags={"AlertFacilityEnabled": True},
@@ -185,7 +187,7 @@ def test_build_effects_medication_alert_facility_false_writes_no_inline() -> Non
         inst.Meta.key = "medicationStatement"
         mock_med.return_value = inst
 
-        effects, metadata_pending, attempted = build_effects(
+        effects, metadata_pending, attempted, build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
             feature_flags={"AlertFacilityEnabled": True},
@@ -212,7 +214,7 @@ def test_build_effects_medication_alert_facility_flag_off_no_metadata() -> None:
         inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
         mock_med.return_value = inst
 
-        effects, metadata_pending, attempted = build_effects(
+        effects, metadata_pending, attempted, build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
             feature_flags={"AlertFacilityEnabled": False},
@@ -399,3 +401,61 @@ def test_validate_proposals_refill_and_adjust() -> None:
     ]
     errors = validate_proposals(proposals)
     assert len(errors) == 2
+
+
+def test_build_effects_vitals_out_of_range_returns_build_error() -> None:
+    """Pydantic ValidationError from the SDK is caught and surfaced as a structured per-command error.
+
+    Regression for KOALA-5476: previously, a single out-of-range vital made the entire
+    insert-commands batch crash with a generic 500.
+    """
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "vitals", "data": {"pulse": 8}, "display": "HR 8"},
+    ]
+    effects, metadata_pending, attempted, build_errors = build_effects(proposals, "note-uuid")
+    assert effects == []
+    assert metadata_pending == []
+    assert attempted == []
+    assert len(build_errors) == 1
+    err = build_errors[0]
+    assert err["command_type"] == "vitals"
+    assert err["display"] == "HR 8"
+    assert any("pulse" in msg for msg in err["errors"])
+    assert any("8" in msg for msg in err["errors"])
+
+
+def test_build_effects_one_invalid_does_not_block_others() -> None:
+    """A bad vitals proposal does not prevent other commands from being originated."""
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "vitals", "data": {"pulse": 8}, "display": "HR 8"},
+        {"command_type": "rfv", "data": {"comment": "Headache"}, "display": "Headache"},
+    ]
+    with patch("hyperscribe.scribe.commands.rfv.ReasonForVisitCommand") as mock_rfv:
+        inst = MagicMock()
+        inst.originate.return_value = "rfv_originate"
+        inst.commit.return_value = "rfv_commit"
+        inst.command_uuid = "rfv-uuid"
+        mock_rfv.return_value = inst
+        effects, metadata_pending, attempted, build_errors = build_effects(proposals, "note-uuid")
+    assert effects == ["rfv_originate", "rfv_commit"]
+    assert len(attempted) == 1
+    assert attempted[0]["command_type"] == "rfv"
+    assert len(build_errors) == 1
+    assert build_errors[0]["command_type"] == "vitals"
+
+
+def test_build_effects_vitals_invalid_enum_returns_build_error() -> None:
+    """ValueError raised by enum coercion in build() is also caught and surfaced."""
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "vitals",
+            "data": {"blood_pressure_position_and_site": 999},
+            "display": "BP bad site",
+        },
+    ]
+    effects, metadata_pending, attempted, build_errors = build_effects(proposals, "note-uuid")
+    assert effects == []
+    assert attempted == []
+    assert len(build_errors) == 1
+    assert build_errors[0]["command_type"] == "vitals"
+    assert build_errors[0]["display"] == "BP bad site"
