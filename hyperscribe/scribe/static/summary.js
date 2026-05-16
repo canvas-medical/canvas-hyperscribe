@@ -471,6 +471,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setWasFinalized(true);
   }, [isAuthor, isNoteEditable, approved, commands, recommendations]);
 
+  const handleMakeChanges = useCallback(() => {
+    if (!isAuthor || !isNoteEditable || !approved) return;
+    logEvent('AMENDMENT_STARTED', {
+      commands_at_start: commands.filter(c => c.already_documented).length,
+    });
+    setApproved(false);
+    // Optimistically keep wasFinalized=true; it's a one-way latch server-side
+    // already, but ensure the React state matches without waiting for the
+    // /summary refetch.
+    setWasFinalized(true);
+  }, [isAuthor, isNoteEditable, approved, commands]);
+
   // Load summary from cache — skip if initial data was provided server-side.
   useEffect(() => {
     if (initialData) return;
