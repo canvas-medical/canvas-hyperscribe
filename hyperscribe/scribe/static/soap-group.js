@@ -603,7 +603,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 command=${filteredCommand}
                 commandIndex=${entry.index}
                 onEdit=${onEditCommand}
-                readOnly=${readOnly}
+                readOnly=${readOnly || entry.command.already_documented}
                 onEditingChange=${onEditingChange}
               />
             </div>
@@ -648,7 +648,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                               command=${entry.command}
                               commandIndex=${entry.index}
                               onEdit=${onEditCommand}
-                              readOnly=${readOnly}
+                              readOnly=${readOnly || entry.command.already_documented}
                               onEditingChange=${onEditingChange}
                             />
                           </div>
@@ -680,7 +680,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             commandIndex=${entry.index}
                             onEdit=${onEditCommand}
                             onDelete=${onDeleteCommand}
-                            readOnly=${readOnly || isRejected}
+                            readOnly=${readOnly || isRejected || entry.command.already_documented}
                             suggestions=${suggestions}
                             onAccept=${handleAcceptDiagnose}
                             onEditingChange=${onEditingChange}
@@ -729,7 +729,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${re.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${readOnly || re.command.already_documented}
                           patientId=${patientId}
                           alertFacilityEnabled=${alertFacilityEnabled}
                         />
@@ -758,7 +758,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     command=${entry.command}
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
-                    readOnly=${readOnly}
+                    readOnly=${readOnly || entry.command.already_documented}
                     onEditingChange=${onEditingChange}
                   />
                 </div>
@@ -770,7 +770,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                         commandIndex=${re.index}
                         onEdit=${onEditCommand}
                         onDelete=${onDeleteCommand}
-                        readOnly=${readOnly}
+                        readOnly=${readOnly || re.command.already_documented}
                         patientId=${patientId}
                       />
                     </div>
@@ -802,7 +802,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       command=${entry.command}
                       commandIndex=${entry.index}
                       onEdit=${onEditCommand}
-                      readOnly=${readOnly}
+                      readOnly=${readOnly || entry.command.already_documented}
                       onEditingChange=${onEditingChange}
                       questionnaireScores=${idx === 0 ? questionnaireScores : []}
                     />
@@ -827,7 +827,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     command=${entry.command}
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
-                    readOnly=${readOnly}
+                    readOnly=${readOnly || entry.command.already_documented}
                     textareaRows=${2}
                     onEditingChange=${onEditingChange}
                   />
@@ -978,7 +978,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${readOnly || entry.command.already_documented}
                           onEditingChange=${onEditingChange}
                         />
                       </div>
@@ -997,7 +997,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${readOnly || entry.command.already_documented}
                           onEditingChange=${onEditingChange}
                         />
                       </div>
@@ -1044,7 +1044,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${readOnly || entry.command.already_documented}
                           patientId=${patientId}
                           alertFacilityEnabled=${alertFacilityEnabled}
                         />
@@ -1085,7 +1085,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       commandIndex=${entry.index}
                       onEdit=${onEditCommand}
                       onDelete=${onDeleteCommand}
-                      readOnly=${readOnly}
+                      readOnly=${readOnly || entry.command.already_documented}
                       onEditingChange=${onEditingChange}
                     />
                   </div>
@@ -1108,7 +1108,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${readOnly || entry.command.already_documented}
                           patientId=${patientId}
                           alertFacilityEnabled=${alertFacilityEnabled}
                         />
@@ -1140,7 +1140,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 command=${entry.command}
                 commandIndex=${entry.index}
                 onEdit=${onEditCommand}
-                readOnly=${readOnly}
+                readOnly=${readOnly || entry.command.already_documented}
                 textareaRows=${2}
                 onEditingChange=${onEditingChange}
               />
@@ -1259,7 +1259,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
-                    readOnly=${readOnly}
+                    readOnly=${readOnly || entry.command.already_documented}
                     onEditingChange=${onEditingChange}
                   />
                 </div>
@@ -1277,7 +1277,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
-                    readOnly=${readOnly}
+                    readOnly=${readOnly || entry.command.already_documented}
                     patientId=${patientId}
                   />
                 </div>
@@ -1302,7 +1302,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       commandIndex=${entry.index}
                       onEdit=${onEditCommand}
                       onDelete=${onDeleteCommand}
-                      readOnly=${readOnly}
+                      readOnly=${readOnly || entry.command.already_documented}
                       onEditingChange=${onEditingChange}
                     />
                   </div>
