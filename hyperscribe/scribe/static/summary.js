@@ -1561,6 +1561,24 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   return html`
     <div class=${`summary-container${!canEdit && !approved ? ' summary-container--readonly' : ''}`}>
+      ${isAuthor && isNoteEditable && wasFinalized && html`
+        <div class=${`summary-status-pill summary-status-pill--${approved ? 'finalized' : 'amending'}`} role="status" aria-live="polite">
+          <svg class="summary-status-pill-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            ${approved
+              ? html`<polyline points="20 6 9 17 4 12"/>`
+              : html`<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>`
+            }
+          </svg>
+          <span class="summary-status-pill-text">
+            ${approved ? 'Charting finalized' : 'Editing charting'}
+          </span>
+          ${approved && html`
+            <button class="summary-status-pill-btn" onClick=${handleMakeChanges}>
+              Make changes
+            </button>
+          `}
+        </div>
+      `}
       ${readOnlyReason === 'locked' && html`
         <div class="readonly-banner" role="status" aria-live="polite">
           <svg class="readonly-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
