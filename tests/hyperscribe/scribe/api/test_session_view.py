@@ -669,6 +669,60 @@ def test_save_summary_clears_mode_when_explicitly_null(mock_note: MagicMock, moc
     assert defaults["mode"] == ""
 
 
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+def test_save_summary_latches_was_finalized_on_approve(mock_summary: MagicMock, mock_note: MagicMock) -> None:
+    """First save with approved=True sets was_finalized=True via the defaults
+    passed to update_or_create. Subsequent saves with approved=False keep
+    was_finalized=True implicitly because the field is omitted from defaults."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note_id": "42",
+                "note": {},
+                "commands": [],
+                "approved": True,
+            }
+        )
+    )
+    view.post_save_summary()
+
+    mock_summary.objects.update_or_create.assert_called_once()
+    _, kwargs = mock_summary.objects.update_or_create.call_args
+    assert kwargs["note_id"] == 42
+    assert kwargs["defaults"]["approved"] is True
+    assert kwargs["defaults"]["was_finalized"] is True
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+def test_save_summary_does_not_set_was_finalized_when_unapproved(mock_summary: MagicMock, mock_note: MagicMock) -> None:
+    """Save with approved=False must NOT include was_finalized in defaults,
+    so the existing column value (potentially True from a prior approval)
+    is preserved by update_or_create."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note_id": "42",
+                "note": {},
+                "commands": [],
+                "approved": False,
+            }
+        )
+    )
+    view.post_save_summary()
+
+    mock_summary.objects.update_or_create.assert_called_once()
+    _, kwargs = mock_summary.objects.update_or_create.call_args
+    assert "was_finalized" not in kwargs["defaults"]
+
+
 # --- /generate-note ---
 
 

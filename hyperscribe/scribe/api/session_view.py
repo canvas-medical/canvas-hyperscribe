@@ -204,6 +204,12 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
         "unmatched_conditions": payload.get("unmatched_conditions") or [],
         "diagnosis_suggestions": payload.get("diagnosis_suggestions") or {},
     }
+    # One-way latch: was_finalized goes True the first time approved=True
+    # is written and is never reset to False. Achieved by only putting it
+    # in defaults when approved is True; update_or_create leaves the column
+    # alone when the key isn't in defaults.
+    if payload.get("approved"):
+        defaults["was_finalized"] = True
     if "selected_template_name" in payload:
         defaults["selected_template_name"] = payload["selected_template_name"] or ""
     if "mode" in payload:
