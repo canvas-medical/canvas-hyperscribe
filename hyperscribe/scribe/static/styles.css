@@ -1561,3 +1561,69 @@ h2 { margin-bottom: 4px; }
     margin-top: 4px; padding-left: 12px; border-left: 2px solid #e5e7eb;
 }
 .rec-hint { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+/* Status pill at the top of the Scribe tab. Sticky indicator of finalize
+   state with an inline action button. Two variants: finalized (neutral
+   green) and amending (amber, more urgent). */
+.summary-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  font-size: 13px;
+  line-height: 1.4;
+  border-bottom: 1px solid #e8e8ec;
+}
+
+.summary-status-pill-icon {
+  flex-shrink: 0;
+}
+
+.summary-status-pill-text {
+  flex: 1;
+  font-weight: 500;
+}
+
+.summary-status-pill-btn {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border-radius: 14px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.summary-status-pill-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.summary-status-pill--finalized {
+  background: #ecf7ee;
+  border-bottom-color: #cce6d0;
+  color: #245d2a;
+}
+
+.summary-status-pill--amending {
+  background: #fff4d6;
+  border-bottom-color: #f5d683;
+  color: #6b4a00;
+}
+
+/* Per-command lock treatment used in amending mode. Cards with
+   already_documented=true get this on top of their existing styles
+   to read as "already on the note". */
+.command-locked {
+  opacity: 0.6;
+  filter: saturate(0.85);
+  position: relative;
+}
+
+.command-locked .command-row-icon-lock {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: #6b7280;
+}
