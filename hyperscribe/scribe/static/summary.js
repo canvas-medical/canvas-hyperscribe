@@ -214,6 +214,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [inserting, setInserting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [approved, setApproved] = useState(initSummary?.approved ?? false);
+  const [wasFinalized, setWasFinalized] = useState(initSummary?.was_finalized ?? false);
   const [isNoteEditable, setNoteEditable] = useState(noteEditable);
   const [hideRejected, setHideRejected] = useState(true);
   const [assignees, setAssignees] = useState(initialData?.assignees ?? []);
@@ -365,6 +366,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }
           if (cached.approved) {
             setApproved(true);
+          }
+          if (cached.was_finalized) {
+            setWasFinalized(true);
           }
           if (cached.note) {
             // Full cached summary — restore everything.
