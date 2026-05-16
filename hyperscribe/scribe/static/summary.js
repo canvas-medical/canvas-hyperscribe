@@ -1249,7 +1249,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           updatedCommands = commands.map(cmd => {
             const key = `${cmd.command_type}:${(cmd.display || '').slice(0, 80)}`;
             const uuid = uuidMap.get(key);
-            return uuid ? { ...cmd, command_uuid: uuid } : cmd;
+            // Stamp already_documented=true alongside command_uuid so the existing
+            // `insertable` filter naturally excludes these commands on re-Approve
+            // during amendment. Today's flow only sets already_documented from the
+            // Add Now path; the full-Approve path skipped it, which would have
+            // caused double-insertion on re-Approve. (KOALA-5485)
+            return uuid ? { ...cmd, command_uuid: uuid, already_documented: true } : cmd;
           });
           setCommands(updatedCommands);
           saveSummaryToCache(noteData, updatedCommands, true, {
