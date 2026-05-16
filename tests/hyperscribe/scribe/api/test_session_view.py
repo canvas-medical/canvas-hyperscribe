@@ -224,6 +224,7 @@ def test_get_summary_success(mock_note: MagicMock, mock_summary: MagicMock) -> N
         "note_data": {"title": "SOAP", "sections": [{"key": "cc", "title": "CC", "text": "Pain"}]},
         "commands": [{"command_type": "rfv", "data": {"comment": "Pain"}}],
         "approved": True,
+        "was_finalized": False,
         "recommendations": [],
         "unmatched_conditions": [],
         "diagnosis_suggestions": {},
@@ -253,7 +254,7 @@ def test_get_summary_empty(mock_note: MagicMock, mock_summary: MagicMock) -> Non
     result = view.get_summary()
 
     assert result[0].status_code == HTTPStatus.OK
-    assert json.loads(result[0].content) == {"note": None, "commands": [], "approved": False}
+    assert json.loads(result[0].content) == {"note": None, "commands": [], "approved": False, "was_finalized": False}
 
 
 def test_get_summary_missing_note_id() -> None:
@@ -267,16 +268,17 @@ def test_get_summary_missing_note_id() -> None:
 # --- _load_summary mode self-heal ---
 
 
-def _heal_summary_row(note_data: Any = None, commands: Any = None) -> dict[str, Any]:
+def _heal_summary_row(note_data: Any = None, commands: Any = None, mode: str | None = None) -> dict[str, Any]:
     return {
         "note_data": note_data or {},
         "commands": commands or [],
         "approved": False,
+        "was_finalized": False,
         "recommendations": [],
         "unmatched_conditions": [],
         "diagnosis_suggestions": {},
         "selected_template_name": "",
-        "mode": "",
+        "mode": mode if mode is not None else "",
     }
 
 
@@ -547,6 +549,30 @@ def test_get_summary_no_ops_response_when_cas_loses_to_concurrent_save(
     assert result[0].status_code == HTTPStatus.OK
     assert json.loads(result[0].content)["mode"] is None
     mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="ai")
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_get_summary_surfaces_was_finalized(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
+) -> None:
+    """/summary GET response includes the was_finalized latch so the
+    frontend can render the amendment pill on reload."""
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    summary_row = _heal_summary_row(note_data={"sections": []}, mode="ai")
+    summary_row["was_finalized"] = True
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = summary_row
+    mock_audit.objects.filter.return_value.values_list.return_value.first.return_value = []
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "42"})
+    result = view.get_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    body = json.loads(result[0].content)
+    assert body["was_finalized"] is True
 
 
 # --- /save-summary ---

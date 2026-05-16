@@ -270,6 +270,7 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
             "note_data",
             "commands",
             "approved",
+            "was_finalized",
             "recommendations",
             "unmatched_conditions",
             "diagnosis_suggestions",
@@ -291,6 +292,7 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
         "note": row["note_data"] or None,
         "commands": row["commands"] or [],
         "approved": row["approved"],
+        "was_finalized": row["was_finalized"],
         "recommendations": row["recommendations"] or [],
         "unmatched_conditions": row["unmatched_conditions"] or [],
         "diagnosis_suggestions": row["diagnosis_suggestions"] or {},
@@ -634,7 +636,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         data = _load_summary(note_id)
         if data is None:
-            return [JSONResponse({"note": None, "commands": [], "approved": False}, status_code=HTTPStatus.OK)]
+            return [
+                JSONResponse(
+                    {"note": None, "commands": [], "approved": False, "was_finalized": False}, status_code=HTTPStatus.OK
+                )
+            ]
         return [JSONResponse(data, status_code=HTTPStatus.OK)]
 
     @api.post("/save-summary")
