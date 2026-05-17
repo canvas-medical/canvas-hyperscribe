@@ -373,6 +373,7 @@ const DEBOUNCE_MS = 300;
 
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+const ICON_LOCK = html`<svg class="command-row-icon-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
 
 function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingChange }) {
   const data = command.data || {};
@@ -598,7 +599,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (filteredSections.length === 0) return null;
           const filteredCommand = { ...entry.command, data: { ...entry.command.data, sections: filteredSections } };
           return html`
-            <div class="content-block rec-narrative">
+            <div class=${`content-block rec-narrative${entry.command.already_documented ? ' command-locked' : ''}`}>
+              ${entry.command.already_documented && ICON_LOCK}
               <${HistoryReviewRow}
                 command=${filteredCommand}
                 commandIndex=${entry.index}
@@ -635,7 +637,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
                     const aFormatted = aCode.length > 3 ? aCode.slice(0, 3) + '.' + aCode.slice(3) : aCode;
                     return html`
-                      <div class="content-block recommendation-block rec-assess" key=${entry.index}>
+                      <div class=${`content-block recommendation-block rec-assess${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                        ${entry.command.already_documented && ICON_LOCK}
                         <div class="recommendation-content">
                           <div class="diagnose-row">
                             <div class="diagnose-row-header">
@@ -673,7 +676,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const handleRejectDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, rejected: true, accepted: false }, 'diagnose');
 
                     return html`
-                      <div class="content-block recommendation-block rec-diagnose${isRejected ? ' rec-rejected' : ''}" key=${entry.index}>
+                      <div class=${`content-block recommendation-block rec-diagnose${isRejected ? ' rec-rejected' : ''}${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                        ${entry.command.already_documented && ICON_LOCK}
                         <div class="recommendation-content">
                           <${DiagnoseRow}
                             command=${entry.command}
@@ -722,7 +726,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                   `}
                   ${(visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition')).map(re => html`
-                    <div class="content-block recommendation-block rec-removal" key=${re.index}>
+                    <div class=${`content-block recommendation-block rec-removal${re.command.already_documented ? ' command-locked' : ''}`} key=${re.index}>
+                      ${re.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${RemovalRow}
                           command=${re.command}
@@ -753,7 +758,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
-                <div class="content-block rec-narrative">
+                <div class=${`content-block rec-narrative${entry.command.already_documented ? ' command-locked' : ''}`}>
+                  ${entry.command.already_documented && ICON_LOCK}
                   <${CommandRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
@@ -763,7 +769,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   />
                 </div>
                 ${planResolves.map(re => html`
-                  <div class="content-block recommendation-block rec-removal" key=${re.index}>
+                  <div class=${`content-block recommendation-block rec-removal${re.command.already_documented ? ' command-locked' : ''}`} key=${re.index}>
+                    ${re.command.already_documented && ICON_LOCK}
                     <div class="recommendation-content">
                       <${RemovalRow}
                         command=${re.command}
@@ -797,7 +804,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
                 ${allVitals.map(entry => html`
-                  <div class="content-block rec-vitals" key=${entry.index}>
+                  <div class=${`content-block rec-vitals${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                    ${entry.command.already_documented && ICON_LOCK}
                     <${VitalsRow}
                       command=${entry.command}
                       commandIndex=${entry.index}
@@ -821,7 +829,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
-                <div class="content-block rec-narrative">
+                <div class=${`content-block rec-narrative${entry.command.already_documented ? ' command-locked' : ''}`}>
+                  ${entry.command.already_documented && ICON_LOCK}
                   <${HistoryReviewRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
@@ -846,7 +855,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">Med List Updates</div>
                   ${(cmds || []).map(entry => html`
-                    <div class="content-block recommendation-block rec-medication" key=${entry.index}>
+                    <div class=${`content-block recommendation-block rec-medication${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${MedicationRow}
                           command=${entry.command}
@@ -870,7 +880,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                   `)}
                   ${adHocMeds.map(entry => html`
-                    <div class="content-block recommendation-block rec-medication" key=${entry.index}>
+                    <div class=${`content-block recommendation-block rec-medication${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${MedicationRow}
                           command=${entry.command}
@@ -898,7 +909,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const isRejected = entry.command.rejected;
                     const isUnreviewed = !isAccepted && !isRejected;
                     return html`
-                    <div class="content-block recommendation-block rec-medication${isRejected ? ' rec-rejected' : ''}" key=${'rec-med-' + entry.index}>
+                    <div class=${`content-block recommendation-block rec-medication${isRejected ? ' rec-rejected' : ''}${entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-med-' + entry.index}>
+                      ${entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${MedicationRow}
                           command=${entry.command}
@@ -927,7 +939,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     `;
                   })}
                   ${adHocStopMeds.map(entry => html`
-                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                    <div class=${`content-block recommendation-block rec-removal${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${RemovalRow}
                           command=${entry.command}
@@ -970,7 +983,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">Allergy List Updates</div>
                   ${(cmds || []).map(entry => html`
-                    <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
+                    <div class=${`content-block recommendation-block rec-allergy${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${AllergyRow}
                           command=${entry.command}
@@ -989,7 +1003,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                   `)}
                   ${adHocAllergies.map(entry => html`
-                    <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
+                    <div class=${`content-block recommendation-block rec-allergy${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${AllergyRow}
                           command=${entry.command}
@@ -1011,7 +1026,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const isAccepted = entry.command.accepted && !entry.command.rejected;
                     const isRejected = entry.command.rejected;
                     return html`
-                    <div class="content-block recommendation-block rec-allergy${isRejected ? ' rec-rejected' : ''}" key=${'rec-allergy-' + entry.index}>
+                    <div class=${`content-block recommendation-block rec-allergy${isRejected ? ' rec-rejected' : ''}${entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-allergy-' + entry.index}>
+                      ${entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${AllergyRow}
                           command=${entry.command}
@@ -1036,7 +1052,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     `;
                   })}
                   ${adHocRemoveAllergies.map(entry => html`
-                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                    <div class=${`content-block recommendation-block rec-removal${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${RemovalRow}
                           command=${entry.command}
@@ -1077,7 +1094,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               <div class="subsection-title">${s.title}</div>
               ${showHistoryText && html`<p class="section-text">${s.text}</p>`}
               ${historyEntries.map(entry => html`
-                <div class="content-block recommendation-block rec-history" key=${entry.index}>
+                <div class=${`content-block recommendation-block rec-history${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                  ${entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${HistoryEntryRow}
                       command=${entry.command}
@@ -1100,7 +1118,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const adHocResolves = visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition');
                 return html`
                   ${adHocResolves.map(entry => html`
-                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                    <div class=${`content-block recommendation-block rec-removal${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${RemovalRow}
                           command=${entry.command}
@@ -1134,7 +1153,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const entry = cmds[0];
           return html`
             <div class="subsection-title">Review of Systems</div>
-            <div class="content-block rec-narrative">
+            <div class=${`content-block rec-narrative${entry.command.already_documented ? ' command-locked' : ''}`}>
+              ${entry.command.already_documented && ICON_LOCK}
               <${HistoryReviewRow}
                 command=${entry.command}
                 commandIndex=${entry.index}
@@ -1155,7 +1175,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (type === 'resolve_condition') return null;
           if (type === 'task') {
             return html`
-              <div class="content-block recommendation-block rec-task" key=${entry.index}>
+              <div class=${`content-block recommendation-block rec-task${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                ${entry.command.already_documented && ICON_LOCK}
                 <div class="recommendation-content">
                   <${TaskRow}
                     command=${entry.command}
@@ -1205,7 +1226,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             }
             const orderIncomplete = orderMissing.length > 0;
             return html`
-              <div class="content-block recommendation-block rec-order" key=${entry.index}>
+              <div class=${`content-block recommendation-block rec-order${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                ${entry.command.already_documented && ICON_LOCK}
                 <div class="recommendation-content">
                   <${OrderRow}
                     command=${entry.command}
@@ -1251,7 +1273,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (type === 'questionnaire') return null;
           if (type === 'plan') {
             return html`
-              <div class="content-block recommendation-block rec-plan" key=${entry.index}>
+              <div class=${`content-block recommendation-block rec-plan${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                ${entry.command.already_documented && ICON_LOCK}
                 <div class="recommendation-content">
                   <${CommandRow}
                     command=${entry.command}
@@ -1269,7 +1292,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (type === 'perform') return null;
           if (REMOVAL_TYPES.has(type)) {
             return html`
-              <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+              <div class=${`content-block recommendation-block rec-removal${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                ${entry.command.already_documented && ICON_LOCK}
                 <div class="recommendation-content">
                   <${RemovalRow}
                     command=${entry.command}
@@ -1294,7 +1318,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <div class="subsection">
               <div class="subsection-title">Questionnaires</div>
               ${questionnaireCommands.map(entry => html`
-                <div class="content-block recommendation-block rec-questionnaire" key=${entry.index}>
+                <div class=${`content-block recommendation-block rec-questionnaire${entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                  ${entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${QuestionnaireRow}
                       command=${entry.command}
@@ -1429,7 +1454,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const isRejected = entry.command.rejected;
 
                 return html`
-                <div class="content-block recommendation-block rec-prescribe${isRejected ? ' rec-rejected' : ''}" key=${'rec-rx-' + entry.index}>
+                <div class=${`content-block recommendation-block rec-prescribe${isRejected ? ' rec-rejected' : ''}${entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-rx-' + entry.index}>
+                  ${entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
@@ -1486,7 +1512,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const isRejected = entry.command.rejected;
 
                 return html`
-                <div class="content-block recommendation-block rec-refer${isRejected ? ' rec-rejected' : ''}" key=${'rec-refer-' + entry.index}>
+                <div class=${`content-block recommendation-block rec-refer${isRejected ? ' rec-rejected' : ''}${entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-refer-' + entry.index}>
+                  ${entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
@@ -1535,7 +1562,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const isAccepted = entry.command.accepted && !entry.command.rejected;
                 const isRejected = entry.command.rejected;
                 return html`
-                <div class="content-block recommendation-block rec-task${isRejected ? ' rec-rejected' : ''}" key=${'rec-task-' + entry.index}>
+                <div class=${`content-block recommendation-block rec-task${isRejected ? ' rec-rejected' : ''}${entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-task-' + entry.index}>
+                  ${entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${TaskRow}
                       command=${entry.command}
