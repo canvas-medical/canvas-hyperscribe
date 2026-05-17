@@ -1815,7 +1815,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddCondition: canEdit ? handleAddCondition : null,
           unmatchedConditions,
           diagnosisSuggestions,
-          onAddNow: canEdit ? handleAddNow : null,
+          onAddNow: (canEdit && !(wasFinalized && !approved)) ? handleAddNow : null,
           hideRejected,
           alertFacilityEnabled,
           onEditingChange: handleEditingChange,
