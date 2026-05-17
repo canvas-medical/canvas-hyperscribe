@@ -212,7 +212,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [inserting, setInserting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [approved, setApproved] = useState(initSummary?.approved ?? false);
-  const [wasFinalized, setWasFinalized] = useState(initSummary?.was_finalized ?? false);
+  // Fall back to `approved` so pre-existing finalized notes (saved before the
+  // was_finalized latch shipped) still surface the amendment pill on open.
+  // New rows ride the explicit latch from _save_summary.
+  const [wasFinalized, setWasFinalized] = useState(
+    initSummary?.was_finalized ?? !!initSummary?.approved
+  );
   const [isNoteEditable, setNoteEditable] = useState(noteEditable);
   const [hideRejected, setHideRejected] = useState(true);
   const [assignees, setAssignees] = useState(initialData?.assignees ?? []);
@@ -346,7 +351,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           if (cached.approved) {
             setApproved(true);
           }
-          if (cached.was_finalized) {
+          // Treat cached.approved as implying was_finalized for pre-existing
+          // finalized notes that predate the explicit latch.
+          if (cached.was_finalized || cached.approved) {
             setWasFinalized(true);
           }
           if (cached.note) {
@@ -1162,7 +1169,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
     const SECTION_TYPES = new Set(['physical_exam', 'ros', 'chart_review', 'history_review']);
     const insertable = commands.filter(c => {
-      if (c.already_documented) return false;
+      // Either flag means "already on the note." command_uuid is the
+      // authoritative signal (set whenever a command is inserted, whether
+      // via full Approve or Add Now). already_documented is the explicit
+      // marker. Treat either as exclusionary so pre-existing finalized
+      // notes (which have UUIDs but no already_documented flag) don't
+      // double-insert on amendment re-Approve.
+      if (c.already_documented || c.command_uuid) return false;
       if (!c.display && !(SECTION_TYPES.has(c.command_type) && c.data?.sections?.length > 0)) return false;
       if (c.command_type === 'imaging_order' && (!c.data.image_code || !c.data.service_provider || !c.data.ordering_provider_id || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
       if (c.command_type === 'prescribe' && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
