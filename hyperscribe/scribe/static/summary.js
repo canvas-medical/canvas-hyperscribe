@@ -598,6 +598,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       data: {
         questionnaire_dbid: q.questionnaire_dbid,
         questionnaire_name: q.questionnaire_name,
+        is_scored: !!q.is_scored,
+        scoring_function_name: q.scoring_function_name || '',
         questions: q.questions.map(question => ({
           dbid: question.dbid,
           label: question.label,
@@ -605,6 +607,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           responses: question.options.map(o => ({
             dbid: o.dbid,
             value: (question.type === 'TXT' || question.type === 'INT') ? '' : o.value,
+            code: o.code || '',
+            score_value: o.score_value || '',
             selected: false,
             comment: null,
           })),

@@ -55,11 +55,13 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
     q1.dbid = 10
     q1.id = "ext-uuid-1"
     q1.name = "PHQ-9"
+    q1.scoring_function_name = "phq9_score"
 
     q2 = MagicMock()
     q2.dbid = 20
     q2.id = "ext-uuid-2"
     q2.name = "GAD-7"
+    q2.scoring_function_name = "gad7_score"
 
     # Batch filter returns both questionnaires as an iterable.
     mock_model.objects.filter.return_value = [q1, q2]
@@ -67,9 +69,13 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
     option_a = MagicMock()
     option_a.dbid = 101
     option_a.name = "Not at all"
+    option_a.code = "LA6568-5"
+    option_a.value = "0"
     option_b = MagicMock()
     option_b.dbid = 102
     option_b.name = "Several days"
+    option_b.code = "LA6569-3"
+    option_b.value = "1"
 
     question = MagicMock()
     question.id = "1"
@@ -97,8 +103,8 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
         "label": "Little interest?",
         "type": ResponseOption.TYPE_RADIO,
         "options": [
-            {"dbid": 101, "value": "Not at all"},
-            {"dbid": 102, "value": "Several days"},
+            {"dbid": 101, "value": "Not at all", "code": "LA6568-5", "score_value": "0"},
+            {"dbid": 102, "value": "Several days", "code": "LA6569-3", "score_value": "1"},
         ],
     }
     assert result == [
@@ -111,11 +117,15 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
                             {
                                 "questionnaire_dbid": 10,
                                 "questionnaire_name": "PHQ-9",
+                                "is_scored": True,
+                                "scoring_function_name": "phq9_score",
                                 "questions": [expected_question],
                             },
                             {
                                 "questionnaire_dbid": 20,
                                 "questionnaire_name": "GAD-7",
+                                "is_scored": True,
+                                "scoring_function_name": "gad7_score",
                                 "questions": [expected_question],
                             },
                         ],
@@ -144,6 +154,7 @@ def test_get_visit_templates_skips_missing_questionnaire(mock_model: MagicMock, 
     q1.dbid = 10
     q1.id = "ext-uuid-1"
     q1.name = "PHQ-9"
+    q1.scoring_function_name = "phq9_score"
 
     # Batch filter only returns PHQ-9 (NonExistent is missing).
     mock_model.objects.filter.return_value = [q1]
@@ -166,7 +177,85 @@ def test_get_visit_templates_skips_missing_questionnaire(mock_model: MagicMock, 
                             {
                                 "questionnaire_dbid": 10,
                                 "questionnaire_name": "PHQ-9",
+                                "is_scored": True,
+                                "scoring_function_name": "phq9_score",
                                 "questions": [],
+                            }
+                        ],
+                        "ros_sections": None,
+                        "pe_sections": None,
+                        "charges": [],
+                    }
+                ]
+            },
+            status_code=HTTPStatus.OK,
+        )
+    ]
+
+
+@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
+def test_get_visit_templates_preserves_integer_zero_score_value(
+    mock_model: MagicMock, mock_cmd_class: MagicMock
+) -> None:
+    """Template-resolved questionnaires must preserve int 0 score_values as the string "0".
+    Mirror of the /questionnaire-details test for the visit-template resolution path."""
+    q1 = MagicMock()
+    q1.dbid = 10
+    q1.id = "ext-uuid-1"
+    q1.name = "PHQ-9"
+    q1.scoring_function_name = "phq9_score"
+    mock_model.objects.filter.return_value = [q1]
+
+    option_zero = MagicMock()
+    option_zero.dbid = 101
+    option_zero.name = "Not at all"
+    option_zero.code = "LA6568-5"
+    option_zero.value = 0  # int 0; must serialize as "0"
+
+    option_none = MagicMock()
+    option_none.dbid = 102
+    option_none.name = "Unknown"
+    option_none.code = None
+    option_none.value = None
+
+    question = MagicMock()
+    question.id = "1"
+    question.label = "Little interest?"
+    question.type = ResponseOption.TYPE_RADIO
+    question.options = [option_zero, option_none]
+
+    cmd_instance = MagicMock()
+    cmd_instance.questions = [question]
+    mock_cmd_class.return_value = cmd_instance
+
+    secret = json.dumps({"templates": [{"name": "Test", "questionnaires": ["PHQ-9"]}]})
+    view = _helper_instance(template_secret=secret)
+    result = view.get_visit_templates()
+
+    assert result == [
+        JSONResponse(
+            {
+                "templates": [
+                    {
+                        "name": "Test",
+                        "questionnaires": [
+                            {
+                                "questionnaire_dbid": 10,
+                                "questionnaire_name": "PHQ-9",
+                                "is_scored": True,
+                                "scoring_function_name": "phq9_score",
+                                "questions": [
+                                    {
+                                        "dbid": 1,
+                                        "label": "Little interest?",
+                                        "type": ResponseOption.TYPE_RADIO,
+                                        "options": [
+                                            {"dbid": 101, "value": "Not at all", "code": "LA6568-5", "score_value": "0"},
+                                            {"dbid": 102, "value": "Unknown", "code": "", "score_value": ""},
+                                        ],
+                                    }
+                                ],
                             }
                         ],
                         "ros_sections": None,
