@@ -247,14 +247,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
   const addNowAttemptedRef = useRef([]);
-  // Set to true after a save-summary 401/403; gates subsequent autosaves so an
-  // expired iPad session doesn't fire one POST per state change (KOALA-5475).
-  // Reset on visibilitychange so re-auth in another tab is picked up on focus.
-  // Paired with sessionLost state below for the user-facing banner.
-  const sessionLostRef = useRef(false);
-  // Mirrors the ref for rendering — the ref is used inside the autosave callback
-  // (always reads fresh) while the state drives the banner re-render.
-  const [sessionLost, setSessionLost] = useState(false);
+  // Set to true after the first save-summary 403 (`_authorize_edit` denial:
+  // note locked or wrong author). Gates subsequent autosaves so the Scribe
+  // tab doesn't fire one POST per state change against a note it can't
+  // actually save to. Brigade was generating ~11.9k of these in 14 days.
+  const saveBlockedRef = useRef(false);
 
   const [editingFields, setEditingFields] = useState(new Set());
 
@@ -310,58 +307,42 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     : (!isAuthor && !approved ? 'non_author' : null);
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved, extras = {}) => {
-    // Skip the request entirely when we already know the server will reject it.
-    // Avoids surfacing the "session expired" banner for what's actually an
-    // authorization-state issue (non-author, locked note) — those have their
-    // own read-only banner elsewhere. Also cuts server noise.
+    // Skip the request entirely when we already know the server will reject
+    // it: non-author viewers and locked notes both fail `_authorize_edit`
+    // server-side. The read-only banner elsewhere already covers these cases
+    // visually; no point firing a request to be told "no" again.
     if (!isAuthor) return;
     if (!isNoteEditable) return;
-    // Skip autosave once we've seen an auth failure this focus cycle. Each
-    // page change otherwise fires another POST that the server has to reject;
-    // Brigade providers on iPad were generating ~2,700 of these per week
-    // (KOALA-5475). Reset on visibilitychange below.
-    if (sessionLostRef.current) return;
+    // Once the server has rejected an autosave for this note (typical cause:
+    // the note finalized while the Scribe tab was still attached), stop
+    // sending. The note can't become editable again without an explicit user
+    // action (Amend / state change), and those paths reset isNoteEditable
+    // via the NOTE_STATE_CHANGED WS message — they don't go through here.
+    if (saveBlockedRef.current) return;
     try {
       const res = await fetch(`${API_BASE}/save-summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note_id: noteId, note, commands: cmds, approved: isApproved, ...extras }),
       });
-      if (res.status === 401) {
-        // Real session expiry: surface the banner so the provider knows their
-        // edits aren't being saved.
-        sessionLostRef.current = true;
-        setSessionLost(true);
-        console.warn('Scribe save-summary: session expired (401); pausing autosave until next focus.');
-      } else if (res.status === 403) {
-        // _authorize_edit denial (note locked or not-author race between the
-        // state-change broadcast and the in-flight POST). Gate further calls
-        // to keep the server quiet, but don't show the session-expired banner —
-        // the actual cause is reflected in the regular read-only banner.
-        sessionLostRef.current = true;
-        console.warn('Scribe save-summary: forbidden (403); pausing autosave.');
-      } else if (res.ok) {
-        // Clear the banner the first time a save lands cleanly after recovery.
-        // No-op if it was already cleared; React de-dupes same-value setState.
-        setSessionLost(false);
+      if (res.status === 403) {
+        // _authorize_edit denial — "Note is not editable" or "Only the note
+        // author can modify the Scribe tab". Gate further autosaves silently;
+        // the existing locked / non-author banner already explains why edits
+        // aren't sticking.
+        saveBlockedRef.current = true;
       }
     } catch (err) {
       console.error('Failed to save summary to cache:', err);
     }
   }, [noteId, isAuthor, isNoteEditable]);
 
-  // Clear the auth-failure gate whenever the page comes back into focus, so
-  // a user who re-authenticated in another tab resumes autosaving on return.
-  // If the session is still bad, the next autosave will set the flag again.
+  // Resetting the gate when the note becomes editable again (post-Amend, or
+  // the user re-loads onto a fresh note in the same iframe). isNoteEditable
+  // flips via the NOTE_STATE_CHANGED WS message — see the listener above.
   useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        sessionLostRef.current = false;
-      }
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, []);
+    if (isNoteEditable) saveBlockedRef.current = false;
+  }, [isNoteEditable, noteId]);
 
   // Load summary from cache — skip if initial data was provided server-side.
   useEffect(() => {
@@ -1553,16 +1534,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   return html`
     <div class=${`summary-container${!canEdit && !approved ? ' summary-container--readonly' : ''}`}>
-      ${sessionLost && html`
-        <div class="readonly-banner readonly-banner--alert" role="alert" aria-live="assertive">
-          <svg class="readonly-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-          <span>Your session has expired — recent edits aren't being saved. Sign in again and reload to continue.</span>
-        </div>
-      `}
       ${readOnlyReason === 'locked' && html`
         <div class="readonly-banner" role="status" aria-live="polite">
           <svg class="readonly-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
