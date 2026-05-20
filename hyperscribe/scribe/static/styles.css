@@ -1629,3 +1629,33 @@ h2 { margin-bottom: 4px; }
   right: 8px;
   color: #6b7280;
 }
+
+/* ADDITIONAL COMMANDS section — commands added in the note body outside the
+   Scribe iframe. Renders below all SOAP groups as locked, read-only cards. */
+.from-the-note-item {
+  padding: 10px 12px;
+}
+
+.from-the-note-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  padding-right: 22px;
+  margin-bottom: 4px;
+}
+
+.from-the-note-detail {
+  font-size: 13px;
+  color: #555;
+  margin-top: 2px;
+  white-space: pre-wrap;
+}
+
+.from-the-note-detail-label {
+  color: #6b7280;
+  margin-right: 4px;
+}
+
+.from-the-note-detail-value {
+  color: #111;
+}

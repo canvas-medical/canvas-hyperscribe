@@ -98,6 +98,24 @@ function VerificationSummary({ result }) {
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
+// Section_key for commands the backend can't map to a Scribe section.
+// They render in the "FROM THE NOTE" catch-all block at the bottom of the
+// tab.
+const FROM_THE_NOTE_SECTION = 'from_the_note';
+
+// Convert a schema_key/command_type (camelCase or snake_case) into a Title
+// Case label for display: 'prescriptionChangeResponse' → 'Prescription
+// Change Response', 'lab_review' → 'Lab Review'. Used by the FROM THE NOTE
+// renderer when the Scribe doesn't know the command's structure.
+function humanizeCommandType(type) {
+  if (!type) return 'Command';
+  return type
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .trim();
+}
+
 const SOAP_GROUPS = [
   { title: 'SUBJECTIVE', color: 'subjective', keys: new Set(['chief_complaint', 'history_of_present_illness', 'review_of_systems']) },
   { title: 'HISTORY', color: 'history', keys: new Set(['past_medical_history', 'past_surgical_history',
@@ -471,17 +489,82 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setWasFinalized(true);
   }, [isAuthor, isNoteEditable, approved, commands, recommendations]);
 
-  const handleMakeChanges = useCallback(() => {
-    if (!isAuthor || !isNoteEditable || !approved) return;
-    logEvent('AMENDMENT_STARTED', {
-      commands_at_start: commands.filter(c => c.already_documented).length,
-    });
-    setApproved(false);
-    // Optimistically keep wasFinalized=true; it's a one-way latch server-side
-    // already, but ensure the React state matches without waiting for the
-    // /summary refetch.
-    setWasFinalized(true);
-  }, [isAuthor, isNoteEditable, approved, commands]);
+  // Pull the note's actual Command rows from the server and merge them into
+  // local state. Commands the Scribe already inserted itself stay as-is
+  // (richer local data); commands that exist on the note but not locally are
+  // appended (ad-hoc additions from the note-body editor); local commands
+  // with a UUID that's no longer on the note are dropped (user removed them
+  // outside the Scribe).
+  const syncNoteCommands = useCallback(async () => {
+    if (!noteId) return;
+    try {
+      const res = await fetch(
+        `${API_BASE}/note-commands?note_id=${encodeURIComponent(noteId)}`,
+        { credentials: 'include' }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const fetched = data.commands || [];
+      const fetchedByUuid = new Map(fetched.map(c => [c.command_uuid, c]));
+      setCommands(prev => {
+        const merged = [];
+        const keptUuids = new Set();
+        for (const cmd of prev) {
+          if (!cmd.command_uuid) {
+            // Local draft (no UUID yet) — preserve.
+            merged.push(cmd);
+            continue;
+          }
+          if (fetchedByUuid.has(cmd.command_uuid)) {
+            // Scribe-side command that's now committed to the note. Stamp it
+            // documented but keep the rest of the local entry — overlaying
+            // the fetched payload would force section_key to from_the_note
+            // and yank the card out of its original SOAP group.
+            merged.push({ ...cmd, already_documented: true });
+            keptUuids.add(cmd.command_uuid);
+          }
+          // else: had a UUID but it's gone from the note → drop.
+        }
+        for (const cmd of fetched) {
+          if (!keptUuids.has(cmd.command_uuid)) {
+            // New ad-hoc command from the note body — append as-is so it
+            // lands in the FROM THE NOTE block.
+            merged.push(cmd);
+          }
+        }
+        return merged;
+      });
+    } catch (err) {
+      // Sync failures are non-fatal — leave whatever's already on screen.
+    }
+  }, [noteId]);
+
+  // Pull the note's command rail whenever the user switches Note tabs.
+  // The home-app broker sends NOTE_TAB_CHANGE to every Note Application
+  // iframe on every tab switch; `index.html` bridges port messages to a
+  // `canvas-message` CustomEvent on `window`. We sync on every event
+  // regardless of the new active tab — the cost is a single GET and the
+  // alternative (matching this iframe's app identifier) adds branchy client
+  // code for no real win.
+  useEffect(() => {
+    const onCanvasMessage = (event) => {
+      if (event.detail?.type === 'NOTE_TAB_CHANGE') {
+        syncNoteCommands();
+      }
+    };
+    window.addEventListener('canvas-message', onCanvasMessage);
+    return () => window.removeEventListener('canvas-message', onCanvasMessage);
+  }, [syncNoteCommands]);
+
+  // Pull the note's command rail once on mount so ADDITIONAL COMMANDS
+  // populates without waiting for a tab switch. The cache-load effect below
+  // also calls syncNoteCommands in its `finally`, but it early-exits when
+  // server-side `initialData` is present — in that path nothing else triggers
+  // the initial sync.
+  useEffect(() => {
+    if (!noteId) return;
+    syncNoteCommands();
+  }, [noteId, syncNoteCommands]);
 
   // Load summary from cache — skip if initial data was provided server-side.
   useEffect(() => {
@@ -539,12 +622,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // Cache miss — start with empty skeleton.
       } finally {
         cacheLoadedRef.current = true;
+        // Pull any commands already on the note's command rail (added via
+        // the note-body editor, Add Now, etc.) so the Scribe tab reflects
+        // them on first paint.
+        if (!cancelled) {
+          syncNoteCommands();
+        }
       }
     }
 
     loadOrGenerate();
     return () => { cancelled = true; };
-  }, [noteId]);
+  }, [noteId, syncNoteCommands]);
 
   // Poll progress while generating.
   useEffect(() => {
@@ -1823,6 +1912,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const chargeAdHocCommands = commands
     .map((cmd, index) => ({ command: cmd, index }))
     .filter(entry => entry.command.section_key === '_charges_ad_hoc');
+  // Commands synced from the note body that have no Scribe-side section
+  // mapping render in a dedicated bottom block.
+  const fromTheNoteCommands = commands
+    .map((cmd, index) => ({ command: cmd, index }))
+    .filter(entry => entry.command.section_key === FROM_THE_NOTE_SECTION);
 
   const insertableCount = commands.filter(c => {
     if (c.command_type === 'diagnose') return c.data.icd10_code && c.data.accepted && c.display;
@@ -2183,6 +2277,30 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onEditingChange: handleEditingChange,
           questionnaireScores: collectQuestionnaireScores(commands),
         })}
+        ${fromTheNoteCommands.length > 0 && html`
+          <div class="summary-section from-the-note-section">
+            <div class="section-header">
+              <span class="section-title">ADDITIONAL COMMANDS</span>
+            </div>
+            <div class="section-body">
+              ${fromTheNoteCommands.map(entry => html`
+                <div class="content-block from-the-note-item command-locked" key=${entry.command.command_uuid || entry.index}>
+                  <svg class="command-row-icon-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                  <div class="from-the-note-label">${entry.command.label || humanizeCommandType(entry.command.command_type)}</div>
+                  ${(entry.command.details || []).map(d => html`
+                    <div class="from-the-note-detail" key=${d.label}>
+                      <span class="from-the-note-detail-label">${d.label}:</span>
+                      <span class="from-the-note-detail-value">${d.value}</span>
+                    </div>
+                  `)}
+                </div>
+              `)}
+            </div>
+          </div>
+        `}
       </div>
       ${verificationResult && html`<${VerificationSummary} result=${verificationResult} />`}
       ${validationError && html`
