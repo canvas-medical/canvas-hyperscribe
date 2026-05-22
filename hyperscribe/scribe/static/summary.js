@@ -321,15 +321,25 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const handleMakeChanges = useCallback(() => {
     if (!isAuthor || !isNoteEditable || !approved) return;
+    const documentedCount = commands.filter(c => c.already_documented).length;
     logEvent('AMENDMENT_STARTED', {
-      commands_at_start: commands.filter(c => c.already_documented).length,
+      commands_at_start: documentedCount,
+      dropped_commands: commands.length - documentedCount,
+      dropped_recommendations: recommendations.length,
     });
+    // Scribe should mirror the signed note during amendment: drop AI recs that
+    // never made it into the note. Leaving them in state would also re-insert
+    // them on re-Approve via the `insertable` filter.
+    setCommands(prev => prev.filter(c => c.already_documented));
+    setRecommendations([]);
+    setUnmatchedConditions([]);
+    setDiagnosisSuggestions({});
     setApproved(false);
     // Optimistically keep wasFinalized=true; it's a one-way latch server-side
     // already, but ensure the React state matches without waiting for the
     // /summary refetch.
     setWasFinalized(true);
-  }, [isAuthor, isNoteEditable, approved, commands]);
+  }, [isAuthor, isNoteEditable, approved, commands, recommendations]);
 
   // Load summary from cache — skip if initial data was provided server-side.
   useEffect(() => {
@@ -1797,7 +1807,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
                 </div>
               `}
-              <button class="insert-btn confirm" disabled=${hasUnsavedEdits} onClick=${handleInsert}>${hasRxCommands ? 'Confirm: Accept and review prescriptions' : 'Confirm: Accept and sign'}</button>
+              <button class="insert-btn confirm" disabled=${hasUnsavedEdits} onClick=${handleInsert}>${wasFinalized ? (hasRxCommands ? 'Confirm: Save changes and review prescriptions' : 'Confirm: Save changes') : (hasRxCommands ? 'Confirm: Accept and review prescriptions' : 'Confirm: Accept and sign')}</button>
               <button class="approve-cancel" onClick=${() => setConfirming(false)}>Cancel</button>
             </div>
           ` : html`
@@ -1817,8 +1827,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
                 </div>
               `}
-              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits} onClick=${() => setConfirming(true)}>${hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign'}</button>
-              <div class="approve-warning">This action is permanent and cannot be undone.</div>
+              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
+              ${!wasFinalized && html`<div class="approve-warning">This action is permanent and cannot be undone.</div>`}
             </div>
           `}
         </div>
