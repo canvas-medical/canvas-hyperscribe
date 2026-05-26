@@ -1150,7 +1150,11 @@ def test_insert_commands_invalid_json() -> None:
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 def test_insert_commands_build_validation_error_returns_400(mock_audit: MagicMock) -> None:
     """Regression for KOALA-5476: pydantic ValidationError during build() returns 400 with
-    a structured ``validation_errors`` payload rather than crashing the whole batch with a 500."""
+    a structured ``validation_errors`` payload rather than crashing the whole batch with a 500.
+
+    Per UAT feedback on PR #273, the response surfaces a friendly command-name label
+    in ``display`` and a plain-English error sentence in ``errors`` (no raw input
+    dictionary, no Pydantic-internal wording)."""
     view = _helper_instance()
     commands = [
         {"command_type": "vitals", "data": {"pulse": 8}, "display": "HR 8"},
@@ -1165,8 +1169,8 @@ def test_insert_commands_build_validation_error_returns_400(mock_audit: MagicMoc
     assert len(body["validation_errors"]) == 1
     err = body["validation_errors"][0]
     assert err["command_type"] == "vitals"
-    assert err["display"] == "HR 8"
-    assert any("pulse" in msg for msg in err["errors"])
+    assert err["display"] == "Vitals"
+    assert err["errors"] == ["pulse must be greater than or equal to 30 (currently 8)"]
     mock_audit.assert_called_once()
     assert mock_audit.call_args.args[1] == "VALIDATION_FAILED"
 

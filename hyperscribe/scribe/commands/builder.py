@@ -133,13 +133,79 @@ def _build_unvalidated_metadata_effect(command: _BaseCommand, key: str, value: s
 
 
 def _format_pydantic_errors(exc: ValidationError) -> list[str]:
-    """Render pydantic errors as actionable one-liners for the provider UI."""
+    """Render pydantic errors as actionable one-liners for the provider UI.
+
+    The rendered message names the failing field and states the constraint in plain
+    English. Raw ``input`` values are **never** echoed except when they are explicit
+    PHI-safe scalars (``int``/``float``/``bool``/``None``); any other type — string,
+    list, dict, model — is omitted entirely. This matters because ``build_errors``
+    is persisted to the ``VALIDATION_FAILED`` audit log by ``session_view`` and
+    returned in the HTTP response body, both of which are HIPAA-sensitive sinks
+    when the LLM emits free-text content into a numeric/enum field.
+    """
     messages: list[str] = []
     for err in exc.errors():
+        # INVARIANT: ``loc`` parts are developer-defined field names from the scribe
+        # SDK command models, not LLM/user input — safe to render in clinician-facing
+        # error UI and to persist to the VALIDATION_FAILED audit log. Pydantic
+        # surfaces dict keys into ``loc`` for ``dict[K, V]``-typed fields; do NOT add
+        # ``dict[str, X]``-typed fields to scribe command models without sanitizing,
+        # or the LLM-supplied keys will leak into ``loc`` and through this renderer.
         loc = ".".join(str(part) for part in err.get("loc", ())) or "value"
-        msg = err.get("msg", "Invalid value")
-        messages.append(f"{loc}: {msg} (got {err['input']!r})")
+        err_type = err.get("type", "")
+        ctx = err.get("ctx", {}) or {}
+        input_value = err.get("input")
+        if err_type == "greater_than_equal" and "ge" in ctx:
+            messages.append(f"{loc} must be greater than or equal to {ctx['ge']} ({_render_input(input_value)})")
+        elif err_type == "less_than_equal" and "le" in ctx:
+            messages.append(f"{loc} must be less than or equal to {ctx['le']} ({_render_input(input_value)})")
+        elif err_type == "greater_than" and "gt" in ctx:
+            messages.append(f"{loc} must be greater than {ctx['gt']} ({_render_input(input_value)})")
+        elif err_type == "less_than" and "lt" in ctx:
+            messages.append(f"{loc} must be less than {ctx['lt']} ({_render_input(input_value)})")
+        elif err_type == "string_too_long" and "max_length" in ctx:
+            messages.append(f"{loc} must be at most {ctx['max_length']} characters")
+        elif err_type == "string_too_short" and "min_length" in ctx:
+            messages.append(f"{loc} must be at least {ctx['min_length']} characters")
+        elif err_type == "missing":
+            messages.append(f"{loc} is required")
+        elif err_type in ("value_error", "assertion_error"):
+            # Latent defense: custom ``@field_validator`` decorators (none today in
+            # ``hyperscribe/scribe/commands/``) raise ``ValueError(f"... {x} ...")``,
+            # and Pydantic embeds the raw input into ``msg`` for these types — a PHI
+            # vector via the ``else:`` fallback. Surface only the field name.
+            messages.append(f"{loc}: invalid value")
+        else:
+            # Fallback for unmapped pydantic types (int_type/int_parsing/bool_type/
+            # etc.). Keep the pydantic message but only echo input when it's a
+            # PHI-safe scalar; otherwise omit entirely.
+            msg = err.get("msg", "Invalid value")
+            if isinstance(input_value, (int, float, bool)) or input_value is None:
+                messages.append(f"{loc}: {msg} (currently {input_value!r})")
+            else:
+                messages.append(f"{loc}: {msg}")
     return messages
+
+
+def _render_input(value: Any) -> str:
+    """Render an ``input`` value for inclusion in an error message.
+
+    For the if/elif branches above, the constraint is on a numeric field and the
+    value is expected to be a number — but the LLM can emit free text into a
+    numeric field, in which case the value is unsafe to echo (PHI risk). Anything
+    that isn't an explicit PHI-safe scalar collapses to ``"currently invalid"``.
+    """
+    if isinstance(value, (int, float, bool)) or value is None:
+        return f"currently {value}"
+    return "currently invalid"
+
+
+# Friendly command-type labels used as the ``display`` prefix on build_errors,
+# so the UI renders e.g. "Vitals: pulse must be greater than or equal to 30
+# (currently 8)" instead of dumping the raw input free-text as the prefix.
+_BUILD_ERROR_LABELS: dict[str, str] = {
+    "vitals": "Vitals",
+}
 
 
 def build_effects(
@@ -172,26 +238,45 @@ def build_effects(
     built: list[tuple[CommandParser, _BaseCommand, dict[str, Any]]] = []
     build_errors: list[dict[str, Any]] = []
     for proposal in proposals:
-        builder = _BUILDERS.get(proposal.get("command_type", ""))
+        command_type = proposal.get("command_type", "")
+        builder = _BUILDERS.get(command_type)
         if builder is None:
             continue
+        # Resolve the user-facing label once per proposal. The LLM-supplied
+        # ``display`` is untrusted free text and may contain PHI when the model
+        # echoes raw field content; prefer the friendly label from
+        # ``_BUILD_ERROR_LABELS`` for any command type we render error UI for.
+        display = _BUILD_ERROR_LABELS.get(command_type) or (proposal.get("display") or "")[:80]
         try:
             command = builder.build(proposal.get("data", {}), note_uuid, str(uuid.uuid4()))
         except ValidationError as exc:
             build_errors.append(
                 {
-                    "command_type": proposal.get("command_type", ""),
-                    "display": (proposal.get("display") or "")[:80],
+                    "command_type": command_type,
+                    "display": display,
                     "errors": _format_pydantic_errors(exc),
                 }
             )
             continue
-        except ValueError as exc:
+        except ValueError:
+            # Non-pydantic value coercion error. Today the only path that lands
+            # here is the enum coercion in vitals.py:70 for an LLM-supplied
+            # free-text ``blood_pressure_position_and_site``. We deliberately do
+            # NOT include ``str(exc)`` because Python's standard enum
+            # ``ValueError`` embeds the raw input verbatim ("'<raw>' is not a
+            # valid <EnumName>"), and that string is persisted to the
+            # VALIDATION_FAILED audit log by session_view — a HIPAA leak sink
+            # when the raw input is free-text PHI. But we DO surface the field
+            # name (developer-defined, PHI-safe) so the clinician sees which
+            # field is wrong and can re-prompt; a bare generic message is
+            # unactionable. If another command type starts raising plain
+            # ``ValueError`` from ``build()``, this hardcoded field name will
+            # become misleading — add a per-command-type lookup at that point.
             build_errors.append(
                 {
-                    "command_type": proposal.get("command_type", ""),
-                    "display": (proposal.get("display") or "")[:80],
-                    "errors": [str(exc)],
+                    "command_type": command_type,
+                    "display": display,
+                    "errors": ["blood_pressure_position_and_site: invalid value"],
                 }
             )
             continue
