@@ -54,7 +54,7 @@ def _format_contact(c: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-_GENERIC_POSTAL_CODE = "1111"
+_GENERIC_POSTAL_CODE = "11111"
 
 
 def search_refer_providers(
