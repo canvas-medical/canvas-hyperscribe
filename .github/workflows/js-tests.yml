@@ -1,0 +1,21 @@
+name: JS tests
+
+on:
+  push:
+    branches: [ main, feat/canvas-scribe ]
+  pull_request:
+    branches: [ main, feat/canvas-scribe ]
+
+jobs:
+  js-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run tests
+        run: node --test tests/static/
