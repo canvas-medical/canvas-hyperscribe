@@ -62,11 +62,7 @@ def _scribe_tab_has_content(note_dbid: int) -> bool:
     if items:
         return True
 
-    summary = (
-        ScribeSummary.objects.filter(note_id=note_dbid)
-        .values("note_data", "commands", "approved")
-        .first()
-    )
+    summary = ScribeSummary.objects.filter(note_id=note_dbid).values("note_data", "commands", "approved").first()
     if not summary:
         return False
     if summary["approved"] or summary["commands"]:

@@ -18,10 +18,7 @@ def _to_ascii_html(text: str) -> str:
     to prevent both garbled markup from benign clinical text (``K+ <3.0``)
     and script injection from untrusted transcript/textarea input.
     """
-    return "".join(
-        c if ord(c) < 128 else f"&#{ord(c)};"
-        for c in html.escape(text, quote=True)
-    )
+    return "".join(c if ord(c) < 128 else f"&#{ord(c)};" for c in html.escape(text, quote=True))
 
 
 def _narrative_to_html(text: str) -> str:
@@ -43,9 +40,7 @@ def _narrative_to_html(text: str) -> str:
                 while i < len(lines) and lines[i].startswith("- "):
                     bullets.append(lines[i][2:].strip())
                     i += 1
-                parts.append(
-                    "<ul>" + "".join(f"<li>{_to_ascii_html(b)}</li>" for b in bullets) + "</ul>"
-                )
+                parts.append("<ul>" + "".join(f"<li>{_to_ascii_html(b)}</li>" for b in bullets) + "</ul>")
             else:
                 paragraph: list[str] = []
                 while i < len(lines) and not lines[i].startswith("- "):

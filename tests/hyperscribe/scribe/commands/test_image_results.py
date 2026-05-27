@@ -89,9 +89,7 @@ def test_narrative_to_html_hard_line_break_within_paragraph() -> None:
 def test_narrative_to_html_bullets_can_resume_after_paragraph() -> None:
     text = "- first\n\nintroductory text\n\n- second\n- third"
     assert _narrative_to_html(text) == (
-        "<ul><li>first</li></ul>"
-        "<p>introductory text</p>"
-        "<ul><li>second</li><li>third</li></ul>"
+        "<ul><li>first</li></ul><p>introductory text</p><ul><li>second</li><li>third</li></ul>"
     )
 
 
