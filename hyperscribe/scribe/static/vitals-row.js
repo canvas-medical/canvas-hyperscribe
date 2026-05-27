@@ -40,6 +40,20 @@ function bpSiteLabel(value) {
 
 export { bpSiteLabel };
 
+// BMI from imperial inputs: (lbs / in^2) * 703. Returns a one-decimal number or null.
+// Suppresses display when inputs (or the resulting BMI) are outside plausible bounds
+// to avoid flashing absurd values while the user is mid-keystroke.
+function computeBmi(heightIn, weightLbs) {
+  const h = typeof heightIn === 'string' ? parseFloat(heightIn) : heightIn;
+  const w = typeof weightLbs === 'string' ? parseFloat(weightLbs) : weightLbs;
+  if (h == null || w == null || !isFinite(h) || !isFinite(w) || h <= 0 || w <= 0) return null;
+  const bmi = Math.round(((w / (h * h)) * 703) * 10) / 10;
+  if (bmi < 5 || bmi > 100) return null;
+  return bmi;
+}
+
+export { computeBmi };
+
 function formatVitalsDisplay(data) {
   const parts = [];
   VITALS_FIELDS.forEach(f => {
@@ -52,6 +66,8 @@ function formatVitalsDisplay(data) {
       if (val != null) parts.push(`${f.label} ${val} ${f.unit}`);
     }
   });
+  const bmi = computeBmi(data.height, data.weight_lbs);
+  if (bmi != null) parts.push(`BMI ${bmi}`);
   if (data.blood_pressure_position_and_site != null) {
     const label = bpSiteLabel(data.blood_pressure_position_and_site);
     if (label) parts.push(`Site: ${label}`);
@@ -205,6 +221,16 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
               </div>
             `;
           })}
+          ${(() => {
+            const bmi = computeBmi(draft.height, draft.weight_lbs);
+            if (bmi == null) return null;
+            return html`
+              <div class="vitals-edit-field vitals-edit-bmi" key="bmi">
+                <span class="vitals-edit-label">BMI</span>
+                <span class="vitals-edit-bmi-value">${bmi}</span>
+              </div>
+            `;
+          })()}
         </div>
         <div class="vitals-extra-fields">
           <div class="history-form-field">
@@ -258,6 +284,10 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
       }
     }
   });
+  const bmiView = computeBmi(command.data.height, command.data.weight_lbs);
+  if (bmiView != null) {
+    items.push(html`<span class="vitals-item" key="bmi"><strong>BMI</strong> ${bmiView}</span>`);
+  }
   if (command.data.blood_pressure_position_and_site != null) {
     const label = bpSiteLabel(command.data.blood_pressure_position_and_site);
     if (label) items.push(html`<span class="vitals-item" key="bp_site"><strong>Site</strong> ${label}</span>`);
