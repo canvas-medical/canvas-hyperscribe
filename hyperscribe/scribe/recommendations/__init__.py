@@ -8,6 +8,7 @@ from canvas_sdk.clients.llms.structures.settings import LlmSettingsAnthropic
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, Transcript
 from hyperscribe.scribe.recommendations.allergy import AllergyRecommender
 from hyperscribe.scribe.recommendations.base import BaseRecommender
+from hyperscribe.scribe.recommendations.lab import LabRecommender
 from hyperscribe.scribe.recommendations.medication_statement import MedicationRecommender
 from hyperscribe.scribe.recommendations.prescription import PrescriptionRecommender
 from hyperscribe.scribe.recommendations.refer import ReferRecommender
@@ -31,6 +32,7 @@ def _build_recommenders(zip_codes: list[str] | None = None) -> list[BaseRecommen
         AllergyRecommender(),
         PrescriptionRecommender(),
         ReferRecommender(zip_codes=zip_codes),
+        LabRecommender(),
         TaskRecommender(),
     ]
 

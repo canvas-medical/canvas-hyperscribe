@@ -1523,6 +1523,79 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           `;
         })()}
         ${(() => {
+          // Render Recommended Labs in the PLAN group.
+          if (title !== 'ASSESSMENT & PLAN') return null;
+          const labRecs = visibleRecs
+            .map(cmd => ({ command: cmd, index: cmd._origIndex }))
+            .filter(e => e.command.command_type === 'lab_order');
+          if (labRecs.length === 0) return null;
+          return html`
+            <div class="subsection">
+              <div class="subsection-title">Recommended Labs</div>
+              ${labRecs.map(entry => {
+                const data = entry.command.data || {};
+                const aoeAnswers = Array.isArray(data.aoe_answers) ? data.aoe_answers : [];
+                const missingAoes = Array.isArray(data.missing_required_aoes) ? data.missing_required_aoes : [];
+                const missingFields = [];
+                if (!data.lab_partner) missingFields.push('Lab partner');
+                if (!data.tests_order_codes || data.tests_order_codes.length === 0) missingFields.push('Tests');
+                if (!data.diagnosis_codes || data.diagnosis_codes.length === 0) missingFields.push('Diagnoses');
+                const isIncomplete = missingFields.length > 0;
+                const isAccepted = entry.command.accepted && !entry.command.rejected;
+                const isRejected = entry.command.rejected;
+                return html`
+                <div class="content-block recommendation-block rec-lab${isRejected ? ' rec-rejected' : ''}" key=${'rec-lab-' + entry.index}>
+                  <div class="recommendation-content">
+                    <${OrderRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditRecommendation}
+                      readOnly=${readOnly || entry.command.already_documented || isRejected}
+                      patientId=${patientId}
+                      noteId=${noteId}
+                      staffId=${staffId}
+                      staffName=${staffName}
+                      isRecommendation=${true}
+                      onEditingChange=${onEditingChange}
+                    />
+                    ${(aoeAnswers.length > 0 || missingAoes.length > 0) && html`
+                      <div class="rec-aoe-summary">
+                        ${aoeAnswers.map((a, i) => html`
+                          <div class="rec-aoe-line" key=${'aoe-' + i}>
+                            <span class="rec-aoe-q">${a.question_body}:</span>
+                            ${' '}${a.answer_label || a.answer_value}
+                            ${a.confidence === 'medium' && html`<span class="rec-aoe-confidence-medium">(inferred)</span>`}
+                          </div>
+                        `)}
+                        ${missingAoes.map((m, i) => html`
+                          <span class="rec-warning-pill" key=${'aoe-missing-' + i}>Needs AOE: ${m.question_body}</span>
+                        `)}
+                      </div>
+                    `}
+                    ${data.reason && html`<div class="rec-reason">${data.reason}</div>`}
+                  </div>
+                  <div class="recommendation-actions">
+                    ${entry.command.already_documented
+                      ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
+                      : !readOnly && html`
+                          ${isIncomplete && !isRejected && html`<span class="rec-warning-pill">Missing: ${missingFields.join(', ')}</span>`}
+                          ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
+                          ${isAccepted && !isIncomplete && html`<span class="rec-accepted-badge">Accepted</span>`}
+                          ${onAddNow && isAccepted && !isIncomplete && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
+                          ${!entry.command._adding && html`
+                            <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
+                            <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
+                          `}
+                        `
+                    }
+                  </div>
+                </div>
+                `;
+              })}
+            </div>
+          `;
+        })()}
+        ${(() => {
           if (title !== 'ASSESSMENT & PLAN') return null;
           const taskRecs = visibleRecs
             .map(cmd => ({ command: cmd, index: cmd._origIndex }))
