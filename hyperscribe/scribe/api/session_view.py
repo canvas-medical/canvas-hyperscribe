@@ -222,9 +222,7 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
 
 def _infer_mode_for_heal(note_dbid: int, has_user_content: bool) -> str:
     """Pick the user's mode from session artifacts. '' means no signal — don't heal."""
-    events = (
-        ScribeAuditLog.objects.filter(note_id=note_dbid).values_list("events", flat=True).first()
-    ) or []
+    events = (ScribeAuditLog.objects.filter(note_id=note_dbid).values_list("events", flat=True).first()) or []
     last_start = ""
     for event in events:
         event_type = event.get("type") if isinstance(event, dict) else None
@@ -252,10 +250,7 @@ def _has_user_authored_content(row: dict[str, Any]) -> bool:
     if row["note_data"]:
         return True
     commands = row["commands"] or []
-    return any(
-        isinstance(cmd, dict) and not cmd.get("_template_inserted")
-        for cmd in commands
-    )
+    return any(isinstance(cmd, dict) and not cmd.get("_template_inserted") for cmd in commands)
 
 
 def _load_summary(note_id: str) -> dict[str, Any] | None:
@@ -1183,7 +1178,19 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
         feature_flags = {"AlertFacilityEnabled": bool(self.secrets.get("AlertFacilityEnabled"))}
-        effects, metadata_pending, attempted = build_effects(commands, note_uuid, feature_flags)
+        effects, metadata_pending, attempted, build_errors = build_effects(commands, note_uuid, feature_flags)
+        if build_errors:
+            audit_event(
+                note_uuid,
+                "VALIDATION_FAILED",
+                {"errors": build_errors, "source": "build"},
+            )
+            return [
+                JSONResponse(
+                    {"error": "Validation failed", "validation_errors": build_errors},
+                    status_code=HTTPStatus.BAD_REQUEST,
+                )
+            ]
         audit_event(
             note_uuid,
             "INSERT_COMMANDS",
