@@ -1,6 +1,7 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
+import { computeBmi } from './bmi.js';
 
 const html = htm.bind(h);
 
@@ -52,6 +53,8 @@ function formatVitalsDisplay(data) {
       if (val != null) parts.push(`${f.label} ${val} ${f.unit}`);
     }
   });
+  const bmi = computeBmi(data.height, data.weight_lbs);
+  if (bmi != null) parts.push(`BMI ${bmi}`);
   if (data.blood_pressure_position_and_site != null) {
     const label = bpSiteLabel(data.blood_pressure_position_and_site);
     if (label) parts.push(`Site: ${label}`);
@@ -76,7 +79,7 @@ function validateField(key, value) {
   return null;
 }
 
-export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingChange }) {
+export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingChange, questionnaireScores = [] }) {
   const hasData = Object.values(command.data || {}).some(v => v != null);
   const [editing, setEditing] = useState(!readOnly && !hasData);
   useEffect(() => {
@@ -205,6 +208,22 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
               </div>
             `;
           })}
+          ${(() => {
+            const bmi = computeBmi(draft.height, draft.weight_lbs);
+            if (bmi == null) return null;
+            return html`
+              <div class="vitals-edit-field vitals-edit-bmi" key="bmi">
+                <span class="vitals-edit-label">BMI</span>
+                <span class="vitals-edit-bmi-value">${bmi}</span>
+              </div>
+            `;
+          })()}
+          ${questionnaireScores.map(qs => html`
+            <div class="vitals-edit-field vitals-edit-bmi" key=${`qs-${qs.name}`}>
+              <span class="vitals-edit-label">${qs.name}</span>
+              <span class="vitals-edit-bmi-value">${qs.score}</span>
+            </div>
+          `)}
         </div>
         <div class="vitals-extra-fields">
           <div class="history-form-field">
@@ -257,6 +276,13 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
         items.push(html`<span class="vitals-item" key=${f.key}><strong>${f.label}</strong> ${val} ${f.unit}</span>`);
       }
     }
+  });
+  const bmiView = computeBmi(command.data.height, command.data.weight_lbs);
+  if (bmiView != null) {
+    items.push(html`<span class="vitals-item" key="bmi"><strong>BMI</strong> ${bmiView}</span>`);
+  }
+  questionnaireScores.forEach(qs => {
+    items.push(html`<span class="vitals-item" key=${`qs-${qs.name}`}><strong>${qs.name}</strong> ${qs.score}</span>`);
   });
   if (command.data.blood_pressure_position_and_site != null) {
     const label = bpSiteLabel(command.data.blood_pressure_position_and_site);
