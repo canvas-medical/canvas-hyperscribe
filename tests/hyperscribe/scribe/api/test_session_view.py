@@ -1135,6 +1135,175 @@ def test_extract_commands_invalid_json() -> None:
 # --- /insert-commands ---
 
 
+def test_summary_js_cache_flip_to_approved_true_is_unconditional_on_success() -> None:
+    """KOALA-5485 cache-flip regression: in ``handleInsert``'s
+    ``/insert-commands`` success branch, the ``saveSummaryToCache(...true...)``
+    call must fire UNCONDITIONALLY - NOT gated on ``data.attempted.length > 0``.
+
+    Edge case: in amend-mode where the user saves with zero edits in any
+    editable section (or empty-note approval), ``data.attempted`` is empty.
+    If the cache write is gated on ``data.attempted.length > 0``,
+    ``setApproved(true)`` updates React state in memory but the cache holds
+    ``approved=false`` - on page reload the UI reverts to pre-approval.
+
+    Pinning approach (structural-static, since this repo has no JS test
+    framework): two assertions, both required:
+      1. The marker comment ``CACHE_FLIP_UNCONDITIONAL_ON_APPROVE_SUCCESS`` is
+         present (intent / trace marker for future maintainers).
+      2. Inside ``handleInsert``'s success branch, a ``saveSummaryToCache(...true...)``
+         call appears AFTER the closing brace of the
+         ``if (data.attempted && data.attempted.length > 0) {...}`` block - i.e.,
+         a sibling, not a child. If the call is moved back inside the gate, this
+         assertion fails.
+
+    Behavioral caveat: this is a structural pin, not a runtime behavioral pin.
+    It does NOT execute the React code. A regression that deletes the comment
+    while keeping the call gets caught by (1); a regression that moves the call
+    back inside the gate while keeping the comment gets caught by (2). A
+    behavioral pin would require a JS test infra, which is out of scope.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) Marker comment - intent / trace breadcrumb.
+    assert "CACHE_FLIP_UNCONDITIONAL_ON_APPROVE_SUCCESS" in src, (
+        "summary.js handleInsert success branch is missing the "
+        "CACHE_FLIP_UNCONDITIONAL_ON_APPROVE_SUCCESS marker. Without the "
+        "unconditional write, amend-mode Save with zero edits leaves the cache "
+        "at approved=false, so a page reload reverts the UI. Add a "
+        "saveSummaryToCache(..., true, ...) on the success branch, OUTSIDE the "
+        "`if (data.attempted && data.attempted.length > 0)` gate. Mark it with "
+        "the CACHE_FLIP_UNCONDITIONAL_ON_APPROVE_SUCCESS comment."
+    )
+
+    # (2) Structural: the `if (data.attempted && data.attempted.length > 0) {...}`
+    # block must be CLOSED before an unconditional saveSummaryToCache(..., true, ...)
+    # call. If the call moves back inside the gate, the close brace of the gate
+    # comes AFTER the call.
+    gate_marker = "if (data.attempted && data.attempted.length > 0) {"
+    gate_idx = src.find(gate_marker)
+    assert gate_idx != -1, (
+        "Expected to find the `if (data.attempted && data.attempted.length > 0) {` "
+        "guard inside handleInsert. If this gate has been removed entirely, "
+        "that's also a valid fix - update the test."
+    )
+
+    # Walk forward from after the gate's opening brace, counting braces, to find
+    # its matching close.
+    open_brace_pos = gate_idx + len(gate_marker) - 1  # position of the `{`
+    depth = 0
+    close_pos = -1
+    for i in range(open_brace_pos, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                close_pos = i
+                break
+    assert close_pos != -1, "Could not find matching close brace for the data.attempted gate"
+
+    # Match `saveSummaryToCache(noteData, <any>, true,` with `true` as the third arg.
+    # This is the post-insert success cache flip. The amend-branch cache write is
+    # earlier in the file (before the gate), so it doesn't show up in `after_gate`.
+    after_gate = src[close_pos + 1 :]
+    unconditional_pattern = re.compile(r"saveSummaryToCache\s*\(\s*noteData\s*,[^,]+,\s*true\s*,")
+    assert unconditional_pattern.search(after_gate), (
+        "The unconditional `saveSummaryToCache(noteData, ..., true, ...)` call "
+        "must appear OUTSIDE (after the closing brace of) the "
+        "`if (data.attempted && data.attempted.length > 0) {...}` block in "
+        "handleInsert's success branch. Currently it appears to be missing or "
+        "still nested inside the gate - which leaves amend-mode-zero-edits at "
+        "cache.approved=false."
+    )
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_effects")
+def test_insert_commands_audit_payload_excludes_display_phi(mock_build: MagicMock, mock_audit: MagicMock) -> None:
+    """HIPAA regression: the INSERT_COMMANDS audit payload must NOT carry the
+    ``display`` field. ``display`` is free-text clinical narrative for HPI / ROS /
+    PE / lab_results / current_medications; persisting it into
+    ``ScribeAuditLog.events`` is PHI in a log, even with 80-char truncation.
+    The audit retains structural identifiers (type, section_key) and aggregate
+    counts - enough signal for incident triage without leaking content. Mirrors
+    the AMEND_EXISTING_COMMANDS PHI hardening (KOALA-5485).
+    """
+    mock_effect = MagicMock()
+    attempted = [
+        {"command_uuid": "u1", "command_type": "hpi", "display": "Back pain"},
+    ]
+    mock_build.return_value = ([mock_effect], [], attempted)
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "hpi",
+            "section_key": "history_of_present_illness",
+            "data": {"narrative": "Patient reports severe headache for 3 days, PHI here"},
+            "display": "Patient reports severe headache for 3 days (clinical narrative)",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    view.post_insert_commands()
+
+    audit_calls = [c for c in mock_audit.call_args_list if c.args[1] == "INSERT_COMMANDS"]
+    assert len(audit_calls) == 1
+    payload = audit_calls[0].args[2]
+    assert payload["commands"], "expected at least one command entry to assert against"
+    for entry in payload["commands"]:
+        assert "display" not in entry, (
+            f"INSERT_COMMANDS audit payload must not carry 'display' (PHI risk); got: {sorted(entry.keys())}"
+        )
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_verify_commands_audit_payload_excludes_display_phi(mock_command: MagicMock, mock_audit: MagicMock) -> None:
+    """HIPAA regression: the COMMANDS_VERIFIED audit payload must NOT carry the
+    ``display`` field in either the ``verified`` or ``failed`` lists. Same
+    rationale as INSERT_COMMANDS / AMEND_EXISTING_COMMANDS: ``display`` is
+    free-text clinical narrative for many command types; persisting it (even
+    truncated) is PHI in a log. The audit retains structural identifiers
+    (type, command_uuid) and aggregate totals.
+    """
+    # Simulate: 1 verified (anchor present), 1 failed (no anchor).
+    mock_command.objects.filter.return_value.values.return_value = [
+        {"id": "uuid-verified", "anchor_object_type": "X", "anchor_object_dbid": 42},
+        {"id": "uuid-failed", "anchor_object_type": "X", "anchor_object_dbid": None},
+    ]
+
+    view = _helper_instance()
+    attempted = [
+        {
+            "command_uuid": "uuid-verified",
+            "command_type": "hpi",
+            "display": "Patient reports severe headache with photophobia (PHI)",
+        },
+        {
+            "command_uuid": "uuid-failed",
+            "command_type": "ros",
+            "display": "Denies fever, chills; positive cough and shortness of breath (PHI)",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "attempted": attempted}))
+    view.post_verify_commands()
+
+    audit_calls = [c for c in mock_audit.call_args_list if c.args[1] == "COMMANDS_VERIFIED"]
+    assert len(audit_calls) == 1
+    payload = audit_calls[0].args[2]
+    for entry in payload.get("verified", []):
+        assert "display" not in entry, (
+            f"COMMANDS_VERIFIED 'verified' entries must not carry 'display' (PHI risk); got: {sorted(entry.keys())}"
+        )
+    for entry in payload.get("failed", []):
+        assert "display" not in entry, (
+            f"COMMANDS_VERIFIED 'failed' entries must not carry 'display' (PHI risk); got: {sorted(entry.keys())}"
+        )
+
+
 @patch("hyperscribe.scribe.api.session_view.build_effects")
 def test_insert_commands_success(mock_build: MagicMock) -> None:
     mock_effect_1 = MagicMock()
@@ -1253,6 +1422,853 @@ def test_insert_commands_build_validation_error_returns_400(mock_audit: MagicMoc
     assert err["errors"] == ["pulse must be greater than or equal to 30 (currently 8)"]
     mock_audit.assert_called_once()
     assert mock_audit.call_args.args[1] == "VALIDATION_FAILED"
+# --- /edit-existing-commands (KOALA-5485) ---
+
+
+class _StubUUID:
+    """Stand-in for the ``uuid.UUID`` objects returned by
+    ``Command.objects.values_list("id", ...)`` against Postgres.
+
+    The Postgres backend yields ``uuid.UUID`` instances for ``UUIDField``
+    columns, NOT strings. ``hash(UUID(s)) != hash(s)``, so a dict keyed by
+    the raw return values misses every string-keyed lookup - that's the
+    bug that turned every legitimate amendment into a ``command_not_found``
+    409 in UAT (KOALA-5485 iter-4 fix).
+
+    This stub mirrors the salient behavior of ``uuid.UUID`` for the test:
+    string-ish but with a non-string hash, so a faulty implementation that
+    forgets to coerce will fail loudly. We can't use ``uuid.UUID`` directly
+    here because the test fixtures use human-readable identifiers like
+    ``"old-hpi-uuid"`` that aren't valid UUIDs - swapping every fixture to
+    a real UUID would balloon the diff without improving the regression
+    signal this stub already gives.
+    """
+
+    __slots__ = ("_s",)
+
+    def __init__(self, s: str) -> None:
+        self._s = s
+
+    def __str__(self) -> str:
+        return self._s
+
+    def __repr__(self) -> str:
+        return f"_StubUUID({self._s!r})"
+
+    def __hash__(self) -> int:
+        # Critically, the hash MUST differ from ``hash(self._s)`` - that's the
+        # production type-mismatch we're modeling.
+        return hash(("uuid", self._s))
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, _StubUUID):
+            return self._s == other._s
+        return NotImplemented
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_edit_existing_commands_rfv_direct_edit(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """Direct EDIT for chief_complaint surfaces the same uuid for old/new."""
+    mock_effect = MagicMock()
+    attempted = [
+        {
+            "section_key": "chief_complaint",
+            "command_type": "rfv",
+            "old_command_uuid": "rfv-uuid",
+            "new_command_uuid": "rfv-uuid",
+            "mode": "direct_edit",
+            "display": "Headache",
+        },
+    ]
+    mock_build.return_value = ([mock_effect], attempted)
+    # State check: the RFV row is currently 'staged' (the only valid state for direct EDIT).
+    # ``_StubUUID`` mirrors Postgres' return type for ``UUIDField`` columns:
+    # the production query returns ``uuid.UUID`` instances, not strings, and the
+    # session view must coerce them to ``str`` for the string-keyed lookup.
+    mock_command.objects.filter.return_value.values_list.return_value = [
+        (_StubUUID("rfv-uuid"), "staged"),
+    ]
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "rfv",
+            "command_uuid": "rfv-uuid",
+            "section_key": "chief_complaint",
+            "data": {"comment": "Headache"},
+            "display": "Headache",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_edit_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["attempted"] == attempted
+    # KOALA-5485: 'rejected' is no longer surfaced in the response. Silent
+    # drops are logged at WARN inside build_amend_edit_effects instead.
+    assert "rejected" not in data
+    assert len(result) == 2  # JSONResponse + 1 effect
+    assert result[1] is mock_effect
+    mock_build.assert_called_once_with(commands, "note-uuid-123")
+    mock_audit.assert_called_once()
+    audit_call = mock_audit.call_args
+    assert audit_call.args[0] == "note-uuid-123"
+    assert audit_call.args[1] == "AMEND_EXISTING_COMMANDS"
+    assert audit_call.args[2]["edit_count"] == 1
+    assert audit_call.args[2]["effect_count"] == 1
+    assert audit_call.args[2]["entries"][0]["mode"] == "direct_edit"
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_edit_existing_commands_hpi_void_recreate(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """Void+recreate for HPI surfaces a different uuid for new vs old."""
+    eie_effect = MagicMock()
+    originate_effect = MagicMock()
+    commit_effect = MagicMock()
+    attempted = [
+        {
+            "section_key": "history_of_present_illness",
+            "command_type": "hpi",
+            "old_command_uuid": "old-hpi-uuid",
+            "new_command_uuid": "new-hpi-uuid",
+            "mode": "void_recreate",
+            "display": "Two weeks of headaches",
+        },
+    ]
+    mock_build.return_value = ([eie_effect, originate_effect, commit_effect], attempted)
+    # State check: HPI row is currently 'committed' - valid for void+recreate.
+    # See ``_StubUUID`` docstring: Postgres ``uuid`` columns return ``UUID``
+    # objects, not strings.
+    mock_command.objects.filter.return_value.values_list.return_value = [
+        (_StubUUID("old-hpi-uuid"), "committed"),
+    ]
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "hpi",
+            "command_uuid": "old-hpi-uuid",
+            "section_key": "history_of_present_illness",
+            "data": {"narrative": "Two weeks of headaches"},
+            "display": "Two weeks of headaches",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_edit_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["attempted"] == attempted
+    assert len(result) == 4  # JSONResponse + 3 effects
+    audit_call = mock_audit.call_args
+    assert audit_call.args[1] == "AMEND_EXISTING_COMMANDS"
+    assert audit_call.args[2]["entries"][0]["mode"] == "void_recreate"
+    assert audit_call.args[2]["entries"][0]["old_command_uuid"] == "old-hpi-uuid"
+    assert audit_call.args[2]["entries"][0]["new_command_uuid"] == "new-hpi-uuid"
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+def test_edit_existing_commands_silently_drops_disallowed_section(mock_build: MagicMock, mock_audit: MagicMock) -> None:
+    """Sections not in EDITABLE_AMEND_SECTIONS are silently dropped (logged at WARN
+    inside build_amend_edit_effects). The response carries only the attempted
+    list - no parallel `rejected` field. Rationale: defense-in-depth, not UX -
+    the frontend should never send a non-editable section in the first place;
+    surfacing them as a structured response field encourages relying on it.
+    """
+    mock_build.return_value = ([], [])
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "prescribe",
+            "command_uuid": "rx-uuid",
+            "section_key": "_recommended",  # not in EDITABLE_AMEND_SECTIONS
+            "data": {"sig": "daily"},
+            "display": "Lisinopril",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_edit_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["attempted"] == []
+    # No `rejected` parallel field anymore.
+    assert "rejected" not in data
+    # Audit still gets the (empty) entries list under the renamed type.
+    audit_call = mock_audit.call_args
+    assert audit_call.args[1] == "AMEND_EXISTING_COMMANDS"
+    assert audit_call.args[2]["edit_count"] == 0
+    assert audit_call.args[2]["entries"] == []
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+def test_edit_existing_commands_silently_drops_missing_command_uuid(
+    mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """An editable section without a command_uuid is silently dropped, not silently
+    turned into a fresh insert. The frontend should never submit this shape; if it
+    does, the drop is logged at WARN inside build_amend_edit_effects.
+    """
+    mock_build.return_value = ([], [])
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "rfv",
+            "section_key": "chief_complaint",
+            "data": {"comment": "Headache"},
+            "display": "Headache",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_edit_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["attempted"] == []
+    assert "rejected" not in data
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+def test_edit_existing_commands_validation_error(mock_build: MagicMock, mock_audit: MagicMock) -> None:
+    """Per-field validation runs against amendment edits too - over-long narratives bounce."""
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "hpi",
+            "command_uuid": "old-hpi-uuid",
+            "section_key": "history_of_present_illness",
+            "data": {"narrative": "x" * 999999},  # this won't trip current rules but we use a real rule below
+        },
+        # Use a known rule that DOES trip: prescribe sig over 1000 chars.
+        {
+            "command_type": "prescribe",
+            "command_uuid": "old-rx-uuid",
+            "section_key": "chief_complaint",  # ignored when validation fails first
+            "data": {"sig": "x" * 1001},
+            "display": "Rx",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_edit_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    payload = json.loads(result[0].content)
+    assert "validation_errors" in payload
+    mock_build.assert_not_called()
+    # Validation failure still gets audited.
+    audit_event_types = [c.args[1] for c in mock_audit.call_args_list]
+    assert "VALIDATION_FAILED" in audit_event_types
+
+
+def test_edit_existing_commands_missing_note_uuid() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"commands": []}))
+    result = view.post_edit_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_uuid" in json.loads(result[0].content)["error"]
+
+
+def test_edit_existing_commands_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_edit_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.Command")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+def test_edit_existing_commands_does_not_touch_scribe_summary(
+    mock_build: MagicMock,
+    mock_audit: MagicMock,
+    mock_summary: MagicMock,
+    mock_command: MagicMock,
+) -> None:
+    """KOALA-5485: amendment edits must NOT write to ScribeSummary.
+
+    The ``was_finalized`` latch is set by ``/save-summary`` on first approval
+    and is intentionally one-way: any number of amendment edit roundtrips
+    must leave it True. Pinning this at the endpoint level keeps a future
+    refactor from accidentally introducing a write that clears the latch
+    (which would re-show the "Accept and sign" wording and break the
+    distinction between fresh approval and amendment).
+    """
+    mock_effect = MagicMock()
+    mock_build.return_value = (
+        [mock_effect],
+        [
+            {
+                "section_key": "chief_complaint",
+                "command_type": "rfv",
+                "old_command_uuid": "rfv-uuid",
+                "new_command_uuid": "rfv-uuid",
+                "mode": "direct_edit",
+                "display": "Headache",
+            },
+        ],
+    )
+    mock_command.objects.filter.return_value.values_list.return_value = [
+        (_StubUUID("rfv-uuid"), "staged"),
+    ]
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note_uuid": "note-uuid-123",
+                "commands": [
+                    {
+                        "command_type": "rfv",
+                        "command_uuid": "rfv-uuid",
+                        "section_key": "chief_complaint",
+                        "data": {"comment": "Headache"},
+                        "display": "Headache",
+                    },
+                ],
+            }
+        )
+    )
+    view.post_edit_existing_commands()
+
+    mock_summary.objects.update_or_create.assert_not_called()
+    mock_summary.objects.create.assert_not_called()
+    mock_summary.objects.filter.assert_not_called()
+    mock_summary.objects.get.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_edit_existing_commands_rejects_stale_amend_on_already_voided_row(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """Cross-tab concurrency: Tab A amends HPI X -> Y (X is now entered_in_error).
+    Tab B (stale, still showing X) submits its own amend against X. The backend
+    must reject Tab B's amend with HTTP 409 so the frontend can prompt reload,
+    not happily emit EIE(X) on an already-voided row.
+    """
+    # Tab B's request: amend HPI against uuid X.
+    # State in DB: X is now 'entered_in_error' (Tab A already voided it).
+    mock_command.objects.filter.return_value.values_list.return_value = [
+        (_StubUUID("old-hpi-uuid"), "entered_in_error"),
+    ]
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "hpi",
+            "command_uuid": "old-hpi-uuid",
+            "section_key": "history_of_present_illness",
+            "data": {"narrative": "Tab B's stale edit"},
+            "display": "Tab B's stale edit",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_edit_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.CONFLICT
+    body = json.loads(result[0].content)
+    assert "error" in body
+    assert "conflicts" in body
+    assert len(body["conflicts"]) == 1
+    conflict = body["conflicts"][0]
+    assert conflict["command_uuid"] == "old-hpi-uuid"
+    assert conflict["current_state"] == "entered_in_error"
+    assert conflict["reason"] == "state_mismatch_already_voided"
+
+    # Build must NOT have been called - no effects emitted on conflict.
+    mock_build.assert_not_called()
+    # Conflict audit fired with the renamed audit type.
+    audit_types = [c.args[1] for c in mock_audit.call_args_list]
+    assert "AMEND_CONFLICT" in audit_types
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_edit_existing_commands_rejects_direct_edit_on_non_staged_rfv(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """RFV (chief_complaint) direct-EDIT requires the row to be 'staged'. If
+    a future home-app change starts committing RFV, the direct EDIT would be
+    rejected with "Command must be staged in order to be edited." The
+    state-check catches this in the plugin first.
+    """
+    mock_command.objects.filter.return_value.values_list.return_value = [
+        (_StubUUID("rfv-uuid"), "committed"),
+    ]
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "rfv",
+            "command_uuid": "rfv-uuid",
+            "section_key": "chief_complaint",
+            "data": {"comment": "Tab B's stale CC edit"},
+            "display": "Tab B's stale CC edit",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_edit_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.CONFLICT
+    body = json.loads(result[0].content)
+    assert body["conflicts"][0]["reason"] == "state_mismatch_expected_staged"
+    assert body["conflicts"][0]["current_state"] == "committed"
+    mock_build.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_edit_existing_commands_rejects_when_command_uuid_missing_from_db(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """If a proposal's command_uuid doesn't resolve to any Command row, treat
+    it as a conflict (e.g., stale frontend cache, deleted note). Surface it
+    rather than silently no-op or emit EIE on a non-existent row.
+    """
+    # Filter returns nothing for the requested uuid.
+    mock_command.objects.filter.return_value.values_list.return_value = []
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "hpi",
+            "command_uuid": "ghost-uuid",
+            "section_key": "history_of_present_illness",
+            "data": {"narrative": "edit"},
+            "display": "edit",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_edit_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.CONFLICT
+    body = json.loads(result[0].content)
+    assert body["conflicts"][0]["reason"] == "command_not_found"
+    assert body["conflicts"][0]["current_state"] == "missing"
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_edit_existing_commands_state_lookup_handles_uuid_type_from_postgres(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """KOALA-5485 regression: ``Command.id`` is a UUIDField backed by
+    Postgres ``uuid``, so ``.values_list("id", ...)`` yields ``uuid.UUID``
+    instances, not strings. ``hash(UUID(s)) != hash(s)``, so a dict keyed
+    by the raw return values misses every string-keyed lookup - turning
+    every legitimate amendment into a spurious ``command_not_found`` 409.
+
+    This test pins the type-coercion path: the state-lookup dict MUST be
+    keyed by ``str``, and the ``cmd_uuid`` (a string from JSON) MUST
+    resolve. The other amendment tests use ``_StubUUID`` to enforce this
+    invariant on the type-mismatch axis without relying on a real Postgres
+    cursor. This test isolates the contract.
+    """
+    mock_effect = MagicMock()
+    attempted = [
+        {
+            "section_key": "chief_complaint",
+            "command_type": "rfv",
+            "old_command_uuid": "rfv-uuid",
+            "new_command_uuid": "rfv-uuid",
+            "mode": "direct_edit",
+            "display": "Headache",
+        },
+    ]
+    mock_build.return_value = ([mock_effect], attempted)
+    # Simulate the production query's actual return type: ``UUID``-like
+    # objects whose hash differs from ``hash(str(uid))``. If the session
+    # view ever stops coercing with ``str(...)`` and reverts to ``dict(...)``
+    # of the raw tuples, this test bombs with HTTPStatus.CONFLICT +
+    # ``command_not_found`` - the exact UAT failure mode.
+    mock_command.objects.filter.return_value.values_list.return_value = [
+        (_StubUUID("rfv-uuid"), "staged"),
+    ]
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "rfv",
+            "command_uuid": "rfv-uuid",
+            "section_key": "chief_complaint",
+            "data": {"comment": "Headache"},
+            "display": "Headache",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_edit_existing_commands()
+
+    # The happy path must succeed - a regression here means the type
+    # coercion is gone and every UAT amendment will 409 again.
+    assert result[0].status_code == HTTPStatus.OK, (
+        f"State-check must coerce UUID -> str so lookups by string command_uuid succeed; "
+        f"got {result[0].status_code} with body {json.loads(result[0].content)!r}"
+    )
+    body = json.loads(result[0].content)
+    assert "conflicts" not in body
+    mock_build.assert_called_once_with(commands, "note-uuid-123")
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_edit_existing_commands_audit_payload_excludes_display_phi(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """HIPAA regression: the AMEND_EXISTING_COMMANDS audit payload must NOT
+    carry the ``display`` field. For HPI / ROS / PE / lab_results / current
+    medications, ``display`` is free-text clinical narrative; persisting it
+    into ``ScribeAuditLog.events`` is PHI in a log. Even 80-character truncation
+    still leaks clinical content. The audit keeps only structural identifiers
+    (section_key, command_type, uuids, mode).
+    """
+    mock_effect = MagicMock()
+    attempted = [
+        {
+            "section_key": "history_of_present_illness",
+            "command_type": "hpi",
+            "old_command_uuid": "old-hpi-uuid",
+            "new_command_uuid": "new-hpi-uuid",
+            "mode": "void_recreate",
+            "display": "Patient presents with 2 weeks of frontal headaches, worse with bright light",
+        },
+    ]
+    mock_build.return_value = ([mock_effect], attempted)
+    mock_command.objects.filter.return_value.values_list.return_value = [(_StubUUID("old-hpi-uuid"), "committed")]
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "hpi",
+            "command_uuid": "old-hpi-uuid",
+            "section_key": "history_of_present_illness",
+            "data": {"narrative": "Patient presents with 2 weeks of frontal headaches"},
+            "display": "Patient presents with 2 weeks of frontal headaches, worse with bright light",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    view.post_edit_existing_commands()
+
+    audit_calls = [c for c in mock_audit.call_args_list if c.args[1] == "AMEND_EXISTING_COMMANDS"]
+    assert len(audit_calls) == 1
+    payload = audit_calls[0].args[2]
+    assert payload["entries"], "expected at least one entry to assert against"
+    for entry in payload["entries"]:
+        assert "display" not in entry, (
+            f"AMEND_EXISTING_COMMANDS audit payload must not carry 'display' (PHI risk); got: {sorted(entry.keys())}"
+        )
+        assert set(entry.keys()) == {
+            "section_key",
+            "command_type",
+            "old_command_uuid",
+            "new_command_uuid",
+            "mode",
+        }
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_edit_existing_commands_reads_state_before_emitting_effects(
+    mock_command: MagicMock,
+    mock_build: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    """The eligibility check must read Command.state via the plugin's view
+    before deciding whether to emit effects. This pins the check-then-emit
+    pattern - the common stale-tab case (Tab B submits after Tab A's EIE has
+    landed) is caught here.
+
+    There is NO atomic/row-lock guarantee at the plugin level: the sandbox
+    bans ``from django.db import transaction`` (only ``from django.db
+    .transaction import atomic`` is whitelisted), ``select_for_update()`` on
+    the Command view fails at the SQL layer (FOR UPDATE on an outer-joined
+    view), and the EnterInError effect is processed by home-app in its own
+    transaction anyway. See the endpoint docstring for the residual race
+    window and its visible artifact (duplicate Originate on near-simultaneous
+    submits against a still-committed row).
+    """
+    mock_effect = MagicMock()
+    attempted = [
+        {
+            "section_key": "history_of_present_illness",
+            "command_type": "hpi",
+            "old_command_uuid": "old-hpi-uuid",
+            "new_command_uuid": "new-hpi-uuid",
+            "mode": "void_recreate",
+            "display": "narrative",
+        },
+    ]
+    mock_build.return_value = ([mock_effect], attempted)
+
+    mock_command.objects.filter.return_value.values_list.return_value = [(_StubUUID("old-hpi-uuid"), "committed")]
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "hpi",
+            "command_uuid": "old-hpi-uuid",
+            "section_key": "history_of_present_illness",
+            "data": {"narrative": "edit"},
+            "display": "narrative",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    view.post_edit_existing_commands()
+
+    # The Command query went through .filter() (the SDK-sandbox-compatible path).
+    mock_command.objects.filter.assert_called_once()
+    # And NOT through the no-longer-supported select_for_update() path.
+    mock_command.objects.select_for_update.assert_not_called()
+    # Happy path: build_amend_edit_effects was invoked (no conflict surfaced).
+    mock_build.assert_called_once_with(commands, "note-uuid-123")
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_amend_conflict_audit_payload_excludes_display_phi(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """HIPAA regression: the AMEND_CONFLICT audit payload must also not carry
+    free-text clinical narrative. Conflicts are emitted on cross-tab races
+    against committed/voided rows - same PHI surface area as the success path.
+    The structured conflict shape (section_key, command_type, uuid, state,
+    reason) is already PHI-free; this test pins that.
+    """
+    mock_command.objects.filter.return_value.values_list.return_value = [
+        (_StubUUID("old-hpi-uuid"), "entered_in_error"),
+    ]
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "hpi",
+            "command_uuid": "old-hpi-uuid",
+            "section_key": "history_of_present_illness",
+            "data": {"narrative": "Tab B stale narrative with PHI"},
+            "display": "Patient reports severe abdominal pain radiating to right shoulder",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    view.post_edit_existing_commands()
+
+    audit_calls = [c for c in mock_audit.call_args_list if c.args[1] == "AMEND_CONFLICT"]
+    assert len(audit_calls) == 1
+    payload = audit_calls[0].args[2]
+    for conflict in payload["conflicts"]:
+        assert "display" not in conflict, (
+            f"AMEND_CONFLICT conflict entry must not carry 'display' (PHI risk); got: {sorted(conflict.keys())}"
+        )
+    # build_amend_edit_effects was not called - no effects emitted on conflict.
+    mock_build.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_amend_audit_payload_does_not_propagate_new_attempted_keys(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """HIPAA defense-in-depth: the AMEND_EXISTING_COMMANDS audit payload is built
+    from a fixed key whitelist. If a future change adds a new key to the
+    ``attempted`` records (e.g., the ``display`` field that was historically
+    surfaced there), it must NOT silently propagate into the audit log.
+
+    This test pins the whitelist mechanism: even when ``attempted`` carries a
+    phantom ``_future_phi`` key (simulating a future record-shape regression),
+    the audit entry only contains the structural identifiers.
+    """
+    mock_effect = MagicMock()
+    attempted = [
+        {
+            "section_key": "history_of_present_illness",
+            "command_type": "hpi",
+            "old_command_uuid": "old-hpi-uuid",
+            "new_command_uuid": "new-hpi-uuid",
+            "mode": "void_recreate",
+            "display": "free-text clinical narrative that must not leak",
+            # Phantom key simulating a future record-shape regression.
+            "_future_phi": "Patient reports severe abdominal pain (PHI)",
+        },
+    ]
+    mock_build.return_value = ([mock_effect], attempted)
+    mock_command.objects.filter.return_value.values_list.return_value = [(_StubUUID("old-hpi-uuid"), "committed")]
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "hpi",
+            "command_uuid": "old-hpi-uuid",
+            "section_key": "history_of_present_illness",
+            "data": {"narrative": "edit"},
+            "display": "narrative",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    view.post_edit_existing_commands()
+
+    audit_calls = [c for c in mock_audit.call_args_list if c.args[1] == "AMEND_EXISTING_COMMANDS"]
+    assert len(audit_calls) == 1
+    payload = audit_calls[0].args[2]
+    assert payload["entries"], "expected at least one entry to assert against"
+    expected_keys = {"section_key", "command_type", "old_command_uuid", "new_command_uuid", "mode"}
+    for entry in payload["entries"]:
+        actual_keys = set(entry.keys())
+        assert actual_keys == expected_keys, (
+            f"AMEND_EXISTING_COMMANDS audit entries must be built from the fixed whitelist "
+            f"{sorted(expected_keys)}; got: {sorted(actual_keys)}. The dict comprehension "
+            f"over a whitelist constant prevents new attempted-record keys from silently "
+            f"leaking PHI into the audit log."
+        )
+        assert "_future_phi" not in entry
+        assert "display" not in entry
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_edit_existing_commands_audit_fires_after_state_check(
+    mock_command: MagicMock,
+    mock_build: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    """Ordering invariant: ``audit_event(AMEND_EXISTING_COMMANDS, ...)`` must
+    fire AFTER the Command state read and ``build_amend_edit_effects`` call.
+
+    Why this matters: ``audit_event()`` catches broad ``Exception`` via
+    ``log.exception(...)`` so an audit-write failure cannot suppress the
+    response or short-circuit effect emission. We pin the ordering so a
+    future refactor can't accidentally hoist the audit above the state read
+    (which would let an audit-side DB failure swallow the actual amendment).
+    """
+    mock_effect = MagicMock()
+    attempted = [
+        {
+            "section_key": "history_of_present_illness",
+            "command_type": "hpi",
+            "old_command_uuid": "old-hpi-uuid",
+            "new_command_uuid": "new-hpi-uuid",
+            "mode": "void_recreate",
+        },
+    ]
+    mock_build.return_value = ([mock_effect], attempted)
+    mock_command.objects.filter.return_value.values_list.return_value = [(_StubUUID("old-hpi-uuid"), "committed")]
+
+    # Record the order in which key collaborators are touched.
+    call_log: list[str] = []
+
+    def record_filter(*_args: Any, **_kwargs: Any) -> MagicMock:
+        call_log.append("state_read")
+        # Re-stage the chained mock so the production code keeps working.
+        chained = MagicMock()
+        chained.values_list.return_value = [(_StubUUID("old-hpi-uuid"), "committed")]
+        return chained
+
+    mock_command.objects.filter.side_effect = record_filter
+
+    def record_build(*_args: Any, **_kwargs: Any) -> tuple[list[Any], list[dict[str, Any]]]:
+        call_log.append("build_effects")
+        return ([mock_effect], attempted)
+
+    mock_build.side_effect = record_build
+
+    def record_audit(*args: Any, **_kwargs: Any) -> None:
+        if len(args) >= 2 and args[1] in ("AMEND_EXISTING_COMMANDS", "AMEND_CONFLICT"):
+            call_log.append(f"audit:{args[1]}")
+
+    mock_audit.side_effect = record_audit
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "hpi",
+            "command_uuid": "old-hpi-uuid",
+            "section_key": "history_of_present_illness",
+            "data": {"narrative": "edit"},
+            "display": "narrative",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    view.post_edit_existing_commands()
+
+    # State read came first, build_effects came second, audit came last.
+    assert call_log == ["state_read", "build_effects", "audit:AMEND_EXISTING_COMMANDS"], (
+        f"audit_event(AMEND_EXISTING_COMMANDS) must fire after the state read + effect emission step. Got: {call_log}"
+    )
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_amend_conflict_audit_fires_after_state_check(
+    mock_command: MagicMock,
+    mock_build: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    """Same ordering invariant for the AMEND_CONFLICT branch: the conflict
+    audit must fire AFTER the state read decides the row is incompatible.
+    ``build_amend_edit_effects`` must NOT have been called (conflicts short-
+    circuit effect emission).
+    """
+    call_log: list[str] = []
+
+    def record_filter(*_args: Any, **_kwargs: Any) -> MagicMock:
+        call_log.append("state_read")
+        chained = MagicMock()
+        chained.values_list.return_value = [(_StubUUID("old-hpi-uuid"), "entered_in_error")]
+        return chained
+
+    mock_command.objects.filter.side_effect = record_filter
+
+    def record_audit(*args: Any, **_kwargs: Any) -> None:
+        if len(args) >= 2 and args[1] in ("AMEND_EXISTING_COMMANDS", "AMEND_CONFLICT"):
+            call_log.append(f"audit:{args[1]}")
+
+    mock_audit.side_effect = record_audit
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "hpi",
+            "command_uuid": "old-hpi-uuid",
+            "section_key": "history_of_present_illness",
+            "data": {"narrative": "edit"},
+            "display": "Patient reports severe abdominal pain (PHI)",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_edit_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.CONFLICT
+    # State read first, then audit. build_amend_edit_effects was not called.
+    assert call_log == ["state_read", "audit:AMEND_CONFLICT"], (
+        f"audit_event(AMEND_CONFLICT) must fire after the state read and conflicts must "
+        f"short-circuit effect emission. Got: {call_log}"
+    )
+    mock_build.assert_not_called()
 
 
 # --- /insert-metadata ---
