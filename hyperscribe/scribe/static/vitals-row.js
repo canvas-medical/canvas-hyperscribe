@@ -79,7 +79,7 @@ function validateField(key, value) {
   return null;
 }
 
-export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingChange }) {
+export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingChange, questionnaireScores = [] }) {
   const hasData = Object.values(command.data || {}).some(v => v != null);
   const [editing, setEditing] = useState(!readOnly && !hasData);
   useEffect(() => {
@@ -218,6 +218,12 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
               </div>
             `;
           })()}
+          ${questionnaireScores.map(qs => html`
+            <div class="vitals-edit-field vitals-edit-bmi" key=${`qs-${qs.name}`}>
+              <span class="vitals-edit-label">${qs.name}</span>
+              <span class="vitals-edit-bmi-value">${qs.score}</span>
+            </div>
+          `)}
         </div>
         <div class="vitals-extra-fields">
           <div class="history-form-field">
@@ -275,6 +281,9 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
   if (bmiView != null) {
     items.push(html`<span class="vitals-item" key="bmi"><strong>BMI</strong> ${bmiView}</span>`);
   }
+  questionnaireScores.forEach(qs => {
+    items.push(html`<span class="vitals-item" key=${`qs-${qs.name}`}><strong>${qs.name}</strong> ${qs.score}</span>`);
+  });
   if (command.data.blood_pressure_position_and_site != null) {
     const label = bpSiteLabel(command.data.blood_pressure_position_and_site);
     if (label) items.push(html`<span class="vitals-item" key="bp_site"><strong>Site</strong> ${label}</span>`);

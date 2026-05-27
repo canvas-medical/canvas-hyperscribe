@@ -1,17 +1,19 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useRef, useCallback, useEffect } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
+import {
+  TYPE_TEXT,
+  TYPE_INTEGER,
+  TYPE_RADIO,
+  TYPE_CHECKBOX,
+  isComplete,
+  computeScore,
+} from './questionnaire-score.js';
 
 const html = htm.bind(h);
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
-
-// ResponseOption type constants (from Canvas SDK).
-const TYPE_TEXT = 'TXT';
-const TYPE_INTEGER = 'INT';
-const TYPE_RADIO = 'SING';
-const TYPE_CHECKBOX = 'MULT';
 
 function QuestionnaireSearch({ onSelect }) {
   const [query, setQuery] = useState('');
@@ -284,49 +286,6 @@ function countAnswered(questions) {
     }
     return q.responses.some(r => r.selected);
   }).length;
-}
-
-// A questionnaire is "complete" when every question is either answered or explicitly skipped.
-function isComplete(questions) {
-  if (!questions || questions.length === 0) return false;
-  return questions.every(q => {
-    if (q.skipped === true) return true;
-    if (q.type === TYPE_TEXT || q.type === TYPE_INTEGER) {
-      const val = (q.responses[0] || {}).value;
-      return val !== '' && val !== null && val !== undefined;
-    }
-    return q.responses.some(r => r.selected);
-  });
-}
-
-// Additive scoring: sum the numeric score_value of each selected response across radio/checkbox
-// questions, plus the integer value of integer questions. Free-text contributes nothing. Skipped
-// questions are excluded. Returns null when no numeric data could be parsed (e.g. older saved
-// commands that predate the scoring metadata, or unscored questionnaires).
-//
-// Deliberately does NOT fall back to parsing `code`: LOINC question codes ("44249-1") would
-// parseFloat to a non-NaN number and silently masquerade as a clinical score. If a scored
-// questionnaire's score_value is missing, surfacing no score is safer than a fabricated one.
-function computeScore(questions) {
-  if (!questions || questions.length === 0) return null;
-  let sum = 0;
-  let any = false;
-  for (const q of questions) {
-    if (q.skipped === true) continue;
-    if (q.type === TYPE_TEXT) continue;
-    if (q.type === TYPE_INTEGER) {
-      const v = (q.responses[0] || {}).value;
-      const n = parseFloat(v);
-      if (!Number.isNaN(n)) { sum += n; any = true; }
-      continue;
-    }
-    for (const r of q.responses) {
-      if (!r.selected) continue;
-      const n = parseFloat(r.score_value);
-      if (!Number.isNaN(n)) { sum += n; any = true; }
-    }
-  }
-  return any ? sum : null;
 }
 
 // Render the response for a single question in the read-only expanded list.
