@@ -1,6 +1,7 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
+import { computeBmi } from './bmi.js';
 
 const html = htm.bind(h);
 
@@ -39,20 +40,6 @@ function bpSiteLabel(value) {
 }
 
 export { bpSiteLabel };
-
-// BMI from imperial inputs: (lbs / in^2) * 703. Returns a one-decimal number or null.
-// Suppresses display when inputs (or the resulting BMI) are outside plausible bounds
-// to avoid flashing absurd values while the user is mid-keystroke.
-function computeBmi(heightIn, weightLbs) {
-  const h = typeof heightIn === 'string' ? parseFloat(heightIn) : heightIn;
-  const w = typeof weightLbs === 'string' ? parseFloat(weightLbs) : weightLbs;
-  if (h == null || w == null || !isFinite(h) || !isFinite(w) || h <= 0 || w <= 0) return null;
-  const bmi = Math.round(((w / (h * h)) * 703) * 10) / 10;
-  if (bmi < 5 || bmi > 100) return null;
-  return bmi;
-}
-
-export { computeBmi };
 
 function formatVitalsDisplay(data) {
   const parts = [];
