@@ -107,6 +107,93 @@ const SOAP_GROUPS = [
   { title: 'CHARGES', color: 'charges', keys: new Set(['charges']) },
 ];
 
+// KOALA-5485: section_keys whose already-documented commands can be edited
+// during amendment. RFV (chief_complaint) goes through a direct EDIT effect;
+// CustomCommand-routed sections (_ros, _history_review, _chart_review,
+// physical_exam, lab_results, imaging_results) go through EnterInError +
+// Originate; everything else goes through EnterInError + Originate + Commit.
+//
+// Covers every command_type in `_BUILDERS` EXCEPT orders (prescribe, refill,
+// adjust_prescription, refer, imaging_order, lab_order) and questionnaires
+// (which need a 4-effect amend route, deferred to a follow-up ticket).
+//
+// MIRRORED in three places - keep all in sync until single-sourcing lands
+// (follow-up ticket):
+//   - hyperscribe/scribe/commands/builder.py (EDITABLE_AMEND_SECTIONS)
+//   - hyperscribe/scribe/static/summary.js (this file)
+//   - hyperscribe/scribe/static/soap-group.js (EDITABLE_AMEND_SECTIONS)
+const EDITABLE_AMEND_SECTIONS = new Set([
+  // DIRECT_EDIT
+  'chief_complaint',
+  // CUSTOM_COMMAND_ROUTED
+  '_ros',
+  '_history_review',
+  '_chart_review',
+  'physical_exam',
+  'lab_results',
+  'imaging_results',
+  // VOID_RECREATE - SOAP-section-anchored
+  'history_of_present_illness',
+  'current_medications',
+  'allergies',
+  'vitals',
+  'past_medical_history',
+  'past_surgical_history',
+  'family_history',
+  'assessment_and_plan',
+  'plan',
+  // VOID_RECREATE - ad-hoc buckets (rows added during a session retain these
+  // section_keys after approval+reload).
+  '_ad_hoc',
+  '_objective_ad_hoc',
+  '_history_ad_hoc',
+  '_charges_ad_hoc',
+]);
+
+// Command types that MUST NEVER be amended, regardless of section_key.
+// Three reasons a command_type lands here (see builder.py for fuller writeup):
+//   1. STRUCTURALLY IMPOSSIBLE: no COMMIT_*_COMMAND interpreter in home-app.
+//   2. STRUCTURALLY AWKWARD: EIE works, no COMMIT - needs a 4-effect route.
+//   3. POLICY EXCLUDED: full wiring exists, but amend-after-dispatch is the
+//      wrong abstraction (a cancel/resend workflow is the right shape).
+//   4. DEFERRED: amend route hasn't been built (4-effect + state preservation).
+//
+// Both lists work together: section_key gates "is this an amendable spot in
+// the UI?", and command_type gates "is this kind of action safe to void
+// and recreate?". An order added via the _ad_hoc bucket would pass the
+// section gate but must still be denied by the command gate.
+//
+// MIRRORED with builder.py's NON_EDITABLE_AMEND_COMMAND_TYPES.
+const NON_EDITABLE_AMEND_COMMAND_TYPES = new Set([
+  // 1. Structurally impossible (no COMMIT_*_COMMAND interpreter):
+  'prescribe',
+  'refill',
+  'adjust_prescription',
+  // 2. Structurally awkward (EIE exists, no COMMIT - 4-effect route needed):
+  'refer',
+  'imaging_order',
+  // 3. Policy excluded (full wiring exists; amend after lab-partner ticket
+  //    dispatch creates downstream confusion - cancel/resend is the right shape):
+  'lab_order',
+  // 4. Deferred (4-effect route + question/response state preservation needed):
+  'questionnaire',
+]);
+
+function isAmendingSectionEditable(command, isAmending) {
+  // During amendment, allow editing iff (a) we're in amendment mode (wasFinalized
+  // && !approved), (b) the section is in the allowlist, (c) the command_type
+  // is not in the denylist (orders, questionnaire), and (d) the command was
+  // originally inserted by Scribe (has a command_uuid we can target). New
+  // ad-hoc commands added during amendment go through the normal insert path.
+  return Boolean(
+    isAmending &&
+    command &&
+    command.command_uuid &&
+    EDITABLE_AMEND_SECTIONS.has(command.section_key) &&
+    !NON_EDITABLE_AMEND_COMMAND_TYPES.has(command.command_type)
+  );
+}
+
 const SKELETON_SECTIONS = [
   { key: 'chief_complaint', title: 'Chief Complaint', text: '' },
   { key: 'history_of_present_illness', title: 'History of Present Illness', text: '' },
@@ -146,7 +233,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -181,6 +268,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onRemoveChargeByCpt=${isCharges ? onRemoveChargeByCpt : null}
         templateCharges=${isCharges ? templateCharges : null}
         readOnly=${readOnly}
+        isAmending=${isAmending}
         sectionConditions=${sectionConditions}
         patientId=${patientId}
         noteId=${noteId}
@@ -752,15 +840,30 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const handleEdit = useCallback((index, newData, newType) => {
     logEvent('EDIT_COMMAND', { index, commandType: newType || commands[index]?.command_type, sectionKey: commands[index]?.section_key, data: newData });
     if (!canEdit) return;
+    // KOALA-5485: during amendment, edits to already-documented commands in
+    // EDITABLE_AMEND_SECTIONS are routed through /edit-existing-commands on
+    // Save changes. Tag the row so handleInsert can split it out from the
+    // normal insertable filter.
+    //
+    // The tag is applied UNIFORMLY at the bottom of the per-command branch
+    // (single tag point) so every command_type participates in the amend
+    // split. The gate `isAmendingSectionEditable` is the authoritative
+    // eligibility filter: it checks `wasFinalized && !approved` (we're
+    // amending), `command_uuid` presence (Scribe-inserted, not freshly
+    // ad-hoc), section_key allowlist, and command_type denylist. Orders
+    // (prescribe, refill, adjust_prescription, refer, imaging_order,
+    // lab_order), questionnaire, and freshly-added ad-hoc rows are correctly
+    // excluded by the gate, not by per-branch tag omission.
+    const isAmendEdit = (cmd) => isAmendingSectionEditable(cmd, wasFinalized && !approved);
     setCommands(prev => {
       const updated = prev.map((cmd, i) => {
         if (i !== index) return cmd;
         const type = newType || cmd.command_type;
+        let next;
         if (type === 'history_review' || type === 'chart_review' || type === 'ros' || type === 'physical_exam') {
           const display = (newData.sections || []).map(s => s.title).join(' | ');
-          return { ...cmd, data: newData, display };
-        }
-        if (type === 'vitals') {
+          next = { ...cmd, data: newData, display };
+        } else if (type === 'vitals') {
           const vParts = [];
           const sys = newData.blood_pressure_systole;
           const dia = newData.blood_pressure_diastole;
@@ -784,88 +887,85 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             if (label) vParts.push(`Site: ${label}`);
           }
           if (newData.note) vParts.push(`Note: ${newData.note}`);
-          return { ...cmd, data: newData, display: vParts.join(', ') || 'Vitals' };
-        }
-        if (type === 'medication_statement') {
-          return { ...cmd, data: newData, display: newData.medication_text || '' };
-        }
-        if (type === 'allergy') {
-          return { ...cmd, data: newData, display: newData.allergy_text || '' };
-        }
-        if (type === 'task') {
+          next = { ...cmd, data: newData, display: vParts.join(', ') || 'Vitals' };
+        } else if (type === 'medication_statement') {
+          next = { ...cmd, data: newData, display: newData.medication_text || '' };
+        } else if (type === 'allergy') {
+          next = { ...cmd, data: newData, display: newData.allergy_text || '' };
+        } else if (type === 'task') {
           const parts = [newData.title || ''];
           if (newData.comment) parts.push(`Comment: ${newData.comment}`);
-          return { ...cmd, data: newData, display: parts.join(' \u2014 ') };
-        }
-        if (type === 'prescribe' || type === 'refill' || type === 'adjust_prescription') {
-          return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '' };
-        }
-        if (type === 'lab_order') {
+          next = { ...cmd, data: newData, display: parts.join(' \u2014 ') };
+        } else if (type === 'prescribe' || type === 'refill' || type === 'adjust_prescription') {
+          next = { ...cmd, command_type: type, data: newData, display: newData.medication_text || '' };
+        } else if (type === 'lab_order') {
           const parts = [];
           if (newData.lab_partner_name) parts.push(newData.lab_partner_name);
           if (newData.test_names && newData.test_names.length) parts.push(newData.test_names.join(', '));
           if (newData.comment) parts.push(newData.comment);
           if (newData.fasting_required) parts.push('Fasting');
-          return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || '' };
-        }
-        if (type === 'imaging_order') {
+          next = { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || '' };
+        } else if (type === 'imaging_order') {
           const parts = [newData.image_display, newData.additional_details, newData.comment, newData.priority].filter(Boolean);
-          return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
-        }
-        if (type === 'refer') {
+          next = { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
+        } else if (type === 'refer') {
           const parts = [newData.refer_to_display, newData.clinical_question, newData.priority].filter(Boolean);
-          return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral' };
-        }
-        if (type === 'familyHistory') {
+          next = { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral' };
+        } else if (type === 'familyHistory') {
           const parts = [newData.condition_display, newData.relative, newData.note].filter(Boolean);
-          return { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
-        }
-        if (type === 'medicalHistory') {
+          next = { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
+        } else if (type === 'medicalHistory') {
           const parts = [newData.past_medical_history];
           const dates = [newData.approximate_start_date, newData.approximate_end_date].filter(Boolean);
           if (dates.length) parts.push(dates.join(' – '));
           if (newData.comments) parts.push(newData.comments);
-          return { ...cmd, command_type: type, data: newData, display: parts.filter(Boolean).join(' — ') || '' };
-        }
-        if (type === 'surgicalHistory') {
+          next = { ...cmd, command_type: type, data: newData, display: parts.filter(Boolean).join(' — ') || '' };
+        } else if (type === 'surgicalHistory') {
           const parts = [newData.procedure_display];
           if (newData.approximate_date) parts.push(newData.approximate_date);
           if (newData.comment) parts.push(newData.comment);
-          return { ...cmd, command_type: type, data: newData, display: parts.filter(Boolean).join(' — ') || '' };
-        }
-        if (type === 'questionnaire') {
-          return { ...cmd, command_type: type, data: newData, display: newData.questionnaire_name || '' };
-        }
-        if (type === 'perform') {
+          next = { ...cmd, command_type: type, data: newData, display: parts.filter(Boolean).join(' — ') || '' };
+        } else if (type === 'questionnaire') {
+          next = { ...cmd, command_type: type, data: newData, display: newData.questionnaire_name || '' };
+        } else if (type === 'perform') {
           const display = newData.cpt_code ? `${newData.cpt_code} — ${newData.description || ''}` : '';
-          return { ...cmd, command_type: type, data: newData, display };
-        }
-        if (type === 'stop_medication') {
-          return { ...cmd, command_type: type, data: newData, display: newData.medication_name || '' };
-        }
-        if (type === 'remove_allergy') {
-          return { ...cmd, command_type: type, data: newData, display: newData.allergy_name || '' };
-        }
-        if (type === 'resolve_condition') {
-          return { ...cmd, command_type: type, data: newData, display: newData.condition_name || '' };
-        }
-        if (type === 'diagnose') {
+          next = { ...cmd, command_type: type, data: newData, display };
+        } else if (type === 'stop_medication') {
+          next = { ...cmd, command_type: type, data: newData, display: newData.medication_name || '' };
+        } else if (type === 'remove_allergy') {
+          next = { ...cmd, command_type: type, data: newData, display: newData.allergy_name || '' };
+        } else if (type === 'resolve_condition') {
+          next = { ...cmd, command_type: type, data: newData, display: newData.condition_name || '' };
+        } else if (type === 'diagnose') {
           const display = newData.icd10_display || newData.condition_header || cmd.display;
           const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
           const rejected = newData.rejected || false;
-          return { ...cmd, command_type: type, data: { ...newData, accepted, rejected }, display };
+          next = { ...cmd, command_type: type, data: { ...newData, accepted, rejected }, display };
+        } else if (type === 'assess') {
+          next = { ...cmd, data: newData };
+        } else {
+          // Default path: rfv (chief_complaint), hpi (history_of_present_illness),
+          // lab_results, imaging_results, plan, and any other narrative-shaped
+          // command. rfv uses the `comment` field; everything else uses
+          // `narrative`. Any of these can be amended during the amendment flow.
+          const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
+          const text = newData[field] || '';
+          next = { ...cmd, data: newData, display: text };
         }
-        if (type === 'assess') {
-          return { ...cmd, data: newData };
-        }
-        const field = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
-        const text = newData[field] || '';
-        return { ...cmd, data: newData, display: text };
+        // Single tag point (KOALA-5485 silent no-op fix). The gate
+        // `isAmendEdit` filters by section_key allowlist + command_type
+        // denylist + command_uuid presence + amending mode. Without this,
+        // edits to vitals/allergy/task/familyHistory/medicalHistory/
+        // surgicalHistory/diagnose/assess/perform/stop_medication/
+        // remove_allergy/resolve_condition were silently dropped at
+        // handleInsert because `_amend_edited` was never set on those
+        // branches.
+        return isAmendEdit(cmd) ? { ...next, _amend_edited: true } : next;
       });
       saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return updated;
     });
-  }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+  }, [canEdit, wasFinalized, approved, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
   const handleDelete = useCallback((index) => {
     logEvent('DELETE_COMMAND', { index, commandType: commands[index]?.command_type });
@@ -1174,17 +1274,114 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     logEvent('APPROVE_START', { totalCommands: commands.length, commandTypes: commands.map(c => c.command_type) });
     setInserting(true);
 
-    // Persist approved state to cache early so a page reload can't re-submit.
-    saveSummaryToCache(noteData, commands, true, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+    // KOALA-5485: cache flip to approved=true is delayed until AFTER amend
+    // success (amend branch ~1290) AND/OR AFTER /insert-commands success
+    // (cache write ~1450, runs UNCONDITIONALLY on success - see
+    // CACHE_FLIP_UNCONDITIONAL_ON_APPROVE_SUCCESS).
+    // Two cache-flip landing points cover the relevant paths:
+    //   (a) Amend-only path: amend branch writes approved=true after
+    //       /edit-existing-commands success and BEFORE /insert-commands. If
+    //       /insert-commands later fails, the catch block rolls cache back to
+    //       approved=false (so /save-summary holds the latest user-facing state).
+    //   (b) Fresh-approve or amend+insert success: the success branch writes
+    //       approved=true unconditionally. The unconditional write covers the
+    //       amend-mode-with-zero-edits edge case (no `data.attempted` entries
+    //       to gate on) and the empty-note approval crash-recovery case.
+    // If a browser crash happens before either landing point, the cache stays
+    // approved=false and the next page load shows pre-amend state - far safer
+    // than a phantom-approved-but-lost-edit state.
+    // (Original eager flip used to live here pre-amend; removed for KOALA-5485.)
+
+    // KOALA-5485: Amend edits go through /edit-existing-commands FIRST so the
+    // uuid map is available before the verify step. The frontend re-stamps
+    // ScribeSummary.commands with the new uuids returned by the backend.
+    //
+    // Critical ordering: re-stamp happens IMMEDIATELY after amend success,
+    // BEFORE the conditions fetch and /insert-commands POST. The amend POST
+    // is a hard commit point - once those effects landed in home-app, the
+    // plugin's local state MUST reflect it. If /insert-commands later fails,
+    // the user can retry it, but they must not re-submit the (now-voided)
+    // old uuid as an amend - which is what would happen if we kept the
+    // re-stamp inside the /insert-commands success branch.
+    const amendEdits = commands.filter(c => c._amend_edited && c.command_uuid);
+    let amendUuidRemap = new Map(); // old_uuid -> new_uuid
+    let amendAttempted = [];
+    // The commands array we work with from here on. We mutate this in-place
+    // (via reassign) to reflect amend success even if /insert-commands fails.
+    let workingCommands = commands;
+    if (amendEdits.length > 0) {
+      const amendPayload = amendEdits.map(({ _template_inserted, _amend_edited, ...rest }) => rest);
+      logEvent('AMEND_EDIT_SENDING', { count: amendPayload.length, sectionKeys: amendPayload.map(c => c.section_key) });
+      try {
+        const editRes = await fetch(`${API_BASE}/edit-existing-commands`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note_uuid: noteId, commands: amendPayload }),
+        });
+        const editData = await editRes.json();
+        if (editData.error) {
+          // Backend rejected before any effects were emitted. Pass the
+          // conflict shape through if present so the user can reload a
+          // stale tab; otherwise show the generic error.
+          if (editData.validation_errors) {
+            setValidationError(editData.validation_errors);
+          } else if (editData.conflicts) {
+            setError(`${editData.error}. Reload the page to see the latest state.`);
+          } else {
+            setError(editData.error);
+          }
+          setApproved(false);
+          setConfirming(false);
+          saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+          setInserting(false);
+          logEvent('AMEND_EDIT_ERROR', { error: editData.error, conflicts: editData.conflicts || null });
+          return;
+        }
+        amendAttempted = editData.attempted || [];
+        for (const entry of amendAttempted) {
+          amendUuidRemap.set(entry.old_command_uuid, entry.new_command_uuid);
+        }
+        logEvent('AMEND_EDIT_COMPLETE', { count: amendAttempted.length });
+
+        // Hard commit point: re-stamp commands now. After this point the
+        // home-app has executed EIE+Originate (and Commit for dedicated-class
+        // sections). The local state must mirror that or a retry of
+        // /insert-commands will resend the (now-voided) old uuid as an amend.
+        workingCommands = commands.map(cmd => {
+          if (cmd._amend_edited && cmd.command_uuid && amendUuidRemap.has(cmd.command_uuid)) {
+            const newUuid = amendUuidRemap.get(cmd.command_uuid);
+            const { _amend_edited, ...rest } = cmd;
+            return { ...rest, command_uuid: newUuid, already_documented: true };
+          }
+          return cmd;
+        });
+        setCommands(workingCommands);
+        saveSummaryToCache(noteData, workingCommands, true, {
+          recommendations, unmatched_conditions: unmatchedConditions,
+          diagnosis_suggestions: diagnosisSuggestions,
+          selected_template_name: selectedTemplate?.name || null, mode,
+        });
+      } catch (err) {
+        console.error('Amend edits failed:', err);
+        setError('Failed to apply amendment edits');
+        setApproved(false);
+        setConfirming(false);
+        setInserting(false);
+        logEvent('AMEND_EDIT_ERROR', { error: 'network' });
+        return;
+      }
+    }
 
     const SECTION_TYPES = new Set(['physical_exam', 'ros', 'chart_review', 'history_review']);
-    const insertable = commands.filter(c => {
+    const insertable = workingCommands.filter(c => {
       // Either flag means "already on the note." command_uuid is the
       // authoritative signal (set whenever a command is inserted, whether
       // via full Approve or Add Now). already_documented is the explicit
       // marker. Treat either as exclusionary so pre-existing finalized
       // notes (which have UUIDs but no already_documented flag) don't
       // double-insert on amendment re-Approve.
+      // (Amend-edited commands have been re-stamped above with the new
+      // uuid + already_documented=true, so they naturally filter out here.)
       if (c.already_documented || c.command_uuid) return false;
       if (!c.display && !(SECTION_TYPES.has(c.command_type) && c.data?.sections?.length > 0)) return false;
       if (c.command_type === 'imaging_order' && (!c.data.image_code || !c.data.service_provider || !c.data.ordering_provider_id || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
@@ -1195,7 +1392,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
       return true;
     });
-    const dropped = commands.filter(c => !c.already_documented && !insertable.includes(c));
+    const dropped = workingCommands.filter(c => !c.already_documented && !insertable.includes(c));
     if (dropped.length > 0) {
       logEvent('COMMANDS_FILTERED', { dropped: dropped.map(c => ({
         type: c.command_type, display: (c.display || '').slice(0, 80), sectionKey: c.section_key,
@@ -1255,15 +1452,22 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
       const data = await res.json();
       if (data.error) {
+        // If amend already succeeded, the home-app already executed those
+        // EIE+Originate effects. We persist `workingCommands` (which carries
+        // the re-stamped uuids) so a retry of /insert-commands won't re-send
+        // the now-voided old uuid as an amend. The `approved` flag is reset
+        // so the user can fix the insert-commands payload and retry.
         if (data.validation_errors) {
           setValidationError(data.validation_errors);
+        } else if (amendAttempted.length > 0) {
+          setError(`${data.error}. Amendments were saved; retry to complete insertion.`);
         } else {
           setError(data.error);
         }
         setApproved(false);
         setConfirming(false);
-        saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
-        logEvent('APPROVE_ERROR', { error: data.error, validation_errors: data.validation_errors });
+        saveSummaryToCache(noteData, workingCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+        logEvent('APPROVE_ERROR', { error: data.error, validation_errors: data.validation_errors, amendAttempted: amendAttempted.length });
       } else {
         // Phase 2: Insert metadata if any pending
         if (data.metadata_pending && data.metadata_pending.length > 0) {
@@ -1278,10 +1482,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }
         }
         // Stamp commands with their UUIDs and save immediately (before modal closes).
-        let updatedCommands = commands;
+        // Amend re-stamping happened earlier (right after /edit-existing-commands
+        // succeeded); here we only re-stamp the freshly-inserted commands.
+        let updatedCommands = workingCommands;
         if (data.attempted && data.attempted.length > 0) {
-          const uuidMap = new Map(data.attempted.map(a => [`${a.command_type}:${a.display}`, a.command_uuid]));
-          updatedCommands = commands.map(cmd => {
+          const uuidMap = new Map((data.attempted || []).map(a => [`${a.command_type}:${a.display}`, a.command_uuid]));
+          updatedCommands = workingCommands.map(cmd => {
             const key = `${cmd.command_type}:${(cmd.display || '').slice(0, 80)}`;
             const uuid = uuidMap.get(key);
             // Stamp already_documented=true alongside command_uuid so the existing
@@ -1292,17 +1498,37 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             return uuid ? { ...cmd, command_uuid: uuid, already_documented: true } : cmd;
           });
           setCommands(updatedCommands);
-          saveSummaryToCache(noteData, updatedCommands, true, {
-            recommendations, unmatched_conditions: unmatchedConditions,
-            diagnosis_suggestions: diagnosisSuggestions,
-            selected_template_name: selectedTemplate?.name || null, mode,
-          });
         }
-        const hasPrescriptions = commands.some(c => c.display && RX_SET.has(c.command_type))
+        // CACHE_FLIP_UNCONDITIONAL_ON_APPROVE_SUCCESS - KOALA-5485 cache-flip regression:
+        // the approved=true cache write must fire UNCONDITIONALLY on the success branch,
+        // NOT gated on `data.attempted.length > 0`. Two paths reach here with zero
+        // attempted entries:
+        //   (1) Amend-mode Save with zero edits in any editable section - the amend
+        //       branch already cached approved=true at line ~1294, but if there are
+        //       NO amend edits at all (empty-note approval), neither branch wrote
+        //       approved=true to cache. Without this unconditional write, setApproved(true)
+        //       updates React state in memory but the cache holds approved=false;
+        //       a page reload would revert the UI to pre-approval.
+        //   (2) Fresh approval crash-recovery: if the user crashes before this
+        //       point with a successful insert but empty attempted (rare but possible
+        //       for command types that don't surface attempted entries), the cache
+        //       must reflect approved=true so reload doesn't lose the approval.
+        // Pinned by `test_summary_js_cache_flip_to_approved_true_is_unconditional_on_success`.
+        saveSummaryToCache(noteData, updatedCommands, true, {
+          recommendations, unmatched_conditions: unmatchedConditions,
+          diagnosis_suggestions: diagnosisSuggestions,
+          selected_template_name: selectedTemplate?.name || null, mode,
+        });
+        const hasPrescriptions = workingCommands.some(c => c.display && RX_SET.has(c.command_type))
           || recommendations.some(c => c.display && !c.rejected && RX_SET.has(c.command_type));
-        logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length, effectCount: data.inserted, hasPendingMetadata: (data.metadata_pending?.length || 0) > 0 });
-        // Verify commands were actually created (include Add Now items).
-        const allAttempted = [...addNowAttemptedRef.current, ...(data.attempted || [])];
+        logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length, effectCount: data.inserted, hasPendingMetadata: (data.metadata_pending?.length || 0) > 0, amendEditCount: amendAttempted.length });
+        // Verify commands were actually created (include Add Now items + amend-edit NEW uuids).
+        const amendVerifyEntries = amendAttempted.map(a => ({
+          command_uuid: a.new_command_uuid,
+          command_type: a.command_type,
+          display: a.display || '',
+        }));
+        const allAttempted = [...addNowAttemptedRef.current, ...(data.attempted || []), ...amendVerifyEntries];
         if (allAttempted.length > 0) {
           try {
             const verifyRes = await fetch(`${API_BASE}/verify-commands`, {
@@ -1343,11 +1569,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (port) port.postMessage({ type: 'CLOSE_MODAL' });
       }
     } catch (err) {
-      setError('Failed to insert commands');
+      // Network/parsing failure on /insert-commands. If amend already
+      // succeeded we persist the re-stamped state so retry doesn't
+      // re-submit voided uuids as amends.
+      if (amendAttempted.length > 0) {
+        setError('Amendments saved; some commands failed to insert. Retry.');
+      } else {
+        setError('Failed to insert commands');
+      }
       setApproved(false);
       setConfirming(false);
-      saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
-      logEvent('APPROVE_ERROR', { error: 'Failed to insert commands' });
+      saveSummaryToCache(noteData, workingCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+      logEvent('APPROVE_ERROR', { error: 'Failed to insert commands', amendAttempted: amendAttempted.length });
     } finally {
       setInserting(false);
     }
@@ -1763,6 +1996,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onRemoveChargeByCpt: canEdit ? handleRemoveChargeByCpt : null,
           templateCharges: selectedTemplate ? (selectedTemplate.charges || []) : [],
           readOnly: !canEdit,
+          isAmending: wasFinalized && !approved,
           sectionConditions,
           patientId,
           noteId,
