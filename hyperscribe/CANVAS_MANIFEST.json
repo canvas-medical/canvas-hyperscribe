@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.127.0",
-  "plugin_version": "2026-05-28 v0.2.158 (db-20260528-may3-scribe-enhancements)",
+  "plugin_version": "2026-05-28 v0.2.159 (db-20260528-may3-scribe-enhancements)",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
