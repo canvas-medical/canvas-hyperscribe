@@ -7,6 +7,7 @@ from typing import Any
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.effects import Effect
 from canvas_sdk.v1.data.note import Note
+from logger import log
 from pydantic import ValidationError
 
 from hyperscribe.scribe.backend.models import CommandProposal
@@ -391,3 +392,383 @@ def build_metadata_effects(pending: list[dict[str, Any]]) -> list[Effect]:
         for key, value in item.get("metadata", {}).items():
             effects.append(command.upsert_metadata(key, value))
     return effects
+
+
+# ----------------------------------------------------------------------
+# Amendment edit path (KOALA-5485)
+#
+# When a provider clicks "Make changes" after approving the scribe note,
+# they can edit the content of already-documented sections. The sections in
+# EDITABLE_AMEND_SECTIONS support content edits during amendment; sections
+# outside the allowlist stay locked.
+#
+# The allowlist covers EVERY ``_BUILDERS`` command_type EXCEPT clinical
+# orders (prescribe, refill, adjust_prescription, refer, imaging_order,
+# lab_order) and questionnaires. Orders have downstream external workflow
+# implications (pharmacy dispatch, referral letters, lab tickets) that make
+# void+recreate unsafe in this context. Questionnaire amendment is a future
+# ticket: its insert flow is ``originate + edit + commit`` (the edit applies
+# responses), which doesn't fit any of the three buckets below; a dedicated
+# 4-effect route would be needed.
+#
+# This constant is mirrored in:
+#   - hyperscribe/scribe/static/summary.js (EDITABLE_AMEND_SECTIONS)
+#   - hyperscribe/scribe/static/soap-group.js (EDITABLE_AMEND_SECTIONS)
+# Keep all three in sync (single-sourcing is a planned follow-up ticket).
+#
+# Three routes, picked per-proposal by section_key:
+#   1) DIRECT_EDIT (RFV / chief_complaint) - emit EDIT only, reuse uuid.
+#      RFV is the only section whose home-app interpreter wires EDIT but
+#      NOT COMMIT or ENTER_IN_ERROR. The command stays STAGED forever, so
+#      EDIT works and EIE would silently no-op (state corruption).
+#   2) CUSTOM_COMMAND_ROUTED (_ros, physical_exam, _chart_review,
+#      _history_review, lab_results, imaging_results) - emit
+#      EnterInError(old) + Originate(new). ALL CustomCommand subclasses share
+#      Meta.key "customCommand" (forcibly set by __init_subclass__), so their
+#      constantized_key is "CUSTOM_COMMAND". The Canvas SDK only declares
+#      ORIGINATE_CUSTOM_COMMAND_COMMAND and ENTER_IN_ERROR_CUSTOM_COMMAND_COMMAND
+#      in the protobuf enum - calling .commit() raises
+#      ValueError("unknown enum label \"COMMIT_CUSTOM_COMMAND_COMMAND\"")
+#      at Python build time. home-app's OriginateCustomCommand interpreter
+#      auto-commits unconditionally after originate, so no explicit commit
+#      effect is needed (and would crash).
+#   3) VOID_RECREATE (everything else: HPI, vitals, allergies, current_meds,
+#      structured PMH/PSH/PFH, plan/A&P diagnose/assess, charges, tasks,
+#      stop_med, remove_allergy, resolve_condition, and the ad-hoc buckets
+#      where these commands originate before being saved). Emit
+#      EnterInError(old) + Originate(new) + Commit(new). Dedicated SDK
+#      command classes have their constantized key wired into both the SDK
+#      proto AND home-app interpreters for all three effects.
+# ----------------------------------------------------------------------
+
+EDITABLE_AMEND_SECTIONS: frozenset[str] = frozenset(
+    {
+        # DIRECT_EDIT bucket
+        "chief_complaint",
+        # CUSTOM_COMMAND_ROUTED bucket
+        "_ros",
+        "_history_review",
+        "_chart_review",
+        "physical_exam",
+        "lab_results",
+        "imaging_results",
+        # VOID_RECREATE bucket - SOAP-section-anchored
+        "history_of_present_illness",
+        "current_medications",
+        "allergies",
+        "vitals",
+        "past_medical_history",
+        "past_surgical_history",
+        "family_history",
+        "assessment_and_plan",
+        "plan",
+        # VOID_RECREATE bucket - ad-hoc buckets (rows added during a session;
+        # after approval+reload they retain these section_keys and may be
+        # ``already_documented=true``)
+        "_ad_hoc",
+        "_objective_ad_hoc",
+        "_history_ad_hoc",
+        "_charges_ad_hoc",
+    }
+)
+
+# Cross-repo invariant (NOT enforced in CI yet - follow-up ticket).
+#
+# The direct-EDIT path for chief_complaint (RFV) is load-bearing on home-app
+# NOT wiring either of these interpreters:
+#   * COMMIT_REASON_FOR_VISIT_COMMAND
+#   * ENTER_IN_ERROR_REASON_FOR_VISIT_COMMAND
+#
+# As of this writing, the registry at
+#   canvas-monorepo/home-app/plugin_io/interpreters/commands/__init__.py
+# (around line 395) declares neither. That means RFV commands stay STAGED
+# forever and ``EditCommandEffectInterpreter`` accepts edits. If a home-app PR
+# adds either wiring, RFV becomes committable and the direct-EDIT path here
+# silently breaks - the EDIT effect lands on a COMMITTED row and home-app
+# rejects it with "Command must be staged in order to be edited."
+#
+# If you're adding to home-app's interpreter registry: revisit this carve-out.
+# Either (a) drop chief_complaint from DIRECT_EDIT_SECTIONS and let it fall
+# through to the void+recreate path below, or (b) confirm the new wiring
+# preserves the STAGED-forever guarantee for RFV.
+#
+# Follow-up: a workflows/ CI job that asserts this invariant cross-repo on
+# every home-app PR would catch the bug at the source instead of relying on
+# this comment. Tracked separately.
+DIRECT_EDIT_SECTIONS: frozenset[str] = frozenset({"chief_complaint"})
+
+# Sections whose parser builds a CustomCommand instance. These cannot call
+# .commit() (the COMMIT_CUSTOM_COMMAND_COMMAND enum does not exist), so the
+# amend route is EnterInError(old) + Originate(new) only; home-app's
+# OriginateCustomCommand interpreter auto-commits after originate.
+#
+# The parsers in this set ALL return ``CustomCommand(schema_key=...)`` rather
+# than a dedicated SDK class:
+#   * RosParser            -> CustomCommand("reviewOfSystems")
+#   * HistoryReviewParser  -> CustomCommand("historyReview")
+#   * ChartReviewParser    -> CustomCommand("chartReview")
+#   * PhysicalExamParser   -> CustomCommand("physicalExam")
+#   * LabResultsParser     -> CustomCommand("labResult")
+#   * ImageResultsParser   -> CustomCommand("imageResult")
+CUSTOM_COMMAND_ROUTED_SECTIONS: frozenset[str] = frozenset(
+    {
+        "_ros",
+        "_history_review",
+        "_chart_review",
+        "physical_exam",
+        "lab_results",
+        "imaging_results",
+    }
+)
+
+# Command types that MUST NEVER be amended via the void+recreate path,
+# regardless of which section_key they land on.
+#
+# Three reasons a command_type lands here:
+#
+#   1. STRUCTURALLY IMPOSSIBLE: no COMMIT_*_COMMAND interpreter exists in
+#      home-app, so the third effect of the EIE+Originate+Commit route
+#      cannot execute. The Originate either dangles in STAGED forever or
+#      home-app's plugin_runner_receiver rejects the Commit.
+#
+#   2. STRUCTURALLY AWKWARD: the command has no COMMIT_*_COMMAND
+#      interpreter but DOES have an EnterInError interpreter, so EIE works
+#      but the Originate+Commit half breaks. A 4-effect EIE+Originate+
+#      Edit+Commit route (or equivalent) would be needed and isn't built.
+#
+#   3. POLICY EXCLUDED: the wiring exists end-to-end, but void+recreate is
+#      the wrong abstraction for the workflow. Calling it after the command
+#      has already triggered external action would either re-fire the
+#      dispatch or leave the original in a half-cancelled state. A dedicated
+#      "amend an order" workflow with explicit cancel/resend semantics is
+#      the right shape; tracked separately.
+#
+#   4. DEFERRED: a workable route exists in principle but hasn't been built.
+#      Questionnaire's insert flow is originate+edit+commit (the edit
+#      applies responses to the staged command), so the amend route needs
+#      4 effects (EIE+Originate+Edit+Commit) AND the question/response
+#      state has to survive the recreate. Tracked as a follow-up.
+#
+# Mirrored intent: the JS allowlists omit `_subjective_ad_hoc` (questionnaire
+# bucket) and `_recommended` (order recommendation bucket), but command_type
+# is the authoritative gate because some commands (`prescribe`, `task`) can
+# also be added via `_ad_hoc`. Section-key plus command-type together make
+# the denial structural rather than relying on the frontend not to send the
+# request.
+#
+# Keep the JS mirror (soap-group.js + summary.js) in sync with the same
+# categorization comments until single-sourcing lands.
+NON_EDITABLE_AMEND_COMMAND_TYPES: frozenset[str] = frozenset(
+    {
+        # 1. Structurally impossible (no COMMIT_*_COMMAND interpreter):
+        #    Originate dangles in STAGED; pharmacy dispatch via SureScripts
+        #    would also re-fire on a Commit if one existed.
+        "prescribe",
+        "refill",
+        "adjust_prescription",
+        # 2. Structurally awkward (EIE exists, no COMMIT - would need a
+        #    4-effect amend route that isn't built yet):
+        "refer",
+        "imaging_order",
+        # 3. Policy excluded (full home-app wiring exists; amend after the
+        #    lab-partner ticket has been dispatched would create downstream
+        #    confusion at the partner side - a cancel/resend workflow is
+        #    the right shape):
+        "lab_order",
+        # 4. Deferred (4-effect EIE+Originate+Edit+Commit route + question/
+        #    response state preservation needed):
+        "questionnaire",
+    }
+)
+
+
+def build_amend_edit_effects(
+    proposals: list[dict[str, Any]],
+    note_uuid: str,
+) -> tuple[list[Effect], list[dict[str, Any]]]:
+    """Build Canvas SDK Effects for amendment-mode edits of already-documented commands.
+
+    Each proposal must carry the existing ``command_uuid`` and a ``section_key``
+    in :data:`EDITABLE_AMEND_SECTIONS`. Proposals that fail either check are
+    silently dropped and logged at WARN (defense in depth - we never trust a
+    hand-crafted payload enough to invent a uuid or emit effects for a
+    non-amendable section).
+
+    Returns ``(effects, attempted)`` where ``attempted`` carries enough state
+    for the API layer to (a) emit a structured audit-log entry and (b) let the
+    frontend re-stamp ``ScribeSummary.commands`` with the new uuid after a
+    void+recreate.
+    """
+    effects: list[Effect] = []
+    attempted: list[dict[str, Any]] = []
+
+    for proposal in proposals:
+        section_key = proposal.get("section_key", "")
+        command_type = proposal.get("command_type", "")
+        old_command_uuid = proposal.get("command_uuid", "")
+
+        if section_key not in EDITABLE_AMEND_SECTIONS:
+            log.warning(
+                "amend_edit_dropped: section_not_editable section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+        if command_type in NON_EDITABLE_AMEND_COMMAND_TYPES:
+            # Orders (prescribe family + refer + imaging/lab order) and
+            # questionnaires are categorically denied regardless of which
+            # section_key the frontend ships, because the ad-hoc section_keys
+            # (_ad_hoc, _objective_ad_hoc, ...) are shared with editable
+            # command_types and the section-key check alone would let an
+            # order ride through.
+            log.warning(
+                "amend_edit_dropped: command_type_not_editable section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+        if not old_command_uuid:
+            log.warning(
+                "amend_edit_dropped: missing_command_uuid section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+        builder = _BUILDERS.get(command_type)
+        if builder is None:
+            log.warning(
+                "amend_edit_dropped: unknown_command_type section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+
+        data = proposal.get("data", {}) or {}
+
+        if section_key in DIRECT_EDIT_SECTIONS:
+            # RFV direct-edit path: keep the existing uuid, emit EDIT only.
+            command = builder.build(data, note_uuid, old_command_uuid)
+            effects.append(command.edit())
+            attempted.append(
+                {
+                    "section_key": section_key,
+                    "command_type": command_type,
+                    "old_command_uuid": old_command_uuid,
+                    "new_command_uuid": old_command_uuid,
+                    "mode": "direct_edit",
+                    "display": (proposal.get("display") or "")[:80],
+                }
+            )
+            continue
+
+        # EnterInError(old) + Originate(new). Two flavors:
+        # - CustomCommand-routed: no explicit commit (home-app auto-commits).
+        # - Dedicated SDK class: explicit Commit(new).
+        old_command = builder.build(data, note_uuid, old_command_uuid)
+        new_command_uuid = str(uuid.uuid4())
+        new_command = builder.build(data, note_uuid, new_command_uuid)
+        effects.append(old_command.enter_in_error())
+        effects.append(new_command.originate())
+        if section_key in CUSTOM_COMMAND_ROUTED_SECTIONS:
+            mode = "void_recreate_custom"
+        else:
+            effects.append(new_command.commit())
+            mode = "void_recreate"
+        attempted.append(
+            {
+                "section_key": section_key,
+                "command_type": command_type,
+                "old_command_uuid": old_command_uuid,
+                "new_command_uuid": new_command_uuid,
+                "mode": mode,
+                "display": (proposal.get("display") or "")[:80],
+            }
+        )
+
+    return effects, attempted
+
+
+def build_amend_delete_effects(
+    proposals: list[dict[str, Any]],
+    note_uuid: str,
+) -> tuple[list[Effect], list[dict[str, Any]]]:
+    """Build Canvas SDK Effects for amendment-mode deletes of already-documented commands.
+
+    Driver: perform (charge) commands in the amend-mode checklist have no
+    ChargeRow editor (they render as a checked label + checkbox), so the only
+    way to amend a documented charge is to uncheck it. Without a dedicated
+    delete route the uncheck silently no-ops in handleInsert: it's filtered
+    out of the insertable list, and because the user didn't edit it, the
+    ``_amend_edited`` tag is never set either, so the existing amend POST
+    also drops it. The chart stays out of sync with the visible UI.
+
+    Each proposal must carry the existing ``command_uuid`` and a ``section_key``
+    in :data:`EDITABLE_AMEND_SECTIONS`. Proposals failing eligibility (missing
+    uuid, section not in allowlist, command_type in denylist, unknown
+    command_type) are silently dropped and logged at WARN - same defense-in-
+    depth pattern as :func:`build_amend_edit_effects`.
+
+    Only an ``enter_in_error`` effect is emitted per proposal - no Originate,
+    no Commit. The frontend filters the deleted commands out of its working
+    array after success; they do not flow into ``/insert-commands``.
+
+    Returns ``(effects, attempted)`` where ``attempted`` carries enough state
+    for the API layer to emit a structured audit-log entry. ``display`` is
+    intentionally OMITTED from the attempted dict so that the AMEND_EXISTING_
+    COMMANDS audit payload never gains a free-text channel for PHI through
+    this codepath (the existing whitelist in session_view also defends).
+    """
+    effects: list[Effect] = []
+    attempted: list[dict[str, Any]] = []
+
+    for proposal in proposals:
+        section_key = proposal.get("section_key", "")
+        command_type = proposal.get("command_type", "")
+        old_command_uuid = proposal.get("command_uuid", "")
+
+        if section_key not in EDITABLE_AMEND_SECTIONS:
+            log.warning(
+                "amend_delete_dropped: section_not_editable section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+        if command_type in NON_EDITABLE_AMEND_COMMAND_TYPES:
+            log.warning(
+                "amend_delete_dropped: command_type_not_editable section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+        if not old_command_uuid:
+            log.warning(
+                "amend_delete_dropped: missing_command_uuid section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+        builder = _BUILDERS.get(command_type)
+        if builder is None:
+            log.warning(
+                "amend_delete_dropped: unknown_command_type section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+
+        data = proposal.get("data", {}) or {}
+        command = builder.build(data, note_uuid, old_command_uuid)
+        effects.append(command.enter_in_error())
+        # HIPAA: deliberately no ``display`` key - the audit-feeding shape
+        # must remain free of PHI. The session_view whitelist
+        # (_AMEND_AUDIT_ENTRY_KEYS) is the belt-and-suspenders backstop.
+        attempted.append(
+            {
+                "section_key": section_key,
+                "command_type": command_type,
+                "command_uuid": old_command_uuid,
+                "mode": "amend_delete",
+            }
+        )
+
+    return effects, attempted
