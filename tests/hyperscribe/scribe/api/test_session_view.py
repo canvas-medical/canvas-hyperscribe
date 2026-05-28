@@ -611,18 +611,14 @@ def test_save_summary_defaults(mock_note: MagicMock, mock_summary: MagicMock) ->
 
 @patch("hyperscribe.scribe.api.session_view.ScribeSummary")
 @patch("hyperscribe.scribe.api.session_view.Note")
-def test_save_summary_omits_mode_and_template_when_absent(
-    mock_note: MagicMock, mock_summary: MagicMock
-) -> None:
+def test_save_summary_omits_mode_and_template_when_absent(mock_note: MagicMock, mock_summary: MagicMock) -> None:
     """Autosave paths that don't send mode / selected_template_name must not
     overwrite those columns — update_or_create only touches keys present in
     defaults, so omitting them preserves the existing DB values."""
     mock_note.objects.values_list.return_value.get.return_value = 42
 
     view = _helper_instance()
-    view.request = SimpleNamespace(
-        body=json.dumps({"note_id": "42", "note": {}, "commands": [], "approved": False})
-    )
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "42", "note": {}, "commands": [], "approved": False}))
     result = view.post_save_summary()
 
     assert result[0].status_code == HTTPStatus.OK
@@ -633,9 +629,7 @@ def test_save_summary_omits_mode_and_template_when_absent(
 
 @patch("hyperscribe.scribe.api.session_view.ScribeSummary")
 @patch("hyperscribe.scribe.api.session_view.Note")
-def test_save_summary_clears_template_when_explicitly_null(
-    mock_note: MagicMock, mock_summary: MagicMock
-) -> None:
+def test_save_summary_clears_template_when_explicitly_null(mock_note: MagicMock, mock_summary: MagicMock) -> None:
     """Deselecting the visit template sends `selected_template_name: null`,
     which must clear the DB column (write '') rather than be silently dropped."""
     mock_note.objects.values_list.return_value.get.return_value = 42
@@ -661,17 +655,13 @@ def test_save_summary_clears_template_when_explicitly_null(
 
 @patch("hyperscribe.scribe.api.session_view.ScribeSummary")
 @patch("hyperscribe.scribe.api.session_view.Note")
-def test_save_summary_clears_mode_when_explicitly_null(
-    mock_note: MagicMock, mock_summary: MagicMock
-) -> None:
+def test_save_summary_clears_mode_when_explicitly_null(mock_note: MagicMock, mock_summary: MagicMock) -> None:
     """Symmetric to template deselect: explicit `mode: null` clears the column."""
     mock_note.objects.values_list.return_value.get.return_value = 42
 
     view = _helper_instance()
     view.request = SimpleNamespace(
-        body=json.dumps(
-            {"note_id": "42", "note": {}, "commands": [], "approved": False, "mode": None}
-        )
+        body=json.dumps({"note_id": "42", "note": {}, "commands": [], "approved": False, "mode": None})
     )
     result = view.post_save_summary()
 
@@ -1074,7 +1064,7 @@ def test_insert_commands_success(mock_build: MagicMock) -> None:
         {"command_uuid": "u1", "command_type": "hpi", "display": "Back pain"},
         {"command_uuid": "u2", "command_type": "plan", "display": "Start naproxen"},
     ]
-    mock_build.return_value = ([mock_effect_1, mock_effect_2], [], attempted)
+    mock_build.return_value = ([mock_effect_1, mock_effect_2], [], attempted, [])
 
     view = _helper_instance()
     commands = [
@@ -1096,6 +1086,46 @@ def test_insert_commands_success(mock_build: MagicMock) -> None:
 
 
 @patch("hyperscribe.scribe.api.session_view.build_effects")
+@patch("hyperscribe.scribe.api.session_view.prefill_assess_backgrounds")
+def test_insert_commands_calls_prefill_assess_backgrounds_before_build(
+    mock_prefill: MagicMock, mock_build: MagicMock
+) -> None:
+    """The endpoint must invoke ``prefill_assess_backgrounds`` before
+    ``build_effects`` so the assess proposal's ``background`` is populated
+    by the time the SDK command is constructed.
+
+    This pins the new symmetric placement (parallel to ``annotate_duplicates``)
+    — without it, a refactor could delete the callsite and every other
+    insert_commands test would still pass (the helper short-circuits on bad
+    UUIDs and never raises).
+    """
+    mock_build.return_value = ([], [], [], [])
+
+    view = _helper_instance()
+    commands = [
+        {"command_type": "assess", "data": {"condition_id": "cond-1", "narrative": "Stable"}},
+    ]
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0", "commands": commands})
+    )
+    view.post_insert_commands()
+
+    # The view re-parses the JSON, so the list it passes is NOT the same object
+    # as the ``commands`` we constructed here — assert on shape, not identity.
+    prefill_call_commands = mock_prefill.call_args.args[0]
+    assert prefill_call_commands == commands
+    assert mock_prefill.call_args.args[1] == "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+    # Order: prefill must run BEFORE build_effects, and BOTH must see the SAME
+    # in-memory list so the mutation lands. Compare identity between the two
+    # call arg lists (the view's own ``commands`` local).
+    build_call_commands = mock_build.call_args.args[0]
+    assert prefill_call_commands is build_call_commands, (
+        "prefill_assess_backgrounds and build_effects must share the same commands "
+        "list so the in-place mutation by prefill is visible to build"
+    )
+
+
+@patch("hyperscribe.scribe.api.session_view.build_effects")
 def test_insert_commands_with_metadata_pending(mock_build: MagicMock) -> None:
     mock_effect = MagicMock()
     pending = [
@@ -1110,6 +1140,7 @@ def test_insert_commands_with_metadata_pending(mock_build: MagicMock) -> None:
         [mock_effect],
         pending,
         [{"command_uuid": "uuid-1", "command_type": "medication_statement", "display": "Test"}],
+        [],
     )
 
     view = _helper_instance()
@@ -1126,7 +1157,7 @@ def test_insert_commands_with_metadata_pending(mock_build: MagicMock) -> None:
 
 @patch("hyperscribe.scribe.api.session_view.build_effects")
 def test_insert_commands_empty(mock_build: MagicMock) -> None:
-    mock_build.return_value = ([], [], [])
+    mock_build.return_value = ([], [], [], [])
 
     view = _helper_instance()
     view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": []}))
@@ -1155,6 +1186,34 @@ def test_insert_commands_invalid_json() -> None:
 
     assert result[0].status_code == HTTPStatus.BAD_REQUEST
     assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+def test_insert_commands_build_validation_error_returns_400(mock_audit: MagicMock) -> None:
+    """Regression for KOALA-5476: pydantic ValidationError during build() returns 400 with
+    a structured ``validation_errors`` payload rather than crashing the whole batch with a 500.
+
+    Per UAT feedback on PR #273, the response surfaces a friendly command-name label
+    in ``display`` and a plain-English error sentence in ``errors`` (no raw input
+    dictionary, no Pydantic-internal wording)."""
+    view = _helper_instance()
+    commands = [
+        {"command_type": "vitals", "data": {"pulse": 8}, "display": "HR 8"},
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-123", "commands": commands}))
+    result = view.post_insert_commands()
+
+    assert len(result) == 1
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    body = json.loads(result[0].content)
+    assert body["error"] == "Validation failed"
+    assert len(body["validation_errors"]) == 1
+    err = body["validation_errors"][0]
+    assert err["command_type"] == "vitals"
+    assert err["display"] == "Vitals"
+    assert err["errors"] == ["pulse must be greater than or equal to 30 (currently 8)"]
+    mock_audit.assert_called_once()
+    assert mock_audit.call_args.args[1] == "VALIDATION_FAILED"
 
 
 # --- /insert-metadata ---
@@ -1586,6 +1645,79 @@ def test_extract_commands_without_note_uuid_calls_annotate_with_empty(mock_annot
     assert mock_annotate.call_args.args[1] == ""
 
 
+# --- prefill_assess_backgrounds delegation (carry-forward in UI proposal paths) ---
+
+
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.prefill_assess_backgrounds_for_proposals")
+def test_extract_commands_calls_prefill_assess_backgrounds(mock_prefill: MagicMock, _mock_annotate: MagicMock) -> None:
+    """The ``/extract-commands`` endpoint must invoke
+    ``prefill_assess_backgrounds_for_proposals`` so the UI sees prior signed-note
+    backgrounds pre-filled on the assess proposal BEFORE the provider opens the
+    edit view. This is the primary site that fixes KOALA-5598 — without it, the
+    textarea is empty at proposal time and any edit the provider makes wins over
+    the carry-forward applied later at Approve time.
+
+    ``annotate_duplicates`` is patched only to prevent its real DB query from
+    firing in the unit test environment (it doesn't need to participate in the
+    assertion).
+    """
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note": {
+                    "title": "Note",
+                    "sections": [{"key": "chief_complaint", "title": "CC", "text": "Pain."}],
+                },
+                "note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            }
+        )
+    )
+    view.post_extract_commands()
+    mock_prefill.assert_called_once()
+    assert mock_prefill.call_args.args[1] == "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.prefill_assess_backgrounds_for_proposals")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+def test_recommend_commands_calls_prefill_assess_backgrounds(
+    mock_recommend: MagicMock,
+    mock_prefill: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """The ``/recommend-commands`` endpoint must invoke
+    ``prefill_assess_backgrounds_for_proposals`` on recommended proposals so
+    background carry-forward applies symmetrically to AI-recommended assess
+    commands, not just extracted ones.
+    """
+    mock_recommend.return_value = [
+        CommandProposal(
+            command_type="assess",
+            display="Hypertension",
+            data={"condition_id": "cond-1", "narrative": ""},
+            section_key="_recommended",
+        ),
+    ]
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note": {"title": "Note", "sections": []},
+                "note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f1",
+            }
+        )
+    )
+    view.post_recommend_commands()
+    mock_prefill.assert_called_once()
+    assert mock_prefill.call_args.args[1] == "5899e7bf-5ecb-4399-aceb-0e233bd4a8f1"
+
+
 # --- /search-medications ---
 
 
@@ -1774,10 +1906,7 @@ def test_get_ordering_providers_returns_all_results(mock_staff_cls: MagicMock) -
     which silently dropped real prescribers (e.g. anyone with a last name past
     "Cu...") on customers with larger staff rosters.
     """
-    staff_objects = [
-        SimpleNamespace(id=f"key-{i}", credentialed_name=f"Provider {i:03d} MD")
-        for i in range(75)
-    ]
+    staff_objects = [SimpleNamespace(id=f"key-{i}", credentialed_name=f"Provider {i:03d} MD") for i in range(75)]
     ordered_qs = MagicMock(spec=QuerySet)
     ordered_qs.__iter__.return_value = iter(staff_objects)
     distinct_qs = MagicMock(spec=QuerySet)
@@ -2123,12 +2252,14 @@ def test_generate_summary_preserves_mode_and_template(
     view = _helper_instance()
     view.secrets["AnthropicAPIKey"] = "test-key"
     view.request = SimpleNamespace(
-        body=json.dumps({
-            "note_id": "55",
-            "note_uuid": "55",
-            "mode": "ai",
-            "selected_template_name": "Subsequent Visit",
-        })
+        body=json.dumps(
+            {
+                "note_id": "55",
+                "note_uuid": "55",
+                "mode": "ai",
+                "selected_template_name": "Subsequent Visit",
+            }
+        )
     )
     result = view.post_generate_summary()
 
@@ -2200,10 +2331,12 @@ def test_generate_summary_preserves_mode_from_db_when_not_in_request(
     view.secrets["AnthropicAPIKey"] = "test-key"
     # Frontend request does NOT include mode or selected_template_name.
     view.request = SimpleNamespace(
-        body=json.dumps({
-            "note_id": "55",
-            "note_uuid": "55",
-        })
+        body=json.dumps(
+            {
+                "note_id": "55",
+                "note_uuid": "55",
+            }
+        )
     )
     result = view.post_generate_summary()
 
@@ -2288,9 +2421,7 @@ def test_generate_summary_does_not_clobber_concurrent_save_on_cas_miss(
     view = _helper_instance()
     view.secrets["AnthropicAPIKey"] = "test-key"
     # Frontend doesn't include mode in the generate-summary request body.
-    view.request = SimpleNamespace(
-        body=json.dumps({"note_id": "55", "note_uuid": "55"})
-    )
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "55", "note_uuid": "55"}))
     result = view.post_generate_summary()
 
     assert result[0].status_code == HTTPStatus.OK
@@ -2453,3 +2584,151 @@ def test_generate_summary_writes_progress(
     progress = json.loads(cache._store[progress_key])
     assert progress["step"] == len(SUMMARY_STEPS) - 1
     assert progress["total"] == len(SUMMARY_STEPS)
+
+
+# --- /carry-forward-background ---
+#
+# Focused read endpoint the frontend hits when a new ``assess`` command is
+# created client-side (handleAddCondition: manual "+ Add Condition"). The
+# already-existing /insert-commands belt covers the convert-at-approve path,
+# but the user needs to SEE the carry-forward in the edit drawer BEFORE
+# approving, so this endpoint exists to populate the background text in the UI.
+
+
+@patch("hyperscribe.scribe.api.session_view.carry_forward_assess_background")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_carry_forward_background_success(mock_note: MagicMock, mock_helper: MagicMock) -> None:
+    """Happy path: a prior signed assessment exists for the (patient, condition).
+
+    The endpoint reuses ``carry_forward_assess_background`` (the same helper
+    /insert-commands runs server-side), so we mock the helper and assert the
+    endpoint propagates the mutation it makes to the throwaway dict.
+    """
+    mock_note.objects.select_related.return_value.get.return_value = MagicMock()
+
+    # Snapshot the dict at call time — ``mock.call_args`` holds a reference, so
+    # by the time we inspect it the side_effect's mutation would have already
+    # landed. Capture the pre-mutation state inside the side_effect itself.
+    captured_initial_state: dict[str, Any] = {}
+
+    def _set_background(data: dict[str, Any], _note: Any) -> None:
+        captured_initial_state.update(data)
+        data["background"] = "This is zee background"
+
+    mock_helper.side_effect = _set_background
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0", "condition_id": "cond-1"})
+    )
+    result = view.post_carry_forward_background()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"background": "This is zee background"}
+
+    # The throwaway dict the endpoint passes to the helper must carry the
+    # condition_id (the helper short-circuits on missing condition_id), and
+    # must NOT pre-set ``background`` (the helper short-circuits on a
+    # populated background — that would defeat the lookup).
+    assert captured_initial_state["condition_id"] == "cond-1"
+    assert "background" not in captured_initial_state or not captured_initial_state.get("background")
+
+
+@patch("hyperscribe.scribe.api.session_view.carry_forward_assess_background")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_carry_forward_background_no_prior(mock_note: MagicMock, mock_helper: MagicMock) -> None:
+    """No prior signed assessment: helper leaves the throwaway dict untouched.
+
+    The endpoint returns 200 with ``{"background": null}`` so the frontend can
+    distinguish "no carry-forward to apply" from a network/server error.
+    """
+    mock_note.objects.select_related.return_value.get.return_value = MagicMock()
+    # Helper short-circuits and does not set ``background`` — simulate by no-op.
+    mock_helper.side_effect = lambda _data, _note: None
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0", "condition_id": "cond-1"})
+    )
+    result = view.post_carry_forward_background()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"background": None}
+
+
+def test_carry_forward_background_missing_note_uuid() -> None:
+    """Missing or empty note_uuid in the body returns 400. The auth helper
+    enforces the same check — but we surface the error before auth too, so a
+    malformed payload doesn't hit the DB."""
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"condition_id": "cond-1"}))
+    result = view.post_carry_forward_background()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_uuid" in json.loads(result[0].content)["error"]
+
+
+def test_carry_forward_background_missing_condition_id() -> None:
+    """Missing or empty condition_id returns 400. Without a condition_id the
+    helper has nothing to scope by; surface the error explicitly rather than
+    silently returning null (which would mask a frontend bug)."""
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"}))
+    result = view.post_carry_forward_background()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "condition_id" in json.loads(result[0].content)["error"]
+
+
+def test_carry_forward_background_invalid_json() -> None:
+    """Non-JSON body returns 400 — same shape as every other POST endpoint."""
+    view = _helper_instance()
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_carry_forward_background()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_carry_forward_background_note_not_found(mock_note: MagicMock) -> None:
+    """If the auth helper passes but the select_related lookup raises (e.g.
+    malformed UUID that reached the SQL layer, or a race where the note was
+    deleted between auth and lookup), return 404 rather than 500.
+
+    Note: in normal flow, ``_authorize_edit`` short-circuits with 404 first.
+    This test specifically pins the defensive try/except inside the endpoint.
+    """
+    from canvas_sdk.v1.data.note import Note as RealNote
+
+    mock_note.objects.select_related.return_value.get.side_effect = RealNote.DoesNotExist
+    mock_note.DoesNotExist = RealNote.DoesNotExist
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0", "condition_id": "cond-1"})
+    )
+    result = view.post_carry_forward_background()
+
+    assert result[0].status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.no_authorize_bypass
+@patch("hyperscribe.scribe.api.session_view.Helper.editable_note", return_value=True)
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_carry_forward_background_unauthorized(mock_note: MagicMock, _editable: MagicMock) -> None:
+    """The real auth helper (no bypass): a request from a staff who is NOT the
+    note's provider returns 403. Pins that the new endpoint is gated identically
+    to every other mutating endpoint (defense in depth — the endpoint is
+    technically read-only, but it leaks ``has a prior assessment``-shaped
+    metadata about another provider's patient if left open)."""
+    mock_note.objects.values.return_value.get.return_value = {"dbid": 42, "provider__id": "other-staff"}
+
+    view = _helper_instance(staff_id="staff-key-abc")
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-key-abc"},
+        body=json.dumps({"note_uuid": "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0", "condition_id": "cond-1"}),
+    )
+    result = view.post_carry_forward_background()
+
+    assert result[0].status_code == HTTPStatus.FORBIDDEN

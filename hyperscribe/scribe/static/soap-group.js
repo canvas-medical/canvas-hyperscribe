@@ -443,27 +443,54 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingCha
     return () => onEditingChange?.(commandIndex, false);
   }, [editing, commandIndex]);
   const [narrative, setNarrative] = useState(data.narrative || '');
-  const textareaRef = useRef(null);
+  const [background, setBackground] = useState(data.background || '');
+  const backgroundRef = useRef(null);
+  const narrativeRef = useRef(null);
+
+  // Sync local state when ``data`` changes from outside (e.g. carry-forward
+  // fetch returning AFTER first render of this row). useState initializes
+  // only once at mount, so without this effect a provider opening the edit
+  // view before the fetch lands sees an empty textarea. We only sync when
+  // not editing, so an in-progress edit isn't clobbered by a late prop change.
+  useEffect(() => {
+    if (!editing) {
+      setNarrative(data.narrative || '');
+      setBackground(data.background || '');
+    }
+  }, [data.narrative, data.background, editing]);
 
   useEffect(() => {
-    if (editing && textareaRef.current) textareaRef.current.focus({ preventScroll: true });
+    if (editing && narrativeRef.current) narrativeRef.current.focus({ preventScroll: true });
   }, [editing]);
 
   const handleSave = () => {
-    onEdit(commandIndex, { ...data, narrative }, 'assess');
+    onEdit(commandIndex, { ...data, narrative, background }, 'assess');
     setEditing(false);
   };
 
   const handleCancel = () => {
     setNarrative(data.narrative || '');
+    setBackground(data.background || '');
     setEditing(false);
   };
 
   if (editing && !readOnly) {
+    const saveDisabled = narrative.length > 2048 || background.length > 2048;
     return html`
       <div class="diagnose-edit-area editing">
+        <div class="diagnose-body-label">Background</div>
         <textarea
-          ref=${textareaRef}
+          ref=${backgroundRef}
+          class="command-row-textarea"
+          maxLength=${2048}
+          value=${background}
+          onInput=${(e) => setBackground(e.target.value)}
+          onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}
+        />
+        <div class="char-counter${background.length > 1900 ? background.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${background.length} / 2048</div>
+        <div class="diagnose-body-label">Today's assessment</div>
+        <textarea
+          ref=${narrativeRef}
           class="command-row-textarea"
           maxLength=${2048}
           value=${narrative}
@@ -473,23 +500,38 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingCha
         <div class="char-counter${narrative.length > 1900 ? narrative.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${narrative.length} / 2048</div>
         <div class="command-row-actions">
           <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
-          <button type="button" class="form-btn form-btn-save" disabled=${narrative.length > 2048} onClick=${handleSave}>Save</button>
+          <button type="button" class="form-btn form-btn-save" disabled=${saveDisabled} onClick=${handleSave}>Save</button>
         </div>
       </div>
     `;
   }
 
-  const overLimit = (data.narrative || '').length > 2048;
+  const narrativeText = data.narrative || '';
+  const backgroundText = data.background || '';
+  const hasBackground = backgroundText.length > 0;
+  const hasNarrative = narrativeText.length > 0;
+  const narrativeOverLimit = narrativeText.length > 2048;
+  const backgroundOverLimit = backgroundText.length > 2048;
   return html`
     <div
       class="diagnose-row-body${readOnly ? '' : ' editable'}"
       onClick=${() => !readOnly && setEditing(true)}
     >
-      ${data.narrative
-        ? (data.narrative).split('\n').map((line, i) => html`<div key=${i} class="diagnose-body-line">${line}</div>`)
-        : html`<div class="diagnose-body-empty">No assessment text</div>`
+      ${!hasBackground && !hasNarrative
+        ? html`<div class="diagnose-body-empty">No assessment text</div>`
+        : html`
+          ${hasBackground && html`
+            <div class="diagnose-body-label">Background</div>
+            ${backgroundText.split('\n').map((line, i) => html`<div key=${'b' + i} class="diagnose-body-line">${line}</div>`)}
+            ${backgroundOverLimit && html`<div class="char-counter over-limit">${backgroundText.length} / 2048 — text must be shortened before approving</div>`}
+          `}
+          ${hasNarrative && html`
+            <div class="diagnose-body-label">Today's assessment</div>
+            ${narrativeText.split('\n').map((line, i) => html`<div key=${'n' + i} class="diagnose-body-line">${line}</div>`)}
+            ${narrativeOverLimit && html`<div class="char-counter over-limit">${narrativeText.length} / 2048 — text must be shortened before approving</div>`}
+          `}
+        `
       }
-      ${overLimit && html`<div class="char-counter over-limit">${data.narrative.length} / 2048 — text must be shortened before approving</div>`}
     </div>
   `;
 }
@@ -628,7 +670,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, priorSections, onEditingChange, onReorderCommand, onToggleCptLink, rankedDiagnoses }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, priorSections, onEditingChange, onReorderCommand, onToggleCptLink, rankedDiagnoses, questionnaireScores }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   // In approved (readOnly) mode, only show items that actually made it into the note.
@@ -833,7 +875,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
-                ${allVitals.map(entry => html`
+                ${allVitals.map((entry, idx) => html`
                   <div class="content-block rec-vitals" key=${entry.index}>
                     <${VitalsRow}
                       command=${entry.command}
@@ -841,6 +883,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       onEdit=${onEditCommand}
                       readOnly=${readOnly}
                       onEditingChange=${onEditingChange}
+                      questionnaireScores=${idx === 0 ? questionnaireScores : []}
                     />
                   </div>
                 `)}

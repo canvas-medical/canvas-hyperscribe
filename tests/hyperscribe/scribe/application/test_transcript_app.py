@@ -240,21 +240,15 @@ def test_scribe_tab_has_content_no_rows(mock_transcript: MagicMock, mock_summary
 
 @patch("hyperscribe.scribe.application.transcript_app.ScribeSummary")
 @patch("hyperscribe.scribe.application.transcript_app.ScribeTranscript")
-def test_scribe_tab_has_content_transcript_items(
-    mock_transcript: MagicMock, mock_summary: MagicMock
-) -> None:
-    mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = [
-        {"text": "Hello"}
-    ]
+def test_scribe_tab_has_content_transcript_items(mock_transcript: MagicMock, mock_summary: MagicMock) -> None:
+    mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = [{"text": "Hello"}]
     assert _scribe_tab_has_content(99) is True
     mock_summary.objects.filter.assert_not_called()
 
 
 @patch("hyperscribe.scribe.application.transcript_app.ScribeSummary")
 @patch("hyperscribe.scribe.application.transcript_app.ScribeTranscript")
-def test_scribe_tab_has_content_summary_approved(
-    mock_transcript: MagicMock, mock_summary: MagicMock
-) -> None:
+def test_scribe_tab_has_content_summary_approved(mock_transcript: MagicMock, mock_summary: MagicMock) -> None:
     mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = []
     mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
         "note_data": {},
@@ -266,9 +260,7 @@ def test_scribe_tab_has_content_summary_approved(
 
 @patch("hyperscribe.scribe.application.transcript_app.ScribeSummary")
 @patch("hyperscribe.scribe.application.transcript_app.ScribeTranscript")
-def test_scribe_tab_has_content_summary_commands(
-    mock_transcript: MagicMock, mock_summary: MagicMock
-) -> None:
+def test_scribe_tab_has_content_summary_commands(mock_transcript: MagicMock, mock_summary: MagicMock) -> None:
     mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = []
     mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
         "note_data": {},
@@ -280,9 +272,7 @@ def test_scribe_tab_has_content_summary_commands(
 
 @patch("hyperscribe.scribe.application.transcript_app.ScribeSummary")
 @patch("hyperscribe.scribe.application.transcript_app.ScribeTranscript")
-def test_scribe_tab_has_content_summary_text(
-    mock_transcript: MagicMock, mock_summary: MagicMock
-) -> None:
+def test_scribe_tab_has_content_summary_text(mock_transcript: MagicMock, mock_summary: MagicMock) -> None:
     mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = []
     mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
         "note_data": {"sections": [{"key": "cc", "title": "CC", "text": "Patient reports cough."}]},
@@ -294,9 +284,7 @@ def test_scribe_tab_has_content_summary_text(
 
 @patch("hyperscribe.scribe.application.transcript_app.ScribeSummary")
 @patch("hyperscribe.scribe.application.transcript_app.ScribeTranscript")
-def test_scribe_tab_has_content_summary_blank(
-    mock_transcript: MagicMock, mock_summary: MagicMock
-) -> None:
+def test_scribe_tab_has_content_summary_blank(mock_transcript: MagicMock, mock_summary: MagicMock) -> None:
     """A ScribeSummary row exists from a manual-mode template flip, but the user
     typed nothing and never clicked Approve."""
     mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = []
@@ -310,9 +298,7 @@ def test_scribe_tab_has_content_summary_blank(
 
 @patch("hyperscribe.scribe.application.transcript_app.ScribeSummary")
 @patch("hyperscribe.scribe.application.transcript_app.ScribeTranscript")
-def test_scribe_tab_has_content_whitespace_only(
-    mock_transcript: MagicMock, mock_summary: MagicMock
-) -> None:
+def test_scribe_tab_has_content_whitespace_only(mock_transcript: MagicMock, mock_summary: MagicMock) -> None:
     mock_transcript.objects.filter.return_value.values_list.return_value.first.return_value = []
     mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
         "note_data": {"sections": [{"key": "cc", "title": "CC", "text": "   \n  "}]},
@@ -327,9 +313,7 @@ def test_scribe_tab_has_content_whitespace_only(
 
 @patch("hyperscribe.scribe.application.transcript_app._scribe_tab_has_content")
 @patch("hyperscribe.scribe.application.transcript_app.Helper.editable_note")
-def test_open_by_default_editable_note(
-    mock_editable: MagicMock, mock_has_content: MagicMock
-) -> None:
+def test_open_by_default_editable_note(mock_editable: MagicMock, mock_has_content: MagicMock) -> None:
     mock_editable.return_value = True
     mock_has_content.return_value = False  # irrelevant for editable
     event = Event(EventRequest(context='{"note_id": 7}'))
@@ -339,9 +323,7 @@ def test_open_by_default_editable_note(
 
 @patch("hyperscribe.scribe.application.transcript_app._scribe_tab_has_content")
 @patch("hyperscribe.scribe.application.transcript_app.Helper.editable_note")
-def test_open_by_default_locked_with_content(
-    mock_editable: MagicMock, mock_has_content: MagicMock
-) -> None:
+def test_open_by_default_locked_with_content(mock_editable: MagicMock, mock_has_content: MagicMock) -> None:
     mock_editable.return_value = False
     mock_has_content.return_value = True
     event = Event(EventRequest(context='{"note_id": 7}'))
@@ -351,9 +333,7 @@ def test_open_by_default_locked_with_content(
 
 @patch("hyperscribe.scribe.application.transcript_app._scribe_tab_has_content")
 @patch("hyperscribe.scribe.application.transcript_app.Helper.editable_note")
-def test_open_by_default_locked_blank_defers_to_legacy(
-    mock_editable: MagicMock, mock_has_content: MagicMock
-) -> None:
+def test_open_by_default_locked_blank_defers_to_legacy(mock_editable: MagicMock, mock_has_content: MagicMock) -> None:
     mock_editable.return_value = False
     mock_has_content.return_value = False
     event = Event(EventRequest(context='{"note_id": 7}'))

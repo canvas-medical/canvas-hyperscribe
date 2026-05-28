@@ -2,6 +2,7 @@ import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
+import { collectQuestionnaireScores } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-score.js';
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
 import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
@@ -234,7 +235,7 @@ function isInsertableCommand(c) {
   return true;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, priorSections, onEditingChange, onReorderCommand, onToggleCptLink, rankedDiagnoses } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, priorSections, onEditingChange, onReorderCommand, onToggleCptLink, rankedDiagnoses, questionnaireScores } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -289,6 +290,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onReorderCommand=${(isPlan || isCharges) ? onReorderCommand : null}
         onToggleCptLink=${isCharges ? onToggleCptLink : null}
         rankedDiagnoses=${(isPlan || isCharges) ? rankedDiagnoses : null}
+        questionnaireScores=${isObjective ? questionnaireScores : null}
       />`;
     })
     .filter(Boolean);
@@ -340,6 +342,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const transcriptBodyRef = useRef(null);
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
+  const addNowAttemptedRef = useRef([]);
+  // Set to true after the first save-summary 403 (`_authorize_edit` denial:
+  // note locked or wrong author). Gates subsequent autosaves so the Scribe
+  // tab doesn't fire one POST per state change against a note it can't
+  // actually save to. Brigade was generating ~11.9k of these in 14 days.
+  const saveBlockedRef = useRef(false);
 
   const [editingFields, setEditingFields] = useState(new Set());
 
@@ -395,16 +403,42 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     : (!isAuthor && !approved ? 'non_author' : null);
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved, extras = {}) => {
+    // Skip the request entirely when we already know the server will reject
+    // it: non-author viewers and locked notes both fail `_authorize_edit`
+    // server-side. The read-only banner elsewhere already covers these cases
+    // visually; no point firing a request to be told "no" again.
+    if (!isAuthor) return;
+    if (!isNoteEditable) return;
+    // Once the server has rejected an autosave for this note (typical cause:
+    // the note finalized while the Scribe tab was still attached), stop
+    // sending. The note can't become editable again without an explicit user
+    // action (Amend / state change), and those paths reset isNoteEditable
+    // via the NOTE_STATE_CHANGED WS message — they don't go through here.
+    if (saveBlockedRef.current) return;
     try {
-      await fetch(`${API_BASE}/save-summary`, {
+      const res = await fetch(`${API_BASE}/save-summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note_id: noteId, note, commands: cmds, approved: isApproved, ...extras }),
       });
+      if (res.status === 403) {
+        // _authorize_edit denial — "Note is not editable" or "Only the note
+        // author can modify the Scribe tab". Gate further autosaves silently;
+        // the existing locked / non-author banner already explains why edits
+        // aren't sticking.
+        saveBlockedRef.current = true;
+      }
     } catch (err) {
       console.error('Failed to save summary to cache:', err);
     }
-  }, [noteId]);
+  }, [noteId, isAuthor, isNoteEditable]);
+
+  // Resetting the gate when the note becomes editable again (post-Amend, or
+  // the user re-loads onto a fresh note in the same iframe). isNoteEditable
+  // flips via the NOTE_STATE_CHANGED WS message — see the listener above.
+  useEffect(() => {
+    if (isNoteEditable) saveBlockedRef.current = false;
+  }, [isNoteEditable, noteId]);
 
   // Load summary from cache — skip if initial data was provided server-side.
   useEffect(() => {
@@ -698,6 +732,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       data: {
         questionnaire_dbid: q.questionnaire_dbid,
         questionnaire_name: q.questionnaire_name,
+        is_scored: !!q.is_scored,
+        scoring_function_name: q.scoring_function_name || '',
         questions: q.questions.map(question => ({
           dbid: question.dbid,
           label: question.label,
@@ -705,6 +741,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           responses: question.options.map(o => ({
             dbid: o.dbid,
             value: (question.type === 'TXT' || question.type === 'INT') ? '' : o.value,
+            code: o.code || '',
+            score_value: o.score_value || '',
             selected: false,
             comment: null,
           })),
@@ -1290,7 +1328,32 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (icd10Code) {
       setUnmatchedConditions(prev => prev.filter(c => !(c.coding || []).some(cd => cd.code === icd10Code)));
     }
-  }, [canEdit, commands]);
+
+    // Carry-forward the background from the most recent prior signed assessment
+    // for the same (patient, condition). Non-blocking: the user can start
+    // typing immediately; the fetch may race. If it lands AFTER the user has
+    // typed something, we MUST NOT overwrite their input — guard with
+    // ``!c.data.background``. The /insert-commands belt is a safety net for
+    // approval, but this fetch is what makes the carry-forward visible in the
+    // assess edit drawer BEFORE the provider approves.
+    if (conditionId) {
+      fetch(`${API_BASE}/carry-forward-background`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note_uuid: noteId, condition_id: conditionId }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data || !data.background) return;
+          setCommands(prev => prev.map(c =>
+            c.command_type === 'assess' && c.data.condition_id === conditionId && !c.data.background
+              ? { ...c, data: { ...c.data, background: data.background } }
+              : c
+          ));
+        })
+        .catch(err => console.error('Carry-forward background fetch failed:', err));
+    }
+  }, [canEdit, commands, noteId]);
 
   const handleInsert = useCallback(async () => {
     if (!canEdit || inserting) return;
@@ -1971,6 +2034,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onReorderCommand: canEdit ? handleReorderCommand : null,
           onToggleCptLink: canEdit ? handleToggleCptLink : null,
           rankedDiagnoses,
+          questionnaireScores: collectQuestionnaireScores(commands),
         })}
       </div>
       ${verificationResult && html`<${VerificationSummary} result=${verificationResult} />`}

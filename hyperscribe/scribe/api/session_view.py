@@ -53,8 +53,11 @@ from hyperscribe.scribe.commands.builder import (
     annotate_duplicates,
     build_effects,
     build_metadata_effects,
+    prefill_assess_backgrounds,
+    prefill_assess_backgrounds_for_proposals,
     validate_proposals,
 )
+from hyperscribe.scribe.commands.carry_forward import carry_forward_assess_background
 from hyperscribe.scribe.commands.extractor import extract_commands, parse_ros_subsections
 from hyperscribe.scribe.commands.prior_sections import get_prior_section_data
 from hyperscribe.scribe.recommendations import recommend_commands
@@ -64,6 +67,13 @@ from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
 )
+
+
+def _ensure_str(value: Any) -> str:
+    """Convert None to empty string while preserving 0 / False as their stringified form. Used when
+    serializing questionnaire scoring metadata where integer 0 carries clinical meaning ("Not at all")
+    and must not be conflated with absent data via the falsy-coerce `or ""` idiom."""
+    return "" if value is None else str(value)
 
 
 def _format_icd10_code(raw: str) -> str:
@@ -249,9 +259,7 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
 
 def _infer_mode_for_heal(note_dbid: int, has_user_content: bool) -> str:
     """Pick the user's mode from session artifacts. '' means no signal — don't heal."""
-    events = (
-        ScribeAuditLog.objects.filter(note_id=note_dbid).values_list("events", flat=True).first()
-    ) or []
+    events = (ScribeAuditLog.objects.filter(note_id=note_dbid).values_list("events", flat=True).first()) or []
     last_start = ""
     for event in events:
         event_type = event.get("type") if isinstance(event, dict) else None
@@ -279,10 +287,7 @@ def _has_user_authored_content(row: dict[str, Any]) -> bool:
     if row["note_data"]:
         return True
     commands = row["commands"] or []
-    return any(
-        isinstance(cmd, dict) and not cmd.get("_template_inserted")
-        for cmd in commands
-    )
+    return any(isinstance(cmd, dict) and not cmd.get("_template_inserted") for cmd in commands)
 
 
 def _load_summary(note_id: str) -> dict[str, Any] | None:
@@ -376,9 +381,24 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
         cmd = QuestionnaireCommand(questionnaire_id=str(q_obj.id), note_uuid="", command_uuid="")
         questions: list[dict[str, Any]] = []
         for q in cmd.questions:
-            options = [{"dbid": o.dbid, "value": o.name} for o in q.options]
+            options = [
+                {
+                    "dbid": o.dbid,
+                    "value": o.name,
+                    "code": _ensure_str(getattr(o, "code", None)),
+                    "score_value": _ensure_str(getattr(o, "value", None)),
+                }
+                for o in q.options
+            ]
             questions.append({"dbid": int(q.id), "label": q.label, "type": q.type, "options": options})
-        return {"questionnaire_dbid": q_obj.dbid, "questionnaire_name": q_obj.name, "questions": questions}
+        scoring_function_name = getattr(q_obj, "scoring_function_name", "") or ""
+        return {
+            "questionnaire_dbid": q_obj.dbid,
+            "questionnaire_name": q_obj.name,
+            "is_scored": bool(scoring_function_name),
+            "scoring_function_name": scoring_function_name,
+            "questions": questions,
+        }
 
     result_templates: list[dict[str, Any]] = []
     for tmpl in templates_config:
@@ -771,6 +791,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_uuid = str(data.get("note_uuid", ""))
         proposals = extract_commands(note)
         annotate_duplicates(proposals, note_uuid)
+        prefill_assess_backgrounds_for_proposals(proposals, note_uuid)
         commands_list: list[dict[str, Any]] = [
             {
                 "command_type": p.command_type,
@@ -884,6 +905,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 zip_codes = resolve_zip_codes(patient_id, note_id) or None
                 rec_proposals = recommend_commands(note, api_key, zip_codes=zip_codes, transcript=transcript)
                 annotate_duplicates(rec_proposals, note_uuid)
+                prefill_assess_backgrounds_for_proposals(rec_proposals, note_uuid)
                 recommendations_list = [
                     {
                         "command_type": p.command_type,
@@ -1054,6 +1076,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         proposals = extract_commands(note)
         note_uuid = str(data.get("note_uuid", ""))
         annotate_duplicates(proposals, note_uuid)
+        prefill_assess_backgrounds_for_proposals(proposals, note_uuid)
         return [
             JSONResponse(
                 {
@@ -1105,6 +1128,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             ]
         note_uuid = str(data.get("note_uuid", ""))
         annotate_duplicates(proposals, note_uuid)
+        prefill_assess_backgrounds_for_proposals(proposals, note_uuid)
         return [
             JSONResponse(
                 {
@@ -1204,7 +1228,24 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         feature_flags = {
             Constants.SECRET_ALERT_FACILITY_ENABLED: bool(self.secrets.get(Constants.SECRET_ALERT_FACILITY_ENABLED)),
         }
-        effects, metadata_pending, attempted = build_effects(commands, note_uuid, feature_flags)
+        # Carry-forward assess backgrounds from prior signed notes BEFORE building
+        # effects, so the SDK command constructor sees the prefilled value. This
+        # mirrors the symmetric placement of ``annotate_duplicates`` (called by
+        # the same callers, parallel to the build/validate pipeline).
+        prefill_assess_backgrounds(commands, note_uuid)
+        effects, metadata_pending, attempted, build_errors = build_effects(commands, note_uuid, feature_flags)
+        if build_errors:
+            audit_event(
+                note_uuid,
+                "VALIDATION_FAILED",
+                {"errors": build_errors, "source": "build"},
+            )
+            return [
+                JSONResponse(
+                    {"error": "Validation failed", "validation_errors": build_errors},
+                    status_code=HTTPStatus.BAD_REQUEST,
+                )
+            ]
         audit_event(
             note_uuid,
             "INSERT_COMMANDS",
@@ -1233,6 +1274,51 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             ),
             *effects,
         ]
+
+    @api.post("/carry-forward-background")
+    def post_carry_forward_background(self) -> list[Union[Response, Effect]]:
+        """Return the carried-forward ``background`` for one (note, condition).
+
+        Why this exists as its own endpoint (vs. relying on the /insert-commands
+        belt that already prefills): the user needs to SEE the carried value in
+        the assess command's edit drawer BEFORE clicking Approve. The
+        /insert-commands belt fires server-side at approval time, so it never
+        reaches the UI. This endpoint lets the frontend pull the value when the
+        provider creates an assess command client-side (handleAddCondition).
+
+        Read-only — no audit event, no PHI logged. The auth gate matches every
+        other mutating-shaped endpoint in this view because a leak would expose
+        ``has prior assessment for this condition``-shaped metadata about
+        another provider's patient.
+        """
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_uuid = str(data.get("note_uuid", ""))
+        if not note_uuid:
+            return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        condition_id = str(data.get("condition_id", "")).strip()
+        if not condition_id:
+            return [JSONResponse({"error": "condition_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+        try:
+            # ``ValueError`` covers a malformed UUID that slips past _authorize_edit
+            # (unlikely — auth's ``Note.objects.values().get(id=...)`` catches it
+            # first — but keep the defensive net so a future auth refactor doesn't
+            # turn this into a 500). Mirrors ``prefill_assess_backgrounds``.
+            note = Note.objects.select_related("patient").get(id=note_uuid)
+        except (Note.DoesNotExist, ValueError):
+            return [JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)]
+        # Reuse the same helper /insert-commands uses, so the carry-forward
+        # contract is single-sourced (changes to scoping rules land in one place).
+        # The helper mutates the dict in place when a prior is found and leaves
+        # it untouched otherwise — read the result via ``.get`` rather than
+        # branching on a separate return value.
+        scratch: dict[str, Any] = {"condition_id": condition_id}
+        carry_forward_assess_background(scratch, note)
+        return [JSONResponse({"background": scratch.get("background")}, status_code=HTTPStatus.OK)]
 
     @api.post("/insert-metadata")
     def post_insert_metadata(self) -> list[Union[Response, Effect]]:
@@ -1923,7 +2009,15 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         )
         questions = []
         for q in cmd.questions:
-            options = [{"dbid": o.dbid, "value": o.name} for o in q.options]
+            options = [
+                {
+                    "dbid": o.dbid,
+                    "value": o.name,
+                    "code": _ensure_str(getattr(o, "code", None)),
+                    "score_value": _ensure_str(getattr(o, "value", None)),
+                }
+                for o in q.options
+            ]
             questions.append(
                 {
                     "dbid": int(q.id),
@@ -1932,11 +2026,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     "options": options,
                 }
             )
+        scoring_function_name = getattr(questionnaire, "scoring_function_name", "") or ""
         return [
             JSONResponse(
                 {
                     "questionnaire_dbid": questionnaire.dbid,
                     "questionnaire_name": questionnaire.name,
+                    "is_scored": bool(scoring_function_name),
+                    "scoring_function_name": scoring_function_name,
                     "questions": questions,
                 },
                 status_code=HTTPStatus.OK,

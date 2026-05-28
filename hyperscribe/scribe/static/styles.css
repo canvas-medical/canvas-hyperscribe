@@ -853,6 +853,7 @@ h2 { margin-bottom: 4px; }
 .vitals-edit-label { font-size: 13px; font-weight: 600; color: #6b7280; min-width: 40px; }
 .vitals-edit-input { width: 84px; padding: 8px 6px; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; text-align: center; }
 .vitals-edit-input:focus { outline: none; border-color: #052B49; }
+.vitals-edit-bmi-value { width: 84px; padding: 8px 6px; font-size: 14px; color: #555; text-align: center; }
 .vitals-edit-unit { font-size: 12px; color: #999; }
 .vitals-bp-inputs { display: flex; align-items: center; gap: 4px; }
 .vitals-bp-slash { font-weight: 600; color: #888; }
@@ -1198,6 +1199,8 @@ h2 { margin-bottom: 4px; }
 .diagnose-row-body.editable:hover { background: #f0f0f0; }
 .diagnose-body-line { min-height: 1.4em; }
 .diagnose-body-empty { color: #aaa; font-style: italic; }
+.diagnose-body-label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; }
+.diagnose-body-label:first-child { margin-top: 0; }
 .diagnose-edit-area { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 4px; }
 .diagnose-edit-area .command-row-textarea { width: 100%; }
 .diagnose-edit-area .command-row-actions { align-self: flex-end; }
@@ -1472,27 +1475,90 @@ h2 { margin-bottom: 4px; }
 .questionnaire-search-result.search-no-results:hover { background: none; }
 
 /* Questionnaire form */
-.questionnaire-header { font-size: 15px; font-weight: 700; color: #333; margin-bottom: 12px; }
-.questionnaire-question { margin-bottom: 16px; }
-.questionnaire-question:last-child { margin-bottom: 0; }
-.questionnaire-question-label { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px; }
-.questionnaire-options { display: flex; flex-direction: column; gap: 2px; }
-.questionnaire-option { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #333; cursor: pointer; padding: 8px 4px; border-radius: 6px; }
-.questionnaire-option:hover { background: #f5f7fa; }
-.questionnaire-option input[type="radio"],
-.questionnaire-option input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; }
-.questionnaire-option span { flex: 1; }
-.questionnaire-option-comment { width: 100%; padding: 8px 10px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 6px; margin-top: 4px; margin-left: 28px; }
-.questionnaire-option-comment:focus { outline: none; border-color: #052B49; }
-.questionnaire-text-input { width: 100%; padding: 10px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; }
+/* The form is the only flex item inside .order-row.editing; force it to fill the available width so the
+   two columns sit in actual halves of the card and the Save button reaches the right edge. */
+.questionnaire-form { flex: 1; width: 100%; min-width: 0; }
+.questionnaire-header { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 14px; letter-spacing: 0.01em; }
+/* Strict 2-column grid, row-by-row reading order. Q1 top-left, Q2 top-right, Q3 next-row-left, etc.
+   align-items: stretch equalizes cell heights within a row so per-cell border-bottoms line up as a clean
+   horizontal divider between rows. row-gap is 0 — padding + border carries the separation. */
+.questionnaire-questions-2col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; row-gap: 0; align-items: stretch; }
+.questionnaire-question { min-width: 0; padding: 14px 0; border-bottom: 1px solid #f3f4f6; }
+.questionnaire-question:last-child { border-bottom: none; padding-bottom: 4px; }
+/* When the count is even, the second-to-last cell sits in the bottom row too — remove its border to
+   avoid a dangling half-line at the card's bottom-left. (When count is odd, this selector matches nothing
+   because second-to-last is at an even position.) */
+.questionnaire-question:nth-last-child(2):nth-child(odd) { border-bottom: none; padding-bottom: 4px; }
+.questionnaire-question-label { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 8px; overflow-wrap: anywhere; line-height: 1.35; }
+@media (max-width: 600px) {
+  .questionnaire-questions-2col { grid-template-columns: 1fr; column-gap: 0; }
+  /* In single-column mode, every cell is its own row — restore the divider on the second-to-last cell
+     so consecutive questions stay visually separated. */
+  .questionnaire-question:nth-last-child(2):nth-child(odd) { border-bottom: 1px solid #f3f4f6; padding-bottom: 14px; }
+}
+/* Chip-style options for radio and checkbox questions. Pills wrap naturally; no stretching, no matrix. */
+.questionnaire-chips { display: flex; flex-flow: row wrap; gap: 6px; }
+.questionnaire-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.25;
+  color: #1f2937;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.questionnaire-chip:hover { background: #f5f7fa; border-color: #9ca3af; }
+.questionnaire-chip:focus-visible { outline: 2px solid #052B49; outline-offset: 2px; }
+.questionnaire-chip.selected { background: #052B49; border-color: #052B49; color: #fff; }
+.questionnaire-chip.selected:hover { background: #0a3a60; border-color: #0a3a60; }
+/* Faint inline hint clarifying multi-select questions. */
+.questionnaire-question-hint { font-weight: 400; font-size: 12px; color: #6b7280; }
+/* Comments for selected checkbox options, grouped below the chip row. */
+.questionnaire-chip-comments { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e5e7eb; }
+.questionnaire-chip-comment-row { display: flex; align-items: center; gap: 10px; }
+.questionnaire-chip-comment-label { font-size: 12px; font-weight: 600; color: #4b5563; flex-shrink: 0; min-width: 100px; }
+.questionnaire-chip-comment-input { flex: 1; padding: 6px 10px; font-family: inherit; font-size: 13px; border: 1px solid #ddd; border-radius: 6px; }
+.questionnaire-chip-comment-input:focus { outline: none; border-color: #052B49; }
+.questionnaire-text-input { width: 100%; padding: 9px 12px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; }
 .questionnaire-text-input:focus { outline: none; border-color: #052B49; }
+.questionnaire-view-wrap { width: 100%; }
 .questionnaire-view { display: flex; align-items: center; gap: 8px; padding: 4px; cursor: pointer; border-radius: 8px; }
 .recommendation-block:has(.questionnaire-view) { align-items: center; }
 .recommendation-block:has(.questionnaire-view) .recommendation-actions { padding-top: 0; }
+/* Questionnaire cards keep the dismiss action visible while editing, including before a questionnaire is selected. */
+.recommendation-block.rec-questionnaire:has(.editing) > .recommendation-actions { display: flex; }
 .questionnaire-view-content { flex: 1; min-width: 0; }
 .questionnaire-view-name { font-size: 15px; color: #333; }
-.questionnaire-answered-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #e8f5e9; color: #2e7d32; white-space: nowrap; flex-shrink: 0; }
+/* Status pill — only shown on editable (pre-approval) cards when the questionnaire is incomplete.
+   Default is a neutral gray for "X/Y answered" (informational, in-progress). The .warning modifier
+   uses amber for "Not started" — the highest-risk oversight state where the user added the card and
+   never filled anything in. */
+.questionnaire-status-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #f3f4f6; color: #4b5563; white-space: nowrap; flex-shrink: 0; }
+.questionnaire-status-badge.warning { background: #fef3c7; color: #92400e; }
+.questionnaire-score-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #e0e7ff; color: #3730a3; white-space: nowrap; flex-shrink: 0; }
+.questionnaire-view.readonly { cursor: default; }
 .questionnaire-form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f0f0f0; }
+
+/* Read-only expanded response list */
+.questionnaire-readonly-list { margin: 4px 4px 2px; padding: 4px 0 0; border-top: 1px solid #f3f4f6; display: flex; flex-direction: column; }
+.questionnaire-readonly-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); column-gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid #f3f4f6; line-height: 1.35; }
+.questionnaire-readonly-row:last-child { border-bottom: none; padding-bottom: 2px; }
+.questionnaire-readonly-label { font-size: 13px; font-weight: 600; color: #4b5563; margin: 0; }
+.questionnaire-readonly-value { font-size: 13px; color: #1f2937; margin: 0; min-width: 0; word-break: break-word; }
+.questionnaire-readonly-answer { color: #1f2937; }
+.questionnaire-readonly-skipped { color: #9ca3af; font-style: italic; }
+.questionnaire-readonly-empty { color: #9ca3af; }
+/* At narrow widths, stack the label above the answer rather than crushing both. */
+@media (max-width: 480px) {
+  .questionnaire-readonly-row { grid-template-columns: 1fr; row-gap: 0; }
+  .questionnaire-readonly-label { font-size: 12px; }
+}
 
 /* Unified top bar */
 .unified-top-bar {
