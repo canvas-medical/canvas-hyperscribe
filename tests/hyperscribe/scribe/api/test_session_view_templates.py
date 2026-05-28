@@ -251,7 +251,12 @@ def test_get_visit_templates_preserves_integer_zero_score_value(
                                         "label": "Little interest?",
                                         "type": ResponseOption.TYPE_RADIO,
                                         "options": [
-                                            {"dbid": 101, "value": "Not at all", "code": "LA6568-5", "score_value": "0"},
+                                            {
+                                                "dbid": 101,
+                                                "value": "Not at all",
+                                                "code": "LA6568-5",
+                                                "score_value": "0",
+                                            },
                                             {"dbid": 102, "value": "Unknown", "code": "", "score_value": ""},
                                         ],
                                     }
