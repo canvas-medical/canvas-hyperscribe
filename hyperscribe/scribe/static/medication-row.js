@@ -224,7 +224,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
       <div class="order-view">
         <div class="order-view-name">${command.display}</div>
         ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
-        ${alertFacilityEnabled && command.data.alert_facility && html`<span class="badge badge-alert">Alert Facility</span>`}
+        ${alertFacilityEnabled && command.data.alert_facility && html`<span class="badge-alert">Alert Facility</span>`}
       </div>
     </div>
   `;

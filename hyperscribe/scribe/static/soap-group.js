@@ -289,9 +289,9 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
       <span class="removal-action-label">${config.actionLabel}</span>
       <span class="removal-item-name">${itemName}</span>
       ${type === 'stop_medication' && readOnly && (data.rationale || data.alert_facility) && html`
-        <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6b7280; margin-top: 2px;">
           ${data.rationale || ''}
-          ${alertFacilityEnabled && data.alert_facility && html`<span class="badge badge-alert" style="margin-left: 6px;">Alert Facility</span>`}
+          ${alertFacilityEnabled && data.alert_facility && html`<span class="badge-alert">Alert Facility</span>`}
         </div>
       `}
     </div>
@@ -1419,6 +1419,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     noteId=${noteId}
                     staffId=${staffId}
                     staffName=${staffName}
+                    alertFacilityEnabled=${alertFacilityEnabled}
                     onEditingChange=${onEditingChange}
                   />
                 </div>
@@ -1654,6 +1655,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       staffId=${staffId}
                       staffName=${staffName}
                       isRecommendation=${true}
+                      alertFacilityEnabled=${alertFacilityEnabled}
                       onEditingChange=${onEditingChange}
                     />
                   </div>
@@ -1713,6 +1715,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       staffId=${staffId}
                       staffName=${staffName}
                       isRecommendation=${true}
+                      alertFacilityEnabled=${alertFacilityEnabled}
                       onEditingChange=${onEditingChange}
                     />
                   </div>
