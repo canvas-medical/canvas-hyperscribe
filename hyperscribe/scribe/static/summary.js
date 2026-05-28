@@ -1170,7 +1170,32 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (icd10Code) {
       setUnmatchedConditions(prev => prev.filter(c => !(c.coding || []).some(cd => cd.code === icd10Code)));
     }
-  }, [canEdit, commands]);
+
+    // Carry-forward the background from the most recent prior signed assessment
+    // for the same (patient, condition). Non-blocking: the user can start
+    // typing immediately; the fetch may race. If it lands AFTER the user has
+    // typed something, we MUST NOT overwrite their input — guard with
+    // ``!c.data.background``. The /insert-commands belt is a safety net for
+    // approval, but this fetch is what makes the carry-forward visible in the
+    // assess edit drawer BEFORE the provider approves.
+    if (conditionId) {
+      fetch(`${API_BASE}/carry-forward-background`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note_uuid: noteId, condition_id: conditionId }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data || !data.background) return;
+          setCommands(prev => prev.map(c =>
+            c.command_type === 'assess' && c.data.condition_id === conditionId && !c.data.background
+              ? { ...c, data: { ...c.data, background: data.background } }
+              : c
+          ));
+        })
+        .catch(err => console.error('Carry-forward background fetch failed:', err));
+    }
+  }, [canEdit, commands, noteId]);
 
   const handleInsert = useCallback(async () => {
     if (!canEdit || inserting) return;
