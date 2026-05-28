@@ -14,6 +14,103 @@ import { QuestionnaireRow } from '/plugin-io/api/hyperscribe/scribe/static/quest
 
 const html = htm.bind(h);
 
+// KOALA-5485: section_keys whose already-documented commands can be edited
+// during amendment. RFV (chief_complaint) goes through a direct EDIT effect;
+// CustomCommand-routed sections (_ros, _history_review, _chart_review,
+// physical_exam, lab_results, imaging_results) go through EnterInError +
+// Originate; everything else goes through EnterInError + Originate + Commit.
+//
+// Covers every command_type in `_BUILDERS` EXCEPT orders (prescribe, refill,
+// adjust_prescription, refer, imaging_order, lab_order) and questionnaires
+// (which need a 4-effect amend route, deferred to a follow-up ticket).
+//
+// MIRRORED in three places - keep all in sync until single-sourcing lands
+// (follow-up ticket):
+//   - hyperscribe/scribe/commands/builder.py (EDITABLE_AMEND_SECTIONS)
+//   - hyperscribe/scribe/static/summary.js (EDITABLE_AMEND_SECTIONS)
+//   - hyperscribe/scribe/static/soap-group.js (this file)
+const EDITABLE_AMEND_SECTIONS = new Set([
+  // DIRECT_EDIT
+  'chief_complaint',
+  // CUSTOM_COMMAND_ROUTED
+  '_ros',
+  '_history_review',
+  '_chart_review',
+  'physical_exam',
+  'lab_results',
+  'imaging_results',
+  // VOID_RECREATE - SOAP-section-anchored
+  'history_of_present_illness',
+  'current_medications',
+  'allergies',
+  'vitals',
+  'past_medical_history',
+  'past_surgical_history',
+  'family_history',
+  'assessment_and_plan',
+  'plan',
+  // VOID_RECREATE - ad-hoc buckets (rows added during a session retain these
+  // section_keys after approval+reload).
+  '_ad_hoc',
+  '_objective_ad_hoc',
+  '_history_ad_hoc',
+  '_subjective_ad_hoc',
+  '_charges_ad_hoc',
+]);
+
+// Command types that MUST NEVER be amended, regardless of section_key.
+// Three reasons a command_type lands here (see builder.py for fuller writeup):
+//   1. STRUCTURALLY IMPOSSIBLE: no COMMIT_*_COMMAND interpreter in home-app.
+//   2. STRUCTURALLY AWKWARD: EIE works, no COMMIT - needs a 4-effect route.
+//   3. POLICY EXCLUDED: full wiring exists, but amend-after-dispatch is the
+//      wrong abstraction (a cancel/resend workflow is the right shape).
+//
+// Questionnaire IS amendable now (originate(commit=True) shortcut — backend
+// emits EIE + originate-with-values-and-commit, 2 effects).
+//
+// MIRRORED with builder.py's NON_EDITABLE_AMEND_COMMAND_TYPES.
+const NON_EDITABLE_AMEND_COMMAND_TYPES = new Set([
+  // 1. Structurally impossible (no COMMIT_*_COMMAND interpreter):
+  'prescribe',
+  'refill',
+  'adjust_prescription',
+  // 2. Structurally awkward (EIE exists, no COMMIT - 4-effect route needed):
+  'refer',
+  'imaging_order',
+  // 3. Policy excluded (full wiring exists; amend after lab-partner ticket
+  //    dispatch creates downstream confusion - cancel/resend is the right shape):
+  'lab_order',
+]);
+
+// rowLockedDuringAmendment(command, readOnly, isAmending) returns true when
+// the row should remain read-only. The existing behavior was simply
+// `readOnly || already_documented`; during amendment we relax the lock for
+// commands whose section_key is in the editable allowlist AND whose
+// command_type is not in the denylist.
+function rowLocked(command, readOnly, isAmending) {
+  if (readOnly) return true;
+  // "On the note" means either flag — same predicate as the insertable
+  // filter (8ea1df36 back-compat fix) and handleMakeChanges. Pre-existing
+  // finalized notes signed before the explicit already_documented stamp
+  // shipped carry command_uuid but not the flag; without command_uuid
+  // here those pre-stamp rows fall through as "not on the note" and look
+  // editable in amend mode — visually inconsistent against post-stamp
+  // rows AND lets the user think they can amend a NON_EDITABLE command
+  // type (questionnaire, prescribe, refer, etc.) which the backend will
+  // reject.
+  const onNote = command.already_documented || command.command_uuid;
+  if (!onNote) return false;
+  if (
+    isAmending &&
+    command.command_uuid &&
+    EDITABLE_AMEND_SECTIONS.has(command.section_key) &&
+    !NON_EDITABLE_AMEND_COMMAND_TYPES.has(command.command_type)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 const CHARGE_SEARCH_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const CHARGE_DEBOUNCE_MS = 300;
 
@@ -245,7 +342,15 @@ function wasInserted(cmd, isRec = false) {
   // Items added via "Add Now" were already inserted — show them in approved view.
   if (cmd._added_now) return true;
   if (isRec) return !!(cmd.accepted && !cmd.already_documented && cmd.display);
-  if (cmd.already_documented || !cmd.display) return false;
+  // KOALA-5485 changed ``already_documented`` semantics: it now also gets
+  // stamped on commands inserted via THIS session's Approve (so amendment
+  // mode can identify what's in the chart). A command with both flags set
+  // — ``already_documented: true`` AND a ``command_uuid`` — was inserted by
+  // this session and should still render post-approve. Only commands with
+  // ``already_documented: true`` AND no ``command_uuid`` came from outside
+  // this session (legacy chart commands loaded for context) and should hide.
+  if (cmd.already_documented && !cmd.command_uuid) return false;
+  if (!cmd.display) return false;
   if (cmd.command_type === 'imaging_order' && (!cmd.data.image_code || !cmd.data.service_provider || !cmd.data.ordering_provider_id || !cmd.data.diagnosis_codes || cmd.data.diagnosis_codes.length === 0)) return false;
   if (cmd.command_type === 'prescribe' && (!cmd.data.fdb_code || !cmd.data.sig || cmd.data.quantity_to_dispense == null || !cmd.data.type_to_dispense || cmd.data.refills == null)) return false;
   if ((cmd.command_type === 'refill' || cmd.command_type === 'adjust_prescription') && !cmd.data.fdb_code) return false;
@@ -373,6 +478,7 @@ const DEBOUNCE_MS = 300;
 
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+const ICON_LOCK = html`<svg class="command-row-icon-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
 
 function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingChange }) {
   const data = command.data || {};
@@ -609,7 +715,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores }) {
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   // In approved (readOnly) mode, only show items that actually made it into the note.
@@ -639,13 +745,15 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const filteredSections = (entry.command.data.sections || []).filter(s => !STRUCTURED_KEYS.has(s.key));
           if (filteredSections.length === 0) return null;
           const filteredCommand = { ...entry.command, data: { ...entry.command.data, sections: filteredSections } };
+          const rowReadOnly = rowLocked(entry.command, readOnly, isAmending);
           return html`
-            <div class="content-block rec-narrative">
+            <div class=${`content-block rec-narrative${rowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
+              ${rowReadOnly && entry.command.already_documented && ICON_LOCK}
               <${HistoryReviewRow}
                 command=${filteredCommand}
                 commandIndex=${entry.index}
                 onEdit=${onEditCommand}
-                readOnly=${readOnly}
+                readOnly=${rowReadOnly}
                 onEditingChange=${onEditingChange}
               />
             </div>
@@ -676,8 +784,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const aData = entry.command.data || {};
                     const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
                     const aFormatted = aCode.length > 3 ? aCode.slice(0, 3) + '.' + aCode.slice(3) : aCode;
+                    const assessRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
                     return html`
-                      <div class="content-block recommendation-block rec-assess" key=${entry.index}>
+                      <div class=${`content-block recommendation-block rec-assess${assessRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                        ${assessRowReadOnly && entry.command.already_documented && ICON_LOCK}
                         <div class="recommendation-content">
                           <div class="diagnose-row">
                             <div class="diagnose-row-header">
@@ -690,12 +800,12 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                               command=${entry.command}
                               commandIndex=${entry.index}
                               onEdit=${onEditCommand}
-                              readOnly=${readOnly}
+                              readOnly=${assessRowReadOnly}
                               onEditingChange=${onEditingChange}
                             />
                           </div>
                         </div>
-                        ${!readOnly && html`
+                        ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`
                           <div class="recommendation-actions">
                             <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
                           </div>
@@ -714,15 +824,17 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const handleAcceptDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, accepted: true, rejected: false }, 'diagnose');
                     const handleRejectDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, rejected: true, accepted: false }, 'diagnose');
 
+                    const diagnoseRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
                     return html`
-                      <div class="content-block recommendation-block rec-diagnose${isRejected ? ' rec-rejected' : ''}" key=${entry.index}>
+                      <div class=${`content-block recommendation-block rec-diagnose${isRejected ? ' rec-rejected' : ''}${diagnoseRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                        ${diagnoseRowReadOnly && entry.command.already_documented && ICON_LOCK}
                         <div class="recommendation-content">
                           <${DiagnoseRow}
                             command=${entry.command}
                             commandIndex=${entry.index}
                             onEdit=${onEditCommand}
                             onDelete=${onDeleteCommand}
-                            readOnly=${readOnly || isRejected}
+                            readOnly=${diagnoseRowReadOnly || isRejected}
                             suggestions=${suggestions}
                             onAccept=${handleAcceptDiagnose}
                             onEditingChange=${onEditingChange}
@@ -763,22 +875,25 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                     </div>
                   `}
-                  ${(visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition')).map(re => html`
-                    <div class="content-block recommendation-block rec-removal" key=${re.index}>
+                  ${(visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition')).map(re => {
+                    const reRowReadOnly = rowLocked(re.command, readOnly, isAmending);
+                    return html`
+                    <div class=${`content-block recommendation-block rec-removal${reRowReadOnly && re.command.already_documented ? ' command-locked' : ''}`} key=${re.index}>
+                      ${reRowReadOnly && re.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${RemovalRow}
                           command=${re.command}
                           commandIndex=${re.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${reRowReadOnly}
                           patientId=${patientId}
                           alertFacilityEnabled=${alertFacilityEnabled}
                         />
                       </div>
-                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(re.index)} title="Remove">${ICON_X}</button></div>`}
+                      ${!readOnly && !re.command.already_documented && !re.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(re.index)} title="Remove">${ICON_X}</button></div>`}
                     </div>
-                  `)}
+                  `;})}
                   ${(onAddCondition || onAddResolveCondition) && !readOnly && html`
                     <div class="ad-hoc-buttons">
                       ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
@@ -792,33 +907,38 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (readOnly && !entry.command.display) return null;
             const showConditionBtns = isPlan && (onAddCondition || onAddResolveCondition) && !readOnly;
             const planResolves = isPlan ? visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition') : [];
+            const narrativeRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
-                <div class="content-block rec-narrative">
+                <div class=${`content-block rec-narrative${narrativeRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
+                  ${narrativeRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <${CommandRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
-                    readOnly=${readOnly}
+                    readOnly=${narrativeRowReadOnly}
                     onEditingChange=${onEditingChange}
                   />
                 </div>
-                ${planResolves.map(re => html`
-                  <div class="content-block recommendation-block rec-removal" key=${re.index}>
+                ${planResolves.map(re => {
+                  const reRowReadOnly = rowLocked(re.command, readOnly, isAmending);
+                  return html`
+                  <div class=${`content-block recommendation-block rec-removal${reRowReadOnly && re.command.already_documented ? ' command-locked' : ''}`} key=${re.index}>
+                    ${reRowReadOnly && re.command.already_documented && ICON_LOCK}
                     <div class="recommendation-content">
                       <${RemovalRow}
                         command=${re.command}
                         commandIndex=${re.index}
                         onEdit=${onEditCommand}
                         onDelete=${onDeleteCommand}
-                        readOnly=${readOnly}
+                        readOnly=${reRowReadOnly}
                         patientId=${patientId}
                       />
                     </div>
-                    ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(re.index)} title="Remove">${ICON_X}</button></div>`}
+                    ${!readOnly && !re.command.already_documented && !re.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(re.index)} title="Remove">${ICON_X}</button></div>`}
                   </div>
-                `)}
+                `;})}
                 ${showConditionBtns && html`
                   <div class="ad-hoc-buttons">
                     ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
@@ -838,18 +958,21 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
-                ${allVitals.map((entry, idx) => html`
-                  <div class="content-block rec-vitals" key=${entry.index}>
+                ${allVitals.map((entry, idx) => {
+                  const vitalsRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                  return html`
+                  <div class=${`content-block rec-vitals${vitalsRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                    ${vitalsRowReadOnly && entry.command.already_documented && ICON_LOCK}
                     <${VitalsRow}
                       command=${entry.command}
                       commandIndex=${entry.index}
                       onEdit=${onEditCommand}
-                      readOnly=${readOnly}
+                      readOnly=${vitalsRowReadOnly}
                       onEditingChange=${onEditingChange}
                       questionnaireScores=${idx === 0 ? questionnaireScores : []}
                     />
                   </div>
-                `)}
+                `;})}
                 ${onAddVitals && !readOnly && html`
                   <div class="ad-hoc-buttons">
                     <button type="button" class="ad-hoc-btn" onClick=${onAddVitals}>+ Vitals</button>
@@ -861,15 +984,17 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
 
           if (cmds && key === 'physical_exam') {
             const entry = cmds[0];
+            const peRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
-                <div class="content-block rec-narrative">
+                <div class=${`content-block rec-narrative${peRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
+                  ${peRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <${HistoryReviewRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
-                    readOnly=${readOnly}
+                    readOnly=${peRowReadOnly}
                     textareaRows=${2}
                     onEditingChange=${onEditingChange}
                   />
@@ -888,8 +1013,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">Med List Updates</div>
-                  ${(cmds || []).map(entry => html`
-                    <div class="content-block recommendation-block rec-medication" key=${entry.index}>
+                  ${(cmds || []).map(entry => {
+                    const medRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    return html`
+                    <div class=${`content-block recommendation-block rec-medication${medRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${medRowReadOnly && entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${MedicationRow}
                           command=${entry.command}
@@ -897,7 +1025,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
                           alertFacilityEnabled=${alertFacilityEnabled}
-                          readOnly=${readOnly || entry.command.already_documented}
+                          readOnly=${medRowReadOnly}
                           onEditingChange=${onEditingChange}
                         />
                       </div>
@@ -911,9 +1039,12 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                         </div>
                       `}
                     </div>
-                  `)}
-                  ${adHocMeds.map(entry => html`
-                    <div class="content-block recommendation-block rec-medication" key=${entry.index}>
+                  `;})}
+                  ${adHocMeds.map(entry => {
+                    const adHocMedRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    return html`
+                    <div class=${`content-block recommendation-block rec-medication${adHocMedRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${adHocMedRowReadOnly && entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${MedicationRow}
                           command=${entry.command}
@@ -921,7 +1052,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
                           alertFacilityEnabled=${alertFacilityEnabled}
-                          readOnly=${readOnly || entry.command.already_documented}
+                          readOnly=${adHocMedRowReadOnly}
                           onEditingChange=${onEditingChange}
                         />
                       </div>
@@ -935,20 +1066,22 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                         </div>
                       `}
                     </div>
-                  `)}
+                  `;})}
                   ${medRecs.map(entry => {
                     const isAccepted = entry.command.accepted && !entry.command.rejected;
                     const isRejected = entry.command.rejected;
                     const isUnreviewed = !isAccepted && !isRejected;
+                    const medRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
                     return html`
-                    <div class="content-block recommendation-block rec-medication${isRejected ? ' rec-rejected' : ''}" key=${'rec-med-' + entry.index}>
+                    <div class=${`content-block recommendation-block rec-medication${isRejected ? ' rec-rejected' : ''}${medRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-med-' + entry.index}>
+                      ${medRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${MedicationRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditRecommendation}
                           alertFacilityEnabled=${alertFacilityEnabled}
-                          readOnly=${readOnly || entry.command.already_documented || isRejected}
+                          readOnly=${medRecRowReadOnly || isRejected}
                           onEditingChange=${onEditingChange}
                         />
                       </div>
@@ -969,15 +1102,18 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                     `;
                   })}
-                  ${adHocStopMeds.map(entry => html`
-                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                  ${adHocStopMeds.map(entry => {
+                    const stopMedRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    return html`
+                    <div class=${`content-block recommendation-block rec-removal${stopMedRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${stopMedRowReadOnly && entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${RemovalRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly || entry.command.already_documented}
+                          readOnly=${stopMedRowReadOnly}
                           patientId=${patientId}
                           alertFacilityEnabled=${alertFacilityEnabled}
                         />
@@ -990,7 +1126,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                         ${!entry.command.already_documented && !entry.command._adding && html`<button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>`}
                       </div>`}
                     </div>
-                  `)}
+                  `;})}
                   ${(onAddMedication || onAddStopMedication) && !readOnly && html`
                     <div class="ad-hoc-buttons">
                       ${onAddMedication && html`<button type="button" class="ad-hoc-btn" onClick=${onAddMedication}>+ Medication</button>`}
@@ -1012,15 +1148,18 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">Allergy List Updates</div>
-                  ${(cmds || []).map(entry => html`
-                    <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
+                  ${(cmds || []).map(entry => {
+                    const allergyRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    return html`
+                    <div class=${`content-block recommendation-block rec-allergy${allergyRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${allergyRowReadOnly && entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${AllergyRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${allergyRowReadOnly}
                           onEditingChange=${onEditingChange}
                         />
                       </div>
@@ -1030,16 +1169,19 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                         </div>
                       `}
                     </div>
-                  `)}
-                  ${adHocAllergies.map(entry => html`
-                    <div class="content-block recommendation-block rec-allergy" key=${entry.index}>
+                  `;})}
+                  ${adHocAllergies.map(entry => {
+                    const adHocAllergyRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    return html`
+                    <div class=${`content-block recommendation-block rec-allergy${adHocAllergyRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${adHocAllergyRowReadOnly && entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${AllergyRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${adHocAllergyRowReadOnly}
                           onEditingChange=${onEditingChange}
                         />
                       </div>
@@ -1049,18 +1191,20 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                         </div>
                       `}
                     </div>
-                  `)}
+                  `;})}
                   ${allergyRecs.map(entry => {
                     const isAccepted = entry.command.accepted && !entry.command.rejected;
                     const isRejected = entry.command.rejected;
+                    const allergyRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
                     return html`
-                    <div class="content-block recommendation-block rec-allergy${isRejected ? ' rec-rejected' : ''}" key=${'rec-allergy-' + entry.index}>
+                    <div class=${`content-block recommendation-block rec-allergy${isRejected ? ' rec-rejected' : ''}${allergyRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-allergy-' + entry.index}>
+                      ${allergyRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${AllergyRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditRecommendation}
-                          readOnly=${readOnly || entry.command.already_documented || isRejected}
+                          readOnly=${allergyRecRowReadOnly || isRejected}
                           onEditingChange=${onEditingChange}
                         />
                       </div>
@@ -1078,22 +1222,25 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                     `;
                   })}
-                  ${adHocRemoveAllergies.map(entry => html`
-                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                  ${adHocRemoveAllergies.map(entry => {
+                    const removeAllergyRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    return html`
+                    <div class=${`content-block recommendation-block rec-removal${removeAllergyRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${removeAllergyRowReadOnly && entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${RemovalRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${removeAllergyRowReadOnly}
                           patientId=${patientId}
                           alertFacilityEnabled=${alertFacilityEnabled}
                         />
                       </div>
-                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                      ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
                     </div>
-                  `)}
+                  `;})}
                   ${(onAddAllergy || onAddRemoveAllergy) && !readOnly && html`
                     <div class="ad-hoc-buttons">
                       ${onAddAllergy && html`<button type="button" class="ad-hoc-btn" onClick=${onAddAllergy}>+ Allergy</button>`}
@@ -1119,21 +1266,24 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <div class="subsection" key=${s.key}>
               <div class="subsection-title">${s.title}</div>
               ${showHistoryText && html`<p class="section-text">${s.text}</p>`}
-              ${historyEntries.map(entry => html`
-                <div class="content-block recommendation-block rec-history" key=${entry.index}>
+              ${historyEntries.map(entry => {
+                const historyRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                return html`
+                <div class=${`content-block recommendation-block rec-history${historyRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                  ${historyRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${HistoryEntryRow}
                       command=${entry.command}
                       commandIndex=${entry.index}
                       onEdit=${onEditCommand}
                       onDelete=${onDeleteCommand}
-                      readOnly=${readOnly}
+                      readOnly=${historyRowReadOnly}
                       onEditingChange=${onEditingChange}
                     />
                   </div>
-                  ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                  ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
                 </div>
-              `)}
+              `;})}
               ${historyType && onAddHistory && !readOnly && html`
                 <div class="ad-hoc-buttons">
                   <button type="button" class="ad-hoc-btn" onClick=${() => onAddHistory(historyType)}>${HISTORY_ADD_LABELS[historyType]}</button>
@@ -1142,22 +1292,25 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               ${PLAN_SECTIONS.has(key) && (() => {
                 const adHocResolves = visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition');
                 return html`
-                  ${adHocResolves.map(entry => html`
-                    <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+                  ${adHocResolves.map(entry => {
+                    const resolveRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    return html`
+                    <div class=${`content-block recommendation-block rec-removal${resolveRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${resolveRowReadOnly && entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${RemovalRow}
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          readOnly=${readOnly}
+                          readOnly=${resolveRowReadOnly}
                           patientId=${patientId}
                           alertFacilityEnabled=${alertFacilityEnabled}
                         />
                       </div>
-                      ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                      ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
                     </div>
-                  `)}
+                  `;})}
                   ${(onAddCondition || onAddResolveCondition) && !readOnly && html`
                     <div class="ad-hoc-buttons">
                       ${onAddCondition && html`<${AddConditionSearch} onAdd=${onAddCondition} patientId=${patientId} />`}
@@ -1175,14 +1328,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const cmds = commandBySectionKey && commandBySectionKey[review.sectionKey];
           if (!cmds || cmds.length === 0) return null;
           const entry = cmds[0];
+          const rosRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
           return html`
             <div class="subsection-title">Review of Systems</div>
-            <div class="content-block rec-narrative">
+            <div class=${`content-block rec-narrative${rosRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
+              ${rosRowReadOnly && entry.command.already_documented && ICON_LOCK}
               <${HistoryReviewRow}
                 command=${entry.command}
                 commandIndex=${entry.index}
                 onEdit=${onEditCommand}
-                readOnly=${readOnly}
+                readOnly=${rosRowReadOnly}
                 textareaRows=${2}
                 onEditingChange=${onEditingChange}
               />
@@ -1197,8 +1352,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (type === 'remove_allergy') return null;
           if (type === 'resolve_condition') return null;
           if (type === 'task') {
+            const taskRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
             return html`
-              <div class="content-block recommendation-block rec-task" key=${entry.index}>
+              <div class=${`content-block recommendation-block rec-task${taskRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                ${taskRowReadOnly && entry.command.already_documented && ICON_LOCK}
                 <div class="recommendation-content">
                   <${TaskRow}
                     command=${entry.command}
@@ -1206,7 +1363,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
                     assignees=${assignees}
-                    readOnly=${readOnly || entry.command.already_documented}
+                    readOnly=${taskRowReadOnly}
                     onEditingChange=${onEditingChange}
                   />
                 </div>
@@ -1247,15 +1404,17 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               if (!d.diagnosis_codes || d.diagnosis_codes.length === 0) orderMissing.push('Indications');
             }
             const orderIncomplete = orderMissing.length > 0;
+            const orderRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
             return html`
-              <div class="content-block recommendation-block rec-order" key=${entry.index}>
+              <div class=${`content-block recommendation-block rec-order${orderRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                ${orderRowReadOnly && entry.command.already_documented && ICON_LOCK}
                 <div class="recommendation-content">
                   <${OrderRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
-                    readOnly=${readOnly || entry.command.already_documented}
+                    readOnly=${orderRowReadOnly}
                     patientId=${patientId}
                     noteId=${noteId}
                     staffId=${staffId}
@@ -1286,44 +1445,48 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onEditingChange=${onEditingChange}
                   />
                 </div>
-                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
           if (HISTORY_TYPES.has(type)) return null;
           if (type === 'questionnaire') return null;
           if (type === 'plan') {
+            const planRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
             return html`
-              <div class="content-block recommendation-block rec-plan" key=${entry.index}>
+              <div class=${`content-block recommendation-block rec-plan${planRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                ${planRowReadOnly && entry.command.already_documented && ICON_LOCK}
                 <div class="recommendation-content">
                   <${CommandRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
-                    readOnly=${readOnly}
+                    readOnly=${planRowReadOnly}
                     onEditingChange=${onEditingChange}
                   />
                 </div>
-                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
           if (type === 'perform') return null;
           if (REMOVAL_TYPES.has(type)) {
+            const removalRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
             return html`
-              <div class="content-block recommendation-block rec-removal" key=${entry.index}>
+              <div class=${`content-block recommendation-block rec-removal${removalRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                ${removalRowReadOnly && entry.command.already_documented && ICON_LOCK}
                 <div class="recommendation-content">
                   <${RemovalRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
-                    readOnly=${readOnly}
+                    readOnly=${removalRowReadOnly}
                     patientId=${patientId}
                   />
                 </div>
-                ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
               </div>
             `;
           }
@@ -1336,21 +1499,24 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           return html`
             <div class="subsection">
               <div class="subsection-title">Questionnaires</div>
-              ${questionnaireCommands.map(entry => html`
-                <div class="content-block recommendation-block rec-questionnaire" key=${entry.index}>
+              ${questionnaireCommands.map(entry => {
+                const questionnaireRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                return html`
+                <div class=${`content-block recommendation-block rec-questionnaire${questionnaireRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                  ${questionnaireRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${QuestionnaireRow}
                       command=${entry.command}
                       commandIndex=${entry.index}
                       onEdit=${onEditCommand}
                       onDelete=${onDeleteCommand}
-                      readOnly=${readOnly}
+                      readOnly=${questionnaireRowReadOnly}
                       onEditingChange=${onEditingChange}
                     />
                   </div>
-                  ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                  ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
                 </div>
-              `)}
+              `;})}
               ${onAddQuestionnaire && !readOnly && html`
                 <div class="ad-hoc-buttons">
                   <button type="button" class="ad-hoc-btn" onClick=${onAddQuestionnaire}>+ Questionnaire</button>
@@ -1427,7 +1593,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             ...(templateCharges || []).map(c => c.cpt_code),
             ...visibleAdHoc.filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code).map(e => e.command.data.cpt_code),
           ]);
-          return pending.map(entry => html`
+          return pending.map(entry => {
+            const chargeRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+            return html`
             <div class="content-block recommendation-block rec-charge" key=${entry.index}>
               <div class="recommendation-content">
                 <${ChargeRow}
@@ -1435,14 +1603,14 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   commandIndex=${entry.index}
                   onEdit=${onEditCommand}
                   onDelete=${onDeleteCommand}
-                  readOnly=${readOnly}
+                  readOnly=${chargeRowReadOnly}
                   excludeCpts=${allChecklistCpts}
                   onEditingChange=${onEditingChange}
                 />
               </div>
-              ${!readOnly && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+              ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
             </div>
-          `);
+          `;});
         })()}
         ${onAddCharge && !readOnly && html`
           <div class="ad-hoc-buttons">
@@ -1470,15 +1638,17 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const isIncomplete = missingFields.length > 0;
                 const isAccepted = entry.command.accepted && !entry.command.rejected;
                 const isRejected = entry.command.rejected;
+                const rxRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
 
                 return html`
-                <div class="content-block recommendation-block rec-prescribe${isRejected ? ' rec-rejected' : ''}" key=${'rec-rx-' + entry.index}>
+                <div class=${`content-block recommendation-block rec-prescribe${isRejected ? ' rec-rejected' : ''}${rxRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-rx-' + entry.index}>
+                  ${rxRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
-                      readOnly=${readOnly || entry.command.already_documented || isRejected}
+                      readOnly=${rxRecRowReadOnly || isRejected}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}
@@ -1527,15 +1697,17 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const isIncomplete = missingFields.length > 0;
                 const isAccepted = entry.command.accepted && !entry.command.rejected;
                 const isRejected = entry.command.rejected;
+                const referRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
 
                 return html`
-                <div class="content-block recommendation-block rec-refer${isRejected ? ' rec-rejected' : ''}" key=${'rec-refer-' + entry.index}>
+                <div class=${`content-block recommendation-block rec-refer${isRejected ? ' rec-rejected' : ''}${referRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-refer-' + entry.index}>
+                  ${referRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
-                      readOnly=${readOnly || entry.command.already_documented || isRejected}
+                      readOnly=${referRecRowReadOnly || isRejected}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}
@@ -1577,8 +1749,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               ${taskRecs.map(entry => {
                 const isAccepted = entry.command.accepted && !entry.command.rejected;
                 const isRejected = entry.command.rejected;
+                const taskRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
                 return html`
-                <div class="content-block recommendation-block rec-task${isRejected ? ' rec-rejected' : ''}" key=${'rec-task-' + entry.index}>
+                <div class=${`content-block recommendation-block rec-task${isRejected ? ' rec-rejected' : ''}${taskRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-task-' + entry.index}>
+                  ${taskRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${TaskRow}
                       command=${entry.command}
@@ -1586,7 +1760,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       onEdit=${onEditRecommendation}
                       onDelete=${onDeleteRecommendation}
                       assignees=${assignees}
-                      readOnly=${readOnly || entry.command.already_documented || isRejected}
+                      readOnly=${taskRecRowReadOnly || isRejected}
                       onEditingChange=${onEditingChange}
                     />
                     ${entry.command.data.due_date_hint && html`<div class="rec-hint">Suggested timing: ${entry.command.data.due_date_hint}</div>`}
