@@ -3804,6 +3804,8 @@ def test_carry_forward_background_unauthorized(mock_note: MagicMock, _editable: 
     result = view.post_carry_forward_background()
 
     assert result[0].status_code == HTTPStatus.FORBIDDEN
+
+
 def test_delete_existing_commands_invalid_json() -> None:
     view = _helper_instance()
     view.request = SimpleNamespace(body="not-json")
