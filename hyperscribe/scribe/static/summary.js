@@ -1926,7 +1926,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // (auth 403, "Invalid JSON", etc.) surface as a banner instead of
         // silently leaving the spinner stopped with no user feedback.
         if (data.validation_errors) {
-          setValidationError(data.validation_errors);
+          // Tag entries with _context: 'adding' so the panel header reads
+          // "Please fix before adding:" rather than the default approve wording.
+          setValidationError(data.validation_errors.map(v => ({ ...v, _context: 'adding' })));
         } else {
           setError(data.error);
         }

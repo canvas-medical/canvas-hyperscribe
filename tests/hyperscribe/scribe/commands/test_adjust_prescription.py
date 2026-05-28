@@ -113,6 +113,10 @@ def test_validate_against_patient_passes_when_medication_active() -> None:
     # plain .filter, which would let retracted Medication rows pass).
     mock_med.objects.committed.assert_called_once_with()
     mock_med.objects.committed.return_value.for_patient.assert_called_once_with("patient-1")
+    # Confirm the patient UUID is fetched via patient__id (double underscore).
+    # Single-underscore "patient_id" returns the FK column (integer dbid),
+    # which never matches for_patient() — every adjust_prescription would be rejected.
+    mock_note.objects.values_list.assert_called_once_with("patient__id", flat=True)
 
 
 def test_validate_against_patient_rejects_when_medication_inactive() -> None:
