@@ -5,8 +5,11 @@ description = "add commands based on vocal instructions"
 requires-python = ">=3.11,<3.13"
 readme = "README.md"
 dependencies = [
-    "canvas>=0.58.1",
-    "canvas[test-utils]>=0.58.1",
+    # 0.155.0 ships ENTER_IN_ERROR_CUSTOM_COMMAND_COMMAND in the proto enum,
+    # required by the KOALA-5485 amend path for CustomCommand-routed sections
+    # (_ros, _history_review, _chart_review, physical_exam, lab_results).
+    "canvas>=0.155.0",
+    "canvas[test-utils]>=0.155.0",
     "mypy>=1.15.0",
     "ffmpeg-python>=0.2.0",
 ]
