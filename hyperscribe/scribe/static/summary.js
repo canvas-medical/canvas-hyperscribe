@@ -1643,7 +1643,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
       return true;
     });
-    const dropped = workingCommands.filter(c => !c.already_documented && !insertable.includes(c));
+    // Pre-existing finalized notes (signed before the explicit
+    // already_documented stamping shipped) carry command_uuid but not the
+    // flag, so treat either as "already on the chart" to match the
+    // insertable filter at line 1634 and handleMakeChanges.onNote at line 547.
+    // Without this, untouched legacy commands land in `dropped` and trip the
+    // halt block below with a misleading "invalid values" error.
+    const dropped = workingCommands.filter(c => !(c.already_documented || c.command_uuid) && !insertable.includes(c));
     if (dropped.length > 0) {
       logEvent('COMMANDS_FILTERED', { dropped: dropped.map(c => ({
         type: c.command_type, display: (c.display || '').slice(0, 80), sectionKey: c.section_key,

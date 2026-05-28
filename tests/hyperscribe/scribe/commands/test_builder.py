@@ -647,7 +647,7 @@ def test_validate_proposals_runs_chart_state_check_when_note_uuid_present() -> N
         patch("hyperscribe.scribe.commands.refill.Medication") as mock_med,
     ):
         mock_note.objects.values_list.return_value.get.return_value = "patient-1"
-        mock_med.objects.filter.return_value.exists.return_value = False
+        mock_med.objects.committed.return_value.for_patient.return_value.filter.return_value.exists.return_value = False
         errors = validate_proposals(proposals, note_uuid="note-uuid")
 
     assert len(errors) == 1

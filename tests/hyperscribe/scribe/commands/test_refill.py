@@ -68,10 +68,14 @@ def test_validate_against_patient_passes_when_medication_active() -> None:
         patch("hyperscribe.scribe.commands.refill.Medication") as mock_med,
     ):
         mock_note.objects.values_list.return_value.get.return_value = "patient-1"
-        mock_med.objects.filter.return_value.exists.return_value = True
+        mock_med.objects.committed.return_value.for_patient.return_value.filter.return_value.exists.return_value = True
         errors = parser.validate_against_patient({"fdb_code": "123"}, "note-uuid")
 
     assert errors == []
+    # Confirm the entered_in_error-excluding manager chain was used (not a
+    # plain .filter, which would let retracted Medication rows pass).
+    mock_med.objects.committed.assert_called_once_with()
+    mock_med.objects.committed.return_value.for_patient.assert_called_once_with("patient-1")
 
 
 def test_validate_against_patient_rejects_when_medication_inactive() -> None:
@@ -81,7 +85,7 @@ def test_validate_against_patient_rejects_when_medication_inactive() -> None:
         patch("hyperscribe.scribe.commands.refill.Medication") as mock_med,
     ):
         mock_note.objects.values_list.return_value.get.return_value = "patient-1"
-        mock_med.objects.filter.return_value.exists.return_value = False
+        mock_med.objects.committed.return_value.for_patient.return_value.filter.return_value.exists.return_value = False
         errors = parser.validate_against_patient({"fdb_code": "999"}, "note-uuid")
 
     assert any("not active on this patient" in e for e in errors)

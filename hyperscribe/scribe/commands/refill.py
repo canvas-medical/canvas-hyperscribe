@@ -49,11 +49,10 @@ class RefillParser(CommandParser):
             errors.append("Note has no patient; cannot verify the medication")
             return errors
         if not (
-            Medication.objects.filter(
-                status=Status.ACTIVE,
-                codings__code=fdb_code,
-                patient_id=patient_id,
-            ).exists()
+            Medication.objects.committed()
+            .for_patient(patient_id)
+            .filter(status=Status.ACTIVE, codings__code=fdb_code)
+            .exists()
         ):
             errors.append(
                 "The selected medication is not active on this patient — "
