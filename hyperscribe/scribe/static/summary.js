@@ -249,6 +249,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
   const addNowAttemptedRef = useRef([]);
+  // Set to true after the first save-summary 403 (`_authorize_edit` denial:
+  // note locked or wrong author). Gates subsequent autosaves so the Scribe
+  // tab doesn't fire one POST per state change against a note it can't
+  // actually save to. Brigade was generating ~11.9k of these in 14 days.
+  const saveBlockedRef = useRef(false);
 
   const [editingFields, setEditingFields] = useState(new Set());
 
@@ -304,16 +309,42 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     : (!isAuthor && !approved ? 'non_author' : null);
 
   const saveSummaryToCache = useCallback(async (note, cmds, isApproved, extras = {}) => {
+    // Skip the request entirely when we already know the server will reject
+    // it: non-author viewers and locked notes both fail `_authorize_edit`
+    // server-side. The read-only banner elsewhere already covers these cases
+    // visually; no point firing a request to be told "no" again.
+    if (!isAuthor) return;
+    if (!isNoteEditable) return;
+    // Once the server has rejected an autosave for this note (typical cause:
+    // the note finalized while the Scribe tab was still attached), stop
+    // sending. The note can't become editable again without an explicit user
+    // action (Amend / state change), and those paths reset isNoteEditable
+    // via the NOTE_STATE_CHANGED WS message — they don't go through here.
+    if (saveBlockedRef.current) return;
     try {
-      await fetch(`${API_BASE}/save-summary`, {
+      const res = await fetch(`${API_BASE}/save-summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note_id: noteId, note, commands: cmds, approved: isApproved, ...extras }),
       });
+      if (res.status === 403) {
+        // _authorize_edit denial — "Note is not editable" or "Only the note
+        // author can modify the Scribe tab". Gate further autosaves silently;
+        // the existing locked / non-author banner already explains why edits
+        // aren't sticking.
+        saveBlockedRef.current = true;
+      }
     } catch (err) {
       console.error('Failed to save summary to cache:', err);
     }
-  }, [noteId]);
+  }, [noteId, isAuthor, isNoteEditable]);
+
+  // Resetting the gate when the note becomes editable again (post-Amend, or
+  // the user re-loads onto a fresh note in the same iframe). isNoteEditable
+  // flips via the NOTE_STATE_CHANGED WS message — see the listener above.
+  useEffect(() => {
+    if (isNoteEditable) saveBlockedRef.current = false;
+  }, [isNoteEditable, noteId]);
 
   // Load summary from cache — skip if initial data was provided server-side.
   useEffect(() => {
