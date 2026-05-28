@@ -87,7 +87,17 @@ const NON_EDITABLE_AMEND_COMMAND_TYPES = new Set([
 // command_type is not in the denylist.
 function rowLocked(command, readOnly, isAmending) {
   if (readOnly) return true;
-  if (!command.already_documented) return false;
+  // "On the note" means either flag — same predicate as the insertable
+  // filter (8ea1df36 back-compat fix) and handleMakeChanges. Pre-existing
+  // finalized notes signed before the explicit already_documented stamp
+  // shipped carry command_uuid but not the flag; without command_uuid
+  // here those pre-stamp rows fall through as "not on the note" and look
+  // editable in amend mode — visually inconsistent against post-stamp
+  // rows AND lets the user think they can amend a NON_EDITABLE command
+  // type (questionnaire, prescribe, refer, etc.) which the backend will
+  // reject.
+  const onNote = command.already_documented || command.command_uuid;
+  if (!onNote) return false;
   if (
     isAmending &&
     command.command_uuid &&
