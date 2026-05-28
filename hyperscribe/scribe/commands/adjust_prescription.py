@@ -52,7 +52,7 @@ class AdjustPrescriptionParser(CommandParser):
             return errors
         try:
             patient_id = (
-                Note.objects.values_list("patient_id", flat=True).get(id=note_uuid)
+                Note.objects.values_list("patient__id", flat=True).get(id=note_uuid)
             )
         except Note.DoesNotExist:
             errors.append("Note not found; cannot verify the source medication")
