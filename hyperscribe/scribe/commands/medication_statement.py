@@ -10,7 +10,7 @@ from canvas_sdk.v1.data.medication import MedicationCoding
 from canvas_sdk.v1.data.note import Note
 
 from hyperscribe.scribe.backend.models import CommandProposal
-from hyperscribe.scribe.commands.base import CommandParser
+from hyperscribe.scribe.commands.base import AlertFacilityMetadataMixin, CommandParser
 
 _BULLET_RE = re.compile(r"^(?:\d+[.)]\s*|[-*]\s+)")
 
@@ -33,7 +33,7 @@ def _unstructured_coding(medication_text: str) -> dict[str, str]:
     }
 
 
-class MedicationParser(CommandParser):
+class MedicationParser(AlertFacilityMetadataMixin, CommandParser):
     command_type = "medication_statement"
 
     def extract(self, text: str) -> CommandProposal | None:
@@ -115,22 +115,6 @@ class MedicationParser(CommandParser):
             note_uuid=note_uuid,
             command_uuid=command_uuid,
         )
-
-    def pending_metadata(
-        self,
-        command: _BaseCommand,
-        proposal: dict[str, Any] | None = None,
-        feature_flags: dict[str, bool] | None = None,
-    ) -> dict[str, Any] | None:
-        if not (feature_flags or {}).get("AlertFacilityEnabled"):
-            return None
-        truthy = bool(proposal and proposal.get("data", {}).get("alert_facility"))
-        return {
-            "command_uuid": command.command_uuid,
-            "command_type": self.command_type,
-            "note_uuid": command.note_uuid,
-            "metadata": {"alert_facility": "Yes" if truthy else "No"},
-        }
 
     def build_stub(self, command_uuid: str, note_uuid: str) -> _BaseCommand:
         return MedicationStatementCommand(command_uuid=command_uuid, note_uuid=note_uuid)

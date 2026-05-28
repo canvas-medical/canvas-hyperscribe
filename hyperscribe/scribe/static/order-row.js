@@ -278,7 +278,7 @@ function InteractionWarningInline({ warning }) {
   `;
 }
 
-export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, noteId, staffId, staffName, isRecommendation, onEditingChange }) {
+export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, noteId, staffId, staffName, isRecommendation, alertFacilityEnabled, onEditingChange }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   useEffect(() => {
@@ -294,6 +294,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     medQuery: '', selectedFdb: null, selectedMedDisplay: '', medQuantities: buildTypeToDispenseOptions([]),
     sig: '', daysSupply: '', quantity: '', typeToDispense: '', refills: '',
     substitutions: true, noteToPharmacist: '', interactionWarning: null, selectedPharmacy: '', pharmacyQuery: '',
+    alertFacility: false,
   });
 
   // Rx state
@@ -310,6 +311,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [typeToDispense, setTypeToDispense] = useState(command.data.type_to_dispense || '');
   const [refills, setRefills] = useState(command.data.refills != null ? String(command.data.refills) : '');
   const [substitutions, setSubstitutions] = useState(command.data.substitutions !== 'not_allowed');
+  const [alertFacility, setAlertFacility] = useState(!!command.data.alert_facility);
   const [noteToPharmacist, setNoteToPharmacist] = useState(command.data.note_to_pharmacist || '');
   const [selectedPharmacy, setSelectedPharmacy] = useState(command.data.pharmacy || '');
   const [pharmacyQuery, setPharmacyQuery] = useState(command.data.pharmacy_name || '');
@@ -358,6 +360,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     medQuery, selectedFdb, selectedMedDisplay, medQuantities,
     sig, daysSupply, quantity, typeToDispense, refills,
     substitutions, noteToPharmacist, interactionWarning, selectedPharmacy, pharmacyQuery,
+    alertFacility,
   });
 
   const restoreRxSnapshot = (snap) => {
@@ -371,6 +374,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setTypeToDispense(snap.typeToDispense);
     setRefills(snap.refills);
     setSubstitutions(snap.substitutions);
+    setAlertFacility(snap.alertFacility);
     setNoteToPharmacist(snap.noteToPharmacist);
     setSelectedPharmacy(snap.selectedPharmacy);
     setPharmacyQuery(snap.pharmacyQuery);
@@ -1074,6 +1078,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
         note_to_pharmacist: noteToPharmacist || null,
         pharmacy: selectedPharmacy || null,
         pharmacy_name: selectedPharmacy ? pharmacyQuery : null,
+        alert_facility: alertFacility,
         quantities: medQuantities.map(q => ({ representative_ndc: q.representative_ndc, ncpdp_quantity_qualifier_code: q.ncpdp_quantity_qualifier_code, clinical_quantity_description: q.label, quantity: 1 })),
       };
       // Include "change to" medication for adjust_prescription.
@@ -1303,6 +1308,16 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     <button type="button" class="task-quick-btn${!substitutions ? ' active' : ''}" onClick=${() => setSubstitutions(false)}>Not Allowed</button>
                   </div>
                 </div>
+                ${alertFacilityEnabled && html`
+                <div class="history-form-field">
+                  <label class="alert-facility-toggle" onClick=${() => setAlertFacility(prev => !prev)}>
+                    <div class="toggle-switch${alertFacility ? ' on' : ''}">
+                      <div class="toggle-knob" />
+                    </div>
+                    Alert Facility
+                  </label>
+                </div>
+                `}
               </div>
             `;})()}
             ${REFILL_TABS.has(activeTab) && !selectedFdb && html`
@@ -1700,6 +1715,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
             <div class="order-view-name">${command.display}</div>
             ${d.sig && html`<div class="order-view-sig">Sig: ${d.sig}</div>`}
             ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
+            ${alertFacilityEnabled && d.alert_facility && html`<span class="badge-alert">Alert Facility</span>`}
           </div>
         </div>
         ${interactionWarning && html`<${InteractionWarningInline} warning=${interactionWarning} />`}
@@ -1747,6 +1763,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
       <div class="order-view">
         <span class="command-type-label">${badgeLabel}</span>
         <div class="order-view-name">${command.display}</div>
+        ${alertFacilityEnabled && command.data.alert_facility && html`<span class="badge-alert">Alert Facility</span>`}
       </div>
     </div>
   `;

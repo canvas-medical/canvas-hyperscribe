@@ -70,3 +70,42 @@ def test_to_effects_returns_originate_and_review() -> None:
     assert len(effects) == 2
     command.originate.assert_called_once()
     command.review.assert_called_once()
+
+
+def _make_command() -> MagicMock:
+    cmd = MagicMock()
+    cmd.command_uuid = "00000000-0000-0000-0000-0000000000c1"
+    cmd.note_uuid = "00000000-0000-0000-0000-0000000000cc"
+    return cmd
+
+
+def test_pending_metadata_flag_off_returns_none() -> None:
+    cmd = _make_command()
+    proposal = {"data": {"alert_facility": True}}
+    assert AdjustPrescriptionParser().pending_metadata(cmd, proposal, feature_flags={}) is None
+    assert AdjustPrescriptionParser().pending_metadata(cmd, proposal, feature_flags=None) is None
+    assert AdjustPrescriptionParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": False}) is None
+
+
+def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
+    cmd = _make_command()
+    proposal = {"data": {"alert_facility": True}}
+    result = AdjustPrescriptionParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
+    assert result == {
+        "command_uuid": cmd.command_uuid,
+        "command_type": "adjust_prescription",
+        "note_uuid": cmd.note_uuid,
+        "metadata": {"alert_facility": "Yes"},
+    }
+
+
+def test_pending_metadata_flag_on_alert_falsy_defaults_to_no() -> None:
+    cmd = _make_command()
+    for proposal in (
+        {"data": {"alert_facility": False}},
+        {"data": {}},
+        None,
+    ):
+        result = AdjustPrescriptionParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
+        assert result is not None
+        assert result["metadata"] == {"alert_facility": "No"}

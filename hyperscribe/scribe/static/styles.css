@@ -771,6 +771,9 @@ h2 { margin-bottom: 4px; }
 .allergy-severity-badge.severity-moderate { background: #fff3e0; color: #e65100; }
 .allergy-severity-badge.severity-severe { background: #fce4ec; color: #c62828; }
 
+/* "Alert Facility" pill, shown on read-view command rows when the flag is set. */
+.badge-alert { align-self: flex-start; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #fef3c7; color: #92400e; white-space: nowrap; flex-shrink: 0; }
+
 /* Task rows */
 .task-row { display: flex; align-items: center; gap: 8px; padding: 4px; border-radius: 8px; cursor: pointer; }
 .task-row.editing { flex-direction: column; align-items: stretch; cursor: default; }

@@ -10,10 +10,10 @@ from canvas_sdk.commands.constants import ClinicalQuantity
 from canvas_sdk.effects import Effect
 from canvas_sdk.v1.data.note import Note
 
-from hyperscribe.scribe.commands.base import CommandParser
+from hyperscribe.scribe.commands.base import AlertFacilityMetadataMixin, CommandParser
 
 
-class AdjustPrescriptionParser(CommandParser):
+class AdjustPrescriptionParser(AlertFacilityMetadataMixin, CommandParser):
     """Parser for adjust prescription commands — uses AdjustPrescriptionCommand."""
 
     command_type = "adjust_prescription"

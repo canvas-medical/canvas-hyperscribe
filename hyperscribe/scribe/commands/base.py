@@ -91,3 +91,31 @@ class CommandParser(ABC):
     def build_stub(self, command_uuid: str, note_uuid: str) -> _BaseCommand:
         """Build a minimal command for phase 2 metadata operations."""
         raise NotImplementedError
+
+
+class AlertFacilityMetadataMixin:
+    """Emit the ``alert_facility`` command metadata when the feature flag is on.
+
+    Mix in *before* ``CommandParser`` so this ``pending_metadata`` overrides the
+    base no-op. When ``AlertFacilityEnabled`` is set, the command always carries
+    the metadata ("Yes" when the user toggled it, "No" otherwise); when the flag
+    is off, no metadata is emitted.
+    """
+
+    command_type: str
+
+    def pending_metadata(
+        self,
+        command: _BaseCommand,
+        proposal: dict[str, Any] | None = None,
+        feature_flags: dict[str, bool] | None = None,
+    ) -> dict[str, Any] | None:
+        if not (feature_flags or {}).get("AlertFacilityEnabled"):
+            return None
+        truthy = bool(proposal and proposal.get("data", {}).get("alert_facility"))
+        return {
+            "command_uuid": command.command_uuid,
+            "command_type": self.command_type,
+            "note_uuid": command.note_uuid,
+            "metadata": {"alert_facility": "Yes" if truthy else "No"},
+        }
