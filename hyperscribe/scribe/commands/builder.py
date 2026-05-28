@@ -14,6 +14,7 @@ from hyperscribe.scribe.commands.adjust_prescription import AdjustPrescriptionPa
 from hyperscribe.scribe.commands.allergy import AllergyParser
 from hyperscribe.scribe.commands.assess import AssessParser
 from hyperscribe.scribe.commands.base import CommandParser
+from hyperscribe.scribe.commands.carry_forward import carry_forward_assess_background
 from hyperscribe.scribe.commands.chart_review import ChartReviewParser
 from hyperscribe.scribe.commands.diagnose import DiagnoseParser
 from hyperscribe.scribe.commands.family_history import FamilyHistoryParser
@@ -85,6 +86,74 @@ def annotate_duplicates(proposals: list[CommandProposal], note_uuid: str) -> Non
         return
     for builder in _BUILDERS.values():
         builder.annotate_duplicates(proposals, note)
+
+
+def prefill_assess_backgrounds(proposals: list[dict[str, Any]], note_uuid: str) -> None:
+    """Pre-fill ``background`` on assess proposals from the most recent prior
+    signed Assessment for the same (patient, condition).
+
+    Mutates ``proposals[i]["data"]["background"]`` in place. Skips silently
+    when the note can't be loaded, when no assess proposals are present, or
+    when the lookup fails — the carry-forward is a convenience, not a
+    correctness gate; a missing background just means the provider types it
+    fresh.
+
+    Called from ``session_view`` parallel to ``annotate_duplicates`` rather
+    than from inside ``build_effects`` so that the side-effect (mutating
+    ``proposals``) is visible at the same layer as the other proposal
+    transformations. See ``carry_forward_assess_background`` for the
+    per-(patient, condition) scoping rationale.
+    """
+    if not note_uuid:
+        return
+    assess_proposals = [p for p in proposals if p.get("command_type") == "assess"]
+    if not assess_proposals:
+        return
+    try:
+        # ``ValueError`` covers a malformed UUID passed as ``note_uuid`` (e.g.
+        # an LLM-injected non-uuid string). Django raises before reaching the
+        # SQL layer, and the carry-forward contract is best-effort — silently
+        # skip rather than propagate up into the request handler.
+        note = Note.objects.select_related("patient").get(id=note_uuid)
+    except (Note.DoesNotExist, ValueError):
+        return
+    for proposal in assess_proposals:
+        data = proposal.get("data")
+        if not isinstance(data, dict):
+            continue
+        carry_forward_assess_background(data, note)
+
+
+def prefill_assess_backgrounds_for_proposals(proposals: list[CommandProposal], note_uuid: str) -> None:
+    """``CommandProposal``-shaped variant of :func:`prefill_assess_backgrounds`.
+
+    Identical contract and side effect: mutates ``proposal.data["background"]``
+    in place for every assess proposal whose (patient, condition) has a prior
+    signed Assessment. Exists as a parallel callable because the upstream
+    callers in ``session_view`` (``/extract-commands``, ``/recommend-commands``,
+    ``post_generate_summary`` step 2, and the recommend branch within it) hold
+    ``list[CommandProposal]`` at the same point ``annotate_duplicates`` is
+    invoked. Hoisting the dict conversion just to call the dict-shaped helper
+    would break the symmetric placement (parallel to ``annotate_duplicates``)
+    the carry-forward design relies on.
+
+    Same defensive skips: empty ``note_uuid``, no assess proposals, note lookup
+    failure, malformed UUID.
+    """
+    if not note_uuid:
+        return
+    assess_proposals = [p for p in proposals if p.command_type == "assess"]
+    if not assess_proposals:
+        return
+    try:
+        note = Note.objects.select_related("patient").get(id=note_uuid)
+    except (Note.DoesNotExist, ValueError):
+        return
+    for proposal in assess_proposals:
+        # CommandProposal.data is typed dict[str, Any] (see backend/models.py),
+        # so we skip the isinstance guard that the dict-shaped sibling uses for
+        # defensive parsing of untrusted JSON.
+        carry_forward_assess_background(proposal.data, note)
 
 
 def validate_proposals(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:

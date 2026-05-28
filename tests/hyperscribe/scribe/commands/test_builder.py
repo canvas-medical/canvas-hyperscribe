@@ -11,6 +11,7 @@ from hyperscribe.scribe.commands.builder import (
     _format_pydantic_errors,
     build_effects,
     build_metadata_effects,
+    prefill_assess_backgrounds,
     validate_proposals,
 )
 
@@ -185,6 +186,107 @@ def test_build_effects_empty_list() -> None:
     assert effects == []
     assert metadata_pending == []
     assert attempted == []
+
+
+def test_prefill_assess_backgrounds_filters_assess_only_and_loads_note() -> None:
+    """``prefill_assess_backgrounds`` filters to assess proposals, loads the
+    ``Note``, and delegates to ``carry_forward_assess_background`` per
+    proposal.
+
+    This pins the public-function contract: non-assess proposals are skipped
+    (no DB lookup chain runs for them), and proposals with non-dict ``data``
+    are tolerated without raising.
+    """
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "assess", "data": {"condition_id": "cond-1", "background": None}},
+        {"command_type": "plan", "data": {"narrative": "Start naproxen"}},
+        # Defensive: malformed proposal must not crash the loop.
+        {"command_type": "assess", "data": None},
+    ]
+    fake_note = MagicMock()
+    fake_note.id = "note-uuid-1"
+    with (
+        patch("hyperscribe.scribe.commands.builder.Note.objects") as mock_note_qs,
+        patch("hyperscribe.scribe.commands.builder.carry_forward_assess_background") as mock_carry,
+    ):
+        mock_note_qs.select_related.return_value.get.return_value = fake_note
+        prefill_assess_backgrounds(proposals, "note-uuid-1")
+    # Only one valid assess proposal (the one with a dict ``data``) is delegated.
+    mock_carry.assert_called_once_with(proposals[0]["data"], fake_note)
+
+
+def test_prefill_assess_backgrounds_silent_on_malformed_note_uuid() -> None:
+    """A non-UUID ``note_uuid`` must NOT raise — the carry-forward is
+    best-effort and a malformed identifier should silently skip the
+    convenience, not blow up the calling endpoint.
+
+    Django raises ``ValueError`` (not ``Note.DoesNotExist``) for a malformed
+    UUID before reaching the SQL layer; both must be swallowed.
+    """
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "assess", "data": {"condition_id": "cond-1", "background": None}},
+    ]
+    with (
+        patch("hyperscribe.scribe.commands.builder.Note.objects") as mock_note_qs,
+        patch("hyperscribe.scribe.commands.builder.carry_forward_assess_background") as mock_carry,
+    ):
+        mock_note_qs.select_related.return_value.get.side_effect = ValueError(
+            "badly formed hexadecimal UUID string",
+        )
+        # Must not raise.
+        prefill_assess_backgrounds(proposals, "not-a-uuid")
+    mock_carry.assert_not_called()
+    # The background on the proposal is left untouched.
+    assert proposals[0]["data"]["background"] is None
+
+
+def test_prefill_assess_backgrounds_no_assess_proposals_short_circuits() -> None:
+    """If there are no assess proposals, skip the Note lookup entirely.
+
+    This is an N+1 / latency guard: a request with only non-assess commands
+    should not pay for the ``Note.objects.select_related("patient").get(...)``
+    query.
+    """
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "plan", "data": {"narrative": "Start naproxen"}},
+    ]
+    with patch("hyperscribe.scribe.commands.builder.Note.objects") as mock_note_qs:
+        prefill_assess_backgrounds(proposals, "note-uuid-1")
+    mock_note_qs.select_related.assert_not_called()
+
+
+def test_build_effects_no_longer_calls_prefill_assess_backgrounds() -> None:
+    """``build_effects`` is symmetric with ``annotate_duplicates`` — both
+    are called by ``session_view`` at the same layer, NOT from inside
+    ``build_effects``. This test pins that placement so a future refactor
+    can't silently re-hide the carry-forward inside ``build_effects``.
+    """
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "assess",
+            "data": {
+                "condition_id": "cond-uuid-abc",
+                "narrative": "Stable today",
+                "background": "Provider-typed",
+            },
+        },
+    ]
+    with (
+        patch("hyperscribe.scribe.commands.builder.prefill_assess_backgrounds") as mock_prefill,
+        patch("hyperscribe.scribe.commands.assess.AssessCommand") as mock_assess,
+    ):
+        inst = MagicMock()
+        inst.originate.return_value = "assess_originate"
+        inst.commit.return_value = "assess_commit"
+        inst.command_uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+        mock_assess.return_value = inst
+
+        build_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+
+        # Symmetry guard: ``build_effects`` does not call the carry-forward.
+        # The caller (session_view) is responsible.
+        mock_prefill.assert_not_called()
 
 
 def test_build_effects_medication_with_alert_facility_emits_yes_inline() -> None:

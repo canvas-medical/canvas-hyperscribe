@@ -52,8 +52,11 @@ from hyperscribe.scribe.commands.builder import (
     annotate_duplicates,
     build_effects,
     build_metadata_effects,
+    prefill_assess_backgrounds,
+    prefill_assess_backgrounds_for_proposals,
     validate_proposals,
 )
+from hyperscribe.scribe.commands.carry_forward import carry_forward_assess_background
 from hyperscribe.scribe.commands.extractor import extract_commands, parse_ros_subsections
 from hyperscribe.scribe.recommendations import recommend_commands
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
@@ -747,6 +750,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_uuid = str(data.get("note_uuid", ""))
         proposals = extract_commands(note)
         annotate_duplicates(proposals, note_uuid)
+        prefill_assess_backgrounds_for_proposals(proposals, note_uuid)
         commands_list: list[dict[str, Any]] = [
             {
                 "command_type": p.command_type,
@@ -860,6 +864,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 zip_codes = resolve_zip_codes(patient_id, note_id) or None
                 rec_proposals = recommend_commands(note, api_key, zip_codes=zip_codes, transcript=transcript)
                 annotate_duplicates(rec_proposals, note_uuid)
+                prefill_assess_backgrounds_for_proposals(rec_proposals, note_uuid)
                 recommendations_list = [
                     {
                         "command_type": p.command_type,
@@ -1030,6 +1035,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         proposals = extract_commands(note)
         note_uuid = str(data.get("note_uuid", ""))
         annotate_duplicates(proposals, note_uuid)
+        prefill_assess_backgrounds_for_proposals(proposals, note_uuid)
         return [
             JSONResponse(
                 {
@@ -1081,6 +1087,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             ]
         note_uuid = str(data.get("note_uuid", ""))
         annotate_duplicates(proposals, note_uuid)
+        prefill_assess_backgrounds_for_proposals(proposals, note_uuid)
         return [
             JSONResponse(
                 {
@@ -1178,6 +1185,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
         feature_flags = {"AlertFacilityEnabled": bool(self.secrets.get("AlertFacilityEnabled"))}
+        # Carry-forward assess backgrounds from prior signed notes BEFORE building
+        # effects, so the SDK command constructor sees the prefilled value. This
+        # mirrors the symmetric placement of ``annotate_duplicates`` (called by
+        # the same callers, parallel to the build/validate pipeline).
+        prefill_assess_backgrounds(commands, note_uuid)
         effects, metadata_pending, attempted, build_errors = build_effects(commands, note_uuid, feature_flags)
         if build_errors:
             audit_event(
@@ -1219,6 +1231,51 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             ),
             *effects,
         ]
+
+    @api.post("/carry-forward-background")
+    def post_carry_forward_background(self) -> list[Union[Response, Effect]]:
+        """Return the carried-forward ``background`` for one (note, condition).
+
+        Why this exists as its own endpoint (vs. relying on the /insert-commands
+        belt that already prefills): the user needs to SEE the carried value in
+        the assess command's edit drawer BEFORE clicking Approve. The
+        /insert-commands belt fires server-side at approval time, so it never
+        reaches the UI. This endpoint lets the frontend pull the value when the
+        provider creates an assess command client-side (handleAddCondition).
+
+        Read-only — no audit event, no PHI logged. The auth gate matches every
+        other mutating-shaped endpoint in this view because a leak would expose
+        ``has prior assessment for this condition``-shaped metadata about
+        another provider's patient.
+        """
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_uuid = str(data.get("note_uuid", ""))
+        if not note_uuid:
+            return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        condition_id = str(data.get("condition_id", "")).strip()
+        if not condition_id:
+            return [JSONResponse({"error": "condition_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+        try:
+            # ``ValueError`` covers a malformed UUID that slips past _authorize_edit
+            # (unlikely — auth's ``Note.objects.values().get(id=...)`` catches it
+            # first — but keep the defensive net so a future auth refactor doesn't
+            # turn this into a 500). Mirrors ``prefill_assess_backgrounds``.
+            note = Note.objects.select_related("patient").get(id=note_uuid)
+        except (Note.DoesNotExist, ValueError):
+            return [JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)]
+        # Reuse the same helper /insert-commands uses, so the carry-forward
+        # contract is single-sourced (changes to scoping rules land in one place).
+        # The helper mutates the dict in place when a prior is found and leaves
+        # it untouched otherwise — read the result via ``.get`` rather than
+        # branching on a separate return value.
+        scratch: dict[str, Any] = {"condition_id": condition_id}
+        carry_forward_assess_background(scratch, note)
+        return [JSONResponse({"background": scratch.get("background")}, status_code=HTTPStatus.OK)]
 
     @api.post("/insert-metadata")
     def post_insert_metadata(self) -> list[Union[Response, Effect]]:
