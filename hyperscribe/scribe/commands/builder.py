@@ -468,6 +468,7 @@ EDITABLE_AMEND_SECTIONS: frozenset[str] = frozenset(
         "_ad_hoc",
         "_objective_ad_hoc",
         "_history_ad_hoc",
+        "_subjective_ad_hoc",
         "_charges_ad_hoc",
     }
 )
@@ -543,18 +544,12 @@ CUSTOM_COMMAND_ROUTED_SECTIONS: frozenset[str] = frozenset(
 #      "amend an order" workflow with explicit cancel/resend semantics is
 #      the right shape; tracked separately.
 #
-#   4. DEFERRED: a workable route exists in principle but hasn't been built.
-#      Questionnaire's insert flow is originate+edit+commit (the edit
-#      applies responses to the staged command), so the amend route needs
-#      4 effects (EIE+Originate+Edit+Commit) AND the question/response
-#      state has to survive the recreate. Tracked as a follow-up.
-#
-# Mirrored intent: the JS allowlists omit `_subjective_ad_hoc` (questionnaire
-# bucket) and `_recommended` (order recommendation bucket), but command_type
-# is the authoritative gate because some commands (`prescribe`, `task`) can
-# also be added via `_ad_hoc`. Section-key plus command-type together make
-# the denial structural rather than relying on the frontend not to send the
-# request.
+# Mirrored intent: the JS allowlist includes `_subjective_ad_hoc` (the
+# questionnaire bucket); `_recommended` (order recommendation bucket) is
+# omitted. command_type is the authoritative gate because some commands
+# (`prescribe`, `task`) can also be added via `_ad_hoc`. Section-key plus
+# command-type together make the denial structural rather than relying on
+# the frontend not to send the request.
 #
 # Keep the JS mirror (soap-group.js + summary.js) in sync with the same
 # categorization comments until single-sourcing lands.
@@ -575,9 +570,9 @@ NON_EDITABLE_AMEND_COMMAND_TYPES: frozenset[str] = frozenset(
         #    confusion at the partner side - a cancel/resend workflow is
         #    the right shape):
         "lab_order",
-        # 4. Deferred (4-effect EIE+Originate+Edit+Commit route + question/
-        #    response state preservation needed):
-        "questionnaire",
+        # Questionnaire IS amendable via the originate(commit=True) shortcut
+        # (EIE + originate-with-values-and-commit, 2 effects). See the
+        # questionnaire branch in build_amend_edit_effects below.
     }
 )
 
@@ -661,19 +656,29 @@ def build_amend_edit_effects(
             )
             continue
 
-        # EnterInError(old) + Originate(new). Two flavors:
+        # EnterInError(old) + Originate(new). Three flavors:
         # - CustomCommand-routed: no explicit commit (home-app auto-commits).
-        # - Dedicated SDK class: explicit Commit(new).
+        # - Questionnaire: originate(commit=True) carries values + commits in
+        #   one effect, so the chain is 2 effects (EIE + originate-with-commit).
+        #   The standard 3-effect VOID_RECREATE (originate + commit) doesn't
+        #   work because questionnaire responses are applied via Edit at insert
+        #   time, not by the bare Originate payload — but originate(commit=True)
+        #   includes data in the payload AND commits, side-stepping the gap.
+        # - Dedicated SDK class (everything else): explicit Commit(new).
         old_command = builder.build(data, note_uuid, old_command_uuid)
         new_command_uuid = str(uuid.uuid4())
         new_command = builder.build(data, note_uuid, new_command_uuid)
         effects.append(old_command.enter_in_error())
-        effects.append(new_command.originate())
-        if section_key in CUSTOM_COMMAND_ROUTED_SECTIONS:
-            mode = "void_recreate_custom"
+        if command_type == "questionnaire":
+            effects.append(new_command.originate(commit=True))
+            mode = "void_recreate_questionnaire"
         else:
-            effects.append(new_command.commit())
-            mode = "void_recreate"
+            effects.append(new_command.originate())
+            if section_key in CUSTOM_COMMAND_ROUTED_SECTIONS:
+                mode = "void_recreate_custom"
+            else:
+                effects.append(new_command.commit())
+                mode = "void_recreate"
         attempted.append(
             {
                 "section_key": section_key,

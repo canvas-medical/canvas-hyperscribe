@@ -1180,7 +1180,7 @@ def test_build_amend_edit_effects_skips_disallowed_section() -> None:
     """Sections not in the editable allowlist are silently dropped.
 
     Defense in depth: even if the frontend sent a stale or hand-crafted
-    payload pointing at, e.g., the recommendation/order buckets, the backend
+    payload pointing at, e.g., the recommendation buckets, the backend
     refuses to emit any effects rather than blindly trusting it.
     """
     proposals: list[dict[str, Any]] = [
@@ -1190,13 +1190,6 @@ def test_build_amend_edit_effects_skips_disallowed_section() -> None:
             "section_key": "_recommended",  # NOT in EDITABLE_AMEND_SECTIONS
             "data": {"sig": "daily"},
             "display": "Lisinopril",
-        },
-        {
-            "command_type": "questionnaire",
-            "command_uuid": "q-uuid",
-            "section_key": "_subjective_ad_hoc",  # NOT in EDITABLE_AMEND_SECTIONS
-            "data": {"questionnaire_dbid": 42, "questions": []},
-            "display": "PHQ-9",
         },
     ]
     effects, attempted = build_amend_edit_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
@@ -1371,6 +1364,62 @@ def test_void_recreate_routing_per_section_key(
     assert attempted[0]["new_command_uuid"] == minted
 
 
+def test_build_amend_edit_effects_questionnaire_emits_eie_plus_originate_with_commit() -> None:
+    """Questionnaire amend route uses the originate(commit=True) shortcut.
+
+    Unlike VOID_RECREATE for dedicated SDK classes (3 effects: EIE + Originate
+    + Commit), questionnaire emits 2 effects: EIE + Originate-with-commit. The
+    standard 3-effect chain doesn't apply responses (insert-time edit step is
+    needed for that); originate(commit=True) embeds values in the originate
+    payload AND commits in a single effect, side-stepping the gap.
+
+    Pins:
+    - 2 effects (no separate Commit)
+    - originate called with ``commit=True``
+    - mode = ``void_recreate_questionnaire`` so the audit-log/frontend can
+      distinguish this route from the regular VOID_RECREATE.
+    """
+    minted = "fresh-q-uuid-1111-2222-3333-444444444444"
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "questionnaire",
+            "command_uuid": "old-q-uuid-aaaa-bbbb-cccccccccccc",
+            "section_key": "_subjective_ad_hoc",
+            "data": {"questionnaire_dbid": 42, "questionnaire_name": "PHQ-9", "questions": []},
+            "display": "PHQ-9",
+        },
+    ]
+    parser = _BUILDERS["questionnaire"]
+    old_inst, new_inst = MagicMock(), MagicMock()
+    old_inst.enter_in_error.return_value = "q_eie"
+    new_inst.originate.return_value = "q_originate_with_commit"
+    with (
+        patch.object(parser, "build", side_effect=[old_inst, new_inst]) as mock_build,
+        patch("hyperscribe.scribe.commands.builder.uuid.uuid4", return_value=minted),
+    ):
+        effects, attempted = build_amend_edit_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+
+    # Exactly 2 effects — no separate Commit.
+    assert effects == ["q_eie", "q_originate_with_commit"]
+    old_inst.enter_in_error.assert_called_once_with()
+    new_inst.originate.assert_called_once_with(commit=True)
+    new_inst.commit.assert_not_called()
+    new_inst.edit.assert_not_called()
+
+    # Parser is built twice — once with the existing uuid (for EIE) and once
+    # with the fresh uuid (for the originate-with-commit).
+    assert mock_build.call_count == 2
+    assert mock_build.call_args_list[0].args[2] == "old-q-uuid-aaaa-bbbb-cccccccccccc"
+    assert mock_build.call_args_list[1].args[2] == minted
+
+    assert len(attempted) == 1
+    assert attempted[0]["section_key"] == "_subjective_ad_hoc"
+    assert attempted[0]["command_type"] == "questionnaire"
+    assert attempted[0]["mode"] == "void_recreate_questionnaire"
+    assert attempted[0]["old_command_uuid"] == "old-q-uuid-aaaa-bbbb-cccccccccccc"
+    assert attempted[0]["new_command_uuid"] == minted
+
+
 def test_imaging_results_routes_through_custom_command_bucket() -> None:
     """imaging_results is the newly-added CustomCommand-routed section.
 
@@ -1418,10 +1467,6 @@ def test_imaging_results_routes_through_custom_command_bucket() -> None:
         ("_recommended", "imaging_order"),
         ("_recommended", "lab_order"),
         ("_ad_hoc", "prescribe"),
-        # Questionnaire: insert flow is originate+edit+commit (the edit applies
-        # responses). Amendment would need a 4-effect EIE+Originate+Edit+Commit
-        # bucket that does not exist yet; deferred to a follow-up ticket.
-        ("_subjective_ad_hoc", "questionnaire"),
         # Recommended bucket: recommendations get accepted and inserted, not
         # amended directly. Anything landing here at amend time is a
         # stale/hand-crafted payload.
@@ -1521,8 +1566,9 @@ def test_editable_amend_sections_contains_expected_keys() -> None:
     """Pin the editable allowlist so accidental shrinks/expansions trip CI.
 
     Covers every ``_BUILDERS`` command_type except orders (prescribe, refill,
-    adjust_prescription, refer, imaging_order, lab_order) and questionnaires
-    (deferred: needs a 4-effect amend route).
+    adjust_prescription, refer, imaging_order, lab_order). Questionnaires are
+    now amendable via the originate(commit=True) shortcut, so the questionnaire
+    ad-hoc bucket (`_subjective_ad_hoc`) is included.
     """
     assert EDITABLE_AMEND_SECTIONS == frozenset(
         {
@@ -1549,6 +1595,7 @@ def test_editable_amend_sections_contains_expected_keys() -> None:
             "_ad_hoc",
             "_objective_ad_hoc",
             "_history_ad_hoc",
+            "_subjective_ad_hoc",
             "_charges_ad_hoc",
         }
     )
@@ -1594,6 +1641,7 @@ def test_every_builders_command_type_is_either_editable_or_explicitly_excluded()
         "resolve_condition",
         "task",
         "perform",
+        "questionnaire",
     }
     all_builders = set(_BUILDERS.keys())
     accounted_for = expected_editable_command_types | set(NON_EDITABLE_AMEND_COMMAND_TYPES)
@@ -1610,13 +1658,13 @@ def test_every_builders_command_type_is_either_editable_or_explicitly_excluded()
     )
 
 
-def test_non_editable_amend_command_types_contains_orders_and_questionnaire() -> None:
+def test_non_editable_amend_command_types_contains_orders() -> None:
     """Pin the command-type denylist so accidentally dropping an order from
     it (which would re-fire pharmacy/lab/imaging-center dispatch on amend)
     or adding a non-order to it (silently breaking that feature) trips CI.
 
-    Orders trigger external action; questionnaire needs a 4-effect amend
-    route deferred to a follow-up ticket.
+    Orders trigger external action. Questionnaires WERE here while the amend
+    route was being scoped; now amendable via originate(commit=True).
     """
     assert NON_EDITABLE_AMEND_COMMAND_TYPES == frozenset(
         {
@@ -1627,8 +1675,6 @@ def test_non_editable_amend_command_types_contains_orders_and_questionnaire() ->
             "refer",
             "imaging_order",
             "lab_order",
-            # Deferred
-            "questionnaire",
         }
     )
 

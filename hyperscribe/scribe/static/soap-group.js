@@ -54,6 +54,7 @@ const EDITABLE_AMEND_SECTIONS = new Set([
   '_ad_hoc',
   '_objective_ad_hoc',
   '_history_ad_hoc',
+  '_subjective_ad_hoc',
   '_charges_ad_hoc',
 ]);
 
@@ -63,7 +64,10 @@ const EDITABLE_AMEND_SECTIONS = new Set([
 //   2. STRUCTURALLY AWKWARD: EIE works, no COMMIT - needs a 4-effect route.
 //   3. POLICY EXCLUDED: full wiring exists, but amend-after-dispatch is the
 //      wrong abstraction (a cancel/resend workflow is the right shape).
-//   4. DEFERRED: amend route hasn't been built (4-effect + state preservation).
+//
+// Questionnaire IS amendable now (originate(commit=True) shortcut — backend
+// emits EIE + originate-with-values-and-commit, 2 effects).
+//
 // MIRRORED with builder.py's NON_EDITABLE_AMEND_COMMAND_TYPES.
 const NON_EDITABLE_AMEND_COMMAND_TYPES = new Set([
   // 1. Structurally impossible (no COMMIT_*_COMMAND interpreter):
@@ -76,8 +80,6 @@ const NON_EDITABLE_AMEND_COMMAND_TYPES = new Set([
   // 3. Policy excluded (full wiring exists; amend after lab-partner ticket
   //    dispatch creates downstream confusion - cancel/resend is the right shape):
   'lab_order',
-  // 4. Deferred (4-effect route + question/response state preservation needed):
-  'questionnaire',
 ]);
 
 // rowLockedDuringAmendment(command, readOnly, isAmending) returns true when
