@@ -16,6 +16,7 @@ from hyperscribe.scribe.commands.builder import (
     DIRECT_EDIT_SECTIONS,
     EDITABLE_AMEND_SECTIONS,
     NON_EDITABLE_AMEND_COMMAND_TYPES,
+    build_amend_delete_effects,
     build_amend_edit_effects,
     build_effects,
     build_metadata_effects,
@@ -793,6 +794,8 @@ def test_format_pydantic_errors_recognized_type_strings_take_friendly_path(
     # Pydantic's "Input should be ..." phrasing. None of those markers should appear.
     assert "Input should be" not in rendered
     assert "(got " not in rendered
+
+
 # ----------------------------------------------------------------------
 # Amendment edit path (KOALA-5485): editing already-documented commands
 # in the seven sections Alexia listed (plus chart_review by default).
@@ -1707,3 +1710,284 @@ def test_build_amend_edit_effects_double_edit_same_row_uses_new_uuid() -> None:
     assert construction_calls[1].kwargs.get("command_uuid") == minted_second
     assert attempted_2[0]["old_command_uuid"] == minted_first
     assert attempted_2[0]["new_command_uuid"] == minted_second
+
+
+# ----------------------------------------------------------------------
+# Amendment delete path (KOALA-5485 regression)
+#
+# Charges (perform commands) are rendered as a checkbox list, not as
+# editable ChargeRow widgets, so the only amend gesture available to the
+# provider is "uncheck the box." Without a dedicated delete route, the
+# uncheck silently no-ops: handleInsert filters the deselected command
+# out of the insertable list, and because no actual edit happened, the
+# `_amend_edited` tag is never set either, so the amend POST drops it
+# too. The charge stays committed in the chart.
+#
+# build_amend_delete_effects emits ONLY EnterInError(old) for each valid
+# perform proposal. Same eligibility filter as build_amend_edit_effects
+# (section_key allowlist + command_type denylist + command_uuid present),
+# same drop-and-WARN defense-in-depth. Display field is intentionally
+# omitted from the attempted dict (HIPAA PHI guard).
+# ----------------------------------------------------------------------
+
+
+def test_build_amend_delete_effects_perform_emits_enter_in_error_only() -> None:
+    """Critical regression: deleting an already-documented perform command MUST
+    emit ENTER_IN_ERROR(old) only - no Originate, no Commit, no Edit. The user
+    unchecked the charge in the amend-mode checklist; the chart row needs to
+    be marked entered-in-error and nothing else.
+
+    The attempted entry pins the audit-log shape the API layer surfaces, and
+    must NOT carry a ``display`` field (HIPAA PHI guard - keep the audit
+    payload to structural identifiers only).
+    """
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "perform",
+            "command_uuid": "old-perform-uuid-aaaa-bbbb-cccccccccccc",
+            "section_key": "_charges_ad_hoc",
+            "data": {"cpt_code": "99213", "description": "Office visit"},
+            "display": "99213 - Office visit",
+        },
+    ]
+    with patch("hyperscribe.scribe.commands.perform.PerformCommand") as mock_perform:
+        inst = MagicMock()
+        inst.enter_in_error.return_value = "perform_eie_effect"
+        inst.command_uuid = "old-perform-uuid-aaaa-bbbb-cccccccccccc"
+        mock_perform.return_value = inst
+
+        effects, attempted = build_amend_delete_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+
+    assert effects == ["perform_eie_effect"]
+    inst.enter_in_error.assert_called_once_with()
+    inst.originate.assert_not_called()
+    inst.commit.assert_not_called()
+    inst.edit.assert_not_called()
+
+    assert len(attempted) == 1
+    entry = attempted[0]
+    assert entry["section_key"] == "_charges_ad_hoc"
+    assert entry["command_type"] == "perform"
+    assert entry["command_uuid"] == "old-perform-uuid-aaaa-bbbb-cccccccccccc"
+    assert entry["mode"] == "amend_delete"
+    # HIPAA: display must NOT survive into the audit-feeding attempted record.
+    # Mirrors the AMEND_EXISTING_COMMANDS PHI hardening - same audit log,
+    # same PHI rules.
+    assert "display" not in entry
+
+
+def test_build_amend_delete_effects_built_with_existing_uuid() -> None:
+    """The perform command for delete must be built with the existing
+    command_uuid (so the EIE targets the right row), not a fresh one."""
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "perform",
+            "command_uuid": "the-existing-perform-uuid-1234-5678-90ab-cdef",
+            "section_key": "_charges_ad_hoc",
+            "data": {"cpt_code": "99213", "description": "x"},
+            "display": "x",
+        },
+    ]
+    with patch("hyperscribe.scribe.commands.perform.PerformCommand") as mock_perform:
+        inst = MagicMock()
+        inst.enter_in_error.return_value = "perform_eie_effect"
+        inst.command_uuid = "the-existing-perform-uuid-1234-5678-90ab-cdef"
+        mock_perform.return_value = inst
+
+        build_amend_delete_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+
+    args, kwargs = mock_perform.call_args
+    assert kwargs.get("command_uuid") == "the-existing-perform-uuid-1234-5678-90ab-cdef"
+
+
+def test_build_amend_delete_effects_skips_missing_command_uuid() -> None:
+    """Without an existing command_uuid we cannot target a row to void.
+
+    Dropping the proposal is the safe default - same defense-in-depth as
+    build_amend_edit_effects. A frontend that omits command_uuid is buggy
+    or stale, not a user-visible condition.
+    """
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "perform",
+            "section_key": "_charges_ad_hoc",
+            "data": {"cpt_code": "99213"},
+            "display": "x",
+        },
+    ]
+    effects, attempted = build_amend_delete_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+    assert effects == []
+    assert attempted == []
+
+
+def test_build_amend_delete_effects_skips_disallowed_section() -> None:
+    """Section keys outside EDITABLE_AMEND_SECTIONS are silently dropped. A
+    frontend that ships a delete with section_key="_recommended" or
+    "_subjective_ad_hoc" is buggy - WARN log catches it; no effects emitted.
+    """
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "perform",
+            "command_uuid": "perform-uuid",
+            "section_key": "_recommended",
+            "data": {"cpt_code": "99213"},
+            "display": "x",
+        },
+    ]
+    effects, attempted = build_amend_delete_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+    assert effects == []
+    assert attempted == []
+
+
+def test_build_amend_delete_effects_skips_denied_command_type() -> None:
+    """command_types in NON_EDITABLE_AMEND_COMMAND_TYPES (orders, questionnaire)
+    are categorically denied regardless of section_key. A prescribe ad-hoc'd
+    into _charges_ad_hoc (impossible via UI but defensible) must NOT be
+    void-able via this route - cancel/resend is the right shape for orders.
+    """
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "prescribe",
+            "command_uuid": "rx-uuid",
+            "section_key": "_charges_ad_hoc",
+            "data": {},
+            "display": "x",
+        },
+    ]
+    effects, attempted = build_amend_delete_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+    assert effects == []
+    assert attempted == []
+
+
+def test_build_amend_delete_effects_unknown_command_type_dropped() -> None:
+    """Unknown command_type (no parser in _BUILDERS) is silently dropped."""
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "made_up_command",
+            "command_uuid": "some-uuid",
+            "section_key": "_charges_ad_hoc",
+            "data": {},
+            "display": "x",
+        },
+    ]
+    effects, attempted = build_amend_delete_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+    assert effects == []
+    assert attempted == []
+
+
+def test_build_amend_delete_effects_empty_list() -> None:
+    """No proposals -> no effects, no attempted."""
+    effects, attempted = build_amend_delete_effects([], "note-uuid")
+    assert effects == []
+    assert attempted == []
+
+
+def test_build_amend_delete_effects_mixed_valid_and_dropped_batch() -> None:
+    """A batch with one valid perform delete and one dropped (missing uuid)
+    surfaces only the valid one - effect count and attempted count both match
+    the count of valid proposals.
+    """
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "perform",
+            "command_uuid": "valid-uuid",
+            "section_key": "_charges_ad_hoc",
+            "data": {"cpt_code": "99213"},
+            "display": "x",
+        },
+        {
+            # Dropped: missing command_uuid
+            "command_type": "perform",
+            "section_key": "_charges_ad_hoc",
+            "data": {"cpt_code": "99214"},
+            "display": "x",
+        },
+        {
+            # Dropped: section not editable
+            "command_type": "perform",
+            "command_uuid": "another-uuid",
+            "section_key": "_recommended",
+            "data": {"cpt_code": "99215"},
+            "display": "x",
+        },
+    ]
+    with patch("hyperscribe.scribe.commands.perform.PerformCommand") as mock_perform:
+        inst = MagicMock()
+        inst.enter_in_error.return_value = "perform_eie"
+        inst.command_uuid = "valid-uuid"
+        mock_perform.return_value = inst
+        effects, attempted = build_amend_delete_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+
+    assert effects == ["perform_eie"]
+    assert len(attempted) == 1
+    assert attempted[0]["command_uuid"] == "valid-uuid"
+    assert attempted[0]["mode"] == "amend_delete"
+
+
+def test_build_amend_delete_effects_supports_void_recreate_command_types() -> None:
+    """Although the immediate driver is the perform-charge regression, the
+    helper accepts any editable command_type. A non-perform command (e.g.,
+    medical history) routed through delete also emits EIE only - the same
+    eligibility filter applies.
+
+    This keeps the route generic so a future "delete an already-documented
+    vitals/medication/task" UX can reuse the same backend handler without
+    growing a parallel codepath per command_type.
+    """
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "medicalHistory",
+            "command_uuid": "old-pmh-uuid",
+            "section_key": "past_medical_history",
+            "data": {"past_medical_history": "HTN"},
+            "display": "x",
+        },
+    ]
+    with patch("hyperscribe.scribe.commands.medical_history.MedicalHistoryCommand") as mock_pmh:
+        inst = MagicMock()
+        inst.enter_in_error.return_value = "pmh_eie"
+        inst.command_uuid = "old-pmh-uuid"
+        mock_pmh.return_value = inst
+        effects, attempted = build_amend_delete_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+
+    assert effects == ["pmh_eie"]
+    inst.enter_in_error.assert_called_once_with()
+    inst.originate.assert_not_called()
+    inst.commit.assert_not_called()
+    assert attempted[0]["mode"] == "amend_delete"
+    assert "display" not in attempted[0]
+
+
+def test_build_amend_delete_effects_emits_real_enter_in_error_perform_effect_type() -> None:
+    """Empirical: deleting a perform command via build_amend_delete_effects
+    emits a real ENTER_IN_ERROR_PERFORM_COMMAND protobuf effect.
+
+    Without this test the delete branch could quietly swap to a different
+    SDK call (e.g., .commit() on a CustomCommand-typed command) and the
+    bug would only surface in UAT. Uses the real PerformCommand class, no
+    mocks - pins the SDK integration. Mirrors
+    ``test_custom_command_amend_emits_eie_and_originate_only_no_commit``
+    which does the same for the edit path.
+    """
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "perform",
+            "command_uuid": "old-perform-uuid-aaaa-bbbb-cccccccccccc",
+            "section_key": "_charges_ad_hoc",
+            "data": {"cpt_code": "99213", "description": "Office visit"},
+            "display": "99213 - Office visit",
+        },
+    ]
+    effects, attempted = build_amend_delete_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+
+    # One effect: EIE on the old perform row.
+    assert len(effects) == 1
+    assert EffectType.Name(effects[0].type) == "ENTER_IN_ERROR_PERFORM_COMMAND"
+
+    assert len(attempted) == 1
+    assert attempted[0]["section_key"] == "_charges_ad_hoc"
+    assert attempted[0]["command_type"] == "perform"
+    assert attempted[0]["mode"] == "amend_delete"
+    assert attempted[0]["command_uuid"] == "old-perform-uuid-aaaa-bbbb-cccccccccccc"
+    # No PHI in attempted.
+    assert "display" not in attempted[0]

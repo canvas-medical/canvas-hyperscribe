@@ -330,7 +330,15 @@ function wasInserted(cmd, isRec = false) {
   // Items added via "Add Now" were already inserted — show them in approved view.
   if (cmd._added_now) return true;
   if (isRec) return !!(cmd.accepted && !cmd.already_documented && cmd.display);
-  if (cmd.already_documented || !cmd.display) return false;
+  // KOALA-5485 changed ``already_documented`` semantics: it now also gets
+  // stamped on commands inserted via THIS session's Approve (so amendment
+  // mode can identify what's in the chart). A command with both flags set
+  // — ``already_documented: true`` AND a ``command_uuid`` — was inserted by
+  // this session and should still render post-approve. Only commands with
+  // ``already_documented: true`` AND no ``command_uuid`` came from outside
+  // this session (legacy chart commands loaded for context) and should hide.
+  if (cmd.already_documented && !cmd.command_uuid) return false;
+  if (!cmd.display) return false;
   if (cmd.command_type === 'imaging_order' && (!cmd.data.image_code || !cmd.data.service_provider || !cmd.data.ordering_provider_id || !cmd.data.diagnosis_codes || cmd.data.diagnosis_codes.length === 0)) return false;
   if (cmd.command_type === 'prescribe' && (!cmd.data.fdb_code || !cmd.data.sig || cmd.data.quantity_to_dispense == null || !cmd.data.type_to_dispense || cmd.data.refills == null)) return false;
   if ((cmd.command_type === 'refill' || cmd.command_type === 'adjust_prescription') && !cmd.data.fdb_code) return false;

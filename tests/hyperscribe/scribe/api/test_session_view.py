@@ -1235,7 +1235,7 @@ def test_insert_commands_audit_payload_excludes_display_phi(mock_build: MagicMoc
     attempted = [
         {"command_uuid": "u1", "command_type": "hpi", "display": "Back pain"},
     ]
-    mock_build.return_value = ([mock_effect], [], attempted)
+    mock_build.return_value = ([mock_effect], [], attempted, [])
 
     view = _helper_instance()
     commands = [
@@ -1422,6 +1422,8 @@ def test_insert_commands_build_validation_error_returns_400(mock_audit: MagicMoc
     assert err["errors"] == ["pulse must be greater than or equal to 30 (currently 8)"]
     mock_audit.assert_called_once()
     assert mock_audit.call_args.args[1] == "VALIDATION_FAILED"
+
+
 # --- /edit-existing-commands (KOALA-5485) ---
 
 
@@ -3269,3 +3271,284 @@ def test_generate_summary_writes_progress(
     progress = json.loads(cache._store[progress_key])
     assert progress["step"] == len(SUMMARY_STEPS) - 1
     assert progress["total"] == len(SUMMARY_STEPS)
+
+
+# --- /delete-existing-commands (KOALA-5485 charge-delete regression) ---
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_delete_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_delete_existing_commands_perform_eie_only(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """Charge delete during amend mode emits ENTER_IN_ERROR(old) only - no
+    Originate, no Commit. The returned ``attempted`` carries ``command_uuid``
+    (no new uuid to mint) and ``mode="amend_delete"`` so the frontend can
+    filter it out of the working commands array before /insert-commands.
+    """
+    eie_effect = MagicMock()
+    attempted = [
+        {
+            "section_key": "_charges_ad_hoc",
+            "command_type": "perform",
+            "command_uuid": "perform-uuid",
+            "mode": "amend_delete",
+        },
+    ]
+    mock_build.return_value = ([eie_effect], attempted)
+    # State check: row is currently 'committed' - valid for delete (EIE only).
+    mock_command.objects.filter.return_value.values_list.return_value = [
+        (_StubUUID("perform-uuid"), "committed"),
+    ]
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "perform",
+            "command_uuid": "perform-uuid",
+            "section_key": "_charges_ad_hoc",
+            "data": {"cpt_code": "99213", "description": "Office visit"},
+            "display": "99213 - Office visit",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-abc", "commands": commands}))
+    result = view.post_delete_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["attempted"] == attempted
+    assert len(result) == 2  # JSONResponse + 1 EIE effect
+    assert result[1] is eie_effect
+    mock_build.assert_called_once_with(commands, "note-uuid-abc")
+    mock_audit.assert_called_once()
+    audit_call = mock_audit.call_args
+    assert audit_call.args[0] == "note-uuid-abc"
+    assert audit_call.args[1] == "AMEND_EXISTING_COMMANDS"
+    payload = audit_call.args[2]
+    assert payload["delete_count"] == 1
+    assert payload["effect_count"] == 1
+    assert payload["deleted"][0]["mode"] == "amend_delete"
+    assert payload["deleted"][0]["command_uuid"] == "perform-uuid"
+    # PHI guard: the audit payload must NOT carry ``display`` even when
+    # build_amend_delete_effects omits it - belt-and-suspenders via the
+    # ``_AMEND_AUDIT_ENTRY_KEYS`` whitelist.
+    assert "display" not in payload["deleted"][0]
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_delete_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_delete_existing_commands_audit_payload_excludes_display_phi(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """Defense-in-depth: even if a future build_amend_delete_effects regression
+    starts including ``display`` in the attempted records, the audit payload
+    must NOT propagate it. The whitelist comprehension over
+    ``_AMEND_AUDIT_ENTRY_KEYS`` filters out PHI before audit_event is called.
+
+    Mirrors the AMEND_EXISTING_COMMANDS PHI hardening rationale.
+    """
+    # Build a malicious-future-shape attempted record carrying free-text
+    # clinical narrative as ``display``. This is the regression we're guarding.
+    leak_attempted = [
+        {
+            "section_key": "_charges_ad_hoc",
+            "command_type": "perform",
+            "command_uuid": "perform-uuid",
+            "mode": "amend_delete",
+            "display": "PHI-style narrative that must not appear in audit",
+        },
+    ]
+    mock_build.return_value = ([MagicMock()], leak_attempted)
+    mock_command.objects.filter.return_value.values_list.return_value = [
+        (_StubUUID("perform-uuid"), "committed"),
+    ]
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note_uuid": "note-uuid-abc",
+                "commands": [
+                    {
+                        "command_type": "perform",
+                        "command_uuid": "perform-uuid",
+                        "section_key": "_charges_ad_hoc",
+                        "data": {"cpt_code": "99213"},
+                        "display": "x",
+                    }
+                ],
+            }
+        )
+    )
+    view.post_delete_existing_commands()
+
+    audit_call = mock_audit.call_args
+    payload = audit_call.args[2]
+    # The whitelist comprehension must have stripped ``display``.
+    assert "display" not in payload["deleted"][0]
+    # And the rest of the structural keys must survive.
+    assert payload["deleted"][0]["section_key"] == "_charges_ad_hoc"
+    assert payload["deleted"][0]["command_type"] == "perform"
+    assert payload["deleted"][0]["mode"] == "amend_delete"
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_delete_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_delete_existing_commands_rejects_stale_amend_on_already_voided_row(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """Cross-tab concurrency: Tab A deletes perform X (X is now
+    entered_in_error). Tab B (stale, still showing X checked) submits its
+    own delete against X. Backend must reject Tab B with HTTP 409 so the
+    frontend can prompt reload, NOT silently no-op.
+    """
+    mock_command.objects.filter.return_value.values_list.return_value = [
+        (_StubUUID("perform-uuid"), "entered_in_error"),
+    ]
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note_uuid": "note-uuid-abc",
+                "commands": [
+                    {
+                        "command_type": "perform",
+                        "command_uuid": "perform-uuid",
+                        "section_key": "_charges_ad_hoc",
+                        "data": {"cpt_code": "99213"},
+                        "display": "x",
+                    }
+                ],
+            }
+        )
+    )
+    result = view.post_delete_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.CONFLICT
+    payload = json.loads(result[0].content)
+    assert "conflicts" in payload
+    assert payload["conflicts"][0]["reason"] == "state_mismatch_already_voided"
+    # No effects emitted.
+    assert len(result) == 1
+    # build_amend_delete_effects was NOT called - we bailed before emission.
+    mock_build.assert_not_called()
+    # Audit fires AMEND_CONFLICT with the operation marker.
+    audit_call = mock_audit.call_args
+    assert audit_call.args[1] == "AMEND_CONFLICT"
+    assert audit_call.args[2]["operation"] == "delete"
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_delete_effects")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_delete_existing_commands_rejects_when_command_uuid_missing_from_db(
+    mock_command: MagicMock, mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """If the underlying Command row doesn't exist (uuid never landed,
+    originate was reverted, or stale frontend), surface a 409 rather than
+    silently no-op. The user reloads to pick up the latest state.
+    """
+    # State lookup returns no rows.
+    mock_command.objects.filter.return_value.values_list.return_value = []
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps(
+            {
+                "note_uuid": "note-uuid-abc",
+                "commands": [
+                    {
+                        "command_type": "perform",
+                        "command_uuid": "ghost-uuid",
+                        "section_key": "_charges_ad_hoc",
+                        "data": {"cpt_code": "99213"},
+                        "display": "x",
+                    }
+                ],
+            }
+        )
+    )
+    result = view.post_delete_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.CONFLICT
+    payload = json.loads(result[0].content)
+    assert payload["conflicts"][0]["reason"] == "command_not_found"
+    mock_build.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_amend_delete_effects")
+def test_delete_existing_commands_silently_drops_disallowed_section(
+    mock_build: MagicMock, mock_audit: MagicMock
+) -> None:
+    """Sections not in EDITABLE_AMEND_SECTIONS are silently dropped (logged at
+    WARN inside build_amend_delete_effects). No state lookup, no conflict.
+    """
+    mock_build.return_value = ([], [])
+
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "perform",
+            "command_uuid": "perform-uuid",
+            "section_key": "_recommended",  # not in EDITABLE_AMEND_SECTIONS
+            "data": {"cpt_code": "99213"},
+            "display": "x",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-abc", "commands": commands}))
+    result = view.post_delete_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    payload = json.loads(result[0].content)
+    assert payload["attempted"] == []
+    audit_call = mock_audit.call_args
+    assert audit_call.args[1] == "AMEND_EXISTING_COMMANDS"
+    assert audit_call.args[2]["delete_count"] == 0
+    assert audit_call.args[2]["deleted"] == []
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+def test_delete_existing_commands_silently_drops_missing_command_uuid(
+    mock_audit: MagicMock,
+) -> None:
+    """An editable section without a command_uuid is silently dropped, not
+    treated as a fresh insert. WARN logged inside build_amend_delete_effects.
+    """
+    view = _helper_instance()
+    commands = [
+        {
+            "command_type": "perform",
+            "section_key": "_charges_ad_hoc",
+            "data": {"cpt_code": "99213"},
+            "display": "x",
+        },
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-uuid-abc", "commands": commands}))
+    result = view.post_delete_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    payload = json.loads(result[0].content)
+    assert payload["attempted"] == []
+
+
+def test_delete_existing_commands_missing_note_uuid() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body=json.dumps({"commands": []}))
+    result = view.post_delete_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_uuid" in json.loads(result[0].content)["error"]
+
+
+def test_delete_existing_commands_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(body="not-json")
+    result = view.post_delete_existing_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]

@@ -617,3 +617,89 @@ def build_amend_edit_effects(
         )
 
     return effects, attempted
+
+
+def build_amend_delete_effects(
+    proposals: list[dict[str, Any]],
+    note_uuid: str,
+) -> tuple[list[Effect], list[dict[str, Any]]]:
+    """Build Canvas SDK Effects for amendment-mode deletes of already-documented commands.
+
+    Driver: perform (charge) commands in the amend-mode checklist have no
+    ChargeRow editor (they render as a checked label + checkbox), so the only
+    way to amend a documented charge is to uncheck it. Without a dedicated
+    delete route the uncheck silently no-ops in handleInsert: it's filtered
+    out of the insertable list, and because the user didn't edit it, the
+    ``_amend_edited`` tag is never set either, so the existing amend POST
+    also drops it. The chart stays out of sync with the visible UI.
+
+    Each proposal must carry the existing ``command_uuid`` and a ``section_key``
+    in :data:`EDITABLE_AMEND_SECTIONS`. Proposals failing eligibility (missing
+    uuid, section not in allowlist, command_type in denylist, unknown
+    command_type) are silently dropped and logged at WARN - same defense-in-
+    depth pattern as :func:`build_amend_edit_effects`.
+
+    Only an ``enter_in_error`` effect is emitted per proposal - no Originate,
+    no Commit. The frontend filters the deleted commands out of its working
+    array after success; they do not flow into ``/insert-commands``.
+
+    Returns ``(effects, attempted)`` where ``attempted`` carries enough state
+    for the API layer to emit a structured audit-log entry. ``display`` is
+    intentionally OMITTED from the attempted dict so that the AMEND_EXISTING_
+    COMMANDS audit payload never gains a free-text channel for PHI through
+    this codepath (the existing whitelist in session_view also defends).
+    """
+    effects: list[Effect] = []
+    attempted: list[dict[str, Any]] = []
+
+    for proposal in proposals:
+        section_key = proposal.get("section_key", "")
+        command_type = proposal.get("command_type", "")
+        old_command_uuid = proposal.get("command_uuid", "")
+
+        if section_key not in EDITABLE_AMEND_SECTIONS:
+            log.warning(
+                "amend_delete_dropped: section_not_editable section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+        if command_type in NON_EDITABLE_AMEND_COMMAND_TYPES:
+            log.warning(
+                "amend_delete_dropped: command_type_not_editable section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+        if not old_command_uuid:
+            log.warning(
+                "amend_delete_dropped: missing_command_uuid section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+        builder = _BUILDERS.get(command_type)
+        if builder is None:
+            log.warning(
+                "amend_delete_dropped: unknown_command_type section_key=%s command_type=%s",
+                section_key,
+                command_type,
+            )
+            continue
+
+        data = proposal.get("data", {}) or {}
+        command = builder.build(data, note_uuid, old_command_uuid)
+        effects.append(command.enter_in_error())
+        # HIPAA: deliberately no ``display`` key - the audit-feeding shape
+        # must remain free of PHI. The session_view whitelist
+        # (_AMEND_AUDIT_ENTRY_KEYS) is the belt-and-suspenders backstop.
+        attempted.append(
+            {
+                "section_key": section_key,
+                "command_type": command_type,
+                "command_uuid": old_command_uuid,
+                "mode": "amend_delete",
+            }
+        )
+
+    return effects, attempted

@@ -55,6 +55,7 @@ from hyperscribe.scribe.commands.builder import (
     EDITABLE_AMEND_SECTIONS,
     NON_EDITABLE_AMEND_COMMAND_TYPES,
     annotate_duplicates,
+    build_amend_delete_effects,
     build_amend_edit_effects,
     build_effects,
     build_metadata_effects,
@@ -143,6 +144,7 @@ _AMEND_AUDIT_ENTRY_KEYS = (
     "command_type",
     "old_command_uuid",
     "new_command_uuid",
+    "command_uuid",  # KOALA-5485 delete: uses command_uuid (no new uuid minted).
     "mode",
 )
 
@@ -1473,6 +1475,147 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 "edit_count": len(attempted),
                 "effect_count": len(effects),
                 "entries": [{k: a[k] for k in _AMEND_AUDIT_ENTRY_KEYS if k in a} for a in attempted],
+            },
+        )
+        return [
+            JSONResponse(
+                {"attempted": attempted},
+                status_code=HTTPStatus.OK,
+            ),
+            *effects,
+        ]
+
+    @api.post("/delete-existing-commands")
+    def post_delete_existing_commands(self) -> list[Union[Response, Effect]]:
+        """Amend-mode delete of already-documented commands (KOALA-5485 charge regression).
+
+        Driver: perform (charge) commands render as a checkbox list (no
+        ChargeRow), so the only amend gesture available is "uncheck the box."
+        Without this endpoint the uncheck silently no-ops - handleInsert
+        filters the deselected command out of the insertable list, and because
+        no edit happened the ``_amend_edited`` tag is never set either, so the
+        existing amend POST drops it. The chart stays committed.
+
+        Accepts proposals carrying an existing ``command_uuid`` and a
+        ``section_key`` in ``EDITABLE_AMEND_SECTIONS``. Each valid proposal
+        emits exactly ONE ``EnterInError`` effect - no Originate, no Commit.
+        The frontend filters deleted commands out of its working array after
+        success; they never reach ``/insert-commands``.
+
+        Sibling-not-merged design: kept distinct from ``/edit-existing-commands``
+        because (a) the conflict-check has ONE state bucket (not two) -
+        ``state != 'entered_in_error'``; (b) the audit payload is structurally
+        different (no new uuid to record); (c) the frontend already sends two
+        POSTs (delete first, then edit) so collapsing them into one
+        round-trip buys nothing.
+
+        Audit-log event_type is the SHARED ``AMEND_EXISTING_COMMANDS`` to
+        keep the trail readable; payload carries a ``deleted`` array instead
+        of ``entries``. Same PHI whitelist guards the entries (no ``display``).
+
+        Returns ``conflicts`` when a proposal's underlying Command row is
+        already in ``entered_in_error`` (cross-tab race or stale UI). Frontend
+        prompts reload.
+        """
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_uuid = str(data.get("note_uuid", ""))
+        if not note_uuid:
+            return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+
+        commands = data.get("commands", [])
+        # Re-use the existing per-field length validation. A delete proposal
+        # carries (cpt_code, description, notes) for perform but the per-field
+        # rules don't trip on it; pass through anyway for defense in depth so a
+        # mis-routed malformed proposal can't smuggle past.
+        validation_errors = validate_proposals(commands)
+        if validation_errors:
+            audit_event(note_uuid, "VALIDATION_FAILED", {"errors": validation_errors})
+            return [
+                JSONResponse(
+                    {"error": "Validation failed", "validation_errors": validation_errors},
+                    status_code=HTTPStatus.BAD_REQUEST,
+                )
+            ]
+
+        # Cross-tab concurrency check. Same shape as ``/edit-existing-commands``
+        # but with ONE state bucket: the row must NOT be ``entered_in_error``.
+        # Missing row -> conflict (don't silently no-op on a stale frontend).
+        # Same residual race caveats apply (state read + effect emission are
+        # not atomic), same defenses (idempotent EIE on home-app side).
+        eligible = [
+            c
+            for c in commands
+            if c.get("section_key", "") in EDITABLE_AMEND_SECTIONS
+            and c.get("command_type", "") not in NON_EDITABLE_AMEND_COMMAND_TYPES
+            and c.get("command_uuid", "")
+        ]
+        conflicts: list[dict[str, Any]] = []
+        effects: list[Effect] = []
+        attempted: list[dict[str, Any]] = []
+        if eligible:
+            wanted_uuids = [c["command_uuid"] for c in eligible]
+            # See ``post_edit_existing_commands`` for the UUID->str coercion
+            # rationale. Postgres ``UUIDField`` returns ``uuid.UUID``, dict keys
+            # are strings - hash mismatch would turn every legitimate delete
+            # into a spurious ``command_not_found`` 409.
+            state_by_uuid: dict[str, str] = {
+                str(uid): state for uid, state in Command.objects.filter(id__in=wanted_uuids).values_list("id", "state")
+            }
+            for proposal in eligible:
+                section_key = proposal.get("section_key", "")
+                cmd_uuid = proposal.get("command_uuid", "")
+                current_state = state_by_uuid.get(cmd_uuid)
+                reason: str | None = None
+                if current_state is None:
+                    reason = "command_not_found"
+                elif current_state == "entered_in_error":
+                    reason = "state_mismatch_already_voided"
+                if reason:
+                    conflicts.append(
+                        {
+                            "section_key": section_key,
+                            "command_type": proposal.get("command_type", ""),
+                            "command_uuid": cmd_uuid,
+                            "current_state": current_state or "missing",
+                            "reason": reason,
+                        }
+                    )
+        if not conflicts:
+            effects, attempted = build_amend_delete_effects(commands, note_uuid)
+
+        if conflicts:
+            audit_event(
+                note_uuid,
+                "AMEND_CONFLICT",
+                {"conflicts": conflicts, "submitted_count": len(commands), "operation": "delete"},
+            )
+            return [
+                JSONResponse(
+                    {
+                        "error": "State mismatch - reload required",
+                        "conflicts": conflicts,
+                    },
+                    status_code=HTTPStatus.CONFLICT,
+                )
+            ]
+
+        # HIPAA: the audit payload uses the same ``_AMEND_AUDIT_ENTRY_KEYS``
+        # whitelist as ``AMEND_EXISTING_COMMANDS`` (no ``display``). Carries a
+        # ``deleted`` array alongside the existing ``entries`` shape so the
+        # combined event_type stays readable but a future change adding new
+        # keys to ``attempted`` records cannot silently leak PHI.
+        audit_event(
+            note_uuid,
+            "AMEND_EXISTING_COMMANDS",
+            {
+                "delete_count": len(attempted),
+                "effect_count": len(effects),
+                "deleted": [{k: a[k] for k in _AMEND_AUDIT_ENTRY_KEYS if k in a} for a in attempted],
             },
         )
         return [

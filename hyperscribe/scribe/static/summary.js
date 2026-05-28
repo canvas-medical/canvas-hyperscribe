@@ -1240,14 +1240,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     logEvent('ADD_TEMPLATE_CHARGE', { cptCode, description });
     if (!canEdit) return;
     setCommands(prev => {
-      // Re-select if already exists but deselected.
+      // Re-select if already exists but deselected. KOALA-5485: if this was
+      // an amend-mode delete that the user just toggled back on, also clear
+      // the `_amend_deleted` tag so handleInsert does NOT POST a delete for
+      // it. The user changed their mind - no chart state change required.
       const existing = prev.find(c => c.command_type === 'perform' && c.data.cpt_code === cptCode);
       if (existing) {
-        return prev.map(c =>
-          c.command_type === 'perform' && c.data.cpt_code === cptCode
-            ? { ...c, selected: true }
-            : c
-        );
+        return prev.map(c => {
+          if (c.command_type === 'perform' && c.data.cpt_code === cptCode) {
+            const { _amend_deleted, ...rest } = c;
+            return { ...rest, selected: true };
+          }
+          return c;
+        });
       }
       return [...prev, {
         command_type: 'perform',
@@ -1263,12 +1268,26 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const handleRemoveChargeByCpt = useCallback((cptCode) => {
     logEvent('REMOVE_CHARGE', { cptCode });
     if (!canEdit) return;
-    setCommands(prev => prev.map(c =>
-      c.command_type === 'perform' && c.data.cpt_code === cptCode
-        ? { ...c, selected: false }
-        : c
-    ));
-  }, [canEdit]);
+    // KOALA-5485: in amend mode, unchecking an already-documented charge must
+    // also set `_amend_deleted: true` so handleInsert POSTs a delete to mark
+    // the chart row entered-in-error. The `_amend_deleted` tag is gated by
+    // `isAmendingSectionEditable` (same eligibility filter as edit) so
+    // freshly-added ad-hoc charges (no command_uuid) and non-amend toggles
+    // continue to behave as before - just `selected: false`.
+    //
+    // Without this tag the uncheck silently no-ops: handleInsert's insertable
+    // filter drops the deselected command, but because no edit happened the
+    // `_amend_edited` tag is never set either, so the existing amend POST
+    // also drops it. Chart stays committed.
+    const amending = wasFinalized && !approved;
+    setCommands(prev => prev.map(c => {
+      if (c.command_type !== 'perform' || c.data.cpt_code !== cptCode) return c;
+      if (c.already_documented && isAmendingSectionEditable(c, amending)) {
+        return { ...c, selected: false, _amend_deleted: true };
+      }
+      return { ...c, selected: false };
+    }));
+  }, [canEdit, wasFinalized, approved]);
 
   const handleAddCondition = useCallback((icd10Code, icd10Display, conditionId) => {
     logEvent('ADD_CONDITION', { icd10Code, display: icd10Display });
@@ -1353,11 +1372,69 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // old uuid as an amend - which is what would happen if we kept the
     // re-stamp inside the /insert-commands success branch.
     const amendEdits = commands.filter(c => c._amend_edited && c.command_uuid);
+    // KOALA-5485 charge-delete regression: unchecking an already-documented
+    // perform command sets `_amend_deleted` (see handleRemoveChargeByCpt).
+    // Send these to /delete-existing-commands BEFORE the edit POST so that:
+    //  - The delete is a hard commit point of its own (EIE landed in home-app).
+    //  - The frontend removes them from `workingCommands` so /insert-commands
+    //    never sees them and /edit-existing-commands never tries to edit
+    //    them either (they should not have `_amend_edited` set; the gate is
+    //    structural - delete vs edit are mutually exclusive gestures).
+    const amendDeletes = commands.filter(c => c._amend_deleted && c.command_uuid && c.already_documented);
     let amendUuidRemap = new Map(); // old_uuid -> new_uuid
     let amendAttempted = [];
     // The commands array we work with from here on. We mutate this in-place
     // (via reassign) to reflect amend success even if /insert-commands fails.
     let workingCommands = commands;
+    if (amendDeletes.length > 0) {
+      const deletePayload = amendDeletes.map(({ _template_inserted, _amend_edited, _amend_deleted, ...rest }) => rest);
+      logEvent('AMEND_DELETE_SENDING', { count: deletePayload.length, sectionKeys: deletePayload.map(c => c.section_key) });
+      try {
+        const delRes = await fetch(`${API_BASE}/delete-existing-commands`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note_uuid: noteId, commands: deletePayload }),
+        });
+        const delData = await delRes.json();
+        if (delData.error) {
+          if (delData.validation_errors) {
+            setValidationError(delData.validation_errors);
+          } else if (delData.conflicts) {
+            setError(`${delData.error}. Reload the page to see the latest state.`);
+          } else {
+            setError(delData.error);
+          }
+          setApproved(false);
+          setConfirming(false);
+          saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+          setInserting(false);
+          logEvent('AMEND_DELETE_ERROR', { error: delData.error, conflicts: delData.conflicts || null });
+          return;
+        }
+        logEvent('AMEND_DELETE_COMPLETE', { count: (delData.attempted || []).length });
+        // Hard commit point: the deleted commands' chart rows are now
+        // entered_in_error. Filter them out of workingCommands so they
+        // don't appear in subsequent POSTs (edit, insert) or in the
+        // cache write. The next page load will not see them in cache;
+        // home-app already considers them voided.
+        const deletedUuids = new Set(amendDeletes.map(c => c.command_uuid));
+        workingCommands = commands.filter(c => !(c.command_uuid && deletedUuids.has(c.command_uuid)));
+        setCommands(workingCommands);
+        saveSummaryToCache(noteData, workingCommands, true, {
+          recommendations, unmatched_conditions: unmatchedConditions,
+          diagnosis_suggestions: diagnosisSuggestions,
+          selected_template_name: selectedTemplate?.name || null, mode,
+        });
+      } catch (err) {
+        console.error('Amend deletes failed:', err);
+        setError('Failed to apply amendment deletes');
+        setApproved(false);
+        setConfirming(false);
+        setInserting(false);
+        logEvent('AMEND_DELETE_ERROR', { error: 'network' });
+        return;
+      }
+    }
     if (amendEdits.length > 0) {
       const amendPayload = amendEdits.map(({ _template_inserted, _amend_edited, ...rest }) => rest);
       logEvent('AMEND_EDIT_SENDING', { count: amendPayload.length, sectionKeys: amendPayload.map(c => c.section_key) });
@@ -1396,7 +1473,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // home-app has executed EIE+Originate (and Commit for dedicated-class
         // sections). The local state must mirror that or a retry of
         // /insert-commands will resend the (now-voided) old uuid as an amend.
-        workingCommands = commands.map(cmd => {
+        //
+        // KOALA-5485: map over `workingCommands` (NOT the original `commands`)
+        // so that deleted commands (filtered out by the delete branch above)
+        // don't re-appear here. Mapping over the original would re-introduce
+        // them with their old uuid - and they'd then go through the insertable
+        // filter (which drops them on `already_documented` anyway, so no chart
+        // damage), but the cache write below would persist them.
+        workingCommands = workingCommands.map(cmd => {
           if (cmd._amend_edited && cmd.command_uuid && amendUuidRemap.has(cmd.command_uuid)) {
             const newUuid = amendUuidRemap.get(cmd.command_uuid);
             const { _amend_edited, ...rest } = cmd;
