@@ -1125,7 +1125,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     return alertChanged;
   };
 
-  const handleEditRecommendation = useCallback((index, newData, newType) => {
+  const handleEditRecommendation = useCallback((index, newData, newType, fromFormSave) => {
     if (!canEdit) return;
     logEvent('EDIT_REC', { index, commandType: newType, data: newData });
     setRecommendations(prev => prev.map((cmd, i) => {
@@ -1133,8 +1133,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       const type = newType || cmd.command_type;
       // Preserve the existing accepted state when the diff only touches
       // alert_facility — clicking the view-mode facility checkbox should
-      // never silently auto-accept an unreviewed recommendation.
-      const onlyAlertChanged = !newType && isAlertFacilityOnlyDiff(cmd.data, newData);
+      // never silently auto-accept an unreviewed recommendation. The
+      // `fromFormSave` flag (set by the row component's explicit Save
+      // button) opts back into the pre-round-8 contract: Save implies
+      // accept, even when alert_facility is the only diff.
+      const onlyAlertChanged = !newType && !fromFormSave && isAlertFacilityOnlyDiff(cmd.data, newData);
       const acceptedValue = onlyAlertChanged ? cmd.accepted : true;
       if (type === 'medication_statement') {
         return { ...cmd, data: newData, display: newData.medication_text || '', accepted: acceptedValue };

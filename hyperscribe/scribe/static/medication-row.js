@@ -129,7 +129,11 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     } else {
       newData.fdb_code = { system: 'UNSTRUCTURED', code: selectedDisplay, display: selectedDisplay };
     }
-    onEdit(commandIndex, newData);
+    // 4th arg: fromFormSave=true. Explicit form Save click should always
+    // imply acceptance (pre-round-8 contract), even when the only diff is
+    // alert_facility. The diff-only guard in handleEditRecommendation is
+    // for the view-mode checkbox toggle path, NOT this one.
+    onEdit(commandIndex, newData, undefined, true);
     setEditing(false);
   };
 
