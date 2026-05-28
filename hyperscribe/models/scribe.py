@@ -39,6 +39,7 @@ class ScribeSummary(CustomModel):
     unmatched_conditions: Any = JSONField(default=list)
     diagnosis_suggestions: Any = JSONField(default=dict)
     approved: Any = BooleanField(default=False)
+    was_finalized: Any = BooleanField(default=False)
     selected_template_name: Any = TextField(default="")
     mode: Any = TextField(default="")
     raw_response: Any = JSONField(default=dict)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Any, Union
 
@@ -18,6 +19,7 @@ from django.db.models import Q
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from canvas_sdk.v1.data import AllergyIntolerance, ChargeDescriptionMaster, Medication, Note
+from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.prescription import Prescription
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
@@ -49,7 +51,12 @@ from hyperscribe.scribe.backend import (
 )
 from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
 from hyperscribe.scribe.commands.builder import (
+    DIRECT_EDIT_SECTIONS,
+    EDITABLE_AMEND_SECTIONS,
+    NON_EDITABLE_AMEND_COMMAND_TYPES,
     annotate_duplicates,
+    build_amend_delete_effects,
+    build_amend_edit_effects,
     build_effects,
     build_metadata_effects,
     prefill_assess_backgrounds,
@@ -112,8 +119,6 @@ def _authorize_edit(note_uuid: str, request: Any) -> JSONResponse | None:
 
 def audit_event(note_uuid: str, event_type: str, details: dict[str, Any] | None = None) -> None:
     """Append an audit event to the ScribeAuditLog from the backend."""
-    from datetime import datetime, timezone
-
     try:
         note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_uuid)
         obj, created = ScribeAuditLog.objects.get_or_create(note_id=note_dbid, defaults={"events": []})
@@ -127,6 +132,24 @@ def audit_event(note_uuid: str, event_type: str, details: dict[str, Any] | None 
 _PROGRESS_CACHE_KEY_PREFIX = "scribe_progress:"
 
 _PLAN_SECTION_KEYS = frozenset({"assessment_and_plan", "plan"})
+
+# HIPAA defense-in-depth: explicit key whitelist for the AMEND_EXISTING_COMMANDS
+# audit entries. The audit payload is built by ``{k: a[k] for k in whitelist if k in a}``
+# rather than by destructuring ``attempted`` records by name in an inline dict
+# literal. Mechanism: if a future change adds a new key to ``attempted`` records
+# (e.g., ``display``, which was historically present and carries free-text
+# clinical narrative for HPI / ROS / PE / lab_results / current_medications),
+# it CANNOT silently propagate into the audit log - only the whitelisted
+# structural identifiers can. Pinned by
+# ``test_amend_audit_payload_does_not_propagate_new_attempted_keys``.
+_AMEND_AUDIT_ENTRY_KEYS = (
+    "section_key",
+    "command_type",
+    "old_command_uuid",
+    "new_command_uuid",
+    "command_uuid",  # KOALA-5485 delete: uses command_uuid (no new uuid minted).
+    "mode",
+)
 
 SUMMARY_STEPS = [
     "Generating note",
@@ -214,6 +237,12 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
         "unmatched_conditions": payload.get("unmatched_conditions") or [],
         "diagnosis_suggestions": payload.get("diagnosis_suggestions") or {},
     }
+    # One-way latch: was_finalized goes True the first time approved=True
+    # is written and is never reset to False. Achieved by only putting it
+    # in defaults when approved is True; update_or_create leaves the column
+    # alone when the key isn't in defaults.
+    if payload.get("approved"):
+        defaults["was_finalized"] = True
     if "selected_template_name" in payload:
         defaults["selected_template_name"] = payload["selected_template_name"] or ""
     if "mode" in payload:
@@ -264,6 +293,7 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
             "note_data",
             "commands",
             "approved",
+            "was_finalized",
             "recommendations",
             "unmatched_conditions",
             "diagnosis_suggestions",
@@ -285,6 +315,7 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
         "note": row["note_data"] or None,
         "commands": row["commands"] or [],
         "approved": row["approved"],
+        "was_finalized": row["was_finalized"],
         "recommendations": row["recommendations"] or [],
         "unmatched_conditions": row["unmatched_conditions"] or [],
         "diagnosis_suggestions": row["diagnosis_suggestions"] or {},
@@ -628,7 +659,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         data = _load_summary(note_id)
         if data is None:
-            return [JSONResponse({"note": None, "commands": [], "approved": False}, status_code=HTTPStatus.OK)]
+            return [
+                JSONResponse(
+                    {"note": None, "commands": [], "approved": False, "was_finalized": False}, status_code=HTTPStatus.OK
+                )
+            ]
         return [JSONResponse(data, status_code=HTTPStatus.OK)]
 
     @api.post("/save-summary")
@@ -1203,6 +1238,13 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     status_code=HTTPStatus.BAD_REQUEST,
                 )
             ]
+        # HIPAA: the audit payload intentionally omits ``display``. For
+        # HPI / ROS / PE / lab_results / current_medications, ``display`` is
+        # free-text clinical narrative; persisting it into the audit log would
+        # be PHI in a log, even with 80-char truncation. Structural identifiers
+        # (command_type, section_key) and aggregate counts carry enough signal
+        # for incident triage without leaking content. Mirrors the
+        # AMEND_EXISTING_COMMANDS hardening (KOALA-5485).
         audit_event(
             note_uuid,
             "INSERT_COMMANDS",
@@ -1212,7 +1254,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 "commands": [
                     {
                         "type": c.get("command_type", ""),
-                        "display": (c.get("display") or "")[:80],
                         "section_key": c.get("section_key", ""),
                     }
                     for c in commands
@@ -1277,6 +1318,371 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         carry_forward_assess_background(scratch, note)
         return [JSONResponse({"background": scratch.get("background")}, status_code=HTTPStatus.OK)]
 
+    @api.post("/edit-existing-commands")
+    def post_edit_existing_commands(self) -> list[Union[Response, Effect]]:
+        """Amend already-documented commands in the editable sections (KOALA-5485).
+
+        Accepts proposals carrying an existing ``command_uuid`` and a ``section_key``
+        in ``EDITABLE_AMEND_SECTIONS``. RFV (chief_complaint) routes through a
+        direct EDIT; CustomCommand-routed sections route through EnterInError(old)
+        + Originate(new) (home-app auto-commits); dedicated SDK class sections
+        (HPI, medication_statement) route through EnterInError + Originate +
+        Commit. See ``build_amend_edit_effects`` for the routing rationale.
+
+        Returns ``attempted``: a list with ``old_command_uuid``,
+        ``new_command_uuid`` (equal to old for direct_edit), ``section_key``,
+        ``command_type``, ``mode``, ``display``. The frontend re-stamps
+        ``ScribeSummary.commands`` from this list before calling
+        ``/verify-commands``.
+
+        Returns ``conflicts`` when a proposal's current Command.state on the
+        server is incompatible with the requested operation (e.g., the user has
+        a stale tab and is trying to amend an already-voided row). The frontend
+        surfaces this so the user can reload before retrying.
+
+        Concurrency (residual race): the eligibility check and effect emission
+        are NOT atomic. The plugin sandbox bans ``from django.db import
+        transaction`` (only ``from django.db.transaction import atomic`` is
+        whitelisted), and even if it didn't, ``select_for_update()`` against
+        the ``commands_command`` plugin view fails at the SQL layer (Postgres
+        rejects ``FOR UPDATE`` on a view containing outer joins). More
+        fundamentally, plugin effects are emitted onto the home-app effect
+        bus and processed in a separate transaction, so a plugin-side
+        ``atomic()`` would not bound the EnterInError lifecycle anyway.
+
+        The pre-check catches the *common* case (one tab is genuinely stale -
+        its submit arrives well after Tab A's EIE has landed). It cannot
+        close the microsecond window between two near-simultaneous submits
+        against a still-``committed`` row: both reads can see the valid
+        state, both branches emit EnterInError(X) + Originate(Y1)/Originate(Y2),
+        and the user ends up with two amended commands where they expected
+        one. Home-app's idempotent handling of a duplicate EnterInError
+        against an already-voided row is the safety net for the EIE side;
+        the duplicate Originate(Y2) is the visible artifact and is accepted
+        as an extremely rare residual race. Closing it from the plugin side
+        would require a cross-repo home-app change (out of scope here).
+
+        Audit writes fire AFTER the state read and effect emission. The
+        ``audit_event()`` helper catches broad ``Exception`` via
+        ``log.exception(...)``; the historical ordering (state read first,
+        audit last) is preserved so that an audit-write failure cannot
+        suppress the response. Pinned by
+        ``test_edit_existing_commands_audit_fires_after_state_check``.
+
+        ``was_finalized`` interaction: once a note has been approved at least
+        once, ``ScribeSummary.was_finalized`` is True (one-way latch in
+        ``_save_summary``). The frontend uses this to pin amendment-mode UI on
+        re-Approve. If ``/insert-commands`` fails AFTER a successful
+        ``/edit-existing-commands``, the frontend rolls back ``approved``
+        in-memory but persists the re-stamped command uuids in cache; the
+        amendment-mode UI stays pinned because ``was_finalized`` is sticky.
+        That's intentional - the user can retry insertion without losing the
+        amended state.
+        """
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_uuid = str(data.get("note_uuid", ""))
+        if not note_uuid:
+            return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+
+        commands = data.get("commands", [])
+        # Re-use the existing per-field length validation so amendment edits
+        # can't smuggle past, e.g., 10k-char narratives.
+        validation_errors = validate_proposals(commands)
+        if validation_errors:
+            audit_event(note_uuid, "VALIDATION_FAILED", {"errors": validation_errors})
+            return [
+                JSONResponse(
+                    {"error": "Validation failed", "validation_errors": validation_errors},
+                    status_code=HTTPStatus.BAD_REQUEST,
+                )
+            ]
+
+        # KOALA-5485 cross-tab concurrency check: reject any proposal whose
+        # underlying Command row is in an incompatible state. This catches the
+        # case where Tab A amends HPI X -> Y, and stale Tab B then submits
+        # its own amend against X (already entered_in_error). Without this
+        # check we'd happily emit EIE(X) on a voided row.
+        #
+        # Valid eligible (allowlisted + uuid present) proposals get their
+        # state fetched in one query, then bucketed:
+        #   - DIRECT_EDIT (RFV/chief_complaint): row must be 'staged'.
+        #   - void+recreate (everything else): row must NOT be 'entered_in_error'.
+        # Missing rows in the DB (e.g., uuid never landed) are treated as
+        # conflicts so a buggy or stale frontend doesn't get a silent no-op.
+        # NOTE on ``command_not_found``: this corner case can fire legitimately
+        # in an Originate-then-Amend race (the originate effect has been
+        # accepted server-side but the Command row hasn't been written yet,
+        # or the originate was reverted). The user sees a 409 with reason
+        # ``command_not_found`` and reloads - benign UX cost for the
+        # defense-in-depth guard against stale frontends.
+        #
+        # NO atomic guarantee. The state read and effect emission are NOT
+        # serialized at the DB level: (a) the sandbox bans ``from django.db
+        # import transaction`` (only ``from django.db.transaction import
+        # atomic`` is whitelisted), (b) ``select_for_update()`` on the
+        # commands_command plugin view fails at the SQL layer (FOR UPDATE on
+        # an outer-joined view), and (c) the EnterInError effect is processed
+        # by home-app in its own transaction so a plugin-side ``atomic()``
+        # would not bound the EIE lifecycle anyway. The pre-check serializes
+        # the *common* stale-tab case (Tab B's submit arrives after Tab A's
+        # EIE has landed). It does NOT close the microsecond race window
+        # between two near-simultaneous submits against a still-``committed``
+        # row - both reads pass, both branches emit. Residual artifact: a
+        # duplicate Originate(Y2) on the same row. Home-app idempotent
+        # handling of duplicate EnterInError is the only safety net we have
+        # for now; closing the Originate side requires home-app changes.
+        # An order (prescribe/refill/refer/imaging_order/lab_order/
+        # adjust_prescription) ad-hoc'd into the note shares the _ad_hoc
+        # section_key with editable command_types like ``task`` and ``plan``;
+        # filter denied command_types out of the eligibility set here so the
+        # conflict pre-check doesn't issue a Command-state lookup for them
+        # AND so they're silently dropped (consistent with the existing
+        # section-not-allowlisted behavior) rather than surfacing a
+        # ``state_mismatch`` 409.
+        eligible = [
+            c
+            for c in commands
+            if c.get("section_key", "") in EDITABLE_AMEND_SECTIONS
+            and c.get("command_type", "") not in NON_EDITABLE_AMEND_COMMAND_TYPES
+            and c.get("command_uuid", "")
+        ]
+        conflicts: list[dict[str, Any]] = []
+        effects: list[Effect] = []
+        attempted: list[dict[str, Any]] = []
+        if eligible:
+            wanted_uuids = [c["command_uuid"] for c in eligible]
+            # ``Command.id`` is a UUIDField backed by Postgres ``uuid``, so
+            # ``.values_list("id", ...)`` yields ``uuid.UUID`` objects, not
+            # strings. ``hash(UUID(x)) != hash(str(x))``, so a dict keyed by
+            # the raw values misses every lookup against the string
+            # ``command_uuid`` we get from JSON - turning every proposal into a
+            # spurious ``command_not_found`` 409. Coerce to ``str`` here so the
+            # dict shape matches ``state_by_uuid``'s declared type and the
+            # lookups below. ``post_verify_commands`` further down already
+            # follows this convention.
+            state_by_uuid: dict[str, str] = {
+                str(uid): state for uid, state in Command.objects.filter(id__in=wanted_uuids).values_list("id", "state")
+            }
+            for proposal in eligible:
+                section_key = proposal.get("section_key", "")
+                cmd_uuid = proposal.get("command_uuid", "")
+                current_state = state_by_uuid.get(cmd_uuid)
+                reason: str | None = None
+                if current_state is None:
+                    reason = "command_not_found"
+                elif section_key in DIRECT_EDIT_SECTIONS:
+                    if current_state != "staged":
+                        reason = "state_mismatch_expected_staged"
+                else:
+                    if current_state == "entered_in_error":
+                        reason = "state_mismatch_already_voided"
+                if reason:
+                    conflicts.append(
+                        {
+                            "section_key": section_key,
+                            "command_type": proposal.get("command_type", ""),
+                            "command_uuid": cmd_uuid,
+                            "current_state": current_state or "missing",
+                            "reason": reason,
+                        }
+                    )
+        if not conflicts:
+            # Non-eligible proposals (section not allowlisted, no uuid) are
+            # silently dropped by build_amend_edit_effects and logged at WARN
+            # there. We don't surface them in the response - they signal a
+            # stale or buggy frontend, not a user-facing condition.
+            effects, attempted = build_amend_edit_effects(commands, note_uuid)
+
+        # Audit fires after the state read + effect-emission step. ``audit_event``
+        # catches broad Exception via log.exception, so an audit-write failure
+        # cannot suppress the response.
+        if conflicts:
+            audit_event(
+                note_uuid,
+                "AMEND_CONFLICT",
+                {"conflicts": conflicts, "submitted_count": len(commands)},
+            )
+            return [
+                JSONResponse(
+                    {
+                        "error": "State mismatch - reload required",
+                        "conflicts": conflicts,
+                    },
+                    status_code=HTTPStatus.CONFLICT,
+                )
+            ]
+
+        # HIPAA: the audit payload intentionally omits ``display``. For
+        # HPI / ROS / PE / lab_results / current_medications, ``display``
+        # is free-text clinical narrative; persisting it into the audit log
+        # would be PHI in a log, even truncated. The audit entries are built
+        # via dict comprehension over ``_AMEND_AUDIT_ENTRY_KEYS`` (a fixed
+        # module-level whitelist) so that a future change adding new keys to
+        # ``attempted`` records cannot silently propagate PHI here. Pinned
+        # by ``test_amend_audit_payload_does_not_propagate_new_attempted_keys``.
+        audit_event(
+            note_uuid,
+            "AMEND_EXISTING_COMMANDS",
+            {
+                "edit_count": len(attempted),
+                "effect_count": len(effects),
+                "entries": [{k: a[k] for k in _AMEND_AUDIT_ENTRY_KEYS if k in a} for a in attempted],
+            },
+        )
+        return [
+            JSONResponse(
+                {"attempted": attempted},
+                status_code=HTTPStatus.OK,
+            ),
+            *effects,
+        ]
+
+    @api.post("/delete-existing-commands")
+    def post_delete_existing_commands(self) -> list[Union[Response, Effect]]:
+        """Amend-mode delete of already-documented commands (KOALA-5485 charge regression).
+
+        Driver: perform (charge) commands render as a checkbox list (no
+        ChargeRow), so the only amend gesture available is "uncheck the box."
+        Without this endpoint the uncheck silently no-ops - handleInsert
+        filters the deselected command out of the insertable list, and because
+        no edit happened the ``_amend_edited`` tag is never set either, so the
+        existing amend POST drops it. The chart stays committed.
+
+        Accepts proposals carrying an existing ``command_uuid`` and a
+        ``section_key`` in ``EDITABLE_AMEND_SECTIONS``. Each valid proposal
+        emits exactly ONE ``EnterInError`` effect - no Originate, no Commit.
+        The frontend filters deleted commands out of its working array after
+        success; they never reach ``/insert-commands``.
+
+        Sibling-not-merged design: kept distinct from ``/edit-existing-commands``
+        because (a) the conflict-check has ONE state bucket (not two) -
+        ``state != 'entered_in_error'``; (b) the audit payload is structurally
+        different (no new uuid to record); (c) the frontend already sends two
+        POSTs (delete first, then edit) so collapsing them into one
+        round-trip buys nothing.
+
+        Audit-log event_type is the SHARED ``AMEND_EXISTING_COMMANDS`` to
+        keep the trail readable; payload carries a ``deleted`` array instead
+        of ``entries``. Same PHI whitelist guards the entries (no ``display``).
+
+        Returns ``conflicts`` when a proposal's underlying Command row is
+        already in ``entered_in_error`` (cross-tab race or stale UI). Frontend
+        prompts reload.
+        """
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_uuid = str(data.get("note_uuid", ""))
+        if not note_uuid:
+            return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+
+        commands = data.get("commands", [])
+        # Re-use the existing per-field length validation. A delete proposal
+        # carries (cpt_code, description, notes) for perform but the per-field
+        # rules don't trip on it; pass through anyway for defense in depth so a
+        # mis-routed malformed proposal can't smuggle past.
+        validation_errors = validate_proposals(commands)
+        if validation_errors:
+            audit_event(note_uuid, "VALIDATION_FAILED", {"errors": validation_errors})
+            return [
+                JSONResponse(
+                    {"error": "Validation failed", "validation_errors": validation_errors},
+                    status_code=HTTPStatus.BAD_REQUEST,
+                )
+            ]
+
+        # Cross-tab concurrency check. Same shape as ``/edit-existing-commands``
+        # but with ONE state bucket: the row must NOT be ``entered_in_error``.
+        # Missing row -> conflict (don't silently no-op on a stale frontend).
+        # Same residual race caveats apply (state read + effect emission are
+        # not atomic), same defenses (idempotent EIE on home-app side).
+        eligible = [
+            c
+            for c in commands
+            if c.get("section_key", "") in EDITABLE_AMEND_SECTIONS
+            and c.get("command_type", "") not in NON_EDITABLE_AMEND_COMMAND_TYPES
+            and c.get("command_uuid", "")
+        ]
+        conflicts: list[dict[str, Any]] = []
+        effects: list[Effect] = []
+        attempted: list[dict[str, Any]] = []
+        if eligible:
+            wanted_uuids = [c["command_uuid"] for c in eligible]
+            # See ``post_edit_existing_commands`` for the UUID->str coercion
+            # rationale. Postgres ``UUIDField`` returns ``uuid.UUID``, dict keys
+            # are strings - hash mismatch would turn every legitimate delete
+            # into a spurious ``command_not_found`` 409.
+            state_by_uuid: dict[str, str] = {
+                str(uid): state for uid, state in Command.objects.filter(id__in=wanted_uuids).values_list("id", "state")
+            }
+            for proposal in eligible:
+                section_key = proposal.get("section_key", "")
+                cmd_uuid = proposal.get("command_uuid", "")
+                current_state = state_by_uuid.get(cmd_uuid)
+                reason: str | None = None
+                if current_state is None:
+                    reason = "command_not_found"
+                elif current_state == "entered_in_error":
+                    reason = "state_mismatch_already_voided"
+                if reason:
+                    conflicts.append(
+                        {
+                            "section_key": section_key,
+                            "command_type": proposal.get("command_type", ""),
+                            "command_uuid": cmd_uuid,
+                            "current_state": current_state or "missing",
+                            "reason": reason,
+                        }
+                    )
+        if not conflicts:
+            effects, attempted = build_amend_delete_effects(commands, note_uuid)
+
+        if conflicts:
+            audit_event(
+                note_uuid,
+                "AMEND_CONFLICT",
+                {"conflicts": conflicts, "submitted_count": len(commands), "operation": "delete"},
+            )
+            return [
+                JSONResponse(
+                    {
+                        "error": "State mismatch - reload required",
+                        "conflicts": conflicts,
+                    },
+                    status_code=HTTPStatus.CONFLICT,
+                )
+            ]
+
+        # HIPAA: the audit payload uses the same ``_AMEND_AUDIT_ENTRY_KEYS``
+        # whitelist as ``AMEND_EXISTING_COMMANDS`` (no ``display``). Carries a
+        # ``deleted`` array alongside the existing ``entries`` shape so the
+        # combined event_type stays readable but a future change adding new
+        # keys to ``attempted`` records cannot silently leak PHI.
+        audit_event(
+            note_uuid,
+            "AMEND_EXISTING_COMMANDS",
+            {
+                "delete_count": len(attempted),
+                "effect_count": len(effects),
+                "deleted": [{k: a[k] for k in _AMEND_AUDIT_ENTRY_KEYS if k in a} for a in attempted],
+            },
+        )
+        return [
+            JSONResponse(
+                {"attempted": attempted},
+                status_code=HTTPStatus.OK,
+            ),
+            *effects,
+        ]
+
     @api.post("/insert-metadata")
     def post_insert_metadata(self) -> list[Union[Response, Effect]]:
         """Phase 2: upsert command metadata after commands have been created."""
@@ -1298,8 +1704,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.post("/verify-commands")
     def post_verify_commands(self) -> list[Union[Response, Effect]]:
         """Verify that attempted commands exist on the note with anchor objects."""
-        from canvas_sdk.v1.data.command import Command
-
         try:
             data: dict[str, Any] = json.loads(self.request.body)
         except (json.JSONDecodeError, ValueError) as exc:
@@ -1327,18 +1731,27 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 reason = "no_anchor" if row else "not_found"
                 failed.append({**a, "reason": reason})
 
+        # HIPAA: ``display`` is intentionally omitted - it carries free-text
+        # clinical narrative for many command types. The audit retains the
+        # structural identifier (``command_uuid``) and ``type``; that's enough
+        # for incident triage without leaking PHI. Mirrors INSERT_COMMANDS /
+        # AMEND_EXISTING_COMMANDS hardening (KOALA-5485).
         audit_event(
             note_uuid,
             "COMMANDS_VERIFIED",
             {
                 "total": len(verified) + len(failed),
                 "verified": [
-                    {"type": v.get("command_type", ""), "display": (v.get("display") or "")[:80]} for v in verified
+                    {
+                        "type": v.get("command_type", ""),
+                        "command_uuid": v.get("command_uuid", ""),
+                    }
+                    for v in verified
                 ],
                 "failed": [
                     {
                         "type": f.get("command_type", ""),
-                        "display": (f.get("display") or "")[:80],
+                        "command_uuid": f.get("command_uuid", ""),
                         "reason": f.get("reason", ""),
                     }
                     for f in failed
