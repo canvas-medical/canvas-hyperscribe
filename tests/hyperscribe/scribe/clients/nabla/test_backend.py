@@ -126,9 +126,7 @@ def test_generate_note_physical_exam_excludes_vitals() -> None:
 
     payload = mock_rest_client.generate_note.call_args.args[0]
     pe_entries = [
-        entry
-        for entry in payload["note_sections_customization"]
-        if entry.get("section_key") == "PHYSICAL_EXAM"
+        entry for entry in payload["note_sections_customization"] if entry.get("section_key") == "PHYSICAL_EXAM"
     ]
     assert len(pe_entries) == 1, "expected exactly one PHYSICAL_EXAM customization entry"
     pe_entry = pe_entries[0]
@@ -139,10 +137,16 @@ def test_generate_note_physical_exam_excludes_vitals() -> None:
     # The four vital signs called out in the requirement, each in long form and
     # in its common abbreviation/synonym, so the prompt blocks paraphrased leaks.
     required_terms = (
-        "heart rate", "pulse", "hr",
-        "blood pressure", "bp",
-        "oxygen saturation", "spo2",
-        "breaths per minute", "respiratory rate", "rr",
+        "heart rate",
+        "pulse",
+        "hr",
+        "blood pressure",
+        "bp",
+        "oxygen saturation",
+        "spo2",
+        "breaths per minute",
+        "respiratory rate",
+        "rr",
     )
     for term in required_terms:
         assert term in instruction_lower, f"missing exclusion term {term!r}"

@@ -254,10 +254,7 @@ def test_pending_metadata_flag_off_returns_none() -> None:
     proposal = {"data": {"alert_facility": True}}
     assert MedicationParser().pending_metadata(cmd, proposal, feature_flags={}) is None
     assert MedicationParser().pending_metadata(cmd, proposal, feature_flags=None) is None
-    assert (
-        MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": False})
-        is None
-    )
+    assert MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": False}) is None
 
 
 def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:

@@ -5,7 +5,7 @@ import { AllergyRow } from '/plugin-io/api/hyperscribe/scribe/static/allergy-row
 
 const html = htm.bind(h);
 
-export function RecommendedGroup({ recommendations, onEditCommand, onDeleteCommand }) {
+export function RecommendedGroup({ recommendations, onEditCommand, onDeleteCommand, isAmending = false }) {
   if (!recommendations || recommendations.length === 0) return null;
 
   return html`
