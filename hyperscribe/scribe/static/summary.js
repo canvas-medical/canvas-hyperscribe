@@ -442,7 +442,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const handleMakeChanges = useCallback(() => {
     if (!isAuthor || !isNoteEditable || !approved) return;
-    const documentedCount = commands.filter(c => c.already_documented).length;
+    // Either `already_documented` OR `command_uuid` means "already on the note"
+    // — same predicate as the `insertable` filter (see 8ea1df36 back-compat
+    // fix). Pre-existing finalized notes (signed before the explicit
+    // already_documented stamping shipped) carry command_uuid but not the
+    // explicit flag; using `already_documented` alone here would wipe every
+    // such command on Make Changes. command_uuid is the authoritative
+    // "on the note" signal.
+    const onNote = (c) => c.already_documented || c.command_uuid;
+    const documentedCount = commands.filter(onNote).length;
     logEvent('AMENDMENT_STARTED', {
       commands_at_start: documentedCount,
       dropped_commands: commands.length - documentedCount,
@@ -451,7 +459,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // Scribe should mirror the signed note during amendment: drop AI recs that
     // never made it into the note. Leaving them in state would also re-insert
     // them on re-Approve via the `insertable` filter.
-    setCommands(prev => prev.filter(c => c.already_documented));
+    setCommands(prev => prev.filter(onNote));
     setRecommendations([]);
     setUnmatchedConditions([]);
     setDiagnosisSuggestions({});
