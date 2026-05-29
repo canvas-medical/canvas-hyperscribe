@@ -1760,80 +1760,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         return;
       }
     }
-    if (amendEdits.length > 0) {
-      const amendPayload = amendEdits.map(({ _template_inserted, _amend_edited, ...rest }) => rest);
-      logEvent('AMEND_EDIT_SENDING', { count: amendPayload.length, sectionKeys: amendPayload.map(c => c.section_key) });
-      try {
-        const editRes = await fetch(`${API_BASE}/edit-existing-commands`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ note_uuid: noteId, commands: amendPayload }),
-        });
-        const editData = await editRes.json();
-        if (editData.error) {
-          // Backend rejected before any effects were emitted. Pass the
-          // conflict shape through if present so the user can reload a
-          // stale tab; otherwise show the generic error.
-          if (editData.validation_errors) {
-            setValidationError(editData.validation_errors);
-          } else if (editData.conflicts) {
-            setError(`${editData.error}. Reload the page to see the latest state.`);
-          } else {
-            setError(editData.error);
-          }
-          setApproved(false);
-          setConfirming(false);
-          // The edit backend rejected before emitting edit effects, but an
-          // amend-delete in the branch above may have already committed
-          // server-side. Persist `workingCommands` (deletes filtered out), not
-          // the stale closure `commands`, so the cache doesn't resurrect the
-          // already-voided deleted commands on reload. Mirrors 1539 / 1692.
-          saveSummaryToCache(noteData, workingCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
-          setInserting(false);
-          logEvent('AMEND_EDIT_ERROR', { error: editData.error, conflicts: editData.conflicts || null });
-          return;
-        }
-        amendAttempted = editData.attempted || [];
-        for (const entry of amendAttempted) {
-          amendUuidRemap.set(entry.old_command_uuid, entry.new_command_uuid);
-        }
-        logEvent('AMEND_EDIT_COMPLETE', { count: amendAttempted.length });
-
-        // Hard commit point: re-stamp commands now. After this point the
-        // home-app has executed EIE+Originate (and Commit for dedicated-class
-        // sections). The local state must mirror that or a retry of
-        // /insert-commands will resend the (now-voided) old uuid as an amend.
-        //
-        // KOALA-5485: map over `workingCommands` (NOT the original `commands`)
-        // so that deleted commands (filtered out by the delete branch above)
-        // don't re-appear here. Mapping over the original would re-introduce
-        // them with their old uuid - and they'd then go through the insertable
-        // filter (which drops them on `already_documented` anyway, so no chart
-        // damage), but the cache write below would persist them.
-        workingCommands = workingCommands.map(cmd => {
-          if (cmd._amend_edited && cmd.command_uuid && amendUuidRemap.has(cmd.command_uuid)) {
-            const newUuid = amendUuidRemap.get(cmd.command_uuid);
-            const { _amend_edited, ...rest } = cmd;
-            return { ...rest, command_uuid: newUuid, already_documented: true };
-          }
-          return cmd;
-        });
-        setCommands(workingCommands);
-        saveSummaryToCache(noteData, workingCommands, true, {
-          recommendations, unmatched_conditions: unmatchedConditions,
-          diagnosis_suggestions: diagnosisSuggestions,
-          selected_template_name: selectedTemplate?.name || null, mode,
-        });
-      } catch (err) {
-        console.error('Amend edits failed:', err);
-        setError('Failed to apply amendment edits');
-        setApproved(false);
-        setConfirming(false);
-        setInserting(false);
-        logEvent('AMEND_EDIT_ERROR', { error: 'network' });
-        return;
-      }
-    }
+    // KOALA-5485 amendEdits-after-inserts (relocated from this position):
+    // /edit-existing-commands now runs AFTER /insert-commands further down,
+    // not here. Reason: ClaimLinkSync fires on the recreated perform's
+    // PERFORM_COMMAND__POST_COMMIT and resolves linked_icd10_codes against
+    // Assessments on the note. If /edit ran first, any link to a newly-added
+    // (in-the-same-Save-Changes-click) diagnosis would resolve to nothing
+    // because the new Assessment hadn't been inserted yet → BLI.assessment_ids
+    // ships missing that ICD even though the matrix shows it linked.
+    // The reorder is safe because the two batches are independent: a new
+    // command (no command_uuid) can never be amend-edited, so amendEdits and
+    // /insert-commands operate on disjoint subsets of `commands`.
 
     // Origin-tracked pipeline. Each item being inserted carries a tag of
     // its source array (`commands` or `recommendations`) and its index in
@@ -2105,6 +2042,82 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           diagnosis_suggestions: diagnosisSuggestions,
           selected_template_name: selectedTemplate?.name || null, mode,
         });
+
+        // AMEND EDITS — runs AFTER /insert-commands so that newly-added
+        // Assessments are already in the DB when each amended perform's
+        // commit fires PERFORM_COMMAND__POST_COMMIT. ClaimLinkSync
+        // (handlers/claim_link_sync.py) resolves a perform's
+        // linked_icd10_codes against Assessments on the note via the
+        // committed-Assessment query; if /edit-existing-commands had run
+        // before /insert-commands, any link to a freshly-added diagnosis
+        // would resolve to nothing and ship empty in
+        // BillingLineItem.assessment_ids — the matrix-vs-footer mismatch
+        // bug. Running amends last ensures all Assessments (existing and
+        // newly inserted) are visible when ClaimLinkSync reads.
+        if (amendEdits.length > 0) {
+          const amendPayload = amendEdits.map(({ _template_inserted, _amend_edited, ...rest }) => rest);
+          logEvent('AMEND_EDIT_SENDING', { count: amendPayload.length, sectionKeys: amendPayload.map(c => c.section_key) });
+          try {
+            const editRes = await fetch(`${API_BASE}/edit-existing-commands`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ note_uuid: noteId, commands: amendPayload }),
+            });
+            const editData = await editRes.json();
+            if (editData.error) {
+              // Inserts already landed on the chart. Roll the cache approval
+              // flag back to false so the user can retry — on retry the
+              // inserts' command_uuids are stamped, so isInsertableCommand
+              // excludes them and only the amend pipeline re-runs.
+              if (editData.validation_errors) {
+                setValidationError(editData.validation_errors);
+              } else if (editData.conflicts) {
+                setError(`${editData.error}. Reload the page to see the latest state.`);
+              } else {
+                setError(editData.error);
+              }
+              setApproved(false);
+              setConfirming(false);
+              saveSummaryToCache(noteData, updatedCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+              setInserting(false);
+              logEvent('AMEND_EDIT_ERROR', { error: editData.error, conflicts: editData.conflicts || null });
+              return;
+            }
+            amendAttempted = editData.attempted || [];
+            for (const entry of amendAttempted) {
+              amendUuidRemap.set(entry.old_command_uuid, entry.new_command_uuid);
+            }
+            logEvent('AMEND_EDIT_COMPLETE', { count: amendAttempted.length });
+
+            // Re-stamp amend uuids onto the post-insert `updatedCommands`.
+            // We're already past the /insert-commands cache flip, so this
+            // builds on top of the insert-stamped state rather than the raw
+            // pre-amend `workingCommands`.
+            updatedCommands = updatedCommands.map(cmd => {
+              if (cmd._amend_edited && cmd.command_uuid && amendUuidRemap.has(cmd.command_uuid)) {
+                const newUuid = amendUuidRemap.get(cmd.command_uuid);
+                const { _amend_edited, ...rest } = cmd;
+                return { ...rest, command_uuid: newUuid, already_documented: true };
+              }
+              return cmd;
+            });
+            setCommands(updatedCommands);
+            saveSummaryToCache(noteData, updatedCommands, true, {
+              recommendations, unmatched_conditions: unmatchedConditions,
+              diagnosis_suggestions: diagnosisSuggestions,
+              selected_template_name: selectedTemplate?.name || null, mode,
+            });
+          } catch (err) {
+            console.error('Amend edits failed:', err);
+            setError('Failed to apply amendment edits');
+            setApproved(false);
+            setConfirming(false);
+            setInserting(false);
+            logEvent('AMEND_EDIT_ERROR', { error: 'network' });
+            return;
+          }
+        }
+
         const hasPrescriptions = workingCommands.some(c => c.display && RX_SET.has(c.command_type))
           || recommendations.some(c => c.display && !c.rejected && RX_SET.has(c.command_type));
         logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length, effectCount: data.inserted, hasPendingMetadata: (data.metadata_pending?.length || 0) > 0, amendEditCount: amendAttempted.length });
