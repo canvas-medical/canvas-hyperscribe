@@ -77,6 +77,49 @@ def test_build() -> None:
     )
 
 
+def test_parse_vitals_respiratory_rate_phrasing() -> None:
+    # Nabla/LLM emits "Respiratory rate", not "Respiration" — the old regex missed it.
+    assert _parse_vitals("Respiratory rate: 14 breaths/min")["respiration_rate"] == 14
+
+
+def test_parse_vitals_height_plain_inches() -> None:
+    # The LLM normalizes spoken height to plain inches ("70 in"), never the 5'10" form.
+    assert _parse_vitals("Height: 70 in")["height"] == 70
+    assert _parse_vitals("Height: 70 inches")["height"] == 70
+
+
+def test_parse_vitals_height_spoken_feet_inches() -> None:
+    assert _parse_vitals("Height: 5 ft 10 in")["height"] == 70
+    assert _parse_vitals("Height: 5 feet 10 inches")["height"] == 70
+    assert _parse_vitals("Height: 5 foot 10")["height"] == 70
+
+
+def test_parse_vitals_height_feet_only() -> None:
+    assert _parse_vitals("Height: 6 feet")["height"] == 72
+
+
+def test_parse_vitals_production_display_string() -> None:
+    # The exact multi-line display the Scribe pipeline produced on scribeqa-sandbox.
+    text = (
+        "- Blood pressure: 124/76 mmHg\n"
+        "- Heart rate: 72 bpm\n"
+        "- Respiratory rate: 14 breaths/min\n"
+        "- Temperature: 98.2 °F\n"
+        "- Oxygen saturation: 99%\n"
+        "- Weight: 195 lb\n"
+        "- Height: 70 in"
+    )
+    result = _parse_vitals(text)
+    assert result["blood_pressure_systole"] == 124
+    assert result["blood_pressure_diastole"] == 76
+    assert result["pulse"] == 72
+    assert result["respiration_rate"] == 14
+    assert result["body_temperature"] == 98.2
+    assert result["oxygen_saturation"] == 99
+    assert result["weight_lbs"] == 195
+    assert result["height"] == 70
+
+
 def test_build_without_new_fields() -> None:
     parser = VitalsParser()
     data = {
