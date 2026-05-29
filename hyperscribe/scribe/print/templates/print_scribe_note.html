@@ -1,0 +1,158 @@
+{% extends "scribe/print/templates/print_base.html" %}
+
+{% block body_content %}
+    {% for cmd in commands %}
+    {% if cmd.section_header %}
+    <div class="soap-header">{{ cmd.section_header }}</div>
+    {% else %}
+    <div class="content-block">
+        {% if cmd.label %}
+        <div class="command-label">{{ cmd.label }}</div>
+        {% endif %}
+
+        {% if cmd.schema_key == "narrative" %}
+        {# --- Narrative section text from note_data --- #}
+        <div class="command-text">{{ cmd.content }}</div>
+
+        {% elif cmd.schema_key == "vitals" %}
+        {# --- Vitals: labeled items in flex wrap --- #}
+        <div class="vitals-values">
+            {% for part in cmd.vitals_parts %}
+            <span class="vitals-item"><strong>{{ part.label }}</strong> {{ part.value }} {{ part.unit }}</span>
+            {% endfor %}
+        </div>
+
+        {% elif cmd.schema_key == "diagnose" or cmd.schema_key == "assess" %}
+        {# --- Diagnose/Assess: ICD code (green) + display + assessment lines --- #}
+        <div class="diagnose-header">
+            {% if cmd.icd_code %}<span class="diagnose-icd-code">{{ cmd.icd_code }}</span>{% endif %}
+            <span class="diagnose-display">{{ cmd.icd_display }}</span>
+        </div>
+        {% if cmd.assessment_lines %}
+        <div class="diagnose-assessment">
+            {% for line in cmd.assessment_lines %}
+            <div>{{ line }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% elif cmd.schema_key == "prescribe" %}
+        {# --- Prescription: name (bold) + sig (italic) + details + pharmacy --- #}
+        <div class="order-view">
+            {% if cmd.name %}<div class="order-view-name">{{ cmd.name }}</div>{% endif %}
+            {% if cmd.sig %}<div class="order-view-sig">Sig: {{ cmd.sig }}</div>{% endif %}
+            {% if cmd.details %}<div class="order-view-details">{{ cmd.details }}</div>{% endif %}
+            {% if cmd.pharmacy %}<div class="order-view-details">Pharmacy: {{ cmd.pharmacy }}</div>{% endif %}
+            {% if cmd.pharmacist_note %}<div class="order-view-details">Note to pharmacist: {{ cmd.pharmacist_note }}</div>{% endif %}
+        </div>
+
+        {% elif cmd.schema_key == "medicationStatement" %}
+        {# --- Medication: name (bold) + sig (italic) --- #}
+        <div class="order-view">
+            {% if cmd.name %}<div class="order-view-name">{{ cmd.name }}</div>{% endif %}
+            {% if cmd.sig %}<div class="order-view-sig">{{ cmd.sig }}</div>{% endif %}
+        </div>
+
+        {% elif cmd.schema_key == "allergy" %}
+        {# --- Allergy: name + reaction/severity details --- #}
+        <div class="order-view">
+            {% if cmd.name %}<div class="order-view-name">{{ cmd.name }}</div>{% endif %}
+            {% if cmd.details %}<div class="order-view-sig">{{ cmd.details }}</div>{% endif %}
+        </div>
+
+        {% elif cmd.schema_key == "perform" %}
+        {# --- Charge: CPT code (navy bold) + description --- #}
+        <div class="charge-view">
+            {% if cmd.cpt_code %}<span class="charge-cpt-code">{{ cmd.cpt_code }}</span>{% endif %}
+            <span class="charge-description">{{ cmd.description }}</span>
+        </div>
+        {% if cmd.notes %}
+        <div class="order-view-details" style="margin-top: 4px;">{{ cmd.notes }}</div>
+        {% endif %}
+
+        {% elif cmd.schema_key == "labOrder" %}
+        {# --- Lab Order: test names (bold) + lab partner + details --- #}
+        <div class="order-view">
+            <div class="order-view-name">{{ cmd.name }}</div>
+            {% if cmd.lab_partner %}<div class="order-view-sig">{{ cmd.lab_partner }}{% if cmd.fasting %} &middot; Fasting{% endif %}</div>{% endif %}
+            {% if cmd.comment %}<div class="order-view-details">{{ cmd.comment }}</div>{% endif %}
+            {% if cmd.diagnosis_displays %}<div class="order-view-details">Dx: {{ cmd.diagnosis_displays|join:", " }}</div>{% endif %}
+        </div>
+
+        {% elif cmd.schema_key == "imagingOrder" %}
+        {# --- Imaging Order: name + details --- #}
+        <div class="order-view">
+            {% if cmd.name %}<div class="order-view-name">{{ cmd.name }}</div>{% endif %}
+            {% if cmd.details %}<div class="order-view-details">{{ cmd.details }}</div>{% endif %}
+        </div>
+
+        {% elif cmd.schema_key == "refer" %}
+        {# --- Referral: name + details --- #}
+        <div class="order-view">
+            {% if cmd.name %}<div class="order-view-name">{{ cmd.name }}</div>{% endif %}
+            {% if cmd.details %}<div class="order-view-details">{{ cmd.details }}</div>{% endif %}
+        </div>
+
+        {% elif cmd.schema_key == "task" %}
+        {# --- Task: name + details (due date, assignee, etc.) --- #}
+        <div class="order-view">
+            {% if cmd.name %}<div class="order-view-name">{{ cmd.name }}</div>{% endif %}
+            {% if cmd.details %}<div class="order-view-details">{{ cmd.details }}</div>{% endif %}
+        </div>
+
+        {% elif cmd.schema_key == "familyHistory" or cmd.schema_key == "medicalHistory" or cmd.schema_key == "surgicalHistory" %}
+        {# --- History entries: name + details (middle-dot separated) --- #}
+        <div class="order-view">
+            {% if cmd.name %}<div class="history-entry-name">{{ cmd.name }}</div>{% endif %}
+            {% if cmd.details %}<div class="history-entry-details">{{ cmd.details }}</div>{% endif %}
+        </div>
+
+        {% elif cmd.schema_key == "questionnaire" %}
+        {# --- Questionnaire: name + answered badge + Q&A pairs --- #}
+        <div>
+            <span class="order-view-name">{{ cmd.questionnaire_name }}</span>
+            {% if cmd.total %}
+            <span class="questionnaire-badge">{{ cmd.answered }}/{{ cmd.total }} answered</span>
+            {% endif %}
+        </div>
+        {% if cmd.questions_display %}
+        <div style="margin-top: 6px; font-size: 14px; line-height: 1.5;">
+            {% for q in cmd.questions_display %}
+            <div><strong>{{ q.label }}:</strong> {{ q.answer }}</div>
+            {% endfor %}
+        </div>
+        {% elif cmd.html_content %}
+        <div class="html-content" style="margin-top: 6px;">{{ cmd.html_content|safe }}</div>
+        {% endif %}
+
+        {% elif cmd.schema_key == "stopMedication" or cmd.schema_key == "removeAllergy" or cmd.schema_key == "resolveCondition" %}
+        {# --- Action commands: name + action badge + rationale --- #}
+        <div class="order-view">
+            <div class="order-view-name">
+                {{ cmd.name }}
+                <span class="action-badge action-badge-{{ cmd.action|lower }}">{{ cmd.action }}</span>
+            </div>
+            {% if cmd.rationale %}<div class="order-view-details">{{ cmd.rationale }}</div>{% endif %}
+        </div>
+
+        {% elif cmd.schema_key == "from_note" %}
+        {# --- Command synced from the note body (added outside the Scribe tab) --- #}
+        <div class="order-view">
+            {% for d in cmd.detail_rows %}
+            <div class="history-entry-details"><strong>{{ d.label }}:</strong> {{ d.value }}</div>
+            {% endfor %}
+        </div>
+
+        {% elif cmd.html_content %}
+        {# --- HTML content: ROS, PE, Chart Review, etc. --- #}
+        <div class="html-content">{{ cmd.html_content|safe }}</div>
+
+        {% elif cmd.content %}
+        {# --- Fallback: plain text content --- #}
+        <div class="command-text">{{ cmd.content }}</div>
+
+        {% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+{% endblock %}
