@@ -24,6 +24,11 @@
       window.addEventListener('message', function(event) {
         if (event.data && event.data.type === 'INIT_CHANNEL' && event.ports && event.ports[0]) {
           messagePort = event.ports[0];
+          // Bridge incoming messages on the port to a CustomEvent on `window`
+          // so React components can listen via a single dispatcher.
+          messagePort.onmessage = function(portEvent) {
+            window.dispatchEvent(new CustomEvent('canvas-message', { detail: portEvent.data }));
+          };
           messagePort.start();
           let view = '{{ view }}'
           if (view !== 'audit') {

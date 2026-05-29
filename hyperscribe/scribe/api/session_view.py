@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Any, Union
@@ -150,6 +151,118 @@ _AMEND_AUDIT_ENTRY_KEYS = (
     "command_uuid",  # KOALA-5485 delete: uses command_uuid (no new uuid minted).
     "mode",
 )
+
+# All commands synced from the note body land in this single section in the
+# Scribe tab, regardless of schema_key. Each renders with the same locked,
+# read-only card — no per-type routing into the existing SOAP groups.
+FROM_THE_NOTE_SECTION = "from_the_note"
+
+_CAMEL_BOUNDARY_RE = re.compile(r"([a-z0-9])([A-Z])")
+
+# Canonical labels for schema_keys whose humanized form would look wrong
+# (acronyms title-cased to 'Hpi', or Canvas keys that read better with
+# preposition lowercasing). Everything not in this map falls through to
+# _humanize_schema_key.
+_LABEL_OVERRIDES: dict[str, str] = {
+    "hpi": "HPI",
+    "rfv": "RFV",
+    "ros": "ROS",
+    "reasonForVisit": "Reason for Visit",
+    "historyOfPresentIllness": "History of Present Illness",
+    "reviewOfSystems": "Review of Systems",
+}
+
+
+def _humanize_schema_key(schema_key: str) -> str:
+    """Turn 'medicationStatement' / 'medication_statement' into 'Medication Statement'.
+
+    Python's str.title alone produces 'Medicationstatement' for camelCase
+    input because it treats the entire token as one word — we have to split
+    on the camelCase boundary first.
+    """
+    override = _LABEL_OVERRIDES.get(schema_key)
+    if override:
+        return override
+    spaced = _CAMEL_BOUNDARY_RE.sub(r"\1 \2", schema_key).replace("_", " ")
+    return spaced.strip().title() or "Command"
+
+
+def _extract_coded_display(value: Any) -> str:
+    """Pull a display string out of canvas-core's coded-value shape.
+
+    Most non-narrative commands (medication_statement, allergy, diagnose,
+    prescribe, perform, etc.) store their primary value as a dict shaped like
+    ``{value, text, extra: {coding: [{code, display, system}]}}`` — that's
+    what `CommandAdapter.get_command_object_field_values` produces (see
+    home-app's `builtin_content/core_types/adapters/*.py`). Pull the
+    user-facing `text` first, then fall back to the first coding's display.
+    """
+    if not isinstance(value, dict):
+        return ""
+    text = (value.get("text") or "").strip() if isinstance(value.get("text"), str) else ""
+    if text:
+        return text
+    extra = value.get("extra")
+    if isinstance(extra, dict):
+        coding = extra.get("coding")
+        if isinstance(coding, list) and coding and isinstance(coding[0], dict):
+            display = coding[0].get("display")
+            if isinstance(display, str) and display.strip():
+                return display.strip()
+    return ""
+
+
+def _humanize_field_name(name: str) -> str:
+    """'blood_pressure_systole' / 'fdbCode' → 'Blood Pressure Systole' / 'Fdb Code'."""
+    spaced = _CAMEL_BOUNDARY_RE.sub(r"\1 \2", name).replace("_", " ")
+    return spaced.strip().title()
+
+
+def _stringify_field(value: Any) -> str:
+    """Best-effort conversion of a JSON value to a single-line renderable string.
+
+    Booleans collapse to empty (they're almost always internal toggles like
+    ``disabled`` or ``show_in_condition_list`` — not useful to surface).
+    Dicts use the coded-value `text` when present, then a generic flatten of
+    their entries. Lists join their stringified items with ' · '.
+    """
+    if value is None or isinstance(value, bool):
+        return ""
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, dict):
+        coded = _extract_coded_display(value)
+        if coded:
+            return coded
+        parts: list[str] = []
+        for k, v in value.items():
+            if isinstance(k, str) and k.startswith("_"):
+                continue
+            inner = _stringify_field(v)
+            if inner:
+                parts.append(f"{_humanize_field_name(str(k))}: {inner}")
+        return ", ".join(parts)
+    if isinstance(value, list):
+        parts = [_stringify_field(v) for v in value]
+        return " · ".join(p for p in parts if p)
+    return ""
+
+
+def _details_for_command(data: dict[str, Any]) -> list[dict[str, str]]:
+    """Flatten Command.data into a list of ``{label, value}`` rows for the
+    ADDITIONAL COMMANDS card. Empty values and internal keys are skipped so
+    every row carries real information."""
+    details: list[dict[str, str]] = []
+    for key, value in data.items():
+        if isinstance(key, str) and key.startswith("_"):
+            continue
+        text = _stringify_field(value)
+        if text:
+            details.append({"label": _humanize_field_name(str(key)), "value": text})
+    return details
+
 
 SUMMARY_STEPS = [
     "Generating note",
@@ -1763,6 +1876,49 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             },
         )
         return [JSONResponse({"verified": verified, "failed": failed}, status_code=HTTPStatus.OK)]
+
+    @api.get("/note-commands")
+    def get_note_commands(self) -> list[Union[Response, Effect]]:
+        """Return every Command on the note for sync into the Scribe tab.
+
+        The Scribe normally only knows about commands it generated or inserted
+        itself (cached in ``ScribeSummary.commands``). This endpoint reflects
+        whatever's actually on the note's command rail — including ad-hoc
+        commands added via the EHR's note-body editor outside the Scribe iframe.
+
+        Every synced command goes into the ``from_the_note`` section as a
+        single, uniform locked card — no routing into the existing SOAP groups
+        or per-type render branches.
+        """
+        from canvas_sdk.v1.data.command import Command
+
+        note_uuid = str(self.request.query_params.get("note_id", ""))
+        if not note_uuid:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+
+        rows = list(
+            Command.objects.filter(note__id=note_uuid)
+            .exclude(state="entered_in_error")
+            .values("id", "schema_key", "data")
+        )
+        commands: list[dict[str, Any]] = []
+        for row in rows:
+            schema_key = row.get("schema_key") or ""
+            data = row.get("data") or {}
+            commands.append(
+                {
+                    "command_uuid": str(row["id"]),
+                    "command_type": schema_key,
+                    "section_key": FROM_THE_NOTE_SECTION,
+                    "label": _humanize_schema_key(schema_key),
+                    "details": _details_for_command(data),
+                    "already_documented": True,
+                    "_from_note": True,
+                }
+            )
+        return [JSONResponse({"commands": commands}, status_code=HTTPStatus.OK)]
 
     @api.post("/sign-note")
     def post_sign_note(self) -> list[Union[Response, Effect]]:
