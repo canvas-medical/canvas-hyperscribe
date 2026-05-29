@@ -172,6 +172,24 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.scribe.print.button:PrintScribeNoteButton",
+        "description": "Note header dropdown button that launches a print preview of the scribe summary",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.print.view:PrintScribeNoteView",
+        "description": "SimpleAPI endpoint that renders the scribe summary as a printable HTML document",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
       }
     ],
     "applications": [
