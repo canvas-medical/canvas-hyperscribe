@@ -31,11 +31,11 @@ builder.build_effects.
 from __future__ import annotations
 
 from canvas_sdk.effects import Effect
-from canvas_sdk.effects.billing_line_item import UpdateBillingLineItem
+from canvas_sdk.effects.billing_line_item import RemoveBillingLineItem, UpdateBillingLineItem
 from canvas_sdk.events import EventType
 from canvas_sdk.handlers.base import BaseHandler
 from canvas_sdk.v1.data.assessment import Assessment
-from canvas_sdk.v1.data.billing import BillingLineItem
+from canvas_sdk.v1.data.billing import BillingLineItem, BillingLineItemStatus
 from canvas_sdk.v1.data.command import Command
 
 from logger import log
@@ -170,5 +170,75 @@ class ClaimLinkSync(BaseHandler):
         log.info(
             "ClaimLinkSync: cpt=%s bli=%d assessments=%d/%d",
             cpt, len(bli_ids), len(target_assessment_ids), len(wanted),
+        )
+        return effects
+
+
+class PerformBillingLineItemRemoval(BaseHandler):
+    """Remove the BillingLineItem when a perform command is entered-in-error.
+
+    Canvas's home-app does not cascade `entered_in_error` on a perform command
+    to its BillingLineItem. The BLI persists in the note footer even though
+    the perform itself is voided. This causes two visible issues:
+
+    1. Amend-delete of a CPT (× button in Charges matrix during amendment):
+       the perform is EIE'd via /delete-existing-commands but its BLI stays,
+       so the footer shows a CPT row that doesn't exist in the matrix.
+
+    2. Amend-edit of a CPT via void_recreate (e.g. link toggle on an existing
+       perform during amendment): builder.build_amend_edit_effects emits
+       EIE(old) + Originate(new) + Commit(new). Without removal of the OLD
+       BLI, the footer ends up with two rows for the same CPT — the stale
+       one written before amendment, plus the fresh one ClaimLinkSync wrote.
+
+    Mirrors the SDK guide pattern at
+    docs.canvasmedical.com/sdk/effect-billing-line-items/#removing-a-billing-line-item.
+    """
+
+    RESPONDS_TO = [EventType.Name(EventType.PERFORM_COMMAND__POST_ENTER_IN_ERROR)]
+
+    def compute(self) -> list[Effect]:
+        command_id = self.event.target.id if self.event and self.event.target else None
+        if not command_id:
+            return []
+
+        try:
+            cmd = Command.objects.select_related("note").get(id=command_id)
+        except Command.DoesNotExist:
+            return []
+
+        cpt = ((cmd.data or {}).get("perform") or {}).get("value")
+        if not cpt:
+            return []
+
+        note = cmd.note
+        if not note:
+            return []
+
+        # Target the BLI created for THIS specific perform via command_id, NOT
+        # `cpt=cpt, note_id=note.dbid`. During amendment void_recreate, the
+        # builder emits EIE(old) + Originate(new) + Commit(new) — both old and
+        # new performs share the same cpt on the same note, so a cpt-scoped
+        # filter would also remove the freshly-recreated BLI that
+        # ClaimLinkSync just populated. `command_id` is the BLI's FK to the
+        # Command.dbid that produced it, so it scopes precisely to the voided
+        # perform's BLI. ACTIVE status filter avoids re-removing a row this
+        # handler already removed on a prior fire.
+        bli_ids = list(
+            BillingLineItem.objects.filter(
+                command_id=cmd.dbid,
+                status=BillingLineItemStatus.ACTIVE,
+            ).values_list("id", flat=True)
+        )
+        if not bli_ids:
+            return []
+
+        effects = [
+            RemoveBillingLineItem(billing_line_item_id=str(bli_id)).apply()
+            for bli_id in bli_ids
+        ]
+        log.info(
+            "PerformBillingLineItemRemoval: cpt=%s bli_removed=%d note=%s",
+            cpt, len(bli_ids), note.id,
         )
         return effects

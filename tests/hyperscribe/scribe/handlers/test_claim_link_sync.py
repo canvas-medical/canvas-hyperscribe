@@ -11,7 +11,11 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from hyperscribe.scribe.handlers.claim_link_sync import ClaimLinkSync, _strip
+from hyperscribe.scribe.handlers.claim_link_sync import (
+    ClaimLinkSync,
+    PerformBillingLineItemRemoval,
+    _strip,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -512,3 +516,103 @@ def test_compute_preserves_provider_click_order_for_diagnosis_pointers(
     assert mock_update_cls.call_args.kwargs["assessment_ids"] == [
         "a-m545", "a-k219", "a-i10", "a-e119",
     ]
+
+
+# ---------------------------------------------------------------------------
+# PerformBillingLineItemRemoval — voids the BLI when a perform is EIE'd.
+# ---------------------------------------------------------------------------
+
+
+def _make_removal_handler(target_id: str | None = "cmd-uuid") -> PerformBillingLineItemRemoval:
+    handler = PerformBillingLineItemRemoval.__new__(PerformBillingLineItemRemoval)
+    target = SimpleNamespace(id=target_id) if target_id is not None else None
+    handler.event = SimpleNamespace(target=target, context={})
+    handler.secrets = {}
+    handler.environment = {}
+    return handler
+
+
+def test_removal_responds_to_perform_command_post_enter_in_error() -> None:
+    assert PerformBillingLineItemRemoval.RESPONDS_TO == ["PERFORM_COMMAND__POST_ENTER_IN_ERROR"]
+
+
+def test_removal_no_event_target_returns_empty() -> None:
+    assert _make_removal_handler(target_id=None).compute() == []
+
+
+def test_removal_event_none_returns_empty() -> None:
+    handler = PerformBillingLineItemRemoval.__new__(PerformBillingLineItemRemoval)
+    handler.event = None
+    assert handler.compute() == []
+
+
+@patch("hyperscribe.scribe.handlers.claim_link_sync.Command")
+def test_removal_command_does_not_exist_returns_empty(mock_command_cls: MagicMock) -> None:
+    class DoesNotExist(Exception):
+        pass
+
+    mock_command_cls.DoesNotExist = DoesNotExist
+    mock_command_cls.objects.select_related.return_value.get.side_effect = DoesNotExist
+    assert _make_removal_handler().compute() == []
+
+
+@patch("hyperscribe.scribe.handlers.claim_link_sync.Command")
+def test_removal_no_cpt_returns_empty(mock_command_cls: MagicMock) -> None:
+    cmd = SimpleNamespace(dbid=11, data={}, note=SimpleNamespace(dbid=1, id="note-uuid"))
+    mock_command_cls.objects.select_related.return_value.get.return_value = cmd
+    assert _make_removal_handler().compute() == []
+
+
+@patch("hyperscribe.scribe.handlers.claim_link_sync.Command")
+def test_removal_no_note_returns_empty(mock_command_cls: MagicMock) -> None:
+    cmd = SimpleNamespace(dbid=11, data={"perform": {"value": "99213"}}, note=None)
+    mock_command_cls.objects.select_related.return_value.get.return_value = cmd
+    assert _make_removal_handler().compute() == []
+
+
+@patch("hyperscribe.scribe.handlers.claim_link_sync.BillingLineItem")
+@patch("hyperscribe.scribe.handlers.claim_link_sync.Command")
+def test_removal_no_active_bli_for_command_returns_empty(
+    mock_command_cls: MagicMock,
+    mock_bli_cls: MagicMock,
+) -> None:
+    cmd = SimpleNamespace(
+        dbid=11,
+        data={"perform": {"value": "99213"}},
+        note=SimpleNamespace(dbid=1, id="note-uuid"),
+    )
+    mock_command_cls.objects.select_related.return_value.get.return_value = cmd
+    mock_bli_cls.objects.filter.return_value.values_list.return_value = []
+    assert _make_removal_handler().compute() == []
+
+
+@patch("hyperscribe.scribe.handlers.claim_link_sync.RemoveBillingLineItem")
+@patch("hyperscribe.scribe.handlers.claim_link_sync.BillingLineItem")
+@patch("hyperscribe.scribe.handlers.claim_link_sync.Command")
+def test_removal_emits_remove_effect_scoped_to_command_id(
+    mock_command_cls: MagicMock,
+    mock_bli_cls: MagicMock,
+    mock_remove_cls: MagicMock,
+) -> None:
+    """During amend void_recreate, old and new performs share the same
+    cpt + note. The BLI filter must scope to command_id so we don't remove
+    the freshly-recreated BLI."""
+    cmd = SimpleNamespace(
+        dbid=11,
+        data={"perform": {"value": "99213"}},
+        note=SimpleNamespace(dbid=1, id="note-uuid"),
+    )
+    mock_command_cls.objects.select_related.return_value.get.return_value = cmd
+    mock_bli_cls.objects.filter.return_value.values_list.return_value = ["bli-1"]
+    mock_remove_cls.return_value.apply.return_value = "effect-1"
+
+    effects = _make_removal_handler().compute()
+
+    assert effects == ["effect-1"]
+    # The filter MUST be by command_id (Command.dbid) — not cpt + note_id —
+    # so that during amend void_recreate it only targets the EIE'd perform's
+    # BLI, not the freshly-recreated perform's BLI that shares the same cpt.
+    filter_kwargs = mock_bli_cls.objects.filter.call_args.kwargs
+    assert filter_kwargs["command_id"] == 11
+    assert filter_kwargs["status"].name == "ACTIVE"
+    assert mock_remove_cls.call_args.kwargs == {"billing_line_item_id": "bli-1"}
