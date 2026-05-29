@@ -1698,6 +1698,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const showAddCell = !readOnly && !!onAddTemplateCharge;
           const showTemplatePills = !readOnly && templatePills.length > 0;
           const totalCols = 1 + activeCpts.length + (showAddCell ? 1 : 0);
+          // Reordering rows/columns is positional in commands[] — it has no
+          // backend persistence path during amendment (Canvas's box 21 order
+          // is locked at Assessment commit time, not driven by Scribe's
+          // commands[] ordering post-commit). Showing draggable rank UI in
+          // amendment mode would mislead the provider into thinking they
+          // can change diagnosis-pointer order post-sign. Gate the reorder
+          // primitives (draggable + the rank <input> vs pill choice) on
+          // isAmending alongside readOnly. CPT-ICD link toggling stays
+          // enabled — that path is amendment-aware via _amend_edited.
+          const reorderDisabled = readOnly || !!isAmending;
 
           // Empty state: no diagnoses AND no CPTs. Show only the trigger UI.
           if (rankList.length === 0 && activeCpts.length === 0) {
@@ -1738,13 +1748,13 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     ${activeCpts.map(c => html`
                       <th
                         key=${c.cpt_code}
-                        class="cm-cpt-col-head cm-draggable"
-                        draggable=${!readOnly}
-                        onDragStart=${makeDragStart('cpt', c.index)}
-                        onDragEnd=${makeDragEnd}
-                        onDragOver=${makeDragOver('cpt')}
-                        onDragLeave=${makeDragLeave}
-                        onDrop=${makeDrop('cpt', c.index)}
+                        class="cm-cpt-col-head${reorderDisabled ? '' : ' cm-draggable'}"
+                        draggable=${!reorderDisabled}
+                        onDragStart=${reorderDisabled ? undefined : makeDragStart('cpt', c.index)}
+                        onDragEnd=${reorderDisabled ? undefined : makeDragEnd}
+                        onDragOver=${reorderDisabled ? undefined : makeDragOver('cpt')}
+                        onDragLeave=${reorderDisabled ? undefined : makeDragLeave}
+                        onDrop=${reorderDisabled ? undefined : makeDrop('cpt', c.index)}
                       >
                         <span class="cm-cpt-code">${c.cpt_code}</span>
                         <span class="cm-cpt-desc">${c.description}</span>
@@ -1762,16 +1772,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     <tr key=${r.index}>
                       <th
                         scope="row"
-                        class="cm-dx-row-head cm-draggable"
-                        draggable=${!readOnly}
-                        onDragStart=${makeDragStart('dx', r.index)}
-                        onDragEnd=${makeDragEnd}
-                        onDragOver=${makeDragOver('dx')}
-                        onDragLeave=${makeDragLeave}
-                        onDrop=${makeDrop('dx', r.index)}
+                        class="cm-dx-row-head${reorderDisabled ? '' : ' cm-draggable'}"
+                        draggable=${!reorderDisabled}
+                        onDragStart=${reorderDisabled ? undefined : makeDragStart('dx', r.index)}
+                        onDragEnd=${reorderDisabled ? undefined : makeDragEnd}
+                        onDragOver=${reorderDisabled ? undefined : makeDragOver('dx')}
+                        onDragLeave=${reorderDisabled ? undefined : makeDragLeave}
+                        onDrop=${reorderDisabled ? undefined : makeDrop('dx', r.index)}
                       >
                         <span class="cm-dx-row-inner">
-                          ${readOnly
+                          ${reorderDisabled
                             ? html`<span class="cm-rank-pill">${r.number}</span>`
                             : html`<input
                                 type="number"

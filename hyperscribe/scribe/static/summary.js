@@ -377,6 +377,10 @@ function buildRankedDiagnoses(commands) {
   commands.forEach((cmd, index) => {
     if (cmd.command_type !== 'diagnose' && cmd.command_type !== 'assess') return;
     if (cmd.data?.rejected) return;
+    // _amend_deleted: command kept in commands[] for the amend-delete
+    // POST but should disappear from the matrix display (mirrors
+    // handleRemoveChargeByCpt's `selected: false` filter elsewhere).
+    if (cmd._amend_deleted) return;
     if (cmd.command_type === 'diagnose' && !cmd.data?.accepted) return;
     if (!cmd.data?.icd10_code) return;
     ranked.push({
@@ -1220,16 +1224,38 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const handleDelete = useCallback((index) => {
     logEvent('DELETE_COMMAND', { index, commandType: commands[index]?.command_type });
     if (!canEdit) return;
+    const amending = wasFinalized && !approved;
     setCommands(prev => {
+      const cmd = prev[index];
+      // Amend-aware delete: when an already-documented amend-eligible
+      // command is removed via the × button, keep it in commands[] but tag
+      // `_amend_deleted: true` + `selected: false` so handleInsert's
+      // amendDeletes pipeline POSTs a delete to /edit-existing-commands.
+      // Without this branch, deleting an assess/diagnose during amendment
+      // silently no-ops on the backend — the row vanishes from cache, but
+      // the Assessment stays committed on the chart and the BLI keeps
+      // referencing it. Mirrors handleRemoveChargeByCpt's pattern at
+      // line 1546. Display predicates (buildRankedDiagnoses,
+      // isInsertableCommand, charge-row filters) exclude `_amend_deleted`
+      // or `selected === false` so the row visually disappears.
+      if (cmd && cmd.already_documented && isAmendingSectionEditable(cmd, amending)) {
+        const updated = prev.map((c, i) =>
+          i === index ? { ...c, selected: false, _amend_deleted: true } : c
+        );
+        const pruned = pruneOrphanedLinks(prev, updated);
+        saveSummaryToCache(noteData, pruned, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
+        return pruned;
+      }
+      // Non-amend path: remove from array (original behavior). Same
+      // orphan-prune as handleEdit. Routine path: provider deletes an
+      // assess (or diagnose) row via the × button, leaving its ICD stale
+      // in every CPT's linked_icd10_codes.
       const updated = prev.filter((_, i) => i !== index);
-      // Same orphan-prune as handleEdit. Routine path: provider deletes an
-      // assess (or diagnose) row via the x button, leaving its ICD stale in
-      // every CPT's linked_icd10_codes.
       const pruned = pruneOrphanedLinks(prev, updated);
       saveSummaryToCache(noteData, pruned, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return pruned;
     });
-  }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+  }, [canEdit, wasFinalized, approved, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions, commands]);
 
   // Reorder commands by absolute index. Splice-out + splice-in works regardless
   // of direction because splice operates on the modified array; non-diagnose
@@ -1255,6 +1281,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // source of truth.
   const handleToggleCptLink = useCallback((cptIndex, icdCode) => {
     if (!canEdit || !icdCode) return;
+    const amending = wasFinalized && !approved;
     setCommands(prev => {
       const cmd = prev[cptIndex];
       if (!cmd || cmd.command_type !== 'perform') return prev;
@@ -1266,12 +1293,21 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (current.length >= 4) return prev;
         next = [...current, icdCode];
       }
+      const updatedCmd = { ...cmd, data: { ...cmd.data, linked_icd10_codes: next } };
       const updated = [...prev];
-      updated[cptIndex] = { ...cmd, data: { ...cmd.data, linked_icd10_codes: next } };
+      // KOALA-5485: tag amend-eligible performs so handleInsert routes the
+      // link change through /edit-existing-commands (void+recreate) →
+      // ClaimLinkSync writes the refreshed BLI.assessment_ids on the new
+      // perform's commit. Without this tag the cache reflects the new
+      // linkage but the chart's BLI is never updated. Mirrors handleEdit's
+      // tag at line 1212 and handleRemoveChargeByCpt at line 1546.
+      updated[cptIndex] = isAmendingSectionEditable(updatedCmd, amending)
+        ? { ...updatedCmd, _amend_edited: true }
+        : updatedCmd;
       saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return updated;
     });
-  }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+  }, [canEdit, wasFinalized, approved, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
   const handleAddTask = useCallback(() => {
     logEvent('ADD_TASK');
