@@ -108,10 +108,25 @@ def get_prior_section_data(note_id: str) -> dict[str, Any]:
             # that overflows bigint and triggers the silent-empty failure
             # mode in the surrounding try/except.
             .exclude(note_id=note.dbid)
+            # Exclude voided commands. After PR #276's amendment workflow
+            # (`void_recreate_custom` for PE/ROS), the OLD row persists with
+            # `state="entered_in_error"` on the same finalized note alongside
+            # the NEW committed row — both carry `data.content`, so without
+            # this filter the retracted clinical text could surface as the
+            # 'previous documentation' reference. Matches the codebase
+            # convention (commander.py, capture_view.py, tuning_archiver.py,
+            # case_builder.py all use state="staged" / state="committed").
+            .exclude(state="entered_in_error")
             .select_related("note")
         )
-        pe_cmd = base.filter(schema_key=_PE_KEY).order_by("-note__datetime_of_service").first()
-        ros_cmd = base.filter(schema_key=_ROS_KEY).order_by("-note__datetime_of_service").first()
+        # `-dbid` is the deterministic tiebreaker for the case where both
+        # the voided and the recreated row share `note__datetime_of_service`
+        # (always true on amend within a single signed note). Without it
+        # PostgreSQL's tie resolution is undefined and the wrong row can win.
+        # The exclude above already drops the voided row, but the tiebreaker
+        # guards against any future scenario where two valid rows tie.
+        pe_cmd = base.filter(schema_key=_PE_KEY).order_by("-note__datetime_of_service", "-dbid").first()
+        ros_cmd = base.filter(schema_key=_ROS_KEY).order_by("-note__datetime_of_service", "-dbid").first()
     except Exception:
         log.exception("prior_sections: query failed for note %s", note_id)
         return empty

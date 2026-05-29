@@ -121,8 +121,16 @@ class ClaimLinkSync(BaseHandler):
         # `prefetch_related("condition__codings")` collapses the per-assessment
         # codings lookup (would be N+1) into a single batched query.
         icd_to_assessment: dict[str, str] = {}
+        # `entered_in_error_id__isnull=True` excludes voided assessments per
+        # REVIEW.md's "Always check" rule for clinical-data queries. The
+        # amendment workflow (PR #276) emits EnterInError(old) + Originate(new)
+        # on the same note with the same ICD; without this filter the old
+        # voided Assessment.id could win the first-wins guard below and land
+        # in BillingLineItem.assessment_ids (CMS-1500 box 24E diagnosis
+        # pointers). Matches carry_forward.py:94, limited_cache.py:218, and
+        # interactions.py:92 patterns elsewhere in the codebase.
         assessments = (
-            Assessment.objects.filter(note_id=note.dbid)
+            Assessment.objects.filter(note_id=note.dbid, entered_in_error_id__isnull=True)
             .select_related("condition")
             .prefetch_related("condition__codings")
         )

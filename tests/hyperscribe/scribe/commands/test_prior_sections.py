@@ -75,7 +75,7 @@ def test_returns_payloads_for_each_command_type(mock_note_cls, mock_command_cls)
         return MagicMock()
 
     base.filter.side_effect = side_effect_filter
-    (mock_command_cls.objects.filter.return_value.exclude.return_value.select_related.return_value) = base
+    (mock_command_cls.objects.filter.return_value.exclude.return_value.exclude.return_value.select_related.return_value) = base
 
     result = get_prior_section_data("cur")
     assert result["physical_exam"]["source_note_id"] == "note-pe"
@@ -111,7 +111,7 @@ def test_returns_none_for_command_type_with_no_prior_match(mock_note_cls, mock_c
     none_qs = MagicMock()
     none_qs.order_by.return_value.first.return_value = None
     base.filter.return_value = none_qs
-    (mock_command_cls.objects.filter.return_value.exclude.return_value.select_related.return_value) = base
+    (mock_command_cls.objects.filter.return_value.exclude.return_value.exclude.return_value.select_related.return_value) = base
 
     result = get_prior_section_data("cur")
     assert result == {"physical_exam": None, "review_of_systems": None}
@@ -139,7 +139,7 @@ def test_returns_none_when_html_yields_no_sections(mock_note_cls, mock_command_c
         return pe_qs if kwargs.get("schema_key") == "physicalExam" else none_qs
 
     base.filter.side_effect = side_effect_filter
-    (mock_command_cls.objects.filter.return_value.exclude.return_value.select_related.return_value) = base
+    (mock_command_cls.objects.filter.return_value.exclude.return_value.exclude.return_value.select_related.return_value) = base
 
     result = get_prior_section_data("cur")
     assert result["physical_exam"] is None
@@ -233,7 +233,7 @@ def test_returns_empty_when_payload_build_raises(
         return pe_qs if kwargs.get("schema_key") == "physicalExam" else none_qs
 
     base.filter.side_effect = side_effect_filter
-    (mock_command_cls.objects.filter.return_value.exclude.return_value.select_related.return_value) = base
+    (mock_command_cls.objects.filter.return_value.exclude.return_value.exclude.return_value.select_related.return_value) = base
 
     # Force _command_to_payload to blow up — easiest path is to make the
     # downstream parser raise.
@@ -272,7 +272,7 @@ def test_handles_command_with_raw_string_data(mock_note_cls, mock_command_cls) -
         return pe_qs if kwargs.get("schema_key") == "physicalExam" else none_qs
 
     base.filter.side_effect = side_effect_filter
-    (mock_command_cls.objects.filter.return_value.exclude.return_value.select_related.return_value) = base
+    (mock_command_cls.objects.filter.return_value.exclude.return_value.exclude.return_value.select_related.return_value) = base
 
     result = get_prior_section_data("cur")
     assert result["physical_exam"]["sections"] == [{"title": "Heart", "text": "RRR"}]
