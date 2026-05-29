@@ -267,6 +267,54 @@ def test_compute_no_billing_line_item_returns_empty(
 @patch("hyperscribe.scribe.handlers.claim_link_sync.Assessment")
 @patch("hyperscribe.scribe.handlers.claim_link_sync.ScribeSummary")
 @patch("hyperscribe.scribe.handlers.claim_link_sync.Command")
+def test_compute_assessment_query_excludes_entered_in_error(
+    mock_command_cls: MagicMock,
+    mock_summary_cls: MagicMock,
+    mock_assessment_cls: MagicMock,
+    mock_bli_cls: MagicMock,
+    mock_update_cls: MagicMock,
+) -> None:
+    """The Assessment query MUST filter `entered_in_error_id__isnull=True`.
+
+    Under PR #276's amendment workflow (EIE(old) + Originate(new) on the
+    same note, same ICD), without this filter the voided Assessment.id
+    can win the first-wins guard and land in
+    BillingLineItem.assessment_ids — CMS-1500 box 24E diagnosis pointers
+    that drive payer routing and medical-necessity edits. Same query also
+    needs to be scoped to `note_id=note.dbid` (note.id, the UUID, would
+    overflow bigint silently)."""
+    cmd = SimpleNamespace(
+        id="x", data={"perform": {"value": "99213"}},
+        note=SimpleNamespace(dbid=42, id="note-uuid"),
+    )
+    mock_command_cls.objects.select_related.return_value.get.return_value = cmd
+    summary = SimpleNamespace(commands=[
+        {"command_type": "perform", "data": {"cpt_code": "99213", "linked_icd10_codes": ["E11.9"]}},
+    ])
+    mock_summary_cls.objects.filter.return_value.first.return_value = summary
+    mock_assessment_cls.objects.filter.return_value.select_related.return_value.prefetch_related.return_value = [
+        _fake_assessment("a-1", "E11.9"),
+    ]
+    mock_bli_cls.objects.filter.return_value.values_list.return_value = ["bli-1"]
+    mock_update_cls.return_value.apply.return_value = "effect-1"
+
+    handler = _make_handler()
+    handler.compute()
+
+    # Pin the load-bearing filter shape — same kwargs the docstring promises.
+    mock_assessment_cls.objects.filter.assert_called_once_with(
+        note_id=42, entered_in_error_id__isnull=True,
+    )
+    # BLI filter is cpt + note_id (UpdateBLI path doesn't need a status
+    # filter — we're writing assessment_ids regardless of REMOVED/ACTIVE).
+    mock_bli_cls.objects.filter.assert_called_once_with(cpt="99213", note_id=42)
+
+
+@patch("hyperscribe.scribe.handlers.claim_link_sync.UpdateBillingLineItem")
+@patch("hyperscribe.scribe.handlers.claim_link_sync.BillingLineItem")
+@patch("hyperscribe.scribe.handlers.claim_link_sync.Assessment")
+@patch("hyperscribe.scribe.handlers.claim_link_sync.ScribeSummary")
+@patch("hyperscribe.scribe.handlers.claim_link_sync.Command")
 def test_compute_emits_update_with_translated_assessment_ids(
     mock_command_cls: MagicMock,
     mock_summary_cls: MagicMock,

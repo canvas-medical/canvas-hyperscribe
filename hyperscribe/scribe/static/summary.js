@@ -1281,9 +1281,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // source of truth.
   const handleToggleCptLink = useCallback((cptIndex, icdCode) => {
     if (!canEdit || !icdCode) return;
-    const amending = wasFinalized && !approved;
     // Charges matrix is read-only during amendment.
-    if (amending) return;
+    if (wasFinalized && !approved) return;
     setCommands(prev => {
       const cmd = prev[cptIndex];
       if (!cmd || cmd.command_type !== 'perform') return prev;
@@ -1295,17 +1294,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (current.length >= 4) return prev;
         next = [...current, icdCode];
       }
-      const updatedCmd = { ...cmd, data: { ...cmd.data, linked_icd10_codes: next } };
       const updated = [...prev];
-      // KOALA-5485: tag amend-eligible performs so handleInsert routes the
-      // link change through /edit-existing-commands (void+recreate) →
-      // ClaimLinkSync writes the refreshed BLI.assessment_ids on the new
-      // perform's commit. Without this tag the cache reflects the new
-      // linkage but the chart's BLI is never updated. Mirrors handleEdit's
-      // tag at line 1212 and handleRemoveChargeByCpt at line 1546.
-      updated[cptIndex] = isAmendingSectionEditable(updatedCmd, amending)
-        ? { ...updatedCmd, _amend_edited: true }
-        : updatedCmd;
+      updated[cptIndex] = { ...cmd, data: { ...cmd.data, linked_icd10_codes: next } };
       saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return updated;
     });
@@ -1541,19 +1531,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // handler level (the UI in soap-group.js also disables the pill/+CPT cell).
     if (wasFinalized && !approved) return;
     setCommands(prev => {
-      // Re-select if already exists but deselected. KOALA-5485: if this was
-      // an amend-mode delete that the user just toggled back on, also clear
-      // the `_amend_deleted` tag so handleInsert does NOT POST a delete for
-      // it. The user changed their mind - no chart state change required.
+      // Re-select if already exists but deselected.
       const existing = prev.find(c => c.command_type === 'perform' && c.data.cpt_code === cptCode);
       if (existing) {
-        return prev.map(c => {
-          if (c.command_type === 'perform' && c.data.cpt_code === cptCode) {
-            const { _amend_deleted, ...rest } = c;
-            return { ...rest, selected: true };
-          }
-          return c;
-        });
+        return prev.map(c =>
+          c.command_type === 'perform' && c.data.cpt_code === cptCode
+            ? { ...c, selected: true }
+            : c
+        );
       }
       return [...prev, {
         command_type: 'perform',
@@ -1571,25 +1556,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (!canEdit) return;
     // Charges matrix is read-only during amendment.
     if (wasFinalized && !approved) return;
-    // KOALA-5485: in amend mode, unchecking an already-documented charge must
-    // also set `_amend_deleted: true` so handleInsert POSTs a delete to mark
-    // the chart row entered-in-error. The `_amend_deleted` tag is gated by
-    // `isAmendingSectionEditable` (same eligibility filter as edit) so
-    // freshly-added ad-hoc charges (no command_uuid) and non-amend toggles
-    // continue to behave as before - just `selected: false`.
-    //
-    // Without this tag the uncheck silently no-ops: handleInsert's insertable
-    // filter drops the deselected command, but because no edit happened the
-    // `_amend_edited` tag is never set either, so the existing amend POST
-    // also drops it. Chart stays committed.
-    const amending = wasFinalized && !approved;
-    setCommands(prev => prev.map(c => {
-      if (c.command_type !== 'perform' || c.data.cpt_code !== cptCode) return c;
-      if (c.already_documented && isAmendingSectionEditable(c, amending)) {
-        return { ...c, selected: false, _amend_deleted: true };
-      }
-      return { ...c, selected: false };
-    }));
+    setCommands(prev => prev.map(c =>
+      c.command_type === 'perform' && c.data.cpt_code === cptCode
+        ? { ...c, selected: false }
+        : c
+    ));
   }, [canEdit, wasFinalized, approved]);
 
   const handleAddCondition = useCallback((icd10Code, icd10Display, conditionId) => {
@@ -2045,16 +2016,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         //       must reflect approved=true so reload doesn't lose the approval.
         // Pinned by `test_summary_js_cache_flip_to_approved_true_is_unconditional_on_success`.
         //
-        // AWAITED (not fire-and-forget) because /edit-existing-commands below
-        // emits effects whose PERFORM_COMMAND__POST_COMMIT handler
-        // (ClaimLinkSync) reads ScribeSummary.commands to resolve a perform's
-        // linked_icd10_codes. If this /save-summary POST were still in flight
-        // when /edit-existing-commands runs, ClaimLinkSync would read a stale
-        // cache that doesn't carry the user's latest link toggles — and any
-        // ICD added to a perform via handleToggleCptLink during amendment
-        // would be silently dropped from BillingLineItem.assessment_ids. The
-        // matrix-vs-footer mismatch bug ("Z75.9 missing on 92610") was this
-        // race.
+        // AWAITED (not fire-and-forget) so ScribeSummary.commands carries the
+        // latest pre-amend state by the time /edit-existing-commands fires.
+        // The PERFORM_COMMAND__POST_COMMIT handler (ClaimLinkSync) reads
+        // ScribeSummary.commands to resolve a perform's linked_icd10_codes
+        // into BillingLineItem.assessment_ids; if this save were still in
+        // flight when /edit-existing-commands runs, ClaimLinkSync would read
+        // a stale cache and silently drop user-toggled ICDs.
+        //
+        // No live consumer on HEAD: the Charges matrix is read-only during
+        // amendment, so handleToggleCptLink can't fire and the freshness
+        // guarantee has nothing to guard against today. Kept in place for
+        // the re-enable path — if a future PR restores matrix editability
+        // during amendment, removing this await silently reintroduces the
+        // "Z75.9 missing on amended perform" mismatch.
         await saveSummaryToCache(noteData, updatedCommands, true, {
           recommendations, unmatched_conditions: unmatchedConditions,
           diagnosis_suggestions: diagnosisSuggestions,

@@ -179,17 +179,17 @@ class PerformBillingLineItemRemoval(BaseHandler):
 
     Canvas's home-app does not cascade `entered_in_error` on a perform command
     to its BillingLineItem. The BLI persists in the note footer even though
-    the perform itself is voided. This causes two visible issues:
+    the perform itself is voided.
 
-    1. Amend-delete of a CPT (× button in Charges matrix during amendment):
-       the perform is EIE'd via /delete-existing-commands but its BLI stays,
-       so the footer shows a CPT row that doesn't exist in the matrix.
+    Currently triggered via:
 
-    2. Amend-edit of a CPT via void_recreate (e.g. link toggle on an existing
-       perform during amendment): builder.build_amend_edit_effects emits
-       EIE(old) + Originate(new) + Commit(new). Without removal of the OLD
-       BLI, the footer ends up with two rows for the same CPT — the stale
-       one written before amendment, plus the fresh one ClaimLinkSync wrote.
+    * Amend void_recreate of a perform (builder.build_amend_edit_effects emits
+      EIE(old) + Originate(new) + Commit(new)) — without removal of the OLD
+      BLI, the footer would end up with two rows for the same CPT, the stale
+      one written before amendment plus the fresh one ClaimLinkSync wrote.
+      Not reachable from the Charges matrix on HEAD (matrix is read-only
+      during amendment), but stays valid defense for any non-matrix path
+      that EIEs a perform.
 
     Mirrors the SDK guide pattern at
     docs.canvasmedical.com/sdk/effect-billing-line-items/#removing-a-billing-line-item.

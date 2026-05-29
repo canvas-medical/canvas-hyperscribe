@@ -46,6 +46,7 @@ def _maybe_b64decode(value: str) -> str:
     except Exception:
         return value
 
+
 # Note states that count as "finalized clinical record" for our purposes.
 # LKD = Locked, SGN = Signed (see canvas_sdk.v1.data.note.NoteStates).
 _FINALIZED_STATES = ("LKD", "SGN")
