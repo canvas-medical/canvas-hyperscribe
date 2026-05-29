@@ -28,8 +28,8 @@ def _parse_vitals(text: str) -> dict[str, int | float | None]:
         if m:
             result["pulse"] = int(m.group(1))
             continue
-        # Respiration
-        m = re.search(r"(?:RR|Resp(?:iration)?\s*(?:rate)?)[:\s]*(\d+)", line, re.IGNORECASE)
+        # Respiration — "RR", "Respiration", "Respiratory rate", "Resp rate"
+        m = re.search(r"(?:RR|Resp[a-z]*(?:\s*rate)?)[:\s]*(\d+)", line, re.IGNORECASE)
         if m:
             result["respiration_rate"] = int(m.group(1))
             continue
@@ -43,11 +43,26 @@ def _parse_vitals(text: str) -> dict[str, int | float | None]:
         if m:
             result["body_temperature"] = float(m.group(1))
             continue
-        # Height (feet'inches")
-        m = re.search(r"Height[:\s]*(\d+)'(\d+)\"", line, re.IGNORECASE)
-        if m:
-            result["height"] = int(m.group(1)) * 12 + int(m.group(2))
-            continue
+        # Height — stored in inches. The pipeline normalizes spoken height to plain
+        # inches ("70 in"), but also accept the typographic 5'10" form and spoken
+        # feet/inches ("5 ft 10 in", "5 feet 10 inches", "5 foot 10", "6 feet").
+        if re.search(r"\bheight\b", line, re.IGNORECASE):
+            feet_inches = re.search(
+                r"(\d+)\s*(?:'|ft\b|foot\b|feet\b)\s*(\d+)\s*(?:\"|in\b|inch|inches)?",
+                line,
+                re.IGNORECASE,
+            )
+            feet_only = re.search(r"(\d+)\s*(?:'|ft\b|foot\b|feet\b)", line, re.IGNORECASE)
+            inches_only = re.search(r"(\d+)\s*(?:\"|in\b|inch|inches)", line, re.IGNORECASE)
+            if feet_inches:
+                result["height"] = int(feet_inches.group(1)) * 12 + int(feet_inches.group(2))
+                continue
+            if feet_only:
+                result["height"] = int(feet_only.group(1)) * 12
+                continue
+            if inches_only:
+                result["height"] = int(inches_only.group(1))
+                continue
         # Weight
         m = re.search(r"Weight[:\s]*(\d+)\s*(?:lbs?|pounds?)", line, re.IGNORECASE)
         if m:
