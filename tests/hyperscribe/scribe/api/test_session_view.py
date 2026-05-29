@@ -1631,12 +1631,23 @@ def test_edit_existing_commands_silently_drops_disallowed_section(mock_build: Ma
     mock_build.return_value = ([], [])
 
     view = _helper_instance()
+    # Send a section-disallowed prescribe with COMPLETE Rx data — this test
+    # exercises section filtering, not Rx validation. validate_rx_payload
+    # (new in PR #276) runs before the section drop, so incomplete Rx data
+    # would 400 here on Rx-field errors, masking the test's actual intent.
     commands = [
         {
             "command_type": "prescribe",
             "command_uuid": "rx-uuid",
             "section_key": "_recommended",  # not in EDITABLE_AMEND_SECTIONS
-            "data": {"sig": "daily"},
+            "data": {
+                "fdb_code": "12345",
+                "sig": "Take 1 tab daily",
+                "quantity_to_dispense": 30,
+                "type_to_dispense": "tablet",
+                "refills": 0,
+                "substitutions": "allowed",
+            },
             "display": "Lisinopril",
         },
     ]
