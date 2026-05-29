@@ -1,4 +1,7 @@
 from hyperscribe.scribe.print.scribe_data import (
+    ADDITIONAL_COMMANDS_TITLE,
+    _from_note_to_display,
+    _is_from_note_command,
     _section_key_to_soap,
     _should_include_command,
     _should_include_recommendation,
@@ -210,3 +213,96 @@ def test_build_skips_rejected_recommendations() -> None:
         ],
     )
     assert items == []
+
+
+# --- additional commands (from the note body) ---
+
+
+def test_is_from_note_command_detects_flag_and_section_key() -> None:
+    assert _is_from_note_command({"_from_note": True}) is True
+    assert _is_from_note_command({"section_key": "from_the_note"}) is True
+    assert _is_from_note_command({"section_key": "_ad_hoc"}) is False
+    assert _is_from_note_command({}) is False
+
+
+def test_from_note_to_display_maps_label_and_details() -> None:
+    cmd = {
+        "command_type": "goal",
+        "label": "Goal",
+        "section_key": "from_the_note",
+        "_from_note": True,
+        "command_uuid": "abc",
+        "details": [
+            {"label": "Goal Statement", "value": "Lose 5 lbs"},
+            {"label": "Empty", "value": ""},
+        ],
+    }
+    result = _from_note_to_display(cmd)
+    assert result["schema_key"] == "from_note"
+    assert result["label"] == "Goal"
+    # Empty-value rows are dropped.
+    assert result["detail_rows"] == [{"label": "Goal Statement", "value": "Lose 5 lbs"}]
+
+
+def test_from_note_to_display_falls_back_to_humanized_type_when_no_label() -> None:
+    result = _from_note_to_display({"command_type": "medicationStatement", "details": []})
+    assert result["label"] == "Medication Statement"
+
+
+def test_build_appends_additional_commands_section_last() -> None:
+    note_data = {
+        "sections": [{"key": "chief_complaint", "title": "CC", "text": "Cough"}],
+    }
+    commands = [
+        {
+            "command_type": "goal",
+            "label": "Goal",
+            "section_key": "from_the_note",
+            "_from_note": True,
+            "command_uuid": "abc",
+            "details": [{"label": "Goal Statement", "value": "Walk daily"}],
+        },
+    ]
+    items = build_scribe_body_items(note_data, commands, [])
+
+    headers = [item["section_header"] for item in items if item.get("section_header")]
+    # SUBJECTIVE (narrative) comes first, ADDITIONAL COMMANDS is the final header.
+    assert headers[-1] == ADDITIONAL_COMMANDS_TITLE
+    assert "SUBJECTIVE" in headers
+
+    from_note_item = next(item for item in items if item.get("schema_key") == "from_note")
+    assert from_note_item["label"] == "Goal"
+    assert from_note_item["detail_rows"] == [{"label": "Goal Statement", "value": "Walk daily"}]
+
+
+def test_build_no_additional_commands_section_when_none() -> None:
+    note_data = {"sections": [{"key": "chief_complaint", "title": "CC", "text": "Cough"}]}
+    items = build_scribe_body_items(note_data, [], [])
+    headers = [item["section_header"] for item in items if item.get("section_header")]
+    assert ADDITIONAL_COMMANDS_TITLE not in headers
+
+
+def test_build_from_note_commands_preserve_list_order() -> None:
+    commands = [
+        {"command_type": "goal", "label": "Goal", "_from_note": True, "command_uuid": "1", "details": []},
+        {"command_type": "task", "label": "Task", "_from_note": True, "command_uuid": "2", "details": []},
+    ]
+    items = build_scribe_body_items({"sections": []}, commands, [])
+    from_note_labels = [i["label"] for i in items if i.get("schema_key") == "from_note"]
+    assert from_note_labels == ["Goal", "Task"]
+
+
+def test_build_from_note_command_not_dropped_for_missing_display() -> None:
+    """From-note commands have no `display`/`data` — they must still print."""
+    commands = [
+        {
+            "command_type": "surgicalHistory",
+            "label": "Surgical History",
+            "section_key": "from_the_note",
+            "_from_note": True,
+            "command_uuid": "xyz",
+            "details": [{"label": "Procedure", "value": "Appendectomy"}],
+        },
+    ]
+    items = build_scribe_body_items({"sections": []}, commands, [])
+    assert any(i.get("schema_key") == "from_note" for i in items)

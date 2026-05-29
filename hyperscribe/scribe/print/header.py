@@ -26,9 +26,7 @@ def build_note_header_context(note: Any) -> dict[str, Any]:
     try:
         current = note.current_state
         if current and current.state in ("SGN", "LKD", "RLK"):
-            sign_event = note.state_history.filter(
-                state__in=("SGN", "LKD", "RLK")
-            ).order_by("-created").first()
+            sign_event = note.state_history.filter(state__in=("SGN", "LKD", "RLK")).order_by("-created").first()
             if sign_event and sign_event.originator:
                 person = sign_event.originator.person_subclass
                 signed_by = f"{person.first_name} {person.last_name}"

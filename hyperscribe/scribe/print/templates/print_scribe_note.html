@@ -135,6 +135,14 @@
             {% if cmd.rationale %}<div class="order-view-details">{{ cmd.rationale }}</div>{% endif %}
         </div>
 
+        {% elif cmd.schema_key == "from_note" %}
+        {# --- Command synced from the note body (added outside the Scribe tab) --- #}
+        <div class="order-view">
+            {% for d in cmd.detail_rows %}
+            <div class="history-entry-details"><strong>{{ d.label }}:</strong> {{ d.value }}</div>
+            {% endfor %}
+        </div>
+
         {% elif cmd.html_content %}
         {# --- HTML content: ROS, PE, Chart Review, etc. --- #}
         <div class="html-content">{{ cmd.html_content|safe }}</div>

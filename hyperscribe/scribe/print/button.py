@@ -9,7 +9,7 @@ from hyperscribe.scribe.application.transcript_app import is_scribe_visible
 class PrintScribeNoteButton(ActionButton):
     """Note header dropdown button that launches a print preview of the scribe summary."""
 
-    BUTTON_TITLE = "🖨️ Print Scribe Note"
+    BUTTON_TITLE = "🖨️ Scribe Note"
     BUTTON_KEY = "HYPERSCRIBE_PRINT_SCRIBE_NOTE"
     BUTTON_LOCATION = ActionButton.ButtonLocation.NOTE_HEADER_DROPDOWN
 

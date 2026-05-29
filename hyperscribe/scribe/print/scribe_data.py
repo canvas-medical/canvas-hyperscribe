@@ -9,7 +9,13 @@ This module groups both into SOAP sections matching the Scribe tab layout.
 
 from typing import Any
 
-from hyperscribe.scribe.print.command_display import extract_command_display
+from hyperscribe.scribe.print.command_display import _schema_key_to_label, extract_command_display
+
+# Commands synced from the note body (added outside the Scribe tab) carry this
+# section_key. They render in a dedicated block at the bottom of the print,
+# matching the Scribe tab's "ADDITIONAL COMMANDS" section (summary.js).
+FROM_THE_NOTE_SECTION = "from_the_note"
+ADDITIONAL_COMMANDS_TITLE = "ADDITIONAL COMMANDS"
 
 # Scribe tab's SOAP groups with their section_key sets (from summary.js SOAP_GROUPS).
 # Defined as ordered lists so we have a canonical ordering within each group.
@@ -203,10 +209,7 @@ def _should_include_command(cmd: dict[str, Any]) -> bool:
         return False
     if cmd_type in ("refill", "adjust_prescription") and not data.get("fdb_code"):
         return False
-    if cmd_type == "lab_order" and (
-        not data.get("lab_partner")
-        or not data.get("tests_order_codes")
-    ):
+    if cmd_type == "lab_order" and (not data.get("lab_partner") or not data.get("tests_order_codes")):
         return False
     if cmd_type == "refer" and (
         not data.get("service_provider")
@@ -247,6 +250,35 @@ def _command_to_display(cmd: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _is_from_note_command(cmd: dict[str, Any]) -> bool:
+    """Return True for commands synced from the note body (added outside Scribe)."""
+    return cmd.get("_from_note") is True or cmd.get("section_key") == FROM_THE_NOTE_SECTION
+
+
+def _from_note_to_display(cmd: dict[str, Any]) -> dict[str, Any]:
+    """Convert a from-the-note command into a print display dict.
+
+    From-note commands have a different shape than Scribe-generated commands:
+    a pre-humanized ``label`` and a ``details`` list of ``{label, value}`` rows
+    (built by session_view._details_for_command), with no ``display`` or ``data``.
+    """
+    label = cmd.get("label") or _schema_key_to_label(cmd.get("command_type", ""))
+    details = cmd.get("details") or []
+    detail_rows = [
+        {"label": str(d.get("label", "")), "value": str(d.get("value", ""))}
+        for d in details
+        if isinstance(d, dict) and d.get("value")
+    ]
+    return {
+        "label": label,
+        "content": "",
+        "html_content": "",
+        "detail_rows": detail_rows,
+        "schema_key": "from_note",
+        "section_header": "",
+    }
+
+
 def build_scribe_body_items(
     note_data: dict[str, Any] | None,
     commands: list[dict[str, Any]] | None,
@@ -282,7 +314,15 @@ def build_scribe_body_items(
     # or duplicate entries from template reconciliation).
     rendered_commands: set[tuple[str, str]] = set()
 
+    # Commands added outside the Scribe tab (synced from the note body) render
+    # in a dedicated "ADDITIONAL COMMANDS" block at the bottom, preserving the
+    # order they appear in the command list (matching the Scribe tab).
+    from_note_items: list[dict[str, Any]] = []
+
     for cmd in commands:
+        if _is_from_note_command(cmd):
+            from_note_items.append(_from_note_to_display(cmd))
+            continue
         if not _should_include_command(cmd):
             continue
         cmd_type = cmd.get("command_type", "")
@@ -320,10 +360,7 @@ def build_scribe_body_items(
 
     body_items: list[dict[str, Any]] = []
 
-    ordered_section_keys = [
-        _normalize_key(sec["key"]) for sec in sections
-        if isinstance(sec, dict) and sec.get("key")
-    ]
+    ordered_section_keys = [_normalize_key(sec["key"]) for sec in sections if isinstance(sec, dict) and sec.get("key")]
 
     for group in SCRIBE_SOAP_GROUPS:
         group_title = group["title"]
@@ -365,24 +402,41 @@ def build_scribe_body_items(
                 sec = section_by_key.get(key)
                 if sec and sec.get("text", "").strip():
                     title = sec.get("title") or SECTION_TITLES.get(key, key.replace("_", " ").title())
-                    group_items.append({
-                        "label": title,
-                        "content": sec["text"],
-                        "html_content": "",
-                        "schema_key": "narrative",
-                        "section_header": "",
-                    })
+                    group_items.append(
+                        {
+                            "label": title,
+                            "content": sec["text"],
+                            "html_content": "",
+                            "schema_key": "narrative",
+                            "section_header": "",
+                        }
+                    )
             group_items.extend(key_cmds)
 
         if not group_items:
             continue
 
-        body_items.append({
-            "label": "",
-            "content": "",
-            "html_content": "",
-            "section_header": group_title,
-        })
+        body_items.append(
+            {
+                "label": "",
+                "content": "",
+                "html_content": "",
+                "section_header": group_title,
+            }
+        )
         body_items.extend(group_items)
+
+    # Additional commands entered outside the Scribe tab, appended last in their
+    # original list order (KOALA-5600 requirement #6).
+    if from_note_items:
+        body_items.append(
+            {
+                "label": "",
+                "content": "",
+                "html_content": "",
+                "section_header": ADDITIONAL_COMMANDS_TITLE,
+            }
+        )
+        body_items.extend(from_note_items)
 
     return body_items

@@ -16,7 +16,7 @@ def test_class() -> None:
 
 def test_constants() -> None:
     constants = {
-        "BUTTON_TITLE": "🖨️ Print Scribe Note",
+        "BUTTON_TITLE": "🖨️ Scribe Note",
         "BUTTON_KEY": "HYPERSCRIBE_PRINT_SCRIBE_NOTE",
         "BUTTON_LOCATION": "note_header_dropdown",
         "BUTTON_BACKGROUND_COLOR": None,

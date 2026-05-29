@@ -296,10 +296,14 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
 
     elif schema_key == "allergy":
         name = _safe_str(data.get("allergy_text")) or _get_field_text(data, "allergy") or command_display
-        detail_parts = [p for p in (
-            _safe_str(data.get("reaction")),
-            _safe_str(data.get("severity")),
-        ) if p]
+        detail_parts = [
+            p
+            for p in (
+                _safe_str(data.get("reaction")),
+                _safe_str(data.get("severity")),
+            )
+            if p
+        ]
         details = " · ".join(detail_parts)
         if not details:
             details = _safe_str(data.get("narrative"))
@@ -403,15 +407,20 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
         content = "\n".join(parts)
 
     elif schema_key in (
-        "changeMedication", "adjustPrescription", "refill", "updateDiagnosis",
+        "changeMedication",
+        "adjustPrescription",
+        "refill",
+        "updateDiagnosis",
     ):
         parts = [
-            p for p in (
+            p
+            for p in (
                 _get_field_text(data, "coding"),
                 _get_field_text(data, "medication"),
                 _safe_str(data.get("comment")),
                 _safe_str(data.get("narrative")),
-            ) if p
+            )
+            if p
         ]
         content = "\n".join(parts)
 
@@ -419,10 +428,14 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
         fh_name = _safe_str(data.get("condition_display")) or _get_field_text(data, "family_history")
         relative_val = data.get("relative")
         relative_str = _safe_str(relative_val) if isinstance(relative_val, str) else _get_field_text(data, "relative")
-        fh_detail_parts = [p for p in (
-            relative_str,
-            _safe_str(data.get("note")),
-        ) if p]
+        fh_detail_parts = [
+            p
+            for p in (
+                relative_str,
+                _safe_str(data.get("note")),
+            )
+            if p
+        ]
         fh_details = " · ".join(fh_detail_parts)
         parts = [p for p in (fh_name, fh_details) if p]
         content = "\n".join(parts)
@@ -446,10 +459,14 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
 
     elif schema_key == "surgicalHistory":
         sh_name = _safe_str(data.get("procedure_display")) or _get_field_text(data, "past_surgical_history")
-        sh_detail_parts = [p for p in (
-            _format_date(data.get("approximate_date")),
-            _safe_str(data.get("comment")),
-        ) if p]
+        sh_detail_parts = [
+            p
+            for p in (
+                _format_date(data.get("approximate_date")),
+                _safe_str(data.get("comment")),
+            )
+            if p
+        ]
         sh_details = " · ".join(sh_detail_parts)
         parts = [p for p in (sh_name, sh_details) if p]
         content = "\n".join(parts)
@@ -459,11 +476,15 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
 
     elif schema_key == "refer":
         refer_name = _safe_str(data.get("refer_to_display")) or _get_field_text(data, "coding")
-        refer_detail_parts = [p for p in (
-            _safe_str(data.get("clinical_question")),
-            _safe_str(data.get("priority")),
-            _safe_str(data.get("notes_to_specialist")),
-        ) if p]
+        refer_detail_parts = [
+            p
+            for p in (
+                _safe_str(data.get("clinical_question")),
+                _safe_str(data.get("priority")),
+                _safe_str(data.get("notes_to_specialist")),
+            )
+            if p
+        ]
         refer_details = " · ".join(refer_detail_parts)
         if not refer_details:
             refer_details = _safe_str(data.get("comment"))
@@ -500,13 +521,17 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
 
     elif schema_key == "imagingOrder":
         img_name = _safe_str(data.get("image_display")) or _get_field_text(data, "coding")
-        img_detail_parts = [p for p in (
-            _safe_str(data.get("additional_details")),
-            _safe_str(data.get("comment")),
-            _safe_str(data.get("priority")),
-            _safe_str(data.get("ordering_provider_name")),
-            _safe_str(data.get("service_provider_name")),
-        ) if p]
+        img_detail_parts = [
+            p
+            for p in (
+                _safe_str(data.get("additional_details")),
+                _safe_str(data.get("comment")),
+                _safe_str(data.get("priority")),
+                _safe_str(data.get("ordering_provider_name")),
+                _safe_str(data.get("service_provider_name")),
+            )
+            if p
+        ]
         img_details = " · ".join(img_detail_parts)
         parts = [p for p in (img_name, img_details) if p]
         content = "\n".join(parts)
@@ -569,9 +594,7 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
         note_val = data.get("note")
         if note_val:
             vitals_parts.append({"label": "Note", "value": str(note_val), "unit": ""})
-        content = ", ".join(
-            f"{p['label']} {p['value']} {p['unit']}".strip() for p in vitals_parts
-        )
+        content = ", ".join(f"{p['label']} {p['value']} {p['unit']}".strip() for p in vitals_parts)
 
     elif schema_key == "questionnaire":
         q_name = _safe_str(data.get("questionnaire_name"))
@@ -631,11 +654,20 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
             html_content = _decode_b64_html(encoded)
         content = q_name
 
-    elif schema_key in ("reviewOfSystems", "physicalExam",
-                         "historyReview", "chartReview", "chartSectionReview",
-                         "labReview", "imagingReview", "referralReview",
-                         "uncategorizedDocumentReview", "structuredAssessment",
-                         "ros", "exam"):
+    elif schema_key in (
+        "reviewOfSystems",
+        "physicalExam",
+        "historyReview",
+        "chartReview",
+        "chartSectionReview",
+        "labReview",
+        "imagingReview",
+        "referralReview",
+        "uncategorizedDocumentReview",
+        "structuredAssessment",
+        "ros",
+        "exam",
+    ):
         encoded = data.get("content", "")
         if encoded:
             html_content = _decode_b64_html(encoded)
@@ -651,34 +683,33 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
                             parts.append(f"<strong>{title}:</strong> {text}" if title else text)
                 html_content = _sanitize_html("<br>".join(parts))
 
-    elif schema_key in ("immunize", "immunizationStatement", "pocLabTest",
-                         "educationalMaterial"):
+    elif schema_key in ("immunize", "immunizationStatement", "pocLabTest", "educationalMaterial"):
         parts = [
-            p for p in (
+            p
+            for p in (
                 _get_field_text(data, "coding"),
                 _get_field_text(data, "statement"),
                 _safe_str(data.get("comment")),
                 _safe_str(data.get("narrative")),
-            ) if p
+            )
+            if p
         ]
         content = "\n".join(parts)
 
     elif schema_key == "visualExamFinding":
         parts = [
-            p for p in (
+            p
+            for p in (
                 _get_field_text(data, "coding"),
                 _safe_str(data.get("comment")),
                 _safe_str(data.get("narrative")),
-            ) if p
+            )
+            if p
         ]
         content = "\n".join(parts)
 
     else:
-        content = _safe_str(
-            data.get("narrative")
-            or data.get("comment")
-            or _get_field_text(data, "coding")
-        )
+        content = _safe_str(data.get("narrative") or data.get("comment") or _get_field_text(data, "coding"))
 
     result: dict[str, Any] = {
         "label": label,
