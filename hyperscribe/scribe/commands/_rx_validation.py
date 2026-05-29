@@ -25,9 +25,11 @@ front-end, and makes the failure debuggable from the audit log.
 This module is intentionally framework-agnostic: pure functions that take a
 ``data`` dict and return a list of human-readable error strings.
 """
+
 from __future__ import annotations
 
 import re
+
 # NOTE: only ``Decimal`` is imported here. The Canvas plugin sandbox allowlists
 # ``Decimal`` from ``decimal`` but rejects ``InvalidOperation`` — importing it
 # raises ``ImportError`` at plugin-load time and de-registers every handler
@@ -58,9 +60,7 @@ def _has_value(value: Any) -> bool:
     return True
 
 
-def _validate_required_string(
-    data: dict[str, Any], field: str, label: str, errors: list[str]
-) -> None:
+def _validate_required_string(data: dict[str, Any], field: str, label: str, errors: list[str]) -> None:
     if not _has_value(data.get(field)):
         errors.append(f"{label} is required")
 
@@ -151,10 +151,7 @@ def _validate_sig(value: Any, errors: list[str]) -> None:
     if len(text) > SIG_MAX_LENGTH:
         errors.append(f"Sig exceeds {SIG_MAX_LENGTH} characters")
     if _RE_INVALID_CHARACTERS.search(text):
-        errors.append(
-            "Sig contains characters not allowed by Surescripts "
-            "(remove newlines, tabs, and non-ASCII)"
-        )
+        errors.append("Sig contains characters not allowed by Surescripts (remove newlines, tabs, and non-ASCII)")
 
 
 def _validate_note_to_pharmacist(value: Any, errors: list[str]) -> None:
@@ -163,13 +160,10 @@ def _validate_note_to_pharmacist(value: Any, errors: list[str]) -> None:
         return
     text = str(value)
     if len(text) > NOTE_TO_PHARMACIST_MAX_LENGTH:
-        errors.append(
-            f"Note to pharmacist exceeds {NOTE_TO_PHARMACIST_MAX_LENGTH} characters"
-        )
+        errors.append(f"Note to pharmacist exceeds {NOTE_TO_PHARMACIST_MAX_LENGTH} characters")
     if _RE_INVALID_CHARACTERS.search(text):
         errors.append(
-            "Note to pharmacist contains characters not allowed by Surescripts "
-            "(remove newlines, tabs, and non-ASCII)"
+            "Note to pharmacist contains characters not allowed by Surescripts (remove newlines, tabs, and non-ASCII)"
         )
 
 
@@ -189,8 +183,7 @@ def _validate_optional_change_medication_to(value: Any, errors: list[str]) -> No
         return
     if value.strip() == "":
         errors.append(
-            "New medication code is empty — leave it unset to keep the existing "
-            "medication, or pick a replacement"
+            "New medication code is empty — leave it unset to keep the existing medication, or pick a replacement"
         )
 
 

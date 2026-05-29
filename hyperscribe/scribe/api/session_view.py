@@ -44,6 +44,7 @@ from hyperscribe.scribe.backend import (
     CodingEntry,
     Condition,
     NoteSection,
+    Observation,
     PatientContext,
     ScribeError,
     Transcript,
@@ -65,7 +66,11 @@ from hyperscribe.scribe.commands.builder import (
     validate_proposals,
 )
 from hyperscribe.scribe.commands.carry_forward import carry_forward_assess_background
-from hyperscribe.scribe.commands.extractor import extract_commands, parse_ros_subsections
+from hyperscribe.scribe.commands.extractor import (
+    extract_commands,
+    extract_vitals_with_telemetry,
+    parse_ros_subsections,
+)
 from hyperscribe.scribe.commands.problem_list_match import (
     ActivePatientCondition,
     prefer_patient_specific_codes,
@@ -932,6 +937,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         # ── Step 1: Generate normalized data ──
         _save_progress(note_id, 1, total, SUMMARY_STEPS[1])
         section_conditions: dict[str, list[dict[str, Any]]] = {}
+        normalized_observations: list[Observation] = []
+        note_uuid = str(data.get("note_uuid", ""))
         try:
             normalized = backend.generate_normalized_data(note)
             # KOALA-5603: prefer the patient's specific active-problem-list code
@@ -946,13 +953,46 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 active_conditions,
             )
             section_conditions = _match_conditions_to_sections(note, normalized.conditions)
+            normalized_observations = normalized.observations
         except Exception:
             log.exception("generate_normalized_data failed (non-critical)")
+            # Surface the upstream failure to prod observability without leaking
+            # PHI: payload carries only the step identifier so we can
+            # distinguish "Nabla returned no observations" (silent path
+            # divergence) from "Nabla call raised" (outage / rate limit /
+            # credential issue).
+            if note_uuid:
+                audit_event(note_uuid, "NORMALIZED_DATA_FAILED", {"step": "normalized"})
 
         # ── Step 2: Extract commands + A&P split ──
         _save_progress(note_id, 2, total, SUMMARY_STEPS[2])
-        note_uuid = str(data.get("note_uuid", ""))
-        proposals = extract_commands(note)
+        # Emit vitals telemetry from a single extraction pass:
+        #  * VITALS_SOURCE — which parser populated the proposal
+        #    (observations / regex / both / none). Classifies off the FINAL
+        #    surviving fields so a fully-refused observation panel doesn't
+        #    inflate the observations side of the metric.
+        #  * VITALS_FIELD_REFUSED — fields the parser dropped during
+        #    validation (out_of_range / ambiguous_unit / atomic_bp_partial).
+        #    Only emitted when refusals are non-empty: silent on the happy
+        #    path so the audit log stays signal-dense.
+        # No values, no PHI — just field names + reason categories.
+        if note_uuid:
+            vitals_telemetry = extract_vitals_with_telemetry(note, normalized_observations)
+            audit_event(
+                note_uuid,
+                "VITALS_SOURCE",
+                {"source": vitals_telemetry.source},
+            )
+            if vitals_telemetry.refusals:
+                audit_event(
+                    note_uuid,
+                    "VITALS_FIELD_REFUSED",
+                    {
+                        "refused_fields": [r.field for r in vitals_telemetry.refusals],
+                        "reasons": [r.reason for r in vitals_telemetry.refusals],
+                    },
+                )
+        proposals = extract_commands(note, observations=normalized_observations)
         annotate_duplicates(proposals, note_uuid)
         prefill_assess_backgrounds_for_proposals(proposals, note_uuid)
         commands_list: list[dict[str, Any]] = [
