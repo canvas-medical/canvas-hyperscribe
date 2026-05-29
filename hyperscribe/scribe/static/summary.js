@@ -1794,7 +1794,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // POSTs successfully — modal closes, user has no idea the Rx was lost.
     // Filter dropped commands to `validation` reasons (empty_display and
     // deselected are intentional user choices, not silent failures).
-    const droppedForValidation = dropped.filter(c => c.display && c.selected !== false);
+    //
+    // Only surface commands whose isInsertable failure maps to a specific,
+    // actionable error message (rx_incomplete, refer_incomplete, etc.).
+    // The generic 'validation' fallthrough catches diagnose placeholders
+    // from ap_split.py (no ICD code → accepted:False by default; the
+    // provider's reject button later sets rejected:true) and other intentional
+    // soft-drop states. Flagging those with "This command has invalid values"
+    // misleads the provider — there's no fixable form to open. Round-7's
+    // surfacing was specifically for Rx sig non-ASCII, refer/lab/imaging
+    // missing-fields, perform-without-cpt; those all have non-generic
+    // reasons, so this gate preserves the original intent.
+    const droppedForValidation = dropped.filter(
+      c => c.display && c.selected !== false && _commandValidationReason(c) !== 'validation'
+    );
     const allValidationFailures = [
       ...droppedForValidation.map(c => ({ command: c, reason: _commandValidationReason(c) })),
       ...droppedRecs.map(c => ({ command: c, reason: getAcceptedRecFailureReason(c) })),
