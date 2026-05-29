@@ -2360,6 +2360,170 @@ def test_insert_metadata_invalid_json() -> None:
     assert "Invalid JSON" in json.loads(result[0].content)["error"]
 
 
+# --- /note-commands ---
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_returns_full_shape(mock_command: MagicMock) -> None:
+    """Every synced Command lands in `from_the_note` with the locked-card
+    shape the frontend renders: label + details list."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "uuid-1", "schema_key": "hpi", "data": {"narrative": "Pain"}},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["commands"] == [
+        {
+            "command_uuid": "uuid-1",
+            "command_type": "hpi",
+            "section_key": "from_the_note",
+            "label": "HPI",
+            "details": [{"label": "Narrative", "value": "Pain"}],
+            "already_documented": True,
+            "_from_note": True,
+        }
+    ]
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_routes_every_schema_key_to_from_the_note(mock_command: MagicMock) -> None:
+    """Mapped or unmapped — every command goes to the ADDITIONAL COMMANDS
+    section. No more per-type routing into existing SOAP groups."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "u-plan", "schema_key": "plan", "data": {"narrative": "Follow up"}},
+        {"id": "u-med", "schema_key": "medicationStatement", "data": {}},
+        {"id": "u-unknown", "schema_key": "prescriptionChangeResponse", "data": {}},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    sections = {c["command_uuid"]: c["section_key"] for c in json.loads(result[0].content)["commands"]}
+    assert sections == {
+        "u-plan": "from_the_note",
+        "u-med": "from_the_note",
+        "u-unknown": "from_the_note",
+    }
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_empty_when_no_commands(mock_command: MagicMock) -> None:
+    """No Command rows for the note → empty list."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = []
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"commands": []}
+
+
+def test_note_commands_requires_note_id() -> None:
+    """Missing note_id query param short-circuits with 400 before the auth check."""
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={}, headers={})
+    result = view.get_note_commands()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_id" in json.loads(result[0].content)["error"]
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_label_uses_acronym_overrides(mock_command: MagicMock) -> None:
+    """Schema keys for known acronyms get a canonical label ('hpi' → 'HPI'),
+    not the title-cased humanization that would render as 'Hpi'."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "u-hpi", "schema_key": "hpi", "data": {}},
+        {"id": "u-rfv", "schema_key": "reasonForVisit", "data": {}},
+        {"id": "u-med", "schema_key": "medicationStatement", "data": {}},
+        {"id": "u-fh", "schema_key": "familyHistory", "data": {}},
+        {"id": "u-pcr", "schema_key": "prescriptionChangeResponse", "data": {}},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    labels = {c["command_uuid"]: c["label"] for c in json.loads(result[0].content)["commands"]}
+    assert labels == {
+        "u-hpi": "HPI",
+        "u-rfv": "Reason for Visit",
+        "u-med": "Medication Statement",
+        "u-fh": "Family History",
+        "u-pcr": "Prescription Change Response",
+    }
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_details_flatten_data(mock_command: MagicMock) -> None:
+    """Every meaningful value in Command.data shows up as a {label, value}
+    detail row. Coded canvas-core dicts use their `text` field; booleans and
+    empty strings collapse out; nested coding[0].display falls through; lists
+    of items get joined."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {
+            "id": "u-med",
+            "schema_key": "medicationStatement",
+            "data": {
+                "medication": {
+                    "value": "9999",
+                    "text": "Aspirin 81 MG Tablet",
+                    "extra": {"coding": [{"display": "Aspirin 81 MG Tablet", "system": "fdb"}]},
+                },
+                "sig": "Take 1 daily",
+                "alert_facility": False,
+            },
+        },
+        {
+            "id": "u-resolve",
+            "schema_key": "resolveCondition",
+            "data": {
+                "condition": {"value": 2, "text": "Streptococcal pharyngitis"},
+                "rationale": "",
+                "show_in_condition_list": False,
+            },
+        },
+        {
+            "id": "u-allergy",
+            "schema_key": "allergy",
+            "data": {"allergy": {"extra": {"coding": [{"display": "Peanut", "system": "snomed"}]}}},
+        },
+        {"id": "u-empty", "schema_key": "vitals", "data": {}},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    by_uuid = {c["command_uuid"]: c for c in json.loads(result[0].content)["commands"]}
+    assert by_uuid["u-med"]["details"] == [
+        {"label": "Medication", "value": "Aspirin 81 MG Tablet"},
+        {"label": "Sig", "value": "Take 1 daily"},
+    ]
+    assert by_uuid["u-resolve"]["details"] == [
+        {"label": "Condition", "value": "Streptococcal pharyngitis"},
+    ]
+    assert by_uuid["u-allergy"]["details"] == [
+        {"label": "Allergy", "value": "Peanut"},
+    ]
+    assert by_uuid["u-empty"]["details"] == []
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_excludes_entered_in_error_rows(mock_command: MagicMock) -> None:
+    """Amendment VOID_RECREATE leaves the original Command row in
+    ``state=entered_in_error``. /note-commands must not surface it — otherwise
+    the EIE'd row appears in ADDITIONAL COMMANDS alongside the replacement
+    Originate."""
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    view.get_note_commands()
+
+    mock_command.objects.filter.assert_called_once_with(note__id="note-uuid")
+    mock_command.objects.filter.return_value.exclude.assert_called_once_with(state="entered_in_error")
+
+
 # --- sign-note ---
 
 
