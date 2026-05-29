@@ -2037,7 +2037,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         //       for command types that don't surface attempted entries), the cache
         //       must reflect approved=true so reload doesn't lose the approval.
         // Pinned by `test_summary_js_cache_flip_to_approved_true_is_unconditional_on_success`.
-        saveSummaryToCache(noteData, updatedCommands, true, {
+        //
+        // AWAITED (not fire-and-forget) because /edit-existing-commands below
+        // emits effects whose PERFORM_COMMAND__POST_COMMIT handler
+        // (ClaimLinkSync) reads ScribeSummary.commands to resolve a perform's
+        // linked_icd10_codes. If this /save-summary POST were still in flight
+        // when /edit-existing-commands runs, ClaimLinkSync would read a stale
+        // cache that doesn't carry the user's latest link toggles — and any
+        // ICD added to a perform via handleToggleCptLink during amendment
+        // would be silently dropped from BillingLineItem.assessment_ids. The
+        // matrix-vs-footer mismatch bug ("Z75.9 missing on 92610") was this
+        // race.
+        await saveSummaryToCache(noteData, updatedCommands, true, {
           recommendations, unmatched_conditions: unmatchedConditions,
           diagnosis_suggestions: diagnosisSuggestions,
           selected_template_name: selectedTemplate?.name || null, mode,
