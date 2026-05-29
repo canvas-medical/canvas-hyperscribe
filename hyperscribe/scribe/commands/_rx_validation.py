@@ -28,7 +28,12 @@ This module is intentionally framework-agnostic: pure functions that take a
 from __future__ import annotations
 
 import re
-from decimal import Decimal, InvalidOperation
+# NOTE: only ``Decimal`` is imported here. The Canvas plugin sandbox allowlists
+# ``Decimal`` from ``decimal`` but rejects ``InvalidOperation`` — importing it
+# raises ``ImportError`` at plugin-load time and de-registers every handler
+# downstream of this module (the whole Scribe UI 404s). ``InvalidOperation`` is
+# a subclass of ``ArithmeticError``, so the ``except`` below still catches it.
+from decimal import Decimal
 from typing import Any
 
 # Mirrors canvas_core.commands.definitions.prescribe.RE_INVALID_CHARACTERS.
@@ -67,7 +72,7 @@ def _validate_quantity_to_dispense(value: Any, errors: list[str]) -> None:
         return
     try:
         decimal_value = Decimal(str(value))
-    except (InvalidOperation, ValueError, ArithmeticError):
+    except (ArithmeticError, ValueError):
         errors.append("Quantity to dispense must be a number")
         return
     # Decimal('nan') and Decimal('Infinity') both parse cleanly; NaN raises on
