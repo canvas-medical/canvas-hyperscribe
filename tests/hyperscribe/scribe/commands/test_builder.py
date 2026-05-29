@@ -438,11 +438,23 @@ def test_build_metadata_effects_unknown_type() -> None:
     assert effects == []
 
 
+_GOOD_RX_DATA = {
+    "fdb_code": "285665",
+    "sig": "Take 1 tablet by mouth daily",
+    "quantity_to_dispense": 30,
+    "type_to_dispense": "C48480",
+    "refills": 2,
+    "substitutions": "allowed",
+}
+
+
 def test_validate_proposals_all_valid() -> None:
     proposals: list[dict[str, Any]] = [
         {"command_type": "diagnose", "data": {"today_assessment": "Short text"}, "display": "Migraine"},
         {"command_type": "assess", "data": {"narrative": "Brief"}, "display": "HTN"},
-        {"command_type": "prescribe", "data": {"sig": "Take daily"}, "display": "Lisinopril"},
+        # Prescribe / Refill / Adjust Prescription all share canvas-core's
+        # Prescribe schema and need every required field populated to pass.
+        {"command_type": "prescribe", "data": dict(_GOOD_RX_DATA), "display": "Lisinopril"},
     ]
     assert validate_proposals(proposals) == []
 
@@ -469,26 +481,42 @@ def test_validate_proposals_assess_over_limit() -> None:
 
 def test_validate_proposals_prescription_sig_over_limit() -> None:
     proposals: list[dict[str, Any]] = [
-        {"command_type": "prescribe", "data": {"sig": "x" * 1001}, "display": "Lisinopril"},
+        {
+            "command_type": "prescribe",
+            "data": {**_GOOD_RX_DATA, "sig": "x" * 1001},
+            "display": "Lisinopril",
+        },
     ]
     errors = validate_proposals(proposals)
     assert len(errors) == 1
-    assert "Sig" in errors[0]["errors"][0]
+    assert any("Sig" in e for e in errors[0]["errors"])
 
 
 def test_validate_proposals_prescription_note_to_pharmacist_over_limit() -> None:
+    """Regression: limit is 210 (Surescripts NewRx), not 1024."""
     proposals: list[dict[str, Any]] = [
-        {"command_type": "prescribe", "data": {"sig": "ok", "note_to_pharmacist": "x" * 1025}, "display": "Lisinopril"},
+        {
+            "command_type": "prescribe",
+            "data": {**_GOOD_RX_DATA, "note_to_pharmacist": "x" * 211},
+            "display": "Lisinopril",
+        },
     ]
     errors = validate_proposals(proposals)
     assert len(errors) == 1
-    assert "pharmacist" in errors[0]["errors"][0].lower()
+    assert any("pharmacist" in e.lower() for e in errors[0]["errors"])
 
 
 def test_validate_proposals_multiple_failures() -> None:
     proposals: list[dict[str, Any]] = [
         {"command_type": "diagnose", "data": {"today_assessment": "x" * 2049}, "display": "Migraine"},
-        {"command_type": "prescribe", "data": {"sig": "x" * 1001, "note_to_pharmacist": "x" * 1025}, "display": "Rx"},
+        # Send a prescribe with both sig over-limit AND note_to_pharmacist
+        # over the 210-char Surescripts cap. Other required fields are
+        # populated so we isolate the assertions to the over-limit checks.
+        {
+            "command_type": "prescribe",
+            "data": {**_GOOD_RX_DATA, "sig": "x" * 1001, "note_to_pharmacist": "x" * 211},
+            "display": "Rx",
+        },
         {"command_type": "allergy", "data": {"reaction": "x" * 513}, "display": "Penicillin"},
         {"command_type": "lab_order", "data": {"comment": "x" * 129}, "display": "CBC"},
         {
@@ -501,7 +529,7 @@ def test_validate_proposals_multiple_failures() -> None:
     ]
     errors = validate_proposals(proposals)
     assert len(errors) == 7
-    # Prescription has 2 errors (sig + note_to_pharmacist)
+    # Prescription has 2 errors (sig over-limit + note_to_pharmacist over-limit)
     rx_errors = next(e for e in errors if e["command_type"] == "prescribe")
     assert len(rx_errors["errors"]) == 2
     # Imaging has 4 errors (ordering provider + indications + details + comment)
@@ -567,11 +595,90 @@ def test_validate_refer_with_required_fields() -> None:
 
 def test_validate_proposals_refill_and_adjust() -> None:
     proposals: list[dict[str, Any]] = [
-        {"command_type": "refill", "data": {"sig": "x" * 1001}, "display": "Refill"},
-        {"command_type": "adjust_prescription", "data": {"sig": "x" * 1001}, "display": "Adjust"},
+        {
+            "command_type": "refill",
+            "data": {**_GOOD_RX_DATA, "sig": "x" * 1001},
+            "display": "Refill",
+        },
+        {
+            "command_type": "adjust_prescription",
+            "data": {**_GOOD_RX_DATA, "sig": "x" * 1001},
+            "display": "Adjust",
+        },
     ]
     errors = validate_proposals(proposals)
     assert len(errors) == 2
+
+
+def test_validate_proposals_adjust_prescription_missing_refills() -> None:
+    """Regression for the failure on Brigade note 20746: refills was None,
+    the originate succeeded, and REVIEW raised the generic
+    ValidationError("Command cannot be reviewed due to incomplete data...")
+    after /insert-commands had already returned 200."""
+    incomplete = {**_GOOD_RX_DATA, "refills": None}
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "adjust_prescription",
+            "data": incomplete,
+            "display": "Lisinopril",
+        },
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 1
+    assert any("Refills is required" in e for e in errors[0]["errors"])
+
+
+def test_validate_proposals_runs_chart_state_check_when_note_uuid_present() -> None:
+    """When note_uuid is supplied, refill / adjust_prescription parsers also
+    verify the source medication is active on the patient. Skipping that
+    validation by omitting note_uuid keeps unit tests DB-free."""
+    from unittest.mock import patch
+
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "refill", "data": dict(_GOOD_RX_DATA), "display": "Refill"},
+    ]
+    # Without note_uuid, no DB call.
+    assert validate_proposals(proposals) == []
+
+    # With note_uuid, the parser checks the chart and surfaces an error if
+    # the medication is not active for this patient.
+    with (
+        patch("hyperscribe.scribe.commands.refill.Note") as mock_note,
+        patch("hyperscribe.scribe.commands.refill.Medication") as mock_med,
+    ):
+        mock_note.objects.values_list.return_value.get.return_value = "patient-1"
+        mock_med.objects.committed.return_value.for_patient.return_value.filter.return_value.exists.return_value = False
+        errors = validate_proposals(proposals, note_uuid="note-uuid")
+
+    assert len(errors) == 1
+    assert any("not active on this patient" in e for e in errors[0]["errors"])
+
+
+def test_validate_proposals_logs_when_chart_validator_raises(caplog: Any) -> None:
+    """Unexpected exceptions from ``validate_against_patient`` fail open (so
+    transient DB issues don't block writes) but MUST log so schema drift or
+    programming errors are diagnosable from the audit log."""
+    import logging
+    from unittest.mock import patch
+
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "refill", "data": dict(_GOOD_RX_DATA), "display": "Refill"},
+    ]
+
+    with (
+        patch(
+            "hyperscribe.scribe.commands.refill.RefillParser.validate_against_patient",
+            side_effect=RuntimeError("simulated schema drift"),
+        ),
+        caplog.at_level(logging.ERROR, logger="plugin_runner_logger"),
+    ):
+        errors = validate_proposals(proposals, note_uuid="note-uuid")
+
+    # Fail open — no errors raised to caller.
+    assert errors == []
+    # But the failure is captured in the log for diagnosis.
+    assert any("chart_validator raised" in rec.message for rec in caplog.records)
+    assert any("simulated schema drift" in (rec.exc_text or "") for rec in caplog.records)
 
 
 def test_build_effects_vitals_out_of_range_returns_build_error() -> None:

@@ -10,6 +10,100 @@ import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/
 
 const html = htm.bind(h);
 
+// Mirrors hyperscribe/scribe/commands/_rx_validation.py and the canvas-core
+// Prescribe schema. Prescribe / Refill / Adjust Prescription all funnel
+// through the same schema during REVIEW, and any missing or invalid field
+// causes the transaction to roll back even though /insert-commands has
+// already returned 200. Keep this predicate aligned with the server-side
+// validate_rx_payload function — they MUST agree on both presence AND value.
+const RX_COMMAND_TYPES = new Set(['prescribe', 'refill', 'adjust_prescription']);
+const RX_SIG_MAX_LENGTH = 1000;
+const RX_NOTE_TO_PHARMACIST_MAX_LENGTH = 210;
+const RX_REFILLS_MIN = 0;
+const RX_REFILLS_MAX = 99;
+// Mirrors _RE_INVALID_CHARACTERS in _rx_validation.py: Surescripts only allows
+// printable ASCII space..tilde for sig / note_to_pharmacist.
+const RX_NON_ASCII_RE = /[^\x20-\x7E]/;
+const _isBlankString = (v) => typeof v === 'string' && v.trim() === '';
+const isRxIncomplete = (d) => {
+  if (!d) return true;
+  // Required strings (reject null / empty / whitespace-only).
+  if (!d.fdb_code || _isBlankString(d.fdb_code)) return true;
+  if (!d.sig || _isBlankString(d.sig)) return true;
+  if (!d.type_to_dispense) return true;
+  // Quantity: present, parseable, > 0.
+  if (d.quantity_to_dispense == null || d.quantity_to_dispense === '') return true;
+  const qty = Number(d.quantity_to_dispense);
+  if (!Number.isFinite(qty) || qty <= 0) return true;
+  // Mirror canvas-core's dispense_quantity_validator and the OrderRow Save
+  // gate: Surescripts NewRx wire format rejects trailing zeros after a
+  // decimal point ("1.0", "10.", "5.20"). Number("30.0") === 30 strips the
+  // shape, so we have to inspect the source string.
+  const qtyStr = String(d.quantity_to_dispense).trim();
+  if (qtyStr.includes('.') && (qtyStr.endsWith('0') || qtyStr.endsWith('.'))) return true;
+  // Refills: present, integer in [REFILLS_MIN, REFILLS_MAX].
+  if (d.refills == null || d.refills === '') return true;
+  const refills = Number(d.refills);
+  if (!Number.isInteger(refills) || refills < RX_REFILLS_MIN || refills > RX_REFILLS_MAX) return true;
+  // Days supply: optional, but if present must be a non-negative integer
+  // (mirrors _validate_days_supply: rejects fractional floats and negatives).
+  if (d.days_supply != null && d.days_supply !== '') {
+    const days = Number(d.days_supply);
+    if (!Number.isFinite(days) || !Number.isInteger(days) || days < 0) return true;
+  }
+  // Substitutions: enum value required.
+  if (d.substitutions !== 'allowed' && d.substitutions !== 'not_allowed') return true;
+  // Sig: length + Surescripts ASCII charset.
+  if (typeof d.sig === 'string' && (d.sig.length > RX_SIG_MAX_LENGTH || RX_NON_ASCII_RE.test(d.sig))) return true;
+  // Note to pharmacist: optional, but if present must satisfy length + charset.
+  if (typeof d.note_to_pharmacist === 'string' && d.note_to_pharmacist !== ''
+      && (d.note_to_pharmacist.length > RX_NOTE_TO_PHARMACIST_MAX_LENGTH || RX_NON_ASCII_RE.test(d.note_to_pharmacist))) return true;
+  return false;
+};
+const isRxCommand = (cmd) => RX_COMMAND_TYPES.has(cmd?.command_type);
+
+// Mirrors the refer-completeness gate in the `insertable` filter. Both the
+// Approve filter and the recommendations filter must apply this — the
+// LLM recommender (recommendations/refer.py) does not emit `diagnosis_codes`,
+// so any accepted-without-edit referral would otherwise hit the server's
+// `ReferParser.validate` ("At least one indication is required") and reject
+// the whole batch.
+const isReferIncompleteForApprove = (d) => {
+  if (!d) return true;
+  if (!d.service_provider) return true;
+  if (!d.clinical_question) return true;
+  if (!d.notes_to_specialist) return true;
+  if (!d.diagnosis_codes || d.diagnosis_codes.length === 0) return true;
+  return false;
+};
+// Single source of truth for recommendation-side validation. Returns the
+// failure reason for the COMMANDS_FILTERED audit, or null if insertable.
+const getAcceptedRecFailureReason = (c) => {
+  if (isRxCommand(c) && isRxIncomplete(c.data)) return 'rx_incomplete';
+  if (c.command_type === 'refer' && isReferIncompleteForApprove(c.data)) return 'refer_incomplete';
+  return null;
+};
+// Classify a dropped command for the validation-error surface. Mirrors the
+// type-specific gates in the `insertable` filter so the user gets the same
+// per-card error they'd see for a server-side rejection.
+const _commandValidationReason = (c) => {
+  if (isRxCommand(c) && isRxIncomplete(c.data)) return 'rx_incomplete';
+  if (c.command_type === 'refer') return 'refer_incomplete';
+  if (c.command_type === 'imaging_order') return 'imaging_incomplete';
+  if (c.command_type === 'lab_order') return 'lab_incomplete';
+  if (c.command_type === 'perform') return 'perform_incomplete';
+  return 'validation';
+};
+const _validationErrorMessage = (c, reason, context = 'approving') => {
+  const suffix = `Open it to fix before ${context}.`;
+  if (reason === 'rx_incomplete') return `This prescription is missing required fields or contains invalid values (e.g. non-ASCII characters in sig, refills out of range, trailing-zero quantity). ${suffix}`;
+  if (reason === 'refer_incomplete') return `This referral is missing required fields (indications, notes to specialist, clinical question, or service provider). ${suffix}`;
+  if (reason === 'imaging_incomplete') return `This imaging order is missing required fields (image code, service provider, ordering provider, or diagnosis codes). ${suffix}`;
+  if (reason === 'lab_incomplete') return `This lab order is missing required fields (lab partner or tests). ${suffix}`;
+  if (reason === 'perform_incomplete') return `This perform command is missing a CPT code. ${suffix}`;
+  return `This command has invalid values. ${suffix}`;
+};
+
 function formatTime(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -1428,7 +1522,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }
           setApproved(false);
           setConfirming(false);
-          saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+          // `workingCommands` is still identical to `commands` here (no
+          // hard-commit has run yet), but use it for consistency with every
+          // other cache write in this callback so a future reorder can't
+          // reintroduce the stale-`commands` cache bug.
+          saveSummaryToCache(noteData, workingCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
           setInserting(false);
           logEvent('AMEND_DELETE_ERROR', { error: delData.error, conflicts: delData.conflicts || null });
           return;
@@ -1480,7 +1578,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }
           setApproved(false);
           setConfirming(false);
-          saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+          // The edit backend rejected before emitting edit effects, but an
+          // amend-delete in the branch above may have already committed
+          // server-side. Persist `workingCommands` (deletes filtered out), not
+          // the stale closure `commands`, so the cache doesn't resurrect the
+          // already-voided deleted commands on reload. Mirrors 1539 / 1692.
+          saveSummaryToCache(noteData, workingCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
           setInserting(false);
           logEvent('AMEND_EDIT_ERROR', { error: editData.error, conflicts: editData.conflicts || null });
           return;
@@ -1540,21 +1643,70 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.already_documented || c.command_uuid) return false;
       if (!c.display && !(SECTION_TYPES.has(c.command_type) && c.data?.sections?.length > 0)) return false;
       if (c.command_type === 'imaging_order' && (!c.data.image_code || !c.data.service_provider || !c.data.ordering_provider_id || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
-      if (c.command_type === 'prescribe' && (!c.data.fdb_code || !c.data.sig || c.data.quantity_to_dispense == null || !c.data.type_to_dispense || c.data.refills == null)) return false;
-      if ((c.command_type === 'refill' || c.command_type === 'adjust_prescription') && !c.data.fdb_code) return false;
+      // All three Rx command types share the same canvas-core schema and must
+      // satisfy the same required-field set; using one predicate keeps the
+      // Approve filter, the Add Now gate, and the Save button gate aligned.
+      if (isRxCommand(c) && isRxIncomplete(c.data)) return false;
       if (c.command_type === 'lab_order' && (!c.data.lab_partner || !c.data.tests_order_codes || c.data.tests_order_codes.length === 0)) return false;
       if (c.command_type === 'refer' && (!c.data.service_provider || !c.data.clinical_question || !c.data.notes_to_specialist || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
       return true;
     });
-    const dropped = workingCommands.filter(c => !c.already_documented && !insertable.includes(c));
+    // Pre-existing finalized notes (signed before the explicit
+    // already_documented stamping shipped) carry command_uuid but not the
+    // flag, so treat either as "already on the chart" to match the
+    // insertable filter at line 1634 and handleMakeChanges.onNote at line 547.
+    // Without this, untouched legacy commands land in `dropped` and trip the
+    // halt block below with a misleading "invalid values" error.
+    const dropped = workingCommands.filter(c => !(c.already_documented || c.command_uuid) && !insertable.includes(c));
     if (dropped.length > 0) {
       logEvent('COMMANDS_FILTERED', { dropped: dropped.map(c => ({
         type: c.command_type, display: (c.display || '').slice(0, 80), sectionKey: c.section_key,
         reason: !c.display ? 'empty_display' : c.selected === false ? 'deselected' : 'validation',
       })) });
     }
-    const acceptedRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
+    // The Approve filter for recommendations has to apply the same gates the
+    // insertable filter applies for Rx + refer — recommendations bypass the
+    // OrderRow editor, so without these checks an LLM payload that the
+    // server's validate_rx_payload (or ReferParser.validate) will reject
+    // slips into /insert-commands and tanks the whole batch.
+    const candidateRecs = recommendations.filter(c => c.accepted && !c.already_documented && c.display);
+    const droppedRecs = candidateRecs.filter(c => getAcceptedRecFailureReason(c) !== null);
+    const acceptedRecs = candidateRecs.filter(c => getAcceptedRecFailureReason(c) === null);
+    // Surface client-side validation drops the same way a server 400 would:
+    // setValidationError, revert the optimistic approval, halt. Without this,
+    // a saved command with smart punctuation in sig (OrderRow Save has no
+    // ASCII screen) is dropped from `insertable` and the rest of the batch
+    // POSTs successfully — modal closes, user has no idea the Rx was lost.
+    // Filter dropped commands to `validation` reasons (empty_display and
+    // deselected are intentional user choices, not silent failures).
+    const droppedForValidation = dropped.filter(c => c.display && c.selected !== false);
+    const allValidationFailures = [
+      ...droppedForValidation.map(c => ({ command: c, reason: _commandValidationReason(c) })),
+      ...droppedRecs.map(c => ({ command: c, reason: getAcceptedRecFailureReason(c) })),
+    ];
+    if (allValidationFailures.length > 0) {
+      setValidationError(allValidationFailures.map(({ command, reason }) => ({
+        command_type: command.command_type,
+        display: (command.display || '').slice(0, 80),
+        errors: [_validationErrorMessage(command, reason)],
+      })));
+      setApproved(false);
+      setConfirming(false);
+      // Persist `workingCommands` (not the stale closure-captured `commands`):
+      // if an amend edit already committed earlier in this click, the home-app
+      // has executed EIE+Originate and `workingCommands` carries the re-stamped
+      // uuids. Writing `commands` here would revert the cache to pre-amend state
+      // and a retry would resend the now-voided uuid as an amend. Mirrors 1762.
+      saveSummaryToCache(noteData, workingCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+      setInserting(false);
+      logEvent('APPROVE_ERROR', {
+        error: 'client_validation_failed',
+        dropped_commands: droppedForValidation.length,
+        dropped_recs: droppedRecs.length,
+      });
+      return;
+    }
     let allInsertable = [...insertable, ...acceptedRecs]
       .map(({ _template_inserted, ...c }) => c); // Strip internal marker.
 
@@ -1743,6 +1895,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const handleAddNow = useCallback(async (command, isRecommendation, index) => {
     if (!canEdit) return;
+    // Mirror handleInsert's entry-clear so a panel from a prior blocked click
+    // doesn't persist across a subsequent successful Add Now.
+    setValidationError(null);
     logEvent('ADD_NOW', { commandType: command.command_type, isRecommendation, index });
     // Mark as adding to show spinner and prevent double-clicks.
     const setAdding = (flag) => {
@@ -1752,6 +1907,24 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         setCommands(prev => prev.map((cmd, i) => i === index ? { ...cmd, _adding: flag } : cmd));
       }
     };
+    // Client-side gate: don't ship incomplete commands to the server. The
+    // server still validates, but failing fast gives instant feedback and
+    // keeps the audit log clean of avoidable VALIDATION_FAILED events. Use
+    // the same getAcceptedRecFailureReason helper as the Approve filter so
+    // Rx and refer gates stay in sync across all three submit paths.
+    const _addNowReason = getAcceptedRecFailureReason(command);
+    if (_addNowReason) {
+      logEvent('ADD_NOW_BLOCKED', { commandType: command.command_type, reason: _addNowReason, index });
+      setValidationError([
+        {
+          command_type: command.command_type,
+          display: (command.display || '').slice(0, 80),
+          errors: [_validationErrorMessage(command, _addNowReason, 'adding')],
+          _context: 'adding',
+        },
+      ]);
+      return;
+    }
     setAdding(true);
     try {
       const { _template_inserted, ...payload } = command;
@@ -1761,7 +1934,21 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         body: JSON.stringify({ note_uuid: noteId, commands: [payload] }),
       });
       const data = await res.json();
-      if (data.error) { setAdding(false); logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index }); return; }
+      if (data.error) {
+        setAdding(false);
+        // Mirror handleInsert's branching so non-validation server errors
+        // (auth 403, "Invalid JSON", etc.) surface as a banner instead of
+        // silently leaving the spinner stopped with no user feedback.
+        if (data.validation_errors) {
+          // Tag entries with _context: 'adding' so the panel header reads
+          // "Please fix before adding:" rather than the default approve wording.
+          setValidationError(data.validation_errors.map(v => ({ ...v, _context: 'adding' })));
+        } else {
+          setError(data.error);
+        }
+        logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index, error: data.error, validation_errors: data.validation_errors });
+        return;
+      }
       // Phase 2: insert metadata if needed (e.g. alert_facility).
       if (data.metadata_pending && data.metadata_pending.length > 0) {
         try {
@@ -1789,8 +1976,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       logEvent('ADD_NOW_SUCCESS', { commandType: command.command_type, index });
     } catch (err) {
       console.error('Add Now failed:', err);
+      // Mirror handleInsert's catch: surface a banner so a network failure
+      // (offline, plugin-runner restart, non-JSON 5xx) doesn't leave the
+      // spinner stopped with no user feedback.
+      setError('Failed to add command');
       setAdding(false);
-      logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index });
+      logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index, error: String(err) });
     }
   }, [noteId, canEdit]);
 
@@ -1830,7 +2021,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const showFooter = canEdit && (mode === 'manual' || aiFlowComplete);
 
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral', lab_order: 'lab order' };
-  const _isRxIncomplete = (d) => !d.fdb_code || !d.sig || d.quantity_to_dispense == null || !d.type_to_dispense || d.refills == null;
+  // Module-scope `isRxIncomplete` is the single source of truth — see top of file.
+  const _isRxIncomplete = isRxIncomplete;
   const _isLabIncomplete = (d) => !d.lab_partner || !d.tests_order_codes || d.tests_order_codes.length === 0;
   const _isImagingIncomplete = (d) => !d.image_code || !d.service_provider || !d.ordering_provider_id || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
   const _isReferIncomplete = (d) => !d.service_provider || !d.clinical_question || !d.notes_to_specialist || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
@@ -2175,7 +2367,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       ${verificationResult && html`<${VerificationSummary} result=${verificationResult} />`}
       ${validationError && html`
         <div class="validation-error">
-          <strong>Please fix before approving:</strong>
+          <strong>${(Array.isArray(validationError) && validationError.some(v => v._context === 'adding')) ? 'Please fix before adding:' : 'Please fix before approving:'}</strong>
           <ul>
             ${(Array.isArray(validationError) ? validationError : [{ display: '', errors: [validationError] }]).map(v => html`
               ${v.errors.map(e => html`<li key=${e}><strong>${v.display || v.command_type}</strong>: ${e}</li>`)}
@@ -2204,7 +2396,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             <div class="approve-block">
               ${incompleteCount > 0 && html`
                 <div class="summary-footer-warning">
-                  ${incompleteCount} incomplete ${incompleteCount === 1 ? 'item' : 'items'} will be skipped: ${incompleteTypes.map(t => INCOMPLETE_LABELS[t]).join(', ')}
+                  ${incompleteCount} incomplete ${incompleteCount === 1 ? 'item' : 'items'} must be fixed or removed before approving: ${incompleteTypes.map(t => INCOMPLETE_LABELS[t]).join(', ')}
                 </div>
               `}
               ${undecidedRecommendationCount > 0 && html`
