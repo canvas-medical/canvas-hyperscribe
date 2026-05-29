@@ -1784,9 +1784,12 @@ def test_edit_existing_commands_hpi_void_recreate(
     assert audit_call.args[2]["entries"][0]["new_command_uuid"] == "new-hpi-uuid"
 
 
+@patch("hyperscribe.scribe.api.session_view.validate_proposals", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.build_amend_edit_effects")
-def test_edit_existing_commands_silently_drops_disallowed_section(mock_build: MagicMock, mock_audit: MagicMock) -> None:
+def test_edit_existing_commands_silently_drops_disallowed_section(
+    mock_build: MagicMock, mock_audit: MagicMock, mock_validate: MagicMock
+) -> None:
     """Sections not in EDITABLE_AMEND_SECTIONS are silently dropped (logged at WARN
     inside build_amend_edit_effects). The response carries only the attempted
     list - no parallel `rejected` field. Rationale: defense-in-depth, not UX -
@@ -3881,6 +3884,241 @@ def test_generate_summary_writes_progress(
     progress = json.loads(cache._store[progress_key])
     assert progress["step"] == len(SUMMARY_STEPS) - 1
     assert progress["total"] == len(SUMMARY_STEPS)
+
+
+# --- /generate-summary telemetry (VITALS_SOURCE, NORMALIZED_DATA_FAILED) ---
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_emits_vitals_source_observations(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """When Nabla supplies observations and no vitals section text, telemetry records ``observations``."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 91
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="vitals", title="Vitals", text="")],
+    )
+    mock_backend.generate_normalized_data.return_value = NormalizedData(
+        conditions=[],
+        observations=[
+            Observation(
+                display="Heart rate",
+                value="74",
+                unit="bpm",
+                coding=[CodingEntry(system="LOINC", code="8867-4", display="Heart rate")],
+            )
+        ],
+    )
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "91", "note_uuid": "91"}))
+    view.post_generate_summary()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    vitals_source_calls = [payload for event_type, payload in audit_calls if event_type == "VITALS_SOURCE"]
+    assert len(vitals_source_calls) == 1, f"expected one VITALS_SOURCE audit event, got {audit_calls}"
+    assert vitals_source_calls[0] == {"source": "observations"}
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_emits_normalized_data_failed_on_exception(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """When generate_normalized_data raises, a NORMALIZED_DATA_FAILED audit event fires."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 92
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.side_effect = Exception("Nabla outage")
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "92", "note_uuid": "92"}))
+    view.post_generate_summary()
+
+    audit_event_types = [c.args[1] for c in mock_audit.call_args_list]
+    assert "NORMALIZED_DATA_FAILED" in audit_event_types
+    failed_calls = [
+        c.args[2] if len(c.args) > 2 else {} for c in mock_audit.call_args_list if c.args[1] == "NORMALIZED_DATA_FAILED"
+    ]
+    assert failed_calls == [{"step": "normalized"}]
+
+
+# --- /generate-summary VITALS_FIELD_REFUSED telemetry (Fix 4) ----------------------
+# Field-refusal audit fires when ``_validate_field`` or the unit converters drop a
+# value, OR when the atomic BP-pair sweep cascades. Schema: refused_fields (list of
+# field names) + reasons (parallel list of reason categories). NO field VALUES — PHI.
+# Silent on the happy path: no refusals → no VITALS_FIELD_REFUSED event.
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_emits_vitals_field_refused_for_out_of_range_pulse(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """Out-of-range pulse (25 < SDK floor 30) emits VITALS_FIELD_REFUSED with refused_fields=['pulse']."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 93
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+
+    mock_backend = MagicMock()
+    # Vitals section has HR=25 (out of range) and a valid BP. Pulse refused, BP survives.
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="vitals", title="Vitals", text="HR 25, BP 120/80")],
+    )
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "93", "note_uuid": "93"}))
+    view.post_generate_summary()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    refused_calls = [payload for event_type, payload in audit_calls if event_type == "VITALS_FIELD_REFUSED"]
+    assert len(refused_calls) == 1, f"expected one VITALS_FIELD_REFUSED audit event, got {audit_calls}"
+    assert refused_calls[0] == {"refused_fields": ["pulse"], "reasons": ["out_of_range"]}
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_happy_path_emits_no_vitals_field_refused(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """Happy path (no refusals): VITALS_FIELD_REFUSED MUST NOT fire.
+
+    Pins the silent-on-happy-path contract: we don't want a `refused_fields: []`
+    event polluting the audit log on every successful note. Only fires when there
+    is actually something to record.
+    """
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 94
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="vitals", title="Vitals", text="BP 120/80, HR 72, SpO2 98%")],
+    )
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "94", "note_uuid": "94"}))
+    view.post_generate_summary()
+
+    audit_event_types = [c.args[1] for c in mock_audit.call_args_list]
+    assert "VITALS_FIELD_REFUSED" not in audit_event_types, (
+        f"happy path should NOT emit VITALS_FIELD_REFUSED, but did. Events: {audit_event_types}"
+    )
+    # And VITALS_SOURCE still fires.
+    assert "VITALS_SOURCE" in audit_event_types
 
 
 # --- /carry-forward-background ---
