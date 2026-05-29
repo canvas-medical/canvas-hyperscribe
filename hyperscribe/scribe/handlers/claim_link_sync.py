@@ -215,18 +215,19 @@ class PerformBillingLineItemRemoval(BaseHandler):
         if not note:
             return []
 
-        # Target the BLI created for THIS specific perform via command_id, NOT
-        # `cpt=cpt, note_id=note.dbid`. During amendment void_recreate, the
-        # builder emits EIE(old) + Originate(new) + Commit(new) — both old and
-        # new performs share the same cpt on the same note, so a cpt-scoped
-        # filter would also remove the freshly-recreated BLI that
-        # ClaimLinkSync just populated. `command_id` is the BLI's FK to the
-        # Command.dbid that produced it, so it scopes precisely to the voided
-        # perform's BLI. ACTIVE status filter avoids re-removing a row this
-        # handler already removed on a prior fire.
+        # Filter by cpt + note + ACTIVE — matches the SDK docs example for
+        # this exact event
+        # (docs.canvasmedical.com/sdk/effect-billing-line-items/#removing-a-billing-line-item).
+        # The ACTIVE filter prevents re-removing a row a prior fire already
+        # removed. During amend void_recreate the builder emits effects in
+        # order EIE(old) → Originate(new) → Commit(new); this handler fires
+        # on the EIE step, BEFORE the new perform commits its BLI — so the
+        # cpt+note filter finds only the old BLI and the new one is created
+        # cleanly by the subsequent commit.
         bli_ids = list(
             BillingLineItem.objects.filter(
-                command_id=cmd.dbid,
+                cpt=cpt,
+                note_id=note.dbid,
                 status=BillingLineItemStatus.ACTIVE,
             ).values_list("id", flat=True)
         )

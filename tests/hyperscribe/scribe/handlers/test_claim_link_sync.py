@@ -589,14 +589,14 @@ def test_removal_no_active_bli_for_command_returns_empty(
 @patch("hyperscribe.scribe.handlers.claim_link_sync.RemoveBillingLineItem")
 @patch("hyperscribe.scribe.handlers.claim_link_sync.BillingLineItem")
 @patch("hyperscribe.scribe.handlers.claim_link_sync.Command")
-def test_removal_emits_remove_effect_scoped_to_command_id(
+def test_removal_emits_remove_effect_filtered_by_cpt_note_active(
     mock_command_cls: MagicMock,
     mock_bli_cls: MagicMock,
     mock_remove_cls: MagicMock,
 ) -> None:
-    """During amend void_recreate, old and new performs share the same
-    cpt + note. The BLI filter must scope to command_id so we don't remove
-    the freshly-recreated BLI."""
+    """Matches the SDK-docs pattern: filter by cpt + note + ACTIVE so that
+    rows previously removed by this handler are skipped, and the BLI tied
+    to the just-voided perform is removed."""
     cmd = SimpleNamespace(
         dbid=11,
         data={"perform": {"value": "99213"}},
@@ -609,10 +609,8 @@ def test_removal_emits_remove_effect_scoped_to_command_id(
     effects = _make_removal_handler().compute()
 
     assert effects == ["effect-1"]
-    # The filter MUST be by command_id (Command.dbid) — not cpt + note_id —
-    # so that during amend void_recreate it only targets the EIE'd perform's
-    # BLI, not the freshly-recreated perform's BLI that shares the same cpt.
     filter_kwargs = mock_bli_cls.objects.filter.call_args.kwargs
-    assert filter_kwargs["command_id"] == 11
+    assert filter_kwargs["cpt"] == "99213"
+    assert filter_kwargs["note_id"] == 1
     assert filter_kwargs["status"].name == "ACTIVE"
     assert mock_remove_cls.call_args.kwargs == {"billing_line_item_id": "bli-1"}
