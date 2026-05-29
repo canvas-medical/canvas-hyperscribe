@@ -1073,6 +1073,172 @@ def test_match_conditions_no_conditions() -> None:
     assert result == {}
 
 
+# --- _load_active_patient_conditions ---
+
+
+def _stub_condition_queryset(mock_condition: MagicMock, conditions: list[Any]) -> None:
+    """Wire a mocked ConditionModel so its active/for_patient/prefetch/order_by
+    chain returns the given list of condition rows. Keeps the test bodies
+    focused on the assertion rather than mock plumbing."""
+    chain = mock_condition.objects.active.return_value.for_patient.return_value
+    chain.prefetch_related.return_value.order_by.return_value = conditions
+
+
+@patch("hyperscribe.scribe.api.session_view.ConditionModel")
+def test_load_active_patient_conditions_returns_icd10_coding(mock_condition: MagicMock) -> None:
+    """The helper picks the ICD-10 coding when both ICD-10 and SNOMED are
+    present on an active condition. The frontend belt matches on ICD-10, so
+    the hint must carry the same system."""
+    from hyperscribe.scribe.api.session_view import _load_active_patient_conditions
+
+    cond = MagicMock()
+    cond.id = "active-uuid-1"
+    cond.clinical_status = "active"
+    icd_coding = MagicMock(system="ICD-10", code="E1165", display="Type 2 DM w/ hyperglycemia")
+    snomed_coding = MagicMock(system="http://snomed.info/sct", code="44054006", display="DM type 2")
+    cond.codings.all.return_value = [snomed_coding, icd_coding]
+    _stub_condition_queryset(mock_condition, [cond])
+
+    result = _load_active_patient_conditions("patient-key-1")
+
+    assert len(result) == 1
+    assert result[0].condition_id == "active-uuid-1"
+    assert result[0].code == "E1165"
+    assert result[0].display == "Type 2 DM w/ hyperglycemia"
+
+
+@patch("hyperscribe.scribe.api.session_view.ConditionModel")
+def test_load_active_patient_conditions_skips_conditions_with_no_codings(mock_condition: MagicMock) -> None:
+    """An active condition with no codings at all is skipped -- it has nothing
+    we can use as a hint. This mirrors the existing get_patient_conditions
+    endpoint's behavior."""
+    from hyperscribe.scribe.api.session_view import _load_active_patient_conditions
+
+    cond_no_codings = MagicMock()
+    cond_no_codings.id = "active-uuid-1"
+    cond_no_codings.clinical_status = "active"
+    cond_no_codings.codings.all.return_value = []
+    _stub_condition_queryset(mock_condition, [cond_no_codings])
+
+    result = _load_active_patient_conditions("patient-key-1")
+
+    assert result == []
+
+
+@patch("hyperscribe.scribe.api.session_view.ConditionModel")
+def test_load_active_patient_conditions_falls_back_to_first_coding_when_no_icd10(
+    mock_condition: MagicMock,
+) -> None:
+    """When only SNOMED is present (no ICD-10), we still return the entry but
+    with the SNOMED code. The downstream matcher will filter it out (its rule
+    requires same 3-char ICD-10 root) -- but we don't drop it here, to mirror
+    the existing get_patient_conditions endpoint exactly."""
+    from hyperscribe.scribe.api.session_view import _load_active_patient_conditions
+
+    cond = MagicMock()
+    cond.id = "active-uuid-1"
+    cond.clinical_status = "active"
+    snomed_coding = MagicMock(system="http://snomed.info/sct", code="44054006", display="DM type 2")
+    cond.codings.all.return_value = [snomed_coding]
+    _stub_condition_queryset(mock_condition, [cond])
+
+    result = _load_active_patient_conditions("patient-key-1")
+
+    assert len(result) == 1
+    assert result[0].code == "44054006"
+    assert result[0].display == "DM type 2"
+
+
+@patch("hyperscribe.scribe.api.session_view.ConditionModel")
+def test_load_active_patient_conditions_empty_patient_id(mock_condition: MagicMock) -> None:
+    """An empty patient_id returns empty without touching the ORM. This is
+    the post_generate_summary defensive path -- some callers (e.g. ad-hoc
+    flows) may not have a patient_id in the request body."""
+    from hyperscribe.scribe.api.session_view import _load_active_patient_conditions
+
+    result = _load_active_patient_conditions("")
+
+    assert result == []
+    mock_condition.objects.active.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.ConditionModel")
+def test_load_active_patient_conditions_carries_system(mock_condition: MagicMock) -> None:
+    """The ``system`` field on the chosen coding rides along on the result.
+
+    ``get_patient_conditions`` (the public endpoint the frontend's belt
+    fetches against) shapes the response with a ``system`` key, so the
+    helper must thread it through. Without this guard a refactor dropping
+    ``system`` from the dataclass would silently strip the field from the
+    endpoint's JSON shape."""
+    from hyperscribe.scribe.api.session_view import _load_active_patient_conditions
+
+    cond = MagicMock()
+    cond.id = "active-uuid-1"
+    cond.clinical_status = "active"
+    icd_coding = MagicMock(system="ICD-10", code="E1165", display="Type 2 DM")
+    cond.codings.all.return_value = [icd_coding]
+    _stub_condition_queryset(mock_condition, [cond])
+
+    result = _load_active_patient_conditions("patient-key-1")
+
+    assert result[0].system == "ICD-10"
+
+
+# --- /patient-conditions ---
+
+
+@patch("hyperscribe.scribe.api.session_view._load_active_patient_conditions")
+def test_get_patient_conditions_uses_shared_loader(mock_load: MagicMock) -> None:
+    """The ``/patient-conditions`` endpoint and ``post_generate_summary`` must
+    fetch the patient's active problem list through the same helper, so a
+    schema change can't be visible to one and invisible to the other.
+
+    This test pins the wiring: it stubs ``_load_active_patient_conditions``
+    and asserts the endpoint's JSON shape matches the previous response
+    (``condition_id``, ``code``, ``formatted_code``, ``display``, ``system``).
+    A regression that bypassed the helper would have to also bypass this
+    assertion to ship."""
+    from hyperscribe.scribe.commands.problem_list_match import ActivePatientCondition
+
+    mock_load.return_value = [
+        ActivePatientCondition(
+            condition_id="active-1",
+            code="E1165",
+            display="Type 2 DM w/ hyperglycemia",
+            system="ICD-10",
+        )
+    ]
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"patient_id": "patient-key-1"}, headers={}, body=b"")
+    result = view.get_patient_conditions()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert data["conditions"] == [
+        {
+            "condition_id": "active-1",
+            "code": "E1165",
+            "formatted_code": "E11.65",
+            "display": "Type 2 DM w/ hyperglycemia",
+            "system": "ICD-10",
+        }
+    ]
+    mock_load.assert_called_once_with("patient-key-1")
+
+
+def test_get_patient_conditions_missing_patient_id() -> None:
+    """Without ``patient_id`` the endpoint returns 400 -- preserved from the
+    pre-refactor implementation."""
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={}, headers={}, body=b"")
+    result = view.get_patient_conditions()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "patient_id is required" in json.loads(result[0].content)["error"]
+
+
 # --- /extract-commands ---
 
 
@@ -3170,6 +3336,173 @@ def test_generate_summary_success(
     assert data["recommendations"][0]["command_type"] == "medication_statement"
     # Summary should be saved to database.
     mock_summary.objects.update_or_create.assert_called_once()
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view._load_active_patient_conditions")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_prefers_patient_specific_icd10_over_nabla_parent(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_load_active: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_summary: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """KOALA-5603: when Nabla emits an unspecified-parent ICD-10 (E11.9) but
+    the patient has a more specific active condition (E11.65) on the problem
+    list, the diagnose command surfaced in the summary must carry the
+    patient's specific code -- so the frontend's diagnose -> assess belt
+    can convert it to an assess linked to the existing condition_id.
+
+    This pins the load-bearing wiring: post_generate_summary must call
+    _load_active_patient_conditions and feed the result through the
+    problem-list-match helper between generate_normalized_data and
+    _match_conditions_to_sections."""
+    from hyperscribe.scribe.commands.problem_list_match import ActivePatientCondition
+
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 55
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "discuss diabetes", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 2000}],
+        "finalized": True,
+    }
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="SOAP Note",
+        sections=[
+            NoteSection(
+                key="assessment_and_plan",
+                title="A&P",
+                text="Type 2 diabetes\n- Continue metformin",
+            ),
+        ],
+    )
+    # Nabla emits the unspecified parent code.
+    mock_backend.generate_normalized_data.return_value = NormalizedData(
+        conditions=[
+            Condition(
+                display="Type 2 diabetes mellitus without complications",
+                clinical_status="active",
+                coding=[CodingEntry(system="ICD-10", code="E11.9", display="Type 2 DM unspecified")],
+            )
+        ],
+        observations=[],
+    )
+    mock_backend._last_raw_note_response = None
+    get_backend.return_value = mock_backend
+
+    # Patient has E11.65 (the more specific code) on the active problem list.
+    mock_load_active.return_value = [
+        ActivePatientCondition(
+            condition_id="active-condition-uuid",
+            code="E1165",
+            display="Type 2 diabetes mellitus with hyperglycemia",
+        )
+    ]
+
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "55", "note_uuid": "55", "patient_id": "patient-key-1"}))
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    diagnose_cmds = [c for c in data["commands"] if c["command_type"] == "diagnose"]
+    assert len(diagnose_cmds) == 1, "Expected exactly one diagnose command from the A&P split."
+    # The Nabla-emitted E11.9 must have been rewritten to the patient-specific E11.65
+    # so the frontend belt can match against the active condition and convert to assess.
+    assert diagnose_cmds[0]["data"]["icd10_code"] == "E1165", (
+        "Expected the diagnose command to carry the patient-specific E11.65 code, "
+        f"got {diagnose_cmds[0]['data']['icd10_code']!r}. The Nabla E11.9 parent code "
+        "should have been rewritten before the A&P split picked it up."
+    )
+
+    # _load_active_patient_conditions must be called with the patient_id from the request,
+    # not the note_id or any other identifier.
+    mock_load_active.assert_called_once_with("patient-key-1")
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view._load_active_patient_conditions")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_empty_active_problem_list_leaves_nabla_code_intact(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_load_active: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_summary: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """Regression guard: a patient with an empty active problem list still
+    gets Nabla's best-guess code. This is the "new patient, no history" path
+    and must not regress -- previously Nabla's code went through untouched."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 55
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "headache", "speaker": "patient", "start_offset_ms": 0, "end_offset_ms": 1000}],
+        "finalized": True,
+    }
+
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="assessment_and_plan", title="A&P", text="Headache\n- Rest")],
+    )
+    mock_backend.generate_normalized_data.return_value = NormalizedData(
+        conditions=[
+            Condition(
+                display="Headache",
+                clinical_status="active",
+                coding=[CodingEntry(system="ICD-10", code="R51", display="Headache")],
+            )
+        ],
+        observations=[],
+    )
+    mock_backend._last_raw_note_response = None
+    get_backend.return_value = mock_backend
+    mock_load_active.return_value = []
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "55", "note_uuid": "55", "patient_id": "patient-key-1"}))
+    result = view.post_generate_summary()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    diagnose_cmds = [c for c in data["commands"] if c["command_type"] == "diagnose"]
+    assert len(diagnose_cmds) == 1
+    assert diagnose_cmds[0]["data"]["icd10_code"] == "R51"
 
 
 @patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])

@@ -66,6 +66,10 @@ from hyperscribe.scribe.commands.builder import (
 )
 from hyperscribe.scribe.commands.carry_forward import carry_forward_assess_background
 from hyperscribe.scribe.commands.extractor import extract_commands, parse_ros_subsections
+from hyperscribe.scribe.commands.problem_list_match import (
+    ActivePatientCondition,
+    prefer_patient_specific_codes,
+)
 from hyperscribe.scribe.recommendations import recommend_commands
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
 from hyperscribe.scribe.recommendations.reconciliation import reconcile_sections
@@ -291,6 +295,47 @@ def _serialize_condition(condition: Condition) -> dict[str, Any]:
     if condition.corresponding_note_problem is not None:
         result["corresponding_note_problem"] = condition.corresponding_note_problem
     return result
+
+
+def _load_active_patient_conditions(patient_id: str) -> list[ActivePatientCondition]:
+    """Return the patient's active problem-list entries, narrowed to the
+    fields :func:`prefer_patient_specific_codes` needs.
+
+    Used by :func:`post_generate_summary` (to hint Nabla codes toward the
+    patient-specific code already on file) AND by :meth:`get_patient_conditions`
+    (the endpoint the frontend's diagnose -> assess belt fetches against).
+    Both call sites go through this helper so a problem-list selection
+    change can never be visible to one and invisible to the other; without
+    that constraint the rewrite hint and the frontend belt would drift and
+    a patient's specific code would silently stop landing in their chart.
+
+    PHI note: the returned ``ActivePatientCondition`` carries clinical data;
+    callers must not log codes or display strings beyond aggregate counts.
+    """
+    if not patient_id:
+        return []
+    conditions = (
+        ConditionModel.objects.active().for_patient(patient_id).prefetch_related("codings").order_by("-onset_date")
+    )
+    results: list[ActivePatientCondition] = []
+    for c in conditions:
+        codings = list(c.codings.all())
+        if not codings:
+            continue
+        icd10 = next(
+            (coding for coding in codings if "icd" in (coding.system or "").lower()),
+            None,
+        )
+        chosen = icd10 or codings[0]
+        results.append(
+            ActivePatientCondition(
+                condition_id=str(c.id),
+                code=chosen.code,
+                display=chosen.display or c.clinical_status,
+                system=chosen.system or "",
+            )
+        )
+    return results
 
 
 def _match_conditions_to_sections(
@@ -889,6 +934,17 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         section_conditions: dict[str, list[dict[str, Any]]] = {}
         try:
             normalized = backend.generate_normalized_data(note)
+            # KOALA-5603: prefer the patient's specific active-problem-list code
+            # when Nabla emitted an unspecified-parent (e.g. E11.9 -> E11.65).
+            # The downstream frontend belt converts a diagnose to an assess
+            # only on EXACT ICD-10 match, so the rewrite has to land before
+            # _match_conditions_to_sections / split_plan_into_diagnoses run.
+            patient_id_for_hint = str(data.get("patient_id", ""))
+            active_conditions = _load_active_patient_conditions(patient_id_for_hint)
+            normalized.conditions = prefer_patient_specific_codes(
+                normalized.conditions,
+                active_conditions,
+            )
             section_conditions = _match_conditions_to_sections(note, normalized.conditions)
         except Exception:
             log.exception("generate_normalized_data failed (non-critical)")
@@ -2032,32 +2088,27 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
     @api.get("/patient-conditions")
     def get_patient_conditions(self) -> list[Union[Response, Effect]]:
-        """Return committed, non-entered-in-error conditions for a patient."""
+        """Return committed, non-entered-in-error conditions for a patient.
+
+        Shape: ``{"conditions": [{condition_id, code, formatted_code, display, system}, ...]}``.
+        The frontend's diagnose -> assess belt fetches against this endpoint
+        and matches on ``code``; share :func:`_load_active_patient_conditions`
+        with ``post_generate_summary`` so any change to "what counts as an
+        active problem-list entry" lands in both places simultaneously."""
         patient_id = self.request.query_params.get("patient_id", "").strip()
         if not patient_id:
             return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        conditions = (
-            ConditionModel.objects.active().for_patient(patient_id).prefetch_related("codings").order_by("-onset_date")
-        )
-        results = []
-        for c in conditions:
-            codings = list(c.codings.all())
-            if not codings:
-                continue
-            icd10 = next(
-                (coding for coding in codings if "icd" in (coding.system or "").lower()),
-                None,
-            )
-            chosen = icd10 or codings[0]
-            results.append(
-                {
-                    "condition_id": str(c.id),
-                    "code": chosen.code,
-                    "formatted_code": _format_icd10_code(chosen.code),
-                    "display": chosen.display or c.clinical_status,
-                    "system": chosen.system,
-                }
-            )
+        active = _load_active_patient_conditions(patient_id)
+        results = [
+            {
+                "condition_id": a.condition_id,
+                "code": a.code,
+                "formatted_code": _format_icd10_code(a.code),
+                "display": a.display,
+                "system": a.system,
+            }
+            for a in active
+        ]
         return [JSONResponse({"conditions": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/patient-medications")
