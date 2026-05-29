@@ -1698,16 +1698,31 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const showAddCell = !readOnly && !!onAddTemplateCharge;
           const showTemplatePills = !readOnly && templatePills.length > 0;
           const totalCols = 1 + activeCpts.length + (showAddCell ? 1 : 0);
-          // Reordering rows/columns is positional in commands[] — it has no
-          // backend persistence path during amendment (Canvas's box 21 order
-          // is locked at Assessment commit time, not driven by Scribe's
-          // commands[] ordering post-commit). Showing draggable rank UI in
-          // amendment mode would mislead the provider into thinking they
-          // can change diagnosis-pointer order post-sign. Gate the reorder
-          // primitives (draggable + the rank <input> vs pill choice) on
-          // isAmending alongside readOnly. CPT-ICD link toggling stays
-          // enabled — that path is amendment-aware via _amend_edited.
-          const reorderDisabled = readOnly || !!isAmending;
+          // The whole Charges matrix is read-only during amendment.
+          //
+          // Backend rationale: every editable surface in this matrix (CPT
+          // add/remove, link checkbox toggle, row/column reorder) flows
+          // through Scribe's amend pipeline (/insert-commands +
+          // /edit-existing-commands + /delete-existing-commands), and each
+          // of those paths has cross-request race surface with Canvas's
+          // home-app effect bus that makes the post-amend BLI state
+          // unreliable enough to mislead the provider. Until those races
+          // are closed end-to-end, suppressing matrix editability in
+          // amendment mode is the safer UX. Providers who need to change
+          // charges post-sign can do so via Canvas's native footer.
+          //
+          // `reorderDisabled` retains the same value as `chargesReadOnly`
+          // (kept as a named alias for readability of the row/column DnD
+          // gates below).
+          const chargesReadOnly = readOnly || !!isAmending;
+          const reorderDisabled = chargesReadOnly;
+
+          // Template pills + AddChargeCell are gated on `chargesReadOnly`
+          // (= readOnly || isAmending). During amendment we keep the pills
+          // visible (so the provider sees which template charges WOULD
+          // apply) but disable their click handlers; AddChargeCell is
+          // suppressed entirely.
+          const showAddCellEditable = showAddCell && !chargesReadOnly;
 
           // Empty state: no diagnoses AND no CPTs. Show only the trigger UI.
           if (rankList.length === 0 && activeCpts.length === 0) {
@@ -1716,7 +1731,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 ${showTemplatePills && html`
                   <div class="charge-template-pills">
                     ${templatePills.map(p => html`
-                      <button type="button" key=${p.cpt_code} class="charge-pill${p.active ? ' charge-pill--active' : ''}" onClick=${() => p.active ? (onRemoveChargeByCpt && onRemoveChargeByCpt(p.cpt_code)) : (onAddTemplateCharge && onAddTemplateCharge(p.cpt_code, p.description))}>
+                      <button type="button" key=${p.cpt_code} class="charge-pill${p.active ? ' charge-pill--active' : ''}" disabled=${chargesReadOnly} onClick=${chargesReadOnly ? undefined : () => p.active ? (onRemoveChargeByCpt && onRemoveChargeByCpt(p.cpt_code)) : (onAddTemplateCharge && onAddTemplateCharge(p.cpt_code, p.description))}>
                         <span class="charge-pill-code">${p.cpt_code}</span>
                         <span class="charge-pill-desc">${p.description}</span>
                       </button>
@@ -1724,7 +1739,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   </div>
                 `}
                 <div class="cm-empty cm-empty--standalone">Add a diagnosis to the Plan and a charge to begin linking.</div>
-                ${showAddCell && html`<div class="cm-empty-add"><${AddChargeCell} excludeCpts=${activeCptSet} onAddTemplateCharge=${onAddTemplateCharge} /></div>`}
+                ${showAddCellEditable && html`<div class="cm-empty-add"><${AddChargeCell} excludeCpts=${activeCptSet} onAddTemplateCharge=${onAddTemplateCharge} /></div>`}
               </div>
             `;
           }
@@ -1734,7 +1749,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               ${showTemplatePills && html`
                 <div class="charge-template-pills">
                   ${templatePills.map(p => html`
-                    <button type="button" key=${p.cpt_code} class="charge-pill${p.active ? ' charge-pill--active' : ''}" onClick=${() => p.active ? (onRemoveChargeByCpt && onRemoveChargeByCpt(p.cpt_code)) : (onAddTemplateCharge && onAddTemplateCharge(p.cpt_code, p.description))}>
+                    <button type="button" key=${p.cpt_code} class="charge-pill${p.active ? ' charge-pill--active' : ''}" disabled=${chargesReadOnly} onClick=${chargesReadOnly ? undefined : () => p.active ? (onRemoveChargeByCpt && onRemoveChargeByCpt(p.cpt_code)) : (onAddTemplateCharge && onAddTemplateCharge(p.cpt_code, p.description))}>
                       <span class="charge-pill-code">${p.cpt_code}</span>
                       <span class="charge-pill-desc">${p.description}</span>
                     </button>
@@ -1758,10 +1773,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       >
                         <span class="cm-cpt-code">${c.cpt_code}</span>
                         <span class="cm-cpt-desc">${c.description}</span>
-                        ${!readOnly && html`<button type="button" class="cm-cpt-remove" title="Remove charge" aria-label="Remove charge" onClick=${(e) => { e.stopPropagation(); onRemoveChargeByCpt && onRemoveChargeByCpt(c.cpt_code); }}>×</button>`}
+                        ${!chargesReadOnly && html`<button type="button" class="cm-cpt-remove" title="Remove charge" aria-label="Remove charge" onClick=${(e) => { e.stopPropagation(); onRemoveChargeByCpt && onRemoveChargeByCpt(c.cpt_code); }}>×</button>`}
                       </th>
                     `)}
-                    ${showAddCell && html`<th class="cm-add-col-head${activeCpts.length === 0 ? ' cm-add-col-head--cta' : ' cm-add-col-head--separated'}"><${AddChargeCell} excludeCpts=${activeCptSet} onAddTemplateCharge=${onAddTemplateCharge} ctaLabel=${activeCpts.length === 0 ? 'Add a charge to begin linking' : null} /></th>`}
+                    ${showAddCellEditable && html`<th class="cm-add-col-head${activeCpts.length === 0 ? ' cm-add-col-head--cta' : ' cm-add-col-head--separated'}"><${AddChargeCell} excludeCpts=${activeCptSet} onAddTemplateCharge=${onAddTemplateCharge} ctaLabel=${activeCpts.length === 0 ? 'Add a charge to begin linking' : null} /></th>`}
                   </tr>
                 </thead>
                 <tbody>
@@ -1822,10 +1837,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           <input
                             type="checkbox"
                             checked=${linked}
-                            disabled=${readOnly || colAtCap}
+                            disabled=${chargesReadOnly || colAtCap}
                             title=${colAtCap ? 'Max 4 diagnoses per CPT' : ''}
                             aria-label=${`Link ${r.icd10_code} to ${c.cpt_code}`}
-                            onChange=${() => onToggleCptLink && onToggleCptLink(c.index, r.icd10_code)}
+                            onChange=${chargesReadOnly ? undefined : () => onToggleCptLink && onToggleCptLink(c.index, r.icd10_code)}
                           />
                         </td>`;
                       })}

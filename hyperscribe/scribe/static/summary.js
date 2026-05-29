@@ -1282,6 +1282,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const handleToggleCptLink = useCallback((cptIndex, icdCode) => {
     if (!canEdit || !icdCode) return;
     const amending = wasFinalized && !approved;
+    // Charges matrix is read-only during amendment.
+    if (amending) return;
     setCommands(prev => {
       const cmd = prev[cptIndex];
       if (!cmd || cmd.command_type !== 'perform') return prev;
@@ -1535,6 +1537,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const handleAddTemplateCharge = useCallback((cptCode, description) => {
     logEvent('ADD_TEMPLATE_CHARGE', { cptCode, description });
     if (!canEdit) return;
+    // Charges matrix is read-only during amendment — defense-in-depth at the
+    // handler level (the UI in soap-group.js also disables the pill/+CPT cell).
+    if (wasFinalized && !approved) return;
     setCommands(prev => {
       // Re-select if already exists but deselected. KOALA-5485: if this was
       // an amend-mode delete that the user just toggled back on, also clear
@@ -1559,11 +1564,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         already_documented: false,
       }];
     });
-  }, [canEdit]);
+  }, [canEdit, wasFinalized, approved]);
 
   const handleRemoveChargeByCpt = useCallback((cptCode) => {
     logEvent('REMOVE_CHARGE', { cptCode });
     if (!canEdit) return;
+    // Charges matrix is read-only during amendment.
+    if (wasFinalized && !approved) return;
     // KOALA-5485: in amend mode, unchecking an already-documented charge must
     // also set `_amend_deleted: true` so handleInsert POSTs a delete to mark
     // the chart row entered-in-error. The `_amend_deleted` tag is gated by
