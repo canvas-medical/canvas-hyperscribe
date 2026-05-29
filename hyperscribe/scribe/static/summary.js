@@ -1522,7 +1522,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }
           setApproved(false);
           setConfirming(false);
-          saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+          // `workingCommands` is still identical to `commands` here (no
+          // hard-commit has run yet), but use it for consistency with every
+          // other cache write in this callback so a future reorder can't
+          // reintroduce the stale-`commands` cache bug.
+          saveSummaryToCache(noteData, workingCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
           setInserting(false);
           logEvent('AMEND_DELETE_ERROR', { error: delData.error, conflicts: delData.conflicts || null });
           return;
@@ -1574,7 +1578,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }
           setApproved(false);
           setConfirming(false);
-          saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+          // The edit backend rejected before emitting edit effects, but an
+          // amend-delete in the branch above may have already committed
+          // server-side. Persist `workingCommands` (deletes filtered out), not
+          // the stale closure `commands`, so the cache doesn't resurrect the
+          // already-voided deleted commands on reload. Mirrors 1539 / 1692.
+          saveSummaryToCache(noteData, workingCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
           setInserting(false);
           logEvent('AMEND_EDIT_ERROR', { error: editData.error, conflicts: editData.conflicts || null });
           return;
@@ -1684,7 +1693,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       })));
       setApproved(false);
       setConfirming(false);
-      saveSummaryToCache(noteData, commands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+      // Persist `workingCommands` (not the stale closure-captured `commands`):
+      // if an amend edit already committed earlier in this click, the home-app
+      // has executed EIE+Originate and `workingCommands` carries the re-stamped
+      // uuids. Writing `commands` here would revert the cache to pre-amend state
+      // and a retry would resend the now-voided uuid as an amend. Mirrors 1762.
+      saveSummaryToCache(noteData, workingCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
       setInserting(false);
       logEvent('APPROVE_ERROR', {
         error: 'client_validation_failed',
