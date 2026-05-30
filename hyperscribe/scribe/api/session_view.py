@@ -41,6 +41,7 @@ from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
 
 import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
+from hyperscribe.scribe.clients.nabla.backend import NablaBackend
 from hyperscribe.scribe.backend import (
     ClinicalNote,
     CodingEntry,
@@ -183,6 +184,32 @@ def audit_event(note_uuid: str, event_type: str, details: dict[str, Any] | None 
         obj.save()
     except Exception:
         log.exception(f"Failed to write audit event: {event_type}")
+
+
+def _emit_template_audit(note_uuid: str, visit_template_name: str) -> None:
+    """Emit NABLA_TEMPLATE_PATH + (conditionally) PSYCH_TEMPLATE_NEAR_MISS audit events.
+
+    NABLA_TEMPLATE_PATH fires on every generate_note call so Brigade can track
+    which template path each session took. NEAR_MISS only fires when the
+    operator-set name *looks* like psychiatry but doesn't exact-match the
+    gating set — this surfaces customer admins who added e.g. "Psychiatry
+    Follow-up" so the gating set can grow if needed. Both payloads carry
+    only operator-set names, no PHI.
+    """
+    if not note_uuid:
+        return
+    is_psychiatry = NablaBackend.is_psychiatry_template(visit_template_name)
+    audit_event(
+        note_uuid,
+        "NABLA_TEMPLATE_PATH",
+        {"is_psychiatry": is_psychiatry, "template": visit_template_name},
+    )
+    if NablaBackend.is_psychiatry_template_near_miss(visit_template_name):
+        audit_event(
+            note_uuid,
+            "PSYCH_TEMPLATE_NEAR_MISS",
+            {"visit_template_name": visit_template_name},
+        )
 
 
 _PROGRESS_CACHE_KEY_PREFIX = "scribe_progress:"
@@ -1054,9 +1081,13 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         transcript = _parse_transcript(transcript_data)
         patient_context = _parse_patient_context(data)
         visit_template_name = str(data.get("selected_template_name", "") or "")
+        note_uuid = str(data.get("note_uuid", ""))
+        _emit_template_audit(note_uuid, visit_template_name)
         try:
             note = backend.generate_note(
-                transcript, patient_context=patient_context, visit_template_name=visit_template_name,
+                transcript,
+                patient_context=patient_context,
+                visit_template_name=visit_template_name,
             )
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
@@ -1066,12 +1097,12 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             "title": note.title,
             "sections": [{"key": s.key, "title": s.title, "text": s.text} for s in note.sections],
         }
+        is_psychiatry_visit = NablaBackend.is_psychiatry_template(visit_template_name)
 
         # ── Step 1: Generate normalized data ──
         _save_progress(note_id, 1, total, SUMMARY_STEPS[1])
         section_conditions: dict[str, list[dict[str, Any]]] = {}
         normalized_observations: list[Observation] = []
-        note_uuid = str(data.get("note_uuid", ""))
         try:
             normalized = backend.generate_normalized_data(note)
             # KOALA-5603: prefer the patient's specific active-problem-list code
@@ -1125,7 +1156,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                         "reasons": [r.reason for r in vitals_telemetry.refusals],
                     },
                 )
-        proposals = extract_commands(note, observations=normalized_observations)
+        proposals = extract_commands(
+            note,
+            observations=normalized_observations,
+            is_psychiatry=is_psychiatry_visit,
+        )
         annotate_duplicates(proposals, note_uuid)
         prefill_assess_backgrounds_for_proposals(proposals, note_uuid)
         commands_list: list[dict[str, Any]] = [
@@ -1320,9 +1355,17 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         transcript = _parse_transcript(transcript_data)
         patient_context = _parse_patient_context(data)
         visit_template_name = str(data.get("selected_template_name", "") or "")
+        # NABLA_TEMPLATE_PATH + NEAR_MISS observability fires on every
+        # generate_note call (both the summary pipeline and this raw endpoint),
+        # so Brigade can compare template path adoption against psych-named
+        # templates that don't exact-match the gating set.
+        note_uuid = str(data.get("note_uuid", "") or data.get("note_id", ""))
+        _emit_template_audit(note_uuid, visit_template_name)
         try:
             note = backend.generate_note(
-                transcript, patient_context=patient_context, visit_template_name=visit_template_name,
+                transcript,
+                patient_context=patient_context,
+                visit_template_name=visit_template_name,
             )
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
@@ -1377,7 +1420,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except (json.JSONDecodeError, ValueError) as exc:
             return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
         note = _parse_note(data.get("note", {}))
-        proposals = extract_commands(note)
+        visit_template_name = str(data.get("selected_template_name", "") or "")
+        is_psychiatry = NablaBackend.is_psychiatry_template(visit_template_name)
+        proposals = extract_commands(note, is_psychiatry=is_psychiatry)
         note_uuid = str(data.get("note_uuid", ""))
         annotate_duplicates(proposals, note_uuid)
         prefill_assess_backgrounds_for_proposals(proposals, note_uuid)

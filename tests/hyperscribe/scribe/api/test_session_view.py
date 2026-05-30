@@ -5854,3 +5854,325 @@ def test_search_imaging_url_encodes_query(mock_science_http: MagicMock) -> None:
 
     called_url = mock_science_http.get_json.call_args[0][0]
     assert "query=MRI+%26+CT" in called_url or "query=MRI%20%26%20CT" in called_url
+
+
+# --- NABLA_TEMPLATE_PATH + PSYCH_TEMPLATE_NEAR_MISS audit telemetry ----------
+# Brigade observability: emit on every generate_note call so we can track
+# how often the psychiatry path fires vs. operator templates that LOOK like
+# psychiatry but don't exact-match the gating set (and would silently route
+# to the generic Nabla template).
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_nabla_template_path_audit_emitted_on_every_generate(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """Every post_generate_summary call emits exactly one NABLA_TEMPLATE_PATH audit event."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 100
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "100", "note_uuid": "100", "selected_template_name": "Psychiatry"}),
+    )
+    view.post_generate_summary()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    path_calls = [payload for event_type, payload in audit_calls if event_type == "NABLA_TEMPLATE_PATH"]
+    assert len(path_calls) == 1, f"expected exactly one NABLA_TEMPLATE_PATH, got: {audit_calls}"
+    assert path_calls[0] == {"is_psychiatry": True, "template": "Psychiatry"}
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_nabla_template_path_audit_records_generic_branch(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """A non-psych template name records is_psychiatry=False on NABLA_TEMPLATE_PATH."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 101
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "101", "note_uuid": "101", "selected_template_name": "Subsequent Visit"}),
+    )
+    view.post_generate_summary()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    path_calls = [payload for event_type, payload in audit_calls if event_type == "NABLA_TEMPLATE_PATH"]
+    assert path_calls == [{"is_psychiatry": False, "template": "Subsequent Visit"}]
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_near_miss_audit_fires_on_psych_lookalike_templates(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """A psych-lookalike template name ("Psychiatry Follow-up") triggers the NEAR_MISS audit event."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 102
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "102", "note_uuid": "102", "selected_template_name": "Psychiatry Follow-up"}),
+    )
+    view.post_generate_summary()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    near_miss_calls = [payload for event_type, payload in audit_calls if event_type == "PSYCH_TEMPLATE_NEAR_MISS"]
+    assert near_miss_calls == [{"visit_template_name": "Psychiatry Follow-up"}]
+    # NABLA_TEMPLATE_PATH still records is_psychiatry=False because the exact gate failed.
+    path_calls = [payload for event_type, payload in audit_calls if event_type == "NABLA_TEMPLATE_PATH"]
+    assert path_calls == [{"is_psychiatry": False, "template": "Psychiatry Follow-up"}]
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_near_miss_audit_silent_on_clean_match(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """Exact-match 'Psychiatry' does NOT trigger NEAR_MISS — the gate itself fires instead."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 103
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "103", "note_uuid": "103", "selected_template_name": "Psychiatry"}),
+    )
+    view.post_generate_summary()
+
+    audit_event_types = [c.args[1] for c in mock_audit.call_args_list]
+    assert "PSYCH_TEMPLATE_NEAR_MISS" not in audit_event_types
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_near_miss_audit_silent_on_non_psych(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """A non-psych template name (no 'psych' substring) does NOT trigger NEAR_MISS."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 104
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "104", "note_uuid": "104", "selected_template_name": "Subsequent Visit"}),
+    )
+    view.post_generate_summary()
+
+    audit_event_types = [c.args[1] for c in mock_audit.call_args_list]
+    assert "PSYCH_TEMPLATE_NEAR_MISS" not in audit_event_types
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_post_generate_note_emits_nabla_template_path(
+    get_backend: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    """The raw /generate-note endpoint also emits NABLA_TEMPLATE_PATH on every call.
+
+    Symmetric with post_generate_summary so Brigade observability covers
+    both code paths that hit Nabla. Without this, removing or inlining the
+    audit call in post_generate_note would silently lose telemetry on the
+    raw endpoint path.
+    """
+    mock_note.objects.values_list.return_value.get.return_value = 105
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    get_backend.return_value = mock_backend
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "105", "note_uuid": "105", "selected_template_name": "Psychiatry"}),
+    )
+    view.post_generate_note()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    path_calls = [payload for event_type, payload in audit_calls if event_type == "NABLA_TEMPLATE_PATH"]
+    assert path_calls == [{"is_psychiatry": True, "template": "Psychiatry"}]
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_post_generate_note_near_miss_audit(
+    get_backend: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    """The raw /generate-note endpoint also fires PSYCH_TEMPLATE_NEAR_MISS for lookalike templates."""
+    mock_note.objects.values_list.return_value.get.return_value = 106
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    get_backend.return_value = mock_backend
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "106", "note_uuid": "106", "selected_template_name": "psychiatry consult"}),
+    )
+    view.post_generate_note()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    near_miss_calls = [payload for event_type, payload in audit_calls if event_type == "PSYCH_TEMPLATE_NEAR_MISS"]
+    assert near_miss_calls == [{"visit_template_name": "psychiatry consult"}]

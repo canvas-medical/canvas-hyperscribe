@@ -24,6 +24,15 @@ _NOTE_LOCALE = "ENGLISH_US"
 _NOTE_TEMPLATE = "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
 _PSYCHIATRY_NOTE_TEMPLATE = "PSYCHIATRY_MULTIPLE_SECTIONS"
 
+# Visit templates that route to the PSYCHIATRY_MULTIPLE_SECTIONS Nabla template
+# and trigger the psych-specific note customization (Mental Health Exam, no
+# medical ROS scaffold, A&P merge for ICD-10 matching).
+#
+# Exact match is intentional: the visit template name comes from the
+# server-controlled /visit-templates endpoint, so we never see whitespace or
+# casing drift from the frontend. Normalizing (lowercase/strip) would only
+# create false positives when an operator adds a template literally named
+# "Psychiatry " or "psychiatry" for an unrelated workflow.
 _PSYCHIATRY_TEMPLATE_NAMES: frozenset[str] = frozenset({"Psychiatry"})
 
 
@@ -31,6 +40,34 @@ class NablaBackend(ScribeBackend):
     def __init__(self, *, client_id: str, client_secret: str) -> None:
         self._auth = NablaAuth(client_id=client_id, private_key=client_secret)
         self._rest_client = NablaClient(self._auth, api_version=_NABLA_API_VERSION)
+
+    @staticmethod
+    def is_psychiatry_template(visit_template_name: str) -> bool:
+        """Return True when ``visit_template_name`` selects the psychiatry Nabla template.
+
+        Public helper so callers (e.g. ``session_view``) can route extractor /
+        audit logic without importing the private template-name set. The match
+        is intentionally exact (see ``_PSYCHIATRY_TEMPLATE_NAMES``); operator
+        templates whose name *looks* like psychiatry but isn't a literal match
+        are surfaced via the PSYCH_TEMPLATE_NEAR_MISS audit event instead.
+        """
+        return visit_template_name in _PSYCHIATRY_TEMPLATE_NAMES
+
+    @staticmethod
+    def is_psychiatry_template_near_miss(visit_template_name: str) -> bool:
+        """Return True when the template name *looks* like psychiatry but does not exact-match.
+
+        The audit emitter in session_view uses this to surface customer
+        admins who added e.g. "Psychiatry Follow-up" or "psychiatry "
+        templates that won't trigger the psych Nabla customization. The
+        check is case-insensitive and only fires when the template name
+        contains "psych" — operator-set names, no PHI.
+        """
+        if not visit_template_name:
+            return False
+        if visit_template_name in _PSYCHIATRY_TEMPLATE_NAMES:
+            return False
+        return "psych" in visit_template_name.lower()
 
     def get_transcription_config(self, *, user_external_id: str = "") -> dict[str, Any]:
         access_token, refresh_token = self._auth.get_user_tokens(user_external_id)
@@ -54,7 +91,7 @@ class NablaBackend(ScribeBackend):
         patient_context: PatientContext | None = None,
         visit_template_name: str = "",
     ) -> ClinicalNote:
-        is_psychiatry = visit_template_name in _PSYCHIATRY_TEMPLATE_NAMES
+        is_psychiatry = self.is_psychiatry_template(visit_template_name)
         payload = self._build_note_payload(transcript, patient_context, visit_template_name=visit_template_name)
         raw = self._rest_client.generate_note(payload)
         self._last_raw_note_response = raw
@@ -138,7 +175,17 @@ class NablaBackend(ScribeBackend):
 
     @staticmethod
     def _strip_bullet(line: str) -> str:
-        """Remove leading bullet prefix (-, *, •) from a line."""
+        """Remove leading bullet prefix (-, *, •) from a line, after trimming whitespace.
+
+        Indentation is stripped here, so callers that need to distinguish
+        top-level bullets from nested sub-bullets must inspect the raw line
+        themselves *before* calling this. ``_reformat_plan_as_ap`` is the one
+        caller that cares about indent: it computes the indent prefix on the
+        raw line and routes nested sub-bullets to the preceding header's
+        body so we don't emit phantom diagnose blocks for category labels
+        (Pharmacotherapy / Psychotherapy / Follow-up) that sit under a
+        parent diagnosis like ``- Major Depressive Disorder:``.
+        """
         stripped = line.strip()
         if re.match(r"^[-•*]\s", stripped):
             return stripped[2:].strip()
@@ -162,7 +209,22 @@ class NablaBackend(ScribeBackend):
         plan blocks by word overlap and included as body content alongside
         plan details, so that both clinical impressions and actions appear
         under each diagnosis.
+
+        Nested sub-bullets (e.g. ``- MDD:\\n  - Pharmacotherapy: ...``) are
+        detected by raw-line indent and attached to the preceding parent's
+        body. Without this guard, indented category labels would become
+        phantom diagnose blocks downstream.
         """
+        # Short-circuit: when Nabla returns assessment but no plan (e.g. an
+        # emergency or deferred-plan visit), return the assessment unchanged.
+        # If we merge-with-empty-plan we'd emit each assessment item as a
+        # bare line, which parse_ap_blocks treats as a header-only block →
+        # one phantom diagnose command per line. Returning the bullet-prefixed
+        # original keeps bullets as bodies, so parse_ap_blocks produces zero
+        # header-only blocks.
+        if not plan_text.strip():
+            return assessment_text
+
         # Parse assessment items.
         assessment_items: list[str] = []
         for line in assessment_text.split("\n"):
@@ -176,9 +238,23 @@ class NablaBackend(ScribeBackend):
         # produce a single block instead of duplicate diagnose commands.
         plan_groups: dict[str, list[str]] = {}
         plan_order: list[str] = []
-        for line in plan_text.split("\n"):
-            stripped = NablaBackend._strip_bullet(line)
+        for raw_line in plan_text.split("\n"):
+            # Indent-aware: nested sub-bullets (indent >= 2 chars) belong to
+            # the most recent header's body, not as new headers. Threshold is
+            # 2 (not 1) so a stray single-space prefix on a top-level bullet
+            # from Nabla format drift doesn't get misclassified as nested.
+            # Standard markdown nesting is 2 spaces; tabs treated identically.
+            stripped_line = raw_line.lstrip()
+            indent = len(raw_line) - len(stripped_line)
+            stripped = NablaBackend._strip_bullet(raw_line)
             if not stripped:
+                continue
+            is_nested = indent >= 2 and bool(plan_order)
+            if is_nested:
+                # Sub-bullet under an existing parent — append as body.
+                # Drop the colon-prefix label if present, but keep the
+                # whole line so downstream readers see what was nested.
+                plan_groups[plan_order[-1]].append(stripped)
                 continue
             if ":" in stripped:
                 header, body = stripped.split(":", 1)
@@ -205,10 +281,13 @@ class NablaBackend(ScribeBackend):
         # Build coalesced (header, bodies) list preserving first-seen order.
         plan_blocks: list[tuple[str, list[str]]] = []
         for key in plan_order:
-            # Use the original-cased header from the first occurrence.
+            # Use the original-cased header from the first top-level occurrence.
             display_header = key  # fallback
-            for line in plan_text.split("\n"):
-                s = NablaBackend._strip_bullet(line)
+            for raw_line in plan_text.split("\n"):
+                indent = len(raw_line) - len(raw_line.lstrip())
+                if indent > 0:
+                    continue  # skip nested lines when picking the header label
+                s = NablaBackend._strip_bullet(raw_line)
                 if s and ":" in s:
                     h = s.split(":", 1)[0].strip()
                     if h.lower() == key:
@@ -220,8 +299,11 @@ class NablaBackend(ScribeBackend):
             plan_blocks.append((display_header, plan_groups[key]))
 
         if not plan_blocks:
-            # No plan items — just return assessment as plain headers.
-            return "\n\n".join(assessment_items)
+            # Plan had no parseable bullets (e.g. only whitespace markers).
+            # Return assessment unchanged — same reasoning as the empty-plan
+            # short-circuit above: emitting bare lines would create phantom
+            # header-only blocks downstream.
+            return assessment_text
 
         # Match each assessment item to the best plan block by word overlap.
         # Items with no overlap stay as standalone header-only blocks.
@@ -266,15 +348,50 @@ class NablaBackend(ScribeBackend):
     @staticmethod
     def _significant_words(text: str) -> list[str]:
         """Extract lowercase words, filtering short, common, and generic medical ones."""
-        _stop = {"a", "an", "the", "of", "and", "or", "with", "without", "in",
-                 "on", "for", "to", "by", "is", "are", "was", "were", "not", "no",
-                 "due", "related", "primarily", "currently", "approximately",
-                 # Generic medical wildcards — aligned with ap_split._STOP_WORDS
-                 # to avoid false matches on shared diagnostic nouns.
-                 "disorder", "disease", "syndrome", "condition", "type",
-                 "acute", "chronic", "primary", "secondary",
-                 "possible", "probable", "likely", "suspected",
-                 "unspecified", "specified", "other"}
+        _stop = {
+            "a",
+            "an",
+            "the",
+            "of",
+            "and",
+            "or",
+            "with",
+            "without",
+            "in",
+            "on",
+            "for",
+            "to",
+            "by",
+            "is",
+            "are",
+            "was",
+            "were",
+            "not",
+            "no",
+            "due",
+            "related",
+            "primarily",
+            "currently",
+            "approximately",
+            # Generic medical wildcards — aligned with ap_split._STOP_WORDS
+            # to avoid false matches on shared diagnostic nouns.
+            "disorder",
+            "disease",
+            "syndrome",
+            "condition",
+            "type",
+            "acute",
+            "chronic",
+            "primary",
+            "secondary",
+            "possible",
+            "probable",
+            "likely",
+            "suspected",
+            "unspecified",
+            "specified",
+            "other",
+        }
         cleaned = re.sub(r"[^a-z0-9\s]", " ", text.lower())
         return [w for w in cleaned.split() if len(w) > 2 and w not in _stop]
 
@@ -378,7 +495,7 @@ class NablaBackend(ScribeBackend):
         *,
         visit_template_name: str = "",
     ) -> dict[str, Any]:
-        is_psychiatry = visit_template_name in _PSYCHIATRY_TEMPLATE_NAMES
+        is_psychiatry = NablaBackend.is_psychiatry_template(visit_template_name)
 
         # Build the HPI opening line with concrete demographics when available.
         if patient_context is not None:
@@ -450,8 +567,19 @@ class NablaBackend(ScribeBackend):
             ),
         }
 
+        sections_customization: list[dict[str, Any]]
         if is_psychiatry:
             note_template = _PSYCHIATRY_NOTE_TEMPLATE
+            # PHYSICAL_EXAM customization is retained for the psych branch as
+            # belt-and-braces: it instructs Nabla to keep vital signs out of
+            # the PE section *if* the PSYCHIATRY template emits one. Nabla's
+            # current documentation does not enumerate whether
+            # PSYCHIATRY_MULTIPLE_SECTIONS includes physical_exam by default.
+            # Brigade UAT to confirm: capture a real-instance Nabla payload
+            # under the Psychiatry template and check for a physical_exam
+            # section. If it never emits one, the customization is harmless;
+            # if it does, this instruction prevents BP/HR leaking into PE
+            # (the same drift bug that motivated the generic branch).
             sections_customization = [
                 {"section_key": "ASSESSMENT", "style": "BULLET_POINTS"},
                 {
