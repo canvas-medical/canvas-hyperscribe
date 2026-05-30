@@ -588,7 +588,7 @@ def test_extract_vitals_with_telemetry_out_of_range_pulse_refused() -> None:
 
 
 def test_mental_health_exam_preferred_over_review_of_systems() -> None:
-    """When both mental_health_exam and review_of_systems exist, prefer mental_health_exam."""
+    """Under the psychiatry gate, when both sections exist, prefer mental_health_exam."""
     note = ClinicalNote(
         title="Psych Note",
         sections=[
@@ -604,14 +604,16 @@ def test_mental_health_exam_preferred_over_review_of_systems() -> None:
             ),
         ],
     )
-    proposals = extract_commands(note)
+    proposals = extract_commands(note, is_psychiatry=True)
     ros_proposals = [p for p in proposals if p.command_type == "ros"]
     assert len(ros_proposals) == 1
-    assert ros_proposals[0].data["sections"][0]["title"] == "Depressive Symptoms"
+    titles = [s["title"] for s in ros_proposals[0].data["sections"]]
+    assert "Depressive Symptoms" in titles
+    assert "Anxiety Symptoms" in titles
 
 
 def test_mental_health_exam_only() -> None:
-    """mental_health_exam alone produces an ROS command."""
+    """Under the psychiatry gate, mental_health_exam alone produces an ROS command."""
     note = ClinicalNote(
         title="Psych Note",
         sections=[
@@ -622,7 +624,7 @@ def test_mental_health_exam_only() -> None:
             ),
         ],
     )
-    proposals = extract_commands(note)
+    proposals = extract_commands(note, is_psychiatry=True)
     ros_proposals = [p for p in proposals if p.command_type == "ros"]
     assert len(ros_proposals) == 1
     secs = ros_proposals[0].data["sections"]
@@ -649,7 +651,7 @@ def test_review_of_systems_used_when_no_mental_health_exam() -> None:
 
 
 def test_mental_health_exam_fallback_uses_correct_label() -> None:
-    """When mental_health_exam has no parseable headers, fallback label should be 'Mental Health Exam'."""
+    """Psych gate + unparseable mental_health_exam falls back to 'Mental Health Exam' as the label."""
     note = ClinicalNote(
         title="Psych Note",
         sections=[
@@ -660,7 +662,7 @@ def test_mental_health_exam_fallback_uses_correct_label() -> None:
             ),
         ],
     )
-    proposals = extract_commands(note)
+    proposals = extract_commands(note, is_psychiatry=True)
     ros_proposals = [p for p in proposals if p.command_type == "ros"]
     assert len(ros_proposals) == 1
     assert ros_proposals[0].data["sections"][0]["title"] == "Mental Health Exam"
@@ -699,3 +701,137 @@ def test_parse_ros_subsections_preserves_pre_header_narrative() -> None:
     assert "Patient appears stable" in result[0]["text"]
     assert "Persistent low mood" in result[0]["text"]
     assert result[0]["title"] == "Depressive Symptoms"
+
+
+# --- Psychiatry gating in the extractor ---
+# These tests pin the behavior: the mental-health-exam path is gated by
+# *section presence*, not by visit template. In the normal flow Nabla only
+# emits the section under the psychiatry template, so section presence is a
+# reliable proxy. The tests below pin both branches.
+
+
+def test_default_note_without_mental_health_exam_does_not_emit_mhe_ros() -> None:
+    """A non-psychiatry note (no mental_health_exam section) never produces a Mental Health Exam ROS."""
+    note = ClinicalNote(
+        title="Visit",
+        sections=[
+            NoteSection(key="chief_complaint", title="CC", text="Headache"),
+            NoteSection(key="history_of_present_illness", title="HPI", text="Onset 3 days ago."),
+            NoteSection(
+                key="review_of_systems",
+                title="Review of Systems",
+                text="General: No fever.\nSkin: No rash.",
+            ),
+        ],
+    )
+    proposals = extract_commands(note)
+    ros_proposals = [p for p in proposals if p.command_type == "ros"]
+    assert len(ros_proposals) == 1
+    # Source is review_of_systems, not mental_health_exam. Use membership
+    # checks (not positional) so parser-reordering doesn't flake the test.
+    secs = ros_proposals[0].data["sections"]
+    assert any(s["title"] == "General" for s in secs)
+    assert not any(s["title"] == "Mental Health Exam" for s in secs)
+    # No title or key carries "Mental Health Exam" content.
+    assert not any(s["key"].startswith("mental_health") for s in secs)
+
+
+def test_note_without_any_ros_section_emits_no_ros_command() -> None:
+    """A note that lacks both review_of_systems and mental_health_exam yields no ROS proposal."""
+    note = ClinicalNote(
+        title="Visit",
+        sections=[
+            NoteSection(key="chief_complaint", title="CC", text="Headache"),
+            NoteSection(key="plan", title="Plan", text="Naproxen 500 mg."),
+        ],
+    )
+    proposals = extract_commands(note)
+    ros_proposals = [p for p in proposals if p.command_type == "ros"]
+    assert ros_proposals == []
+
+
+def test_mental_health_exam_present_routes_to_ros_under_psych_gate() -> None:
+    """Mental_health_exam routes to ROS when the psychiatry gate is on.
+
+    Belt-and-braces: section presence alone no longer routes — the caller must
+    also pass ``is_psychiatry=True``. This prevents debug PUTs or template
+    contract changes from leaking psych routing into non-psych visits.
+    """
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(
+                key="mental_health_exam",
+                title="Mental Health Exam",
+                text="Depressive Symptoms: Persistent low mood.\nAnxiety Symptoms: Mild.",
+            ),
+        ],
+    )
+    proposals = extract_commands(note, is_psychiatry=True)
+    ros_proposals = [p for p in proposals if p.command_type == "ros"]
+    assert len(ros_proposals) == 1
+    secs = ros_proposals[0].data["sections"]
+    titles = [s["title"] for s in secs]
+    assert "Depressive Symptoms" in titles
+    assert "Anxiety Symptoms" in titles
+
+
+def test_extract_ros_ignores_mental_health_exam_when_not_psychiatry() -> None:
+    """Psych section present but visit-template not psychiatry → route through review_of_systems.
+
+    Without the template gate, an injected mental_health_exam section
+    (e.g. via debug PUT or future Nabla contract change) would leak psych
+    routing into a non-psych visit. The gate forces a fallback to the
+    standard review_of_systems path.
+    """
+    note = ClinicalNote(
+        title="Subsequent Visit",
+        sections=[
+            NoteSection(
+                key="mental_health_exam",
+                title="Mental Health Exam",
+                text="Depressive Symptoms: Denied.\nAnxiety Symptoms: Denied.",
+            ),
+            NoteSection(
+                key="review_of_systems",
+                title="Review of Systems",
+                text="General: No fever.\nSkin: No rash.",
+            ),
+        ],
+    )
+    # is_psychiatry defaults to False — emulates a "Subsequent Visit" template.
+    proposals = extract_commands(note)
+    ros_proposals = [p for p in proposals if p.command_type == "ros"]
+    assert len(ros_proposals) == 1
+    titles = [s["title"] for s in ros_proposals[0].data["sections"]]
+    # ROS routes through review_of_systems, not mental_health_exam.
+    assert "General" in titles
+    assert "Skin" in titles
+    assert "Depressive Symptoms" not in titles
+    assert "Anxiety Symptoms" not in titles
+
+
+def test_extract_ros_uses_mental_health_exam_when_psychiatry() -> None:
+    """Belt-and-braces gate: the same payload under is_psychiatry=True routes through mental_health_exam."""
+    note = ClinicalNote(
+        title="Psychiatry",
+        sections=[
+            NoteSection(
+                key="mental_health_exam",
+                title="Mental Health Exam",
+                text="Depressive Symptoms: Denied.\nAnxiety Symptoms: Denied.",
+            ),
+            NoteSection(
+                key="review_of_systems",
+                title="Review of Systems",
+                text="General: No fever.\nSkin: No rash.",
+            ),
+        ],
+    )
+    proposals = extract_commands(note, is_psychiatry=True)
+    ros_proposals = [p for p in proposals if p.command_type == "ros"]
+    assert len(ros_proposals) == 1
+    titles = [s["title"] for s in ros_proposals[0].data["sections"]]
+    assert "Depressive Symptoms" in titles
+    assert "Anxiety Symptoms" in titles
+    assert "General" not in titles

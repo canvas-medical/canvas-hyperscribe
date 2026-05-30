@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, Observation
+from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Observation
 from hyperscribe.scribe.commands.base import CommandParser
 from hyperscribe.scribe.commands.hpi import HpiParser
 from hyperscribe.scribe.commands.plan import PlanParser
@@ -108,19 +108,33 @@ def parse_ros_subsections(text: str) -> list[dict[str, str]]:
     return sections
 
 
-def _extract_ros(note: ClinicalNote) -> CommandProposal | None:
+def _extract_ros(note: ClinicalNote, *, is_psychiatry: bool = False) -> CommandProposal | None:
     """Extract review_of_systems or mental_health_exam section into an ROS command.
 
-    Prefer mental_health_exam when present (psychiatry template) over the
-    generic review_of_systems.
+    Belt-and-braces gating: the mental_health_exam branch requires BOTH
+    section presence AND the psychiatry visit-template gate. Nabla only emits
+    a `mental_health_exam` section when configured via the psychiatry
+    template's section customization (see NablaBackend._build_note_payload),
+    so section presence on its own is normally a reliable proxy — but if
+    Nabla's template contract changes, or a debug PUT injects the section
+    under a non-psych template, we still want to fall back to the standard
+    review_of_systems path. The template gate ensures the psych routing only
+    fires when the operator picked the Psychiatry visit template.
+
+    When ``is_psychiatry`` is False, mental_health_exam (if present) is
+    ignored and only ``review_of_systems`` is considered.
     """
-    ros_section = next(
-        (s for s in note.sections if s.key.lower() == "mental_health_exam" and s.text.strip()),
-        None,
-    ) or next(
-        (s for s in note.sections if s.key.lower() == "review_of_systems" and s.text.strip()),
-        None,
-    )
+    ros_section: NoteSection | None = None
+    if is_psychiatry:
+        ros_section = next(
+            (s for s in note.sections if s.key.lower() == "mental_health_exam" and s.text.strip()),
+            None,
+        )
+    if ros_section is None:
+        ros_section = next(
+            (s for s in note.sections if s.key.lower() == "review_of_systems" and s.text.strip()),
+            None,
+        )
     if ros_section is None:
         return None
     subsections = parse_ros_subsections(ros_section.text)
@@ -129,10 +143,7 @@ def _extract_ros(note: ClinicalNote) -> CommandProposal | None:
         # Use the source section's key/title so mental_health_exam content
         # isn't mislabeled as "Review of Systems".
         fallback_key = ros_section.key.lower()
-        fallback_title = (
-            "Mental Health Exam" if fallback_key == "mental_health_exam"
-            else "Review of Systems"
-        )
+        fallback_title = "Mental Health Exam" if fallback_key == "mental_health_exam" else "Review of Systems"
         subsections = [{"key": fallback_key, "title": fallback_title, "text": ros_section.text.strip()}]
     display = " | ".join(s["title"] for s in subsections)
     return CommandProposal(
@@ -284,12 +295,20 @@ def classify_vitals_source(note: ClinicalNote, observations: list[Observation]) 
 def extract_commands(
     note: ClinicalNote,
     observations: list[Observation] | None = None,
+    *,
+    is_psychiatry: bool = False,
 ) -> list[CommandProposal]:
     """Map ClinicalNote sections to CommandProposal list (deterministic, no LLM).
 
     ``observations`` carries Nabla's normalized vital signs (LOINC-coded). Pass them
     when available so the vitals parser can avoid format-drift bugs that plague the
     regex over Nabla's free-text vitals string.
+
+    ``is_psychiatry`` gates the psychiatry-specific routing in ``_extract_ros``:
+    when False (default), the mental_health_exam section is ignored even if
+    present. Callers should derive this from the visit template the operator
+    picked (see ``NablaBackend.is_psychiatry_template``), not from section
+    presence in the parsed note.
     """
     obs = observations or []
     proposals: list[CommandProposal] = []
@@ -322,7 +341,7 @@ def extract_commands(
         else:
             proposals.insert(vitals_position, vitals_proposal)
 
-    ros_proposal = _extract_ros(note)
+    ros_proposal = _extract_ros(note, is_psychiatry=is_psychiatry)
     if ros_proposal is not None:
         proposals.append(ros_proposal)
 
