@@ -130,8 +130,13 @@ def _search_contacts(
         params = urlencode(base_params)
         resp = science_http.get_json(f"/contacts/?{params}")
         raw_results = (resp.json() or {}).get("results", [])
-    except Exception:
-        log.exception(f"{log_label} failed")
+    except Exception as exc:
+        # HIPAA: the request URL contains the typed search query, which can
+        # carry patient identifiers (provider types patient name as part of
+        # refer search). Avoid log.exception/str(exc) — both leak the URL via
+        # the traceback or the HTTPError message format. Log only the
+        # exception class name.
+        log.error("%s failed: %s", log_label, type(exc).__name__)
         return []
 
     return [_format_contact(c) for c in raw_results]

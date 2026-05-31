@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import logging
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from hyperscribe.scribe.contacts import (
     _format_contact,
@@ -278,6 +281,35 @@ def test_search_exception_returns_empty(mock_http):
     results = search_refer_providers("psychiatry", zip_codes=["92591"])
 
     assert results == []
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_exception_log_does_not_leak_query_or_url(
+    mock_http: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """HIPAA: the search query and request URL must NOT appear in failure logs.
+
+    Patient identifiers ride in the typed search query (e.g. provider types a
+    patient name when searching referrals). HTTPError messages embed the full
+    URL — including the query string — so log.exception / str(exc) would leak
+    it. The handler must log only the exception class name.
+    """
+    # Simulate the worst case: an HTTPError-style message that embeds the URL.
+    sensitive_query = "PATIENTLASTNAME"
+    mock_http.get_json.side_effect = RuntimeError(
+        f"500 Server Error: Internal Server Error for url: https://science.example/contacts/?search={sensitive_query}"
+    )
+
+    with caplog.at_level(logging.ERROR, logger="plugin_runner_logger"):
+        results = search_refer_providers(sensitive_query, zip_codes=["92591"])
+
+    assert results == []
+    combined = " ".join(rec.getMessage() for rec in caplog.records)
+    assert sensitive_query not in combined, "search query (a potential PHI carrier) must not appear in error logs"
+    assert "?search=" not in combined, "request URL substring must not appear in error logs"
+    assert "/contacts/" not in combined, "request path must not appear in error logs"
+    # Sanity: we should still record the exception class for diagnostics.
+    assert any("RuntimeError" in rec.getMessage() for rec in caplog.records)
 
 
 # -- search_imaging_centers tests --
