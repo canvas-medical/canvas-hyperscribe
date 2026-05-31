@@ -195,17 +195,18 @@ export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly, text
     `;
   }
 
-  // View mode: triggers (reconciliation + prior visit) are shown only here,
-  // each only when relevant. Toggling reveals inline blocks beneath each
-  // section so the current text is never duplicated in a separate panel.
-  const reconciliationHeader = hasChanges ? html`
+  // View mode: triggers (reconciliation + prior visit) are shown only when
+  // the row is editable. Once the note is approved/locked/non-author the
+  // triggers are documentation-aid scaffolding for the next-pass edit and
+  // would only add visual noise to the read-only chart view.
+  const reconciliationHeader = !readOnly && hasChanges ? html`
     <${ReconciliationTrigger}
       count=${encounterChanges.length}
       open=${reconciliationOpen}
       onToggle=${() => setReconciliationOpen(prev => !prev)}
     />
   ` : null;
-  const priorHeader = (priorByTitle && priorByTitle.size > 0) ? html`
+  const priorHeader = !readOnly && priorByTitle && priorByTitle.size > 0 ? html`
     <${PriorVisitTrigger}
       priorSection=${priorSection}
       open=${priorVisitOpen}

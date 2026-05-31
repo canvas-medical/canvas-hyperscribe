@@ -1050,7 +1050,7 @@ h2 { margin-bottom: 4px; }
 .history-reconciliation-trigger {
   float: right;
   display: inline-block;
-  width: 22px; height: 22px; padding: 0;
+  width: 14px; height: 14px; padding: 0;
   margin: 0 0 2px 8px;
   background: transparent; border: none;
   color: #94a3b8;
@@ -1059,7 +1059,7 @@ h2 { margin-bottom: 4px; }
 }
 .history-reconciliation-trigger:hover,
 .history-reconciliation-trigger.open { color: #052B49; }
-.history-reconciliation-trigger svg { width: 22px; height: 22px; display: block; }
+.history-reconciliation-trigger svg { width: 14px; height: 14px; display: block; }
 
 /* Prior visit trigger — same floating pattern, sits next to the
    reconciliation icon. Slate by default, amber when active so the two
@@ -1067,7 +1067,7 @@ h2 { margin-bottom: 4px; }
 .history-prior-trigger {
   float: right;
   display: inline-block;
-  width: 22px; height: 22px; padding: 0;
+  width: 14px; height: 14px; padding: 0;
   margin: 0 0 2px 6px;
   background: transparent; border: none;
   color: #94a3b8;
@@ -1076,7 +1076,7 @@ h2 { margin-bottom: 4px; }
 }
 .history-prior-trigger:hover,
 .history-prior-trigger.open { color: #b45309; }
-.history-prior-trigger svg { width: 22px; height: 22px; display: block; }
+.history-prior-trigger svg { width: 14px; height: 14px; display: block; }
 
 /* Inline "last visit" block revealed beneath each subsection that has a
    matching prior-note section. Distinct amber palette so it never gets
