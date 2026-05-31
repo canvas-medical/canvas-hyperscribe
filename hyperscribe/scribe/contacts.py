@@ -120,16 +120,17 @@ def _search_contacts(
             params = urlencode({**base_params, "business_postal_code__in": ",".join(all_zips)})
             resp = science_http.get_json(f"/contacts/?{params}")
             raw_results = (resp.json() or {}).get("results", [])
-            if raw_results:
-                # Sort real contacts before generic placeholders so callers
-                # picking results[0] get a local match, not a TBD entry.
-                # Bool sort orders False<True, so non-generic comes first.
-                raw_results.sort(key=_is_generic)
-                return [_format_contact(c) for c in raw_results]
-        # No zip codes, or zip-filtered returned nothing — fall back to unfiltered.
-        params = urlencode(base_params)
-        resp = science_http.get_json(f"/contacts/?{params}")
-        raw_results = (resp.json() or {}).get("results", [])
+            if not raw_results:
+                # Zip-filtered call returned nothing — fall back to unfiltered
+                # so a patient at a sparse zip still gets results.
+                params = urlencode(base_params)
+                resp = science_http.get_json(f"/contacts/?{params}")
+                raw_results = (resp.json() or {}).get("results", [])
+        else:
+            # No zip codes available — single unfiltered call.
+            params = urlencode(base_params)
+            resp = science_http.get_json(f"/contacts/?{params}")
+            raw_results = (resp.json() or {}).get("results", [])
     except Exception as exc:
         # HIPAA: the request URL contains the typed search query, which can
         # carry patient identifiers (provider types patient name as part of
@@ -139,6 +140,12 @@ def _search_contacts(
         log.error("%s failed: %s", log_label, type(exc).__name__)
         return []
 
+    # Sort real contacts before generic placeholders so callers picking
+    # results[0] (e.g. ReferRecommender) get a local match, not a TBD entry.
+    # Bool sort orders False<True, so non-generic comes first. Applied to
+    # BOTH the zip-filtered AND the unfiltered-fallback path so the
+    # local-first guarantee survives sparse-zip patients.
+    raw_results.sort(key=_is_generic)
     return [_format_contact(c) for c in raw_results]
 
 

@@ -130,12 +130,38 @@ def test_search_empty_query():
 
 @patch("hyperscribe.scribe.contacts.science_http")
 def test_search_no_zip_returns_all(mock_http):
-    mock_http.get_json.return_value = _mock_science_response([_LOCAL_PSYCHIATRIST, _GENERIC_PSYCHIATRY_TBD])
+    """No zip codes provided → unfiltered call returns all results, sorted."""
+    mock_http.get_json.return_value = _mock_science_response([_GENERIC_PSYCHIATRY_TBD, _LOCAL_PSYCHIATRIST])
 
     results = search_refer_providers("psychiatry")
 
     assert len(results) == 2
+    # Sort must apply to the no-zip unfiltered path too — local before TBD even
+    # though TBD came first from science.
+    assert results[0]["data"]["last_name"] != "(TBD)"
+    assert results[1]["data"]["last_name"] == "(TBD)"
     mock_http.get_json.assert_called_once_with("/contacts/?search=psychiatry")
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_fallback_unfiltered_still_sorts_local_first(mock_http: MagicMock) -> None:
+    """When zip-filtered call returns empty AND fallback unfiltered runs, the
+    sort must STILL apply so a TBD doesn't land in results[0] for a sparse-zip
+    patient. Regression for the UAT-discovered bug where sort was only applied
+    on the zip-filtered early-return path."""
+    # First call (zip-filtered) returns empty; second call (unfiltered) returns
+    # TBD first then local — the helper must reorder.
+    mock_http.get_json.side_effect = [
+        _mock_science_response([]),
+        _mock_science_response([_GENERIC_PSYCHIATRY_TBD, _LOCAL_PSYCHIATRIST]),
+    ]
+
+    results = search_refer_providers("psychiatry", zip_codes=["87101"])
+
+    assert len(results) == 2
+    assert results[0]["data"]["last_name"] != "(TBD)", "local must come before TBD on fallback path"
+    assert results[1]["data"]["last_name"] == "(TBD)"
+    assert mock_http.get_json.call_count == 2
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
