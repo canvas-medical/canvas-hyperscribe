@@ -76,42 +76,95 @@ def _is_generic(c: dict[str, Any]) -> bool:
     return (c.get("lastName") or "").strip() == _GENERIC_LAST_NAME
 
 
-def search_refer_providers(
+def _search_contacts(
     query: str,
-    zip_codes: list[str] | None = None,
+    zip_codes: list[str] | None,
+    extra_params: dict[str, str] | None,
+    log_label: str,
 ) -> list[dict[str, Any]]:
-    """Search the science-service contacts database and return formatted results.
+    """Shared science-service ``/contacts/`` search helper.
 
-    When zip codes are available, the search includes the generic postal code
-    '11111' alongside the patient's zip so that placeholder entries like
-    'Psychiatry TBD' always appear in results regardless of patient location.
+    When ``zip_codes`` is non-empty the request filters by
+    ``business_postal_code__in=<zips>,<_GENERIC_POSTAL_CODE>`` in a single API
+    call so generic/TBD placeholders appear alongside local results. Results
+    are sorted with non-generic contacts first (see ``_is_generic``).
+
+    When the zip-filtered call returns no rows the helper falls back to an
+    unfiltered call — preserving the prior behavior of both call sites.
+
+    ``extra_params`` lets callers tack on filters (e.g. ``job_title__icontains
+    =radiology`` for the imaging-center variant) without re-implementing the
+    rest of the pipeline. ``log_label`` shapes the exception log message so
+    failures are attributable to the calling endpoint.
     """
     if not query:
         return []
 
+    base_params: dict[str, str] = {"search": query}
+    if extra_params:
+        base_params.update(extra_params)
+
     try:
         if zip_codes:
-            # Include generic postal code so TBD/placeholder providers always
+            # Include generic postal code so TBD/placeholder contacts always
             # appear alongside local results — single API call.
             all_zips = list(dict.fromkeys(zip_codes + [_GENERIC_POSTAL_CODE]))
-            params = urlencode({"search": query, "business_postal_code__in": ",".join(all_zips)})
+            params = urlencode({**base_params, "business_postal_code__in": ",".join(all_zips)})
             resp = science_http.get_json(f"/contacts/?{params}")
             raw_results = (resp.json() or {}).get("results", [])
             if raw_results:
-                # Sort real providers before generic placeholders so callers
+                # Sort real contacts before generic placeholders so callers
                 # picking results[0] get a local match, not a TBD entry.
                 # Bool sort orders False<True, so non-generic comes first.
                 raw_results.sort(key=_is_generic)
                 return [_format_contact(c) for c in raw_results]
         # No zip codes, or zip-filtered returned nothing — fall back to unfiltered.
-        params = urlencode({"search": query})
+        params = urlencode(base_params)
         resp = science_http.get_json(f"/contacts/?{params}")
         raw_results = (resp.json() or {}).get("results", [])
     except Exception:
-        log.exception("Refer provider search failed")
+        log.exception(f"{log_label} failed")
         return []
 
     return [_format_contact(c) for c in raw_results]
+
+
+def search_refer_providers(
+    query: str,
+    zip_codes: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Search the science-service contacts database for referral providers.
+
+    When zip codes are available, the search includes the generic postal code
+    '11111' alongside the patient's zip so that placeholder entries like
+    'Psychiatry TBD' always appear in results regardless of patient location.
+    """
+    return _search_contacts(
+        query=query,
+        zip_codes=zip_codes,
+        extra_params=None,
+        log_label="Refer provider search",
+    )
+
+
+def search_imaging_centers(
+    query: str,
+    zip_codes: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Search the science-service contacts database for radiology imaging centers.
+
+    Same single-call + generic-postal-code semantics as
+    :func:`search_refer_providers`, plus a ``job_title__icontains=radiology``
+    filter to scope results to imaging providers. Closes the missing-generic
+    bug where TBD imaging centers ("Grove Diagnostic Imaging TBD Radiology")
+    disappeared for patients whose zip didn't match the placeholder's.
+    """
+    return _search_contacts(
+        query=query,
+        zip_codes=zip_codes,
+        extra_params={"job_title__icontains": "radiology"},
+        log_label="Imaging center search",
+    )
 
 
 def resolve_zip_codes(patient_id: str = "", note_id: str = "") -> list[str]:

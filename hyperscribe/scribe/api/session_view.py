@@ -2400,7 +2400,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.get("/search-imaging-centers")
     def get_search_imaging_centers(self) -> list[Union[Response, Effect]]:
         """Search for radiology imaging centers via the science service."""
-        from hyperscribe.scribe.contacts import resolve_zip_codes
+        from hyperscribe.scribe.contacts import resolve_zip_codes, search_imaging_centers
 
         query = self.request.query_params.get("query", "").strip()
         if not query:
@@ -2410,63 +2410,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "").strip()
         zip_codes = resolve_zip_codes(patient_id, note_id)
 
-        base_params = f"?search={query}&job_title__icontains=radiology"
-        try:
-            # Try zip-filtered first for local results, fall back to unfiltered.
-            raw_results: list[dict] = []
-            if zip_codes:
-                params = base_params + f"&business_postal_code__in={','.join(zip_codes)}"
-                resp = science_http.get_json(f"/contacts/{params}")
-                raw_results = (resp.json() or {}).get("results", [])
-            if not raw_results:
-                resp = science_http.get_json(f"/contacts/{base_params}")
-                raw_results = (resp.json() or {}).get("results", [])
-        except Exception:
-            log.exception("Imaging center search failed")
-            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
-        results = []
-        for c in raw_results:
-            first = c.get("firstName", "")
-            last = c.get("lastName", "")
-            practice = c.get("practiceName", "")
-            specialty = c.get("specialty", "")
-            # Build display name matching Canvas convention.
-            parts = []
-            if first:
-                parts.append(first)
-            if last and last != first:
-                parts.append(last)
-            if practice and practice != first:
-                parts.append(f"({practice}),")
-            if specialty and specialty not in (first, last, practice):
-                parts.append(specialty)
-            name = " ".join(parts).strip()
-            # Build description with contact details.
-            desc_parts = []
-            phone = c.get("businessPhone")
-            fax = c.get("businessFax")
-            address = c.get("businessAddress")
-            if phone:
-                desc_parts.append(f"Phone: {phone}")
-            if fax:
-                desc_parts.append(f"Fax: {fax}")
-            if address:
-                desc_parts.append(f"Address: {address}")
-            results.append(
-                {
-                    "name": name,
-                    "description": " ".join(desc_parts),
-                    "data": {
-                        "first_name": first,
-                        "last_name": last,
-                        "specialty": specialty,
-                        "practice_name": practice,
-                        "business_fax": fax,
-                        "business_phone": phone,
-                        "business_address": address,
-                    },
-                }
-            )
+        results = search_imaging_centers(query, zip_codes or None)
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-refer-providers")

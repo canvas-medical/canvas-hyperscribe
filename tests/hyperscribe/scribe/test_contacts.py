@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from hyperscribe.scribe.contacts import (
     _format_contact,
     _is_generic,
+    search_imaging_centers,
     search_refer_providers,
 )
 
@@ -248,5 +249,188 @@ def test_search_exception_returns_empty(mock_http):
     mock_http.get_json.side_effect = Exception("Network error")
 
     results = search_refer_providers("psychiatry", zip_codes=["92591"])
+
+    assert results == []
+
+
+# -- search_imaging_centers tests --
+
+_LOCAL_IMAGING_CENTER = {
+    "firstName": "",
+    "lastName": "",
+    "practiceName": "Temecula Radiology Group",
+    "specialty": "Radiology",
+    "businessPhone": "555-2222",
+    "businessFax": "555-3333",
+    "businessAddress": "200 Center Dr, Temecula CA 92591",
+}
+
+# Mirrors the missing-center symptom from KOALA-5446 ("Grove Diagnostic Imaging
+# TBD Radiology"). Uses lastName="(TBD)" — the canonical generic sentinel.
+_GENERIC_IMAGING_TBD = {
+    "firstName": "Grove Diagnostic Imaging",
+    "lastName": "(TBD)",
+    "practiceName": "",
+    "specialty": "Radiology",
+    "businessPhone": "",
+    "businessFax": "",
+    "businessAddress": "11111",
+}
+
+
+def test_search_imaging_centers_empty_query() -> None:
+    """Empty query short-circuits without an API call."""
+    assert search_imaging_centers("") == []
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_with_zip_includes_11111(mock_http: MagicMock) -> None:
+    """Zip-filtered imaging-center search must include '11111' so TBD centers surface.
+
+    This is the missing-imaging-center bug described in KOALA-5446: the prior
+    implementation only filtered by the patient's zip, so generic TBD centers
+    (e.g. "Grove Diagnostic Imaging TBD Radiology") disappeared for patients
+    whose zip did not match the '11111' placeholder.
+    """
+    mock_http.get_json.return_value = _mock_science_response([_LOCAL_IMAGING_CENTER, _GENERIC_IMAGING_TBD])
+
+    results = search_imaging_centers("radiology", zip_codes=["92591"])
+
+    assert len(results) == 2
+    call_url = mock_http.get_json.call_args[0][0]
+    assert "search=radiology" in call_url
+    assert "business_postal_code__in=" in call_url
+    assert "92591" in call_url
+    assert "11111" in call_url
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_preserves_radiology_filter(mock_http: MagicMock) -> None:
+    """The job_title__icontains=radiology filter must be sent on every call."""
+    mock_http.get_json.return_value = _mock_science_response([_LOCAL_IMAGING_CENTER])
+
+    search_imaging_centers("mri", zip_codes=["92591"])
+
+    call_url = mock_http.get_json.call_args[0][0]
+    # urlencode encodes the dunder filter key directly; just check the
+    # parameter and value appear (allowing either raw or percent-encoded).
+    assert "job_title__icontains" in call_url
+    assert "radiology" in call_url
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_radiology_filter_present_without_zip(
+    mock_http: MagicMock,
+) -> None:
+    """Even without a zip-filter, the radiology filter must scope unfiltered calls."""
+    mock_http.get_json.return_value = _mock_science_response([_LOCAL_IMAGING_CENTER])
+
+    search_imaging_centers("mri")
+
+    call_url = mock_http.get_json.call_args[0][0]
+    assert "job_title__icontains" in call_url
+    assert "radiology" in call_url
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_local_sorted_before_generic(
+    mock_http: MagicMock,
+) -> None:
+    """A local imaging center must appear before a TBD center."""
+    # Science service returns the TBD first to verify sort actually happens.
+    mock_http.get_json.return_value = _mock_science_response([_GENERIC_IMAGING_TBD, _LOCAL_IMAGING_CENTER])
+
+    results = search_imaging_centers("radiology", zip_codes=["92591"])
+
+    assert len(results) == 2
+    assert "Temecula Radiology Group" in results[0]["name"]
+    assert "TBD" in results[1]["name"]
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_url_encodes_query(mock_http: MagicMock) -> None:
+    """Query with special characters must be URL-encoded, not split on &."""
+    mock_http.get_json.return_value = _mock_science_response([])
+
+    search_imaging_centers("MRI & CT", zip_codes=["92591"])
+
+    call_url = mock_http.get_json.call_args[0][0]
+    # & must be encoded (%26), not act as a param separator.
+    assert "MRI" in call_url
+    assert "%26" in call_url
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_empty_zip_falls_through(mock_http: MagicMock) -> None:
+    """No zip_codes → unfiltered call (single API call), still with radiology filter."""
+    mock_http.get_json.return_value = _mock_science_response([_LOCAL_IMAGING_CENTER, _GENERIC_IMAGING_TBD])
+
+    results = search_imaging_centers("radiology", zip_codes=None)
+
+    assert len(results) == 2
+    assert mock_http.get_json.call_count == 1
+    call_url = mock_http.get_json.call_args[0][0]
+    # No postal_code filter on this path.
+    assert "business_postal_code__in" not in call_url
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_falls_back_when_zip_returns_empty(
+    mock_http: MagicMock,
+) -> None:
+    """When zip+11111 returns nothing, an unfiltered radiology call is retried.
+
+    Preserves the prior fallback semantics on the imaging-center endpoint:
+    if a patient's zip has no nearby center matching the query, surface the
+    generic + remote centers rather than returning an empty list.
+    """
+    mock_http.get_json.side_effect = [
+        _mock_science_response([]),  # zip+11111 filtered: nothing
+        _mock_science_response([_LOCAL_IMAGING_CENTER, _GENERIC_IMAGING_TBD]),  # unfiltered
+    ]
+
+    results = search_imaging_centers("radiology", zip_codes=["99999"])
+
+    assert len(results) == 2
+    assert mock_http.get_json.call_count == 2
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_tbd_visible_for_non_matching_zip(
+    mock_http: MagicMock,
+) -> None:
+    """A TBD imaging center must surface even when the patient's zip is different.
+
+    This is the regression case from KOALA-5446 — Brigade reported that TBD
+    centers disappeared for patients whose zip did not match the placeholder's.
+    Including '11111' in the zip filter restores that result.
+    """
+    mock_http.get_json.return_value = _mock_science_response([_GENERIC_IMAGING_TBD])
+
+    results = search_imaging_centers("radiology", zip_codes=["92591"])
+
+    assert len(results) == 1
+    assert "Grove Diagnostic Imaging" in results[0]["name"]
+    assert "TBD" in results[0]["name"]
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_single_call_when_results_found(
+    mock_http: MagicMock,
+) -> None:
+    """Single API call when zip+11111 returns results — no duplicate request."""
+    mock_http.get_json.return_value = _mock_science_response([_LOCAL_IMAGING_CENTER, _GENERIC_IMAGING_TBD])
+
+    search_imaging_centers("radiology", zip_codes=["92591"])
+
+    assert mock_http.get_json.call_count == 1
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_exception_returns_empty(mock_http: MagicMock) -> None:
+    """Network/API failure swallows the exception and returns an empty list."""
+    mock_http.get_json.side_effect = Exception("Network error")
+
+    results = search_imaging_centers("radiology", zip_codes=["92591"])
 
     assert results == []
