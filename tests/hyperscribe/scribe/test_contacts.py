@@ -265,8 +265,9 @@ _LOCAL_IMAGING_CENTER = {
     "businessAddress": "200 Center Dr, Temecula CA 92591",
 }
 
-# Mirrors the missing-center symptom from KOALA-5446 ("Grove Diagnostic Imaging
-# TBD Radiology"). Uses lastName="(TBD)" — the canonical generic sentinel.
+# Generic imaging-center placeholder ("Grove Diagnostic Imaging TBD Radiology")
+# using lastName="(TBD)" — the canonical sentinel science-service marks at
+# import time. Used to exercise the missing-imaging-center surfacing path.
 _GENERIC_IMAGING_TBD = {
     "firstName": "Grove Diagnostic Imaging",
     "lastName": "(TBD)",
@@ -287,10 +288,9 @@ def test_search_imaging_centers_empty_query() -> None:
 def test_search_imaging_centers_with_zip_includes_11111(mock_http: MagicMock) -> None:
     """Zip-filtered imaging-center search must include '11111' so TBD centers surface.
 
-    This is the missing-imaging-center bug described in KOALA-5446: the prior
-    implementation only filtered by the patient's zip, so generic TBD centers
-    (e.g. "Grove Diagnostic Imaging TBD Radiology") disappeared for patients
-    whose zip did not match the '11111' placeholder.
+    Without including the generic '11111' placeholder postal code alongside the
+    patient's zip, generic TBD imaging centers (e.g. "Grove Diagnostic Imaging
+    TBD Radiology") disappear for any patient whose zip does not match '11111'.
     """
     mock_http.get_json.return_value = _mock_science_response([_LOCAL_IMAGING_CENTER, _GENERIC_IMAGING_TBD])
 
@@ -401,9 +401,9 @@ def test_search_imaging_centers_tbd_visible_for_non_matching_zip(
 ) -> None:
     """A TBD imaging center must surface even when the patient's zip is different.
 
-    This is the regression case from KOALA-5446 — Brigade reported that TBD
-    centers disappeared for patients whose zip did not match the placeholder's.
-    Including '11111' in the zip filter restores that result.
+    Regression: TBD centers must remain visible for patients whose zip does not
+    match the placeholder's. Including '11111' in the zip filter restores that
+    result.
     """
     mock_http.get_json.return_value = _mock_science_response([_GENERIC_IMAGING_TBD])
 
