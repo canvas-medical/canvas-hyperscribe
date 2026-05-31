@@ -55,6 +55,25 @@ def _format_contact(c: dict[str, Any]) -> dict[str, Any]:
 
 
 _GENERIC_POSTAL_CODE = "11111"
+_GENERIC_LAST_NAME = "(TBD)"
+
+
+def _is_generic(c: dict[str, Any]) -> bool:
+    """Return True if a raw science-service contact is a generic/placeholder entry.
+
+    Science-service marks generic entries with ``last_name = "(TBD)"`` at import
+    time (see ``science/contacts/management/commands/import_contacts.py``). The
+    contact serializer does NOT include ``business_postal_code`` in its response
+    fields, so the only structural signal available client-side is ``lastName``.
+
+    We previously tried to detect generics by substring-matching the generic
+    postal code against ``businessAddress``. That gives false positives on real
+    addresses that happen to contain the digits (street numbers, ZIP+4, etc.),
+    so a real provider at e.g. ``"11111 Main St"`` would be sorted as generic
+    and bumped behind the placeholder. Matching ``lastName == "(TBD)"`` is
+    exact and tied to the import sentinel, not to display content.
+    """
+    return (c.get("lastName") or "").strip() == _GENERIC_LAST_NAME
 
 
 def search_refer_providers(
@@ -64,7 +83,7 @@ def search_refer_providers(
     """Search the science-service contacts database and return formatted results.
 
     When zip codes are available, the search includes the generic postal code
-    '1111' alongside the patient's zip so that placeholder entries like
+    '11111' alongside the patient's zip so that placeholder entries like
     'Psychiatry TBD' always appear in results regardless of patient location.
     """
     if not query:
@@ -81,7 +100,8 @@ def search_refer_providers(
             if raw_results:
                 # Sort real providers before generic placeholders so callers
                 # picking results[0] get a local match, not a TBD entry.
-                raw_results.sort(key=lambda c: _GENERIC_POSTAL_CODE in (c.get("businessAddress") or ""))
+                # Bool sort orders False<True, so non-generic comes first.
+                raw_results.sort(key=_is_generic)
                 return [_format_contact(c) for c in raw_results]
         # No zip codes, or zip-filtered returned nothing — fall back to unfiltered.
         params = urlencode({"search": query})
