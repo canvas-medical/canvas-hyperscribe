@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Any, Union
+from urllib.parse import urlencode
 
 from canvas_sdk.v1.data.medication import Status
 from logger import log
@@ -2364,10 +2365,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         try:
-            resp = science_http.get_json(f"/parse-templates/imaging-reports/?query={query}&limit=25")
+            params = urlencode({"query": query, "limit": "25"})
+            resp = science_http.get_json(f"/parse-templates/imaging-reports/?{params}")
             data = resp.json() or {}
-        except Exception:
-            log.exception("Imaging search failed")
+        except Exception as exc:
+            # Scrub query+URL from logs — the typed query may carry patient
+            # identifiers (HIPAA). Log only the exception class so ops sees
+            # the failure shape without the PHI-bearing context.
+            log.error("Imaging search failed: %s", type(exc).__name__)
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         results = []
         for r in data.get("results", []):

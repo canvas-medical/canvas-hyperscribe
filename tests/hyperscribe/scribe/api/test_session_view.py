@@ -4548,3 +4548,43 @@ def test_delete_existing_commands_invalid_json() -> None:
 
     assert result[0].status_code == HTTPStatus.BAD_REQUEST
     assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.science_http")
+def test_search_imaging_exception_log_does_not_leak_query_or_url(
+    mock_science_http: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A failed /search-imaging upstream call must not log the typed query
+    or the full request URL. The provider's query string can carry patient
+    identifiers (HIPAA); only the exception class name is allowed in the log."""
+    secret_query = "MaryJaneDoeSecretPatientName"
+    mock_science_http.get_json.side_effect = RuntimeError(
+        f"HTTPError 500 for url /parse-templates/imaging-reports/?query={secret_query}&limit=25"
+    )
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"query": secret_query})
+
+    with caplog.at_level("ERROR"):
+        result = view.get_search_imaging()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"results": []}
+    for record in caplog.records:
+        assert secret_query not in record.getMessage()
+        assert "/parse-templates/imaging-reports/" not in record.getMessage()
+        assert "query=" not in record.getMessage()
+    assert any("RuntimeError" in record.getMessage() for record in caplog.records)
+
+
+@patch("hyperscribe.scribe.api.session_view.science_http")
+def test_search_imaging_url_encodes_query(mock_science_http: MagicMock) -> None:
+    """Special characters in the typed imaging query must be URL-encoded so
+    the upstream science request stays well-formed (no & / = injection)."""
+    mock_science_http.get_json.return_value.json.return_value = {"results": []}
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"query": "MRI & CT"})
+
+    view.get_search_imaging()
+
+    called_url = mock_science_http.get_json.call_args[0][0]
+    assert "query=MRI+%26+CT" in called_url or "query=MRI%20%26%20CT" in called_url
