@@ -75,24 +75,18 @@ def test_search_empty_query():
 
 @patch("hyperscribe.scribe.contacts.science_http")
 def test_search_no_zip_returns_all(mock_http):
-    mock_http.get_json.return_value = _mock_science_response(
-        [_LOCAL_PSYCHIATRIST, _GENERIC_PSYCHIATRY_TBD]
-    )
+    mock_http.get_json.return_value = _mock_science_response([_LOCAL_PSYCHIATRIST, _GENERIC_PSYCHIATRY_TBD])
 
     results = search_refer_providers("psychiatry")
 
     assert len(results) == 2
-    mock_http.get_json.assert_called_once_with(
-        "/contacts/?search=psychiatry"
-    )
+    mock_http.get_json.assert_called_once_with("/contacts/?search=psychiatry")
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
 def test_search_with_zip_includes_11111(mock_http):
     """Zip-filtered search should include '11111' postal code to capture generics."""
-    mock_http.get_json.return_value = _mock_science_response(
-        [_LOCAL_PSYCHIATRIST, _GENERIC_PSYCHIATRY_TBD]
-    )
+    mock_http.get_json.return_value = _mock_science_response([_LOCAL_PSYCHIATRIST, _GENERIC_PSYCHIATRY_TBD])
 
     results = search_refer_providers("psychiatry", zip_codes=["92591"])
 
@@ -109,9 +103,7 @@ def test_search_with_zip_includes_11111(mock_http):
 def test_search_with_zip_local_providers_sorted_first(mock_http):
     """Local providers should appear before generic TBD entries in results."""
     # Science service returns generic before local
-    mock_http.get_json.return_value = _mock_science_response(
-        [_GENERIC_PSYCHIATRY_TBD, _LOCAL_PSYCHIATRIST]
-    )
+    mock_http.get_json.return_value = _mock_science_response([_GENERIC_PSYCHIATRY_TBD, _LOCAL_PSYCHIATRIST])
 
     results = search_refer_providers("psychiatry", zip_codes=["92591"])
 
@@ -141,9 +133,7 @@ def test_search_with_zip_no_results_falls_back(mock_http):
 @patch("hyperscribe.scribe.contacts.science_http")
 def test_search_with_zip_deduplicates_11111(mock_http):
     """If zip_codes already contains '11111', it shouldn't appear twice."""
-    mock_http.get_json.return_value = _mock_science_response(
-        [_GENERIC_PSYCHIATRY_TBD]
-    )
+    mock_http.get_json.return_value = _mock_science_response([_GENERIC_PSYCHIATRY_TBD])
 
     results = search_refer_providers("psychiatry", zip_codes=["11111"])
 
@@ -156,9 +146,7 @@ def test_search_with_zip_deduplicates_11111(mock_http):
 @patch("hyperscribe.scribe.contacts.science_http")
 def test_search_single_api_call_when_results_found(mock_http):
     """When zip+11111 filter returns results, only one API call is made."""
-    mock_http.get_json.return_value = _mock_science_response(
-        [_LOCAL_PSYCHIATRIST, _GENERIC_PSYCHIATRY_TBD]
-    )
+    mock_http.get_json.return_value = _mock_science_response([_LOCAL_PSYCHIATRIST, _GENERIC_PSYCHIATRY_TBD])
 
     search_refer_providers("psychiatry", zip_codes=["92591"])
 
