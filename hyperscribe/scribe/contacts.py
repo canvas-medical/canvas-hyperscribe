@@ -160,24 +160,58 @@ def search_refer_providers(
     )
 
 
+# Imaging-adjacent specialty values from
+# ``science/contacts/models.py::Contact.SPECIALTY_CHOICES``. The science
+# FilterSet only exposes ``__icontains`` (no ``__in``/``__iregex``), so we
+# scope each call to one substring and merge results. "radiology" captures
+# both ``Radiology`` and ``Vascular & Interventional Radiology`` in one call;
+# ``Nuclear Medicine`` needs its own call. (``Radiation Oncology`` is treatment
+# rather than diagnostic imaging and is intentionally excluded — flag for
+# product confirmation if patients are missing therapy-providers from search.)
+_IMAGING_JOB_TITLE_FILTERS: tuple[str, ...] = ("radiology", "nuclear medicine")
+
+
 def search_imaging_centers(
     query: str,
     zip_codes: list[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Search the science-service contacts database for radiology imaging centers.
+    """Search the science-service contacts database for imaging providers.
 
     Same single-call + generic-postal-code semantics as
-    :func:`search_refer_providers`, plus a ``job_title__icontains=radiology``
-    filter to scope results to imaging providers. Closes the missing-generic
-    bug where TBD imaging centers ("Grove Diagnostic Imaging TBD Radiology")
-    disappeared for patients whose zip didn't match the placeholder's.
+    :func:`search_refer_providers`, but issues one call per imaging-adjacent
+    job_title filter (see ``_IMAGING_JOB_TITLE_FILTERS``) and merges results
+    de-duplicated by serialized content. This ensures Nuclear Medicine
+    providers — which "radiology" alone misses — surface for queries like
+    "PET scan", and also keeps the generic-TBD surfacing path
+    ("Grove Diagnostic Imaging TBD Radiology") intact across all imaging
+    specialties.
     """
-    return _search_contacts(
-        query=query,
-        zip_codes=zip_codes,
-        extra_params={"job_title__icontains": "radiology"},
-        log_label="Imaging center search",
-    )
+    merged: list[dict[str, Any]] = []
+    seen: set[tuple[str, ...]] = set()
+    for job_title_filter in _IMAGING_JOB_TITLE_FILTERS:
+        results = _search_contacts(
+            query=query,
+            zip_codes=zip_codes,
+            extra_params={"job_title__icontains": job_title_filter},
+            log_label=f"Imaging center search ({job_title_filter})",
+        )
+        for result in results:
+            data = result["data"]
+            # A contact has exactly one ``job_title`` value, so duplicates
+            # across two icontains buckets are rare in practice; key on a
+            # stable content tuple to be defensive against future overlaps.
+            key = (
+                data["first_name"],
+                data["last_name"],
+                data["practice_name"],
+                data["business_address"],
+                data["specialty"],
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(result)
+    return merged
 
 
 def resolve_zip_codes(patient_id: str = "", note_id: str = "") -> list[str]:

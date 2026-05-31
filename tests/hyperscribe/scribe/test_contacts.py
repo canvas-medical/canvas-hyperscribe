@@ -397,31 +397,44 @@ def test_search_imaging_centers_tbd_with_dot_postal_visible(mock_http: MagicMock
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
-def test_search_imaging_centers_preserves_radiology_filter(mock_http: MagicMock) -> None:
-    """The job_title__icontains=radiology filter must be sent on every call."""
+def test_search_imaging_centers_issues_one_call_per_specialty_filter(
+    mock_http: MagicMock,
+) -> None:
+    """One call per imaging-adjacent specialty: radiology + nuclear medicine.
+
+    The science FilterSet only exposes ``__icontains`` (no ``__in``/``__iregex``),
+    so we issue one call per imaging-adjacent value and merge. ``radiology``
+    catches both ``Radiology`` and ``Vascular & Interventional Radiology``;
+    ``nuclear medicine`` catches the Nuclear Medicine specialty.
+    """
     mock_http.get_json.return_value = _mock_science_response([_LOCAL_IMAGING_CENTER])
 
     search_imaging_centers("mri", zip_codes=["92591"])
 
-    call_url = mock_http.get_json.call_args[0][0]
-    # urlencode encodes the dunder filter key directly; just check the
-    # parameter and value appear (allowing either raw or percent-encoded).
-    assert "job_title__icontains" in call_url
-    assert "radiology" in call_url
+    # Two specialty filters → two API calls, each carrying its own filter value.
+    assert mock_http.get_json.call_count == 2
+    call_urls = [call.args[0] for call in mock_http.get_json.call_args_list]
+    for url in call_urls:
+        assert "job_title__icontains" in url
+    assert any("radiology" in url for url in call_urls)
+    assert any("nuclear" in url for url in call_urls)
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
-def test_search_imaging_centers_radiology_filter_present_without_zip(
+def test_search_imaging_centers_specialty_filters_present_without_zip(
     mock_http: MagicMock,
 ) -> None:
-    """Even without a zip-filter, the radiology filter must scope unfiltered calls."""
+    """Even without a zip-filter, both specialty filters scope unfiltered calls."""
     mock_http.get_json.return_value = _mock_science_response([_LOCAL_IMAGING_CENTER])
 
     search_imaging_centers("mri")
 
-    call_url = mock_http.get_json.call_args[0][0]
-    assert "job_title__icontains" in call_url
-    assert "radiology" in call_url
+    assert mock_http.get_json.call_count == 2
+    call_urls = [call.args[0] for call in mock_http.get_json.call_args_list]
+    for url in call_urls:
+        assert "job_title__icontains" in url
+    assert any("radiology" in url for url in call_urls)
+    assert any("nuclear" in url for url in call_urls)
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
@@ -454,37 +467,45 @@ def test_search_imaging_centers_url_encodes_query(mock_http: MagicMock) -> None:
 
 @patch("hyperscribe.scribe.contacts.science_http")
 def test_search_imaging_centers_empty_zip_falls_through(mock_http: MagicMock) -> None:
-    """No zip_codes → unfiltered call (single API call), still with radiology filter."""
+    """No zip_codes → one unfiltered call per specialty filter (two total)."""
     mock_http.get_json.return_value = _mock_science_response([_LOCAL_IMAGING_CENTER, _GENERIC_IMAGING_TBD])
 
     results = search_imaging_centers("radiology", zip_codes=None)
 
+    # Identical mock results from both specialty calls collapse to 2 after dedup.
     assert len(results) == 2
-    assert mock_http.get_json.call_count == 1
-    call_url = mock_http.get_json.call_args[0][0]
-    # No postal_code filter on this path.
-    assert "business_postal_code__in" not in call_url
+    # Two unfiltered calls — one per specialty filter, no postal_code filter on either.
+    assert mock_http.get_json.call_count == 2
+    for call in mock_http.get_json.call_args_list:
+        assert "business_postal_code__in" not in call.args[0]
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
 def test_search_imaging_centers_falls_back_when_zip_returns_empty(
     mock_http: MagicMock,
 ) -> None:
-    """When zip+11111 returns nothing, an unfiltered radiology call is retried.
+    """When the zip-filtered call returns nothing, an unfiltered call is retried.
 
     Preserves the prior fallback semantics on the imaging-center endpoint:
     if a patient's zip has no nearby center matching the query, surface the
-    generic + remote centers rather than returning an empty list.
+    generic + remote centers rather than returning an empty list. With two
+    specialty filters and a fallback per filter, the worst case is 4 calls.
     """
     mock_http.get_json.side_effect = [
-        _mock_science_response([]),  # zip+11111 filtered: nothing
-        _mock_science_response([_LOCAL_IMAGING_CENTER, _GENERIC_IMAGING_TBD]),  # unfiltered
+        # radiology specialty: zip-filtered empty → fall back to unfiltered
+        _mock_science_response([]),
+        _mock_science_response([_LOCAL_IMAGING_CENTER, _GENERIC_IMAGING_TBD]),
+        # nuclear medicine specialty: zip-filtered empty → fall back to unfiltered
+        _mock_science_response([]),
+        _mock_science_response([_LOCAL_IMAGING_CENTER, _GENERIC_IMAGING_TBD]),
     ]
 
     results = search_imaging_centers("radiology", zip_codes=["99999"])
 
+    # Two specialty calls × (zip + fallback) = 4 calls. Dedup collapses
+    # repeated content from each specialty back to the original 2 contacts.
     assert len(results) == 2
-    assert mock_http.get_json.call_count == 2
+    assert mock_http.get_json.call_count == 4
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
@@ -507,15 +528,16 @@ def test_search_imaging_centers_tbd_visible_for_non_matching_zip(
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
-def test_search_imaging_centers_single_call_when_results_found(
+def test_search_imaging_centers_one_call_per_specialty_when_results_found(
     mock_http: MagicMock,
 ) -> None:
-    """Single API call when zip+11111 returns results — no duplicate request."""
+    """One zip-filtered call per specialty (no fallback) when each returns results."""
     mock_http.get_json.return_value = _mock_science_response([_LOCAL_IMAGING_CENTER, _GENERIC_IMAGING_TBD])
 
     search_imaging_centers("radiology", zip_codes=["92591"])
 
-    assert mock_http.get_json.call_count == 1
+    # Two specialty filters, each returns results → no fallback fires.
+    assert mock_http.get_json.call_count == 2
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
@@ -526,3 +548,85 @@ def test_search_imaging_centers_exception_returns_empty(mock_http: MagicMock) ->
     results = search_imaging_centers("radiology", zip_codes=["92591"])
 
     assert results == []
+
+
+# A real Nuclear Medicine provider — the gap that motivated the
+# multi-specialty filter. The science FilterSet only supports __icontains,
+# and "radiology" alone does not match the "Nuclear Medicine" job_title.
+_NUCLEAR_MEDICINE_PROVIDER = {
+    "firstName": "Hans",
+    "lastName": "Geiger",
+    "practiceName": "Pacific Nuclear Imaging",
+    "specialty": "Nuclear Medicine",
+    "businessPhone": "555-7777",
+    "businessFax": "",
+    "businessAddress": "300 Atomic Way, Temecula CA 92591",
+}
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_finds_nuclear_medicine_specialty(
+    mock_http: MagicMock,
+) -> None:
+    """Nuclear Medicine providers must surface — they're invisible to "radiology" alone.
+
+    Closes the gap where a provider ordering a PET scan would not find Nuclear
+    Medicine specialists because the prior icontains=radiology filter excluded
+    them at the science-service layer.
+    """
+
+    def side_effect(url: str) -> MagicMock:
+        # Radiology bucket returns nothing for this query.
+        if "icontains=radiology" in url or "icontains=Radiology" in url:
+            return _mock_science_response([])
+        # Nuclear medicine bucket returns the actual provider.
+        return _mock_science_response([_NUCLEAR_MEDICINE_PROVIDER])
+
+    mock_http.get_json.side_effect = side_effect
+
+    results = search_imaging_centers("PET scan", zip_codes=["92591"])
+
+    assert len(results) == 1
+    assert "Hans" in results[0]["name"]
+    assert results[0]["data"]["specialty"] == "Nuclear Medicine"
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_merges_radiology_and_nuclear_medicine(
+    mock_http: MagicMock,
+) -> None:
+    """Both specialty buckets contribute to the merged result set."""
+
+    def side_effect(url: str) -> MagicMock:
+        if "radiology" in url.lower():
+            return _mock_science_response([_LOCAL_IMAGING_CENTER])
+        return _mock_science_response([_NUCLEAR_MEDICINE_PROVIDER])
+
+    mock_http.get_json.side_effect = side_effect
+
+    results = search_imaging_centers("imaging", zip_codes=["92591"])
+
+    names = [r["name"] for r in results]
+    assert any("Temecula Radiology Group" in n for n in names)
+    assert any("Hans" in n for n in names)
+    assert len(results) == 2
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_dedupes_overlap_between_buckets(
+    mock_http: MagicMock,
+) -> None:
+    """A contact returned by both specialty buckets is deduped, not duplicated.
+
+    In practice each contact has exactly one job_title and the two icontains
+    buckets are disjoint, but defensive dedup matters: if a future science-service
+    behavior (e.g. a synthetic "Radiology / Nuclear Medicine" specialty) returns
+    the same contact under both queries, we must not surface it twice.
+    """
+    # Both calls return the same single contact.
+    mock_http.get_json.return_value = _mock_science_response([_LOCAL_IMAGING_CENTER])
+
+    results = search_imaging_centers("radiology", zip_codes=["92591"])
+
+    assert len(results) == 1
+    assert "Temecula Radiology Group" in results[0]["name"]
