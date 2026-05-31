@@ -143,12 +143,39 @@ def test_search_with_zip_includes_11111(mock_http):
     results = search_refer_providers("psychiatry", zip_codes=["92591"])
 
     assert len(results) == 2
-    # Verify URL-encoded params with both patient zip and generic postal code.
+    # Verify URL-encoded params with both patient zip and generic postal codes.
     call_url = mock_http.get_json.call_args[0][0]
     assert "search=psychiatry" in call_url
     assert "business_postal_code__in=" in call_url
     assert "92591" in call_url
     assert "11111" in call_url
+    # Import script also writes "." for rows missing business_postal_code.
+    assert "%2C." in call_url or ",." in call_url
+
+
+# Generic TBD referral provider using "." as the import-script fallback for
+# customer-supplied CSV rows that omitted business_postal_code.
+_GENERIC_PSYCHIATRY_TBD_DOT = {
+    "firstName": "Psychiatry",
+    "lastName": "(TBD)",
+    "practiceName": "",
+    "specialty": "Psychiatry",
+    "businessPhone": "",
+    "businessFax": "",
+    "businessAddress": ".",
+}
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_refer_providers_tbd_with_dot_postal_visible(mock_http: MagicMock) -> None:
+    """TBD referral providers imported with the "." fallback postal must surface."""
+    mock_http.get_json.return_value = _mock_science_response([_GENERIC_PSYCHIATRY_TBD_DOT])
+
+    results = search_refer_providers("psychiatry", zip_codes=["92591"])
+
+    assert len(results) == 1
+    assert "Psychiatry" in results[0]["name"]
+    assert "TBD" in results[0]["name"]
 
 
 @patch("hyperscribe.scribe.contacts.science_http")
@@ -302,6 +329,39 @@ def test_search_imaging_centers_with_zip_includes_11111(mock_http: MagicMock) ->
     assert "business_postal_code__in=" in call_url
     assert "92591" in call_url
     assert "11111" in call_url
+    # The import script also writes "." as the fallback for rows missing
+    # business_postal_code, so the filter must include it too.
+    assert "%2C." in call_url or ",." in call_url
+
+
+# Generic TBD imaging center using "." as the import-script fallback for a
+# customer-supplied CSV row that omitted business_postal_code.
+_GENERIC_IMAGING_TBD_DOT = {
+    "firstName": "Coastal Imaging",
+    "lastName": "(TBD)",
+    "practiceName": "",
+    "specialty": "Radiology",
+    "businessPhone": "",
+    "businessFax": "",
+    "businessAddress": ".",
+}
+
+
+@patch("hyperscribe.scribe.contacts.science_http")
+def test_search_imaging_centers_tbd_with_dot_postal_visible(mock_http: MagicMock) -> None:
+    """TBD imaging centers imported with the "." fallback postal must surface.
+
+    The science import command writes "." into business_postal_code when a
+    customer-supplied CSV row omits the column. Without "." in the zip filter,
+    those generic contacts vanish for any patient whose zip is not literally ".".
+    """
+    mock_http.get_json.return_value = _mock_science_response([_GENERIC_IMAGING_TBD_DOT])
+
+    results = search_imaging_centers("radiology", zip_codes=["92591"])
+
+    assert len(results) == 1
+    assert "Coastal Imaging" in results[0]["name"]
+    assert "TBD" in results[0]["name"]
 
 
 @patch("hyperscribe.scribe.contacts.science_http")

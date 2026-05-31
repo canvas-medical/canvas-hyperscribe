@@ -55,6 +55,14 @@ def _format_contact(c: dict[str, Any]) -> dict[str, Any]:
 
 
 _GENERIC_POSTAL_CODE = "11111"
+# Fallback the science import-contacts management command writes when a
+# customer-supplied CSV row omits ``business_postal_code`` (see
+# ``science/contacts/management/commands/import_contacts.py`` —
+# ``row.get("business_postal_code") or "."``). Including "." in the zip
+# filter surfaces generic/TBD contacts that came in via that path; otherwise
+# they vanish for any patient whose own zip is not literally ".".
+_IMPORT_MISSING_POSTAL_CODE = "."
+_GENERIC_POSTAL_CODES = (_GENERIC_POSTAL_CODE, _IMPORT_MISSING_POSTAL_CODE)
 _GENERIC_LAST_NAME = "(TBD)"
 
 
@@ -106,9 +114,9 @@ def _search_contacts(
 
     try:
         if zip_codes:
-            # Include generic postal code so TBD/placeholder contacts always
-            # appear alongside local results — single API call.
-            all_zips = list(dict.fromkeys(zip_codes + [_GENERIC_POSTAL_CODE]))
+            # Include both generic postal codes so TBD/placeholder contacts
+            # always appear alongside local results — single API call.
+            all_zips = list(dict.fromkeys(zip_codes + list(_GENERIC_POSTAL_CODES)))
             params = urlencode({**base_params, "business_postal_code__in": ",".join(all_zips)})
             resp = science_http.get_json(f"/contacts/?{params}")
             raw_results = (resp.json() or {}).get("results", [])
