@@ -3086,7 +3086,7 @@ def test_get_ordering_providers_with_search_query(mock_staff_cls: MagicMock) -> 
 # --- /recommend-commands ---
 
 
-@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
 def test_recommend_commands_success(mock_recommend: MagicMock, _mock_zip: MagicMock) -> None:
     mock_recommend.return_value = [
@@ -3156,7 +3156,7 @@ def test_recommend_commands_invalid_json() -> None:
     assert "Invalid JSON" in json.loads(result[0].content)["error"]
 
 
-@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
 def test_recommend_commands_backend_error(mock_recommend: MagicMock, _mock_zip: MagicMock) -> None:
     mock_recommend.side_effect = Exception("LLM failure")
@@ -3171,7 +3171,7 @@ def test_recommend_commands_backend_error(mock_recommend: MagicMock, _mock_zip: 
     assert "failed" in data["error"].lower()
 
 
-@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
 def test_recommend_commands_with_note_uuid_triggers_annotation(
@@ -3203,7 +3203,7 @@ def test_recommend_commands_with_note_uuid_triggers_annotation(
     assert mock_annotate.call_args.args[1] == "note-uuid-456"
 
 
-@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
 def test_recommend_commands_without_note_uuid_calls_annotate_with_empty(
@@ -3259,7 +3259,7 @@ def test_get_summary_progress_not_found(mock_get_cache: MagicMock) -> None:
 # --- /generate-summary ---
 
 
-@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
@@ -3341,7 +3341,7 @@ def test_generate_summary_success(
     mock_summary.objects.update_or_create.assert_called_once()
 
 
-@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
@@ -3571,7 +3571,7 @@ def test_generate_summary_preserves_mode_and_template(
     assert defaults["selected_template_name"] == "Subsequent Visit"
 
 
-@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
@@ -3653,7 +3653,7 @@ def test_generate_summary_preserves_mode_from_db_when_not_in_request(
     )
 
 
-@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
@@ -3800,7 +3800,7 @@ def test_generate_summary_backend_error(
     assert "Note generation failed" in json.loads(result[0].content)["error"]
 
 
-@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
 @patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
 @patch("hyperscribe.scribe.api.session_view.recommend_commands")
 @patch("hyperscribe.scribe.api.session_view.ScribeSummary")

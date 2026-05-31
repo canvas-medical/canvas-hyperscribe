@@ -82,6 +82,11 @@ from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
 )
+from hyperscribe.scribe.contacts import (
+    resolve_zip_codes,
+    search_imaging_centers,
+    search_refer_providers,
+)
 
 
 def _ensure_str(value: Any) -> str:
@@ -1102,8 +1107,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         api_key = self.secrets.get("AnthropicAPIKey", "")
         if api_key:
             try:
-                from hyperscribe.scribe.contacts import resolve_zip_codes
-
                 patient_id = str(data.get("patient_id", ""))
                 zip_codes = resolve_zip_codes(patient_id, note_id) or None
                 rec_proposals = recommend_commands(note, api_key, zip_codes=zip_codes, transcript=transcript)
@@ -1314,8 +1317,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
         note = _parse_note(data.get("note", {}))
-        from hyperscribe.scribe.contacts import resolve_zip_codes
-
         patient_id = str(data.get("patient_id", ""))
         rec_note_id = str(data.get("note_id", ""))
         zip_codes = resolve_zip_codes(patient_id, rec_note_id) or None
@@ -2400,8 +2401,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.get("/search-imaging-centers")
     def get_search_imaging_centers(self) -> list[Union[Response, Effect]]:
         """Search for radiology imaging centers via the science service."""
-        from hyperscribe.scribe.contacts import resolve_zip_codes, search_imaging_centers
-
         query = self.request.query_params.get("query", "").strip()
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
@@ -2416,8 +2415,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.get("/search-refer-providers")
     def get_search_refer_providers(self) -> list[Union[Response, Effect]]:
         """Search for providers to refer to via the science service."""
-        from hyperscribe.scribe.contacts import resolve_zip_codes, search_refer_providers
-
         query = self.request.query_params.get("query", "").strip()
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
