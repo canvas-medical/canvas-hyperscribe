@@ -880,7 +880,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             />
                           </div>
                         </div>
-                        ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`
+                        ${!assessRowReadOnly && !entry.command._adding && html`
                           <div class="recommendation-actions">
                             <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
                           </div>

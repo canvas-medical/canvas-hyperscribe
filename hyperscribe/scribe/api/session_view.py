@@ -1982,7 +1982,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     {
                         "command_uuid": str(p.get("command_uuid", "")),
                         "command_type": p.get("command_type", ""),
-                        "metadata_keys": list((p.get("metadata") or {}).keys()),
+                        "metadata_keys": list(p["metadata"].keys()) if isinstance(p.get("metadata"), dict) else [],
                     }
                     for p in pending
                 ],

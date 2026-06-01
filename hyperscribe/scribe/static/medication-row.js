@@ -179,18 +179,6 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     `;
   };
 
-  // Already documented — non-clickable, dimmed.
-  if (command.already_documented) {
-    return html`
-      <div class="medication-row compact documented">
-        <div class="med-card-row">
-          <span class="med-card-name">${command.display}</span>
-          <span class="med-card-sig">${command.data.sig || ''}</span>
-        </div>
-      </div>
-    `;
-  }
-
   // Edit mode with search.
   if (editing && !readOnly) {
     return html`
@@ -248,13 +236,18 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     `;
   }
 
-  // View mode.
+  // View mode. Already-documented rows reuse the same shell so the
+  // alert_facility chip renders in static-when-readOnly form (the PR
+  // contract); the `documented` class preserves the dimmed visual that
+  // distinguishes on-note rows from in-flight ones. readOnly is supplied
+  // by the caller (rowLocked → true for already_documented in fresh-sign,
+  // false in amend mode for amend-eligible rows).
   const handleRowClick = () => { if (!readOnly) setEditing(true); };
   const handleSetInRow = (next) => {
     onEdit(commandIndex, { ...command.data, alert_facility: next });
   };
   return html`
-    <div class="medication-row compact"
+    <div class="medication-row compact${command.already_documented ? ' documented' : ''}"
          onClick=${handleRowClick}>
       <div class="med-card-row">
         <span class="med-card-name">${command.display}</span>

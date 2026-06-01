@@ -359,7 +359,7 @@ function buildCommandBySectionKey(commands) {
 // Without this, `unlinkedCptCount`'s `length > 0` check passes with stale
 // codes that ClaimLinkSync can't resolve to any Assessment, so the BLI
 // ships with empty assessment_ids and the link is silently lost.
-function pruneOrphanedLinks(prevCommands, nextCommands) {
+function pruneOrphanedLinks(prevCommands, nextCommands, isAmending) {
   const before = new Set(buildRankedDiagnoses(prevCommands).map(d => d.icd10_code));
   if (before.size === 0) return nextCommands;
   const after = new Set(buildRankedDiagnoses(nextCommands).map(d => d.icd10_code));
@@ -375,7 +375,22 @@ function pruneOrphanedLinks(prevCommands, nextCommands) {
     if (!Array.isArray(links) || links.length === 0) return cmd;
     const filtered = links.filter(c => after.has(c));
     if (filtered.length === links.length) return cmd;
-    return { ...cmd, data: { ...cmd.data, linked_icd10_codes: filtered } };
+    const next = { ...cmd, data: { ...cmd.data, linked_icd10_codes: filtered } };
+    // During amendment, a Plan-side diagnose edit/delete that strips an
+    // ICD from a perform's linked_icd10_codes must route the perform
+    // through the amend pipeline — otherwise ScribeSummary.commands
+    // updates but the BLI on the chart keeps pointing at the now-voided
+    // Assessment. The charges matrix is read-only during amendment, so
+    // this is the only path that can mutate a perform's link set in
+    // amend mode; without the tag, ClaimLinkSync never re-fires and the
+    // BLI's assessment_ids goes stale. Same-request ordering inside
+    // /edit-existing-commands (diagnose EIE+Originate+Commit BEFORE
+    // perform EIE+Originate+Commit, per builder.build_amend_edit_effects)
+    // means the new Assessment lands before the perform's commit fires
+    // ClaimLinkSync, so the resync resolves cleanly.
+    return (isAmending && isAmendingSectionEditable(cmd, isAmending))
+      ? { ...next, _amend_edited: true }
+      : next;
   });
 }
 
@@ -1316,7 +1331,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // branches.
         return isAmendEdit(cmd) ? { ...next, _amend_edited: true } : next;
       });
-      const pruned = pruneOrphanedLinks(prev, updated);
+      const pruned = pruneOrphanedLinks(prev, updated, wasFinalized && !approved);
       saveSummaryToCache(noteData, pruned, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return pruned;
     });
@@ -1328,22 +1343,24 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const amending = wasFinalized && !approved;
     setCommands(prev => {
       const cmd = prev[index];
-      // Amend-aware delete: when an already-documented amend-eligible
-      // command is removed via the × button, keep it in commands[] but tag
+      // Amend-aware delete: when an on-note amend-eligible command is
+      // removed via the × button, keep it in commands[] but tag
       // `_amend_deleted: true` + `selected: false` so handleInsert's
       // amendDeletes pipeline POSTs a delete to /edit-existing-commands.
-      // Without this branch, deleting an assess/diagnose during amendment
-      // silently no-ops on the backend — the row vanishes from cache, but
-      // the Assessment stays committed on the chart and the BLI keeps
-      // referencing it. Mirrors handleRemoveChargeByCpt's pattern at
-      // line 1546. Display predicates (buildRankedDiagnoses,
-      // isInsertableCommand, charge-row filters) exclude `_amend_deleted`
-      // or `selected === false` so the row visually disappears.
-      if (cmd && cmd.already_documented && isAmendingSectionEditable(cmd, amending)) {
+      //
+      // "On note" = (already_documented || command_uuid). Pre-PR signed
+      // notes carry command_uuid without the explicit already_documented
+      // flag; without the OR convention here those rows fall through to
+      // the plain array-filter delete below and silently no-op on the
+      // backend — the Assessment stays committed and the BLI keeps
+      // referencing it. Mirrors `rowLocked` (soap-group.js:101) and
+      // `isInsertableCommand` (summary.js).
+      const onNote = cmd && (cmd.already_documented || cmd.command_uuid);
+      if (onNote && isAmendingSectionEditable(cmd, amending)) {
         const updated = prev.map((c, i) =>
           i === index ? { ...c, selected: false, _amend_deleted: true } : c
         );
-        const pruned = pruneOrphanedLinks(prev, updated);
+        const pruned = pruneOrphanedLinks(prev, updated, amending);
         saveSummaryToCache(noteData, pruned, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
         return pruned;
       }
@@ -1352,7 +1369,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       // assess (or diagnose) row via the × button, leaving its ICD stale
       // in every CPT's linked_icd10_codes.
       const updated = prev.filter((_, i) => i !== index);
-      const pruned = pruneOrphanedLinks(prev, updated);
+      const pruned = pruneOrphanedLinks(prev, updated, amending);
       saveSummaryToCache(noteData, pruned, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return pruned;
     });
@@ -1780,7 +1797,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     //    never sees them and /edit-existing-commands never tries to edit
     //    them either (they should not have `_amend_edited` set; the gate is
     //    structural - delete vs edit are mutually exclusive gestures).
-    const amendDeletes = commands.filter(c => c._amend_deleted && c.command_uuid && c.already_documented);
+    // Drop the `already_documented` filter: pre-PR signed notes carry
+    // command_uuid without the explicit flag (see handleDelete guard).
+    // The `_amend_deleted` tag is only ever set by handleDelete after an
+    // on-note + isAmendingSectionEditable check, so command_uuid is
+    // sufficient as the targeting key on its own.
+    const amendDeletes = commands.filter(c => c._amend_deleted && c.command_uuid);
     let amendUuidRemap = new Map(); // old_uuid -> new_uuid
     let amendAttempted = [];
     // The commands array we work with from here on. We mutate this in-place
