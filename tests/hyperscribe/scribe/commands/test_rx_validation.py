@@ -212,9 +212,7 @@ def test_note_to_pharmacist_max_length_is_210() -> None:
     which would silently fail at REVIEW because canvas-core caps it at 210."""
     over = "a" * (NOTE_TO_PHARMACIST_MAX_LENGTH + 1)
     errors = validate_rx_payload(_good_payload(note_to_pharmacist=over))
-    assert any(
-        f"exceeds {NOTE_TO_PHARMACIST_MAX_LENGTH}" in e for e in errors
-    )
+    assert any(f"exceeds {NOTE_TO_PHARMACIST_MAX_LENGTH}" in e for e in errors)
     # Exactly at the boundary is fine.
     at_limit = "a" * NOTE_TO_PHARMACIST_MAX_LENGTH
     assert validate_rx_payload(_good_payload(note_to_pharmacist=at_limit)) == []

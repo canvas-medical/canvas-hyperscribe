@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal
+from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, Observation
 from hyperscribe.scribe.commands.base import CommandParser
 from hyperscribe.scribe.commands.hpi import HpiParser
 from hyperscribe.scribe.commands.plan import PlanParser
 from hyperscribe.scribe.commands.rfv import RfvParser
-from hyperscribe.scribe.commands.vitals import VitalsParser
+from hyperscribe.scribe.commands.vitals import VitalsExtractionResult, VitalsParser
+
+_VITALS_PARSER = VitalsParser()
 
 _SECTION_PARSERS: dict[str, CommandParser] = {
     "chief_complaint": RfvParser(),
@@ -13,7 +15,7 @@ _SECTION_PARSERS: dict[str, CommandParser] = {
     "plan": PlanParser(),
     "assessment_and_plan": PlanParser(),
     "appointments": PlanParser(),
-    "vitals": VitalsParser(),
+    "vitals": _VITALS_PARSER,
 }
 
 _CHART_REVIEW_KEYS: frozenset[str] = frozenset(
@@ -200,10 +202,85 @@ def _extract_image_results(note: ClinicalNote) -> CommandProposal | None:
     )
 
 
-def extract_commands(note: ClinicalNote) -> list[CommandProposal]:
-    """Map ClinicalNote sections to CommandProposal list (deterministic, no LLM)."""
+def _extract_vitals(note: ClinicalNote, observations: list[Observation]) -> CommandProposal | None:
+    """Extract vitals from the note's vitals section plus Nabla's structured observations.
+
+    Observations are preferred (LOINC-coded, unit-aware); the free-text regex on the
+    vitals section is used as a fallback for fields the observations didn't cover.
+    Emits a proposal when *either* source yields data — covers the case where Nabla
+    populated observations but emitted no vitals section text, and vice versa.
+    """
+    result = extract_vitals_with_telemetry(note, observations)
+    return result.proposal
+
+
+def extract_vitals_with_telemetry(
+    note: ClinicalNote,
+    observations: list[Observation],
+) -> VitalsExtractionResult:
+    """Run the vitals extraction and return the proposal plus audit metadata.
+
+    Wraps ``VitalsParser.extract_with_telemetry`` and tags the proposal with
+    ``section_key="vitals"`` so callers can use the proposal directly.
+    Returns the canonical ``source`` label derived from the FINAL surviving
+    fields (not raw inputs) — this is the chokepoint
+    ``post_generate_summary`` uses to emit ``VITALS_SOURCE`` and
+    ``VITALS_FIELD_REFUSED`` from a single extraction pass.
+    """
+    vitals_section = next(
+        (s for s in note.sections if s.key.lower() == "vitals"),
+        None,
+    )
+    text = vitals_section.text.strip() if vitals_section is not None else ""
+    if not text and not observations:
+        return VitalsExtractionResult(proposal=None, refusals=[], source="none")
+    result = _VITALS_PARSER.extract_with_telemetry(text, observations)
+    if result.proposal is not None:
+        result.proposal.section_key = "vitals"
+    return result
+
+
+def classify_vitals_source(note: ClinicalNote, observations: list[Observation]) -> str:
+    """Return which parser populated the vitals proposal: ``observations``, ``regex``, ``both``, or ``none``.
+
+    Purely diagnostic. Used by the API layer to emit a ``VITALS_SOURCE`` audit
+    event so we can measure observation-vs-regex reliability in prod and
+    eventually retire the loser parser.
+
+    Classifies from the FINAL surviving fields of the proposal (not raw
+    inputs) so a fully-refused observation panel doesn't get counted as
+    ``observations`` in telemetry. Risk-hunter flagged the race:
+    pre-validation classification overstated the observation path's
+    reliability when Nabla emitted out-of-range BP and the per-field gate
+    plus atomic-pair sweep dropped both sides.
+    """
+    return extract_vitals_with_telemetry(note, observations).source
+
+
+def extract_commands(
+    note: ClinicalNote,
+    observations: list[Observation] | None = None,
+) -> list[CommandProposal]:
+    """Map ClinicalNote sections to CommandProposal list (deterministic, no LLM).
+
+    ``observations`` carries Nabla's normalized vital signs (LOINC-coded). Pass them
+    when available so the vitals parser can avoid format-drift bugs that plague the
+    regex over Nabla's free-text vitals string.
+    """
+    obs = observations or []
     proposals: list[CommandProposal] = []
+    # Track the insertion point for the vitals proposal so it lands in section order
+    # even though we route vitals through the observation-aware path below. We capture
+    # the position as we encounter the vitals section rather than recomputing it after
+    # the loop — this stays correct regardless of how many proposals each upstream
+    # parser emits per section (e.g. medication_statement / allergy override
+    # extract_all to emit multiple).
+    vitals_position: int | None = None
     for section in note.sections:
+        if section.key.lower() == "vitals":
+            if vitals_position is None:
+                vitals_position = len(proposals)
+            continue
         parser = _SECTION_PARSERS.get(section.key.lower())
         if parser is None:
             continue
@@ -213,6 +290,13 @@ def extract_commands(note: ClinicalNote) -> list[CommandProposal]:
         for proposal in parser.extract_all(text):
             proposal.section_key = section.key.lower()
             proposals.append(proposal)
+
+    vitals_proposal = _extract_vitals(note, obs)
+    if vitals_proposal is not None:
+        if vitals_position is None:
+            proposals.append(vitals_proposal)
+        else:
+            proposals.insert(vitals_position, vitals_proposal)
 
     ros_proposal = _extract_ros(note)
     if ros_proposal is not None:

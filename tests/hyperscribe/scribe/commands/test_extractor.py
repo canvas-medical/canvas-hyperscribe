@@ -1,5 +1,21 @@
-from hyperscribe.scribe.backend.models import ClinicalNote, NoteSection
-from hyperscribe.scribe.commands.extractor import extract_commands, parse_ros_subsections
+from hyperscribe.scribe.backend.models import ClinicalNote, CodingEntry, NoteSection, Observation
+from hyperscribe.scribe.commands.extractor import (
+    classify_vitals_source,
+    extract_commands,
+    extract_vitals_with_telemetry,
+    parse_ros_subsections,
+)
+from hyperscribe.scribe.commands.vitals import REFUSAL_REASON_OUT_OF_RANGE
+
+
+def _loinc_obs(code: str, value: str, *, unit: str = "", display: str = "") -> Observation:
+    """Build an Observation whose only coding entry is a LOINC code."""
+    return Observation(
+        display=display or code,
+        value=value,
+        unit=unit,
+        coding=[CodingEntry(system="LOINC", code=code, display=display)],
+    )
 
 
 def test_routes_chief_complaint_to_rfv() -> None:
@@ -352,6 +368,92 @@ def test_allergies_only_chart_review() -> None:
 # --- parse_ros_subsections ---
 
 
+def test_routes_vitals_with_observations() -> None:
+    """When observations are supplied, the vitals proposal picks up fields the regex misses."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(
+                key="vitals",
+                title="Vitals",
+                # Verbose Nabla format — the unpatched regex would drop SpO2 here.
+                text="* Heart rate: 74 bpm\n* O2 saturation: 94%",
+            )
+        ],
+    )
+    observations = [
+        _loinc_obs("85354-9", "103/56", unit="mmHg", display="Blood pressure"),
+        _loinc_obs("9279-1", "16", unit="/min", display="Respiratory rate"),
+    ]
+    proposals = extract_commands(note, observations=observations)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "vitals"
+    data = proposals[0].data
+    assert data["pulse"] == 74  # from regex (Heart rate line)
+    assert data["oxygen_saturation"] == 94  # from regex (O2 saturation line)
+    assert data["blood_pressure_systole"] == 103  # from observation
+    assert data["blood_pressure_diastole"] == 56  # from observation
+    assert data["respiration_rate"] == 16  # from observation
+
+
+def test_routes_vitals_observations_only_no_section() -> None:
+    """Vitals proposal is emitted even when there is no vitals section, as long as observations carry data."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="chief_complaint", title="CC", text="Routine checkup."),
+        ],
+    )
+    observations = [_loinc_obs("8867-4", "74", unit="bpm", display="Heart rate")]
+    proposals = extract_commands(note, observations=observations)
+    types = [p.command_type for p in proposals]
+    assert "vitals" in types
+    vitals = next(p for p in proposals if p.command_type == "vitals")
+    assert vitals.data["pulse"] == 74
+    assert vitals.section_key == "vitals"
+
+
+def test_routes_vitals_no_section_no_observations_omits_vitals() -> None:
+    """No vitals section and no observations means no vitals proposal."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="chief_complaint", title="CC", text="Routine checkup."),
+        ],
+    )
+    proposals = extract_commands(note, observations=[])
+    types = [p.command_type for p in proposals]
+    assert "vitals" not in types
+
+
+def test_routes_vitals_position_preserved_among_other_commands() -> None:
+    """Vitals proposal lands in section-order, even when emitted via observations."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[
+            NoteSection(key="chief_complaint", title="CC", text="Headache"),
+            NoteSection(key="vitals", title="Vitals", text=""),
+            NoteSection(key="plan", title="Plan", text="Naproxen 500mg"),
+        ],
+    )
+    observations = [_loinc_obs("8867-4", "74", unit="bpm", display="Heart rate")]
+    proposals = extract_commands(note, observations=observations)
+    types = [p.command_type for p in proposals]
+    assert types == ["rfv", "vitals", "plan"]
+
+
+def test_extract_commands_observations_default_empty() -> None:
+    """Backwards-compat: callers that don't supply observations get the original regex-only behaviour."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="vitals", title="Vitals", text="BP 120/80, HR 72")],
+    )
+    proposals = extract_commands(note)
+    assert len(proposals) == 1
+    assert proposals[0].command_type == "vitals"
+    assert proposals[0].data["pulse"] == 72
+
+
 def test_parse_ros_subsections_standard() -> None:
     text = "CONSTITUTIONAL: Denies fever, chills.\nEYES: Denies visual changes."
     result = parse_ros_subsections(text)
@@ -369,3 +471,114 @@ def test_parse_ros_subsections_multiword_title() -> None:
     result = parse_ros_subsections(text)
     assert len(result) == 1
     assert result[0]["title"] == "MOUTH/THROAT/VOICE"
+
+
+# --- classify_vitals_source --------------------------------------------------------
+# These tests pin the telemetry signal used by ``post_generate_summary`` to emit a
+# VITALS_SOURCE audit event. The signal lets us measure observation-vs-regex
+# reliability in prod and eventually retire the loser parser.
+
+
+def test_classify_vitals_source_observations_only() -> None:
+    """Only observations populated → ``observations``."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="vitals", title="Vitals", text="")],
+    )
+    observations = [_loinc_obs("8867-4", "74", unit="bpm", display="Heart rate")]
+    assert classify_vitals_source(note, observations) == "observations"
+
+
+def test_classify_vitals_source_regex_only() -> None:
+    """Only the vitals section text populated → ``regex``."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="vitals", title="Vitals", text="BP 120/80")],
+    )
+    assert classify_vitals_source(note, []) == "regex"
+
+
+def test_classify_vitals_source_both() -> None:
+    """Both observations and regex populated → ``both``."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="vitals", title="Vitals", text="BP 120/80")],
+    )
+    observations = [_loinc_obs("8867-4", "74", unit="bpm", display="Heart rate")]
+    assert classify_vitals_source(note, observations) == "both"
+
+
+def test_classify_vitals_source_none() -> None:
+    """Nothing populated (no section, no observations) → ``none``."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="chief_complaint", title="CC", text="Headache")],
+    )
+    assert classify_vitals_source(note, []) == "none"
+
+
+def test_classify_vitals_source_section_present_but_unparseable() -> None:
+    """Vitals section text that the regex cannot parse → ``none`` (not ``regex``)."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="vitals", title="Vitals", text="Patient appears well.")],
+    )
+    assert classify_vitals_source(note, []) == "none"
+
+
+def test_classify_vitals_source_bp_panel_fully_refused_is_none() -> None:
+    """Fix 2: a fully-refused BP-panel observation must classify as ``none``, not ``observations``.
+
+    Before the fix, ``classify_vitals_source`` re-parsed raw observations standalone (skipping
+    validation) and declared the source ``observations`` even when no observation field
+    survived validation. The fix routes through the same extraction that builds the
+    proposal, so the source label reflects what actually landed in the final data dict.
+    """
+    note = ClinicalNote(title="Note", sections=[NoteSection(key="vitals", title="Vitals", text="")])
+    observations = [_loinc_obs("85354-9", "999/999", unit="mmHg", display="Blood pressure")]
+    assert classify_vitals_source(note, observations) == "none"
+
+
+# --- extract_vitals_with_telemetry -------------------------------------------------
+# Module-level wrapper around ``VitalsParser.extract_with_telemetry`` that adds the
+# section-key tagging and the "no vitals section + no observations → empty result"
+# short-circuit. Used by ``post_generate_summary`` to emit one VITALS_SOURCE + one
+# (optional) VITALS_FIELD_REFUSED from a single extraction.
+
+
+def test_extract_vitals_with_telemetry_happy_path() -> None:
+    """Happy path: a vitals section with valid data produces a proposal, no refusals, regex source."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="vitals", title="Vitals", text="BP 120/80, HR 72")],
+    )
+    result = extract_vitals_with_telemetry(note, [])
+    assert result.proposal is not None
+    assert result.proposal.section_key == "vitals"
+    assert result.refusals == []
+    assert result.source == "regex"
+
+
+def test_extract_vitals_with_telemetry_no_section_no_obs_is_empty() -> None:
+    """No vitals section + no observations short-circuits to (None, [], "none")."""
+    note = ClinicalNote(title="Note", sections=[])
+    result = extract_vitals_with_telemetry(note, [])
+    assert result.proposal is None
+    assert result.refusals == []
+    assert result.source == "none"
+
+
+def test_extract_vitals_with_telemetry_out_of_range_pulse_refused() -> None:
+    """Refusals propagate through the module-level wrapper."""
+    note = ClinicalNote(
+        title="Note",
+        sections=[NoteSection(key="vitals", title="Vitals", text="HR 25, BP 120/80")],
+    )
+    result = extract_vitals_with_telemetry(note, [])
+    assert result.proposal is not None
+    assert [(r.field, r.reason) for r in result.refusals] == [
+        ("pulse", REFUSAL_REASON_OUT_OF_RANGE),
+    ]
+    # Pulse was refused but BP survived → still regex source.
+    assert result.source == "regex"
+    assert "pulse" not in result.proposal.data

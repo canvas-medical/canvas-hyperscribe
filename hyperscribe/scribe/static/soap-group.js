@@ -541,6 +541,20 @@ const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 const ICON_CHECK_SMALL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
 const ICON_LOCK = html`<svg class="command-row-icon-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
 
+// Standalone delete-X action button used by most row render branches. Suppressed
+// in readOnly mode and for any command that's already in the chart (e.g. synced
+// from the note body — those are view-only in the Scribe). Callers that share a
+// recommendation-actions container with sibling controls (Add Now, Accept/Reject
+// pairs) inline the rec-btn-reject button directly instead of using this helper.
+function renderDeleteAction(command, readOnly, onDelete, index) {
+  if (readOnly || command.already_documented) return null;
+  return html`
+    <div class="recommendation-actions">
+      <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDelete(index)} title="Remove">${ICON_X}</button>
+    </div>
+  `;
+}
+
 function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingChange }) {
   const data = command.data || {};
   const [editing, setEditing] = useState(false);
@@ -1241,11 +1255,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onEditingChange=${onEditingChange}
                         />
                       </div>
-                      ${!readOnly && html`
-                        <div class="recommendation-actions">
-                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
-                        </div>
-                      `}
+                      ${renderDeleteAction(entry.command, readOnly, onDeleteCommand, entry.index)}
                     </div>
                   `;})}
                   ${adHocAllergies.map(entry => {
@@ -1263,11 +1273,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onEditingChange=${onEditingChange}
                         />
                       </div>
-                      ${!readOnly && html`
-                        <div class="recommendation-actions">
-                          <button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
-                        </div>
-                      `}
+                      ${renderDeleteAction(entry.command, readOnly, onDeleteCommand, entry.index)}
                     </div>
                   `;})}
                   ${allergyRecs.map(entry => {

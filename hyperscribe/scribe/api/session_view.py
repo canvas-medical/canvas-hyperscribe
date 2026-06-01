@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Any, Union
+from urllib.parse import urlencode
 
 from canvas_sdk.v1.data.medication import Status
 from logger import log
@@ -43,6 +45,7 @@ from hyperscribe.scribe.backend import (
     CodingEntry,
     Condition,
     NoteSection,
+    Observation,
     PatientContext,
     ScribeError,
     Transcript,
@@ -64,14 +67,27 @@ from hyperscribe.scribe.commands.builder import (
     validate_proposals,
 )
 from hyperscribe.scribe.commands.carry_forward import carry_forward_assess_background
-from hyperscribe.scribe.commands.extractor import extract_commands, parse_ros_subsections
+from hyperscribe.scribe.commands.extractor import (
+    extract_commands,
+    extract_vitals_with_telemetry,
+    parse_ros_subsections,
+)
 from hyperscribe.scribe.commands.prior_sections import get_prior_section_data
+from hyperscribe.scribe.commands.problem_list_match import (
+    ActivePatientCondition,
+    prefer_patient_specific_codes,
+)
 from hyperscribe.scribe.recommendations import recommend_commands
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
 from hyperscribe.scribe.recommendations.reconciliation import reconcile_sections
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
+)
+from hyperscribe.scribe.contacts import (
+    resolve_zip_codes,
+    search_imaging_centers,
+    search_refer_providers,
 )
 
 
@@ -193,6 +209,118 @@ _AMEND_AUDIT_ENTRY_KEYS = (
     "mode",
 )
 
+# All commands synced from the note body land in this single section in the
+# Scribe tab, regardless of schema_key. Each renders with the same locked,
+# read-only card — no per-type routing into the existing SOAP groups.
+FROM_THE_NOTE_SECTION = "from_the_note"
+
+_CAMEL_BOUNDARY_RE = re.compile(r"([a-z0-9])([A-Z])")
+
+# Canonical labels for schema_keys whose humanized form would look wrong
+# (acronyms title-cased to 'Hpi', or Canvas keys that read better with
+# preposition lowercasing). Everything not in this map falls through to
+# _humanize_schema_key.
+_LABEL_OVERRIDES: dict[str, str] = {
+    "hpi": "HPI",
+    "rfv": "RFV",
+    "ros": "ROS",
+    "reasonForVisit": "Reason for Visit",
+    "historyOfPresentIllness": "History of Present Illness",
+    "reviewOfSystems": "Review of Systems",
+}
+
+
+def _humanize_schema_key(schema_key: str) -> str:
+    """Turn 'medicationStatement' / 'medication_statement' into 'Medication Statement'.
+
+    Python's str.title alone produces 'Medicationstatement' for camelCase
+    input because it treats the entire token as one word — we have to split
+    on the camelCase boundary first.
+    """
+    override = _LABEL_OVERRIDES.get(schema_key)
+    if override:
+        return override
+    spaced = _CAMEL_BOUNDARY_RE.sub(r"\1 \2", schema_key).replace("_", " ")
+    return spaced.strip().title() or "Command"
+
+
+def _extract_coded_display(value: Any) -> str:
+    """Pull a display string out of canvas-core's coded-value shape.
+
+    Most non-narrative commands (medication_statement, allergy, diagnose,
+    prescribe, perform, etc.) store their primary value as a dict shaped like
+    ``{value, text, extra: {coding: [{code, display, system}]}}`` — that's
+    what `CommandAdapter.get_command_object_field_values` produces (see
+    home-app's `builtin_content/core_types/adapters/*.py`). Pull the
+    user-facing `text` first, then fall back to the first coding's display.
+    """
+    if not isinstance(value, dict):
+        return ""
+    text = (value.get("text") or "").strip() if isinstance(value.get("text"), str) else ""
+    if text:
+        return text
+    extra = value.get("extra")
+    if isinstance(extra, dict):
+        coding = extra.get("coding")
+        if isinstance(coding, list) and coding and isinstance(coding[0], dict):
+            display = coding[0].get("display")
+            if isinstance(display, str) and display.strip():
+                return display.strip()
+    return ""
+
+
+def _humanize_field_name(name: str) -> str:
+    """'blood_pressure_systole' / 'fdbCode' → 'Blood Pressure Systole' / 'Fdb Code'."""
+    spaced = _CAMEL_BOUNDARY_RE.sub(r"\1 \2", name).replace("_", " ")
+    return spaced.strip().title()
+
+
+def _stringify_field(value: Any) -> str:
+    """Best-effort conversion of a JSON value to a single-line renderable string.
+
+    Booleans collapse to empty (they're almost always internal toggles like
+    ``disabled`` or ``show_in_condition_list`` — not useful to surface).
+    Dicts use the coded-value `text` when present, then a generic flatten of
+    their entries. Lists join their stringified items with ' · '.
+    """
+    if value is None or isinstance(value, bool):
+        return ""
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, dict):
+        coded = _extract_coded_display(value)
+        if coded:
+            return coded
+        parts: list[str] = []
+        for k, v in value.items():
+            if isinstance(k, str) and k.startswith("_"):
+                continue
+            inner = _stringify_field(v)
+            if inner:
+                parts.append(f"{_humanize_field_name(str(k))}: {inner}")
+        return ", ".join(parts)
+    if isinstance(value, list):
+        parts = [_stringify_field(v) for v in value]
+        return " · ".join(p for p in parts if p)
+    return ""
+
+
+def _details_for_command(data: dict[str, Any]) -> list[dict[str, str]]:
+    """Flatten Command.data into a list of ``{label, value}`` rows for the
+    ADDITIONAL COMMANDS card. Empty values and internal keys are skipped so
+    every row carries real information."""
+    details: list[dict[str, str]] = []
+    for key, value in data.items():
+        if isinstance(key, str) and key.startswith("_"):
+            continue
+        text = _stringify_field(value)
+        if text:
+            details.append({"label": _humanize_field_name(str(key)), "value": text})
+    return details
+
+
 SUMMARY_STEPS = [
     "Generating note",
     "Structuring the note",
@@ -220,6 +348,47 @@ def _serialize_condition(condition: Condition) -> dict[str, Any]:
     if condition.corresponding_note_problem is not None:
         result["corresponding_note_problem"] = condition.corresponding_note_problem
     return result
+
+
+def _load_active_patient_conditions(patient_id: str) -> list[ActivePatientCondition]:
+    """Return the patient's active problem-list entries, narrowed to the
+    fields :func:`prefer_patient_specific_codes` needs.
+
+    Used by :func:`post_generate_summary` (to hint Nabla codes toward the
+    patient-specific code already on file) AND by :meth:`get_patient_conditions`
+    (the endpoint the frontend's diagnose -> assess belt fetches against).
+    Both call sites go through this helper so a problem-list selection
+    change can never be visible to one and invisible to the other; without
+    that constraint the rewrite hint and the frontend belt would drift and
+    a patient's specific code would silently stop landing in their chart.
+
+    PHI note: the returned ``ActivePatientCondition`` carries clinical data;
+    callers must not log codes or display strings beyond aggregate counts.
+    """
+    if not patient_id:
+        return []
+    conditions = (
+        ConditionModel.objects.active().for_patient(patient_id).prefetch_related("codings").order_by("-onset_date")
+    )
+    results: list[ActivePatientCondition] = []
+    for c in conditions:
+        codings = list(c.codings.all())
+        if not codings:
+            continue
+        icd10 = next(
+            (coding for coding in codings if "icd" in (coding.system or "").lower()),
+            None,
+        )
+        chosen = icd10 or codings[0]
+        results.append(
+            ActivePatientCondition(
+                condition_id=str(c.id),
+                code=chosen.code,
+                display=chosen.display or c.clinical_status,
+                system=chosen.system or "",
+            )
+        )
+    return results
 
 
 def _match_conditions_to_sections(
@@ -823,16 +992,62 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         # ── Step 1: Generate normalized data ──
         _save_progress(note_id, 1, total, SUMMARY_STEPS[1])
         section_conditions: dict[str, list[dict[str, Any]]] = {}
+        normalized_observations: list[Observation] = []
+        note_uuid = str(data.get("note_uuid", ""))
         try:
             normalized = backend.generate_normalized_data(note)
+            # KOALA-5603: prefer the patient's specific active-problem-list code
+            # when Nabla emitted an unspecified-parent (e.g. E11.9 -> E11.65).
+            # The downstream frontend belt converts a diagnose to an assess
+            # only on EXACT ICD-10 match, so the rewrite has to land before
+            # _match_conditions_to_sections / split_plan_into_diagnoses run.
+            patient_id_for_hint = str(data.get("patient_id", ""))
+            active_conditions = _load_active_patient_conditions(patient_id_for_hint)
+            normalized.conditions = prefer_patient_specific_codes(
+                normalized.conditions,
+                active_conditions,
+            )
             section_conditions = _match_conditions_to_sections(note, normalized.conditions)
+            normalized_observations = normalized.observations
         except Exception:
             log.exception("generate_normalized_data failed (non-critical)")
+            # Surface the upstream failure to prod observability without leaking
+            # PHI: payload carries only the step identifier so we can
+            # distinguish "Nabla returned no observations" (silent path
+            # divergence) from "Nabla call raised" (outage / rate limit /
+            # credential issue).
+            if note_uuid:
+                audit_event(note_uuid, "NORMALIZED_DATA_FAILED", {"step": "normalized"})
 
         # ── Step 2: Extract commands + A&P split ──
         _save_progress(note_id, 2, total, SUMMARY_STEPS[2])
-        note_uuid = str(data.get("note_uuid", ""))
-        proposals = extract_commands(note)
+        # Emit vitals telemetry from a single extraction pass:
+        #  * VITALS_SOURCE — which parser populated the proposal
+        #    (observations / regex / both / none). Classifies off the FINAL
+        #    surviving fields so a fully-refused observation panel doesn't
+        #    inflate the observations side of the metric.
+        #  * VITALS_FIELD_REFUSED — fields the parser dropped during
+        #    validation (out_of_range / ambiguous_unit / atomic_bp_partial).
+        #    Only emitted when refusals are non-empty: silent on the happy
+        #    path so the audit log stays signal-dense.
+        # No values, no PHI — just field names + reason categories.
+        if note_uuid:
+            vitals_telemetry = extract_vitals_with_telemetry(note, normalized_observations)
+            audit_event(
+                note_uuid,
+                "VITALS_SOURCE",
+                {"source": vitals_telemetry.source},
+            )
+            if vitals_telemetry.refusals:
+                audit_event(
+                    note_uuid,
+                    "VITALS_FIELD_REFUSED",
+                    {
+                        "refused_fields": [r.field for r in vitals_telemetry.refusals],
+                        "reasons": [r.reason for r in vitals_telemetry.refusals],
+                    },
+                )
+        proposals = extract_commands(note, observations=normalized_observations)
         annotate_duplicates(proposals, note_uuid)
         prefill_assess_backgrounds_for_proposals(proposals, note_uuid)
         commands_list: list[dict[str, Any]] = [
@@ -942,8 +1157,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         api_key = self.secrets.get("AnthropicAPIKey", "")
         if api_key:
             try:
-                from hyperscribe.scribe.contacts import resolve_zip_codes
-
                 patient_id = str(data.get("patient_id", ""))
                 zip_codes = resolve_zip_codes(patient_id, note_id) or None
                 rec_proposals = recommend_commands(note, api_key, zip_codes=zip_codes, transcript=transcript)
@@ -1154,8 +1367,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
         note = _parse_note(data.get("note", {}))
-        from hyperscribe.scribe.contacts import resolve_zip_codes
-
         patient_id = str(data.get("patient_id", ""))
         rec_note_id = str(data.get("note_id", ""))
         zip_codes = resolve_zip_codes(patient_id, rec_note_id) or None
@@ -1879,6 +2090,49 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         )
         return [JSONResponse({"verified": verified, "failed": failed}, status_code=HTTPStatus.OK)]
 
+    @api.get("/note-commands")
+    def get_note_commands(self) -> list[Union[Response, Effect]]:
+        """Return every Command on the note for sync into the Scribe tab.
+
+        The Scribe normally only knows about commands it generated or inserted
+        itself (cached in ``ScribeSummary.commands``). This endpoint reflects
+        whatever's actually on the note's command rail — including ad-hoc
+        commands added via the EHR's note-body editor outside the Scribe iframe.
+
+        Every synced command goes into the ``from_the_note`` section as a
+        single, uniform locked card — no routing into the existing SOAP groups
+        or per-type render branches.
+        """
+        from canvas_sdk.v1.data.command import Command
+
+        note_uuid = str(self.request.query_params.get("note_id", ""))
+        if not note_uuid:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+
+        rows = list(
+            Command.objects.filter(note__id=note_uuid)
+            .exclude(state="entered_in_error")
+            .values("id", "schema_key", "data")
+        )
+        commands: list[dict[str, Any]] = []
+        for row in rows:
+            schema_key = row.get("schema_key") or ""
+            data = row.get("data") or {}
+            commands.append(
+                {
+                    "command_uuid": str(row["id"]),
+                    "command_type": schema_key,
+                    "section_key": FROM_THE_NOTE_SECTION,
+                    "label": _humanize_schema_key(schema_key),
+                    "details": _details_for_command(data),
+                    "already_documented": True,
+                    "_from_note": True,
+                }
+            )
+        return [JSONResponse({"commands": commands}, status_code=HTTPStatus.OK)]
+
     @api.post("/sign-note")
     def post_sign_note(self) -> list[Union[Response, Effect]]:
         """Sign the note after all commands have been inserted (no prescriptions)."""
@@ -1991,32 +2245,27 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
     @api.get("/patient-conditions")
     def get_patient_conditions(self) -> list[Union[Response, Effect]]:
-        """Return committed, non-entered-in-error conditions for a patient."""
+        """Return committed, non-entered-in-error conditions for a patient.
+
+        Shape: ``{"conditions": [{condition_id, code, formatted_code, display, system}, ...]}``.
+        The frontend's diagnose -> assess belt fetches against this endpoint
+        and matches on ``code``; share :func:`_load_active_patient_conditions`
+        with ``post_generate_summary`` so any change to "what counts as an
+        active problem-list entry" lands in both places simultaneously."""
         patient_id = self.request.query_params.get("patient_id", "").strip()
         if not patient_id:
             return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        conditions = (
-            ConditionModel.objects.active().for_patient(patient_id).prefetch_related("codings").order_by("-onset_date")
-        )
-        results = []
-        for c in conditions:
-            codings = list(c.codings.all())
-            if not codings:
-                continue
-            icd10 = next(
-                (coding for coding in codings if "icd" in (coding.system or "").lower()),
-                None,
-            )
-            chosen = icd10 or codings[0]
-            results.append(
-                {
-                    "condition_id": str(c.id),
-                    "code": chosen.code,
-                    "formatted_code": _format_icd10_code(chosen.code),
-                    "display": chosen.display or c.clinical_status,
-                    "system": chosen.system,
-                }
-            )
+        active = _load_active_patient_conditions(patient_id)
+        results = [
+            {
+                "condition_id": a.condition_id,
+                "code": a.code,
+                "formatted_code": _format_icd10_code(a.code),
+                "display": a.display,
+                "system": a.system,
+            }
+            for a in active
+        ]
         return [JSONResponse({"conditions": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/patient-medications")
@@ -2231,10 +2480,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         try:
-            resp = science_http.get_json(f"/parse-templates/imaging-reports/?query={query}&limit=25")
+            params = urlencode({"query": query, "limit": "25"})
+            resp = science_http.get_json(f"/parse-templates/imaging-reports/?{params}")
             data = resp.json() or {}
-        except Exception:
-            log.exception("Imaging search failed")
+        except Exception as exc:
+            # Scrub query+URL from logs — the typed query may carry patient
+            # identifiers (HIPAA). Log only the exception class so ops sees
+            # the failure shape without the PHI-bearing context.
+            log.error("Imaging search failed: %s", type(exc).__name__)
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         results = []
         for r in data.get("results", []):
@@ -2268,8 +2521,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.get("/search-imaging-centers")
     def get_search_imaging_centers(self) -> list[Union[Response, Effect]]:
         """Search for radiology imaging centers via the science service."""
-        from hyperscribe.scribe.contacts import resolve_zip_codes
-
         query = self.request.query_params.get("query", "").strip()
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
@@ -2278,70 +2529,12 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "").strip()
         zip_codes = resolve_zip_codes(patient_id, note_id)
 
-        base_params = f"?search={query}&job_title__icontains=radiology"
-        try:
-            # Try zip-filtered first for local results, fall back to unfiltered.
-            raw_results: list[dict] = []
-            if zip_codes:
-                params = base_params + f"&business_postal_code__in={','.join(zip_codes)}"
-                resp = science_http.get_json(f"/contacts/{params}")
-                raw_results = (resp.json() or {}).get("results", [])
-            if not raw_results:
-                resp = science_http.get_json(f"/contacts/{base_params}")
-                raw_results = (resp.json() or {}).get("results", [])
-        except Exception:
-            log.exception("Imaging center search failed")
-            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
-        results = []
-        for c in raw_results:
-            first = c.get("firstName", "")
-            last = c.get("lastName", "")
-            practice = c.get("practiceName", "")
-            specialty = c.get("specialty", "")
-            # Build display name matching Canvas convention.
-            parts = []
-            if first:
-                parts.append(first)
-            if last and last != first:
-                parts.append(last)
-            if practice and practice != first:
-                parts.append(f"({practice}),")
-            if specialty and specialty not in (first, last, practice):
-                parts.append(specialty)
-            name = " ".join(parts).strip()
-            # Build description with contact details.
-            desc_parts = []
-            phone = c.get("businessPhone")
-            fax = c.get("businessFax")
-            address = c.get("businessAddress")
-            if phone:
-                desc_parts.append(f"Phone: {phone}")
-            if fax:
-                desc_parts.append(f"Fax: {fax}")
-            if address:
-                desc_parts.append(f"Address: {address}")
-            results.append(
-                {
-                    "name": name,
-                    "description": " ".join(desc_parts),
-                    "data": {
-                        "first_name": first,
-                        "last_name": last,
-                        "specialty": specialty,
-                        "practice_name": practice,
-                        "business_fax": fax,
-                        "business_phone": phone,
-                        "business_address": address,
-                    },
-                }
-            )
+        results = search_imaging_centers(query, zip_codes or None)
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-refer-providers")
     def get_search_refer_providers(self) -> list[Union[Response, Effect]]:
         """Search for providers to refer to via the science service."""
-        from hyperscribe.scribe.contacts import resolve_zip_codes, search_refer_providers
-
         query = self.request.query_params.get("query", "").strip()
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]

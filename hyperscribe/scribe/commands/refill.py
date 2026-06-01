@@ -39,9 +39,7 @@ class RefillParser(CommandParser):
         if not fdb_code:
             return errors
         try:
-            patient_id = (
-                Note.objects.values_list("patient__id", flat=True).get(id=note_uuid)
-            )
+            patient_id = Note.objects.values_list("patient__id", flat=True).get(id=note_uuid)
         except Note.DoesNotExist:
             errors.append("Note not found; cannot verify the medication")
             return errors
@@ -55,8 +53,7 @@ class RefillParser(CommandParser):
             .exists()
         ):
             errors.append(
-                "The selected medication is not active on this patient — "
-                "refill requires an existing active medication"
+                "The selected medication is not active on this patient — refill requires an existing active medication"
             )
         return errors
 
