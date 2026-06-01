@@ -855,7 +855,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${s.title}</div>
-                  ${cmds.filter(e => e.command.command_type === 'assess').map(entry => {
+                  ${cmds.filter(e => e.command.command_type === 'assess' && !e.command._amend_deleted).map(entry => {
                     const aData = entry.command.data || {};
                     const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
                     const aFormatted = aCode.length > 3 ? aCode.slice(0, 3) + '.' + aCode.slice(3) : aCode;
@@ -888,7 +888,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                     `;
                   })}
-                  ${cmds.filter(e => e.command.command_type === 'diagnose' && (!readOnly || wasInserted(e.command)) && (!shouldHideRejected || !e.command.data.rejected)).map(entry => {
+                  ${cmds.filter(e => e.command.command_type === 'diagnose' && !e.command._amend_deleted && (!readOnly || wasInserted(e.command)) && (!shouldHideRejected || !e.command.data.rejected)).map(entry => {
                     const hasCode = !!entry.command.data.icd10_code;
                     const isAccepted = hasCode && entry.command.data.accepted;
                     const isRejected = entry.command.data.rejected;
