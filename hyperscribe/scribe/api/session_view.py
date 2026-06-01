@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Any, Union
+from urllib.parse import urlencode
 
 from canvas_sdk.v1.data.medication import Status
 from logger import log
@@ -81,6 +82,11 @@ from hyperscribe.scribe.recommendations.reconciliation import reconcile_sections
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
+)
+from hyperscribe.scribe.contacts import (
+    resolve_zip_codes,
+    search_imaging_centers,
+    search_refer_providers,
 )
 
 
@@ -1102,8 +1108,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         api_key = self.secrets.get("AnthropicAPIKey", "")
         if api_key:
             try:
-                from hyperscribe.scribe.contacts import resolve_zip_codes
-
                 patient_id = str(data.get("patient_id", ""))
                 zip_codes = resolve_zip_codes(patient_id, note_id) or None
                 rec_proposals = recommend_commands(note, api_key, zip_codes=zip_codes, transcript=transcript)
@@ -1314,8 +1318,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
         note = _parse_note(data.get("note", {}))
-        from hyperscribe.scribe.contacts import resolve_zip_codes
-
         patient_id = str(data.get("patient_id", ""))
         rec_note_id = str(data.get("note_id", ""))
         zip_codes = resolve_zip_codes(patient_id, rec_note_id) or None
@@ -2363,10 +2365,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         try:
-            resp = science_http.get_json(f"/parse-templates/imaging-reports/?query={query}&limit=25")
+            params = urlencode({"query": query, "limit": "25"})
+            resp = science_http.get_json(f"/parse-templates/imaging-reports/?{params}")
             data = resp.json() or {}
-        except Exception:
-            log.exception("Imaging search failed")
+        except Exception as exc:
+            # Scrub query+URL from logs — the typed query may carry patient
+            # identifiers (HIPAA). Log only the exception class so ops sees
+            # the failure shape without the PHI-bearing context.
+            log.error("Imaging search failed: %s", type(exc).__name__)
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         results = []
         for r in data.get("results", []):
@@ -2400,8 +2406,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     @api.get("/search-imaging-centers")
     def get_search_imaging_centers(self) -> list[Union[Response, Effect]]:
         """Search for radiology imaging centers via the science service."""
-        from hyperscribe.scribe.contacts import resolve_zip_codes
-
         query = self.request.query_params.get("query", "").strip()
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
@@ -2410,70 +2414,12 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "").strip()
         zip_codes = resolve_zip_codes(patient_id, note_id)
 
-        base_params = f"?search={query}&job_title__icontains=radiology"
-        try:
-            # Try zip-filtered first for local results, fall back to unfiltered.
-            raw_results: list[dict] = []
-            if zip_codes:
-                params = base_params + f"&business_postal_code__in={','.join(zip_codes)}"
-                resp = science_http.get_json(f"/contacts/{params}")
-                raw_results = (resp.json() or {}).get("results", [])
-            if not raw_results:
-                resp = science_http.get_json(f"/contacts/{base_params}")
-                raw_results = (resp.json() or {}).get("results", [])
-        except Exception:
-            log.exception("Imaging center search failed")
-            return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
-        results = []
-        for c in raw_results:
-            first = c.get("firstName", "")
-            last = c.get("lastName", "")
-            practice = c.get("practiceName", "")
-            specialty = c.get("specialty", "")
-            # Build display name matching Canvas convention.
-            parts = []
-            if first:
-                parts.append(first)
-            if last and last != first:
-                parts.append(last)
-            if practice and practice != first:
-                parts.append(f"({practice}),")
-            if specialty and specialty not in (first, last, practice):
-                parts.append(specialty)
-            name = " ".join(parts).strip()
-            # Build description with contact details.
-            desc_parts = []
-            phone = c.get("businessPhone")
-            fax = c.get("businessFax")
-            address = c.get("businessAddress")
-            if phone:
-                desc_parts.append(f"Phone: {phone}")
-            if fax:
-                desc_parts.append(f"Fax: {fax}")
-            if address:
-                desc_parts.append(f"Address: {address}")
-            results.append(
-                {
-                    "name": name,
-                    "description": " ".join(desc_parts),
-                    "data": {
-                        "first_name": first,
-                        "last_name": last,
-                        "specialty": specialty,
-                        "practice_name": practice,
-                        "business_fax": fax,
-                        "business_phone": phone,
-                        "business_address": address,
-                    },
-                }
-            )
+        results = search_imaging_centers(query, zip_codes or None)
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/search-refer-providers")
     def get_search_refer_providers(self) -> list[Union[Response, Effect]]:
         """Search for providers to refer to via the science service."""
-        from hyperscribe.scribe.contacts import resolve_zip_codes, search_refer_providers
-
         query = self.request.query_params.get("query", "").strip()
         if not query:
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
