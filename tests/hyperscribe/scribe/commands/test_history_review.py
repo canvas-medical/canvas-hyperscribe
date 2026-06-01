@@ -19,6 +19,15 @@ def test_prepare_sections_empty() -> None:
     assert _prepare_sections([]) == []
 
 
+def test_prepare_sections_strips_asterisk_emphasis() -> None:
+    """The Scribe UI hints `**asterisks** mark positive findings` but the
+    chart renders the stored HTML as-is, so the markers must be stripped
+    before render_to_string. Mirrors physical_exam and ros."""
+    sections = [{"title": "Past Medical History", "text": "**HTN**, controlled"}]
+    result = _prepare_sections(sections)
+    assert result == [{"title": "Past Medical History", "text": "HTN, controlled"}]
+
+
 @patch("hyperscribe.scribe.commands.history_review.render_to_string")
 def test_build_renders_template(mock_render: MagicMock) -> None:
     mock_render.return_value = "<h4>Past Medical History</h4><p>HTN</p>"

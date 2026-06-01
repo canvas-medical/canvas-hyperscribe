@@ -2118,6 +2118,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             setError('Failed to apply amendment edits');
             setApproved(false);
             setConfirming(false);
+            // Mirror the editData.error branch above: inserts already landed
+            // on the chart, so roll the cache approval flag back to false.
+            // Without this, a reload within the ~500ms debounced auto-save
+            // window restores `approved=true` from the stale cache and the
+            // Save Changes button disappears — the amend edits never reached
+            // the chart with no UI signal.
+            saveSummaryToCache(noteData, updatedCommands, false, {
+              recommendations, unmatched_conditions: unmatchedConditions,
+              diagnosis_suggestions: diagnosisSuggestions,
+              selected_template_name: selectedTemplate?.name || null, mode,
+            });
             setInserting(false);
             logEvent('AMEND_EDIT_ERROR', { error: 'network' });
             return;

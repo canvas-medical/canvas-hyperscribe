@@ -16,11 +16,19 @@ _TITLE_MAP: dict[str, str] = {
 
 
 def _prepare_sections(sections: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Ensure each section has a title, falling back to _TITLE_MAP."""
+    """Ensure each section has a title, falling back to _TITLE_MAP.
+
+    Strip the `**emphasis**` markers used by the Scribe UI for positive
+    findings — the chart renders the stored HTML as-is, so leaving them
+    would surface literal asterisks in the post-insert command body.
+    Mirrors physical_exam.py and ros.py: all four section types share
+    the HistoryReviewRow editor and its asterisks-mark-positive-findings
+    hint, so the strip needs to be applied uniformly.
+    """
     return [
         {
             "title": s.get("title") or _TITLE_MAP.get(s.get("key", ""), ""),
-            "text": s.get("text", ""),
+            "text": (s.get("text", "") or "").replace("**", ""),
         }
         for s in sections
     ]
