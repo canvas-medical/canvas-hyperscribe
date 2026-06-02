@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Any, Union
@@ -64,6 +65,7 @@ from hyperscribe.scribe.commands.builder import (
     build_metadata_effects,
     prefill_assess_backgrounds,
     prefill_assess_backgrounds_for_proposals,
+    prefill_diagnose_backgrounds,
     validate_proposals,
 )
 from hyperscribe.scribe.commands.carry_forward import carry_forward_assess_background
@@ -1049,7 +1051,45 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             for p in proposals
         ]
         # A&P split: replace plan command with per-condition diagnose commands.
-        commands_list, unmatched_conditions = split_plan_into_diagnoses(commands_list, section_conditions)
+        # KOALA_5635_PREFILL_DIAGNOSE — pass ``note`` so split_plan stamps
+        # ``condition_id`` on diagnose proposals whose icd10_code matches an
+        # active condition on the patient; then run the dict-shaped diagnose
+        # carry-forward on the resulting commands_list. The upstream
+        # ``prefill_assess_backgrounds_for_proposals`` call above handles only
+        # assess proposals (which don't exist after the split — but the
+        # symmetric call here covers the new diagnose proposals the split
+        # produced). Wired only at this single site because diagnose proposals
+        # do not appear at /extract-commands or /recommend-commands — they're
+        # produced solely by split_plan_into_diagnoses in this flow.
+        # Pre-validate the UUID shape before the ORM lookup. Django's UUIDField
+        # raises ``django.core.exceptions.ValidationError`` (NOT ``ValueError``
+        # and NOT ``Note.DoesNotExist``) for malformed UUIDs; the plugin sandbox
+        # does NOT expose ``django.core.exceptions``, so we absorb that path
+        # upfront with ``uuid.UUID`` (allow-listed in the sandbox). The lookup
+        # catch then narrows to ``Note.DoesNotExist`` without swallowing real
+        # programming errors (AttributeError, TypeError, etc).
+        #
+        # NOTE: ``prefill_assess_backgrounds`` (~line 119 in builder.py) and
+        # ``prefill_assess_backgrounds_for_proposals`` (~line 211 in builder.py)
+        # both have the same latent ValidationError gap (``except
+        # (Note.DoesNotExist, ValueError)``). Deferred to a follow-up ticket
+        # per round-2 scope discipline; not exercised by any current fixture
+        # so the risk is dormant. Find by grep for the narrow tuple.
+        note_for_split: Note | None = None
+        if note_uuid:
+            try:
+                uuid.UUID(str(note_uuid))
+            except (ValueError, TypeError, AttributeError):
+                note_for_split = None
+            else:
+                try:
+                    note_for_split = Note.objects.select_related("patient").get(id=note_uuid)
+                except Note.DoesNotExist:
+                    note_for_split = None
+        commands_list, unmatched_conditions = split_plan_into_diagnoses(
+            commands_list, section_conditions, note=note_for_split
+        )
+        prefill_diagnose_backgrounds(commands_list, note_uuid)
 
         # ── Step 2.5: Reconcile template ROS/PE with Nabla-generated ones ──
         template_ros: list[dict[str, str]] | None = data.get("template_ros_sections")

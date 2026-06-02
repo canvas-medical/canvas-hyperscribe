@@ -21,6 +21,7 @@ from hyperscribe.scribe.commands.builder import (
     build_effects,
     build_metadata_effects,
     prefill_assess_backgrounds,
+    prefill_diagnose_backgrounds,
     validate_proposals,
 )
 
@@ -2246,3 +2247,128 @@ def test_build_amend_delete_effects_emits_real_enter_in_error_perform_effect_typ
     assert attempted[0]["command_uuid"] == "old-perform-uuid-aaaa-bbbb-cccccccccccc"
     # No PHI in attempted.
     assert "display" not in attempted[0]
+
+
+# --- KOALA-5635: prefill_diagnose_backgrounds (dict-shaped) ---
+
+
+def test_prefill_diagnose_backgrounds_filters_diagnose_only_and_loads_note() -> None:
+    """KOALA-5635 — ``prefill_diagnose_backgrounds`` is the dict-shaped
+    diagnose carry-forward, called at the post-A&P-split site in
+    ``post_generate_summary``. It must filter to diagnose proposals (the
+    upstream assess prefill already handled assess), load the ``Note`` once,
+    and delegate to ``carry_forward_assess_background`` per proposal.
+
+    Pins:
+    - Non-diagnose proposals do NOT trigger the carry-forward delegate.
+    - Malformed ``data`` (non-dict) is tolerated without raising — same
+      defensive shape as ``prefill_assess_backgrounds``.
+    """
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "diagnose", "data": {"condition_id": "cond-1", "background": None}},
+        {"command_type": "assess", "data": {"condition_id": "cond-2", "background": None}},
+        # Defensive: malformed proposal must not crash the loop.
+        {"command_type": "diagnose", "data": None},
+    ]
+    # Round-2: ``prefill_diagnose_backgrounds`` now pre-validates the UUID
+    # via ``uuid.UUID(str(note_uuid))`` BEFORE the ORM lookup. Use a real
+    # UUID so the validation passes and the Note.objects mock path runs.
+    valid_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f1"
+    fake_note = MagicMock()
+    fake_note.id = valid_uuid
+    with (
+        patch("hyperscribe.scribe.commands.builder.Note.objects") as mock_note_qs,
+        patch("hyperscribe.scribe.commands.builder.carry_forward_assess_background") as mock_carry,
+    ):
+        mock_note_qs.select_related.return_value.get.return_value = fake_note
+        prefill_diagnose_backgrounds(proposals, valid_uuid)
+    # Only one valid diagnose proposal (the one with a dict ``data``) is delegated.
+    # The assess proposal is intentionally NOT processed here; the upstream
+    # ``prefill_assess_backgrounds_for_proposals`` already handled it.
+    mock_carry.assert_called_once_with(proposals[0]["data"], fake_note)
+
+
+def test_prefill_diagnose_backgrounds_no_diagnose_proposals_short_circuits() -> None:
+    """If there are no diagnose proposals, skip the Note lookup entirely.
+
+    This is the symmetric N+1/latency guard to the assess sibling — a
+    request whose A&P split produced no diagnose rows (e.g. all conditions
+    matched and the frontend will flip to assess at insert time, or no
+    plan block at all) should not pay for an unnecessary Note query.
+    """
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "assess", "data": {"condition_id": "cond-1", "background": None}},
+        {"command_type": "plan", "data": {"narrative": "Start naproxen"}},
+    ]
+    with patch("hyperscribe.scribe.commands.builder.Note.objects") as mock_note_qs:
+        prefill_diagnose_backgrounds(proposals, "note-uuid-1")
+    mock_note_qs.select_related.assert_not_called()
+
+
+def test_prefill_diagnose_backgrounds_silent_on_malformed_note_uuid() -> None:
+    """A non-UUID ``note_uuid`` must NOT raise — same best-effort contract
+    as the assess sibling.
+
+    Round-2 shape: the function pre-validates the UUID with ``uuid.UUID``
+    BEFORE the ORM lookup. The plugin sandbox does not expose
+    ``django.core.exceptions``, so ``Note.objects.get(id=<bad uuid>)``
+    would raise an uncatchable ``ValidationError``. Pre-validation absorbs
+    that path; the lookup catch can then narrow to ``Note.DoesNotExist``.
+
+    Pin: a malformed UUID short-circuits the function entirely — the
+    ``Note.objects`` lookup is NEVER reached, and ``carry_forward_assess_background``
+    is NOT called.
+    """
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "diagnose", "data": {"condition_id": "cond-1", "background": None}},
+    ]
+    with (
+        patch("hyperscribe.scribe.commands.builder.Note.objects") as mock_note_qs,
+        patch("hyperscribe.scribe.commands.builder.carry_forward_assess_background") as mock_carry,
+    ):
+        # Must not raise even though Note.objects is patched (irrelevant
+        # because pre-validation returns before reaching the lookup).
+        prefill_diagnose_backgrounds(proposals, "not-a-uuid")
+    # Note.objects.select_related must NOT be called when the UUID is
+    # malformed — round-2 pre-validation contract.
+    mock_note_qs.select_related.assert_not_called()
+    mock_carry.assert_not_called()
+    assert proposals[0]["data"]["background"] is None
+
+
+def test_prefill_diagnose_backgrounds_empty_note_uuid_short_circuits() -> None:
+    """Empty ``note_uuid`` skips the Note lookup entirely — same shape as
+    the assess sibling at the unit-test boundary."""
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "diagnose", "data": {"condition_id": "cond-1", "background": None}},
+    ]
+    with patch("hyperscribe.scribe.commands.builder.Note.objects") as mock_note_qs:
+        prefill_diagnose_backgrounds(proposals, "")
+    mock_note_qs.select_related.assert_not_called()
+
+
+def test_prefill_diagnose_backgrounds_silent_on_note_does_not_exist() -> None:
+    """KOALA-5635 round-2: when the UUID is well-formed but no Note matches
+    in the DB, the lookup raises ``Note.DoesNotExist``. The narrowed catch
+    (``except Note.DoesNotExist:``) absorbs it without crashing
+    ``/generate-summary``.
+
+    Pin: a valid-shape UUID with no matching note short-circuits gracefully —
+    ``carry_forward_assess_background`` is NOT called and the proposal's
+    ``background`` is left unchanged (None).
+    """
+    from canvas_sdk.v1.data.note import Note as NoteModel
+
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "diagnose", "data": {"condition_id": "cond-1", "background": None}},
+    ]
+    valid_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f1"
+    with (
+        patch("hyperscribe.scribe.commands.builder.Note.objects") as mock_note_qs,
+        patch("hyperscribe.scribe.commands.builder.carry_forward_assess_background") as mock_carry,
+    ):
+        mock_note_qs.select_related.return_value.get.side_effect = NoteModel.DoesNotExist
+        # Must not raise.
+        prefill_diagnose_backgrounds(proposals, valid_uuid)
+    mock_carry.assert_not_called()
+    assert proposals[0]["data"]["background"] is None

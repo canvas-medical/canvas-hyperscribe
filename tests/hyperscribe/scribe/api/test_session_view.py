@@ -3508,6 +3508,199 @@ def test_recommend_commands_calls_prefill_assess_backgrounds(
     assert mock_prefill.call_args.args[1] == "5899e7bf-5ecb-4399-aceb-0e233bd4a8f1"
 
 
+# --- KOALA-5635: structural pins on diagnose-row.js (Background textarea) ---
+
+
+def _read_diagnose_row_js() -> str:
+    """Read the diagnose-row.js source for structural-pin tests.
+
+    These tests don't execute JS — they pin invariants by regex against the
+    source. The same pattern is used for summary.js elsewhere in this file
+    (see ``test_summary_js_cache_flip_to_approved_true_is_unconditional_on_success``).
+    """
+    from pathlib import Path
+
+    js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "diagnose-row.js"
+    return js.read_text()
+
+
+def test_diagnose_row_renders_background_when_condition_id_present() -> None:
+    """KOALA-5635: the Background textarea / read-only block in DiagnoseRow
+    must be GATED on ``data.condition_id``. Without the gate, the field
+    would show for diagnose proposals that don't match an active condition
+    on the patient — there's no scope for carry-forward there, and the
+    home-app diagnose command doesn't persist background, so the field
+    would be a UX trap (typing into a field whose contents will be dropped).
+
+    Pin: the marker ``KOALA_5635_BACKGROUND_TEXTAREA`` must be present
+    AND a ``hasConditionId`` constant must be derived from
+    ``!!data.condition_id``.
+    """
+    src = _read_diagnose_row_js()
+
+    assert "KOALA_5635_BACKGROUND_TEXTAREA" in src, (
+        "diagnose-row.js is missing the KOALA_5635_BACKGROUND_TEXTAREA marker. "
+        "The Background field on rec-diagnose rows must be added per KOALA-5635 "
+        "so the per-(patient, condition) carry-forward is editable BEFORE the "
+        "frontend flips diagnose→assess at insert time. Add the textarea, gate "
+        "it on ``data.condition_id``, and mark the branch with this marker."
+    )
+    # The gate uses ``hasConditionId = !!data.condition_id`` (or equivalent).
+    # Regex tolerates whitespace variation but pins the predicate shape.
+    gate_pattern = re.compile(r"hasConditionId\s*=\s*!!\s*data\.condition_id")
+    assert gate_pattern.search(src), (
+        "diagnose-row.js must derive a ``hasConditionId`` constant from "
+        "``!!data.condition_id``. Without this gate, the Background field "
+        "would render for unmatched diagnose proposals where the home-app "
+        "command has no background field to persist."
+    )
+
+
+def test_diagnose_row_omits_background_when_no_condition_id() -> None:
+    """KOALA-5635: the Background textarea rendering must be wrapped in a
+    ``hasConditionId && ...`` conditional in BOTH the read-only and edit-mode
+    branches. If a future refactor removes the conditional and renders the
+    textarea unconditionally, this pin fails.
+
+    Pin: at least two ``hasConditionId &&`` rendering guards exist in the
+    file (one for read-only label/content, one for edit-mode textarea).
+    """
+    src = _read_diagnose_row_js()
+    # Count occurrences of ``hasConditionId &&`` (rendering-time gate). At
+    # least 2 — one in the read-only branch, one in the edit-mode branch.
+    occurrences = len(re.findall(r"hasConditionId\s*&&", src))
+    assert occurrences >= 2, (
+        "diagnose-row.js must gate Background rendering on ``hasConditionId``. "
+        f"Found {occurrences} occurrences of ``hasConditionId &&``; expected "
+        "at least 2 (read-only branch + edit-mode branch). A refactor that "
+        "drops the gate would let the field render for unmatched diagnose "
+        "proposals — UX trap; the value would not persist server-side."
+    )
+
+
+def test_diagnose_row_handle_select_clears_background_and_condition_id() -> None:
+    """KOALA-5635 (Q2, ROUND 2): ``handleSelect`` must EXPLICITLY clear
+    both ``condition_id`` and ``background`` when the provider changes
+    the ICD code on a diagnose row. The earlier "spread preserves" shape
+    caused clinical-data-integrity cross-attachment:
+
+        - backend stamps condition_id=<diabetes> + diabetes background;
+        - user changes ICD to I10 (hypertension, also an active condition);
+        - handleInsert re-resolves to hypertension's condition_id but the
+          OLD diabetes background was copied via ``...data,``;
+        - diabetes context text gets written against the hypertension
+          Assessment row in the chart.
+
+    This pin REJECTS that shape: it requires the explicit clear lines AND
+    the KOALA_5635_CLEAR_ON_ICD_CHANGE marker inside the handleSelect body.
+
+    Pin assertions inside ``handleSelect``:
+      1. Marker ``KOALA_5635_CLEAR_ON_ICD_CHANGE`` is present.
+      2. ``condition_id:`` is assigned to an empty string (or null/undefined).
+      3. ``background:`` is assigned to an empty string (or null/undefined).
+    """
+    src = _read_diagnose_row_js()
+    handle_select_marker = "const handleSelect = (result) => {"
+    start = src.find(handle_select_marker)
+    assert start != -1, "Could not find ``handleSelect`` definition in diagnose-row.js. If renamed, update this test."
+    # Walk to the matching closing brace of the arrow function body.
+    open_brace = src.find("{", start)
+    depth = 0
+    end = -1
+    for i in range(open_brace, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    assert end != -1, "handleSelect body braces unbalanced"
+    body = src[open_brace:end]
+    assert "KOALA_5635_CLEAR_ON_ICD_CHANGE" in body, (
+        "``handleSelect`` must contain the KOALA_5635_CLEAR_ON_ICD_CHANGE "
+        "marker. Round-1 ``...data,`` spread-preserve was rejected by "
+        "Council on clinical-data-integrity grounds: carrying condition_id "
+        "across an ICD change causes cross-attachment of background text "
+        "to the wrong condition in the chart."
+    )
+    # ``condition_id`` is explicitly cleared. Accept '', null, or undefined.
+    clear_condition_id = re.compile(
+        r"condition_id\s*:\s*(?:''|\"\"|``|null|undefined)",
+    )
+    assert clear_condition_id.search(body), (
+        "``handleSelect`` must EXPLICITLY clear ``condition_id`` (e.g. "
+        "``condition_id: ''``). Round-1 relied on spread + no override, "
+        "which leaves the OLD condition_id intact — cross-attachment risk."
+    )
+    # ``background`` is explicitly cleared. Accept '', null, or undefined.
+    clear_background = re.compile(
+        r"background\s*:\s*(?:''|\"\"|``|null|undefined)",
+    )
+    assert clear_background.search(body), (
+        "``handleSelect`` must EXPLICITLY clear ``background`` (e.g. "
+        "``background: ''``). The user loses any typed background on an "
+        "ICD change — this is the user's explicit call per the round-2 "
+        "spec correction; silent drop is worse than overwriting with the "
+        "wrong condition's text."
+    )
+
+
+def test_diagnose_row_handle_clear_code_clears_background_and_condition_id() -> None:
+    """KOALA-5635 (Q2, ROUND 2): same shape as ``handleSelect`` — clearing
+    the ICD code must also explicitly clear ``condition_id`` and
+    ``background``. Preserving them across a clear would let the old
+    condition_id leak into the next ``handleSelect`` spread (the user
+    typically picks a new code right after clearing).
+
+    Pin assertions inside ``handleClearCode``:
+      1. Marker ``KOALA_5635_CLEAR_ON_ICD_CHANGE`` is present.
+      2. ``condition_id:`` is assigned to an empty string (or null/undefined).
+      3. ``background:`` is assigned to an empty string (or null/undefined).
+    """
+    src = _read_diagnose_row_js()
+    handle_clear_marker = "const handleClearCode = () => {"
+    start = src.find(handle_clear_marker)
+    assert start != -1, (
+        "Could not find ``handleClearCode`` definition in diagnose-row.js. If renamed, update this test."
+    )
+    open_brace = src.find("{", start)
+    depth = 0
+    end = -1
+    for i in range(open_brace, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    assert end != -1, "handleClearCode body braces unbalanced"
+    body = src[open_brace:end]
+    assert "KOALA_5635_CLEAR_ON_ICD_CHANGE" in body, (
+        "``handleClearCode`` must contain the KOALA_5635_CLEAR_ON_ICD_CHANGE "
+        "marker. Without it the round-1 shape (spread + no clear) would "
+        "let the old condition_id leak across a clear → re-select."
+    )
+    clear_condition_id = re.compile(
+        r"condition_id\s*:\s*(?:''|\"\"|``|null|undefined)",
+    )
+    assert clear_condition_id.search(body), (
+        "``handleClearCode`` must EXPLICITLY clear ``condition_id`` (e.g. "
+        "``condition_id: ''``). Otherwise a clear → re-select sequence "
+        "spreads the OLD condition_id into the new selection."
+    )
+    clear_background = re.compile(
+        r"background\s*:\s*(?:''|\"\"|``|null|undefined)",
+    )
+    assert clear_background.search(body), (
+        "``handleClearCode`` must EXPLICITLY clear ``background`` (e.g. "
+        "``background: ''``). Same reasoning as ``handleSelect``: prevent "
+        "cross-attachment between the prior condition_id's background "
+        "text and a freshly-selected ICD code."
+    )
+
+
 # --- /search-medications ---
 
 
