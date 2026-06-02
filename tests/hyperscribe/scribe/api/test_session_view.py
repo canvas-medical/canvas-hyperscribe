@@ -1386,6 +1386,392 @@ def test_summary_js_cache_flip_to_approved_true_is_unconditional_on_success() ->
     )
 
 
+def test_summary_js_stamps_accepted_recommendations_after_insert_commands() -> None:
+    """KOALA-5634 ADDITIONAL COMMANDS duplicate regression (recommendations leg).
+
+    Bug: accepted recommendations (medication_statement, allergy, refer, task,
+    prescribe-via-rec) get POSTed to ``/insert-commands`` alongside scribe-side
+    commands, land successfully on the chart, but the post-success stamping
+    loop in ``handleInsert`` only iterates ``workingCommands`` - never
+    ``recommendations``. The recs stay with no ``command_uuid`` /
+    ``already_documented`` locally. The next ``syncNoteCommands`` (fires on
+    note-tab change, on mount, and after the cache load) fetches the same
+    uuids back from ``/note-commands``, can't match them against any local
+    state, and appends them under ``ADDITIONAL COMMANDS`` as
+    ``section_key=from_the_note`` cards - duplicating every accepted rec the
+    user just approved.
+
+    Two structural pins, both required:
+      1. Marker comment ``KOALA_5634_STAMP_RECOMMENDATIONS_ON_APPROVE`` is
+         present in ``summary.js`` (intent breadcrumb for future maintainers).
+      2. Inside ``handleInsert``'s success branch, a ``setRecommendations(``
+         call appears AFTER the existing ``setCommands(updatedCommands)`` call
+         and BEFORE the unconditional ``saveSummaryToCache(...true...)`` post-
+         success cache write. This pins the stamping order: stamp first, then
+         persist the stamped state.
+
+    Behavioral caveat: structural pin only - it does NOT execute React code.
+    A regression that deletes the marker but keeps the stamping is caught by
+    (1). A regression that removes ``setRecommendations`` from the success
+    branch is caught by (2). A behavioral pin would require JS test infra
+    (out of scope for this repo).
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) Marker comment - intent / trace breadcrumb.
+    assert "KOALA_5634_STAMP_RECOMMENDATIONS_ON_APPROVE" in src, (
+        "summary.js handleInsert success branch is missing the "
+        "KOALA_5634_STAMP_RECOMMENDATIONS_ON_APPROVE marker. Without re-stamping "
+        "accepted recommendations with command_uuid + already_documented after "
+        "/insert-commands success, the next syncNoteCommands appends every "
+        "accepted rec as a from_the_note duplicate under ADDITIONAL COMMANDS. "
+        "Restore the setRecommendations(...) call alongside the existing "
+        "setCommands(...) stamp pass and tag it with the marker."
+    )
+
+    # (2) Structural: setCommands(updatedCommands) must be followed by a recs
+    # stamp call (commitRecommendations(...) post round-2 extraction, or
+    # setRecommendations(...) pre-extraction — accept either so this pin
+    # survives the helper extraction without losing teeth on the ordering
+    # invariant). That stamp must come BEFORE the unconditional success cache
+    # write so the cached payload reflects the stamped state.
+    set_commands_idx = src.find("setCommands(updatedCommands)")
+    assert set_commands_idx != -1, (
+        "Expected to find the `setCommands(updatedCommands)` stamp call inside "
+        "handleInsert's /insert-commands success branch. If the stamp variable "
+        "has been renamed, update this pin."
+    )
+
+    after_set_commands = src[set_commands_idx:]
+    recs_stamp_pattern = re.compile(r"(commitRecommendations|setRecommendations)\(")
+    recs_stamp_match = recs_stamp_pattern.search(after_set_commands)
+    assert recs_stamp_match is not None, (
+        "Missing recs stamp call (commitRecommendations(...) or "
+        "setRecommendations(...)) after setCommands(updatedCommands) in "
+        "handleInsert's success branch. Accepted recommendations need to be "
+        "stamped with their server-assigned command_uuid alongside the "
+        "workingCommands stamp pass - otherwise syncNoteCommands re-appends "
+        "them as ADDITIONAL COMMANDS duplicates (KOALA-5634)."
+    )
+
+    set_recs_idx = set_commands_idx + recs_stamp_match.start()
+
+    # The unconditional cache write (pinned by the KOALA-5485 test above) is the
+    # post-success persistence point. The recs stamp must run BEFORE it so the
+    # cached recommendations array carries the new uuids; otherwise a reload
+    # restores the un-stamped state and the next sync duplicates the recs.
+    unconditional_cache_pattern = re.compile(r"saveSummaryToCache\s*\(\s*noteData\s*,[^,]+,\s*true\s*,")
+    cache_match = unconditional_cache_pattern.search(src, set_commands_idx)
+    assert cache_match is not None, (
+        "Could not locate the unconditional saveSummaryToCache(..., true, ...) "
+        "post-success cache write after setCommands(updatedCommands). The "
+        "KOALA-5485 pin should also be failing - check that test for context."
+    )
+    assert set_recs_idx < cache_match.start(), (
+        "The recs stamp (commitRecommendations(...) / setRecommendations(...)) "
+        "must run BEFORE the unconditional saveSummaryToCache(..., true, ...) "
+        "call so the cached recommendations array carries the server-assigned "
+        "command_uuids. Currently the stamp happens after the cache write - on "
+        "reload the un-stamped recs come back and the next syncNoteCommands "
+        "duplicates them under ADDITIONAL COMMANDS (KOALA-5634)."
+    )
+
+
+def test_summary_js_sync_note_commands_skips_recommendation_uuids() -> None:
+    """KOALA-5634 ADDITIONAL COMMANDS duplicate regression (sync leg).
+
+    Bug context: stamping recommendations with ``command_uuid`` (the fix above)
+    is necessary but not sufficient. ``syncNoteCommands`` only consults the
+    ``commands`` array when deciding whether a fetched uuid is already
+    represented locally - stamped recommendations live in the ``recommendations``
+    array, so the sync still appends them as ``from_the_note`` cards.
+
+    Two structural pins, both required:
+      1. Marker comment ``KOALA_5634_SYNC_CONSULTS_RECOMMENDATIONS`` is present
+         in ``summary.js`` inside the syncNoteCommands callback.
+      2. The fallback branch that appends unmatched uuids (where the old code
+         pushed a ``from_the_note`` card) now contains a guard that consults a
+         recommendation-uuid set. Pinned by looking for the literal
+         ``recommendationUuids.has(`` test followed by a ``continue`` inside
+         the ``syncNoteCommands`` callback body.
+
+    Why a separate test from the stamping pin: the bug has two distinct fix
+    sites and either alone is insufficient. Splitting the test keeps each
+    site's regression surface tight.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) Marker comment.
+    assert "KOALA_5634_SYNC_CONSULTS_RECOMMENDATIONS" in src, (
+        "summary.js syncNoteCommands is missing the "
+        "KOALA_5634_SYNC_CONSULTS_RECOMMENDATIONS marker. Without consulting "
+        "the recommendation uuids, fetched uuids that belong to stamped "
+        "recommendations get appended as duplicate ADDITIONAL COMMANDS cards "
+        "(KOALA-5634)."
+    )
+
+    # (2) Structural: locate the syncNoteCommands declaration and ensure the
+    # body contains a `recommendationUuids.has(...)` guard. We slice from the
+    # callback start to a generous bound after it to avoid matching unrelated
+    # text far away in the file.
+    sync_decl = "const syncNoteCommands = useCallback(async () => {"
+    sync_idx = src.find(sync_decl)
+    assert sync_idx != -1, (
+        "Expected to find `const syncNoteCommands = useCallback(async () => {` "
+        "in summary.js. If the callback signature changed, update this pin."
+    )
+
+    # Walk forward counting braces to find the end of the callback body.
+    open_brace_pos = sync_idx + len(sync_decl) - 1  # position of the `{`
+    depth = 0
+    close_pos = -1
+    for i in range(open_brace_pos, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                close_pos = i
+                break
+    assert close_pos != -1, "Could not find matching close brace for syncNoteCommands callback body."
+
+    body = src[sync_idx:close_pos]
+    assert "recommendationUuids.has(" in body, (
+        "syncNoteCommands body must consult `recommendationUuids.has(...)` when "
+        "deciding whether to append a fetched command as a from_the_note card. "
+        "Without this guard, stamped recommendations get duplicated under "
+        "ADDITIONAL COMMANDS on every sync (KOALA-5634)."
+    )
+
+
+def test_summary_js_diagnose_to_assess_upstream_flip() -> None:
+    """KOALA-5634 ADDITIONAL COMMANDS duplicate regression (assess leg).
+
+    A ``diagnose`` command whose ICD-10 code matches an existing patient
+    condition is transformed into an ``assess`` at insert time. Round 1
+    addressed this with an alias step in the post-stamp ``uuidMap``
+    (``diagnose:<display>`` → server uuid). The alias relied solely on the
+    80-char-truncated display and could collide with an unrelated ``assess``
+    row that happened to share the same truncation. Round 2 (per the Council's
+    strategist) replaces the alias with an upstream flip: the local
+    ``workingCommands`` row is converted to ``assess`` BEFORE the
+    ``insertable`` filter, so the canonical ``${command_type}:${display}``
+    stamping key matches without any aliasing.
+
+    Three structural pins (all required):
+      1. Marker comment ``KOALA_5634_DIAGNOSE_TO_ASSESS_UPSTREAM_FLIP`` is
+         present in ``summary.js``.
+      2. A ``workingCommands = workingCommands.map(`` assignment carrying a
+         diagnose→assess transform appears BEFORE the ``insertable`` filter
+         (``const insertable = workingCommands.filter(``).
+      3. The post-stamp ``uuidMap.set(`diagnose:`` alias step has been
+         removed — its presence indicates a regression to the round-1 alias
+         approach (which carries the collision risk the upstream flip avoids).
+
+    Why pin #3 (negative assertion): if the alias re-appears alongside the
+    upstream flip, the alias takes precedence in the stamping path, which
+    silently re-introduces the collision surface the round-2 fix removed.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) Marker comment.
+    assert "KOALA_5634_DIAGNOSE_TO_ASSESS_UPSTREAM_FLIP" in src, (
+        "summary.js handleInsert is missing the "
+        "KOALA_5634_DIAGNOSE_TO_ASSESS_UPSTREAM_FLIP marker. Round 2 replaces "
+        "the round-1 post-stamp alias with an upstream flip of the local "
+        "workingCommands row; the marker is the intent breadcrumb for that "
+        "transition (KOALA-5634)."
+    )
+
+    # (2) The upstream flip must happen on workingCommands and must precede
+    # the insertable filter. We locate the marker and a nearby workingCommands
+    # reassignment that maps diagnose → assess, then assert that whole block
+    # sits before `const insertable = workingCommands.filter(`.
+    flip_marker_idx = src.find("KOALA_5634_DIAGNOSE_TO_ASSESS_UPSTREAM_FLIP")
+    insertable_decl = "const insertable = workingCommands.filter("
+    insertable_idx = src.find(insertable_decl)
+    assert insertable_idx != -1, (
+        "Expected to find `const insertable = workingCommands.filter(` in "
+        "summary.js handleInsert. If the variable name changed, update this pin."
+    )
+    assert flip_marker_idx < insertable_idx, (
+        "The KOALA_5634_DIAGNOSE_TO_ASSESS_UPSTREAM_FLIP block must appear "
+        "BEFORE the `const insertable = workingCommands.filter(` declaration. "
+        "Running the flip after `insertable` means the stamping key on "
+        "workingCommands still says `diagnose`, the canonical stamp key "
+        "misses, and the row duplicates on the next syncNoteCommands "
+        "(KOALA-5634)."
+    )
+    flip_window = src[flip_marker_idx:insertable_idx]
+    flip_assignment_pattern = re.compile(
+        r"workingCommands\s*=\s*workingCommands\.map\(",
+    )
+    assert flip_assignment_pattern.search(flip_window) is not None, (
+        "Expected `workingCommands = workingCommands.map(...)` inside the "
+        "KOALA_5634_DIAGNOSE_TO_ASSESS_UPSTREAM_FLIP block. The flip must "
+        "actually mutate workingCommands so the local row's command_type "
+        "becomes `assess` before the stamping loop runs (KOALA-5634)."
+    )
+    assess_flip_pattern = re.compile(
+        r"command_type:\s*['\"]assess['\"]",
+    )
+    assert assess_flip_pattern.search(flip_window) is not None, (
+        "The upstream-flip block must reassign the matched row's "
+        "`command_type` to 'assess'. Without that reassignment the "
+        "workingCommands row stays as `diagnose` and the canonical stamp "
+        "key still misses (KOALA-5634)."
+    )
+
+    # (3) Negative assertion: the round-1 alias step must NOT be present.
+    # `uuidMap.set(`diagnose:` was the load-bearing alias call; its absence
+    # is the regression-shield against re-introducing the collision-prone
+    # alias alongside the upstream flip.
+    assert "uuidMap.set(`diagnose:" not in src, (
+        "Found a `uuidMap.set(`diagnose:` call in summary.js. Round 2 "
+        "removed the post-stamp alias in favor of the upstream "
+        "KOALA_5634_DIAGNOSE_TO_ASSESS_UPSTREAM_FLIP. If the alias has been "
+        "reintroduced, the round-1 collision surface is back: the alias keys "
+        "solely on the 80-char-truncated display + command_type and can "
+        "stamp an unrelated assess row's uuid onto a diagnose row that "
+        "shares the truncated display."
+    )
+
+
+def test_summary_js_commit_recommendations_helper_centralizes_prime() -> None:
+    """KOALA-5634 single-helper invariant for ref-prime ordering.
+
+    Round 1 (and the first cut of round 2) had two-statement
+    ``recommendationsRef.current = X; setRecommendations(X)`` blocks at three
+    approval-flow sites: cache-load, /insert-commands success re-stamp, and
+    handleAddNow's rec stamp. Council consensus was to extract a
+    ``commitRecommendations`` helper so the prime-then-set ordering lives in
+    exactly one place (and a clear comment can explain WHY the prime is
+    necessary). This test pins the extraction.
+
+    Pins:
+      1. Marker comment ``KOALA_5634_RECOMMENDATIONS_REF`` is present.
+      2. The helper definition is co-located with the
+         ``recommendationsRef.current =`` assignment (i.e. the assignment
+         appears within ~400 chars of a marker, capturing the helper body).
+      3. The three approval-flow sites — cache-load (the ``loadOrGenerate``
+         body), ``handleInsert``'s /insert-commands success branch, and
+         ``handleAddNow`` — each call ``commitRecommendations(``.
+      4. Negative: none of those three sites contain an inline
+         ``recommendationsRef.current =`` assignment outside the helper. (The
+         useEffect mirror near line 600 is the only other legitimate
+         assignment and lives outside these handler bodies.)
+
+    Why a separate test from the three existing pins: those pin the
+    recommendation-uuid plumbing (stamping, sync filter, diagnose-flip). This
+    test pins the *coordination discipline* that keeps the prime-then-set
+    ordering uniform — so a future contributor can't quietly drop the prime
+    at a new call site without tripping a pin.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) Marker comment is present (multiple occurrences are fine — we just
+    # need at least one).
+    assert "KOALA_5634_RECOMMENDATIONS_REF" in src, (
+        "summary.js is missing the KOALA_5634_RECOMMENDATIONS_REF marker. "
+        "This marker tags the helper that centralizes the recommendationsRef "
+        "imperative prime; without it future readers have no breadcrumb for "
+        "the race-coupling between setRecommendations and a synchronous "
+        "syncNoteCommands trigger (KOALA-5634)."
+    )
+
+    # (2) Helper definition co-located with the assignment: a marker followed
+    # within ~400 chars by `recommendationsRef.current =`. This captures the
+    # helper body, where the assignment is the load-bearing statement.
+    helper_pattern = re.compile(
+        r"KOALA_5634_RECOMMENDATIONS_REF[\s\S]{0,400}recommendationsRef\.current\s*=",
+    )
+    assert helper_pattern.search(src) is not None, (
+        "Expected a `recommendationsRef.current = ...` assignment within ~400 "
+        "chars of a KOALA_5634_RECOMMENDATIONS_REF marker. The helper "
+        "definition should be co-located with the marker so the WHY (the "
+        "race that requires the imperative prime) lives next to the code "
+        "that does the priming."
+    )
+
+    # Helper to slice a JS function/callback body from `decl` to its matching
+    # close brace. Mirrors the brace-walk used in the syncNoteCommands pin
+    # below so we only assert against the relevant handler body.
+    def _slice_callback_body(haystack: str, decl: str) -> str:
+        start = haystack.find(decl)
+        assert start != -1, f"Expected to find `{decl}` in summary.js."
+        # Find the first `{` after the declaration anchor.
+        brace_open = haystack.find("{", start)
+        assert brace_open != -1, f"No opening brace found after `{decl}`."
+        depth = 0
+        for i in range(brace_open, len(haystack)):
+            ch = haystack[i]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return haystack[start : i + 1]
+        raise AssertionError(f"Could not find matching close brace for `{decl}`.")
+
+    handle_insert_body = _slice_callback_body(src, "const handleInsert = useCallback(")
+    handle_add_now_body = _slice_callback_body(src, "const handleAddNow = useCallback(")
+    # loadOrGenerate is the cache-load async function inside the main load useEffect.
+    load_or_generate_body = _slice_callback_body(src, "async function loadOrGenerate()")
+
+    # (3) Each of the three sites calls commitRecommendations(.
+    assert "commitRecommendations(" in load_or_generate_body, (
+        "Cache-load (`loadOrGenerate`) must use commitRecommendations(...) to "
+        "restore the cached recommendations array. Without the helper the "
+        "imperative prime is missing and the cached, stamped recommendations' "
+        "uuids will not be in recommendationsRef.current when "
+        "syncNoteCommands fires in the `finally` block (KOALA-5634)."
+    )
+    assert "commitRecommendations(" in handle_insert_body, (
+        "handleInsert's /insert-commands success branch must use "
+        "commitRecommendations(updatedRecommendations) to stamp accepted "
+        "recommendations. Without the helper the ref-prime is missing and "
+        "the post-success syncNoteCommands re-appends the stamped recs as "
+        "ADDITIONAL COMMANDS duplicates (KOALA-5634)."
+    )
+    assert "commitRecommendations(" in handle_add_now_body, (
+        "handleAddNow's success branch (the isRecommendation stamping path) "
+        "must use commitRecommendations(...) so the just-stamped command_uuid "
+        "is in recommendationsRef.current before the next syncNoteCommands "
+        "trigger (typically NOTE_TAB_CHANGE on the freshly-added command). "
+        "Without the helper, the added rec re-appears under ADDITIONAL "
+        "COMMANDS as a from_the_note duplicate (KOALA-5634)."
+    )
+
+    # (4) Negative: no inline `recommendationsRef.current =` in these handler
+    # bodies. The only legitimate assignment lives in the helper itself and
+    # in the useEffect mirror (both outside these slices).
+    inline_assignment = "recommendationsRef.current ="
+    for site_name, body in (
+        ("loadOrGenerate", load_or_generate_body),
+        ("handleInsert", handle_insert_body),
+        ("handleAddNow", handle_add_now_body),
+    ):
+        assert inline_assignment not in body, (
+            f"Found an inline `recommendationsRef.current = ...` assignment "
+            f"inside `{site_name}`. Round 2 centralized the prime in "
+            "commitRecommendations(); replace the inline assignment with a "
+            "commitRecommendations(...) call so the prime-then-set ordering "
+            "and its WHY-comment live in exactly one place (KOALA-5634)."
+        )
+
+
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.build_effects")
 def test_insert_commands_audit_payload_excludes_display_phi(mock_build: MagicMock, mock_audit: MagicMock) -> None:
@@ -1799,12 +2185,25 @@ def test_edit_existing_commands_silently_drops_disallowed_section(
     mock_build.return_value = ([], [])
 
     view = _helper_instance()
+    # validate_proposals runs before the section_key filter, so the payload
+    # must pass shape validation for this test to actually exercise the
+    # silent-drop path. Use a fully valid prescribe payload — the section
+    # filter (not the validator) is what we're verifying drops it.
     commands = [
         {
             "command_type": "prescribe",
             "command_uuid": "rx-uuid",
             "section_key": "_recommended",  # not in EDITABLE_AMEND_SECTIONS
-            "data": {"sig": "daily"},
+            "data": {
+                "fdb_code": "285665",
+                "sig": "Take 1 tablet by mouth daily",
+                "quantity_to_dispense": 30,
+                "type_to_dispense": "C48480",
+                "refills": 2,
+                "substitutions": "allowed",
+                "days_supply": 30,
+                "note_to_pharmacist": "",
+            },
             "display": "Lisinopril",
         },
     ]
