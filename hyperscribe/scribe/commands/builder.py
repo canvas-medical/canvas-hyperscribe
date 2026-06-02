@@ -125,6 +125,66 @@ def prefill_assess_backgrounds(proposals: list[dict[str, Any]], note_uuid: str) 
         carry_forward_assess_background(data, note)
 
 
+def prefill_diagnose_backgrounds(proposals: list[dict[str, Any]], note_uuid: str) -> None:
+    """KOALA_5635 — dict-shaped diagnose carry-forward.
+
+    Pre-fill ``background`` on diagnose proposals (post-A&P-split) from the
+    most recent prior signed Assessment for the same (patient, condition).
+    Symmetric with :func:`prefill_assess_backgrounds`, but filtered to
+    ``command_type == "diagnose"`` because diagnose proposals only emerge
+    AFTER ``split_plan_into_diagnoses`` runs in ``post_generate_summary``,
+    while the assess-shaped prefill runs earlier (before the split) on the
+    upstream ``CommandProposal``-shaped list.
+
+    Mutates ``proposals[i]["data"]["background"]`` in place. Skips silently
+    when the note can't be loaded, when no diagnose proposals carry a
+    ``condition_id`` (the stamping in ``split_plan_into_diagnoses`` is the
+    upstream gate), or when the lookup fails — the carry-forward is a
+    convenience, not a correctness gate.
+
+    Why a parallel function rather than broadening
+    ``prefill_assess_backgrounds`` to ``("assess", "diagnose")``: at the
+    only site that runs after ``split_plan_into_diagnoses`` (line ~915 of
+    session_view.py), the assess proposals have already been processed by
+    the upstream call. Broadening the filter would re-iterate over them
+    redundantly and conflate two timing layers. The two functions share a
+    delegate (``carry_forward_assess_background``); the symmetry sits at
+    the helper boundary, not the public-function boundary.
+    """
+    if not note_uuid:
+        return
+    diagnose_proposals = [p for p in proposals if p.get("command_type") == "diagnose"]
+    if not diagnose_proposals:
+        return
+    # Pre-validate the UUID shape BEFORE handing it to ``Note.objects.get``.
+    # Django's UUIDField raises ``django.core.exceptions.ValidationError``
+    # (NOT ``ValueError`` and NOT ``Note.DoesNotExist``) for malformed UUIDs
+    # at filter-prep time. The plugin sandbox does NOT expose
+    # ``django.core.exceptions`` (see ``ALLOWED_MODULES`` in
+    # plugin_runner/sandbox.py), so we can't catch it directly here. The
+    # workaround is to validate the UUID shape upfront with ``uuid.UUID``
+    # (which IS in the sandbox allowlist) — that absorbs the malformed-UUID
+    # path so the lookup catch can be the narrow ``Note.DoesNotExist``
+    # without swallowing real programming errors (AttributeError, TypeError).
+    try:
+        uuid.UUID(str(note_uuid))
+    except (ValueError, TypeError, AttributeError):
+        return
+    try:
+        # Carry-forward is best-effort. ``note.id`` is internal-only and
+        # PHI-safe; do NOT log condition payloads, patient identifiers,
+        # or any clinical content.
+        note = Note.objects.select_related("patient").get(id=note_uuid)
+    except Note.DoesNotExist:
+        log.info("prefill_diagnose_backgrounds note lookup miss for %s", note_uuid)
+        return
+    for proposal in diagnose_proposals:
+        data = proposal.get("data")
+        if not isinstance(data, dict):
+            continue
+        carry_forward_assess_background(data, note)
+
+
 def prefill_assess_backgrounds_for_proposals(proposals: list[CommandProposal], note_uuid: str) -> None:
     """``CommandProposal``-shaped variant of :func:`prefill_assess_backgrounds`.
 

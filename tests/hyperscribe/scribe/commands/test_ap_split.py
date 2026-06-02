@@ -1,4 +1,9 @@
+from typing import Any
+from unittest.mock import MagicMock, patch
+
 from hyperscribe.scribe.commands.ap_split import (
+    _build_active_condition_icd10_index,
+    _normalize_icd10,
     match_condition,
     parse_ap_blocks,
     significant_words,
@@ -431,3 +436,286 @@ def test_split_plan_corresponding_note_problem_strips_whitespace() -> None:
     updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 1
     assert updated[0]["data"]["icd10_code"] == "R51.9"
+
+
+# --- KOALA-5635: condition_id stamping on diagnose proposals ---
+
+
+def _patch_active_conditions_values_list(rows: list[tuple[str, str | None, str | None]]) -> Any:
+    """Patch the ConditionModel.objects.active().for_patient(...).values_list(...) chain.
+
+    Round-2 (KOALA-5635): the helper was refactored from a
+    ``prefetch_related("codings")`` + full-ORM iteration to a
+    ``.values_list("id", "codings__code", "codings__system")`` shape per
+    CLAUDE.md's "never fetch full objects from the database if you only
+    need a couple properties." The new chain is:
+
+        ConditionModel.objects.active().for_patient(...).values_list(
+            "id", "codings__code", "codings__system",
+        )
+
+    which yields one row per (condition, coding) pair (LEFT JOIN over
+    codings). Conditions without codings surface with NULL code/system
+    and get skipped by the helper's ``not coding_code`` guard.
+    """
+    chain = MagicMock()
+    chain.active.return_value = chain
+    chain.for_patient.return_value = chain
+    chain.values_list.return_value = rows  # iterable yields tuples
+    return patch(
+        "canvas_sdk.v1.data.condition.Condition.objects",
+        chain,
+    )
+
+
+def test_normalize_icd10_strips_dots_and_uppercases() -> None:
+    """Mirrors the frontend handleInsert match step in summary.js."""
+    assert _normalize_icd10("i10") == "I10"
+    assert _normalize_icd10("E11.9") == "E119"
+    assert _normalize_icd10("e11.9") == "E119"
+    assert _normalize_icd10("") == ""
+    assert _normalize_icd10(None) == ""
+
+
+def test_build_active_condition_icd10_index_happy_path() -> None:
+    """Build a {normalized_icd10 → condition_id} index for the note's patient.
+
+    Round-2 mock shape mirrors the ``.values_list("id", "codings__code",
+    "codings__system")`` rows the refactored helper iterates over.
+    """
+    note = MagicMock()
+    note.patient.id = "patient-key-1"
+    note.id = "note-uuid-1"
+    rows = [
+        ("cond-a", "I10", "http://hl7.org/fhir/sid/icd-10-cm"),
+        ("cond-b", "E11.9", "http://hl7.org/fhir/sid/icd-10-cm"),
+    ]
+    with _patch_active_conditions_values_list(rows):
+        index = _build_active_condition_icd10_index(note)
+    assert index == {"I10": "cond-a", "E119": "cond-b"}
+
+
+def test_build_active_condition_icd10_index_skips_non_icd_systems() -> None:
+    """Codings whose ``system`` doesn't look like ICD-10 are ignored.
+
+    Without this filter, SNOMED/UMLS codings could collide with ICD-10
+    keys (different code spaces) and stamp the wrong condition_id.
+    """
+    note = MagicMock()
+    note.patient.id = "patient-key-1"
+    note.id = "note-uuid-1"
+    rows = [
+        # Same condition has both a SNOMED coding (skipped) and an ICD-10
+        # coding (kept). The .values_list LEFT JOIN naturally yields one
+        # row per (condition, coding) pair.
+        ("cond-a", "12345", "http://snomed.info/sct"),
+        ("cond-a", "I10", "http://hl7.org/fhir/sid/icd-10-cm"),
+    ]
+    with _patch_active_conditions_values_list(rows):
+        index = _build_active_condition_icd10_index(note)
+    assert index == {"I10": "cond-a"}
+
+
+def test_build_active_condition_icd10_index_skips_null_coding_rows() -> None:
+    """A condition with no codings produces a row with NULL code/system
+    under the LEFT JOIN in ``.values_list("id", "codings__code", "codings__system")``.
+    The helper must skip those rows (the ``if not coding_code`` guard).
+
+    Without this pin, a follow-up refactor could regress by attempting to
+    normalize an empty string and stamping a bogus key.
+    """
+    note = MagicMock()
+    note.patient.id = "patient-key-1"
+    note.id = "note-uuid-1"
+    rows = [
+        ("cond-orphan", None, None),  # condition without any codings
+        ("cond-a", "I10", "http://hl7.org/fhir/sid/icd-10-cm"),
+    ]
+    with _patch_active_conditions_values_list(rows):
+        index = _build_active_condition_icd10_index(note)
+    assert index == {"I10": "cond-a"}
+
+
+def test_build_active_condition_icd10_index_coerces_uuid_to_str() -> None:
+    """KOALA-5635 round-2: ``.values_list`` on Postgres returns ``uuid.UUID``
+    for UUIDField columns (not str). The downstream carry-forward filter
+    ``Assessment.objects.filter(condition__id=...)`` compares against the
+    SDK string convention, so the helper must coerce.
+
+    Pin the coercion explicitly — a regression here would silently break
+    integration with carry_forward_assess_background.
+    """
+    import uuid as _uuid
+
+    note = MagicMock()
+    note.patient.id = "patient-key-1"
+    note.id = "note-uuid-1"
+    raw_uuid = _uuid.UUID("12345678-1234-5678-1234-567812345678")
+    rows = [(raw_uuid, "I10", "http://hl7.org/fhir/sid/icd-10-cm")]
+    with _patch_active_conditions_values_list(rows):
+        index = _build_active_condition_icd10_index(note)
+    assert index == {"I10": str(raw_uuid)}
+    # Belt-and-suspenders: the value MUST be a str, not a UUID instance.
+    assert isinstance(index["I10"], str)
+
+
+def test_build_active_condition_icd10_index_no_patient_returns_empty() -> None:
+    """Defensive: a note without a patient must not raise."""
+    note = MagicMock()
+    note.patient = None
+    note.id = "note-uuid-1"
+    assert _build_active_condition_icd10_index(note) == {}
+
+
+def test_build_active_condition_icd10_index_swallows_orm_errors() -> None:
+    """Carry-forward is best-effort: ORM exceptions must NOT propagate.
+
+    A transient DB blip during /generate-summary mustn't kill the request;
+    stamping is purely additive convenience. Round-2: broad ``except
+    Exception:`` is retained at THIS site because the failure mode is
+    transient ORM error during a queryset chain (vs malformed input,
+    which the two ``note_uuid`` sites now pre-validate with ``uuid.UUID``).
+    """
+    note = MagicMock()
+    note.patient.id = "patient-key-1"
+    note.id = "note-uuid-1"
+    chain = MagicMock()
+    chain.active.return_value = chain
+    chain.for_patient.return_value = chain
+    chain.values_list.side_effect = RuntimeError("transient db error")
+    with patch("canvas_sdk.v1.data.condition.Condition.objects", chain):
+        index = _build_active_condition_icd10_index(note)
+    assert index == {}
+
+
+def test_split_plan_stamps_condition_id_when_icd_matches_active_condition() -> None:
+    """KOALA-5635: split_plan_into_diagnoses stamps ``data.condition_id``
+    on diagnose proposals whose ``icd10_code`` matches an active condition
+    on the note's patient.
+
+    This is what makes the per-(patient, condition) background carry-forward
+    eligible for rec-diagnose proposals — without ``condition_id``, the
+    carry_forward_assess_background helper short-circuits.
+    """
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "Hypertension\n- Continue lisinopril"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {"display": "Hypertension", "coding": [{"code": "I10", "display": "Essential hypertension"}]},
+        ],
+    }
+    note = MagicMock()
+    note.patient.id = "patient-key-1"
+    note.id = "note-uuid-1"
+    rows = [("cond-htn", "I10", "http://hl7.org/fhir/sid/icd-10-cm")]
+    with _patch_active_conditions_values_list(rows):
+        updated, _ = split_plan_into_diagnoses(commands, section_conditions, note=note)
+    assert len(updated) == 1
+    assert updated[0]["command_type"] == "diagnose"
+    assert updated[0]["data"]["icd10_code"] == "I10"
+    assert updated[0]["data"]["condition_id"] == "cond-htn"
+
+
+def test_split_plan_stamps_condition_id_normalizes_dots_and_case() -> None:
+    """The active-condition index lookup uses the same normalization as the
+    frontend handleInsert match step (strip dots, uppercase). A proposal
+    with ``icd10_code="e11.9"`` must match an active condition coded
+    ``E119`` and vice-versa.
+    """
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "Type 2 diabetes\n- Continue metformin"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {"display": "Type 2 diabetes", "coding": [{"code": "E11.9", "display": "Type 2 diabetes"}]},
+        ],
+    }
+    note = MagicMock()
+    note.patient.id = "patient-key-1"
+    note.id = "note-uuid-1"
+    # Active condition stored WITHOUT the dot to prove the normalization.
+    rows = [("cond-dm2", "E119", "http://hl7.org/fhir/sid/icd-10-cm")]
+    with _patch_active_conditions_values_list(rows):
+        updated, _ = split_plan_into_diagnoses(commands, section_conditions, note=note)
+    assert updated[0]["data"]["condition_id"] == "cond-dm2"
+
+
+def test_split_plan_no_stamp_when_icd_does_not_match_active_condition() -> None:
+    """Diagnose proposals whose ICD does NOT match any active condition stay
+    unstamped — they remain plain diagnose rows, no carry-forward eligibility,
+    no Background field in the UI."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "Migraine\n- Start sumatriptan"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {"display": "Migraine", "coding": [{"code": "G43.909", "display": "Migraine"}]},
+        ],
+    }
+    note = MagicMock()
+    note.patient.id = "patient-key-1"
+    note.id = "note-uuid-1"
+    # Patient has a condition, but a different ICD than the diagnose.
+    rows = [("cond-htn", "I10", "http://hl7.org/fhir/sid/icd-10-cm")]
+    with _patch_active_conditions_values_list(rows):
+        updated, _ = split_plan_into_diagnoses(commands, section_conditions, note=note)
+    assert updated[0]["command_type"] == "diagnose"
+    assert "condition_id" not in updated[0]["data"]
+
+
+def test_split_plan_no_stamp_when_note_is_none() -> None:
+    """Backward compatibility: callers that don't pass ``note`` get the
+    pre-KOALA-5635 behavior (no stamping). The single new wiring site is
+    ``post_generate_summary``; other tests / call sites that build the
+    diagnose list without DB context must keep working as-is."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "Hypertension\n- Continue lisinopril"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {"display": "Hypertension", "coding": [{"code": "I10", "display": "Essential hypertension"}]},
+        ],
+    }
+    updated, _ = split_plan_into_diagnoses(commands, section_conditions)
+    assert updated[0]["command_type"] == "diagnose"
+    assert "condition_id" not in updated[0]["data"]
+
+
+def test_split_plan_no_stamp_when_icd_code_absent() -> None:
+    """When the diagnose proposal has no ICD code (no match in Nabla's
+    section_conditions), the active-condition lookup is irrelevant —
+    nothing to match against. Proposal stays unstamped."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "Some unmatched header\n- Monitor"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions: dict[str, list[dict[str, Any]]] = {"assessment_and_plan": []}
+    note = MagicMock()
+    note.patient.id = "patient-key-1"
+    note.id = "note-uuid-1"
+    rows = [("cond-htn", "I10", "http://hl7.org/fhir/sid/icd-10-cm")]
+    with _patch_active_conditions_values_list(rows):
+        updated, _ = split_plan_into_diagnoses(commands, section_conditions, note=note)
+    assert updated[0]["command_type"] == "diagnose"
+    assert updated[0]["data"]["icd10_code"] is None
+    assert "condition_id" not in updated[0]["data"]
