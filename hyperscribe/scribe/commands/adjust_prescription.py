@@ -51,9 +51,7 @@ class AdjustPrescriptionParser(CommandParser):
         if not fdb_code:
             return errors
         try:
-            patient_id = (
-                Note.objects.values_list("patient__id", flat=True).get(id=note_uuid)
-            )
+            patient_id = Note.objects.values_list("patient__id", flat=True).get(id=note_uuid)
         except Note.DoesNotExist:
             errors.append("Note not found; cannot verify the source medication")
             return errors
