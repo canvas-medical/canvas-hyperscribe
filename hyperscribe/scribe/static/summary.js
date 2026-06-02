@@ -388,7 +388,7 @@ function pruneOrphanedLinks(prevCommands, nextCommands, isAmending) {
     // perform EIE+Originate+Commit, per builder.build_amend_edit_effects)
     // means the new Assessment lands before the perform's commit fires
     // ClaimLinkSync, so the resync resolves cleanly.
-    return (isAmending && isAmendingSectionEditable(cmd, isAmending))
+    return (isAmending && isAmendingSectionEditable(cmd, isAmending) && !cmd._amend_deleted)
       ? { ...next, _amend_edited: true }
       : next;
   });

@@ -849,7 +849,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
             const isPlan = PLAN_SECTIONS.has(key);
             // If the A&P has been split into per-condition commands, render each diagnose as DiagnoseRow and assess as CommandRow.
-            const hasConditionCommands = isPlan && cmds.some(e => e.command.command_type === 'diagnose' || e.command.command_type === 'assess');
+            const hasConditionCommands = isPlan && cmds.some(e => (e.command.command_type === 'diagnose' || e.command.command_type === 'assess') && !e.command._amend_deleted);
             if (hasConditionCommands) {
               const unmatched = unmatchedConditions || [];
               return html`
