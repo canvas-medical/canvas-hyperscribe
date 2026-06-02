@@ -1329,7 +1329,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // remove_allergy/resolve_condition were silently dropped at
         // handleInsert because `_amend_edited` was never set on those
         // branches.
-        return isAmendEdit(cmd) ? { ...next, _amend_edited: true } : next;
+        //
+        // Mutual exclusion with `_amend_deleted`: if a row is already
+        // tagged for delete, an edit must NOT layer `_amend_edited` on
+        // top — both pipelines would then capture the same uuid,
+        // /delete-existing-commands EIEs it, then /edit-existing-commands
+        // dispatches EIE+Originate+Commit on the voided uuid, silently
+        // recreating the row under a new uuid (delete intent subverted).
+        // The Plan-section card filter at soap-group.js:858/:891 already
+        // hides _amend_deleted rows from re-edit; this guard is the
+        // belt-and-suspenders against stale cache or any other path
+        // that reaches handleEdit on a tagged-for-delete row.
+        return (isAmendEdit(cmd) && !cmd._amend_deleted)
+          ? { ...next, _amend_edited: true }
+          : next;
       });
       const pruned = pruneOrphanedLinks(prev, updated, wasFinalized && !approved);
       saveSummaryToCache(noteData, pruned, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
@@ -1788,7 +1801,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // the user can retry it, but they must not re-submit the (now-voided)
     // old uuid as an amend - which is what would happen if we kept the
     // re-stamp inside the /insert-commands success branch.
-    const amendEdits = commands.filter(c => c._amend_edited && c.command_uuid);
+    // Mutual exclusion with amendDeletes (below). A doubly-tagged row
+    // (`_amend_edited: true` AND `_amend_deleted: true`, which can happen
+    // from stale cache predating the soap-group filter or any other path
+    // that reached handleEdit before this PR's guard) would otherwise be
+    // captured by BOTH pipelines: /delete-existing-commands EIEs the
+    // uuid, then /edit-existing-commands dispatches EIE+Originate+Commit
+    // on the voided uuid, silently recreating the row (delete intent
+    // subverted). amendDeletes wins — the delete is the user's most
+    // recent stated intent.
+    const amendEdits = commands.filter(c => c._amend_edited && c.command_uuid && !c._amend_deleted);
     // KOALA-5485 charge-delete regression: unchecking an already-documented
     // perform command sets `_amend_deleted` (see handleRemoveChargeByCpt).
     // Send these to /delete-existing-commands BEFORE the edit POST so that:
