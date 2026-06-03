@@ -133,6 +133,38 @@ def _authorize_edit(note_uuid: str, request: Any) -> JSONResponse | None:
     return None
 
 
+def _authorize_read(note_uuid: str, request: Any) -> JSONResponse | None:
+    """Return a JSONResponse to short-circuit when the staff cannot read the note's Scribe tab.
+
+    Mirrors ``_authorize_edit`` but drops the ``Helper.editable_note()`` gate —
+    read endpoints (e.g. ``/note-commands``) need to keep working after the
+    note is signed, so the Scribe tab can reflect ad-hoc commands added on the
+    Commands tab post-sign without forcing the user to amend (KOALA-5689).
+
+    Authorized when the note exists and the logged-in staff (from
+    ``canvas-logged-in-user-id`` header) matches the note's provider. Returns
+    ``None`` on success.
+
+    Uses ``.values("provider__id")`` — no ``dbid`` needed since we skip the
+    editable_note() check.
+    """
+    if not note_uuid:
+        return JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)
+    try:
+        note = Note.objects.values("provider__id").get(id=note_uuid)
+    except Note.DoesNotExist:
+        return JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)
+    headers = getattr(request, "headers", {}) or {}
+    staff_id = headers.get("canvas-logged-in-user-id") or ""
+    provider_id = note.get("provider__id")
+    if not staff_id or not provider_id or str(provider_id) != str(staff_id):
+        return JSONResponse(
+            {"error": "Only the note author can read the Scribe tab"},
+            status_code=HTTPStatus.FORBIDDEN,
+        )
+    return None
+
+
 def audit_event(note_uuid: str, event_type: str, details: dict[str, Any] | None = None) -> None:
     """Append an audit event to the ScribeAuditLog from the backend."""
     try:
@@ -1993,7 +2025,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_uuid = str(self.request.query_params.get("note_id", ""))
         if not note_uuid:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        if denial := _authorize_edit(note_uuid, self.request):
+        # KOALA_5689_NOTE_COMMANDS_READ_AUTH: read-only display sync — must keep
+        # working post-sign so ad-hoc commands added on the Commands tab surface in
+        # the Scribe tab without forcing the user to amend. Uses _authorize_read
+        # (no editable_note gate) instead of _authorize_edit.
+        if denial := _authorize_read(note_uuid, self.request):
             return [denial]
 
         rows = list(

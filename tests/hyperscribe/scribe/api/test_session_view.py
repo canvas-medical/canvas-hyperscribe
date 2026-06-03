@@ -36,12 +36,18 @@ ScribeSessionView._ROUTES = {}
 def _bypass_authorize_edit(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Default to authorized for the existing endpoint tests so they don't need
     to mock the Note/Helper.editable_note interaction the auth check performs.
-    Tests that exercise the auth helper directly use a separate test file."""
+    Tests that exercise the auth helper directly use a separate test file.
+
+    Also patches ``_authorize_read`` (used by ``/note-commands`` per KOALA-5689)
+    so the existing route-body tests don't need to provide matching staff
+    headers either.
+    """
     if request.node.get_closest_marker("no_authorize_bypass"):
         return
     from hyperscribe.scribe.api import session_view
 
     monkeypatch.setattr(session_view, "_authorize_edit", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(session_view, "_authorize_read", lambda *_args, **_kwargs: None)
 
 
 def _helper_instance(staff_id: str = "staff-key-abc") -> ScribeSessionView:
@@ -3090,6 +3096,145 @@ def test_note_commands_excludes_entered_in_error_rows(mock_command: MagicMock) -
 
     mock_command.objects.filter.assert_called_once_with(note__id="note-uuid")
     mock_command.objects.filter.return_value.exclude.assert_called_once_with(state="entered_in_error")
+
+
+def test_get_note_commands_uses_authorize_read_not_edit() -> None:
+    """KOALA-5689 structural pin: ``/note-commands`` MUST gate on
+    ``_authorize_read`` (no editable_note check), NOT ``_authorize_edit``.
+
+    Why this matters as a structural pin: a behavioral test alone won't catch
+    a refactor that "re-unifies" the two helpers or that drops the
+    KOALA-5689 marker comment. The bug fix is small (one call-site swap +
+    one new helper) so it's especially easy to "clean up" later — and silently
+    reintroduce the post-sign 403 storm that this fix addressed.
+
+    Three pins, all required:
+      1. The ``KOALA_5689_NOTE_COMMANDS_READ_AUTH`` marker comment exists in
+         ``session_view.py`` (intent breadcrumb).
+      2. The ``get_note_commands`` method body contains a call to
+         ``_authorize_read(note_uuid, self.request)``.
+      3. The ``get_note_commands`` method body does NOT call ``_authorize_edit``.
+
+    Behavioral caveat: structural pin only — it does NOT exercise the
+    Django ORM or the auth helper itself. The unit tests in
+    ``test_session_view_auth.py`` cover the helper, and the DB integration
+    test below covers the post-sign behavior end-to-end.
+    """
+    from pathlib import Path
+
+    session_view_py = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "api" / "session_view.py"
+    src = session_view_py.read_text()
+
+    # (1) Marker comment.
+    assert "KOALA_5689_NOTE_COMMANDS_READ_AUTH" in src, (
+        "session_view.py is missing the KOALA_5689_NOTE_COMMANDS_READ_AUTH "
+        "marker. Without it, the rationale for /note-commands using "
+        "_authorize_read instead of _authorize_edit becomes invisible to "
+        "future maintainers, who are likely to 're-unify' the helpers and "
+        "silently regress the post-sign ADDITIONAL COMMANDS sync (KOALA-5689)."
+    )
+
+    # (2) + (3) — slice to the `get_note_commands` method body and assert
+    # both calls inside that slice.
+    method_idx = src.find("def get_note_commands(self)")
+    assert method_idx != -1, (
+        "Could not locate `def get_note_commands(self)` in session_view.py. If the method was renamed, update this pin."
+    )
+    # Slice to a generous bound after the method declaration so we don't
+    # accidentally pick up calls from sibling endpoints.
+    next_method_idx = src.find("\n    @api.", method_idx + 1)
+    method_body = src[method_idx : next_method_idx if next_method_idx != -1 else len(src)]
+
+    assert "_authorize_read(note_uuid, self.request)" in method_body, (
+        "/note-commands must call `_authorize_read(note_uuid, self.request)` "
+        "(NOT `_authorize_edit`). Read-only display sync needs to keep working "
+        "after the note is signed so the Scribe tab can reflect ad-hoc "
+        "commands added on the Commands tab without forcing an amend "
+        "(KOALA-5689)."
+    )
+    # Match the actual call (`_authorize_edit(`), not bare mentions in
+    # comments/docstrings — the KOALA_5689 marker comment legitimately
+    # references `_authorize_edit` by name to explain the divergence.
+    assert "_authorize_edit(" not in method_body, (
+        "/note-commands must NOT call `_authorize_edit(...)`. The "
+        "editable_note() gate inside _authorize_edit returns False post-sign "
+        "→ 403 → client silent no-op → stale ADDITIONAL COMMANDS until the "
+        "user clicks Amend. Use _authorize_read instead (KOALA-5689)."
+    )
+
+
+@pytest.mark.no_authorize_bypass
+@pytest.mark.django_db
+def test_get_note_commands_returns_commands_after_sign() -> None:
+    """KOALA-5689 integration test (real DB + factories).
+
+    The bug: post-sign, /note-commands returned 403 because
+    ``_authorize_edit`` rejected non-editable notes. The Scribe tab's
+    ADDITIONAL COMMANDS section therefore went stale until the user clicked
+    Amend (which re-unlocks the note).
+
+    The fix: /note-commands now gates on ``_authorize_read``, which drops
+    the editable_note() check. This test sets the note's state to SIGNED
+    and confirms the endpoint returns the command list (200), not a 403.
+
+    Why integration-test this when unit tests cover the helper:
+      - The unit tests mock ``Note``/``Helper.editable_note``, so a refactor
+        that breaks the integration of the helper into the route (e.g. the
+        call-site swap getting reverted) wouldn't be caught.
+      - The real ORM path exercises the FK traversal (``note__id``,
+        ``provider__id``) — the plugin SDK ID convention is subtle enough
+        that mocking-only tests have missed regressions here before.
+
+    Uses ``@pytest.mark.no_authorize_bypass`` so the autouse fixture doesn't
+    short-circuit the helper we're trying to validate.
+    """
+    from canvas_sdk.test_utils import factories
+    from canvas_sdk.v1.data.command import Command
+    from canvas_sdk.v1.data.note import NoteStateChangeEvent, NoteStates
+
+    patient = factories.PatientFactory.create()
+    staff = factories.StaffFactory.create()
+    note = factories.NoteFactory.create(patient=patient, provider=staff)
+
+    # Drive the note to SIGNED — this is exactly the state that previously
+    # caused /note-commands to return 403 (Helper.editable_note(dbid) → False).
+    NoteStateChangeEvent.objects.create(note=note, state=NoteStates.SIGNED)
+
+    # Add a Command on the signed note. The "added via Commands tab post-sign"
+    # scenario in the bug report is structurally identical: a Command row
+    # exists for a non-editable note.
+    Command.objects.create(
+        patient=patient,
+        note=note,
+        state="active",
+        schema_key="hpi",
+        data={"narrative": "Test command added post-sign"},
+        origination_source="",
+        anchor_object_type="",
+        anchor_object_dbid=0,
+    )
+
+    # Build the view with the matching staff header so the provider check
+    # in _authorize_read passes.
+    view = _helper_instance(staff_id=str(staff.id))
+    view.request = SimpleNamespace(
+        query_params={"note_id": str(note.id)},
+        headers={"canvas-logged-in-user-id": str(staff.id)},
+    )
+
+    result = view.get_note_commands()
+
+    assert result[0].status_code == HTTPStatus.OK, (
+        f"Expected 200 after switching to _authorize_read; got "
+        f"{result[0].status_code}. If this is 403, the call-site at "
+        f"/note-commands has likely been reverted to _authorize_edit "
+        f"(KOALA-5689). Body: {result[0].content!r}"
+    )
+    payload = json.loads(result[0].content)
+    assert len(payload["commands"]) == 1
+    assert payload["commands"][0]["command_type"] == "hpi"
+    assert payload["commands"][0]["section_key"] == "from_the_note"
+    assert payload["commands"][0]["already_documented"] is True
 
 
 # --- sign-note ---
