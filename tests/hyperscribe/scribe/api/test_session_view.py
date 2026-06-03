@@ -1556,6 +1556,119 @@ def test_summary_js_sync_note_commands_skips_recommendation_uuids() -> None:
     )
 
 
+def test_sync_note_commands_overlays_from_the_note_on_match() -> None:
+    """KOALA-5689 from_the_note overlay regression (post-add update propagation).
+
+    Bug context: when a user adds an ad-hoc command on the Note tab it syncs
+    into Scribe's ADDITIONAL COMMANDS via the append branch of
+    ``syncNoteCommands`` (no local uuid match → fetched cmd appended verbatim).
+    When the user then *updates* that same command on the Note tab, the next
+    sync finds a uuid match and the original merge logic preserved the LOCAL
+    entry while discarding the fetched payload — keeping stale ``details`` on
+    screen. For from_the_note cards the chart is the source of truth: the
+    fetched payload must overlay the local entry so post-add updates
+    propagate.
+
+    The preserve-local behavior is still correct for Scribe-side commands
+    (they carry their SOAP ``section_key`` locally; overlaying the fetched
+    payload would force ``section_key`` to ``from_the_note`` and yank the
+    card out of its original SOAP group). The fix branches on the local
+    cmd's origin (``section_key === FROM_THE_NOTE_SECTION || _from_note``).
+
+    Pinning approach (structural-static, since this repo has no JS test
+    harness): assert the marker comment is present AND the matched branch's
+    overlay actually reads from the fetched binding. A marker-only test
+    could pass while a refactor silently regresses the overlay back to
+    ``{ ...cmd, ... }`` — so we also assert ``fetchedByUuid.get(`` appears
+    and that there is a ``{ ...fetchedCmd, ... }`` spread inside the
+    callback body.
+
+    Three structural pins (all required):
+      1. Marker comment ``KOALA_5689_FROM_NOTE_OVERLAY`` is present in
+         ``summary.js`` inside the syncNoteCommands callback.
+      2. Inside that callback body, ``fetchedByUuid.get(`` is called. The
+         baseline (and prior commits on this PR branch) only call
+         ``fetchedByUuid.has(...)`` here — introducing ``.get(...)`` is
+         the structural signal that the matched branch is reading from
+         the fetched payload at all.
+      3. Inside that callback body, there is a ``{ ...fetchedCmd``-style
+         spread of the fetched binding (the variable assigned from
+         ``fetchedByUuid.get(...)``) into ``merged.push({ ..., already_documented: true })``.
+         This is the discriminator that proves the overlay uses the
+         fetched payload (not the stale local one) for from_the_note cards.
+
+    Behavioral caveat: structural pin only — it does NOT execute React code.
+    Manual UAT (add a command on the Note tab, update it, check the Scribe
+    tab reflects the update) is the runtime verification.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) Marker comment.
+    assert "KOALA_5689_FROM_NOTE_OVERLAY" in src, (
+        "summary.js syncNoteCommands is missing the KOALA_5689_FROM_NOTE_OVERLAY "
+        "marker. Without overlaying the fetched payload for from_the_note cards, "
+        "post-add updates the user makes on the Note tab don't propagate into "
+        "ADDITIONAL COMMANDS on the Scribe tab (KOALA-5689)."
+    )
+
+    # Scope all remaining structural assertions to the syncNoteCommands body so
+    # they don't accidentally match unrelated code elsewhere in the file.
+    sync_decl = "const syncNoteCommands = useCallback(async () => {"
+    sync_idx = src.find(sync_decl)
+    assert sync_idx != -1, (
+        "Expected to find `const syncNoteCommands = useCallback(async () => {` "
+        "in summary.js. If the callback signature changed, update this pin."
+    )
+
+    # Walk forward counting braces to find the end of the callback body.
+    open_brace_pos = sync_idx + len(sync_decl) - 1  # position of the `{`
+    depth = 0
+    close_pos = -1
+    for i in range(open_brace_pos, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                close_pos = i
+                break
+    assert close_pos != -1, "Could not find matching close brace for syncNoteCommands callback body."
+
+    body = src[sync_idx:close_pos]
+
+    # (2) The matched-uuid branch must read from the fetched payload.
+    # Baseline only calls fetchedByUuid.has() in this region; a .get() call
+    # is the structural signal that the branch consults the fetched cmd.
+    assert "fetchedByUuid.get(" in body, (
+        "syncNoteCommands body must call `fetchedByUuid.get(...)` to retrieve "
+        "the fetched cmd for the matched-uuid branch. Without it the matched "
+        "branch can only see the local cmd's stale data, so post-add updates "
+        "to ad-hoc commands never propagate (KOALA-5689)."
+    )
+
+    # (3) The matched branch must spread the fetched binding (not `cmd`) into
+    # the merged entry for from_the_note cards. We look for a
+    # `{ ...<binding>, ... }` spread followed by `already_documented: true`
+    # where the binding name starts with `fetched` (e.g. fetchedCmd). This is
+    # the discriminator that catches a silent regression back to
+    # `merged.push({ ...cmd, already_documented: true })`.
+    overlay_pattern = re.compile(
+        r"merged\.push\(\s*\{\s*\.\.\.fetched\w*\s*,[^}]*already_documented:\s*true",
+        re.DOTALL,
+    )
+    assert overlay_pattern.search(body) is not None, (
+        "Expected a `merged.push({ ...fetched<Cmd>, ..., already_documented: true })` "
+        "inside the syncNoteCommands callback. The matched-uuid branch for "
+        "from_the_note cards must overlay the fetched payload — spreading the "
+        "local `cmd` here is the original bug: it pins the merged entry to "
+        "stale local data and post-add Note-tab updates never reach the "
+        "Scribe tab (KOALA-5689)."
+    )
+
+
 def test_summary_js_diagnose_to_assess_upstream_flip() -> None:
     """KOALA-5634 ADDITIONAL COMMANDS duplicate regression (assess leg).
 
