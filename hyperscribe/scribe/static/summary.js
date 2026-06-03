@@ -577,6 +577,36 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
   const addNowAttemptedRef = useRef([]);
+  // KOALA_5634_RECOMMENDATIONS_REF: live mirror of `recommendations`. syncNoteCommands
+  // needs to consult both `commands` (via the `setCommands(prev => ...)` updater) AND
+  // `recommendations` when deciding whether a fetched uuid is "Scribe-side" vs
+  // "ad-hoc / brand new." Adding `recommendations` to the useCallback deps would
+  // re-create syncNoteCommands on every recommendation accept / reject and re-fire
+  // every effect that depends on it; a ref keeps the callback stable while still
+  // exposing the latest value at call time. Bug context (KOALA-5634): without this,
+  // accepted recommendations get appended as `from_the_note` duplicates on the next
+  // syncNoteCommands call after approval.
+  const recommendationsRef = useRef(recommendations);
+  // KOALA_5634_RECOMMENDATIONS_REF: commitRecommendations() is the canonical
+  // entry point for ALL approval-flow setRecommendations writes (cache-load
+  // restore, /insert-commands success re-stamp, handleAddNow rec stamp).
+  // Why a helper instead of a one-off inline prime per call site:
+  //   - React's setRecommendations batches into a future commit. The useEffect
+  //     mirror at ~600 only runs post-commit. Approval-flow sites trigger
+  //     syncNoteCommands synchronously (cache-load via its `finally`, approve
+  //     via the post-success CLOSE_MODAL → NOTE_TAB_CHANGE bridge, handleAddNow
+  //     via NOTE_TAB_CHANGE on the just-inserted command). Without an imperative
+  //     prime that closes the gap, recommendationsRef.current reads stale and
+  //     syncNoteCommands appends just-stamped recs as `from_the_note` duplicates.
+  //   - Three sites is enough that an extracted helper beats remembering the
+  //     prime-then-set ordering at each call site.
+  // The ref mirror at ~600 stays as belt-and-braces for non-approval setRecommendations
+  // call sites (handleGenerate, handleMakeChanges, per-rec toggles) — they do not
+  // race against a synchronous syncNoteCommands trigger and don't need this helper.
+  const commitRecommendations = (next) => {
+    recommendationsRef.current = typeof next === 'function' ? next(recommendationsRef.current) : next;
+    setRecommendations(next);
+  };
   // Set to true after the first save-summary 403 (`_authorize_edit` denial:
   // note locked or wrong author). Gates subsequent autosaves so the Scribe
   // tab doesn't fire one POST per state change against a note it can't
@@ -704,6 +734,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setWasFinalized(true);
   }, [isAuthor, isNoteEditable, approved, commands, recommendations]);
 
+  // Keep the recommendations ref in lockstep with state so syncNoteCommands
+  // (a stable callback that intentionally avoids `recommendations` in its deps)
+  // sees the latest uuids when filtering fetched commands. See KOALA_5634_RECOMMENDATIONS_REF.
+  useEffect(() => {
+    recommendationsRef.current = recommendations;
+  }, [recommendations]);
+
   // Pull the note's actual Command rows from the server and merge them into
   // local state. Commands the Scribe already inserted itself stay as-is
   // (richer local data); commands that exist on the note but not locally are
@@ -721,6 +758,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       const data = await res.json();
       const fetched = data.commands || [];
       const fetchedByUuid = new Map(fetched.map(c => [c.command_uuid, c]));
+      // KOALA_5634_SYNC_CONSULTS_RECOMMENDATIONS: collect uuids from the live
+      // recommendations list as well — accepted recs that were just inserted
+      // carry a command_uuid (stamped in handleInsert) but live in
+      // `recommendations`, not `commands`. Without this guard the next sync
+      // would treat the rec's uuid as unknown and append the chart row as a
+      // duplicate `from_the_note` card under ADDITIONAL COMMANDS (KOALA-5634).
+      const recommendationUuids = new Set(
+        (recommendationsRef.current || [])
+          .map(r => r && r.command_uuid)
+          .filter(Boolean)
+      );
       setCommands(prev => {
         const merged = [];
         const keptUuids = new Set();
@@ -741,11 +789,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           // else: had a UUID but it's gone from the note → drop.
         }
         for (const cmd of fetched) {
-          if (!keptUuids.has(cmd.command_uuid)) {
-            // New ad-hoc command from the note body — append as-is so it
-            // lands in the FROM THE NOTE block.
-            merged.push(cmd);
-          }
+          if (keptUuids.has(cmd.command_uuid)) continue;
+          // KOALA_5634_SYNC_CONSULTS_RECOMMENDATIONS: skip uuids that are
+          // already represented by a stamped recommendation — they render in
+          // the SOAP groups via the `recommendations` array, not as locked
+          // ADDITIONAL COMMANDS cards.
+          if (recommendationUuids.has(cmd.command_uuid)) continue;
+          // New ad-hoc command from the note body — append as-is so it
+          // lands in the FROM THE NOTE block.
+          merged.push(cmd);
         }
         return merged;
       });
@@ -810,7 +862,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             // Full cached summary — restore everything.
             setNoteData(cached.note);
             setCommands(cached.commands || []);
-            setRecommendations(cached.recommendations || []);
+            // KOALA_5634_RECOMMENDATIONS_REF: commitRecommendations() primes the
+            // ref synchronously before the syncNoteCommands() call in the `finally`
+            // block fires. Without that prime, a fetched command_uuid that belongs
+            // to a cached, stamped recommendation would be appended as a
+            // from_the_note duplicate (KOALA-5634), and the duplicate would
+            // persist because the next sync sees it in `commands` and preserves it.
+            commitRecommendations(cached.recommendations || []);
             setUnmatchedConditions(cached.unmatched_conditions || []);
             setDiagnosisSuggestions(cached.diagnosis_suggestions || {});
             logEvent('CACHE_LOADED', { hasNote: !!cached.note, commandCount: (cached.commands || []).length });
@@ -1979,7 +2037,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
       return;
     }
-
     // Strip the internal `_template_inserted` marker from the cmd payload
     // (kept on the source array entry; not sent to the backend).
     let tagged = [...taggedCommands, ...taggedRecs].map(t => {
@@ -1987,9 +2044,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       return { ...t, cmd: stripped };
     });
 
-    // Convert diagnose→assess for ICDs that match an existing patient
-    // condition. Preserves the {src, srcIdx} tag through the transform so
-    // the post-insert write-back lands on the correct source slot.
+    // KOALA_5634_DIAGNOSE_TO_ASSESS_UPSTREAM_FLIP: convert diagnose→assess
+    // for ICDs that match an existing patient condition. Preserves the
+    // {src, srcIdx} tag through the transform so the post-insert write-back
+    // lands on the correct source slot. The origin-tracked stamping below
+    // sidesteps the display-string alias collision that motivated this flip
+    // in base (PR #287), but the chart-side type still needs to match:
+    // without the flip, /insert-commands originates as diagnose while the
+    // chart has it as assess, and the next syncNoteCommands appends an
+    // ADDITIONAL COMMANDS duplicate.
     try {
       const condRes = await fetch(
         `${API_BASE}/patient-conditions?patient_id=${encodeURIComponent(patientId)}`
@@ -1999,6 +2062,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
       tagged = tagged.map(t => {
         if (t.cmd.command_type !== 'diagnose') return t;
+        // Only flip rows the provider actually accepted with an ICD. Without
+        // these guards we'd convert unaccepted/no-ICD rows into assesses with
+        // condition_id=undefined and tank the batch on /insert-commands.
+        if (!t.cmd.data.icd10_code || !t.cmd.data.accepted) return t;
         const code = (t.cmd.data.icd10_code || '').replace('.', '').toUpperCase();
         const match = patientConditions.find(pc => {
           const pcCode = (pc.code || '').replace('.', '').toUpperCase();
@@ -2109,6 +2176,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // Approve again. Stamping both flags makes the existing
         // `isInsertableCommand` filter naturally exclude these commands.
         let updatedCommands = workingCommands;
+        // KOALA_5634_STAMP_RECOMMENDATIONS_ON_APPROVE: defaults to the
+        // unmodified closure; only reassigned below when `attempted` has
+        // entries to stamp. Empty-attempted = nothing to stamp = closure is
+        // faithful (no recs landed on the chart, so persisting the pre-stamp
+        // recommendations array is correct).
         let updatedRecommendations = recommendations;
         if (data.attempted && data.attempted.length > 0) {
           const attemptedQueue = new Map();
@@ -2156,7 +2228,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             }
           }
           setCommands(updatedCommands);
-          setRecommendations(updatedRecommendations);
+          // KOALA_5634_RECOMMENDATIONS_REF: commitRecommendations() primes the
+          // ref before the next syncNoteCommands fires (whether triggered by the
+          // post-success CLOSE_MODAL → NOTE_TAB_CHANGE bridge or by any other path)
+          // so it sees the stamped uuids without waiting for the useEffect
+          // ref-mirror to run post-commit. Without this, accepted recs that
+          // landed with new chart uuids appear as unmatched in syncNoteCommands
+          // and duplicate under ADDITIONAL COMMANDS (KOALA-5634).
+          commitRecommendations(updatedRecommendations);
         }
         // CACHE_FLIP_UNCONDITIONAL_ON_APPROVE_SUCCESS - KOALA-5485 cache-flip regression:
         // the approved=true cache write must fire UNCONDITIONALLY on the success branch,
@@ -2182,14 +2261,22 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // flight when /edit-existing-commands runs, ClaimLinkSync would read
         // a stale cache and silently drop user-toggled ICDs.
         //
-        // No live consumer on HEAD: the Charges matrix is read-only during
-        // amendment, so handleToggleCptLink can't fire and the freshness
-        // guarantee has nothing to guard against today. Kept in place for
-        // the re-enable path — if a future PR restores matrix editability
-        // during amendment, removing this await silently reintroduces the
-        // "Z75.9 missing on amended perform" mismatch.
+        // KOALA_5634_STAMP_RECOMMENDATIONS_ON_APPROVE: persist
+        // `updatedRecommendations` (with command_uuid + already_documented
+        // stamped on the accepted recs) — not the stale closure
+        // `recommendations`. Otherwise a page reload restores the pre-stamp
+        // state and the very next syncNoteCommands duplicates every accepted
+        // rec under ADDITIONAL COMMANDS.
+        //
+        // No live consumer on HEAD for the await semantics: the Charges
+        // matrix is read-only during amendment, so handleToggleCptLink
+        // can't fire and the freshness guarantee has nothing to guard
+        // against today. Kept in place for the re-enable path — if a
+        // future PR restores matrix editability during amendment, removing
+        // this await silently reintroduces the "Z75.9 missing on amended
+        // perform" mismatch.
         await saveSummaryToCache(noteData, updatedCommands, true, {
-          recommendations, unmatched_conditions: unmatchedConditions,
+          recommendations: updatedRecommendations, unmatched_conditions: unmatchedConditions,
           diagnosis_suggestions: diagnosisSuggestions,
           selected_template_name: selectedTemplate?.name || null, mode,
         });
@@ -2415,7 +2502,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       }
       const attemptedEntry = data.attempted && data.attempted[0];
       if (isRecommendation) {
-        setRecommendations(prev => prev.map((rec, i) =>
+        // KOALA_5634_RECOMMENDATIONS_REF: commitRecommendations() primes the ref
+        // synchronously so the next syncNoteCommands (typically NOTE_TAB_CHANGE
+        // on the freshly-inserted command) sees the new command_uuid in
+        // recommendationsRef.current and skips the matching fetched row. Without
+        // the prime, the just-added rec would re-appear under ADDITIONAL COMMANDS
+        // as a from_the_note duplicate. Same race class as cache-load and
+        // approve-success; same fix via the shared helper.
+        commitRecommendations(prev => prev.map((rec, i) =>
           i === index ? { ...rec, already_documented: true, accepted: true, _added_now: true, _adding: false, command_uuid: attemptedEntry?.command_uuid || null } : rec
         ));
       } else {
