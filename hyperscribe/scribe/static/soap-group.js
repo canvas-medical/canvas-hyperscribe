@@ -849,7 +849,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
             const isPlan = PLAN_SECTIONS.has(key);
             // If the A&P has been split into per-condition commands, render each diagnose as DiagnoseRow and assess as CommandRow.
-            const hasConditionCommands = isPlan && cmds.some(e => (e.command.command_type === 'diagnose' || e.command.command_type === 'assess') && !e.command._amend_deleted);
+            const hasConditionCommands = isPlan && cmds.some(e => e.command.command_type === 'diagnose' || e.command.command_type === 'assess');
             if (hasConditionCommands) {
               const unmatched = unmatchedConditions || [];
               return html`
@@ -897,7 +897,17 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const suggestions = (!hasCode && !isRejected && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
 
                     const handleAcceptDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, accepted: true, rejected: false }, 'diagnose');
-                    const handleRejectDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, rejected: true, accepted: false }, 'diagnose');
+                    // During amendment of an on-note diagnose, the × button must route through
+                    // onDeleteCommand (which tags `_amend_deleted`) rather than setting `rejected:true`
+                    // via onEditCommand. The latter tags `_amend_edited` and ships the row to
+                    // /edit-existing-commands, where DiagnoseParser.build ignores `data.rejected` —
+                    // the same ICD gets recreated under a new uuid. handleDelete's amend branch
+                    // does the right thing: EIE only, no recreate, plus pruneOrphanedLinks for
+                    // any perform that linked to this ICD.
+                    const isOnNoteAmendingDiagnose = isAmending && (entry.command.already_documented || entry.command.command_uuid);
+                    const handleRejectDiagnose = () => isOnNoteAmendingDiagnose
+                      ? onDeleteCommand(entry.index)
+                      : onEditCommand(entry.index, { ...entry.command.data, rejected: true, accepted: false }, 'diagnose');
 
                     const diagnoseRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
                     return html`

@@ -2545,7 +2545,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     c.command_type === 'perform'
     && c.data?.cpt_code
     && c.selected !== false
-    && !c.already_documented
+    && !(c.already_documented || c.command_uuid)
     && !(Array.isArray(c.data?.linked_icd10_codes) && c.data.linked_icd10_codes.length > 0)
   ).length;
 

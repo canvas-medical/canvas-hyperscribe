@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.127.0",
-  "plugin_version": "2026-06-01 v0.2.176 (db-20260601-may3-scribe-enhancements)",
+  "plugin_version": "2026-06-02 v0.2.177 (db-20260602-may3-scribe-enhancements)",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -303,9 +303,9 @@
     "VisitTemplates"
   ],
   "tags": {
-    "version_date": "2026-06-01",
+    "version_date": "2026-06-02",
     "version_branch": "may3-scribe-enhancements",
-    "version_semantic": "0.2.176"
+    "version_semantic": "0.2.177"
   },
   "custom_data": {
     "namespace": "canvas_medical__scribe",
