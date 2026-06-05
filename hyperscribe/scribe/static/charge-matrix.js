@@ -34,10 +34,10 @@ export function ModifierPicker({ selected, onToggle, onClose }) {
   const freeCode = query.trim().toUpperCase();
   const showFree = freeCode.length >= 1 && freeCode.length <= 2
     && !MODIFIER_SEED.some(m => m.code === freeCode);
+  // Popover opens upward, so the search input is pinned at the BOTTOM (next to
+  // the trigger) and the results scroll above it — the search stays in view.
   return html`
     <div class="cm-popover" role="dialog">
-      <input class="cm-popover-search" placeholder="Search modifier code or description"
-        value=${query} onInput=${e => setQuery(e.target.value)} />
       <div class="cm-popover-list">
         ${rows.map(m => {
           const on = (selected || []).includes(m.code);
@@ -54,7 +54,8 @@ export function ModifierPicker({ selected, onToggle, onClose }) {
           <span class="cm-popover-desc">Use code "${freeCode}"</span>
         </button>` : null}
       </div>
-      <button class="cm-popover-done" onClick=${onClose}>Done</button>
+      <input class="cm-popover-search" autofocus placeholder="Search modifier code or description"
+        value=${query} onInput=${e => setQuery(e.target.value)} />
     </div>`;
 }
 
@@ -75,11 +76,9 @@ export function ChargePicker({ searchCharges, onPick, onClose }) {
       setResults([]);
     }
   };
+  // Search pinned at the BOTTOM (next to the trigger); results scroll above.
   return html`
     <div class="cm-popover cm-popover-wide" role="dialog">
-      <input class="cm-popover-search" autofocus
-        placeholder="Search CPT/HCPCS code or description"
-        value=${query} onInput=${onInput} />
       <div class="cm-popover-list">
         ${results.map(r => html`<button class="cm-popover-row" key=${r.cpt_code}
           onClick=${() => onPick(r.cpt_code, r.short_name || r.full_name || '')}>
@@ -89,7 +88,9 @@ export function ChargePicker({ searchCharges, onPick, onClose }) {
         ${query.trim().length >= 2 && results.length === 0
           ? html`<div class="cm-popover-empty">No matching charges</div>` : null}
       </div>
-      <button class="cm-popover-done" onClick=${onClose}>Cancel</button>
+      <input class="cm-popover-search" autofocus
+        placeholder="Search CPT/HCPCS code or description"
+        value=${query} onInput=${onInput} />
     </div>`;
 }
 
