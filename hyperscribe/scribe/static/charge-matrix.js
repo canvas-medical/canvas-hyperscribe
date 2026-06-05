@@ -60,7 +60,7 @@ export function ModifierPicker({ selected, onToggle, onClose }) {
 
 // CPT/HCPCS search popover for adding a charge column. Queries /search-charges
 // via the injected `searchCharges(query)` async fn.
-export function ChargePicker({ searchCharges, onPick, onClose }) {
+export function ChargePicker({ searchCharges, suggested, onPick, onClose }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const onInput = async (e) => {
@@ -75,26 +75,38 @@ export function ChargePicker({ searchCharges, onPick, onClose }) {
       setResults([]);
     }
   };
-  // Search on top; results scroll below it.
+  // Search on top; below it: the visit template's suggested charges (until the
+  // provider starts typing), then free-text search results.
+  const q = query.trim();
+  const sugg = suggested || [];
   return html`
     <div class="cm-popover cm-popover-wide" role="dialog">
       <input class="cm-popover-search" autofocus
         placeholder="Search CPT/HCPCS code or description"
         value=${query} onInput=${onInput} />
       <div class="cm-popover-list">
-        ${results.map(r => html`<button class="cm-popover-row" key=${r.cpt_code}
+        ${q.length < 2 && sugg.length ? html`
+          <div class="cm-popover-group">Suggested for this visit</div>
+          ${sugg.map(s => html`<button class="cm-popover-row" key=${'sugg-' + s.cpt_code}
+            onClick=${() => onPick(s.cpt_code, s.description || '')}>
+            <span class="cm-popover-code">${s.cpt_code}</span>
+            <span class="cm-popover-desc">${s.description || ''}</span>
+          </button>`)}` : null}
+        ${q.length >= 2 ? results.map(r => html`<button class="cm-popover-row" key=${r.cpt_code}
           onClick=${() => onPick(r.cpt_code, r.short_name || r.full_name || '')}>
           <span class="cm-popover-code">${r.cpt_code}</span>
           <span class="cm-popover-desc">${r.short_name || r.full_name || ''}</span>
-        </button>`)}
-        ${query.trim().length >= 2 && results.length === 0
+        </button>`) : null}
+        ${q.length >= 2 && results.length === 0
           ? html`<div class="cm-popover-empty">No matching charges</div>` : null}
+        ${q.length < 2 && sugg.length === 0
+          ? html`<div class="cm-popover-empty">Type to search CPT/HCPCS codes</div>` : null}
       </div>
     </div>`;
 }
 
 export function ChargeMatrix({
-  diagnoses, charges, isAmending, readOnly, searchCharges,
+  diagnoses, charges, isAmending, readOnly, searchCharges, suggested,
   onTogglePointer, onReorderDiagnoses,
   onAddModifier, onRemoveModifier, onAddCharge, onRemoveCharge,
 }) {
@@ -123,6 +135,9 @@ export function ChargeMatrix({
 
   const dxs = diagnoses || [];
   const chs = charges || [];
+  // Template-suggested charges, minus any CPT already on the matrix.
+  const existingCpts = new Set(chs.map(c => c.cpt));
+  const suggestedAvailable = (suggested || []).filter(s => !existingCpts.has(s.cpt_code));
   const lockedCount = isAmending ? dxs.filter(d => d.locked).length : 0;
   const colSpan = chs.length + 2; // diagnosis col + charge cols + add col
 
@@ -243,7 +258,7 @@ export function ChargeMatrix({
               ${!readOnly ? html`
                 <button class="cm-add-btn" title="Add charge"
                   onClick=${() => setPopover(chargeOpen ? null : { kind: 'charge' })}>+</button>
-                ${chargeOpen ? html`<${ChargePicker} searchCharges=${searchCharges}
+                ${chargeOpen ? html`<${ChargePicker} searchCharges=${searchCharges} suggested=${suggestedAvailable}
                     onPick=${(cpt, desc) => { onAddCharge(cpt, desc); setPopover(null); }}
                     onClose=${() => setPopover(null)} />` : null}` : null}
             </th>

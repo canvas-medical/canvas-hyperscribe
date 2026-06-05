@@ -1795,6 +1795,7 @@ h2 { margin-bottom: 4px; }
 }
 .cm-popover-search:focus { outline: none; border-color: #93b4d4; box-shadow: 0 0 0 3px rgba(82,130,180,.12); }
 .cm-popover-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.cm-popover-group { padding: 6px 8px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--faint, #93a0ac); }
 .cm-popover-row {
   display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: none;
   background: transparent; border-radius: 6px; cursor: pointer; text-align: left; font-family: inherit;
