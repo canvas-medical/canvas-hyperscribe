@@ -1734,6 +1734,8 @@ h2 { margin-bottom: 4px; }
 .cm-grip { color: #cbd3db; cursor: grab; font-size: 14px; user-select: none; flex-shrink: 0; }
 .cm-grip:active { cursor: grabbing; }
 .cm-lock { color: #aeb8c2; font-size: 12px; flex-shrink: 0; }
+.cm-grip-empty { display: inline-block; width: 14px; flex-shrink: 0; }
+.cm-modchip-static { cursor: default; }
 .cm-rank {
   display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px;
   padding: 0 6px; border-radius: 6px; background: #f1f3f5; color: #3a5573; font-size: 12px;
