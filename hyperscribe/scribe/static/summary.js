@@ -552,6 +552,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const isDx = c => (c.command_type === 'diagnose' || c.command_type === 'assess');
     const dxBy = new Map(prev.filter(isDx).map(c => [idOf(c), c]));
     const reordered = nextUuids.map(u => dxBy.get(u)).filter(Boolean);
+    // If the incoming order doesn't cover every diagnosis row exactly once, bail
+    // rather than write undefined slots into commands.
+    if (reordered.length !== dxBy.size) return prev;
     let i = 0;
     return prev.map(c => isDx(c) ? reordered[i++] : c);
   }), []);
@@ -1701,6 +1704,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const handleInsert = useCallback(async () => {
     if (!canEdit || inserting) return;
     setValidationError(null);
+    setChargeErrors([]);
     logEvent('APPROVE_START', { totalCommands: commands.length, commandTypes: commands.map(c => c.command_type) });
     setInserting(true);
 
@@ -2245,7 +2249,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     } finally {
       setInserting(false);
     }
-  }, [commands, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions, canEdit, inserting]);
+  }, [commands, chargeMatrixDiagnoses, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions, canEdit, inserting]);
 
   const handleAddNow = useCallback(async (command, isRecommendation, index) => {
     if (!canEdit) return;
@@ -2809,6 +2813,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               ${!canSignCharges(chargeMatrixCharges) && html`
                 <div class="summary-footer-warning cm-sign-error">Every charge needs at least one diagnosis pointer to sign.</div>
               `}
+              ${(chargeErrors && chargeErrors.length)
+                ? html`<div class="summary-footer-warning cm-sign-error">Some charges could not be saved (${chargeErrors.length}). Please review the charges and try again.</div>`
+                : null}
               <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits || !canSignCharges(chargeMatrixCharges)} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
               ${!wasFinalized && html`<div class="approve-warning">This action is permanent and cannot be undone.</div>`}
             </div>
