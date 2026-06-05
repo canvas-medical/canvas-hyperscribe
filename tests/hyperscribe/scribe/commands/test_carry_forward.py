@@ -27,9 +27,11 @@ from unittest.mock import MagicMock, patch
 
 from canvas_sdk.test_utils import factories
 from canvas_sdk.v1.data.assessment import Assessment
-from canvas_sdk.v1.data.condition import Condition
+from canvas_sdk.v1.data.condition import Condition, ConditionCoding
 from canvas_sdk.v1.data.note import CurrentNoteStateEvent, NoteStates
 
+from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
+from hyperscribe.scribe.commands.builder import prefill_diagnose_backgrounds
 from hyperscribe.scribe.commands.carry_forward import (
     carry_forward_assess_background,
 )
@@ -394,3 +396,110 @@ def test_carry_forward_integration_different_patient_does_not_leak() -> None:
 
     # No cross-patient leak: the proposal stays unset.
     assert proposal_data["background"] is None
+
+
+def test_split_plan_stamp_and_prefill_diagnose_background_integration() -> None:
+    """KOALA-5635 integration: end-to-end exercise of the rec-diagnose
+    background carry-forward path against the real ORM.
+
+    Setup:
+      - One patient with TWO notes:
+        * ``prior_note``: state SIGNED, with a committed Assessment on
+          condition ``cond_htn`` whose ``background`` is a known string.
+        * ``current_note``: the "in-progress" note where the new diagnose
+          proposal lives (will be the note passed to ``split_plan_into_diagnoses``).
+      - ``cond_htn`` has an ICD-10 coding of ``I10`` so the icd-matching
+        in ``_build_active_condition_icd10_index`` picks it up.
+
+    Expectation:
+      1. ``split_plan_into_diagnoses(commands, sec, note=current_note)``
+         stamps ``data["condition_id"]`` = str(cond_htn.id) on the produced
+         diagnose proposal (icd10_code "I10" matches the active condition's
+         normalized "I10").
+      2. ``prefill_diagnose_backgrounds(commands_list, note_uuid)`` then
+         resolves the prior Assessment by (patient, condition_id) and
+         carries the background forward onto the proposal's data.
+
+    Why a single integration test instead of two: the two helpers are
+    chained in ``post_generate_summary`` (split then prefill); a refactor
+    that breaks either one in real ORM terms (typo'd filter kwarg, missing
+    coding fetch, stale db_table reference) would fail here. Every other
+    test for these helpers mocks the ORM.
+    """
+    patient = factories.PatientFactory.create()
+    user = factories.CanvasUserFactory.create()
+    prior_note = factories.NoteFactory.create(patient=patient)
+    current_note = factories.NoteFactory.create(patient=patient)
+
+    CurrentNoteStateEvent.objects.create(note=prior_note, state=NoteStates.SIGNED)
+
+    cond_htn = Condition.objects.create(
+        patient=patient,
+        deleted=False,
+        onset_date=datetime.date(2024, 1, 1),
+        resolution_date=datetime.date(2024, 12, 31),
+        clinical_status="active",
+        surgical=False,
+        committer=user,
+    )
+    # Active condition needs an ICD-10 coding for the index lookup to pick
+    # it up — the helper filters codings to those whose ``system`` matches
+    # /icd/i. Match the home-app FHIR convention.
+    ConditionCoding.objects.create(
+        condition=cond_htn,
+        system="http://hl7.org/fhir/sid/icd-10-cm",
+        code="I10",
+        display="Essential hypertension",
+    )
+
+    Assessment.objects.create(
+        patient=patient,
+        note=prior_note,
+        condition=cond_htn,
+        status="stable",
+        narrative="Stable on lisinopril",
+        background="Diagnosed 2020-03-15; controlled on lisinopril 10mg",
+        care_team="",
+        committer_id=user.dbid,
+    )
+
+    # Simulated post-extract-commands state with a plan command Nabla
+    # produced for hypertension. ``section_conditions`` is what
+    # ``_match_conditions_to_sections`` would emit in the real flow.
+    commands: list[dict[str, Any]] = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "Hypertension\n- Continue lisinopril 10mg"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "Hypertension",
+                "coding": [{"code": "I10", "display": "Essential hypertension"}],
+            },
+        ],
+    }
+
+    # Step 1: split — stamps condition_id on the produced diagnose proposal.
+    updated, _ = split_plan_into_diagnoses(commands, section_conditions, note=current_note)
+    assert len(updated) == 1
+    assert updated[0]["command_type"] == "diagnose"
+    assert updated[0]["data"]["icd10_code"] == "I10"
+    assert updated[0]["data"]["condition_id"] == str(cond_htn.id), (
+        "split_plan_into_diagnoses must stamp the SDK condition_id (= "
+        "str(condition.id)) on the diagnose proposal when its icd10_code "
+        "matches an active condition on the patient. Without the stamp, "
+        "the per-(patient, condition) carry-forward short-circuits."
+    )
+
+    # Step 2: prefill — resolves the prior signed Assessment by (patient,
+    # condition_id) and writes its ``background`` onto the proposal.
+    prefill_diagnose_backgrounds(updated, str(current_note.id))
+    assert updated[0]["data"]["background"] == "Diagnosed 2020-03-15; controlled on lisinopril 10mg", (
+        "prefill_diagnose_backgrounds must carry forward the prior "
+        "Assessment.background for the same (patient, condition). A typo in "
+        "the filter kwargs or a missing condition_id stamp would fail here "
+        "even though every mock-based unit test passes."
+    )
