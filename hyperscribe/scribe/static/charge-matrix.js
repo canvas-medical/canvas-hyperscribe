@@ -93,7 +93,7 @@ export function ChargePicker({ searchCharges, onPick, onClose }) {
 }
 
 export function ChargeMatrix({
-  diagnoses, charges, isAmending, searchCharges,
+  diagnoses, charges, isAmending, readOnly, searchCharges,
   onTogglePointer, onReorderDiagnoses,
   onAddModifier, onRemoveModifier, onAddCharge, onRemoveCharge,
 }) {
@@ -125,21 +125,22 @@ export function ChargeMatrix({
       <th class="cm-charge-head" key=${charge.command_uuid}>
         <div class="cm-cpt-row">
           <span class="cm-cpt">${charge.cpt}</span>
-          <button class="cm-colremove" title="Remove charge"
-            onClick=${() => onRemoveCharge(charge.command_uuid)}>×</button>
+          ${!readOnly ? html`<button class="cm-colremove" title="Remove charge"
+            onClick=${() => onRemoveCharge(charge.command_uuid)}>×</button>` : null}
         </div>
         <div class="cm-mods">
-          ${mods.map(code => html`
-            <span class="cm-modchip" key=${code} title="Remove modifier"
-              onClick=${() => onRemoveModifier(charge.command_uuid, code)}>
-              ${code}<span class="cm-modchip-x">×</span>
-            </span>`)}
-          ${mods.length < MAX_MODIFIERS
+          ${mods.map(code => readOnly
+            ? html`<span class="cm-modchip cm-modchip-static" key=${code}>${code}</span>`
+            : html`<span class="cm-modchip" key=${code} title="Remove modifier"
+                onClick=${() => onRemoveModifier(charge.command_uuid, code)}>
+                ${code}<span class="cm-modchip-x">×</span>
+              </span>`)}
+          ${!readOnly && mods.length < MAX_MODIFIERS
             ? html`<button class="cm-modadd"
                 onClick=${() => setPopover(open ? null : { kind: 'mod', id: charge.command_uuid })}>+ Modifier</button>`
             : null}
         </div>
-        ${open ? html`<${ModifierPicker} selected=${mods}
+        ${open && !readOnly ? html`<${ModifierPicker} selected=${mods}
             onToggle=${code => (mods.includes(code)
               ? onRemoveModifier(charge.command_uuid, code)
               : onAddModifier(charge.command_uuid, code))}
@@ -148,7 +149,7 @@ export function ChargeMatrix({
   });
 
   const renderDxRow = (dx, idx) => {
-    const draggable = !(isAmending && dx.locked);
+    const draggable = !readOnly && !(isAmending && dx.locked);
     const isDxDrag = e => e.dataTransfer && e.dataTransfer.types
       && Array.from(e.dataTransfer.types).includes('text/dx');
     return html`
@@ -171,7 +172,9 @@ export function ChargeMatrix({
           <div class="cm-dx-inner">
             ${draggable
               ? html`<span class="cm-grip" title="Drag to reorder rank">⠿</span>`
-              : html`<span class="cm-lock" title="Order locked — already on the signed claim">🔒</span>`}
+              : (isAmending && dx.locked)
+                ? html`<span class="cm-lock" title="Order locked — already on the signed claim">🔒</span>`
+                : html`<span class="cm-grip-empty"></span>`}
             <span class="cm-rank${dx.locked ? ' cm-rank-muted' : ''}">${idx + 1}</span>
             <span class="cm-dxcode">${dx.code}</span>
             <span class="cm-dxlabel">${dx.label}</span>
@@ -181,7 +184,7 @@ export function ChargeMatrix({
           const on = (charge.pointers || []).includes(dx.command_uuid);
           const atCap = !on && (charge.pointers || []).length >= MAX_POINTERS;
           return html`<td class="cm-cell${on ? ' on' : ''}" key=${charge.command_uuid}>
-            <input type="checkbox" checked=${on} disabled=${atCap}
+            <input type="checkbox" checked=${on} disabled=${readOnly || atCap}
               title=${atCap ? `Max ${MAX_POINTERS} diagnosis pointers` : ''}
               aria-label=${`Link ${charge.cpt} to ${dx.code}`}
               onChange=${() => onTogglePointer(charge.command_uuid, dx.command_uuid)} />
@@ -211,11 +214,12 @@ export function ChargeMatrix({
             <th class="cm-dx-head"></th>
             ${headerCells}
             <th class="cm-add-head">
-              <button class="cm-add-btn" title="Add charge"
-                onClick=${() => setPopover(chargeOpen ? null : { kind: 'charge' })}>+</button>
-              ${chargeOpen ? html`<${ChargePicker} searchCharges=${searchCharges}
-                  onPick=${(cpt, desc) => { onAddCharge(cpt, desc); setPopover(null); }}
-                  onClose=${() => setPopover(null)} />` : null}
+              ${!readOnly ? html`
+                <button class="cm-add-btn" title="Add charge"
+                  onClick=${() => setPopover(chargeOpen ? null : { kind: 'charge' })}>+</button>
+                ${chargeOpen ? html`<${ChargePicker} searchCharges=${searchCharges}
+                    onPick=${(cpt, desc) => { onAddCharge(cpt, desc); setPopover(null); }}
+                    onClose=${() => setPopover(null)} />` : null}` : null}
             </th>
           </tr>
         </thead>

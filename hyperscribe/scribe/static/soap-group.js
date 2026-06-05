@@ -1434,6 +1434,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           diagnoses=${chargeMatrixDiagnoses}
           charges=${chargeMatrixCharges}
           isAmending=${isAmending}
+          readOnly=${readOnly}
           searchCharges=${searchCharges}
           onTogglePointer=${onToggleChargePointer}
           onReorderDiagnoses=${onReorderDiagnoses}
