@@ -1659,3 +1659,462 @@ h2 { margin-bottom: 4px; }
 .from-the-note-detail-value {
   color: #111;
 }
+
+/* ===================================================================
+   Charges matrix  (charge-matrix.js  +  summary.js sign gate)
+   Design tokens from /design_handoff_charges_matrix/README.md
+   =================================================================== */
+
+/*
+  Grid layout strategy
+  ─────────────────────────────────────────────────────────────────────
+  The DOM structure from charge-matrix.js is:
+
+    .cm-matrix                              ← grid container
+      .cm-header-row                        ← row wrapper (display:contents)
+        .cm-corner                          ← col 1-4 (spanning dx tracks)
+        .cm-col-header  × N                 ← col 5..N+4
+        .cm-addcol                          ← last col
+      .cm-row  × M                          ← row wrapper (display:contents)
+        .cm-grip                            ← col 1 (grip track)
+        .cm-rank                            ← col 2 (rank track)
+        .cm-dxcode                          ← col 3 (code track)
+        .cm-dxlabel                         ← col 4 (label track, flex)
+        .cm-cell  × N                       ← col 5..N+4
+      .cm-footer-row                        ← row wrapper (display:contents)
+        .cm-corner                          ← col 1-4
+        .cm-pill  × N                       ← col 5..N+4
+
+  All three row wrappers use display:contents so their children become
+  direct grid items. To place grip/rank/dxcode/dxlabel in their own
+  dedicated tracks (and keep checkbox cells aligned with headers),
+  the grid has 4 explicit diagnosis tracks + N charge tracks + addcol:
+
+    40px  38px  100px  minmax(0,1fr)  repeat(--cm-charge-cols, 230px)  96px
+
+  The header/footer .cm-corner spans the four diagnosis tracks (grid-column: 1/5).
+  The charge column headers and checkbox cells auto-place starting at track 5.
+*/
+
+/* -- Grid container -- */
+.cm-matrix {
+  display: grid;
+  grid-template-columns:
+    40px 38px 100px minmax(0, 1fr)
+    repeat(var(--cm-charge-cols, 0), 230px)
+    96px;
+  border: 1px solid #e6e9ed;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(14,46,78,.05), 0 10px 30px rgba(14,46,78,.07);
+  margin-bottom: 16px;
+}
+
+/* All row wrappers use display:contents so their children become direct
+   grid items aligned to the column tracks above. */
+.cm-header-row,
+.cm-row,
+.cm-footer-row {
+  display: contents;
+}
+
+/* -- Corner cell: spans all 4 diagnosis tracks so the header/footer
+   left side is a single blank area matching the dx-info columns. -- */
+.cm-corner {
+  grid-column: 1 / 5;
+  background: #fff;
+}
+
+/* -- Column header cell (one per charge, auto-places into charge tracks) -- */
+.cm-col-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #fff;
+  border-bottom: 1px solid #e2e7ec;
+  border-left: 1px solid #e2e7ec;
+  position: relative;
+}
+
+/* CPT + remove button row inside column header */
+.cm-cpt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* CPT code text — mono, 16/600, navy */
+.cm-cpt {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0e2e4e;
+  letter-spacing: 0.01em;
+}
+
+/* Remove-charge × button — hidden until header is hovered */
+.cm-colremove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  color: #93a0ac;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+.cm-col-header:hover .cm-colremove {
+  opacity: 1;
+}
+.cm-colremove:hover {
+  color: #c0392b;
+  background: #fef2f2;
+}
+
+/* Modifier chips + add-button row inside column header */
+.cm-modifiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+/* Modifier chip: h24, r7, mod-bg/border/ink, mono 13/600 */
+.cm-modchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: #eef3f8;
+  border: 1px solid #d7e2ee;
+  color: #2c5277;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.12s ease;
+}
+.cm-modchip:hover {
+  background: #ddeaf5;
+}
+.cm-modchip-x {
+  font-size: 11px;
+  color: #5a7ba0;
+  margin-left: 1px;
+}
+
+/* "+ Modifier" dashed add button: h24, r7, 1px dashed field-b, 12.5/600 muted */
+.cm-modadd {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 1px dashed #cfd8e0;
+  background: #fff;
+  color: #6a7682;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.cm-modadd:hover {
+  border-color: #93a0ac;
+  background: #f8fafc;
+}
+
+/* -- Diagnosis rows --
+   Each row uses display:contents; its 4 dx sub-cells land in tracks 1-4
+   and its N .cm-cell spans land in tracks 5..N+4 (auto-placed). */
+
+/* Track 1: grip icon */
+.cm-grip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 4px 10px 8px;
+  background: #fff;
+  border-top: 1px solid #eaeef2;
+  color: #93a0ac;
+  cursor: grab;
+  user-select: none;
+}
+.cm-grip:active { cursor: grabbing; }
+.cm-grip-dots { font-size: 16px; line-height: 1; }
+.cm-lock { font-size: 13px; cursor: default; }
+
+/* Track 2: rank chip (minw 26, h 26, r8, chip-bg/b, navy-soft, tabular) */
+.cm-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #f1f3f5;
+  border: 1px solid #e3e8ed;
+  color: #1d3a5c;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  align-self: center;
+  justify-self: center;
+  border-top: 1px solid #eaeef2;
+}
+.cm-rank-muted { opacity: 0.5; }
+
+/* Track 3: ICD code chip (green chip, mono 13/600) */
+.cm-dxcode {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: #e7f4ec;
+  border: 1px solid #cfe9d8;
+  color: #1c7d4d;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  align-self: center;
+  border-top: 1px solid #eaeef2;
+}
+
+/* Track 4: diagnosis label (15/600 ink, ellipsis) */
+.cm-dxlabel {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1b2733;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 10px 8px;
+  background: #fff;
+  border-top: 1px solid #eaeef2;
+  align-self: center;
+}
+
+/* Locked rows: subtle bg tint */
+.cm-row-locked .cm-grip,
+.cm-row-locked .cm-dxlabel,
+.cm-row-locked .cm-cell {
+  background-color: #f8fafc;
+}
+.cm-row-locked .cm-rank {
+  background-color: #edf0f3;
+}
+.cm-row-locked .cm-dxcode {
+  opacity: 0.75;
+}
+
+/* Tracks 5..N+4: checkbox cells (one per charge column, auto-placed) */
+.cm-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 8px;
+  background: #fff;
+  border-top: 1px solid #eaeef2;
+  border-left: 1px solid #e2e7ec;
+}
+.cm-cell-on {
+  background: #f1f9f4;
+}
+.cm-cell input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  accent-color: #0e2e4e;
+  flex-shrink: 0;
+}
+.cm-cell input[type="checkbox"]:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Last track (96px): + Charge add-column button in header */
+.cm-addcol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 8px;
+  background: #fff;
+  border: none;
+  border-bottom: 1px solid #e2e7ec;
+  border-left: 1px solid #e2e7ec;
+  color: #0e2e4e;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.cm-addcol:hover { background: #f5f8fb; }
+
+/* -- Footer row: pointer count pills --
+   .cm-corner spans tracks 1-4 (same as header corner).
+   Each .cm-pill is a direct grid item in its charge track.
+   The cell background is white; the pill badge appearance uses a box-shadow
+   inset on the text so the cell border-top/left remain clean. */
+.cm-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  background: #fff;
+  border-top: 1px solid #eaeef2;
+  border-left: 1px solid #e2e7ec;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1c7d4d;
+  white-space: nowrap;
+}
+.cm-pill-error {
+  color: #c0392b;
+}
+
+/* -- Amendment dividers -- */
+.cm-group-label {
+  grid-column: 1 / -1;
+  padding: 6px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #6a7682;
+  background: #f8fafc;
+  border-top: 1px solid #eaeef2;
+}
+.cm-divider {
+  grid-column: 1 / -1;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #93a0ac;
+  background: #f1f9f4;
+  border-top: 1px solid #eaeef2;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* -- Modifier picker popover --
+   Absolutely positioned under the column header (.cm-modifiers is relative). */
+.cm-modpicker {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  min-width: 240px;
+  background: #fff;
+  border: 1px solid #e6e9ed;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(14,46,78,.12), 0 1px 4px rgba(14,46,78,.06);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cm-modpicker-search {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid #e6e9ed;
+  font-family: inherit;
+  font-size: 13px;
+  color: #1b2733;
+  background: #f8fafc;
+  outline: none;
+}
+.cm-modpicker-search::placeholder { color: #93a0ac; font-style: italic; }
+.cm-modpicker-search:focus { background: #fff; }
+
+.cm-modpicker-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.cm-modpicker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  border-bottom: 1px solid #f0f3f6;
+  transition: background 0.1s ease;
+}
+.cm-modpicker-row:last-child { border-bottom: none; }
+.cm-modpicker-row:hover:not(:disabled) { background: #f5f8fb; }
+.cm-modpicker-row.on { background: #f1f9f4; }
+.cm-modpicker-row:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.cm-modpicker-code {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0e2e4e;
+  min-width: 28px;
+  flex-shrink: 0;
+}
+.cm-modpicker-desc {
+  flex: 1;
+  font-size: 12px;
+  color: #6a7682;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-modpicker-check {
+  font-size: 13px;
+  color: #1a9f57;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.cm-modpicker-done {
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-top: 1px solid #e6e9ed;
+  background: #0e2e4e;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.cm-modpicker-done:hover { background: #1a4a6e; }
+
+/* -- Sign gate error --
+   Layers onto .summary-footer-warning (12px amber centered); overrides
+   to red for "every charge needs ≥1 pointer" blocking state. */
+.cm-sign-error {
+  color: #c0392b;
+  font-weight: 600;
+  margin-top: 4px;
+}
