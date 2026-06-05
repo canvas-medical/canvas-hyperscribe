@@ -259,3 +259,56 @@ def test_multiple_charges_accumulate_enriched_and_errors_independently(
     assert effects == ["UPDATE_EFFECT"]
     assert [e["command_uuid"] for e in enriched] == ["ok"]
     assert errors == [{"command_uuid": "bad", "reason": "billing_line_item_not_found"}]
+
+
+# ── Coverage gap: ambiguous ICD-10 warning path in _resolve_assessment_ids ──
+
+from hyperscribe.scribe.charges.enrichment import _resolve_assessment_ids
+
+
+def test_resolve_assessment_ids_warns_on_ambiguous_code():
+    """When an ICD-10 code maps to more than one assessment, all ids are
+    included in the resolved list and a warning is logged."""
+    index = {"E119": ["aid-1", "aid-2"]}
+    pointers = [{"icd10_code": "E11.9"}]
+    with patch("hyperscribe.scribe.charges.enrichment.log") as mock_log:
+        result = _resolve_assessment_ids(pointers, index)
+    assert result == ["aid-1", "aid-2"]
+    mock_log.warning.assert_called_once()
+    call_args = mock_log.warning.call_args[0]
+    assert "E119" in call_args[1]
+    assert call_args[2] == 2
+
+
+def test_resolve_assessment_ids_deduplicates_across_pointers():
+    """Two pointers sharing the same ICD-10 code should not produce duplicate
+    assessment ids in the resolved list."""
+    index = {"E119": ["aid-1"]}
+    pointers = [{"icd10_code": "E11.9"}, {"icd10_code": "E11.9"}]
+    result = _resolve_assessment_ids(pointers, index)
+    assert result == ["aid-1"]
+
+
+# ── Coverage gap: idempotent removal path (BLI already absent) ──
+
+@patch("hyperscribe.scribe.charges.enrichment.RemoveBillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.Command")
+@patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
+@patch("hyperscribe.scribe.charges.enrichment.Note")
+def test_removed_charge_already_absent_is_silently_skipped(
+    mock_note, mock_index, mock_command, mock_bli, mock_remove
+):
+    """When the BLI for a removed command can't be found, no error is recorded
+    and no RemoveBillingLineItem effect is emitted (idempotent removal)."""
+    _patch_note(mock_note)
+    mock_index.return_value = {}
+    mock_command.DoesNotExist = Exception
+    mock_command.objects.get.side_effect = mock_command.DoesNotExist
+
+    effects, enriched, errors = build_charge_enrichment_effects([], ["already-removed"], "note-uuid")
+
+    assert effects == []
+    assert enriched == []
+    assert errors == []
+    mock_remove.assert_not_called()
