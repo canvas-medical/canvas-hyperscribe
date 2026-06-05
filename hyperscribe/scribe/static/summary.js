@@ -779,11 +779,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             continue;
           }
           if (fetchedByUuid.has(cmd.command_uuid)) {
-            // Scribe-side command that's now committed to the note. Stamp it
-            // documented but keep the rest of the local entry — overlaying
-            // the fetched payload would force section_key to from_the_note
-            // and yank the card out of its original SOAP group.
-            merged.push({ ...cmd, already_documented: true });
+            const fetchedCmd = fetchedByUuid.get(cmd.command_uuid);
+            // KOALA_5689_FROM_NOTE_OVERLAY: for from_the_note cards the chart
+            // is the source of truth — overlay the fetched payload so
+            // post-add updates (user edits the ad-hoc command on the Note
+            // tab) propagate into ADDITIONAL COMMANDS. For Scribe-side
+            // commands we preserve the local entry as before; overlaying
+            // would force section_key to from_the_note and yank the card
+            // out of its original SOAP group.
+            if (cmd.section_key === FROM_THE_NOTE_SECTION || cmd._from_note) {
+              merged.push({ ...fetchedCmd, already_documented: true });
+            } else {
+              merged.push({ ...cmd, already_documented: true });
+            }
             keptUuids.add(cmd.command_uuid);
           }
           // else: had a UUID but it's gone from the note → drop.
