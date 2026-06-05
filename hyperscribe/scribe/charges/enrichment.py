@@ -121,6 +121,9 @@ def build_charge_enrichment_effects(
             errors.append({"command_uuid": command_uuid, "reason": "billing_line_item_not_found"})
             continue
         assessment_ids = _resolve_assessment_ids(charge.get("diagnosis_pointers") or [], index)
+        if not assessment_ids:
+            errors.append({"command_uuid": command_uuid, "reason": "no_assessment_resolved"})
+            continue
         modifier_codes = [str(m) for m in (charge.get("modifiers") or [])]
         modifiers = [{"code": code, "system": CPT_MODIFIER_SYSTEM} for code in modifier_codes]
         effects.append(
@@ -140,6 +143,7 @@ def build_charge_enrichment_effects(
     for command_uuid in removed_command_uuids:
         bli = _find_billing_line_item(note, command_uuid)
         if bli is None:
+            # BLI already absent — removal is idempotent, not an error.
             continue
         effects.append(RemoveBillingLineItem(billing_line_item_id=str(bli.id)).apply())
 
