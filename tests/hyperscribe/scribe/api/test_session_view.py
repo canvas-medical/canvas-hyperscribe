@@ -36,12 +36,18 @@ ScribeSessionView._ROUTES = {}
 def _bypass_authorize_edit(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Default to authorized for the existing endpoint tests so they don't need
     to mock the Note/Helper.editable_note interaction the auth check performs.
-    Tests that exercise the auth helper directly use a separate test file."""
+    Tests that exercise the auth helper directly use a separate test file.
+
+    Also patches ``_authorize_read`` (used by ``/note-commands`` per KOALA-5689)
+    so the existing route-body tests don't need to provide matching staff
+    headers either.
+    """
     if request.node.get_closest_marker("no_authorize_bypass"):
         return
     from hyperscribe.scribe.api import session_view
 
     monkeypatch.setattr(session_view, "_authorize_edit", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(session_view, "_authorize_read", lambda *_args, **_kwargs: None)
 
 
 def _helper_instance(staff_id: str = "staff-key-abc") -> ScribeSessionView:
@@ -1547,6 +1553,119 @@ def test_summary_js_sync_note_commands_skips_recommendation_uuids() -> None:
         "deciding whether to append a fetched command as a from_the_note card. "
         "Without this guard, stamped recommendations get duplicated under "
         "ADDITIONAL COMMANDS on every sync (KOALA-5634)."
+    )
+
+
+def test_sync_note_commands_overlays_from_the_note_on_match() -> None:
+    """KOALA-5689 from_the_note overlay regression (post-add update propagation).
+
+    Bug context: when a user adds an ad-hoc command on the Note tab it syncs
+    into Scribe's ADDITIONAL COMMANDS via the append branch of
+    ``syncNoteCommands`` (no local uuid match → fetched cmd appended verbatim).
+    When the user then *updates* that same command on the Note tab, the next
+    sync finds a uuid match and the original merge logic preserved the LOCAL
+    entry while discarding the fetched payload — keeping stale ``details`` on
+    screen. For from_the_note cards the chart is the source of truth: the
+    fetched payload must overlay the local entry so post-add updates
+    propagate.
+
+    The preserve-local behavior is still correct for Scribe-side commands
+    (they carry their SOAP ``section_key`` locally; overlaying the fetched
+    payload would force ``section_key`` to ``from_the_note`` and yank the
+    card out of its original SOAP group). The fix branches on the local
+    cmd's origin (``section_key === FROM_THE_NOTE_SECTION || _from_note``).
+
+    Pinning approach (structural-static, since this repo has no JS test
+    harness): assert the marker comment is present AND the matched branch's
+    overlay actually reads from the fetched binding. A marker-only test
+    could pass while a refactor silently regresses the overlay back to
+    ``{ ...cmd, ... }`` — so we also assert ``fetchedByUuid.get(`` appears
+    and that there is a ``{ ...fetchedCmd, ... }`` spread inside the
+    callback body.
+
+    Three structural pins (all required):
+      1. Marker comment ``KOALA_5689_FROM_NOTE_OVERLAY`` is present in
+         ``summary.js`` inside the syncNoteCommands callback.
+      2. Inside that callback body, ``fetchedByUuid.get(`` is called. The
+         baseline (and prior commits on this PR branch) only call
+         ``fetchedByUuid.has(...)`` here — introducing ``.get(...)`` is
+         the structural signal that the matched branch is reading from
+         the fetched payload at all.
+      3. Inside that callback body, there is a ``{ ...fetchedCmd``-style
+         spread of the fetched binding (the variable assigned from
+         ``fetchedByUuid.get(...)``) into ``merged.push({ ..., already_documented: true })``.
+         This is the discriminator that proves the overlay uses the
+         fetched payload (not the stale local one) for from_the_note cards.
+
+    Behavioral caveat: structural pin only — it does NOT execute React code.
+    Manual UAT (add a command on the Note tab, update it, check the Scribe
+    tab reflects the update) is the runtime verification.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) Marker comment.
+    assert "KOALA_5689_FROM_NOTE_OVERLAY" in src, (
+        "summary.js syncNoteCommands is missing the KOALA_5689_FROM_NOTE_OVERLAY "
+        "marker. Without overlaying the fetched payload for from_the_note cards, "
+        "post-add updates the user makes on the Note tab don't propagate into "
+        "ADDITIONAL COMMANDS on the Scribe tab (KOALA-5689)."
+    )
+
+    # Scope all remaining structural assertions to the syncNoteCommands body so
+    # they don't accidentally match unrelated code elsewhere in the file.
+    sync_decl = "const syncNoteCommands = useCallback(async () => {"
+    sync_idx = src.find(sync_decl)
+    assert sync_idx != -1, (
+        "Expected to find `const syncNoteCommands = useCallback(async () => {` "
+        "in summary.js. If the callback signature changed, update this pin."
+    )
+
+    # Walk forward counting braces to find the end of the callback body.
+    open_brace_pos = sync_idx + len(sync_decl) - 1  # position of the `{`
+    depth = 0
+    close_pos = -1
+    for i in range(open_brace_pos, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                close_pos = i
+                break
+    assert close_pos != -1, "Could not find matching close brace for syncNoteCommands callback body."
+
+    body = src[sync_idx:close_pos]
+
+    # (2) The matched-uuid branch must read from the fetched payload.
+    # Baseline only calls fetchedByUuid.has() in this region; a .get() call
+    # is the structural signal that the branch consults the fetched cmd.
+    assert "fetchedByUuid.get(" in body, (
+        "syncNoteCommands body must call `fetchedByUuid.get(...)` to retrieve "
+        "the fetched cmd for the matched-uuid branch. Without it the matched "
+        "branch can only see the local cmd's stale data, so post-add updates "
+        "to ad-hoc commands never propagate (KOALA-5689)."
+    )
+
+    # (3) The matched branch must spread the fetched binding (not `cmd`) into
+    # the merged entry for from_the_note cards. We look for a
+    # `{ ...<binding>, ... }` spread followed by `already_documented: true`
+    # where the binding name starts with `fetched` (e.g. fetchedCmd). This is
+    # the discriminator that catches a silent regression back to
+    # `merged.push({ ...cmd, already_documented: true })`.
+    overlay_pattern = re.compile(
+        r"merged\.push\(\s*\{\s*\.\.\.fetched\w*\s*,[^}]*already_documented:\s*true",
+        re.DOTALL,
+    )
+    assert overlay_pattern.search(body) is not None, (
+        "Expected a `merged.push({ ...fetched<Cmd>, ..., already_documented: true })` "
+        "inside the syncNoteCommands callback. The matched-uuid branch for "
+        "from_the_note cards must overlay the fetched payload — spreading the "
+        "local `cmd` here is the original bug: it pins the merged entry to "
+        "stale local data and post-add Note-tab updates never reach the "
+        "Scribe tab (KOALA-5689)."
     )
 
 
@@ -3090,6 +3209,145 @@ def test_note_commands_excludes_entered_in_error_rows(mock_command: MagicMock) -
 
     mock_command.objects.filter.assert_called_once_with(note__id="note-uuid")
     mock_command.objects.filter.return_value.exclude.assert_called_once_with(state="entered_in_error")
+
+
+def test_get_note_commands_uses_authorize_read_not_edit() -> None:
+    """KOALA-5689 structural pin: ``/note-commands`` MUST gate on
+    ``_authorize_read`` (no editable_note check), NOT ``_authorize_edit``.
+
+    Why this matters as a structural pin: a behavioral test alone won't catch
+    a refactor that "re-unifies" the two helpers or that drops the
+    KOALA-5689 marker comment. The bug fix is small (one call-site swap +
+    one new helper) so it's especially easy to "clean up" later — and silently
+    reintroduce the post-sign 403 storm that this fix addressed.
+
+    Three pins, all required:
+      1. The ``KOALA_5689_NOTE_COMMANDS_READ_AUTH`` marker comment exists in
+         ``session_view.py`` (intent breadcrumb).
+      2. The ``get_note_commands`` method body contains a call to
+         ``_authorize_read(note_uuid, self.request)``.
+      3. The ``get_note_commands`` method body does NOT call ``_authorize_edit``.
+
+    Behavioral caveat: structural pin only — it does NOT exercise the
+    Django ORM or the auth helper itself. The unit tests in
+    ``test_session_view_auth.py`` cover the helper, and the DB integration
+    test below covers the post-sign behavior end-to-end.
+    """
+    from pathlib import Path
+
+    session_view_py = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "api" / "session_view.py"
+    src = session_view_py.read_text()
+
+    # (1) Marker comment.
+    assert "KOALA_5689_NOTE_COMMANDS_READ_AUTH" in src, (
+        "session_view.py is missing the KOALA_5689_NOTE_COMMANDS_READ_AUTH "
+        "marker. Without it, the rationale for /note-commands using "
+        "_authorize_read instead of _authorize_edit becomes invisible to "
+        "future maintainers, who are likely to 're-unify' the helpers and "
+        "silently regress the post-sign ADDITIONAL COMMANDS sync (KOALA-5689)."
+    )
+
+    # (2) + (3) — slice to the `get_note_commands` method body and assert
+    # both calls inside that slice.
+    method_idx = src.find("def get_note_commands(self)")
+    assert method_idx != -1, (
+        "Could not locate `def get_note_commands(self)` in session_view.py. If the method was renamed, update this pin."
+    )
+    # Slice to a generous bound after the method declaration so we don't
+    # accidentally pick up calls from sibling endpoints.
+    next_method_idx = src.find("\n    @api.", method_idx + 1)
+    method_body = src[method_idx : next_method_idx if next_method_idx != -1 else len(src)]
+
+    assert "_authorize_read(note_uuid, self.request)" in method_body, (
+        "/note-commands must call `_authorize_read(note_uuid, self.request)` "
+        "(NOT `_authorize_edit`). Read-only display sync needs to keep working "
+        "after the note is signed so the Scribe tab can reflect ad-hoc "
+        "commands added on the Commands tab without forcing an amend "
+        "(KOALA-5689)."
+    )
+    # Match the actual call (`_authorize_edit(`), not bare mentions in
+    # comments/docstrings — the KOALA_5689 marker comment legitimately
+    # references `_authorize_edit` by name to explain the divergence.
+    assert "_authorize_edit(" not in method_body, (
+        "/note-commands must NOT call `_authorize_edit(...)`. The "
+        "editable_note() gate inside _authorize_edit returns False post-sign "
+        "→ 403 → client silent no-op → stale ADDITIONAL COMMANDS until the "
+        "user clicks Amend. Use _authorize_read instead (KOALA-5689)."
+    )
+
+
+@pytest.mark.no_authorize_bypass
+@pytest.mark.django_db
+def test_get_note_commands_returns_commands_after_sign() -> None:
+    """KOALA-5689 integration test (real DB + factories).
+
+    The bug: post-sign, /note-commands returned 403 because
+    ``_authorize_edit`` rejected non-editable notes. The Scribe tab's
+    ADDITIONAL COMMANDS section therefore went stale until the user clicked
+    Amend (which re-unlocks the note).
+
+    The fix: /note-commands now gates on ``_authorize_read``, which drops
+    the editable_note() check. This test sets the note's state to SIGNED
+    and confirms the endpoint returns the command list (200), not a 403.
+
+    Why integration-test this when unit tests cover the helper:
+      - The unit tests mock ``Note``/``Helper.editable_note``, so a refactor
+        that breaks the integration of the helper into the route (e.g. the
+        call-site swap getting reverted) wouldn't be caught.
+      - The real ORM path exercises the FK traversal (``note__id``,
+        ``provider__id``) — the plugin SDK ID convention is subtle enough
+        that mocking-only tests have missed regressions here before.
+
+    Uses ``@pytest.mark.no_authorize_bypass`` so the autouse fixture doesn't
+    short-circuit the helper we're trying to validate.
+    """
+    from canvas_sdk.test_utils import factories
+    from canvas_sdk.v1.data.command import Command
+    from canvas_sdk.v1.data.note import NoteStateChangeEvent, NoteStates
+
+    patient = factories.PatientFactory.create()
+    staff = factories.StaffFactory.create()
+    note = factories.NoteFactory.create(patient=patient, provider=staff)
+
+    # Drive the note to SIGNED — this is exactly the state that previously
+    # caused /note-commands to return 403 (Helper.editable_note(dbid) → False).
+    NoteStateChangeEvent.objects.create(note=note, state=NoteStates.SIGNED)
+
+    # Add a Command on the signed note. The "added via Commands tab post-sign"
+    # scenario in the bug report is structurally identical: a Command row
+    # exists for a non-editable note.
+    Command.objects.create(
+        patient=patient,
+        note=note,
+        state="active",
+        schema_key="hpi",
+        data={"narrative": "Test command added post-sign"},
+        origination_source="",
+        anchor_object_type="",
+        anchor_object_dbid=0,
+    )
+
+    # Build the view with the matching staff header so the provider check
+    # in _authorize_read passes.
+    view = _helper_instance(staff_id=str(staff.id))
+    view.request = SimpleNamespace(
+        query_params={"note_id": str(note.id)},
+        headers={"canvas-logged-in-user-id": str(staff.id)},
+    )
+
+    result = view.get_note_commands()
+
+    assert result[0].status_code == HTTPStatus.OK, (
+        f"Expected 200 after switching to _authorize_read; got "
+        f"{result[0].status_code}. If this is 403, the call-site at "
+        f"/note-commands has likely been reverted to _authorize_edit "
+        f"(KOALA-5689). Body: {result[0].content!r}"
+    )
+    payload = json.loads(result[0].content)
+    assert len(payload["commands"]) == 1
+    assert payload["commands"][0]["command_type"] == "hpi"
+    assert payload["commands"][0]["section_key"] == "from_the_note"
+    assert payload["commands"][0]["already_documented"] is True
 
 
 # --- sign-note ---

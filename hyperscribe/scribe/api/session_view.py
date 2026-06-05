@@ -133,6 +133,42 @@ def _authorize_edit(note_uuid: str, request: Any) -> JSONResponse | None:
     return None
 
 
+def _authorize_read(note_uuid: str, request: Any) -> JSONResponse | None:
+    """Return a JSONResponse to short-circuit a read of the note's Scribe tab.
+
+    Read-only display sync for endpoints like ``/note-commands``. We deliberately
+    do NOT check staff-is-provider here: any staff member who can load the
+    patient's chart (covering MAs, supervisors, providers, etc.) legitimately
+    needs to see the same ADDITIONAL COMMANDS view. Access scoping is delegated
+    to the home-app's outer chart-access permissions — the Scribe tab is just
+    a render of state the surrounding chart already exposes.
+
+    A staff-is-provider check here would reintroduce the same silent-no-op
+    pattern KOALA-5689 was filed to fix, just on a different population: any
+    covering staff (or scribe staff, supervisor, etc.) opening the chart would
+    get a 403, the client treats that as "no commands", and ADDITIONAL COMMANDS
+    silently goes stale.
+
+    Returns:
+      * 400 if ``note_uuid`` is missing.
+      * 404 if the note doesn't exist (cheap diagnostic — distinguishes a typo'd
+        id from a permission issue; the chart-access permission is upstream of
+        this endpoint anyway).
+      * ``None`` otherwise.
+
+    ``request`` is accepted for signature symmetry with :func:`_authorize_edit`
+    and forward compatibility; it is currently unread.
+    """
+    del request  # signature symmetry only; see docstring
+    if not note_uuid:
+        return JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)
+    try:
+        Note.objects.values("dbid").get(id=note_uuid)
+    except Note.DoesNotExist:
+        return JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)
+    return None
+
+
 def audit_event(note_uuid: str, event_type: str, details: dict[str, Any] | None = None) -> None:
     """Append an audit event to the ScribeAuditLog from the backend."""
     try:
@@ -1993,7 +2029,16 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_uuid = str(self.request.query_params.get("note_id", ""))
         if not note_uuid:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        if denial := _authorize_edit(note_uuid, self.request):
+        # KOALA_5689_NOTE_COMMANDS_READ_AUTH: read-only display sync — must keep
+        # working post-sign so ad-hoc commands added on the Commands tab surface in
+        # the Scribe tab without forcing the user to amend. Uses _authorize_read
+        # (no editable_note gate, no staff-is-provider gate) instead of
+        # _authorize_edit. Access scoping is delegated to the home-app's outer
+        # chart-access permissions — any staff who can load the patient's chart
+        # (covering MAs, supervisors, providers) must see the same ADDITIONAL
+        # COMMANDS view. Re-adding an author-only check here reintroduces the
+        # same silent-no-op storm just on a different population.
+        if denial := _authorize_read(note_uuid, self.request):
             return [denial]
 
         rows = list(
