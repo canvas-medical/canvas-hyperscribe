@@ -567,7 +567,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       : c)), []);
 
   const onReorderDiagnoses = useCallback((nextUuids) => setCommands(prev => {
-    const idOf = c => c.command_uuid || c._localId;
+    // The matrix keys rows on _localId (stable, unique), so reorder must too —
+    // matching by command_uuid would miss already-documented diagnoses (whose
+    // _localId the matrix sends) and the cover-check below would bail.
+    const idOf = c => c._localId;
     const isDx = c => (c.command_type === 'diagnose' || c.command_type === 'assess');
     const dxBy = new Map(prev.filter(isDx).map(c => [idOf(c), c]));
     const reordered = nextUuids.map(u => dxBy.get(u)).filter(Boolean);
