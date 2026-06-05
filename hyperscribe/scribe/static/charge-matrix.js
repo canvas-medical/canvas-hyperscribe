@@ -19,13 +19,6 @@ export const MODIFIER_SEED = [
 
 // Pure helpers — each charge must have >=1 pointer to be signable. Exported so
 // summary.js's sign-gating reuses the exact same rule (single source of truth).
-export function chargeValidity(charges) {
-  return (charges || []).map(c => ({
-    command_uuid: c.command_uuid,
-    pointerCount: (c.pointers || []).length,
-    valid: (c.pointers || []).length >= 1,
-  }));
-}
 export function canSignCharges(charges) {
   return (charges || []).every(c => (c.pointers || []).length >= 1);
 }

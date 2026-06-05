@@ -7,7 +7,7 @@ import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording
 import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
 import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/finish-button.js';
-import { canSignCharges } from '/plugin-io/api/hyperscribe/scribe/static/charge-matrix.js';
+import { canSignCharges, MAX_POINTERS, MAX_MODIFIERS } from '/plugin-io/api/hyperscribe/scribe/static/charge-matrix.js';
 
 const html = htm.bind(h);
 
@@ -514,15 +514,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       locked: Boolean(c.already_documented || c.command_uuid),
     })), [commands]);
 
-  const chargeMatrixCharges = useMemo(() => commands
-    .filter(c => c.command_type === 'perform' && c.data?.cpt_code && c.selected !== false && !c._amend_deleted)
-    .map(c => ({
-      command_uuid: c.command_uuid || c._localId,
-      cpt: c.data.cpt_code,
-      description: c.data.description || '',
-      modifiers: c.data._modifiers || [],
-      pointers: c.data._pointers || [],
-    })), [commands]);
+  const chargeMatrixCharges = useMemo(() => {
+    const dxRefs = new Set(chargeMatrixDiagnoses.map(d => d.command_uuid));
+    return commands
+      .filter(c => c.command_type === 'perform' && c.data?.cpt_code && c.selected !== false && !c._amend_deleted)
+      .map(c => ({
+        command_uuid: c.command_uuid || c._localId,
+        cpt: c.data.cpt_code,
+        description: c.data.description || '',
+        modifiers: c.data._modifiers || [],
+        pointers: (c.data._pointers || []).filter(u => dxRefs.has(u)),
+      }));
+  }, [commands, chargeMatrixDiagnoses]);
 
   // Stable identity helper: match a command by command_uuid or _localId.
   const matrixRef = (uuid) => (c) => (c.command_uuid || c._localId) === uuid;
@@ -531,14 +534,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (!matrixRef(chargeUuid)(c)) return c;
     const cur = c.data._pointers || [];
     const has = cur.includes(dxUuid);
-    if (!has && cur.length >= 4) return c;
+    if (!has && cur.length >= MAX_POINTERS) return c;
     return { ...c, data: { ...c.data, _pointers: has ? cur.filter(u => u !== dxUuid) : [...cur, dxUuid] } };
   })), []);
 
   const onAddChargeModifier = useCallback((chargeUuid, code) => setCommands(prev => prev.map(c => {
     if (!matrixRef(chargeUuid)(c)) return c;
     const cur = c.data._modifiers || [];
-    if (cur.includes(code) || cur.length >= 4) return c;
+    if (cur.includes(code) || cur.length >= MAX_MODIFIERS) return c;
     return { ...c, data: { ...c.data, _modifiers: [...cur, code] } };
   })), []);
 
