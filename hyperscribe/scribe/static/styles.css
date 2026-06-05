@@ -1782,7 +1782,7 @@ h2 { margin-bottom: 4px; }
   /* Open UPWARD: the charges matrix is the last clinical section, so a
      downward dropdown runs off the bottom of the note and gets clipped. */
   position: absolute; bottom: 100%; right: 0; margin-bottom: 6px; z-index: 50; width: 270px;
-  display: flex; flex-direction: column; max-height: 340px;
+  display: flex; flex-direction: column; max-height: 240px;
   background: #fff; border: 1px solid #e2e7ec; border-radius: 10px;
   box-shadow: 0 8px 28px rgba(14,46,78,.16); padding: 8px; text-align: left;
 }
