@@ -1733,7 +1733,7 @@ h2 { margin-bottom: 4px; }
 .cm-dx-inner { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .cm-grip { color: #cbd3db; cursor: grab; font-size: 14px; user-select: none; flex-shrink: 0; }
 .cm-grip:active { cursor: grabbing; }
-.cm-lock { color: #aeb8c2; font-size: 12px; flex-shrink: 0; }
+.cm-lock { color: #aeb8c2; flex-shrink: 0; display: inline-flex; align-items: center; }
 .cm-grip-empty { display: inline-block; width: 14px; flex-shrink: 0; }
 .cm-modchip-static { cursor: default; }
 .cm-rank {
