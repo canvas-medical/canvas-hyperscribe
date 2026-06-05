@@ -33,7 +33,7 @@ def test_build_assessment_index_maps_normalized_code_to_ids(mock_assessment):
 
     assert index["M25511"] == ["aid-1"]
     assert index["K219"] == ["aid-2"]
-    mock_assessment.objects.filter.assert_called_once_with(note=note, entered_in_error__isnull=True)
+    mock_assessment.objects.filter.assert_called_once_with(note=note, entered_in_error_id__isnull=True)
 
 
 @patch("hyperscribe.scribe.charges.enrichment.Assessment")
