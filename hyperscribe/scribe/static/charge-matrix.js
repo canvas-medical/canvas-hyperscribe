@@ -9,12 +9,13 @@ export const MAX_MODIFIERS = 4;
 
 // Common modifiers seeded into the picker. code -> description.
 export const MODIFIER_SEED = [
-  { code: '25', desc: 'Significant, separately identifiable E/M service' },
+  { code: 'GV', desc: 'Attending not employed by hospice' },
+  { code: 'GW', desc: 'Unrelated to terminal condition' },
+  { code: '25', desc: 'Significant, separate E/M same day' },
+  { code: '33', desc: 'Preventive service' },
   { code: '59', desc: 'Distinct procedural service' },
-  { code: '95', desc: 'Synchronous telemedicine service' },
-  { code: 'LT', desc: 'Left side' },
-  { code: 'RT', desc: 'Right side' },
-  { code: '76', desc: 'Repeat procedure by same physician' },
+  { code: '93', desc: 'Synchronous audio-only telemedicine' },
+  { code: '95', desc: 'Synchronous audio/video telemedicine' },
 ];
 
 // Pure helper — each charge must have >=1 diagnosis pointer to be signable.
