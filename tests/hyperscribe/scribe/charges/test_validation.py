@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from hyperscribe.scribe.charges.validation import (
     MAX_DIAGNOSIS_POINTERS,
     MAX_MODIFIERS,
@@ -44,3 +46,9 @@ def test_multiple_violations_on_one_charge_are_all_reported():
 def test_each_invalid_charge_reported_separately():
     errors = validate_charge_enrichment([_charge("a", pointers=()), _charge("b")])
     assert errors == [{"command_uuid": "a", "errors": ["at_least_one_pointer"]}]
+
+
+def test_zero_pointers_and_too_many_modifiers_both_reported():
+    modifiers = [str(n) for n in range(MAX_MODIFIERS + 1)]
+    errors = validate_charge_enrichment([_charge(pointers=(), modifiers=modifiers)])
+    assert errors == [{"command_uuid": "c1", "errors": ["at_least_one_pointer", "too_many_modifiers"]}]
