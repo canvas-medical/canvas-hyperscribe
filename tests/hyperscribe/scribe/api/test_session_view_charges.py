@@ -168,8 +168,8 @@ def test_enrich_charges_happy_path(mock_build, mock_audit, mock_auth):
     })
     result = view.post_enrich_charges()
 
-    assert result[0] is effect  # effects precede the JSONResponse
-    body = json.loads(result[-1].content)
+    body = json.loads(result[0].content)  # JSONResponse first, then effects
+    assert effect in result
     assert body["enriched"][0]["billing_line_item_id"] == "b1"
     assert body["errors"] == []
     mock_audit.assert_called_once()
@@ -199,3 +199,47 @@ def test_enrich_charges_invalid_json():
     view.request = SimpleNamespace(headers={"canvas-logged-in-user-id": "x"}, query_params={}, body=b"not json")
     result = view.post_enrich_charges()
     assert result[0].status_code == HTTPStatus.BAD_REQUEST
+
+
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_charge_enrichment_effects")
+def test_enrich_charges_returns_200_with_partial_errors(mock_build, mock_audit, mock_auth):
+    effect = _MagicMock(spec=Effect)
+    mock_build.return_value = (
+        [effect],
+        [{"command_uuid": "ok", "billing_line_item_id": "b1", "assessment_ids": ["a1"], "modifiers": []}],
+        [{"command_uuid": "bad", "reason": "billing_line_item_not_found"}],
+    )
+    view = _post_instance({
+        "note_uuid": "note-1",
+        "charges": [
+            {
+                "command_uuid": "ok",
+                "diagnosis_pointers": [{"command_uuid": "d1", "icd10_code": "M25.511"}],
+                "modifiers": [],
+            },
+            {
+                "command_uuid": "bad",
+                "diagnosis_pointers": [{"command_uuid": "d2", "icd10_code": "K21.9"}],
+                "modifiers": [],
+            },
+        ],
+    })
+    result = view.post_enrich_charges()
+    assert result[0].status_code == HTTPStatus.OK
+    body = json.loads(result[0].content)
+    assert body["errors"] == [{"command_uuid": "bad", "reason": "billing_line_item_not_found"}]
+    assert effect in result
+
+
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_charge_enrichment_effects")
+def test_enrich_charges_passes_removed_charges_through(mock_build, mock_audit, mock_auth):
+    mock_build.return_value = ([], [], [])
+    view = _post_instance({"note_uuid": "note-1", "charges": [], "removed_charges": ["uuid-x"]})
+    view.post_enrich_charges()
+    args, kwargs = mock_build.call_args
+    # signature: build_charge_enrichment_effects(charges, removed_command_uuids, note_uuid)
+    assert args[1] == ["uuid-x"] or kwargs.get("removed_command_uuids") == ["uuid-x"] or args[0:3][1] == ["uuid-x"]

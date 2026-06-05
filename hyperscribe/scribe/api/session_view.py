@@ -1990,7 +1990,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except (json.JSONDecodeError, TypeError, ValueError) as exc:
             return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
 
-        note_uuid = payload.get("note_uuid", "")
+        note_uuid = str(payload.get("note_uuid", ""))
         auth = _authorize_edit(note_uuid, self.request)
         if auth is not None:
             return [auth]
@@ -2007,9 +2007,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         audit_event(
             note_uuid,
             "ENRICH_CHARGES",
-            {"enriched": len(enriched), "removed": len(removed), "errors": len(errors)},
+            {"enriched": len(enriched), "removed_requested": len(removed), "errors": len(errors)},
         )
-        return [*effects, JSONResponse({"enriched": enriched, "errors": errors}, status_code=HTTPStatus.OK)]
+        return [JSONResponse({"enriched": enriched, "errors": errors}, status_code=HTTPStatus.OK), *effects]
 
     @api.post("/insert-metadata")
     def post_insert_metadata(self) -> list[Union[Response, Effect]]:
