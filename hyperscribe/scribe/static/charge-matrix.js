@@ -162,9 +162,14 @@ export function ChargeMatrix({
             : null}
         </div>
         ${open && !readOnly ? html`<${ModifierPicker} selected=${mods}
-            onToggle=${code => (mods.includes(code)
-              ? onRemoveModifier(charge.command_uuid, code)
-              : onAddModifier(charge.command_uuid, code))}
+            onToggle=${code => {
+              if (mods.includes(code)) {
+                onRemoveModifier(charge.command_uuid, code);
+              } else {
+                onAddModifier(charge.command_uuid, code);
+                setPopover(null); // close once a modifier is selected
+              }
+            }}
             onClose=${() => setPopover(null)} />` : null}
       </th>`;
   });
