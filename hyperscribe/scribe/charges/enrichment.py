@@ -33,7 +33,7 @@ def build_assessment_index(note: Any) -> dict[str, list[str]]:
     """
     index: dict[str, list[str]] = defaultdict(list)
     assessments = Assessment.objects.filter(
-        note=note, entered_in_error__isnull=True
+        note=note, entered_in_error_id__isnull=True
     ).prefetch_related("condition__codings")
     for assessment in assessments:
         condition = assessment.condition
