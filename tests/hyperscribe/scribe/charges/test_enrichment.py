@@ -57,3 +57,141 @@ def test_build_assessment_index_collects_multiple_ids_for_duplicate_code(mock_as
 
     index = build_assessment_index(SimpleNamespace(dbid=7))
     assert index["E119"] == ["aid-1", "aid-2"]
+
+
+from hyperscribe.scribe.charges.enrichment import (
+    CPT_MODIFIER_SYSTEM,
+    build_charge_enrichment_effects,
+)
+
+
+def _patch_note(mock_note, dbid=7):
+    mock_note.objects.get.return_value = SimpleNamespace(dbid=dbid)
+
+
+@patch("hyperscribe.scribe.charges.enrichment.UpdateBillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.Command")
+@patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
+@patch("hyperscribe.scribe.charges.enrichment.Note")
+def test_update_effect_built_for_charge_with_pointer_and_modifier(
+    mock_note, mock_index, mock_command, mock_bli, mock_update
+):
+    from canvas_sdk.v1.data.billing import BillingLineItemStatus
+    _patch_note(mock_note)
+    mock_index.return_value = {"M25511": ["aid-1"]}
+    mock_command.objects.get.return_value = SimpleNamespace(dbid=42)
+    bli = SimpleNamespace(id="bli-1")
+    bli_qs = MagicMock()
+    bli_qs.first.return_value = bli
+    mock_bli.objects.filter.return_value = bli_qs
+    mock_bli.objects.filter.return_value = bli_qs
+    mock_update.return_value = SimpleNamespace(apply=lambda: "UPDATE_EFFECT")
+
+    charges = [{
+        "command_uuid": "perform-1",
+        "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
+        "modifiers": ["25"],
+    }]
+    effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
+
+    assert effects == ["UPDATE_EFFECT"]
+    assert errors == []
+    assert enriched == [{"command_uuid": "perform-1", "billing_line_item_id": "bli-1",
+                         "assessment_ids": ["aid-1"], "modifiers": ["25"]}]
+    mock_update.assert_called_once_with(
+        billing_line_item_id="bli-1",
+        assessment_ids=["aid-1"],
+        modifiers=[{"code": "25", "system": CPT_MODIFIER_SYSTEM}],
+    )
+    mock_bli.objects.filter.assert_called_once_with(
+        note=mock_note.objects.get.return_value, command_id=42,
+        status=BillingLineItemStatus.ACTIVE,
+    )
+
+
+@patch("hyperscribe.scribe.charges.enrichment.UpdateBillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.Command")
+@patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
+@patch("hyperscribe.scribe.charges.enrichment.Note")
+def test_missing_bli_records_error_and_no_effect(
+    mock_note, mock_index, mock_command, mock_bli, mock_update
+):
+    _patch_note(mock_note)
+    mock_index.return_value = {"M25511": ["aid-1"]}
+    mock_command.objects.get.return_value = SimpleNamespace(dbid=42)
+    bli_qs = MagicMock()
+    bli_qs.first.return_value = None
+    mock_bli.objects.filter.return_value = bli_qs
+
+    charges = [{
+        "command_uuid": "perform-1",
+        "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
+        "modifiers": [],
+    }]
+    effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
+
+    assert effects == []
+    assert enriched == []
+    assert errors == [{"command_uuid": "perform-1", "reason": "billing_line_item_not_found"}]
+    mock_update.assert_not_called()
+
+
+@patch("hyperscribe.scribe.charges.enrichment.RemoveBillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.Command")
+@patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
+@patch("hyperscribe.scribe.charges.enrichment.Note")
+def test_removed_charge_emits_remove_effect(
+    mock_note, mock_index, mock_command, mock_bli, mock_remove
+):
+    _patch_note(mock_note)
+    mock_index.return_value = {}
+    mock_command.objects.get.return_value = SimpleNamespace(dbid=99)
+    bli = SimpleNamespace(id="bli-9")
+    bli_qs = MagicMock()
+    bli_qs.first.return_value = bli
+    mock_bli.objects.filter.return_value = bli_qs
+    mock_remove.return_value = SimpleNamespace(apply=lambda: "REMOVE_EFFECT")
+
+    effects, enriched, errors = build_charge_enrichment_effects([], ["perform-removed"], "note-uuid")
+
+    assert effects == ["REMOVE_EFFECT"]
+    assert enriched == []
+    assert errors == []
+    mock_remove.assert_called_once_with(billing_line_item_id="bli-9")
+
+
+@patch("hyperscribe.scribe.charges.enrichment.Note")
+def test_unknown_note_returns_error(mock_note):
+    mock_note.DoesNotExist = Exception
+    mock_note.objects.get.side_effect = mock_note.DoesNotExist
+    effects, enriched, errors = build_charge_enrichment_effects([], [], "bad-uuid")
+    assert effects == []
+    assert enriched == []
+    assert errors == [{"command_uuid": "", "reason": "note_not_found"}]
+
+
+@patch("hyperscribe.scribe.charges.enrichment.UpdateBillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.Command")
+@patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
+@patch("hyperscribe.scribe.charges.enrichment.Note")
+def test_unresolvable_command_uuid_records_error(
+    mock_note, mock_index, mock_command, mock_bli, mock_update
+):
+    _patch_note(mock_note)
+    mock_index.return_value = {"M25511": ["aid-1"]}
+    mock_command.DoesNotExist = Exception
+    mock_command.objects.get.side_effect = mock_command.DoesNotExist
+
+    charges = [{
+        "command_uuid": "missing-perform",
+        "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
+        "modifiers": [],
+    }]
+    effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
+    assert effects == []
+    assert errors == [{"command_uuid": "missing-perform", "reason": "billing_line_item_not_found"}]
+    mock_update.assert_not_called()
