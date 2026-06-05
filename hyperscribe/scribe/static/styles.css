@@ -1779,7 +1779,10 @@ h2 { margin-bottom: 4px; }
 
 /* -- popovers (modifier picker + charge search) -- */
 .cm-popover {
-  position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 50; width: 270px;
+  /* Open UPWARD: the charges matrix is the last clinical section, so a
+     downward dropdown runs off the bottom of the note and gets clipped. */
+  position: absolute; bottom: 100%; right: 0; margin-bottom: 6px; z-index: 50; width: 270px;
+  display: flex; flex-direction: column; max-height: 60vh;
   background: #fff; border: 1px solid #e2e7ec; border-radius: 10px;
   box-shadow: 0 8px 28px rgba(14,46,78,.16); padding: 8px; text-align: left;
 }
@@ -1789,7 +1792,9 @@ h2 { margin-bottom: 4px; }
   border-radius: 6px; font-size: 13px; font-family: inherit; margin-bottom: 6px;
 }
 .cm-popover-search:focus { outline: none; border-color: #93b4d4; box-shadow: 0 0 0 3px rgba(82,130,180,.12); }
-.cm-popover-list { max-height: 230px; overflow-y: auto; }
+.cm-popover-search { flex-shrink: 0; }
+.cm-popover-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.cm-popover-done { flex-shrink: 0; }
 .cm-popover-row {
   display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: none;
   background: transparent; border-radius: 6px; cursor: pointer; text-align: left; font-family: inherit;

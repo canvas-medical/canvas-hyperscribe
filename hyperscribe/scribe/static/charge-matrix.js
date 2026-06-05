@@ -1,5 +1,5 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
-import { useState } from 'https://esm.sh/preact@10.25.4/hooks';
+import { useState, useEffect } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
@@ -101,6 +101,26 @@ export function ChargeMatrix({
   // Single popover state so only one (modifier or charge-search) is ever open.
   // { kind: 'mod', id: <charge uuid> } | { kind: 'charge' } | null
   const [popover, setPopover] = useState(null);
+
+  // Close the open popover (modifier picker / CPT search) on an outside click
+  // or Escape — so the provider doesn't have to use Cancel/Done. Clicks on a
+  // popover or its trigger are ignored so opening/toggling still works.
+  useEffect(() => {
+    if (!popover) return undefined;
+    const onPointerDown = (e) => {
+      const t = e.target;
+      if (t && t.closest && (t.closest('.cm-popover') || t.closest('.cm-modadd') || t.closest('.cm-add-btn'))) return;
+      setPopover(null);
+    };
+    const onKeyDown = (e) => { if (e.key === 'Escape') setPopover(null); };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [popover]);
+
   const dxs = diagnoses || [];
   const chs = charges || [];
   const lockedCount = isAmending ? dxs.filter(d => d.locked).length : 0;
