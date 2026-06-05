@@ -1,5 +1,5 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
-import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10.25.4/hooks';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
 import { collectQuestionnaireScores } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-score.js';
@@ -7,6 +7,7 @@ import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording
 import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
 import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/finish-button.js';
+import { canSignCharges } from '/plugin-io/api/hyperscribe/scribe/static/charge-matrix.js';
 
 const html = htm.bind(h);
 
@@ -347,7 +348,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onRemoveChargeByUuid } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -381,6 +382,13 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddTemplateCharge=${isCharges ? onAddTemplateCharge : null}
         onRemoveChargeByCpt=${isCharges ? onRemoveChargeByCpt : null}
         templateCharges=${isCharges ? templateCharges : null}
+        chargeMatrixDiagnoses=${isCharges ? chargeMatrixDiagnoses : null}
+        chargeMatrixCharges=${isCharges ? chargeMatrixCharges : null}
+        onToggleChargePointer=${isCharges ? onToggleChargePointer : null}
+        onReorderDiagnoses=${isCharges ? onReorderDiagnoses : null}
+        onAddChargeModifier=${isCharges ? onAddChargeModifier : null}
+        onRemoveChargeModifier=${isCharges ? onRemoveChargeModifier : null}
+        onRemoveChargeByUuid=${isCharges ? onRemoveChargeByUuid : null}
         readOnly=${readOnly}
         isAmending=${isAmending}
         sectionConditions=${sectionConditions}
@@ -431,6 +439,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [progress, setProgress] = useState({ step: -1, total: 0, label: '' });
   const [verificationResult, setVerificationResult] = useState(null);
   const [validationError, setValidationError] = useState(null);
+  const [chargeErrors, setChargeErrors] = useState([]);
 
   // Template state.
   const [templates, setTemplates] = useState(initialData?.templates ?? []);
@@ -493,6 +502,74 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const saveBlockedRef = useRef(false);
 
   const [editingFields, setEditingFields] = useState(new Set());
+
+  // --- Charge matrix view-models (derived from commands) ---
+  const chargeMatrixDiagnoses = useMemo(() => commands
+    .filter(c => (c.command_type === 'diagnose' || c.command_type === 'assess')
+      && (c.data?.icd10_code || c.data?.code))
+    .map(c => ({
+      command_uuid: c.command_uuid || c._localId,
+      code: c.data?.icd10_code || c.data?.code || '',
+      label: c.data?.icd10_display || c.data?.label || c.display || '',
+      locked: Boolean(c.already_documented || c.command_uuid),
+    })), [commands]);
+
+  const chargeMatrixCharges = useMemo(() => commands
+    .filter(c => c.command_type === 'perform' && c.data?.cpt_code && c.selected !== false && !c._amend_deleted)
+    .map(c => ({
+      command_uuid: c.command_uuid || c._localId,
+      cpt: c.data.cpt_code,
+      description: c.data.description || '',
+      modifiers: c.data._modifiers || [],
+      pointers: c.data._pointers || [],
+    })), [commands]);
+
+  // Stable identity helper: match a command by command_uuid or _localId.
+  const matrixRef = (uuid) => (c) => (c.command_uuid || c._localId) === uuid;
+
+  const onToggleChargePointer = useCallback((chargeUuid, dxUuid) => setCommands(prev => prev.map(c => {
+    if (!matrixRef(chargeUuid)(c)) return c;
+    const cur = c.data._pointers || [];
+    const has = cur.includes(dxUuid);
+    if (!has && cur.length >= 4) return c;
+    return { ...c, data: { ...c.data, _pointers: has ? cur.filter(u => u !== dxUuid) : [...cur, dxUuid] } };
+  })), []);
+
+  const onAddChargeModifier = useCallback((chargeUuid, code) => setCommands(prev => prev.map(c => {
+    if (!matrixRef(chargeUuid)(c)) return c;
+    const cur = c.data._modifiers || [];
+    if (cur.includes(code) || cur.length >= 4) return c;
+    return { ...c, data: { ...c.data, _modifiers: [...cur, code] } };
+  })), []);
+
+  const onRemoveChargeModifier = useCallback((chargeUuid, code) => setCommands(prev => prev.map(c =>
+    matrixRef(chargeUuid)(c)
+      ? { ...c, data: { ...c.data, _modifiers: (c.data._modifiers || []).filter(m => m !== code) } }
+      : c)), []);
+
+  const onReorderDiagnoses = useCallback((nextUuids) => setCommands(prev => {
+    const idOf = c => c.command_uuid || c._localId;
+    const isDx = c => (c.command_type === 'diagnose' || c.command_type === 'assess');
+    const dxBy = new Map(prev.filter(isDx).map(c => [idOf(c), c]));
+    const reordered = nextUuids.map(u => dxBy.get(u)).filter(Boolean);
+    let i = 0;
+    return prev.map(c => isDx(c) ? reordered[i++] : c);
+  }), []);
+
+  // onRemoveChargeByUuid: removes a charge from the matrix. Reuses the same
+  // _amend_deleted tagging path as handleRemoveChargeByCpt so the amend-delete
+  // EIE flow in handleInsert fires correctly for already-documented charges.
+  const onRemoveChargeByUuid = useCallback((chargeUuid) => {
+    const amending = wasFinalized && !approved;
+    setCommands(prev => prev.map(c => {
+      if (!matrixRef(chargeUuid)(c)) return c;
+      if (c.already_documented && isAmendingSectionEditable(c, amending)) {
+        return { ...c, selected: false, _amend_deleted: true };
+      }
+      return { ...c, selected: false };
+    }));
+  }, [wasFinalized, approved]);
+  // --- End charge matrix ---
 
   // Recording hook.
   const recording = useRecording(noteId, initialData?.transcript);
@@ -1487,10 +1564,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setCommands(prev => [...prev, {
       command_type: 'perform',
       display: '',
-      data: { cpt_code: null, description: '', notes: '' },
+      data: { cpt_code: null, description: '', notes: '', _modifiers: [], _pointers: [] },
       selected: true,
       section_key: '_charges_ad_hoc',
       already_documented: false,
+      _localId: crypto.randomUUID(),
     }]);
   }, [canEdit]);
 
@@ -1515,10 +1593,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       return [...prev, {
         command_type: 'perform',
         display: `${cptCode} — ${description}`,
-        data: { cpt_code: cptCode, description, notes: '' },
+        data: { cpt_code: cptCode, description, notes: '', _modifiers: [], _pointers: [] },
         selected: true,
         section_key: '_charges_ad_hoc',
         already_documented: false,
+        _localId: crypto.randomUUID(),
       }];
     });
   }, [canEdit]);
@@ -1935,6 +2014,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       .filter(c => c.command_type !== 'diagnose' || (c.data.icd10_code && c.data.accepted));
 
     // Prescriptions first so they appear at the top of the note.
+    // Diagnosis rank is the commands[] order of diagnose/assess rows (the matrix
+    // reorder mutates that order). Do NOT reorder diagnoses when building the
+    // insert batch, or ClaimDiagnosisCode.rank will diverge from the matrix.
+    // The RX sort below only moves Rx to position 0; it does not disturb the
+    // relative order of diagnose/assess rows against each other.
     const RX_SET = new Set(['prescribe', 'refill', 'adjust_prescription']);
     allInsertable.sort((a, b) => (RX_SET.has(a.command_type) ? 0 : 1) - (RX_SET.has(b.command_type) ? 0 : 1));
     logEvent('COMMANDS_SENDING', { commands: allInsertable.map(c => ({
@@ -2028,6 +2112,49 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           // ref-mirror to run post-commit.
           commitRecommendations(updatedRecommendations);
         }
+
+        // Enrich charges: write diagnosis pointers + modifiers onto each charge's
+        // BillingLineItem after the perform commands are committed (BLIs exist now).
+        // Uses updatedCommands (fully UUID-stamped) so every perform command_uuid is
+        // valid. amendDeletes have already been filtered out of workingCommands.
+        {
+          const dxCodeByRef = new Map(chargeMatrixDiagnoses.map(d => [d.command_uuid, d.code]));
+          const enrichCharges = updatedCommands
+            .filter(c => c.command_type === 'perform' && c.data?.cpt_code && c.command_uuid)
+            .map(c => ({
+              command_uuid: c.command_uuid,
+              diagnosis_pointers: (c.data._pointers || [])
+                .map(u => ({ command_uuid: u, icd10_code: dxCodeByRef.get(u) || '' }))
+                .filter(p => p.icd10_code),
+              modifiers: c.data._modifiers || [],
+            }));
+          const removedCharges = amendDeletes
+            .filter(c => c.command_type === 'perform' && c.command_uuid)
+            .map(c => c.command_uuid);
+
+          if (enrichCharges.length || removedCharges.length) {
+            try {
+              const enrichRes = await fetch(`${API_BASE}/enrich-charges`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note_uuid: noteId, charges: enrichCharges, removed_charges: removedCharges }),
+              });
+              const enrichData = await enrichRes.json().catch(() => ({}));
+              if (enrichRes.status === 422) {
+                setChargeErrors(enrichData.errors || []);
+                setApproved(false);
+                setConfirming(false);
+                saveSummaryToCache(noteData, updatedCommands, false, { recommendations: updatedRecommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+                setInserting(false);
+                return;
+              }
+              if (enrichData.errors && enrichData.errors.length) console.warn('enrich-charges partial errors', enrichData.errors);
+            } catch (enrichErr) {
+              console.error('enrich-charges fetch failed:', enrichErr);
+            }
+          }
+        }
+
         // CACHE_FLIP_UNCONDITIONAL_ON_APPROVE_SUCCESS - KOALA-5485 cache-flip regression:
         // the approved=true cache write must fire UNCONDITIONALLY on the success branch,
         // NOT gated on `data.attempted.length > 0`. Two paths reach here with zero
@@ -2601,6 +2728,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           alertFacilityEnabled,
           onEditingChange: handleEditingChange,
           questionnaireScores: collectQuestionnaireScores(commands),
+          chargeMatrixDiagnoses,
+          chargeMatrixCharges,
+          onToggleChargePointer: canEdit ? onToggleChargePointer : null,
+          onReorderDiagnoses: canEdit ? onReorderDiagnoses : null,
+          onAddChargeModifier: canEdit ? onAddChargeModifier : null,
+          onRemoveChargeModifier: canEdit ? onRemoveChargeModifier : null,
+          onRemoveChargeByUuid: canEdit ? onRemoveChargeByUuid : null,
         })}
         ${fromTheNoteCommands.length > 0 && html`
           <div class="summary-section from-the-note-section">
@@ -2672,7 +2806,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
                 </div>
               `}
-              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
+              ${!canSignCharges(chargeMatrixCharges) && html`
+                <div class="summary-footer-warning cm-sign-error">Every charge needs at least one diagnosis pointer to sign.</div>
+              `}
+              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits || !canSignCharges(chargeMatrixCharges)} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
               ${!wasFinalized && html`<div class="approve-warning">This action is permanent and cannot be undone.</div>`}
             </div>
           `}
