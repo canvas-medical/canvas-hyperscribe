@@ -109,6 +109,23 @@ A new charges-matrix component replaces the flat charge list in the CHARGES sect
 
 Interaction patterns (drag-to-reorder, checkbox cells) may borrow from PR #257 where sound, but the component is built clean. The design agent owns visual polish; this spec owns the data contract behind it.
 
+### Amendment: locked-rank affordance
+During an amendment, the matrix shows two diagnosis groups, using primitives the handoff already provides (`Lock` glyph in `primitives.jsx`; the `showGrips` toggle that swaps the 6-dot grip for a blank gutter in `dirs-matrix.jsx`):
+
+```
+ON THE SIGNED CLAIM
+ 🔒 1  M25511  Pain in right shoulder      (locked rank, no grip, muted rank chip)
+ 🔒 2  K219    GERD w/o esophagitis
+── added in this amendment ──────────
+ ⠿ 3  J029    Acute pharyngitis            (grip shown, draggable)
+ ⠿ 4  R51     Headache
+```
+
+- **Locked rows** (`locked: true`): the `Lock` glyph replaces the drag grip, rank chip rendered muted; row is not draggable.
+- A **labeled divider** ("added in this amendment") separates the locked group (top, ranks 1..k) from the net-new group (bottom, ranks k+1..n).
+- **Drag is constrained to below the divider:** a net-new row can only be dropped within the net-new group; it cannot move above the last locked row. The drop zone/boundary is highlighted during drag.
+- Outside amendment (first approval) every row shows the grip and is freely reorderable; the divider and lock glyphs do not appear.
+
 ## 8. Testing strategy
 - **Resolver unit tests:** `command_uuid` → `Assessment` id mapping; duplicate-condition disambiguation; modifier `Coding` construction; BLI lookup by `command_id`; exclusion of `entered_in_error` assessments.
 - **Endpoint tests** for `/enrich-charges`: auth (author-only), happy path, invalid payloads, validator rejections.
