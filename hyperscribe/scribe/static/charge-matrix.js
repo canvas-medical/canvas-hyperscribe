@@ -214,7 +214,7 @@ export function ChargeMatrix({
             ${draggable
               ? html`<span class="cm-grip" title="Drag to reorder rank">⠿</span>`
               : (isAmending && dx.locked)
-                ? html`<span class="cm-lock" title="Order locked — already on the signed claim">🔒</span>`
+                ? html`<span class="cm-lock" title="Order locked — already on the signed claim"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>`
                 : html`<span class="cm-grip-empty"></span>`}
             <span class="cm-rank${dx.locked ? ' cm-rank-muted' : ''}">${idx + 1}</span>
             <span class="cm-dxcode">${dx.code}</span>
