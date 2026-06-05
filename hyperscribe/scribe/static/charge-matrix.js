@@ -274,7 +274,7 @@ export function ChargeMatrix({
               ${chs.map(charge => {
                 const n = (charge.pointers || []).length;
                 return html`<td class="cm-foot-cell" key=${charge.command_uuid}>
-                  <span class="cm-pill${n === 0 ? ' cm-pill-error' : ''}">${n} / ${MAX_POINTERS} ${n === 0 ? '✗' : '✓'}</span>
+                  <span class="cm-pill${n === 0 ? ' cm-pill-error' : ''}">${n} / ${MAX_POINTERS}</span>
                 </td>`;
               })}
               <td></td>
