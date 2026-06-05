@@ -504,12 +504,27 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const [editingFields, setEditingFields] = useState(new Set());
 
+  // Every command needs a STABLE, UNIQUE client id for the charges matrix to
+  // tell rows/columns apart. Scribe-generated diagnose/assess commands have
+  // neither a command_uuid (assigned only after insertion) nor a _localId, so
+  // without this they'd all share the same (undefined) identity — checking one
+  // checkbox in a column would visually check the whole column. We stamp a
+  // _localId on any command missing one and key the matrix on _localId (NOT
+  // command_uuid) so the identity stays stable across the insert boundary,
+  // which also keeps the diagnosis-pointer -> code resolution correct at
+  // /enrich-charges time.
+  useEffect(() => {
+    if (commands.some(c => !c._localId)) {
+      setCommands(prev => prev.map(c => (c._localId ? c : { ...c, _localId: crypto.randomUUID() })));
+    }
+  }, [commands]);
+
   // --- Charge matrix view-models (derived from commands) ---
   const chargeMatrixDiagnoses = useMemo(() => commands
     .filter(c => (c.command_type === 'diagnose' || c.command_type === 'assess')
-      && (c.data?.icd10_code || c.data?.code))
+      && (c.data?.icd10_code || c.data?.code) && c._localId)
     .map(c => ({
-      command_uuid: c.command_uuid || c._localId,
+      command_uuid: c._localId,
       code: c.data?.icd10_code || c.data?.code || '',
       label: c.data?.icd10_display || c.data?.label || c.display || '',
       locked: Boolean(c.already_documented || c.command_uuid),
@@ -518,9 +533,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const chargeMatrixCharges = useMemo(() => {
     const dxRefs = new Set(chargeMatrixDiagnoses.map(d => d.command_uuid));
     return commands
-      .filter(c => c.command_type === 'perform' && c.data?.cpt_code && c.selected !== false && !c._amend_deleted)
+      .filter(c => c.command_type === 'perform' && c.data?.cpt_code && c.selected !== false && !c._amend_deleted && c._localId)
       .map(c => ({
-        command_uuid: c.command_uuid || c._localId,
+        command_uuid: c._localId,
         cpt: c.data.cpt_code,
         description: c.data.description || '',
         modifiers: c.data._modifiers || [],
@@ -528,8 +543,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       }));
   }, [commands, chargeMatrixDiagnoses]);
 
-  // Stable identity helper: match a command by command_uuid or _localId.
-  const matrixRef = (uuid) => (c) => (c.command_uuid || c._localId) === uuid;
+  // The matrix keys rows/columns on _localId (stable, unique per command).
+  const matrixRef = (localId) => (c) => c._localId === localId;
 
   const onToggleChargePointer = useCallback((chargeUuid, dxUuid) => setCommands(prev => prev.map(c => {
     if (!matrixRef(chargeUuid)(c)) return c;
