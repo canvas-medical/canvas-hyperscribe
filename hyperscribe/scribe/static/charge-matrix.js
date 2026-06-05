@@ -246,6 +246,35 @@ export function ChargeMatrix({
   }
 
   const chargeOpen = popover && popover.kind === 'charge';
+  // The CPT search popover (with the visit template's suggestions). Reused by
+  // both the header "+" and the empty-state "Add charge" button.
+  const chargePicker = chargeOpen
+    ? html`<${ChargePicker} searchCharges=${searchCharges} suggested=${suggestedAvailable}
+        onPick=${(cpt, desc) => { onAddCharge(cpt, desc); setPopover(null); }}
+        onClose=${() => setPopover(null)} />`
+    : null;
+
+  // Fully-empty state (no diagnoses and no charges): a friendly panel instead
+  // of an empty table shell with an orphaned "+".
+  if (dxs.length === 0 && chs.length === 0) {
+    return html`
+      <div class="cm-wrap">
+        <div class="cm-empty-panel">
+          <div class="cm-empty-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h16v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M8 8h8M8 12h8"/></svg>
+          </div>
+          <div class="cm-empty-title">No charges yet</div>
+          <div class="cm-empty-hint">Add a diagnosis in the Plan, then add a charge here to link them.</div>
+          ${!readOnly ? html`<div class="cm-empty-add">
+            <button class="cm-empty-btn" onClick=${() => setPopover(chargeOpen ? null : { kind: 'charge' })}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Add charge
+            </button>
+            ${chargePicker}
+          </div>` : null}
+        </div>
+      </div>`;
+  }
 
   return html`
     <div class="cm-wrap">
@@ -258,14 +287,12 @@ export function ChargeMatrix({
               ${!readOnly ? html`
                 <button class="cm-add-btn" title="Add charge"
                   onClick=${() => setPopover(chargeOpen ? null : { kind: 'charge' })}>+</button>
-                ${chargeOpen ? html`<${ChargePicker} searchCharges=${searchCharges} suggested=${suggestedAvailable}
-                    onPick=${(cpt, desc) => { onAddCharge(cpt, desc); setPopover(null); }}
-                    onClose=${() => setPopover(null)} />` : null}` : null}
+                ${chargePicker}` : null}
             </th>
           </tr>
         </thead>
         <tbody>${dxs.length === 0
-          ? html`<tr><td class="cm-empty" colSpan=${colSpan}>Add a diagnosis in the Plan, then link it to a charge here.</td></tr>`
+          ? html`<tr><td class="cm-empty" colSpan=${colSpan}>Add a diagnosis in the Plan to link it to this charge.</td></tr>`
           : bodyRows}</tbody>
         ${chs.length > 0 ? html`
           <tfoot>
