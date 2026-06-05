@@ -137,3 +137,65 @@ def test_search_charges_empty_results(mock_cdm: MagicMock) -> None:
     assert result[0].status_code == HTTPStatus.OK
     data = json.loads(result[0].content)
     assert data["results"] == []
+
+
+from unittest.mock import MagicMock as _MagicMock
+from canvas_sdk.effects import Effect
+
+
+def _post_instance(body: dict, staff_id="staff-key-abc") -> ScribeSessionView:
+    view = _helper_instance(staff_id)
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": staff_id},
+        query_params={},
+        body=json.dumps(body).encode(),
+    )
+    return view
+
+
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.build_charge_enrichment_effects")
+def test_enrich_charges_happy_path(mock_build, mock_audit, mock_auth):
+    effect = _MagicMock(spec=Effect)
+    mock_build.return_value = ([effect], [{"command_uuid": "c1", "billing_line_item_id": "b1",
+                                          "assessment_ids": ["a1"], "modifiers": ["25"]}], [])
+    view = _post_instance({
+        "note_uuid": "note-1",
+        "charges": [{"command_uuid": "c1",
+                     "diagnosis_pointers": [{"command_uuid": "d1", "icd10_code": "M25.511"}],
+                     "modifiers": ["25"]}],
+    })
+    result = view.post_enrich_charges()
+
+    assert result[0] is effect  # effects precede the JSONResponse
+    body = json.loads(result[-1].content)
+    assert body["enriched"][0]["billing_line_item_id"] == "b1"
+    assert body["errors"] == []
+    mock_audit.assert_called_once()
+
+
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_enrich_charges_rejects_charge_without_pointer(mock_auth):
+    view = _post_instance({
+        "note_uuid": "note-1",
+        "charges": [{"command_uuid": "c1", "diagnosis_pointers": [], "modifiers": []}],
+    })
+    result = view.post_enrich_charges()
+    assert result[0].status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    body = json.loads(result[0].content)
+    assert body["errors"] == [{"command_uuid": "c1", "errors": ["at_least_one_pointer"]}]
+
+
+def test_enrich_charges_requires_auth():
+    # No _authorize_edit patch: real auth runs and short-circuits on missing note_uuid.
+    view = _post_instance({"note_uuid": "", "charges": []})
+    result = view.post_enrich_charges()
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_enrich_charges_invalid_json():
+    view = _helper_instance()
+    view.request = SimpleNamespace(headers={"canvas-logged-in-user-id": "x"}, query_params={}, body=b"not json")
+    result = view.post_enrich_charges()
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
