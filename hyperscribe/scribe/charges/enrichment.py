@@ -80,12 +80,38 @@ def _find_billing_line_item(note: Any, command_uuid: str) -> Any | None:
     try:
         command = Command.objects.get(id=command_uuid)
     except Command.DoesNotExist:
+        # The home-app applies the originate+commit effects from /insert-commands
+        # asynchronously, so the command may not exist yet on the first attempt;
+        # the frontend retries. Log so we can tell timing apart from a real miss.
+        log.info("enrich_charges: command %s not present yet", command_uuid)
         return None
-    return (
+    bli = (
         BillingLineItem.objects.filter(
             note=note, command_id=command.dbid, status=BillingLineItemStatus.ACTIVE
         ).first()
     )
+    if bli is None:
+        # Fallback to the SDK-documented cpt + note lookup in case command_id
+        # isn't populated the way we expect. cpt lives in the perform command's
+        # data payload (data["perform"]["value"], or data["cpt_code"]).
+        data = getattr(command, "data", None) or {}
+        cpt = None
+        if isinstance(data, dict):
+            perform = data.get("perform")
+            if isinstance(perform, dict):
+                cpt = perform.get("value")
+            cpt = cpt or data.get("cpt_code")
+        if cpt:
+            bli = (
+                BillingLineItem.objects.filter(
+                    note=note, cpt=cpt, status=BillingLineItemStatus.ACTIVE
+                ).first()
+            )
+        log.info(
+            "enrich_charges: cmd=%s dbid=%s cpt=%s bli_found=%s (command_id miss)",
+            command_uuid, command.dbid, cpt, bli is not None,
+        )
+    return bli
 
 
 def build_charge_enrichment_effects(
@@ -110,6 +136,10 @@ def build_charge_enrichment_effects(
         return [], [], [{"command_uuid": "", "reason": "note_not_found"}]
 
     index = build_assessment_index(note)
+    log.info(
+        "enrich_charges: note=%s charges=%d removed=%d assessment_codes=%d",
+        note_uuid, len(charges), len(removed_command_uuids), len(index),
+    )
     effects: list[Effect] = []
     enriched: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
@@ -147,4 +177,9 @@ def build_charge_enrichment_effects(
             continue
         effects.append(RemoveBillingLineItem(billing_line_item_id=str(bli.id)).apply())
 
+    log.info(
+        "enrich_charges result: enriched=%d errors=%d effects=%d (%s)",
+        len(enriched), len(errors), len(effects),
+        ",".join(f"{e['command_uuid']}:{e['reason']}" for e in errors) or "ok",
+    )
     return effects, enriched, errors
