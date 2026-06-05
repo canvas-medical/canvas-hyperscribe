@@ -3524,57 +3524,59 @@ def _read_diagnose_row_js() -> str:
     return js.read_text()
 
 
-def test_diagnose_row_renders_background_when_condition_id_present() -> None:
-    """KOALA-5635: the Background textarea / read-only block in DiagnoseRow
-    must be GATED on ``data.condition_id``. Without the gate, the field
-    would show for diagnose proposals that don't match an active condition
-    on the patient — there's no scope for carry-forward there, and the
-    home-app diagnose command doesn't persist background, so the field
-    would be a UX trap (typing into a field whose contents will be dropped).
+def test_diagnose_row_always_renders_background_section() -> None:
+    """KOALA-5635 (ROUND 3): the Background textarea / read-only block in
+    DiagnoseRow must render UNCONDITIONALLY, independent of
+    ``data.condition_id``. Round-2's ``hasConditionId`` gate was rejected
+    in Kevin's UAT — the field must be available on ALL condition cards in
+    ALL situations (new diagnosis, matched assess, AI rec, user-initiated,
+    prior-background-empty-or-not, AND after an ICD change). The
+    ``DiagnoseCommand`` in the canvas-plugins SDK accepts a ``background``
+    field, so there is no silent-drop risk on unmatched ICDs.
 
-    Pin: the marker ``KOALA_5635_BACKGROUND_TEXTAREA`` must be present
-    AND a ``hasConditionId`` constant must be derived from
-    ``!!data.condition_id``.
+    Pin assertions:
+      1. Marker ``KOALA_5635_BACKGROUND_ALWAYS_RENDER`` is present.
+      2. Marker ``KOALA_5635_BACKGROUND_TEXTAREA`` is still present (local
+         state pattern survives — only the render gate is dropped).
+      3. The ``hasConditionId`` constant must NOT exist in the file
+         (round-2 artifact; would re-introduce the gate if it survived).
     """
     src = _read_diagnose_row_js()
 
+    assert "KOALA_5635_BACKGROUND_ALWAYS_RENDER" in src, (
+        "diagnose-row.js is missing the KOALA_5635_BACKGROUND_ALWAYS_RENDER "
+        "marker. Kevin's UAT on PR #288 explicitly required the Background "
+        "field to render on every diagnose-row card regardless of whether "
+        "an active condition was matched. Drop the ``hasConditionId`` gate "
+        "and add this marker to flag the new behavior."
+    )
     assert "KOALA_5635_BACKGROUND_TEXTAREA" in src, (
-        "diagnose-row.js is missing the KOALA_5635_BACKGROUND_TEXTAREA marker. "
-        "The Background field on rec-diagnose rows must be added per KOALA-5635 "
-        "so the per-(patient, condition) carry-forward is editable BEFORE the "
-        "frontend flips diagnose→assess at insert time. Add the textarea, gate "
-        "it on ``data.condition_id``, and mark the branch with this marker."
+        "diagnose-row.js must still contain the KOALA_5635_BACKGROUND_TEXTAREA "
+        "marker — the local-state / prop-sync pattern that mirrors "
+        "AssessNarrative is unrelated to the render gate that was dropped."
     )
-    # The gate uses ``hasConditionId = !!data.condition_id`` (or equivalent).
-    # Regex tolerates whitespace variation but pins the predicate shape.
-    gate_pattern = re.compile(r"hasConditionId\s*=\s*!!\s*data\.condition_id")
-    assert gate_pattern.search(src), (
-        "diagnose-row.js must derive a ``hasConditionId`` constant from "
-        "``!!data.condition_id``. Without this gate, the Background field "
-        "would render for unmatched diagnose proposals where the home-app "
-        "command has no background field to persist."
+    assert "hasConditionId" not in src, (
+        "diagnose-row.js must not reference ``hasConditionId``. The "
+        "round-2 gate is dropped per Kevin's UAT — keeping the constant "
+        "would invite a future refactor to re-wire it as a render gate."
     )
 
 
-def test_diagnose_row_omits_background_when_no_condition_id() -> None:
-    """KOALA-5635: the Background textarea rendering must be wrapped in a
-    ``hasConditionId && ...`` conditional in BOTH the read-only and edit-mode
-    branches. If a future refactor removes the conditional and renders the
-    textarea unconditionally, this pin fails.
+def test_diagnose_row_renders_background_even_without_condition_id() -> None:
+    """KOALA-5635 (ROUND 3, inverted): the Background textarea rendering
+    must NOT be wrapped in a ``hasConditionId && ...`` conditional in
+    either the read-only or the edit-mode branch. Round-2 required at
+    least two such guards; round-3 inverts: zero occurrences.
 
-    Pin: at least two ``hasConditionId &&`` rendering guards exist in the
-    file (one for read-only label/content, one for edit-mode textarea).
+    Pin: zero occurrences of ``hasConditionId &&`` rendering guards.
     """
     src = _read_diagnose_row_js()
-    # Count occurrences of ``hasConditionId &&`` (rendering-time gate). At
-    # least 2 — one in the read-only branch, one in the edit-mode branch.
     occurrences = len(re.findall(r"hasConditionId\s*&&", src))
-    assert occurrences >= 2, (
-        "diagnose-row.js must gate Background rendering on ``hasConditionId``. "
+    assert occurrences == 0, (
+        "diagnose-row.js must NOT gate Background rendering on "
+        "``hasConditionId``. "
         f"Found {occurrences} occurrences of ``hasConditionId &&``; expected "
-        "at least 2 (read-only branch + edit-mode branch). A refactor that "
-        "drops the gate would let the field render for unmatched diagnose "
-        "proposals — UX trap; the value would not persist server-side."
+        "zero per Kevin's UAT — the field must render on every card."
     )
 
 
@@ -3698,6 +3700,116 @@ def test_diagnose_row_handle_clear_code_clears_background_and_condition_id() -> 
         "``background: ''``). Same reasoning as ``handleSelect``: prevent "
         "cross-attachment between the prior condition_id's background "
         "text and a freshly-selected ICD code."
+    )
+
+
+def test_diagnose_row_has_background_help_text() -> None:
+    """KOALA-5635 (ROUND 3): the Background field must render the helper
+    text ``Optional. You write this. Carries forward to every note.``
+    directly under the BACKGROUND label, per Kevin's v2 mock. This pins
+    the user-facing string so a future refactor can't quietly drop it.
+    """
+    src = _read_diagnose_row_js()
+    expected = "Optional. You write this. Carries forward to every note."
+    assert expected in src, (
+        f"diagnose-row.js must contain the Background helper text exactly: "
+        f"{expected!r}. Per Kevin's UAT mock the line sits under the "
+        "BACKGROUND label and explains that the field is user-written and "
+        "carries forward to subsequent notes."
+    )
+
+
+def test_diagnose_row_background_has_visible_char_counter() -> None:
+    """KOALA-5635 (ROUND 3): the Background field must render a visible
+    ``<count> / 2048`` character counter at all times, not only when the
+    user exceeds the limit. Round-2 only emitted the counter on
+    over-limit; round-3 makes it always visible to match the mock and
+    the Today's-assessment counter behavior.
+
+    Pins:
+      1. Edit-mode counter exists (``${background.length} / 2048``).
+      2. Read-only counter is rendered with a CONDITIONAL class template
+         (``char-counter${...near-limit/over-limit...}``) sitting on
+         ``data.background.length``. The HEAD shape was a hard-coded
+         ``class="char-counter over-limit"`` rendered only on the
+         over-limit branch — this pin rejects that shape.
+    """
+    src = _read_diagnose_row_js()
+    # The edit-mode counter is rendered as ``${background.length} / 2048``
+    # inside an unconditional ``<div class="char-counter...">``. Match the
+    # template-literal expression (allow flexible whitespace).
+    edit_counter_pattern = re.compile(r"\$\{background\.length\}\s*/\s*2048")
+    matches = edit_counter_pattern.findall(src)
+    assert matches, (
+        "diagnose-row.js must render a visible ``${background.length} / 2048`` "
+        "character counter on the Background textarea. Per Kevin's UAT mock "
+        "the counter must be visible at all character counts, not only when "
+        "the user exceeds 2048. Mirror the Today's-assessment counter shape."
+    )
+    # The read-only counter must be ALWAYS-VISIBLE — i.e. the surrounding
+    # ``class="char-counter..."`` attribute is a template literal that
+    # toggles ``near-limit``/``over-limit`` based on the length, not a
+    # hard-coded ``over-limit``-only branch (the round-2 shape).
+    #
+    # Pin the read-only template literal anchored on
+    # ``(data.background || '').length`` so a future refactor that switches
+    # back to "only render when over-limit" trips this assertion.
+    always_visible_pattern = re.compile(r'class="char-counter\$\{\(data\.background \|\| \'\'\)\.length\s*>')
+    assert always_visible_pattern.search(src), (
+        "diagnose-row.js must render the read-only Background ``<count> / "
+        "2048`` counter with a CONDITIONAL class template "
+        "(``char-counter${(data.background || '').length > ...``) so the "
+        "counter shows at every length and only the visual treatment "
+        "changes near/over the limit. The round-2 shape "
+        '(``class="char-counter over-limit"`` inside an over-limit-only '
+        "branch) is rejected — Kevin's UAT mock requires the counter at "
+        "all character counts."
+    )
+
+
+def test_diagnose_row_handle_save_persists_background_unconditionally() -> None:
+    """KOALA-5635 (ROUND 3): ``handleSaveAssessment`` must persist
+    ``background`` on EVERY save, not only when ``condition_id`` is
+    stamped. Round-2 gated the assignment on ``hasConditionId``; with the
+    render gate dropped, the save gate must also go — otherwise the user
+    types into a visible field whose contents are silently dropped on
+    save (the very UX trap Kevin's UAT was pushing back on).
+
+    Pin: inside ``handleSaveAssessment``, the body must NOT contain
+    ``if (hasConditionId)`` and must assign ``background`` directly in
+    the new-data object spread.
+    """
+    src = _read_diagnose_row_js()
+    handle_save_marker = "const handleSaveAssessment = () => {"
+    start = src.find(handle_save_marker)
+    assert start != -1, (
+        "Could not find ``handleSaveAssessment`` definition in diagnose-row.js. If renamed, update this test."
+    )
+    open_brace = src.find("{", start)
+    depth = 0
+    end = -1
+    for i in range(open_brace, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    assert end != -1, "handleSaveAssessment body braces unbalanced"
+    body = src[open_brace:end]
+    assert "hasConditionId" not in body, (
+        "``handleSaveAssessment`` must not reference ``hasConditionId``. "
+        "Round-2 gated the background save on the condition_id; round-3 "
+        "drops this gate so background persists for every diagnose-row "
+        "save (including unmatched ICDs — DiagnoseCommand accepts the "
+        "background field on the SDK side)."
+    )
+    save_pattern = re.compile(r"background\s*:\s*background\b")
+    assert save_pattern.search(body), (
+        "``handleSaveAssessment`` must assign ``background: background`` "
+        "(or equivalent shape) directly in the new-data object. Without "
+        "this, the user's typed background is silently dropped on save."
     )
 
 
