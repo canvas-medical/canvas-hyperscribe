@@ -27,17 +27,25 @@ function formatIcdCode(raw) {
 export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions, onAccept, onEditingChange }) {
   const data = command.data || {};
   const hasCode = !!data.icd10_code;
-  // KOALA_5635_BACKGROUND_GATE — gate the editable Background section on
-  // ``data.condition_id``. The id is stamped server-side by
-  // ``split_plan_into_diagnoses`` when this proposal's icd10_code matches an
-  // an active condition on the patient. That's also the predicate
-  // ``handleInsert`` uses to flip this row from diagnose → assess at insert
-  // time; rendering Background only when the flip is on the table keeps the
-  // UI honest about which proposals carry a per-(patient, condition)
-  // background. Without a condition_id there is no scope for carry-forward
-  // and the field would be free-text that the home-app assess command
-  // wouldn't persist anyway.
-  const hasConditionId = !!data.condition_id;
+  // KOALA_5635_BACKGROUND_ALWAYS_RENDER — Background renders on EVERY
+  // diagnose-row card, regardless of whether the proposal matched an active
+  // patient condition. Round-2 gated this on ``data.condition_id``; Kevin's
+  // UAT explicitly rejected that gate: the field must be available for ALL
+  // condition cards in ALL situations — new diagnosis, matched assess, AI
+  // rec, user-initiated, prior-background-empty-or-not, and after an ICD
+  // change.
+  //
+  // No silent-drop risk on unmatched ICDs: ``DiagnoseCommand`` in the
+  // canvas-plugins SDK (canvas_sdk/commands/commands/diagnose.py) carries a
+  // ``background: str | None = None`` field, so background round-trips
+  // through both the diagnose and assess persistence paths.
+  //
+  // The KOALA_5635_CLEAR_ON_ICD_CHANGE behavior (handleSelect /
+  // handleClearCode) is STILL in force — the section stays rendered after an
+  // ICD change, but the text content is explicitly cleared. That's the
+  // Council-blessed clinical-data-integrity safeguard against cross-
+  // attaching one condition's background text onto a different condition's
+  // Assessment row in the chart.
 
   const [editingCode, setEditingCode] = useState(!hasCode);
   const [editingText, setEditingText] = useState(false);
@@ -57,9 +65,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   // KOALA_5635_BACKGROUND_TEXTAREA — local state mirrors AssessNarrative's
   // pattern (soap-group.js): seed from ``data.background``, sync on
   // external prop change ONLY when not editing so a late carry-forward
-  // fetch can't clobber in-progress typing. The state is intentionally NOT
-  // gated on ``hasConditionId`` so the hook order stays stable across
-  // renders (React rule of hooks).
+  // fetch can't clobber in-progress typing.
   const [background, setBackground] = useState(data.background || '');
   const inputRef = useRef(null);
   const containerRef = useRef(null);
@@ -192,14 +198,19 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   };
 
   const handleSaveAssessment = () => {
-    // KOALA_5635_BACKGROUND_TEXTAREA — when condition_id is present we also
-    // persist ``background`` through the spread; for non-condition rows we
-    // still spread ``data`` so any pre-existing ``background`` field on the
-    // proposal (set by an upstream carry-forward) round-trips untouched.
-    const newData = { ...data, today_assessment: assessment, accepted: true, rejected: false };
-    if (hasConditionId) {
-      newData.background = background;
-    }
+    // KOALA_5635_BACKGROUND_ALWAYS_RENDER — persist ``background`` on EVERY
+    // save, not only when ``condition_id`` is stamped. The render gate was
+    // removed per Kevin's UAT; the save gate must follow. DiagnoseCommand
+    // accepts background, so unmatched-ICD rows persist it cleanly through
+    // the diagnose path. A round-tripped save that silently drops what the
+    // user typed would be exactly the UX trap the UAT was pushing back on.
+    const newData = {
+      ...data,
+      today_assessment: assessment,
+      background: background,
+      accepted: true,
+      rejected: false,
+    };
     onEdit(commandIndex, newData, 'diagnose');
     setEditingText(false);
   };
@@ -276,26 +287,31 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
           class="diagnose-row-body${readOnly ? '' : ' editable'}"
           onClick=${() => !readOnly && setEditingText(true)}
         >
-          ${/* KOALA_5635_BACKGROUND_TEXTAREA — read-only Background block,
-              shown only when condition_id is stamped. Mirrors AssessNarrative
+          ${/* KOALA_5635_BACKGROUND_ALWAYS_RENDER — read-only Background
+              block. Renders on every editable card so the affordance is
+              visible regardless of condition_id (Kevin UAT). On truly
+              read-only cards (post-approval) we still suppress when there's
+              nothing to show — an empty BACKGROUND label on a locked card
+              is noise; the user can't act on it. Mirrors AssessNarrative
               (soap-group.js) so a future merge can reconcile shape if rec-
               diagnose is consolidated into the assess UI. */ ''}
-          ${hasConditionId && (data.background || '').length > 0 && html`
+          ${(!readOnly || (data.background || '').length > 0) && html`
             <div class="diagnose-body-label">Background</div>
-            ${(data.background || '').split('\n').map((line, i) => html`
-              <div key=${'b' + i} class="diagnose-body-line">${line}</div>
-            `)}
-            ${(data.background || '').length > 2048 && html`
-              <div class="char-counter over-limit">${data.background.length} / 2048 — text must be shortened before approving</div>
-            `}
+            <div class="rec-hint">Optional. You write this. Carries forward to every note.</div>
+            ${(data.background || '').length > 0
+              ? (data.background || '').split('\n').map((line, i) => html`
+                  <div key=${'b' + i} class="diagnose-body-line">${line}</div>
+                `)
+              : html`<div class="diagnose-body-empty">No background text</div>`}
+            <div class="char-counter${(data.background || '').length > 1900 ? (data.background || '').length > 2048 ? ' over-limit' : ' near-limit' : ''}">${(data.background || '').length} / 2048${(data.background || '').length > 2048 ? ' — text must be shortened before approving' : ''}</div>
           `}
-          ${hasConditionId && (data.background || '').length > 0 && html`
+          ${(!readOnly || (data.background || '').length > 0) && html`
             <div class="diagnose-body-label">Today's assessment</div>
           `}
           ${(data.today_assessment || '').split('\n').map((line, i) => html`
             <div key=${i} class="diagnose-body-line">${line}</div>
           `)}
-          ${!data.today_assessment && !(hasConditionId && (data.background || '').length > 0) && html`
+          ${!data.today_assessment && !(!readOnly || (data.background || '').length > 0) && html`
             <div class="diagnose-body-empty">No assessment text</div>
           `}
           ${(data.today_assessment || '').length > 2048 && html`
@@ -306,25 +322,27 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
 
       ${editingText && !readOnly && html`
         <div class="diagnose-edit-area">
-          ${/* KOALA_5635_BACKGROUND_TEXTAREA — editable Background textarea,
-              shown only when condition_id is stamped. Above the today's
-              assessment textarea to match AssessNarrative ordering. */ ''}
-          ${hasConditionId && html`
-            <div class="diagnose-body-label">Background</div>
-            <textarea
-              ref=${backgroundRef}
-              class="command-row-textarea"
-              maxLength=${2048}
-              value=${background}
-              onInput=${(e) => setBackground(e.target.value)}
-              onKeyDown=${handleTextKeyDown}
-            />
-            <div class="char-counter${background.length > 1900 ? background.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${background.length} / 2048</div>
-            <div class="diagnose-body-label">Today's assessment</div>
-          `}
+          ${/* KOALA_5635_BACKGROUND_ALWAYS_RENDER — editable Background
+              textarea. Renders unconditionally (Kevin UAT). 2-row textarea
+              (shorter than the 5-row Today's assessment below) with a
+              visible character counter at all character counts. */ ''}
+          <div class="diagnose-body-label">Background</div>
+          <div class="rec-hint">Optional. You write this. Carries forward to every note.</div>
+          <textarea
+            ref=${backgroundRef}
+            class="command-row-textarea"
+            rows=${2}
+            maxLength=${2048}
+            value=${background}
+            onInput=${(e) => setBackground(e.target.value)}
+            onKeyDown=${handleTextKeyDown}
+          />
+          <div class="char-counter${background.length > 1900 ? background.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${background.length} / 2048</div>
+          <div class="diagnose-body-label">Today's assessment</div>
           <textarea
             ref=${textareaRef}
             class="command-row-textarea"
+            rows=${5}
             maxLength=${2048}
             value=${assessment}
             onInput=${(e) => setAssessment(e.target.value)}
@@ -333,7 +351,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
           <div class="char-counter${assessment.length > 1900 ? assessment.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${assessment.length} / 2048</div>
           <div class="command-row-actions">
             <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancelAssessment}>Cancel</button>
-            <button type="button" class="form-btn form-btn-save" disabled=${assessment.length > 2048 || (hasConditionId && background.length > 2048)} onClick=${handleSaveAssessment}>Save</button>
+            <button type="button" class="form-btn form-btn-save" disabled=${assessment.length > 2048 || background.length > 2048} onClick=${handleSaveAssessment}>Save</button>
           </div>
         </div>
       `}
