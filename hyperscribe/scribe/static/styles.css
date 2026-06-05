@@ -1660,498 +1660,150 @@ h2 { margin-bottom: 4px; }
   color: #111;
 }
 
-/* ===================================================================
+/* =========================================================================
    Charges matrix  (charge-matrix.js  +  summary.js sign gate)
-   Design tokens from /design_handoff_charges_matrix/README.md
-   =================================================================== */
+   Table layout — columns align across header/body/footer automatically.
+   ========================================================================= */
+.cm-wrap { overflow: visible; }
 
-/*
-  Grid layout strategy
-  ─────────────────────────────────────────────────────────────────────
-  The DOM structure from charge-matrix.js is:
-
-    .cm-matrix                              ← grid container
-      .cm-header-row                        ← row wrapper (display:contents)
-        .cm-corner                          ← col 1-4 (spanning dx tracks)
-        .cm-col-header  × N                 ← col 5..N+4
-        .cm-addcol                          ← last col
-      .cm-row  × M                          ← row wrapper (display:contents)
-        .cm-grip                            ← col 1 (grip track)
-        .cm-rank                            ← col 2 (rank track)
-        .cm-dxcode                          ← col 3 (code track)
-        .cm-dxlabel                         ← col 4 (label track, flex)
-        .cm-cell  × N                       ← col 5..N+4
-      .cm-footer-row                        ← row wrapper (display:contents)
-        .cm-corner                          ← col 1-4
-        .cm-pill  × N                       ← col 5..N+4
-
-  All three row wrappers use display:contents so their children become
-  direct grid items. To place grip/rank/dxcode/dxlabel in their own
-  dedicated tracks (and keep checkbox cells aligned with headers),
-  the grid has 4 explicit diagnosis tracks + N charge tracks + addcol:
-
-    40px  38px  100px  minmax(0,1fr)  repeat(--cm-charge-cols, 230px)  96px
-
-  The header/footer .cm-corner spans the four diagnosis tracks (grid-column: 1/5).
-  The charge column headers and checkbox cells auto-place starting at track 5.
-*/
-
-/* -- Grid container -- */
-.cm-matrix {
-  display: grid;
-  /* 0-charge default; the component sets the full template (incl. charge
-     tracks) inline so we never emit an invalid repeat(0, 230px) — which would
-     void grid-template-columns and scramble the layout. */
-  grid-template-columns: 40px 38px 100px minmax(0, 1fr) 96px;
-  border: 1px solid #e6e9ed;
-  border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(14,46,78,.05), 0 10px 30px rgba(14,46,78,.07);
-  margin-bottom: 16px;
-}
-
-/* round the matrix's outer corners now that .cm-matrix no longer clips
-   (clipping would cut off the picker popovers) */
-.cm-header-row .cm-corner { border-top-left-radius: 14px; }
-.cm-header-row .cm-addcol-cell { border-top-right-radius: 14px; }
-.cm-footer-row > :first-child { border-bottom-left-radius: 14px; }
-.cm-footer-row > :last-child { border-bottom-right-radius: 14px; }
-
-/* All row wrappers use display:contents so their children become direct
-   grid items aligned to the column tracks above. */
-.cm-header-row,
-.cm-row,
-.cm-footer-row {
-  display: contents;
-}
-
-/* -- Corner cell: spans all 4 diagnosis tracks so the header/footer
-   left side is a single blank area matching the dx-info columns. -- */
-.cm-corner {
-  grid-column: 1 / 5;
+.cm-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1.5px solid #e8e8ec;
+  border-radius: 10px;
   background: #fff;
-}
-
-/* -- Column header cell (one per charge, auto-places into charge tracks) -- */
-.cm-col-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 12px;
-  background: #fff;
-  border-bottom: 1px solid #e2e7ec;
-  border-left: 1px solid #e2e7ec;
-  position: relative;
-}
-
-/* CPT + remove button row inside column header */
-.cm-cpt-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* CPT code text — mono, 16/600, navy */
-.cm-cpt {
-  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  font-size: 16px;
-  font-weight: 600;
-  color: #0e2e4e;
-  letter-spacing: 0.01em;
-}
-
-/* Remove-charge × button — hidden until header is hovered */
-.cm-colremove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: none;
-  background: none;
-  color: #93a0ac;
   font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  border-radius: 4px;
-  padding: 0;
-  opacity: 0;
-  transition: opacity 0.15s ease, color 0.15s ease;
 }
-.cm-col-header:hover .cm-colremove {
-  opacity: 1;
-}
-.cm-colremove:hover {
-  color: #c0392b;
-  background: #fef2f2;
-}
+.cm-table thead tr:first-child th:first-child { border-top-left-radius: 10px; }
+.cm-table thead tr:first-child th:last-child  { border-top-right-radius: 10px; }
+.cm-table tfoot tr:last-child td:first-child   { border-bottom-left-radius: 10px; }
+.cm-table tfoot tr:last-child td:last-child    { border-bottom-right-radius: 10px; }
+.cm-table:not(:has(tfoot)) tbody tr:last-child td:first-child { border-bottom-left-radius: 10px; }
+.cm-table:not(:has(tfoot)) tbody tr:last-child td:last-child  { border-bottom-right-radius: 10px; }
 
-/* Modifier chips + add-button row inside column header */
-.cm-modifiers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  justify-content: center;
-  align-items: center;
-  position: relative;
+/* -- header -- */
+.cm-table thead th {
+  background: #f7f9fb;
+  border-bottom: 1.5px solid #e8e8ec;
+  padding: 10px 14px;
+  vertical-align: top;
+  text-align: center;
+  font-weight: 600;
 }
+.cm-dx-head { width: auto; }
+.cm-charge-head { position: relative; width: 170px; border-left: 1px solid #eef1f4; }
+.cm-add-head { position: relative; width: 52px; border-left: 1px solid #eef1f4; }
 
-/* Modifier chip: h24, r7, mod-bg/border/ink, mono 13/600 */
+.cm-cpt-row { display: inline-flex; align-items: center; gap: 6px; }
+.cm-cpt { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 15px; font-weight: 700; color: #052B49; }
+.cm-colremove {
+  border: none; background: transparent; color: #b3bdc7; font-size: 15px; line-height: 1;
+  cursor: pointer; padding: 0 2px; border-radius: 4px; opacity: 0; transition: opacity .12s, color .12s;
+}
+.cm-charge-head:hover .cm-colremove { opacity: 1; }
+.cm-colremove:hover { color: #c0392b; background: #fbeceb; }
+
+.cm-mods { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 7px; }
 .cm-modchip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 7px;
-  background: #eef3f8;
-  border: 1px solid #d7e2ee;
-  color: #2c5277;
-  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  line-height: 1;
-  transition: background 0.12s ease;
+  display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 8px;
+  border-radius: 6px; background: #eef3f8; border: 1px solid #d7e2ee; color: #2c5277;
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; cursor: pointer;
 }
-.cm-modchip:hover {
-  background: #ddeaf5;
-}
-.cm-modchip-x {
-  font-size: 11px;
-  color: #5a7ba0;
-  margin-left: 1px;
-}
-
-/* "+ Modifier" dashed add button: h24, r7, 1px dashed field-b, 12.5/600 muted */
+.cm-modchip:hover { background: #e3ecf5; }
+.cm-modchip-x { color: #8aa0b6; font-weight: 400; }
 .cm-modadd {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 7px;
-  border: 1px dashed #cfd8e0;
-  background: #fff;
-  color: #6a7682;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  line-height: 1;
-  transition: border-color 0.12s ease, background 0.12s ease;
+  height: 22px; padding: 0 8px; border: 1px dashed #cfd8e0; border-radius: 6px; background: #fff;
+  color: #6a7682; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .12s;
 }
-.cm-modadd:hover {
-  border-color: #93a0ac;
-  background: #f8fafc;
-}
+.cm-modadd:hover { background: #f5f8fb; }
 
-/* -- Diagnosis rows --
-   Each row uses display:contents; its 4 dx sub-cells land in tracks 1-4
-   and its N .cm-cell spans land in tracks 5..N+4 (auto-placed). */
-
-/* Track 1: grip icon */
-.cm-grip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 4px 10px 8px;
-  background: #fff;
-  border-top: 1px solid #eaeef2;
-  color: #93a0ac;
-  cursor: grab;
-  user-select: none;
+.cm-add-btn {
+  width: 30px; height: 30px; border: none; background: transparent; color: #052B49;
+  font-size: 20px; line-height: 1; cursor: pointer; border-radius: 6px; transition: background .12s;
 }
+.cm-add-btn:hover { background: #eef2f6; }
+
+/* -- body -- */
+.cm-table tbody td { padding: 9px 14px; vertical-align: middle; border-top: 1px solid #f0f2f4; }
+.cm-table tbody tr:first-child td { border-top: none; }
+.cm-cell, .cm-add-cell { border-left: 1px solid #f0f2f4; }
+
+.cm-dx { text-align: left; }
+.cm-dx-inner { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cm-grip { color: #cbd3db; cursor: grab; font-size: 14px; user-select: none; flex-shrink: 0; }
 .cm-grip:active { cursor: grabbing; }
-.cm-grip-dots { font-size: 16px; line-height: 1; }
-.cm-lock { font-size: 13px; cursor: default; }
-
-/* Track 2: rank chip (minw 26, h 26, r8, chip-bg/b, navy-soft, tabular) */
+.cm-lock { color: #aeb8c2; font-size: 12px; flex-shrink: 0; }
 .cm-rank {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 26px;
-  height: 26px;
-  padding: 0 4px;
-  border-radius: 8px;
-  background: #f1f3f5;
-  border: 1px solid #e3e8ed;
-  color: #1d3a5c;
-  font-size: 13px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  align-self: center;
-  justify-self: center;
-  border-top-color: #eaeef2;
+  display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px;
+  padding: 0 6px; border-radius: 6px; background: #f1f3f5; color: #3a5573; font-size: 12px;
+  font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums;
 }
-.cm-rank-muted { opacity: 0.5; }
-
-/* Track 3: ICD code chip (green chip, mono 13/600) */
+.cm-rank-muted { opacity: .55; }
 .cm-dxcode {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 7px;
-  background: #e7f4ec;
-  border: 1px solid #cfe9d8;
-  color: #1c7d4d;
-  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  align-self: center;
-  border-top-color: #eaeef2;
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600;
+  color: #166534; background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 6px;
+  padding: 2px 7px; flex-shrink: 0;
+}
+.cm-dxlabel { color: #1b2733; font-size: 14px; font-weight: 500; min-width: 0; }
+.cm-row-locked .cm-dxlabel { color: #5b6b7a; }
+.cm-row[draggable="true"]:hover { background: #fafbfc; }
+.cm-row.cm-drag-over td { box-shadow: inset 0 2px 0 #1a9f57; }
+
+.cm-empty { text-align: center; color: #6a7682; font-size: 13px; padding: 22px 14px; }
+
+.cm-cell { text-align: center; }
+.cm-cell.on { background: #f1f9f4; }
+.cm-cell input[type="checkbox"] { width: 18px; height: 18px; accent-color: #0e2e4e; cursor: pointer; margin: 0; }
+.cm-cell input[type="checkbox"]:disabled { cursor: not-allowed; opacity: .45; }
+
+/* -- amendment group rows -- */
+.cm-grouprow td {
+  background: #f7f9fb; color: #6a7682; font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  text-transform: uppercase; padding: 6px 14px; border-top: 1px solid #e8e8ec;
+}
+.cm-dividerrow td {
+  color: #93a0ac; font-size: 11px; font-weight: 600; padding: 5px 14px; border-top: 1px dashed #dde3e9;
 }
 
-/* Track 4: diagnosis label (15/600 ink, ellipsis) */
-.cm-dxlabel {
-  min-width: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1b2733;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 10px 8px;
-  background: #fff;
-  border-top: 1px solid #eaeef2;
-  align-self: center;
-}
-
-/* Locked rows: subtle bg tint */
-.cm-row-locked .cm-grip,
-.cm-row-locked .cm-dxlabel,
-.cm-row-locked .cm-cell {
-  background-color: #f8fafc;
-}
-.cm-row-locked .cm-rank {
-  background-color: #edf0f3;
-}
-.cm-row-locked .cm-dxcode {
-  opacity: 0.75;
-}
-
-/* Tracks 5..N+4: checkbox cells (one per charge column, auto-placed) */
-.cm-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 8px;
-  background: #fff;
-  border-top: 1px solid #eaeef2;
-  border-left: 1px solid #e2e7ec;
-}
-.cm-cell-on {
-  background: #f1f9f4;
-}
-.cm-cell input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  border-radius: 6px;
-  cursor: pointer;
-  accent-color: #0e2e4e;
-  flex-shrink: 0;
-}
-.cm-cell input[type="checkbox"]:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-/* Last track (96px): + Charge add-column button in header */
-.cm-addcol {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 8px;
-  background: #fff;
-  border: none;
-  border-bottom: 1px solid #e2e7ec;
-  border-left: 1px solid #e2e7ec;
-  color: #0e2e4e;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.cm-addcol:hover { background: #f5f8fb; }
-
-/* Add-charge cell wraps the + button so the CPT search popover anchors to it. */
-.cm-addcol-cell {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-  background: #fff;
-}
-.cm-addcol-cell .cm-addcol {
-  flex: 1;
-  width: 100%;
-}
-
-/* CPT/HCPCS search popover (opened from the header +). Reuses the modifier
-   picker list styles below. */
-.cm-chargepicker {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 100;
-  width: 320px;
-  margin-top: 4px;
-  background: #fff;
-  border: 1px solid #e6e9ed;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(14,46,78,.18);
-  padding: 10px;
-  text-align: left;
-}
-.cm-chargepicker .cm-modpicker-search { width: 100%; box-sizing: border-box; }
-.cm-modpicker-empty { padding: 10px 8px; color: #6a7682; font-size: 13px; }
-
-/* -- Footer row: pointer count pills --
-   .cm-corner spans tracks 1-4 (same as header corner).
-   Each .cm-pill is a direct grid item in its charge track.
-   The cell background is white; the pill badge appearance uses a box-shadow
-   inset on the text so the cell border-top/left remain clean. */
+/* -- footer -- */
+.cm-table tfoot td { padding: 9px 14px; border-top: 1.5px solid #e8e8ec; background: #fafbfc; text-align: center; }
+.cm-foot-cell { border-left: 1px solid #f0f2f4; }
 .cm-pill {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 4px;
-  background: #fff;
-  border-top: 1px solid #eaeef2;
-  border-left: 1px solid #e2e7ec;
-  font-size: 12px;
-  font-weight: 600;
-  color: #1c7d4d;
-  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px;
+  background: #ecfdf5; color: #166534; font-size: 12px; font-weight: 600; white-space: nowrap;
 }
-.cm-pill-error {
-  color: #c0392b;
-}
+.cm-pill-error { background: #fef2f2; color: #c0392b; }
 
-/* -- Amendment dividers -- */
-.cm-group-label {
-  grid-column: 1 / -1;
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: #6a7682;
-  background: #f8fafc;
-  border-top: 1px solid #eaeef2;
+/* -- popovers (modifier picker + charge search) -- */
+.cm-popover {
+  position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 50; width: 270px;
+  background: #fff; border: 1px solid #e2e7ec; border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(14,46,78,.16); padding: 8px; text-align: left;
 }
-.cm-divider {
-  grid-column: 1 / -1;
-  padding: 4px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #93a0ac;
-  background: #f1f9f4;
-  border-top: 1px solid #eaeef2;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+.cm-popover-wide { width: 320px; }
+.cm-popover-search {
+  width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #d1d5db;
+  border-radius: 6px; font-size: 13px; font-family: inherit; margin-bottom: 6px;
 }
+.cm-popover-search:focus { outline: none; border-color: #93b4d4; box-shadow: 0 0 0 3px rgba(82,130,180,.12); }
+.cm-popover-list { max-height: 230px; overflow-y: auto; }
+.cm-popover-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: none;
+  background: transparent; border-radius: 6px; cursor: pointer; text-align: left; font-family: inherit;
+}
+.cm-popover-row:hover { background: #f5f8fb; }
+.cm-popover-row.on { background: #ecfdf5; }
+.cm-popover-row:disabled { opacity: .4; cursor: not-allowed; }
+.cm-popover-code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 700; color: #052B49; min-width: 30px; }
+.cm-popover-desc { color: #5b6b7a; font-size: 13px; flex: 1; }
+.cm-popover-check { color: #059669; font-weight: 700; }
+.cm-popover-empty { padding: 12px 8px; color: #6a7682; font-size: 13px; text-align: center; }
+.cm-popover-done {
+  margin-top: 6px; width: 100%; padding: 7px; border: none; background: #f1f3f5; color: #374151;
+  font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: background .12s;
+}
+.cm-popover-done:hover { background: #e6e9ec; }
 
-/* -- Modifier picker popover --
-   Absolutely positioned under the column header (.cm-modifiers is relative). */
-.cm-modpicker {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
-  min-width: 240px;
-  background: #fff;
-  border: 1px solid #e6e9ed;
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(14,46,78,.12), 0 1px 4px rgba(14,46,78,.06);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.cm-modpicker-search {
-  width: 100%;
-  padding: 10px 12px;
-  border: none;
-  border-bottom: 1px solid #e6e9ed;
-  font-family: inherit;
-  font-size: 13px;
-  color: #1b2733;
-  background: #f8fafc;
-  outline: none;
-}
-.cm-modpicker-search::placeholder { color: #93a0ac; font-style: italic; }
-.cm-modpicker-search:focus { background: #fff; }
-
-.cm-modpicker-list {
-  max-height: 220px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-.cm-modpicker-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 12px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 13px;
-  text-align: left;
-  border-bottom: 1px solid #f0f3f6;
-  transition: background 0.1s ease;
-}
-.cm-modpicker-row:last-child { border-bottom: none; }
-.cm-modpicker-row:hover:not(:disabled) { background: #f5f8fb; }
-.cm-modpicker-row.on { background: #f1f9f4; }
-.cm-modpicker-row:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.cm-modpicker-code {
-  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  font-size: 13px;
-  font-weight: 700;
-  color: #0e2e4e;
-  min-width: 28px;
-  flex-shrink: 0;
-}
-.cm-modpicker-desc {
-  flex: 1;
-  font-size: 12px;
-  color: #6a7682;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cm-modpicker-check {
-  font-size: 13px;
-  color: #1a9f57;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.cm-modpicker-done {
-  width: 100%;
-  padding: 9px 12px;
-  border: none;
-  border-top: 1px solid #e6e9ed;
-  background: #0e2e4e;
-  color: #fff;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.cm-modpicker-done:hover { background: #1a4a6e; }
-
-/* -- Sign gate error --
-   Layers onto .summary-footer-warning (12px amber centered); overrides
-   to red for "every charge needs ≥1 pointer" blocking state. */
-.cm-sign-error {
-  color: #c0392b;
-  font-weight: 600;
-  margin-top: 4px;
-}
+/* -- sign gate error (layers onto .summary-footer-warning) -- */
+.cm-sign-error { color: #c0392b; font-weight: 600; margin-top: 4px; }

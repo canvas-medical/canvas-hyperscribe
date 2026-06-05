@@ -17,12 +17,13 @@ export const MODIFIER_SEED = [
   { code: '76', desc: 'Repeat procedure by same physician' },
 ];
 
-// Pure helpers — each charge must have >=1 pointer to be signable. Exported so
-// summary.js's sign-gating reuses the exact same rule (single source of truth).
+// Pure helper — each charge must have >=1 diagnosis pointer to be signable.
+// Exported so summary.js's sign-gating reuses the exact same rule.
 export function canSignCharges(charges) {
   return (charges || []).every(c => (c.pointers || []).length >= 1);
 }
 
+// Searchable modifier picker (multi-select, cap 4, free 1-2 char codes).
 export function ModifierPicker({ selected, onToggle, onClose }) {
   const [query, setQuery] = useState('');
   const atCap = (selected || []).length >= MAX_MODIFIERS;
@@ -33,40 +34,38 @@ export function ModifierPicker({ selected, onToggle, onClose }) {
   const showFree = freeCode.length >= 1 && freeCode.length <= 2
     && !MODIFIER_SEED.some(m => m.code === freeCode);
   return html`
-    <div class="cm-modpicker" role="dialog">
-      <input class="cm-modpicker-search" placeholder="Search modifier code or description"
+    <div class="cm-popover" role="dialog">
+      <input class="cm-popover-search" placeholder="Search modifier code or description"
         value=${query} onInput=${e => setQuery(e.target.value)} />
-      <div class="cm-modpicker-list">
+      <div class="cm-popover-list">
         ${rows.map(m => {
           const on = (selected || []).includes(m.code);
-          const disabled = !on && atCap;
-          return html`<button class="cm-modpicker-row${on ? ' on' : ''}" key=${m.code} disabled=${disabled}
-            onClick=${() => onToggle(m.code)}>
-            <span class="cm-modpicker-code">${m.code}</span>
-            <span class="cm-modpicker-desc">${m.desc}</span>
-            ${on ? html`<span class="cm-modpicker-check">✓</span>` : null}
+          return html`<button class="cm-popover-row${on ? ' on' : ''}" key=${m.code}
+            disabled=${!on && atCap} onClick=${() => onToggle(m.code)}>
+            <span class="cm-popover-code">${m.code}</span>
+            <span class="cm-popover-desc">${m.desc}</span>
+            ${on ? html`<span class="cm-popover-check">✓</span>` : null}
           </button>`;
         })}
-        ${showFree ? html`<button class="cm-modpicker-row" key="__free__" disabled=${atCap}
+        ${showFree ? html`<button class="cm-popover-row" key="__free__" disabled=${atCap}
           onClick=${() => onToggle(freeCode)}>
-          <span class="cm-modpicker-code">${freeCode}</span>
-          <span class="cm-modpicker-desc">Use code "${freeCode}"</span>
+          <span class="cm-popover-code">${freeCode}</span>
+          <span class="cm-popover-desc">Use code "${freeCode}"</span>
         </button>` : null}
       </div>
-      <button class="cm-modpicker-done" onClick=${onClose}>Done</button>
+      <button class="cm-popover-done" onClick=${onClose}>Done</button>
     </div>`;
 }
 
-// CPT/HCPCS search popover opened from the header "+". Queries the scribe
-// /search-charges endpoint (backed by ChargeDescriptionMaster) via the
-// injected `searchCharges(query)` async fn and, on pick, adds a charge column.
+// CPT/HCPCS search popover for adding a charge column. Queries /search-charges
+// via the injected `searchCharges(query)` async fn.
 export function ChargePicker({ searchCharges, onPick, onClose }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const onInput = async (e) => {
-    const q = e.target.value;
-    setQuery(q);
-    const t = q.trim();
+    const value = e.target.value;
+    setQuery(value);
+    const t = value.trim();
     if (t.length < 2 || !searchCharges) { setResults([]); return; }
     try {
       const r = await searchCharges(t);
@@ -76,20 +75,20 @@ export function ChargePicker({ searchCharges, onPick, onClose }) {
     }
   };
   return html`
-    <div class="cm-chargepicker" role="dialog">
-      <input class="cm-modpicker-search" autofocus
+    <div class="cm-popover cm-popover-wide" role="dialog">
+      <input class="cm-popover-search" autofocus
         placeholder="Search CPT/HCPCS code or description"
         value=${query} onInput=${onInput} />
-      <div class="cm-modpicker-list">
-        ${results.map(r => html`<button class="cm-modpicker-row" key=${r.cpt_code}
+      <div class="cm-popover-list">
+        ${results.map(r => html`<button class="cm-popover-row" key=${r.cpt_code}
           onClick=${() => onPick(r.cpt_code, r.short_name || r.full_name || '')}>
-          <span class="cm-modpicker-code">${r.cpt_code}</span>
-          <span class="cm-modpicker-desc">${r.short_name || r.full_name || ''}</span>
+          <span class="cm-popover-code">${r.cpt_code}</span>
+          <span class="cm-popover-desc">${r.short_name || r.full_name || ''}</span>
         </button>`)}
         ${query.trim().length >= 2 && results.length === 0
-          ? html`<div class="cm-modpicker-empty">No matching charges</div>` : null}
+          ? html`<div class="cm-popover-empty">No matching charges</div>` : null}
       </div>
-      <button class="cm-modpicker-done" onClick=${onClose}>Cancel</button>
+      <button class="cm-popover-done" onClick=${onClose}>Cancel</button>
     </div>`;
 }
 
@@ -98,16 +97,16 @@ export function ChargeMatrix({
   onTogglePointer, onReorderDiagnoses,
   onAddModifier, onRemoveModifier, onAddCharge, onRemoveCharge,
 }) {
-  const [modPickerFor, setModPickerFor] = useState(null);
-  const [adding, setAdding] = useState(false);
+  // Single popover state so only one (modifier or charge-search) is ever open.
+  // { kind: 'mod', id: <charge uuid> } | { kind: 'charge' } | null
+  const [popover, setPopover] = useState(null);
   const dxs = diagnoses || [];
   const chs = charges || [];
-  // Build the grid template in JS so we never emit `repeat(0, 230px)` (invalid
-  // CSS, which voids the whole grid-template-columns and scrambles the layout).
-  const gridTemplate = `40px 38px 100px minmax(0,1fr) ${chs.length ? `repeat(${chs.length}, 230px) ` : ''}96px`;
   const lockedCount = isAmending ? dxs.filter(d => d.locked).length : 0;
+  const colSpan = chs.length + 2; // diagnosis col + charge cols + add col
 
   function handleDrop(e, targetIdx) {
+    e.preventDefault();
     const draggedUuid = e.dataTransfer.getData('text/dx');
     if (!draggedUuid) return;
     const from = dxs.findIndex(d => d.command_uuid === draggedUuid);
@@ -119,88 +118,123 @@ export function ChargeMatrix({
     onReorderDiagnoses(next);
   }
 
-  const headerCells = chs.map(charge => html`
-    <div class="cm-col-header" key=${charge.command_uuid}>
-      <div class="cm-cpt-row">
-        <span class="cm-cpt">${charge.cpt}</span>
-        <button class="cm-colremove" title="Remove charge"
-          onClick=${() => onRemoveCharge(charge.command_uuid)}>×</button>
-      </div>
-      <div class="cm-modifiers">
-        ${(charge.modifiers || []).map(code => html`
-          <span class="cm-modchip" onClick=${() => onRemoveModifier(charge.command_uuid, code)}>
-            ${code}<span class="cm-modchip-x">×</span>
-          </span>`)}
-        ${(charge.modifiers || []).length < MAX_MODIFIERS
-          ? html`<button class="cm-modadd" onClick=${() => setModPickerFor(charge.command_uuid)}>+ Modifier</button>`
-          : null}
-        ${modPickerFor === charge.command_uuid
-          ? html`<${ModifierPicker} selected=${charge.modifiers || []}
-              onToggle=${code => ((charge.modifiers || []).includes(code)
-                ? onRemoveModifier(charge.command_uuid, code)
-                : onAddModifier(charge.command_uuid, code))}
-              onClose=${() => setModPickerFor(null)} />`
-          : null}
-      </div>
-    </div>`);
+  const headerCells = chs.map(charge => {
+    const mods = charge.modifiers || [];
+    const open = popover && popover.kind === 'mod' && popover.id === charge.command_uuid;
+    return html`
+      <th class="cm-charge-head" key=${charge.command_uuid}>
+        <div class="cm-cpt-row">
+          <span class="cm-cpt">${charge.cpt}</span>
+          <button class="cm-colremove" title="Remove charge"
+            onClick=${() => onRemoveCharge(charge.command_uuid)}>×</button>
+        </div>
+        <div class="cm-mods">
+          ${mods.map(code => html`
+            <span class="cm-modchip" key=${code} title="Remove modifier"
+              onClick=${() => onRemoveModifier(charge.command_uuid, code)}>
+              ${code}<span class="cm-modchip-x">×</span>
+            </span>`)}
+          ${mods.length < MAX_MODIFIERS
+            ? html`<button class="cm-modadd"
+                onClick=${() => setPopover(open ? null : { kind: 'mod', id: charge.command_uuid })}>+ Modifier</button>`
+            : null}
+        </div>
+        ${open ? html`<${ModifierPicker} selected=${mods}
+            onToggle=${code => (mods.includes(code)
+              ? onRemoveModifier(charge.command_uuid, code)
+              : onAddModifier(charge.command_uuid, code))}
+            onClose=${() => setPopover(null)} />` : null}
+      </th>`;
+  });
 
   const renderDxRow = (dx, idx) => {
     const draggable = !(isAmending && dx.locked);
-    const rank = idx + 1;
+    const isDxDrag = e => e.dataTransfer && e.dataTransfer.types
+      && Array.from(e.dataTransfer.types).includes('text/dx');
     return html`
-      <div class="cm-row${dx.locked ? ' cm-row-locked' : ''}" key=${dx.command_uuid}
-           draggable=${draggable}
-           onDragStart=${e => draggable && e.dataTransfer.setData('text/dx', dx.command_uuid)}
-           onDragOver=${e => draggable && e.preventDefault()}
-           onDrop=${e => handleDrop(e, idx)}>
-        <span class="cm-grip">${draggable
-          ? html`<span class="cm-grip-dots" title="Drag to reorder rank">⠿</span>`
-          : html`<span class="cm-lock" title="Order locked — already on the signed claim">🔒</span>`}</span>
-        <span class="cm-rank${dx.locked ? ' cm-rank-muted' : ''}">${rank}</span>
-        <span class="cm-dxcode">${dx.code}</span>
-        <span class="cm-dxlabel">${dx.label}</span>
+      <tr class="cm-row${dx.locked ? ' cm-row-locked' : ''}" key=${dx.command_uuid}
+          draggable=${draggable}
+          onDragStart=${e => {
+            if (!draggable) return;
+            // Don't start a drag from a click on the checkbox / a button.
+            if (e.target.closest && e.target.closest('input, button, select, textarea, a')) {
+              e.preventDefault();
+              return;
+            }
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/dx', dx.command_uuid);
+          }}
+          onDragOver=${e => { if (isDxDrag(e)) { e.preventDefault(); e.currentTarget.classList.add('cm-drag-over'); } }}
+          onDragLeave=${e => e.currentTarget.classList.remove('cm-drag-over')}
+          onDrop=${e => { e.currentTarget.classList.remove('cm-drag-over'); handleDrop(e, idx); }}>
+        <td class="cm-dx">
+          <div class="cm-dx-inner">
+            ${draggable
+              ? html`<span class="cm-grip" title="Drag to reorder rank">⠿</span>`
+              : html`<span class="cm-lock" title="Order locked — already on the signed claim">🔒</span>`}
+            <span class="cm-rank${dx.locked ? ' cm-rank-muted' : ''}">${idx + 1}</span>
+            <span class="cm-dxcode">${dx.code}</span>
+            <span class="cm-dxlabel">${dx.label}</span>
+          </div>
+        </td>
         ${chs.map(charge => {
           const on = (charge.pointers || []).includes(dx.command_uuid);
           const atCap = !on && (charge.pointers || []).length >= MAX_POINTERS;
-          return html`<span class="cm-cell${on ? ' cm-cell-on' : ''}" key=${charge.command_uuid}>
+          return html`<td class="cm-cell${on ? ' on' : ''}" key=${charge.command_uuid}>
             <input type="checkbox" checked=${on} disabled=${atCap}
               title=${atCap ? `Max ${MAX_POINTERS} diagnosis pointers` : ''}
               aria-label=${`Link ${charge.cpt} to ${dx.code}`}
               onChange=${() => onTogglePointer(charge.command_uuid, dx.command_uuid)} />
-          </span>`;
+          </td>`;
         })}
-      </div>`;
+        <td class="cm-add-cell"></td>
+      </tr>`;
   };
 
-  const footerCells = chs.map(charge => {
-    const n = (charge.pointers || []).length;
-    return html`<span class="cm-pill${n === 0 ? ' cm-pill-error' : ''}" key=${charge.command_uuid}>${n} / ${MAX_POINTERS} ${n === 0 ? '✗' : '✓'}</span>`;
-  });
+  const bodyRows = [];
+  if (isAmending && lockedCount > 0) {
+    bodyRows.push(html`<tr class="cm-grouprow" key="__locked_label"><td colSpan=${colSpan}>On the signed claim</td></tr>`);
+    dxs.forEach((dx, idx) => { if (dx.locked) bodyRows.push(renderDxRow(dx, idx)); });
+    bodyRows.push(html`<tr class="cm-dividerrow" key="__new_label"><td colSpan=${colSpan}>Added in this amendment</td></tr>`);
+    dxs.forEach((dx, idx) => { if (!dx.locked) bodyRows.push(renderDxRow(dx, idx)); });
+  } else {
+    dxs.forEach((dx, idx) => bodyRows.push(renderDxRow(dx, idx)));
+  }
 
-  const lockedRows = [], newRows = [];
-  dxs.forEach((dx, idx) => {
-    (isAmending && dx.locked ? lockedRows : newRows).push(renderDxRow(dx, idx));
-  });
+  const chargeOpen = popover && popover.kind === 'charge';
 
   return html`
-    <div class="cm-matrix" style=${`grid-template-columns:${gridTemplate};--cm-charge-cols:${chs.length}`}>
-      <div class="cm-header-row">
-        <div class="cm-corner"></div>
-        ${headerCells}
-        <div class="cm-addcol-cell">
-          <button class="cm-addcol" title="Add charge" onClick=${() => setAdding(a => !a)}>+</button>
-          ${adding
-            ? html`<${ChargePicker} searchCharges=${searchCharges}
-                onPick=${(cpt, desc) => { onAddCharge(cpt, desc); setAdding(false); }}
-                onClose=${() => setAdding(false)} />`
-            : null}
-        </div>
-      </div>
-      ${isAmending && lockedRows.length
-        ? html`<div class="cm-group-label">ON THE SIGNED CLAIM</div>${lockedRows}
-               <div class="cm-divider">added in this amendment</div>`
-        : null}
-      ${newRows}
-      <div class="cm-footer-row"><div class="cm-corner"></div>${footerCells}</div>
+    <div class="cm-wrap">
+      <table class="cm-table">
+        <thead>
+          <tr>
+            <th class="cm-dx-head"></th>
+            ${headerCells}
+            <th class="cm-add-head">
+              <button class="cm-add-btn" title="Add charge"
+                onClick=${() => setPopover(chargeOpen ? null : { kind: 'charge' })}>+</button>
+              ${chargeOpen ? html`<${ChargePicker} searchCharges=${searchCharges}
+                  onPick=${(cpt, desc) => { onAddCharge(cpt, desc); setPopover(null); }}
+                  onClose=${() => setPopover(null)} />` : null}
+            </th>
+          </tr>
+        </thead>
+        <tbody>${dxs.length === 0
+          ? html`<tr><td class="cm-empty" colSpan=${colSpan}>Add a diagnosis in the Plan, then link it to a charge here.</td></tr>`
+          : bodyRows}</tbody>
+        ${chs.length > 0 ? html`
+          <tfoot>
+            <tr>
+              <td class="cm-foot-dx"></td>
+              ${chs.map(charge => {
+                const n = (charge.pointers || []).length;
+                return html`<td class="cm-foot-cell" key=${charge.command_uuid}>
+                  <span class="cm-pill${n === 0 ? ' cm-pill-error' : ''}">${n} / ${MAX_POINTERS} ${n === 0 ? '✗' : '✓'}</span>
+                </td>`;
+              })}
+              <td></td>
+            </tr>
+          </tfoot>` : null}
+      </table>
     </div>`;
 }
