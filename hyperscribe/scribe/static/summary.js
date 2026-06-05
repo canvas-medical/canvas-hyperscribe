@@ -2170,25 +2170,39 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             .map(c => c.command_uuid);
 
           if (enrichCharges.length || removedCharges.length) {
-            try {
-              const enrichRes = await fetch(`${API_BASE}/enrich-charges`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ note_uuid: noteId, charges: enrichCharges, removed_charges: removedCharges }),
-              });
-              const enrichData = await enrichRes.json().catch(() => ({}));
-              if (enrichRes.status === 422) {
-                setChargeErrors(enrichData.errors || []);
-                setApproved(false);
-                setConfirming(false);
-                saveSummaryToCache(noteData, updatedCommands, false, { recommendations: updatedRecommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
-                setInserting(false);
-                return;
+            // The home-app applies the /insert-commands originate+commit effects
+            // asynchronously, so the BillingLineItems may not exist the instant
+            // this runs. Retry on `billing_line_item_not_found` (the only
+            // transient/timing error) until they appear, then proceed to sign.
+            const enrichBody = JSON.stringify({ note_uuid: noteId, charges: enrichCharges, removed_charges: removedCharges });
+            let enrichData = {};
+            let blocked = false;
+            for (let attempt = 0; attempt < 8; attempt++) {
+              try {
+                const enrichRes = await fetch(`${API_BASE}/enrich-charges`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: enrichBody,
+                });
+                enrichData = await enrichRes.json().catch(() => ({}));
+                if (enrichRes.status === 422) { blocked = true; break; }
+              } catch (enrichErr) {
+                console.error('enrich-charges fetch failed:', enrichErr);
+                break;
               }
-              if (enrichData.errors && enrichData.errors.length) console.warn('enrich-charges partial errors', enrichData.errors);
-            } catch (enrichErr) {
-              console.error('enrich-charges fetch failed:', enrichErr);
+              const pending = (enrichData.errors || []).some(e => e.reason === 'billing_line_item_not_found');
+              if (!pending) break; // every charge resolved (or only non-transient errors remain)
+              await new Promise(resolve => setTimeout(resolve, 700)); // let the commit effects apply
             }
+            if (blocked) {
+              setChargeErrors(enrichData.errors || []);
+              setApproved(false);
+              setConfirming(false);
+              saveSummaryToCache(noteData, updatedCommands, false, { recommendations: updatedRecommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+              setInserting(false);
+              return;
+            }
+            if (enrichData.errors && enrichData.errors.length) console.warn('enrich-charges partial errors', enrichData.errors);
           }
         }
 
