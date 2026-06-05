@@ -57,14 +57,54 @@ export function ModifierPicker({ selected, onToggle, onClose }) {
     </div>`;
 }
 
+// CPT/HCPCS search popover opened from the header "+". Queries the scribe
+// /search-charges endpoint (backed by ChargeDescriptionMaster) via the
+// injected `searchCharges(query)` async fn and, on pick, adds a charge column.
+export function ChargePicker({ searchCharges, onPick, onClose }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const onInput = async (e) => {
+    const q = e.target.value;
+    setQuery(q);
+    const t = q.trim();
+    if (t.length < 2 || !searchCharges) { setResults([]); return; }
+    try {
+      const r = await searchCharges(t);
+      setResults(Array.isArray(r) ? r : []);
+    } catch (_err) {
+      setResults([]);
+    }
+  };
+  return html`
+    <div class="cm-chargepicker" role="dialog">
+      <input class="cm-modpicker-search" autofocus
+        placeholder="Search CPT/HCPCS code or description"
+        value=${query} onInput=${onInput} />
+      <div class="cm-modpicker-list">
+        ${results.map(r => html`<button class="cm-modpicker-row" key=${r.cpt_code}
+          onClick=${() => onPick(r.cpt_code, r.short_name || r.full_name || '')}>
+          <span class="cm-modpicker-code">${r.cpt_code}</span>
+          <span class="cm-modpicker-desc">${r.short_name || r.full_name || ''}</span>
+        </button>`)}
+        ${query.trim().length >= 2 && results.length === 0
+          ? html`<div class="cm-modpicker-empty">No matching charges</div>` : null}
+      </div>
+      <button class="cm-modpicker-done" onClick=${onClose}>Cancel</button>
+    </div>`;
+}
+
 export function ChargeMatrix({
-  diagnoses, charges, isAmending,
+  diagnoses, charges, isAmending, searchCharges,
   onTogglePointer, onReorderDiagnoses,
   onAddModifier, onRemoveModifier, onAddCharge, onRemoveCharge,
 }) {
   const [modPickerFor, setModPickerFor] = useState(null);
+  const [adding, setAdding] = useState(false);
   const dxs = diagnoses || [];
   const chs = charges || [];
+  // Build the grid template in JS so we never emit `repeat(0, 230px)` (invalid
+  // CSS, which voids the whole grid-template-columns and scrambles the layout).
+  const gridTemplate = `40px 38px 100px minmax(0,1fr) ${chs.length ? `repeat(${chs.length}, 230px) ` : ''}96px`;
   const lockedCount = isAmending ? dxs.filter(d => d.locked).length : 0;
 
   function handleDrop(e, targetIdx) {
@@ -143,11 +183,18 @@ export function ChargeMatrix({
   });
 
   return html`
-    <div class="cm-matrix" style=${`--cm-charge-cols:${chs.length}`}>
+    <div class="cm-matrix" style=${`grid-template-columns:${gridTemplate};--cm-charge-cols:${chs.length}`}>
       <div class="cm-header-row">
         <div class="cm-corner"></div>
         ${headerCells}
-        <button class="cm-addcol" title="Add charge" onClick=${onAddCharge}>+</button>
+        <div class="cm-addcol-cell">
+          <button class="cm-addcol" title="Add charge" onClick=${() => setAdding(a => !a)}>+</button>
+          ${adding
+            ? html`<${ChargePicker} searchCharges=${searchCharges}
+                onPick=${(cpt, desc) => { onAddCharge(cpt, desc); setAdding(false); }}
+                onClose=${() => setAdding(false)} />`
+            : null}
+        </div>
       </div>
       ${isAmending && lockedRows.length
         ? html`<div class="cm-group-label">ON THE SIGNED CLAIM</div>${lockedRows}
