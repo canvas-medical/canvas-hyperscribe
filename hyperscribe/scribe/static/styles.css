@@ -1699,10 +1699,10 @@ h2 { margin-bottom: 4px; }
 /* -- Grid container -- */
 .cm-matrix {
   display: grid;
-  grid-template-columns:
-    40px 38px 100px minmax(0, 1fr)
-    repeat(var(--cm-charge-cols, 0), 230px)
-    96px;
+  /* 0-charge default; the component sets the full template (incl. charge
+     tracks) inline so we never emit an invalid repeat(0, 230px) — which would
+     void grid-template-columns and scramble the layout. */
+  grid-template-columns: 40px 38px 100px minmax(0, 1fr) 96px;
   border: 1px solid #e6e9ed;
   border-radius: 14px;
   box-shadow: 0 1px 2px rgba(14,46,78,.05), 0 10px 30px rgba(14,46,78,.07);
@@ -1710,9 +1710,9 @@ h2 { margin-bottom: 4px; }
 }
 
 /* round the matrix's outer corners now that .cm-matrix no longer clips
-   (clipping would cut off the modifier picker popover) */
+   (clipping would cut off the picker popovers) */
 .cm-header-row .cm-corner { border-top-left-radius: 14px; }
-.cm-header-row .cm-addcol { border-top-right-radius: 14px; }
+.cm-header-row .cm-addcol-cell { border-top-right-radius: 14px; }
 .cm-footer-row > :first-child { border-bottom-left-radius: 14px; }
 .cm-footer-row > :last-child { border-bottom-right-radius: 14px; }
 
@@ -1974,6 +1974,37 @@ h2 { margin-bottom: 4px; }
   transition: background 0.15s ease;
 }
 .cm-addcol:hover { background: #f5f8fb; }
+
+/* Add-charge cell wraps the + button so the CPT search popover anchors to it. */
+.cm-addcol-cell {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  background: #fff;
+}
+.cm-addcol-cell .cm-addcol {
+  flex: 1;
+  width: 100%;
+}
+
+/* CPT/HCPCS search popover (opened from the header +). Reuses the modifier
+   picker list styles below. */
+.cm-chargepicker {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  width: 320px;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid #e6e9ed;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(14,46,78,.18);
+  padding: 10px;
+  text-align: left;
+}
+.cm-chargepicker .cm-modpicker-search { width: 100%; box-sizing: border-box; }
+.cm-modpicker-empty { padding: 10px 8px; color: #6a7682; font-size: 13px; }
 
 /* -- Footer row: pointer count pills --
    .cm-corner spans tracks 1-4 (same as header corner).
