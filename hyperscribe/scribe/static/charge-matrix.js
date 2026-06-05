@@ -47,14 +47,14 @@ export function ModifierPicker({ selected, onToggle, onClose }) {
         ${rows.map(m => {
           const on = (selected || []).includes(m.code);
           const disabled = !on && atCap;
-          return html`<button class="cm-modpicker-row${on ? ' on' : ''}" disabled=${disabled}
+          return html`<button class="cm-modpicker-row${on ? ' on' : ''}" key=${m.code} disabled=${disabled}
             onClick=${() => onToggle(m.code)}>
             <span class="cm-modpicker-code">${m.code}</span>
             <span class="cm-modpicker-desc">${m.desc}</span>
             ${on ? html`<span class="cm-modpicker-check">✓</span>` : null}
           </button>`;
         })}
-        ${showFree ? html`<button class="cm-modpicker-row" disabled=${atCap}
+        ${showFree ? html`<button class="cm-modpicker-row" key="__free__" disabled=${atCap}
           onClick=${() => onToggle(freeCode)}>
           <span class="cm-modpicker-code">${freeCode}</span>
           <span class="cm-modpicker-desc">Use code "${freeCode}"</span>
@@ -87,8 +87,12 @@ export function ChargeMatrix({
   }
 
   const headerCells = chs.map(charge => html`
-    <div class="cm-col-header">
-      <div class="cm-cpt">${charge.cpt}</div>
+    <div class="cm-col-header" key=${charge.command_uuid}>
+      <div class="cm-cpt-row">
+        <span class="cm-cpt">${charge.cpt}</span>
+        <button class="cm-colremove" title="Remove charge"
+          onClick=${() => onRemoveCharge(charge.command_uuid)}>×</button>
+      </div>
       <div class="cm-modifiers">
         ${(charge.modifiers || []).map(code => html`
           <span class="cm-modchip" onClick=${() => onRemoveModifier(charge.command_uuid, code)}>
@@ -111,7 +115,7 @@ export function ChargeMatrix({
     const draggable = !(isAmending && dx.locked);
     const rank = idx + 1;
     return html`
-      <div class="cm-row${dx.locked ? ' cm-row-locked' : ''}"
+      <div class="cm-row${dx.locked ? ' cm-row-locked' : ''}" key=${dx.command_uuid}
            draggable=${draggable}
            onDragStart=${e => draggable && e.dataTransfer.setData('text/dx', dx.command_uuid)}
            onDragOver=${e => draggable && e.preventDefault()}
@@ -125,9 +129,10 @@ export function ChargeMatrix({
         ${chs.map(charge => {
           const on = (charge.pointers || []).includes(dx.command_uuid);
           const atCap = !on && (charge.pointers || []).length >= MAX_POINTERS;
-          return html`<span class="cm-cell${on ? ' cm-cell-on' : ''}">
+          return html`<span class="cm-cell${on ? ' cm-cell-on' : ''}" key=${charge.command_uuid}>
             <input type="checkbox" checked=${on} disabled=${atCap}
               title=${atCap ? `Max ${MAX_POINTERS} diagnosis pointers` : ''}
+              aria-label=${`Link ${charge.cpt} to ${dx.code}`}
               onChange=${() => onTogglePointer(charge.command_uuid, dx.command_uuid)} />
           </span>`;
         })}
@@ -136,7 +141,7 @@ export function ChargeMatrix({
 
   const footerCells = chs.map(charge => {
     const n = (charge.pointers || []).length;
-    return html`<span class="cm-pill${n === 0 ? ' cm-pill-error' : ''}">${n} / ${MAX_POINTERS} ✓</span>`;
+    return html`<span class="cm-pill${n === 0 ? ' cm-pill-error' : ''}" key=${charge.command_uuid}>${n} / ${MAX_POINTERS} ${n === 0 ? '✗' : '✓'}</span>`;
   });
 
   const lockedRows = [], newRows = [];
