@@ -28,12 +28,13 @@ def validate_charge_enrichment(charges: list[dict[str, Any]]) -> list[dict[str, 
         errors: list[str] = []
         pointers = charge.get("diagnosis_pointers") or []
         modifiers = charge.get("modifiers") or []
-        if len(pointers) < 1:
+        if not pointers:
             errors.append("at_least_one_pointer")
         if len(pointers) > MAX_DIAGNOSIS_POINTERS:
             errors.append("too_many_pointers")
         if len(modifiers) > MAX_MODIFIERS:
             errors.append("too_many_modifiers")
         if errors:
+            # Empty-string fallback is intentional; upstream callers always supply command_uuid.
             failures.append({"command_uuid": charge.get("command_uuid", ""), "errors": errors})
     return failures
