@@ -523,7 +523,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // --- Charge matrix view-models (derived from commands) ---
   const chargeMatrixDiagnoses = useMemo(() => commands
     .filter(c => (c.command_type === 'diagnose' || c.command_type === 'assess')
-      && (c.data?.icd10_code || c.data?.code) && c._localId)
+      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.already_documented || c.command_uuid
+          // diagnose: must be explicitly accepted (absent = unreviewed AI rec → hide)
+          // assess:   absent accepted = manually added via old code → show; only hide on false
+          || (c.command_type === 'assess' ? c.data?.accepted !== false : c.data?.accepted)))
     .map(c => ({
       command_uuid: c._localId,
       code: c.data?.icd10_code || c.data?.code || '',
@@ -541,6 +545,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         description: c.data.description || '',
         modifiers: c.data._modifiers || [],
         pointers: (c.data._pointers || []).filter(u => dxRefs.has(u)),
+        // True only when this plugin has written _pointers to the charge. Pre-plugin
+        // historical charges have no _pointers key at all and are grandfathered out of
+        // the sign gate and the error-pill so they don't block amendment on old notes.
+        hasPointerData: '_pointers' in (c.data || {}),
       }));
   }, [commands, chargeMatrixDiagnoses]);
 
@@ -571,8 +579,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // The matrix keys rows on _localId (stable, unique), so reorder must too —
     // matching by command_uuid would miss already-documented diagnoses (whose
     // _localId the matrix sends) and the cover-check below would bail.
+    // isDx must mirror chargeMatrixDiagnoses exactly so dxBy.size matches
+    // nextUuids.length — otherwise the size guard always bails.
     const idOf = c => c._localId;
-    const isDx = c => (c.command_type === 'diagnose' || c.command_type === 'assess');
+    const isDx = c => (c.command_type === 'diagnose' || c.command_type === 'assess')
+      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.already_documented || c.command_uuid
+          || (c.command_type === 'assess' ? c.data?.accepted !== false : c.data?.accepted));
     const dxBy = new Map(prev.filter(isDx).map(c => [idOf(c), c]));
     const reordered = nextUuids.map(u => dxBy.get(u)).filter(Boolean);
     // If the incoming order doesn't cover every diagnosis row exactly once, bail
@@ -1683,6 +1696,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             narrative: '',
             background: null,
             status: null,
+            accepted: !!icd10Code,
           },
           section_key: apKey,
           already_documented: false,
@@ -1959,6 +1973,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             narrative: c.data.today_assessment || '',
             background: c.data.background || null,
             status: null,
+            icd10_code: c.data.icd10_code,
+            icd10_display: c.data.icd10_display,
+            accepted: c.data.accepted,
           },
         };
       });
@@ -2864,12 +2881,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                 </div>
               `}
               ${!canSignCharges(chargeMatrixCharges) && html`
-                <div class="summary-footer-warning cm-sign-error">Every charge needs at least one diagnosis pointer to sign.</div>
+                <div class="summary-footer-warning">Some charges have no linked diagnosis — you can still sign, but consider linking them for cleaner billing.</div>
               `}
               ${(chargeErrors && chargeErrors.length)
                 ? html`<div class="summary-footer-warning cm-sign-error">Some charges could not be saved (${chargeErrors.length}). Please review the charges and try again.</div>`
                 : null}
-              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits || !canSignCharges(chargeMatrixCharges)} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
+              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
               ${!wasFinalized && html`<div class="approve-warning">This action is permanent and cannot be undone.</div>`}
             </div>
           `}
