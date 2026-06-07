@@ -18,10 +18,12 @@ export const MODIFIER_SEED = [
   { code: '95', desc: 'Synchronous audio/video telemedicine' },
 ];
 
-// Pure helper — each charge must have >=1 diagnosis pointer to be signable.
+// Pure helper — charges that this plugin has managed (hasPointerData) must have
+// >=1 diagnosis pointer. Pre-plugin historical charges (no _pointers key in data,
+// hasPointerData:false) are grandfathered so they never block signing on old notes.
 // Exported so summary.js's sign-gating reuses the exact same rule.
 export function canSignCharges(charges) {
-  return (charges || []).every(c => (c.pointers || []).length >= 1);
+  return (charges || []).every(c => !c.hasPointerData || (c.pointers || []).length >= 1);
 }
 
 // Searchable modifier picker (multi-select, cap 4, free 1-2 char codes).
@@ -300,8 +302,11 @@ export function ChargeMatrix({
               <td class="cm-foot-dx"></td>
               ${chs.map(charge => {
                 const n = (charge.pointers || []).length;
+                const legacy = !charge.hasPointerData && n === 0;
                 return html`<td class="cm-foot-cell" key=${charge.command_uuid}>
-                  <span class="cm-pill${n === 0 ? ' cm-pill-error' : ''}">${n} / ${MAX_POINTERS}</span>
+                  <span class="cm-pill${legacy ? ' cm-pill-muted' : n === 0 ? ' cm-pill-error' : ''}">
+                    ${legacy ? '—' : `${n} / ${MAX_POINTERS}`}
+                  </span>
                 </td>`;
               })}
               <td></td>

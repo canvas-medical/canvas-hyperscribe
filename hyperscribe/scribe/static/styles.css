@@ -1787,6 +1787,7 @@ h2 { margin-bottom: 4px; }
   background: #ecfdf5; color: #166534; font-size: 12px; font-weight: 600; white-space: nowrap;
 }
 .cm-pill-error { background: #fef2f2; color: #c0392b; }
+.cm-pill-muted { background: #f1f5f9; color: #94a3b8; }
 
 /* -- popovers (modifier picker + charge search) -- */
 .cm-popover {

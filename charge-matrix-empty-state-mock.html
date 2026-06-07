@@ -1,0 +1,574 @@
+<!doctype html>
+<!--
+  TEMPORARY MOCKUP — charge-matrix states (reference).
+  Standalone, static, no plugin code touched. Delete when done.
+  Open: open charge-matrix-empty-state-mock.html
+
+  Decisions reflected:
+   • Predefined template charges surface as a "Suggested for this visit" group
+     in the + Add charge search (Option 3). Driven by the VisitTemplates secret.
+   • Empty state = panel ("No charges yet") + neutral "+ Add charge" button.
+   • Read-only once the note is finalized (not amending).
+   • Amendment: existing diagnoses rank-locked; net-new reorderable.
+   • Modifiers: manual add via picker (template-suggested modifiers tabled).
+   • Sign gate: advisory only — never blocks signing.
+   • Backward compat: pre-plugin charges show "—" neutral pill, never gate signing.
+     hasPointerData = '_pointers' key present in command data.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Charge matrix — all states</title>
+<style>
+  :root{
+    --navy:#052B49; --ink:#1b2733; --muted:#6a7682; --faint:#93a0ac;
+    --green:#059669; --green-wash:#ecfdf5; --green-ink:#166534; --green-chip-b:#bbf7d0;
+    --card-b:#e8e8ec; --line:#f0f2f4; --line-2:#eef1f4; --head-bg:#f7f9fb; --field-b:#cfd8e0;
+    --mod-bg:#eef3f8; --mod-b:#d7e2ee; --mod-ink:#2c5277;
+    --amber:#92400e; --amber-wash:#fffbeb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:40px;background:#fbfcfd;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;color:var(--ink)}
+  .wrap{max-width:1060px;margin:0 auto}
+  h1{font-size:18px;color:var(--navy);margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 8px}
+  .legend{font-size:12.5px;color:var(--muted);background:#fff;border:1px solid var(--card-b);border-radius:8px;
+    padding:12px 14px;margin:0 0 28px;line-height:1.6}
+  .legend b{color:var(--navy)}
+  .section-head{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;
+    color:#fff;background:var(--navy);border-radius:6px;padding:5px 12px;margin:36px 0 16px;display:inline-block}
+  .opt{margin:0 0 34px}
+  .opt-label{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+  .opt-note{font-size:12.5px;color:var(--faint);margin:8px 0 0;line-height:1.5}
+  .charges-title{font-size:16px;font-weight:700;letter-spacing:.3px;color:var(--navy);margin:0 0 12px}
+  .card{border:1.5px solid var(--card-b);border-radius:10px;background:#fff;position:relative}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+
+  /* empty-state panel */
+  .empty{padding:32px 20px;text-align:center}
+  .empty-icon{color:#c4cdd6;margin-bottom:12px}
+  .empty-primary{font-size:15px;font-weight:600;color:var(--navy);margin:0 0 4px}
+  .empty-secondary{font-size:13px;color:var(--muted);margin:0 auto 18px;max-width:380px;line-height:1.45}
+  .btn-add{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;cursor:pointer;font-size:13px;font-weight:600;
+    border-radius:8px;background:#fff;color:var(--navy);border:1.5px solid #d3dce4}
+  .btn-add svg{stroke:currentColor}
+
+  /* table */
+  table.cm{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
+  .cm thead th{background:var(--head-bg);border-bottom:1.5px solid var(--card-b);padding:10px 14px;text-align:center;vertical-align:top}
+  .cm .dxh{width:auto}
+  .cm .ch{width:150px;border-left:1px solid var(--line-2);position:relative}
+  .cm .addh{width:48px;border-left:1px solid var(--line-2);font-size:20px;color:var(--navy);position:relative}
+  .cpt{font-weight:700;color:var(--navy)}
+  .modrow{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:7px}
+  .modchip{height:21px;line-height:19px;padding:0 7px;border-radius:6px;background:var(--mod-bg);border:1px solid var(--mod-b);color:var(--mod-ink);font-size:11.5px;font-weight:600}
+  .modadd{height:21px;line-height:19px;padding:0 7px;border:1px dashed var(--field-b);border-radius:6px;color:var(--muted);font-size:11.5px;font-weight:600;background:#fff;cursor:pointer}
+  .cm tbody td{padding:9px 14px;border-top:1px solid var(--line);vertical-align:middle}
+  .cm tbody tr:first-child td{border-top:none}
+  .dx{display:flex;align-items:center;gap:10px}
+  .grip{color:#cbd3db;cursor:grab}
+  .lock{color:#aeb8c2;font-size:12px}
+  .gempty{display:inline-block;width:14px}
+  .rank{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:6px;background:#f1f3f5;color:#3a5573;font-size:12px;font-weight:600}
+  .rank.muted{opacity:.55}
+  .dxcode{font-size:12px;font-weight:600;color:var(--green-ink);background:var(--green-wash);border:1px solid var(--green-chip-b);border-radius:6px;padding:2px 7px}
+  .cell{border-left:1px solid var(--line);text-align:center}
+  .cell.on{background:var(--green-wash)}
+  .cell input{width:18px;height:18px;accent-color:#0e2e4e}
+  .foot td{border-top:1.5px solid var(--card-b);background:#fafbfc;text-align:center;padding:8px 14px}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;background:var(--green-wash);color:var(--green-ink);font-size:12px;font-weight:600}
+  .pill.err{background:#fef2f2;color:#c0392b}
+  .pill.muted{background:#f1f5f9;color:#94a3b8}
+  .grouprow td{background:var(--head-bg);color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:6px 14px}
+  .dividerrow td{color:var(--faint);font-size:11px;font-weight:600;padding:5px 14px;border-top:1px dashed #dde3e9}
+  .promptrow td{padding:18px 14px;text-align:center;color:var(--muted);font-size:13px}
+
+  /* CPT search popover (Option 3) */
+  .pop{position:absolute;top:100%;right:0;margin-top:6px;width:300px;max-height:240px;display:flex;flex-direction:column;
+    background:#fff;border:1px solid #e2e7ec;border-radius:10px;box-shadow:0 8px 28px rgba(14,46,78,.16);padding:8px;z-index:5}
+  .pop-search{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;margin-bottom:6px;flex-shrink:0}
+  .pop-list{flex:1 1 auto;min-height:0;overflow-y:auto}
+  .pop-group{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);padding:6px 8px 4px}
+  .pop-row{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border:none;background:transparent;border-radius:6px;cursor:pointer;text-align:left}
+  .pop-row:hover{background:#f5f8fb}
+  .pop-code{font-weight:700;color:var(--navy);min-width:48px;font-size:13px}
+  .pop-desc{color:#5b6b7a;font-size:13px;flex:1}
+  .sep{height:1px;background:var(--line);margin:6px 4px}
+  .ro-tag{display:inline-block;font-size:11px;font-weight:600;color:var(--muted);background:#f1f3f5;border:1px solid #e3e8ed;border-radius:999px;padding:2px 9px;margin-left:8px;vertical-align:middle}
+  .hist-tag{display:inline-block;font-size:11px;font-weight:600;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:999px;padding:2px 9px;margin-left:8px;vertical-align:middle}
+  .ai-tag{display:inline-block;font-size:11px;font-weight:600;color:#1e40af;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:2px 9px;margin-left:8px;vertical-align:middle}
+  .pop.narrow{width:248px}
+  .pop-row.on{background:var(--green-wash)}
+  .pop-check{color:var(--green);font-weight:700}
+  .cell input:disabled{opacity:.4;cursor:not-allowed}
+
+  /* sign bar */
+  .signbar{padding:16px;text-align:center;border-top:1px solid var(--line)}
+  .sign-advisory{color:var(--amber);font-size:13px;font-weight:500;margin:0 0 10px;display:flex;align-items:center;justify-content:center;gap:6px}
+  .btn-sign{height:44px;padding:0 28px;border:none;border-radius:10px;font-size:15px;font-weight:700;color:#fff;background:#0e5c33;cursor:pointer}
+  .btn-sign.faded{background:#9bd3b3;cursor:not-allowed}
+  .cap-note{font-size:11px;color:var(--faint)}
+
+  /* pending-rec row (AI mode, not yet accepted) */
+  .pending-rec td{opacity:.38}
+  .pending-badge{display:inline-block;font-size:10px;font-weight:700;color:#6b7280;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:999px;padding:1px 7px;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Charge matrix — all states</h1>
+  <p class="sub">Reference for the agreed design + backward compatibility scenarios.</p>
+  <div class="legend">
+    <b>hasPointerData</b> = the <code>_pointers</code> key exists in the charge command's data. Pre-plugin charges never have this key — they show a neutral <b>—</b> pill and are never gated. ·
+    <b>Sign gate</b> is <b>advisory only</b> — it never blocks. ·
+    <b>Diagnoses</b> appear in the matrix only when accepted (AI mode) or already-documented.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="section-head">Core interaction states</div>
+
+  <!-- 1 — EMPTY -->
+  <section class="opt">
+    <p class="opt-label">1 · Empty — no diagnoses, no charges</p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <div class="empty">
+        <div class="empty-icon">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3h16v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M8 8h8M8 12h8"/></svg>
+        </div>
+        <p class="empty-primary">No charges yet</p>
+        <p class="empty-secondary">Add a diagnosis in the Plan, then add a charge here to link them.</p>
+        <button class="btn-add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add charge</button>
+      </div>
+    </div>
+    <p class="opt-note">Shown when the note has no accepted diagnoses and no charges. The "+ Add charge" button still works — charge appears in a column-only view prompting the provider to add diagnoses.</p>
+  </section>
+
+  <!-- 2 — DIAGNOSES ONLY -->
+  <section class="opt">
+    <p class="opt-label">2 · Diagnoses present, no charges</p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr><th class="dxh"></th><th class="addh">+</th></tr></thead>
+        <tbody>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">1</span><span class="dxcode mono">M25511</span><span>Pain in right shoulder</span></div></td><td></td></tr>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">2</span><span class="dxcode mono">E119</span><span>Type 2 diabetes mellitus</span></div></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="opt-note">Accepted diagnoses listed; the corner "+" opens the add-charge search. Drag to reorder rank.</p>
+  </section>
+
+  <!-- 3 — ADD CHARGE SEARCH -->
+  <section class="opt">
+    <p class="opt-label">3 · Adding a charge — "+" search with template suggestions</p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card" style="min-height:320px">
+      <table class="cm">
+        <thead><tr><th class="dxh"></th><th class="addh">+
+          <div class="pop">
+            <input class="pop-search" placeholder="Search CPT/HCPCS code or description" />
+            <div class="pop-list">
+              <div class="pop-group">Suggested for this visit</div>
+              <div class="pop-row"><span class="pop-code mono">99347</span><span class="pop-desc">Home visit, established, level 1</span></div>
+              <div class="pop-row"><span class="pop-code mono">99348</span><span class="pop-desc">Home visit, established, level 2</span></div>
+              <div class="pop-row"><span class="pop-code mono">99349</span><span class="pop-desc">Home visit, established, level 3</span></div>
+              <div class="pop-row"><span class="pop-code mono">99350</span><span class="pop-desc">Home visit, established, level 4</span></div>
+            </div>
+          </div>
+        </th></tr></thead>
+        <tbody>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">1</span><span class="dxcode mono">M25511</span><span>Pain in right shoulder</span></div></td><td></td></tr>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">2</span><span class="dxcode mono">E119</span><span>Type 2 diabetes mellitus</span></div></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="opt-note">Search on top; below it the template's charges as "Suggested for this visit" (already-added codes filtered out), then free-text results once 2+ chars are typed. Closes on pick, click-out, or Esc.</p>
+  </section>
+
+  <!-- 4 — POPULATED -->
+  <section class="opt">
+    <p class="opt-label">4 · Populated — linking diagnoses to charges</p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <th class="ch"><div class="cpt mono">99350</div><div class="modrow"><span class="modchip">25</span><span class="modadd">+ Modifier</span></div></th>
+          <th class="ch"><div class="cpt mono">99347</div><div class="modrow"><span class="modadd">+ Modifier</span></div></th>
+          <th class="addh">+</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">1</span><span class="dxcode mono">M25511</span><span>Pain in right shoulder</span></div></td><td class="cell on"><input type="checkbox" checked></td><td class="cell"><input type="checkbox"></td><td></td></tr>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">2</span><span class="dxcode mono">E119</span><span>Type 2 diabetes mellitus</span></div></td><td class="cell on"><input type="checkbox" checked></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+        </tbody>
+        <tfoot><tr class="foot"><td></td><td><span class="pill">2 / 4</span></td><td><span class="pill">1 / 4</span></td><td></td></tr></tfoot>
+      </table>
+    </div>
+    <p class="opt-note">Both charges are plugin-managed (hasPointerData true) and have ≥1 pointer — green pills, no advisory at sign time.</p>
+  </section>
+
+  <!-- 5 — READ-ONLY (FINALIZED, PLUGIN-CREATED) -->
+  <section class="opt">
+    <p class="opt-label">5 · Finalized (signed, not amending) — read-only <span class="ro-tag">read-only</span></p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <th class="ch"><div class="cpt mono">99350</div><div class="modrow"><span class="modchip">25</span></div></th>
+          <th class="ch"><div class="cpt mono">99347</div></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><div class="dx"><span class="gempty"></span><span class="rank">1</span><span class="dxcode mono">M25511</span><span>Pain in right shoulder</span></div></td><td class="cell on"><input type="checkbox" checked disabled></td><td class="cell"><input type="checkbox" disabled></td></tr>
+          <tr><td><div class="dx"><span class="gempty"></span><span class="rank">2</span><span class="dxcode mono">E119</span><span>Type 2 diabetes mellitus</span></div></td><td class="cell on"><input type="checkbox" checked disabled></td><td class="cell on"><input type="checkbox" checked disabled></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="opt-note">No "+", no "+ Modifier", no remove ×, no drag grips; checkboxes disabled. Pointer counts are not shown in the footer — display only. Becomes editable again only in amendment ("Make Changes").</p>
+  </section>
+
+  <!-- 6 — AMENDMENT -->
+  <section class="opt">
+    <p class="opt-label">6 · Amendment ("Make Changes") — existing diagnoses locked, net-new reorderable</p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <th class="ch"><div class="cpt mono">99350</div><div class="modrow"><span class="modchip">25</span><span class="modadd">+ Modifier</span></div></th>
+          <th class="addh">+</th>
+        </tr></thead>
+        <tbody>
+          <tr class="grouprow"><td colspan="3">On the signed claim</td></tr>
+          <tr><td><div class="dx"><span class="lock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="rank muted">1</span><span class="dxcode mono">M25511</span><span>Pain in right shoulder</span></div></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+          <tr><td><div class="dx"><span class="lock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="rank muted">2</span><span class="dxcode mono">E119</span><span>Type 2 diabetes mellitus</span></div></td><td class="cell"><input type="checkbox"></td><td></td></tr>
+          <tr class="dividerrow"><td colspan="3">Added in this amendment</td></tr>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">3</span><span class="dxcode mono">R519</span><span>Headache</span></div></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+        </tbody>
+        <tfoot><tr class="foot"><td></td><td><span class="pill">2 / 4</span></td><td></td></tr></tfoot>
+      </table>
+    </div>
+    <p class="opt-note">Already-claimed diagnoses sit under "On the signed claim" — lock glyph, muted rank, not draggable. Net-new diagnoses (rank 3+) drag-reorder among themselves only. Pointers and modifiers stay editable for all charges.</p>
+  </section>
+
+  <!-- 7 — MODIFIER PICKER -->
+  <section class="opt">
+    <p class="opt-label">7 · Adding a modifier — the "+ Modifier" picker</p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card" style="min-height:300px">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <th class="ch">
+            <div class="cpt mono">99350</div>
+            <div class="modrow"><span class="modchip">25</span><span class="modadd">+ Modifier</span></div>
+            <div class="pop narrow" style="text-align:left">
+              <input class="pop-search" placeholder="Search modifier code or description" />
+              <div class="pop-list">
+                <div class="pop-row on"><span class="pop-code mono">25</span><span class="pop-desc">Significant, separate E/M same day</span><span class="pop-check">✓</span></div>
+                <div class="pop-row"><span class="pop-code mono">GV</span><span class="pop-desc">Attending not employed by hospice</span></div>
+                <div class="pop-row"><span class="pop-code mono">GW</span><span class="pop-desc">Unrelated to terminal condition</span></div>
+                <div class="pop-row"><span class="pop-code mono">33</span><span class="pop-desc">Preventive service</span></div>
+                <div class="pop-row"><span class="pop-code mono">59</span><span class="pop-desc">Distinct procedural service</span></div>
+                <div class="pop-row"><span class="pop-code mono">93</span><span class="pop-desc">Synchronous audio-only telemedicine</span></div>
+                <div class="pop-row"><span class="pop-code mono">95</span><span class="pop-desc">Synchronous audio/video telemedicine</span></div>
+              </div>
+            </div>
+          </th>
+          <th class="addh">+</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">1</span><span class="dxcode mono">M25511</span><span>Pain in right shoulder</span></div></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="opt-note">Multi-select, closes on single pick. Free-typed 1–2 char codes accepted; cap 4. At cap, "+ Modifier" button is hidden.</p>
+  </section>
+
+  <!-- 8 — CHARGE WITH NO POINTER (advisory, non-blocking) -->
+  <section class="opt">
+    <p class="opt-label">8 · Charge with no linked diagnosis — advisory warning, sign still enabled</p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <th class="ch"><div class="cpt mono">99350</div><div class="modrow"><span class="modadd">+ Modifier</span></div></th>
+          <th class="ch"><div class="cpt mono">99347</div><div class="modrow"><span class="modadd">+ Modifier</span></div></th>
+          <th class="addh">+</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">1</span><span class="dxcode mono">M25511</span><span>Pain in right shoulder</span></div></td><td class="cell on"><input type="checkbox" checked></td><td class="cell"><input type="checkbox"></td><td></td></tr>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">2</span><span class="dxcode mono">E119</span><span>Type 2 diabetes mellitus</span></div></td><td class="cell on"><input type="checkbox" checked></td><td class="cell"><input type="checkbox"></td><td></td></tr>
+        </tbody>
+        <tfoot><tr class="foot"><td></td><td><span class="pill">2 / 4</span></td><td><span class="pill err">0 / 4</span></td><td></td></tr></tfoot>
+      </table>
+    </div>
+    <div class="signbar">
+      <p class="sign-advisory">⚠ Some charges have no linked diagnosis — you can still sign, but consider linking them for cleaner billing.</p>
+      <button class="btn-sign">Accept and sign</button>
+    </div>
+    <p class="opt-note">99347 has no pointer → red <span class="mono">0 / 4</span> pill and an amber advisory above the sign button. The button is NOT disabled — the provider can sign anyway. This only fires for plugin-managed charges (hasPointerData true).</p>
+  </section>
+
+  <!-- 9 — 4-POINTER CAP -->
+  <section class="opt">
+    <p class="opt-label">9 · 4-pointer cap reached — remaining checkboxes disabled</p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr><th class="dxh"></th><th class="ch"><div class="cpt mono">99350</div></th><th class="addh">+</th></tr></thead>
+        <tbody>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">1</span><span class="dxcode mono">M25511</span><span>Pain in right shoulder</span></div></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">2</span><span class="dxcode mono">E119</span><span>Type 2 diabetes mellitus</span></div></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">3</span><span class="dxcode mono">I10</span><span>Essential hypertension</span></div></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">4</span><span class="dxcode mono">F329</span><span>Major depressive disorder</span></div></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">5</span><span class="dxcode mono">R519</span><span>Headache</span></div></td><td class="cell"><input type="checkbox" disabled title="Max 4 diagnosis pointers"></td><td></td></tr>
+        </tbody>
+        <tfoot><tr class="foot"><td></td><td><span class="pill">4 / 4</span></td><td></td></tr></tfoot>
+      </table>
+    </div>
+    <p class="opt-note">CMS-1500 box 24E caps a service line at 4 diagnosis pointers. Once 4 are checked, remaining unchecked boxes in that column are disabled (greyed, tooltip). Footer reads <span class="mono">4 / 4</span>.</p>
+  </section>
+
+  <!-- 10 — 4-MODIFIER CAP -->
+  <section class="opt">
+    <p class="opt-label">10 · 4-modifier cap reached — "+ Modifier" hidden</p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <th class="ch"><div class="cpt mono">99350</div><div class="modrow"><span class="modchip">25</span><span class="modchip">59</span><span class="modchip">95</span><span class="modchip">GV</span></div></th>
+          <th class="addh">+</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">1</span><span class="dxcode mono">M25511</span><span>Pain in right shoulder</span></div></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="opt-note">At 4 modifiers the "+ Modifier" button is hidden. Each chip is still removable (×) to free a slot.</p>
+  </section>
+
+  <!-- 11 — CHARGE, NO DIAGNOSES -->
+  <section class="opt">
+    <p class="opt-label">11 · Charge present, no accepted diagnoses (edge)</p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr><th class="dxh"></th><th class="ch"><div class="cpt mono">99350</div><div class="modrow"><span class="modadd">+ Modifier</span></div></th><th class="addh">+</th></tr></thead>
+        <tbody>
+          <tr class="promptrow"><td colspan="3">Add a diagnosis in the Plan to link it to this charge.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="opt-note">A charge exists but no accepted diagnoses to point at yet. Provider can sign (sign gate is advisory) or go add diagnoses in the Plan section first.</p>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="section-head">AI mode — acceptance gating</div>
+
+  <!-- 12 — AI MODE, NO RECS ACCEPTED YET -->
+  <section class="opt">
+    <p class="opt-label">12 · AI mode — diagnoses generated but none accepted yet <span class="ai-tag">AI mode</span></p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <div class="empty">
+        <div class="empty-icon">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3h16v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M8 8h8M8 12h8"/></svg>
+        </div>
+        <p class="empty-primary">No charges yet</p>
+        <p class="empty-secondary">Accept diagnoses in the Plan, then add a charge here to link them.</p>
+        <button class="btn-add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add charge</button>
+      </div>
+    </div>
+    <p class="opt-note">AI-generated diagnose commands with <code>accepted: false</code> are filtered out of the matrix entirely. The matrix shows the empty-state panel even though the AI produced diagnoses — the provider must accept them first. Unaccepted recs in the Plan section appear faded with an "AI suggestion" badge.</p>
+  </section>
+
+  <!-- 13 — AI MODE, PARTIAL ACCEPTANCE -->
+  <section class="opt">
+    <p class="opt-label">13 · AI mode — 2 of 4 diagnoses accepted, charges added <span class="ai-tag">AI mode</span></p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <th class="ch"><div class="cpt mono">99350</div><div class="modrow"><span class="modadd">+ Modifier</span></div></th>
+          <th class="addh">+</th>
+        </tr></thead>
+        <tbody>
+          <!-- accepted diagnoses appear -->
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">1</span><span class="dxcode mono">I4891</span><span>Unspecified atrial fibrillation</span></div></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">2</span><span class="dxcode mono">G4733</span><span>Obstructive sleep apnea</span></div></td><td class="cell"><input type="checkbox"></td><td></td></tr>
+          <!-- I10 and E78.5 not accepted yet — not shown here at all -->
+        </tbody>
+        <tfoot><tr class="foot"><td></td><td><span class="pill">1 / 4</span></td><td></td></tr></tfoot>
+      </table>
+    </div>
+    <p class="opt-note">Only the 2 accepted diagnoses appear as rows. I10 (hypertension) and E78.5 (hyperlipidemia) were generated by AI but not yet accepted — they are invisible to the matrix. If the provider accepts them later, they appear as new draggable rows. If they reject a previously-accepted diagnosis, its row disappears and any pointers to it are automatically dropped from all charges.</p>
+  </section>
+
+  <!-- 14 — AI MODE, DIAGNOSIS REJECTED AFTER BEING LINKED -->
+  <section class="opt">
+    <p class="opt-label">14 · AI mode — accepted diagnosis later rejected; pointer auto-dropped <span class="ai-tag">AI mode</span></p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <th class="ch"><div class="cpt mono">99350</div><div class="modrow"><span class="modadd">+ Modifier</span></div></th>
+          <th class="addh">+</th>
+        </tr></thead>
+        <tbody>
+          <!-- Only I48.91 remains; G47.33 was rejected after being linked -->
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">1</span><span class="dxcode mono">I4891</span><span>Unspecified atrial fibrillation</span></div></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+        </tbody>
+        <tfoot><tr class="foot"><td></td><td><span class="pill">1 / 4</span></td><td></td></tr></tfoot>
+      </table>
+    </div>
+    <p class="opt-note">G47.33 (sleep apnea) was accepted, linked to 99350 as a pointer, then the provider rejected it. The row disappears from the matrix and the pointer is automatically removed from the charge's <code>_pointers</code> array via the <code>dxRefs</code> clamp in <code>chargeMatrixCharges</code>. The footer count drops from 2 to 1 automatically — no manual cleanup needed.</p>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="section-head">Backward compatibility — historical notes</div>
+
+  <!-- 15 — HISTORICAL, READ-ONLY -->
+  <section class="opt">
+    <p class="opt-label">15 · Historical note, finalized — read-only, pre-plugin charges <span class="ro-tag">read-only</span> <span class="hist-tag">pre-plugin</span></p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <th class="ch"><div class="cpt mono">99350</div></th>
+          <th class="ch"><div class="cpt mono">99347</div></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><div class="dx"><span class="gempty"></span><span class="rank">1</span><span class="dxcode mono">I10</span><span>Essential hypertension</span></div></td><td class="cell"><input type="checkbox" disabled></td><td class="cell"><input type="checkbox" disabled></td></tr>
+          <tr><td><div class="dx"><span class="gempty"></span><span class="rank">2</span><span class="dxcode mono">E785</span><span>Hyperlipidemia, unspecified</span></div></td><td class="cell"><input type="checkbox" disabled></td><td class="cell"><input type="checkbox" disabled></td></tr>
+        </tbody>
+        <tfoot><tr class="foot"><td></td><td><span class="pill muted">—</span></td><td><span class="pill muted">—</span></td></tr></tfoot>
+      </table>
+    </div>
+    <p class="opt-note">These charges were created before this plugin was installed — their command data has no <code>_pointers</code> key (<code>hasPointerData: false</code>). The footer shows a neutral <b>—</b> slate pill instead of a red <code>0 / 4</code>. Checkboxes are disabled (read-only). No sign advisory is triggered. BillingLineItem linkages may exist in Canvas from manual billing entry but are not surfaced here.</p>
+  </section>
+
+  <!-- 16 — HISTORICAL, AMENDMENT -->
+  <section class="opt">
+    <p class="opt-label">16 · Historical note, amendment — pre-existing charges grandfathered, new charge enforced <span class="hist-tag">pre-plugin</span></p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <th class="ch">
+            <!-- pre-plugin charge: no _pointers key -->
+            <div class="cpt mono">99350</div>
+            <div class="modrow"><span class="modadd">+ Modifier</span></div>
+          </th>
+          <th class="ch">
+            <!-- new charge added in this amendment: _pointers key written on first toggle -->
+            <div class="cpt mono">90837</div>
+            <div class="modrow"><span class="modadd">+ Modifier</span></div>
+          </th>
+          <th class="addh">+</th>
+        </tr></thead>
+        <tbody>
+          <tr class="grouprow"><td colspan="4">On the signed claim</td></tr>
+          <tr><td><div class="dx"><span class="lock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="rank muted">1</span><span class="dxcode mono">I10</span><span>Essential hypertension</span></div></td><td class="cell"><input type="checkbox"></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+          <tr><td><div class="dx"><span class="lock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="rank muted">2</span><span class="dxcode mono">E785</span><span>Hyperlipidemia, unspecified</span></div></td><td class="cell"><input type="checkbox"></td><td class="cell"><input type="checkbox"></td><td></td></tr>
+          <tr class="dividerrow"><td colspan="4">Added in this amendment</td></tr>
+          <tr><td><div class="dx"><span class="grip">⠿</span><span class="rank">3</span><span class="dxcode mono">F329</span><span>Major depressive disorder</span></div></td><td class="cell"><input type="checkbox"></td><td class="cell on"><input type="checkbox" checked></td><td></td></tr>
+        </tbody>
+        <tfoot><tr class="foot"><td></td>
+          <!-- pre-plugin: neutral dash -->
+          <td><span class="pill muted">—</span></td>
+          <!-- new charge: enforced, has 2 pointers -->
+          <td><span class="pill">2 / 4</span></td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div class="signbar">
+      <button class="btn-sign">Save changes</button>
+    </div>
+    <p class="opt-note"><b>99350</b> (pre-plugin, <code>hasPointerData: false</code>) shows <b>—</b> and is ignored by the sign advisory. <b>90837</b> was added in this amendment — the moment the provider checked a box, <code>_pointers</code> was written → <code>hasPointerData: true</code> → real count shown. Sign is not blocked for either charge. If 90837 were at 0 pointers, the amber advisory would appear above the save button but saving would still be enabled.</p>
+  </section>
+
+  <!-- 17 — PLUGIN-CREATED NOTE, RELOADED IN AMENDMENT -->
+  <section class="opt">
+    <p class="opt-label">17 · Plugin-created note, reloaded in amendment — _pointers not round-tripped <span class="hist-tag">no round-trip</span></p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <th class="ch"><div class="cpt mono">99350</div><div class="modrow"><span class="modchip">25</span><span class="modadd">+ Modifier</span></div></th>
+          <th class="ch"><div class="cpt mono">99347</div><div class="modrow"><span class="modadd">+ Modifier</span></div></th>
+          <th class="addh">+</th>
+        </tr></thead>
+        <tbody>
+          <tr class="grouprow"><td colspan="4">On the signed claim</td></tr>
+          <tr><td><div class="dx"><span class="lock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="rank muted">1</span><span class="dxcode mono">I4891</span><span>Unspecified atrial fibrillation</span></div></td><td class="cell"><input type="checkbox"></td><td class="cell"><input type="checkbox"></td><td></td></tr>
+          <tr><td><div class="dx"><span class="lock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="rank muted">2</span><span class="dxcode mono">G4733</span><span>Obstructive sleep apnea</span></div></td><td class="cell"><input type="checkbox"></td><td class="cell"><input type="checkbox"></td><td></td></tr>
+        </tbody>
+        <tfoot><tr class="foot"><td></td>
+          <td><span class="pill muted">—</span></td>
+          <td><span class="pill muted">—</span></td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div class="signbar">
+      <button class="btn-sign">Save changes</button>
+    </div>
+    <p class="opt-note">This note was created with this plugin — the provider previously linked diagnoses to both charges. But <code>_pointers</code> is a <b>frontend-only field</b>: Canvas stores only <code>cpt_code</code> and <code>notes</code> in the PerformCommand, not <code>_pointers</code>. When the note reloads in amendment, all pre-existing charges arrive without the key → <code>hasPointerData: false</code> → <b>—</b> pill. The prior linkages still exist in the BillingLineItem on Canvas (they are preserved), but the matrix cannot display them without a backend hydration endpoint (future work). Sign is not blocked.</p>
+  </section>
+
+  <!-- 18 — PROVIDER RE-LINKS A HISTORICAL CHARGE -->
+  <section class="opt">
+    <p class="opt-label">18 · Provider opts in — clicks a checkbox on a historical charge</p>
+    <div class="charges-title">CHARGES</div>
+    <div class="card">
+      <table class="cm">
+        <thead><tr>
+          <th class="dxh"></th>
+          <!-- was pre-plugin, provider clicked a checkbox: _pointers now written -->
+          <th class="ch"><div class="cpt mono">99350</div><div class="modrow"><span class="modadd">+ Modifier</span></div></th>
+          <!-- still untouched: _pointers key absent -->
+          <th class="ch"><div class="cpt mono">99347</div><div class="modrow"><span class="modadd">+ Modifier</span></div></th>
+          <th class="addh">+</th>
+        </tr></thead>
+        <tbody>
+          <tr class="grouprow"><td colspan="4">On the signed claim</td></tr>
+          <tr><td><div class="dx"><span class="lock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="rank muted">1</span><span class="dxcode mono">I10</span><span>Essential hypertension</span></div></td>
+            <td class="cell on"><input type="checkbox" checked></td>
+            <td class="cell"><input type="checkbox"></td><td></td></tr>
+          <tr><td><div class="dx"><span class="lock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="rank muted">2</span><span class="dxcode mono">E785</span><span>Hyperlipidemia, unspecified</span></div></td>
+            <td class="cell"><input type="checkbox"></td>
+            <td class="cell"><input type="checkbox"></td><td></td></tr>
+        </tbody>
+        <tfoot><tr class="foot"><td></td>
+          <!-- opted in: now enforced, shows real count -->
+          <td><span class="pill">1 / 4</span></td>
+          <!-- still untouched: neutral dash -->
+          <td><span class="pill muted">—</span></td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div class="signbar">
+      <button class="btn-sign">Save changes</button>
+    </div>
+    <p class="opt-note">The moment the provider checked a box on 99350, <code>_pointers</code> was written (<code>hasPointerData: true</code>). 99350 now shows a real <b>1 / 4</b> green pill and is subject to the advisory if it ever drops to 0. 99347 was never touched — it stays <b>—</b> and is ignored. This is the natural "opt-in" behaviour: touching a historical charge brings it under the plugin's pointer tracking, but never forces the provider to do so.</p>
+  </section>
+
+</div>
+</body>
+</html>
