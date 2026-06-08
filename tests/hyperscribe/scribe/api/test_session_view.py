@@ -3648,17 +3648,21 @@ def test_diagnose_row_handle_select_clears_background_and_condition_id() -> None
     )
 
 
-def test_diagnose_row_handle_clear_code_clears_background_and_condition_id() -> None:
-    """KOALA-5635 (Q2, ROUND 2): same shape as ``handleSelect`` — clearing
-    the ICD code must also explicitly clear ``condition_id`` and
-    ``background``. Preserving them across a clear would let the old
-    condition_id leak into the next ``handleSelect`` spread (the user
-    typically picks a new code right after clearing).
+def test_diagnose_row_handle_clear_code_preserves_code_to_protect_charge_links() -> None:
+    """``handleClearCode`` (the "Click to change diagnosis" gesture) must NOT
+    clear ``icd10_code`` / ``accepted``. Clearing them drops the diagnosis out
+    of ``chargeMatrixDiagnoses`` mid-edit, and the pointer-prune effect in
+    summary.js then permanently strips this diagnosis's links from every
+    charge before the replacement is picked (silent CMS-1500 box 24E loss).
+    Instead it just enters edit mode; ``handleSelect`` overwrites the code
+    atomically and still clears ``condition_id`` / ``background`` (the
+    KOALA_5635 cross-attachment guard — pinned by the handleSelect test above),
+    so the diagnosis never leaves the matrix and charge links survive.
 
     Pin assertions inside ``handleClearCode``:
-      1. Marker ``KOALA_5635_CLEAR_ON_ICD_CHANGE`` is present.
-      2. ``condition_id:`` is assigned to an empty string (or null/undefined).
-      3. ``background:`` is assigned to an empty string (or null/undefined).
+      1. It enters edit mode (``setEditingCode(true)``).
+      2. It does NOT assign ``icd10_code`` to null/'' (no clear).
+      3. It does NOT assign ``accepted: false`` (no de-accept).
     """
     src = _read_diagnose_row_js()
     handle_clear_marker = "const handleClearCode = () => {"
@@ -3679,27 +3683,21 @@ def test_diagnose_row_handle_clear_code_clears_background_and_condition_id() -> 
                 break
     assert end != -1, "handleClearCode body braces unbalanced"
     body = src[open_brace:end]
-    assert "KOALA_5635_CLEAR_ON_ICD_CHANGE" in body, (
-        "``handleClearCode`` must contain the KOALA_5635_CLEAR_ON_ICD_CHANGE "
-        "marker. Without it the round-1 shape (spread + no clear) would "
-        "let the old condition_id leak across a clear → re-select."
+    assert "setEditingCode(true)" in body, (
+        "``handleClearCode`` must enter edit mode via ``setEditingCode(true)`` "
+        "so the diagnosis-search input appears for the in-place ICD change."
     )
-    clear_condition_id = re.compile(
-        r"condition_id\s*:\s*(?:''|\"\"|``|null|undefined)",
+    clears_code = re.compile(r"icd10_code\s*:\s*(?:''|\"\"|``|null|undefined)")
+    assert not clears_code.search(body), (
+        "``handleClearCode`` must NOT clear ``icd10_code`` — doing so drops the "
+        "diagnosis out of chargeMatrixDiagnoses mid-edit and the pointer-prune "
+        "effect in summary.js silently wipes every charge link to it. Let "
+        "``handleSelect`` overwrite the code atomically instead."
     )
-    assert clear_condition_id.search(body), (
-        "``handleClearCode`` must EXPLICITLY clear ``condition_id`` (e.g. "
-        "``condition_id: ''``). Otherwise a clear → re-select sequence "
-        "spreads the OLD condition_id into the new selection."
-    )
-    clear_background = re.compile(
-        r"background\s*:\s*(?:''|\"\"|``|null|undefined)",
-    )
-    assert clear_background.search(body), (
-        "``handleClearCode`` must EXPLICITLY clear ``background`` (e.g. "
-        "``background: ''``). Same reasoning as ``handleSelect``: prevent "
-        "cross-attachment between the prior condition_id's background "
-        "text and a freshly-selected ICD code."
+    de_accepts = re.compile(r"accepted\s*:\s*false")
+    assert not de_accepts.search(body), (
+        "``handleClearCode`` must NOT set ``accepted: false`` — that also drops "
+        "the diagnosis from the matrix before the replacement is chosen."
     )
 
 

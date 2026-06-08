@@ -174,25 +174,15 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
 
   const handleClearCode = () => {
     if (readOnly) return;
-    const originalHeader = command.data._original_header || data.condition_header || '';
-    // KOALA_5635_CLEAR_ON_ICD_CHANGE — same reasoning as handleSelect:
-    // clearing the ICD also clears the (now-orphaned) condition_id and
-    // background. If the user picks a new code, the carry-forward will
-    // re-resolve from /generate-summary; if they pick the same code, the
-    // re-pick path also re-resolves. Preserving here would let the old
-    // condition_id leak into the next handleSelect spread.
-    const newData = {
-      ...data,
-      icd10_code: null,
-      icd10_display: '',
-      condition_header: originalHeader,
-      accepted: false,
-      rejected: false,
-      condition_id: '',  // explicit clear; never preserve across ICD clear
-      background: '',    // explicit clear; never preserve across ICD clear
-    };
-    onEdit(commandIndex, newData, 'diagnose');
-    setBackground('');
+    // "Click to change diagnosis" enters edit mode WITHOUT clearing icd10_code /
+    // accepted. Clearing them here would drop this diagnosis out of
+    // chargeMatrixDiagnoses mid-edit, and the pointer-prune effect in summary.js
+    // would then permanently strip this diagnosis's _localId from every charge's
+    // _pointers — silently wiping charge links before the replacement is picked.
+    // handleSelect overwrites the code atomically and STILL clears condition_id /
+    // background (the KOALA_5635 cross-attachment guard), so the diagnosis never
+    // leaves the matrix and charge links survive an in-place ICD change. If the
+    // user abandons the edit (Escape), the original code is intact.
     setEditingCode(true);
     setQuery('');
   };
