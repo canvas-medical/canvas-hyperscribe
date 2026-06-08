@@ -1889,8 +1889,10 @@ h2 { margin-bottom: 4px; }
 
 .exam-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #eef0f2; }
 
-/* Confirm dialog (carry forward / clear / apply template) */
-.exam-confirm-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+/* Confirm dialog (carry forward / clear / apply template).
+   Scoped to the PE/ROS card (absolute within the position:relative .content-block),
+   NOT a full-viewport overlay — it dims and centers over this card only. */
+.exam-confirm-overlay { position: absolute; inset: 0; background: rgba(15,23,42,.35); display: flex; align-items: center; justify-content: center; z-index: 20; padding: 16px; border-radius: 8px; }
 .exam-confirm { background: #fff; border-radius: 12px; padding: 22px 24px; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
 .exam-confirm h3 { margin: 0 0 8px; font-size: 16px; color: #052B49; }
 .exam-confirm p { margin: 0 0 18px; font-size: 14px; color: #4b5563; line-height: 1.5; }

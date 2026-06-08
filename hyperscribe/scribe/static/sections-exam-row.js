@@ -155,8 +155,10 @@ export function ExamSectionsRow({
   }
 
   // ── EDIT ──
+  // The `editing` class suppresses the app's .content-block:hover grey
+  // (the wrapper uses :not(:has(.editing)) to gate that hover state).
   return html`
-    <div class="exam-edit">
+    <div class="exam-edit editing">
       <div class="exam-toolbar">
         <span class="exam-dropdown">
           <button type="button" class="exam-action-btn" onClick=${(e) => { e.stopPropagation(); setMenuOpen(o => !o); }} title="Apply a configured visit template's exam">
