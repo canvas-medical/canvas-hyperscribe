@@ -191,7 +191,7 @@ export function ExamSectionsRow({
                   })}
                   <div class="exam-tmpl-divider"></div>
                   <div class="exam-tmpl-foot">
-                    <button type="button" class="exam-foot-btn" disabled=${menuSel < 0} onClick=${() => applyTemplate('replace')}>⇄ Clear &amp; Replace</button>
+                    <button type="button" class="exam-foot-btn" disabled=${menuSel < 0} onClick=${() => applyTemplate('replace')}>⇄ Clear & Replace</button>
                     <button type="button" class="exam-foot-btn merge" disabled=${menuSel < 0 || merging} onClick=${() => applyTemplate('merge')}>✦ ${merging ? 'Merging…' : 'AI Merge'}</button>
                   </div>
                 `}
