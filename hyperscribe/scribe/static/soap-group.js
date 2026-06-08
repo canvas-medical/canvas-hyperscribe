@@ -11,6 +11,7 @@ import { HistoryReviewRow } from '/plugin-io/api/hyperscribe/scribe/static/histo
 import { HistoryEntryRow } from '/plugin-io/api/hyperscribe/scribe/static/history-entry-row.js';
 import { DiagnoseRow } from '/plugin-io/api/hyperscribe/scribe/static/diagnose-row.js';
 import { QuestionnaireRow } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-row.js';
+import { ChargeMatrix } from '/plugin-io/api/hyperscribe/scribe/static/charge-matrix.js';
 
 const html = htm.bind(h);
 
@@ -112,109 +113,6 @@ function rowLocked(command, readOnly, isAmending) {
 }
 
 const CHARGE_SEARCH_BASE = '/plugin-io/api/hyperscribe/scribe-session';
-const CHARGE_DEBOUNCE_MS = 300;
-
-function ChargeRow({ command, commandIndex, onEdit, onDelete, readOnly, excludeCpts, onEditingChange }) {
-  const data = command.data || {};
-  const hasCpt = !!data.cpt_code;
-  const [editing, setEditing] = useState(!hasCpt);
-  useEffect(() => {
-    onEditingChange?.(commandIndex, editing);
-    return () => onEditingChange?.(commandIndex, false);
-  }, [editing, commandIndex]);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const timer = useRef(null);
-
-  const doSearch = useCallback(async (q) => {
-    if (!q || q.length < 2) { setResults([]); setSearched(false); return; }
-    setSearching(true);
-    try {
-      const excludeParam = excludeCpts && excludeCpts.size > 0 ? `&exclude=${[...excludeCpts].join(',')}` : '';
-      const res = await fetch(`${CHARGE_SEARCH_BASE}/search-charges?query=${encodeURIComponent(q)}${excludeParam}`);
-      const json = await res.json();
-      setResults(json.results || []);
-    } catch (err) {
-      console.error('Charge search failed:', err);
-      setResults([]);
-    } finally {
-      setSearching(false);
-      setSearched(true);
-    }
-  }, [excludeCpts]);
-
-  const handleInput = (e) => {
-    const val = e.target.value;
-    setQuery(val);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => doSearch(val), CHARGE_DEBOUNCE_MS);
-  };
-
-  const handleSelect = (r) => {
-    onEdit(commandIndex, {
-      ...data,
-      cpt_code: r.cpt_code,
-      description: r.short_name || r.full_name || '',
-      notes: data.notes || '',
-    });
-    setQuery('');
-    setResults([]);
-    setSearched(false);
-    setEditing(false);
-  };
-
-  const handleRemove = (e) => {
-    e.stopPropagation();
-    onDelete(commandIndex);
-  };
-
-  if (!hasCpt || editing) {
-    return html`
-      <div class="charge-row">
-        <div class="history-form-field" style="position: relative;">
-          <input
-            type="text"
-            class="history-form-input"
-            value=${query}
-            onInput=${handleInput}
-            placeholder="Search CPT code or description..."
-            autoFocus
-          />
-          ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
-          ${results.length > 0 && html`
-            <div class="history-search-dropdown">
-              ${results.map(r => html`
-                <div
-                  key=${r.cpt_code}
-                  class="history-search-result"
-                  onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
-                >
-                  <strong>${r.cpt_code}</strong>${' '}${r.short_name || r.full_name}
-                </div>
-              `)}
-            </div>
-          `}
-          ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-            <div class="history-search-dropdown">
-              <div class="history-search-result search-no-results">No charges found</div>
-            </div>
-          `}
-        </div>
-      </div>
-    `;
-  }
-
-  return html`
-    <div class="charge-view" onClick=${() => !readOnly && setEditing(true)}>
-      <span class="charge-view-code">${data.cpt_code}</span>
-      <span class="charge-view-desc">${data.description || ''}</span>
-    </div>
-  `;
-}
-
-
 
 const REMOVAL_TYPES = new Set(['stop_medication', 'remove_allergy', 'resolve_condition']);
 
@@ -729,7 +627,8 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onRemoveChargeByUuid = () => {} }) {
+  const isCharges = title === 'CHARGES';
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
   // In approved (readOnly) mode, only show items that actually made it into the note.
@@ -1531,98 +1430,20 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             </div>
           `;
         })()}
-        ${(() => {
-          // Build unified checklist: template charges + manually added charges.
-          // A charge is "selected" if its command exists AND has selected=true.
-          const chargeCommands = visibleAdHoc
-            .filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code);
-          const selectedCpts = new Set(
-            chargeCommands.filter(e => e.command.selected !== false).map(e => e.command.data.cpt_code)
-          );
-
-          // Template charges (checked if selected command exists).
-          const templateItems = (templateCharges || []).map(c => ({
-            cpt_code: c.cpt_code,
-            description: c.description,
-            isAdded: selectedCpts.has(c.cpt_code),
-          }));
-
-          // Manually added charges not in the template list (show even if deselected).
-          const templateCpts = new Set((templateCharges || []).map(c => c.cpt_code));
-          const adHocItems = chargeCommands
-            .filter(e => !templateCpts.has(e.command.data.cpt_code))
-            .map(e => ({
-              cpt_code: e.command.data.cpt_code,
-              description: e.command.data.description || '',
-              isAdded: e.command.selected !== false,
-            }));
-
-          const allItems = [...templateItems, ...adHocItems];
-          const visibleCharges = readOnly ? allItems.filter(c => c.isAdded) : allItems;
-          if (visibleCharges.length === 0) return null;
-
-          return html`
-            <div class="charge-checklist">
-              ${visibleCharges.map(c => html`
-                <label
-                  key=${c.cpt_code}
-                  class="charge-check-item${c.isAdded ? ' checked' : ''}${readOnly ? ' read-only' : ''}"
-                >
-                  <input
-                    type="checkbox"
-                    checked=${c.isAdded}
-                    disabled=${readOnly}
-                    onChange=${() => {
-                      if (c.isAdded) {
-                        onRemoveChargeByCpt && onRemoveChargeByCpt(c.cpt_code);
-                      } else {
-                        onAddTemplateCharge && onAddTemplateCharge(c.cpt_code, c.description);
-                      }
-                    }}
-                  />
-                  <span class="charge-check-code">${c.cpt_code}</span>
-                  <span class="charge-check-desc">${c.description}</span>
-                </label>
-              `)}
-            </div>
-          `;
-        })()}
-        ${(() => {
-          // Render search inputs for charges being added (no cpt_code yet).
-          // In readOnly mode, pending charges (no CPT) were never inserted — skip them.
-          if (readOnly) return null;
-          const pending = visibleAdHoc.filter(
-            e => e.command.command_type === 'perform' && !e.command.data.cpt_code
-          );
-          if (pending.length === 0) return null;
-          const allChecklistCpts = new Set([
-            ...(templateCharges || []).map(c => c.cpt_code),
-            ...visibleAdHoc.filter(e => e.command.command_type === 'perform' && e.command.data.cpt_code).map(e => e.command.data.cpt_code),
-          ]);
-          return pending.map(entry => {
-            const chargeRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
-            return html`
-            <div class="content-block recommendation-block rec-charge" key=${entry.index}>
-              <div class="recommendation-content">
-                <${ChargeRow}
-                  command=${entry.command}
-                  commandIndex=${entry.index}
-                  onEdit=${onEditCommand}
-                  onDelete=${onDeleteCommand}
-                  readOnly=${chargeRowReadOnly}
-                  excludeCpts=${allChecklistCpts}
-                  onEditingChange=${onEditingChange}
-                />
-              </div>
-              ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-btn rec-btn-reject" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
-            </div>
-          `;});
-        })()}
-        ${onAddCharge && !readOnly && html`
-          <div class="ad-hoc-buttons">
-            <button type="button" class="ad-hoc-btn" onClick=${onAddCharge}>+ Charge</button>
-          </div>
-        `}
+        ${isCharges ? html`<${ChargeMatrix}
+          diagnoses=${chargeMatrixDiagnoses}
+          charges=${chargeMatrixCharges}
+          isAmending=${isAmending}
+          readOnly=${readOnly}
+          searchCharges=${searchCharges}
+          suggested=${suggestedCharges}
+          onTogglePointer=${onToggleChargePointer}
+          onReorderDiagnoses=${onReorderDiagnoses}
+          onAddModifier=${onAddChargeModifier}
+          onRemoveModifier=${onRemoveChargeModifier}
+          onAddCharge=${onAddCharge}
+          onRemoveCharge=${onRemoveChargeByUuid}
+        />` : null}
         ${(() => {
           // Render Rx recommendations in the PLAN group (raw prescription text is suppressed above).
           if (title !== 'ASSESSMENT & PLAN') return null;

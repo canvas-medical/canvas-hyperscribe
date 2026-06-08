@@ -1659,3 +1659,166 @@ h2 { margin-bottom: 4px; }
 .from-the-note-detail-value {
   color: #111;
 }
+
+/* =========================================================================
+   Charges matrix  (charge-matrix.js  +  summary.js sign gate)
+   Table layout — columns align across header/body/footer automatically.
+   ========================================================================= */
+.cm-wrap { overflow: visible; }
+
+.cm-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1.5px solid #e8e8ec;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 14px;
+}
+.cm-table thead tr:first-child th:first-child { border-top-left-radius: 10px; }
+.cm-table thead tr:first-child th:last-child  { border-top-right-radius: 10px; }
+.cm-table tfoot tr:last-child td:first-child   { border-bottom-left-radius: 10px; }
+.cm-table tfoot tr:last-child td:last-child    { border-bottom-right-radius: 10px; }
+.cm-table:not(:has(tfoot)) tbody tr:last-child td:first-child { border-bottom-left-radius: 10px; }
+.cm-table:not(:has(tfoot)) tbody tr:last-child td:last-child  { border-bottom-right-radius: 10px; }
+
+/* -- header -- */
+.cm-table thead th {
+  background: #f7f9fb;
+  border-bottom: 1.5px solid #e8e8ec;
+  padding: 10px 14px;
+  vertical-align: top;
+  text-align: center;
+  font-weight: 600;
+}
+.cm-dx-head { width: auto; }
+.cm-charge-head { position: relative; width: 170px; border-left: 1px solid #eef1f4; }
+.cm-add-head { position: relative; width: 52px; border-left: 1px solid #eef1f4; }
+
+.cm-cpt-row { display: inline-flex; align-items: center; gap: 6px; }
+.cm-cpt { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 15px; font-weight: 700; color: #052B49; }
+.cm-colremove {
+  border: none; background: transparent; color: #b3bdc7; font-size: 15px; line-height: 1;
+  cursor: pointer; padding: 0 2px; border-radius: 4px; opacity: 0; transition: opacity .12s, color .12s;
+}
+.cm-charge-head:hover .cm-colremove { opacity: 1; }
+.cm-colremove:hover { color: #c0392b; background: #fbeceb; }
+
+.cm-mods { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 7px; }
+.cm-modchip {
+  display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 8px;
+  border-radius: 6px; background: #eef3f8; border: 1px solid #d7e2ee; color: #2c5277;
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.cm-modchip:hover { background: #e3ecf5; }
+.cm-modchip-x { color: #8aa0b6; font-weight: 400; }
+.cm-modadd {
+  height: 22px; padding: 0 8px; border: 1px dashed #cfd8e0; border-radius: 6px; background: #fff;
+  color: #6a7682; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .12s;
+}
+.cm-modadd:hover { background: #f5f8fb; }
+
+.cm-add-btn {
+  width: 30px; height: 30px; border: none; background: transparent; color: #052B49;
+  font-size: 20px; line-height: 1; cursor: pointer; border-radius: 6px; transition: background .12s;
+}
+.cm-add-btn:hover { background: #eef2f6; }
+
+/* -- body -- */
+.cm-table tbody td { padding: 9px 14px; vertical-align: middle; border-top: 1px solid #f0f2f4; }
+.cm-table tbody tr:first-child td { border-top: none; }
+.cm-cell, .cm-add-cell { border-left: 1px solid #f0f2f4; }
+
+.cm-dx { text-align: left; }
+.cm-dx-inner { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cm-grip { color: #cbd3db; cursor: grab; font-size: 14px; user-select: none; flex-shrink: 0; }
+.cm-grip:active { cursor: grabbing; }
+.cm-lock { color: #aeb8c2; flex-shrink: 0; display: inline-flex; align-items: center; }
+.cm-grip-empty { display: inline-block; width: 14px; flex-shrink: 0; }
+.cm-modchip-static { cursor: default; }
+.cm-rank {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px;
+  padding: 0 6px; border-radius: 6px; background: #f1f3f5; color: #3a5573; font-size: 12px;
+  font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums;
+}
+.cm-rank-muted { opacity: .55; }
+.cm-dxcode {
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600;
+  color: #166534; background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 6px;
+  padding: 2px 7px; flex-shrink: 0;
+}
+.cm-dxlabel { color: #1b2733; font-size: 14px; font-weight: 500; min-width: 0; }
+.cm-row-locked .cm-dxlabel { color: #5b6b7a; }
+.cm-row[draggable="true"]:hover { background: #fafbfc; }
+.cm-row.cm-drag-over td { box-shadow: inset 0 2px 0 #1a9f57; }
+
+.cm-empty { text-align: center; color: #6a7682; font-size: 13px; padding: 22px 14px; }
+
+/* Fully-empty state panel (no diagnoses, no charges) */
+.cm-empty-panel { border: 1.5px solid #e8e8ec; border-radius: 10px; background: #fff; padding: 32px 20px; text-align: center; }
+.cm-empty-icon { display: flex; justify-content: center; color: #c4cdd6; margin-bottom: 12px; }
+.cm-empty-title { font-size: 15px; font-weight: 600; color: #052B49; margin-bottom: 4px; }
+.cm-empty-hint { font-size: 13px; color: #6a7682; max-width: 380px; margin: 0 auto 18px; line-height: 1.45; }
+.cm-empty-add { position: relative; display: inline-block; }
+.cm-empty-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; cursor: pointer;
+  font-size: 13px; font-weight: 600; border-radius: 8px; background: #fff; color: #052B49; border: 1.5px solid #d3dce4; transition: background .12s; }
+.cm-empty-btn:hover { background: #f5f8fb; }
+.cm-empty-btn svg { stroke: currentColor; }
+
+.cm-cell { text-align: center; }
+.cm-cell.on { background: #f1f9f4; }
+.cm-cell input[type="checkbox"] { width: 18px; height: 18px; accent-color: #0e2e4e; cursor: pointer; margin: 0; }
+.cm-cell input[type="checkbox"]:disabled { cursor: not-allowed; opacity: .45; }
+
+/* -- amendment group rows -- */
+.cm-grouprow td {
+  background: #f7f9fb; color: #6a7682; font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  text-transform: uppercase; padding: 6px 14px; border-top: 1px solid #e8e8ec;
+}
+.cm-dividerrow td {
+  color: #93a0ac; font-size: 11px; font-weight: 600; padding: 5px 14px; border-top: 1px dashed #dde3e9;
+}
+
+/* -- footer -- */
+.cm-table tfoot td { padding: 9px 14px; border-top: 1.5px solid #e8e8ec; background: #fafbfc; text-align: center; }
+.cm-foot-cell { border-left: 1px solid #f0f2f4; }
+.cm-pill {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px;
+  background: #ecfdf5; color: #166534; font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.cm-pill-error { background: #fef2f2; color: #c0392b; }
+.cm-pill-muted { background: #f1f5f9; color: #94a3b8; }
+
+/* -- popovers (modifier picker + charge search) -- */
+.cm-popover {
+  /* Opens downward (search on top, results below). Capped height keeps it
+     compact so it stays usable even at the bottom of the note. */
+  position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 50; width: 270px;
+  display: flex; flex-direction: column; max-height: 240px;
+  background: #fff; border: 1px solid #e2e7ec; border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(14,46,78,.16); padding: 8px; text-align: left;
+}
+.cm-popover-wide { width: 320px; }
+.cm-popover-search {
+  width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #d1d5db;
+  border-radius: 6px; font-size: 13px; font-family: inherit;
+  /* pinned at the top of the popover, separated from the results below */
+  flex-shrink: 0; margin-bottom: 6px;
+}
+.cm-popover-search:focus { outline: none; border-color: #93b4d4; box-shadow: 0 0 0 3px rgba(82,130,180,.12); }
+.cm-popover-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.cm-popover-group { padding: 6px 8px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--faint, #93a0ac); }
+.cm-popover-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: none;
+  background: transparent; border-radius: 6px; cursor: pointer; text-align: left; font-family: inherit;
+}
+.cm-popover-row:hover { background: #f5f8fb; }
+.cm-popover-row.on { background: #ecfdf5; }
+.cm-popover-row:disabled { opacity: .4; cursor: not-allowed; }
+.cm-popover-code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 700; color: #052B49; min-width: 30px; }
+.cm-popover-desc { color: #5b6b7a; font-size: 13px; flex: 1; }
+.cm-popover-check { color: #059669; font-weight: 700; }
+.cm-popover-empty { padding: 12px 8px; color: #6a7682; font-size: 13px; text-align: center; }
+
+/* -- sign gate error (layers onto .summary-footer-warning) -- */
+.cm-sign-error { color: #c0392b; font-weight: 600; margin-top: 4px; }

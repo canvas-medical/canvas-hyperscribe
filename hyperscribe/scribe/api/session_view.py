@@ -68,6 +68,8 @@ from hyperscribe.scribe.commands.builder import (
     prefill_diagnose_backgrounds,
     validate_proposals,
 )
+from hyperscribe.scribe.charges.enrichment import build_charge_enrichment_effects
+from hyperscribe.scribe.charges.validation import validate_charge_enrichment
 from hyperscribe.scribe.commands.carry_forward import carry_forward_assess_background
 from hyperscribe.scribe.commands.extractor import (
     extract_commands,
@@ -1973,6 +1975,41 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             ),
             *effects,
         ]
+
+    @api.post("/enrich-charges")
+    def post_enrich_charges(self) -> list[Union[Response, Effect]]:
+        """Write diagnosis pointers + modifiers onto each charge's BillingLineItem.
+
+        Called by the frontend AFTER /insert-commands has committed the charge
+        PerformCommands (so their BLIs exist). Deterministic, no event handlers.
+        ``removed_charges`` carries PerformCommand uuids whose BLI should be
+        removed (amendment charge removal).
+        """
+        try:
+            payload = json.loads(self.request.body or b"{}")
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        note_uuid = str(payload.get("note_uuid", ""))
+        auth = _authorize_edit(note_uuid, self.request)
+        if auth is not None:
+            return [auth]
+
+        charges = payload.get("charges", []) or []
+        removed = payload.get("removed_charges", []) or []
+
+        validation_errors = validate_charge_enrichment(charges)
+        if validation_errors:
+            audit_event(note_uuid, "ENRICH_CHARGES_VALIDATION_FAILED", {"count": len(validation_errors)})
+            return [JSONResponse({"errors": validation_errors}, status_code=HTTPStatus.UNPROCESSABLE_ENTITY)]
+
+        effects, enriched, errors = build_charge_enrichment_effects(charges, removed, note_uuid)
+        audit_event(
+            note_uuid,
+            "ENRICH_CHARGES",
+            {"enriched": len(enriched), "removed_requested": len(removed), "errors": len(errors)},
+        )
+        return [JSONResponse({"enriched": enriched, "errors": errors}, status_code=HTTPStatus.OK), *effects]
 
     @api.post("/insert-metadata")
     def post_insert_metadata(self) -> list[Union[Response, Effect]]:

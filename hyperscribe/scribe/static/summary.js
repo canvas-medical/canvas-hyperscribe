@@ -1,5 +1,5 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
-import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10.25.4/hooks';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
 import { collectQuestionnaireScores } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-score.js';
@@ -7,6 +7,7 @@ import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording
 import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
 import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/finish-button.js';
+import { canSignCharges, MAX_POINTERS, MAX_MODIFIERS } from '/plugin-io/api/hyperscribe/scribe/static/charge-matrix.js';
 
 const html = htm.bind(h);
 
@@ -347,7 +348,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onRemoveChargeByUuid } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -378,9 +379,18 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddHistory=${isHistory ? onAddHistory : null}
         onAddQuestionnaire=${isSubjective ? onAddQuestionnaire : null}
         onAddCharge=${isCharges ? onAddCharge : null}
+        searchCharges=${isCharges ? searchCharges : null}
+        suggestedCharges=${isCharges ? suggestedCharges : null}
         onAddTemplateCharge=${isCharges ? onAddTemplateCharge : null}
         onRemoveChargeByCpt=${isCharges ? onRemoveChargeByCpt : null}
         templateCharges=${isCharges ? templateCharges : null}
+        chargeMatrixDiagnoses=${isCharges ? chargeMatrixDiagnoses : null}
+        chargeMatrixCharges=${isCharges ? chargeMatrixCharges : null}
+        onToggleChargePointer=${isCharges ? onToggleChargePointer : null}
+        onReorderDiagnoses=${isCharges ? onReorderDiagnoses : null}
+        onAddChargeModifier=${isCharges ? onAddChargeModifier : null}
+        onRemoveChargeModifier=${isCharges ? onRemoveChargeModifier : null}
+        onRemoveChargeByUuid=${isCharges ? onRemoveChargeByUuid : null}
         readOnly=${readOnly}
         isAmending=${isAmending}
         sectionConditions=${sectionConditions}
@@ -431,6 +441,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [progress, setProgress] = useState({ step: -1, total: 0, label: '' });
   const [verificationResult, setVerificationResult] = useState(null);
   const [validationError, setValidationError] = useState(null);
+  const [chargeErrors, setChargeErrors] = useState([]);
 
   // Template state.
   const [templates, setTemplates] = useState(initialData?.templates ?? []);
@@ -493,6 +504,146 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const saveBlockedRef = useRef(false);
 
   const [editingFields, setEditingFields] = useState(new Set());
+
+  // Every command needs a STABLE, UNIQUE client id for the charges matrix to
+  // tell rows/columns apart. Scribe-generated diagnose/assess commands have
+  // neither a command_uuid (assigned only after insertion) nor a _localId, so
+  // without this they'd all share the same (undefined) identity — checking one
+  // checkbox in a column would visually check the whole column. We stamp a
+  // _localId on any command missing one and key the matrix on _localId (NOT
+  // command_uuid) so the identity stays stable across the insert boundary,
+  // which also keeps the diagnosis-pointer -> code resolution correct at
+  // /enrich-charges time.
+  useEffect(() => {
+    if (commands.some(c => !c._localId)) {
+      setCommands(prev => prev.map(c => (c._localId ? c : { ...c, _localId: crypto.randomUUID() })));
+    }
+  }, [commands]);
+
+  // --- Charge matrix view-models (derived from commands) ---
+  const chargeMatrixDiagnoses = useMemo(() => commands
+    .filter(c => (c.command_type === 'diagnose' || c.command_type === 'assess')
+      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.already_documented || c.command_uuid
+          // diagnose: must be explicitly accepted (absent = unreviewed AI rec → hide)
+          // assess:   absent accepted = manually added via old code → show; only hide on false
+          || (c.command_type === 'assess' ? c.data?.accepted !== false : c.data?.accepted)))
+    .map(c => ({
+      command_uuid: c._localId,
+      code: c.data?.icd10_code || c.data?.code || '',
+      label: c.data?.icd10_display || c.data?.label || c.display || '',
+      locked: Boolean(c.already_documented || c.command_uuid),
+    })), [commands]);
+
+  // Prune stale diagnosis pointers. When a linked diagnosis is rejected or removed
+  // it leaves chargeMatrixDiagnoses, but its _localId lingers in charges' _pointers.
+  // Stale UUIDs eat cap slots and can push the sign payload over MAX_POINTERS
+  // (reject a linked dx → add a replacement → re-accept the original = 5 live
+  // pointers → server 422). Drop any pointer not backed by a live matrix diagnosis.
+  // Safe against load churn: _localId is preserved across cache restore / sync, so a
+  // valid diagnosis never drops out of the live set and never has its pointer pruned.
+  useEffect(() => {
+    const live = new Set(chargeMatrixDiagnoses.map(d => d.command_uuid));
+    setCommands(prev => {
+      let changed = false;
+      const next = prev.map(c => {
+        if (c.command_type !== 'perform' || !('_pointers' in (c.data || {}))) return c;
+        const cur = c.data._pointers || [];
+        const pruned = cur.filter(u => live.has(u));
+        if (pruned.length === cur.length) return c;
+        changed = true;
+        return { ...c, data: { ...c.data, _pointers: pruned } };
+      });
+      return changed ? next : prev; // same ref when nothing pruned → no re-render loop
+    });
+  }, [chargeMatrixDiagnoses]);
+
+  const chargeMatrixCharges = useMemo(() => {
+    const dxRefs = new Set(chargeMatrixDiagnoses.map(d => d.command_uuid));
+    return commands
+      .filter(c => c.command_type === 'perform' && c.data?.cpt_code && c.selected !== false && !c._amend_deleted && c._localId)
+      .map(c => ({
+        command_uuid: c._localId,
+        cpt: c.data.cpt_code,
+        description: c.data.description || '',
+        modifiers: c.data._modifiers || [],
+        pointers: (c.data._pointers || []).filter(u => dxRefs.has(u)),
+        // True only when this plugin has written _pointers to the charge. Pre-plugin
+        // historical charges have no _pointers key at all and are grandfathered out of
+        // the sign gate and the error-pill so they don't block amendment on old notes.
+        hasPointerData: '_pointers' in (c.data || {}),
+      }));
+  }, [commands, chargeMatrixDiagnoses]);
+
+  // The matrix keys rows/columns on _localId (stable, unique per command).
+  const matrixRef = (localId) => (c) => c._localId === localId;
+
+  const onToggleChargePointer = useCallback((chargeUuid, dxUuid) => {
+    // Use the live (dxRefs-filtered) count for the cap check — raw _pointers may
+    // contain stale UUIDs from rejected diagnoses that were previously linked,
+    // causing the cap to fire even though the footer pill reads < MAX_POINTERS.
+    const liveDxUuids = new Set(chargeMatrixDiagnoses.map(d => d.command_uuid));
+    setCommands(prev => prev.map(c => {
+      if (!matrixRef(chargeUuid)(c)) return c;
+      const cur = c.data._pointers || [];
+      const has = cur.includes(dxUuid);
+      const liveCount = cur.filter(u => liveDxUuids.has(u)).length;
+      if (!has && liveCount >= MAX_POINTERS) return c;
+      return { ...c, data: { ...c.data, _pointers: has ? cur.filter(u => u !== dxUuid) : [...cur, dxUuid] } };
+    }));
+  }, [chargeMatrixDiagnoses]);
+
+  // Both modifier handlers also stamp _pointers so a modifier-only edit opts the
+  // charge into plugin-managed enrichment. The enrich filter (and hasPointerData)
+  // key on the _pointers KEY being present; without this stamp, a modifier added
+  // to a pre-plugin charge (no _pointers key) is silently excluded from
+  // /enrich-charges and never written to the BLI. Mirrors onToggleChargePointer.
+  const onAddChargeModifier = useCallback((chargeUuid, code) => setCommands(prev => prev.map(c => {
+    if (!matrixRef(chargeUuid)(c)) return c;
+    const cur = c.data._modifiers || [];
+    if (cur.includes(code) || cur.length >= MAX_MODIFIERS) return c;
+    return { ...c, data: { ...c.data, _pointers: c.data._pointers || [], _modifiers: [...cur, code] } };
+  })), []);
+
+  const onRemoveChargeModifier = useCallback((chargeUuid, code) => setCommands(prev => prev.map(c =>
+    matrixRef(chargeUuid)(c)
+      ? { ...c, data: { ...c.data, _pointers: c.data._pointers || [], _modifiers: (c.data._modifiers || []).filter(m => m !== code) } }
+      : c)), []);
+
+  const onReorderDiagnoses = useCallback((nextUuids) => setCommands(prev => {
+    // The matrix keys rows on _localId (stable, unique), so reorder must too —
+    // matching by command_uuid would miss already-documented diagnoses (whose
+    // _localId the matrix sends) and the cover-check below would bail.
+    // isDx must mirror chargeMatrixDiagnoses exactly so dxBy.size matches
+    // nextUuids.length — otherwise the size guard always bails.
+    const idOf = c => c._localId;
+    const isDx = c => (c.command_type === 'diagnose' || c.command_type === 'assess')
+      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.already_documented || c.command_uuid
+          || (c.command_type === 'assess' ? c.data?.accepted !== false : c.data?.accepted));
+    const dxBy = new Map(prev.filter(isDx).map(c => [idOf(c), c]));
+    const reordered = nextUuids.map(u => dxBy.get(u)).filter(Boolean);
+    // If the incoming order doesn't cover every diagnosis row exactly once, bail
+    // rather than write undefined slots into commands.
+    if (reordered.length !== dxBy.size) return prev;
+    let i = 0;
+    return prev.map(c => isDx(c) ? reordered[i++] : c);
+  }), []);
+
+  // onRemoveChargeByUuid: removes a charge from the matrix. Reuses the same
+  // _amend_deleted tagging path as handleRemoveChargeByCpt so the amend-delete
+  // EIE flow in handleInsert fires correctly for already-documented charges.
+  const onRemoveChargeByUuid = useCallback((chargeUuid) => {
+    const amending = wasFinalized && !approved;
+    setCommands(prev => prev.map(c => {
+      if (!matrixRef(chargeUuid)(c)) return c;
+      if (c.already_documented && isAmendingSectionEditable(c, amending)) {
+        return { ...c, selected: false, _amend_deleted: true };
+      }
+      return { ...c, selected: false };
+    }));
+  }, [wasFinalized, approved]);
+  // --- End charge matrix ---
 
   // Recording hook.
   const recording = useRecording(noteId, initialData?.transcript);
@@ -1487,12 +1638,27 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setCommands(prev => [...prev, {
       command_type: 'perform',
       display: '',
-      data: { cpt_code: null, description: '', notes: '' },
+      data: { cpt_code: null, description: '', notes: '', _modifiers: [], _pointers: [] },
       selected: true,
       section_key: '_charges_ad_hoc',
       already_documented: false,
+      _localId: crypto.randomUUID(),
     }]);
   }, [canEdit]);
+
+  // CPT/HCPCS search for the matrix "+" add-charge picker. Backed by the
+  // /search-charges endpoint (ChargeDescriptionMaster). Returns the raw
+  // results array ([{cpt_code, short_name, full_name}]).
+  const searchCharges = useCallback(async (query) => {
+    try {
+      const res = await fetch(`${API_BASE}/search-charges?query=${encodeURIComponent(query)}`);
+      if (!res.ok) return [];
+      const data = await res.json().catch(() => ({}));
+      return data.results || [];
+    } catch (_err) {
+      return [];
+    }
+  }, []);
 
   const handleAddTemplateCharge = useCallback((cptCode, description) => {
     logEvent('ADD_TEMPLATE_CHARGE', { cptCode, description });
@@ -1502,10 +1668,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       // an amend-mode delete that the user just toggled back on, also clear
       // the `_amend_deleted` tag so handleInsert does NOT POST a delete for
       // it. The user changed their mind - no chart state change required.
-      const existing = prev.find(c => c.command_type === 'perform' && c.data.cpt_code === cptCode);
+      // Optional chaining is required: perform commands synced from /note-commands
+      // (charges added via the chart command-rail outside Scribe) land in commands[]
+      // with NO `data` key, so `c.data.cpt_code` would throw a TypeError inside this
+      // reducer and silently kill the add. `undefined?.cpt_code` is falsy → skipped.
+      const existing = prev.find(c => c.command_type === 'perform' && c.data?.cpt_code === cptCode);
       if (existing) {
         return prev.map(c => {
-          if (c.command_type === 'perform' && c.data.cpt_code === cptCode) {
+          if (c.command_type === 'perform' && c.data?.cpt_code === cptCode) {
             const { _amend_deleted, ...rest } = c;
             return { ...rest, selected: true };
           }
@@ -1515,10 +1685,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       return [...prev, {
         command_type: 'perform',
         display: `${cptCode} — ${description}`,
-        data: { cpt_code: cptCode, description, notes: '' },
+        data: { cpt_code: cptCode, description, notes: '', _modifiers: [], _pointers: [] },
         selected: true,
         section_key: '_charges_ad_hoc',
         already_documented: false,
+        _localId: crypto.randomUUID(),
       }];
     });
   }, [canEdit]);
@@ -1539,7 +1710,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // also drops it. Chart stays committed.
     const amending = wasFinalized && !approved;
     setCommands(prev => prev.map(c => {
-      if (c.command_type !== 'perform' || c.data.cpt_code !== cptCode) return c;
+      // Optional chaining: synced from_the_note perform commands have no `data` key
+      // (see handleAddTemplateCharge); `c.data.cpt_code` would throw here otherwise.
+      if (c.command_type !== 'perform' || c.data?.cpt_code !== cptCode) return c;
       if (c.already_documented && isAmendingSectionEditable(c, amending)) {
         return { ...c, selected: false, _amend_deleted: true };
       }
@@ -1564,6 +1737,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             narrative: '',
             background: null,
             status: null,
+            accepted: !!icd10Code,
           },
           section_key: apKey,
           already_documented: false,
@@ -1622,6 +1796,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const handleInsert = useCallback(async () => {
     if (!canEdit || inserting) return;
     setValidationError(null);
+    setChargeErrors([]);
     logEvent('APPROVE_START', { totalCommands: commands.length, commandTypes: commands.map(c => c.command_type) });
     setInserting(true);
 
@@ -1839,6 +2014,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             narrative: c.data.today_assessment || '',
             background: c.data.background || null,
             status: null,
+            icd10_code: c.data.icd10_code,
+            icd10_display: c.data.icd10_display,
+            accepted: c.data.accepted,
           },
         };
       });
@@ -1935,6 +2113,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       .filter(c => c.command_type !== 'diagnose' || (c.data.icd10_code && c.data.accepted));
 
     // Prescriptions first so they appear at the top of the note.
+    // Diagnosis rank is the commands[] order of diagnose/assess rows (the matrix
+    // reorder mutates that order). Do NOT reorder diagnoses when building the
+    // insert batch, or ClaimDiagnosisCode.rank will diverge from the matrix.
+    // The RX sort below only moves Rx to position 0; it does not disturb the
+    // relative order of diagnose/assess rows against each other.
     const RX_SET = new Set(['prescribe', 'refill', 'adjust_prescription']);
     allInsertable.sort((a, b) => (RX_SET.has(a.command_type) ? 0 : 1) - (RX_SET.has(b.command_type) ? 0 : 1));
     logEvent('COMMANDS_SENDING', { commands: allInsertable.map(c => ({
@@ -2028,6 +2211,99 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           // ref-mirror to run post-commit.
           commitRecommendations(updatedRecommendations);
         }
+
+        // Enrich charges: write diagnosis pointers + modifiers onto each charge's
+        // BillingLineItem after the perform commands are committed (BLIs exist now).
+        // Uses updatedCommands (fully UUID-stamped) so every perform command_uuid is
+        // valid. amendDeletes have already been filtered out of workingCommands.
+        {
+          const dxCodeByRef = new Map(chargeMatrixDiagnoses.map(d => [d.command_uuid, d.code]));
+          const enrichCharges = updatedCommands
+            // Only send plugin-managed charges (_pointers key present). Pre-plugin
+            // historical charges (no _pointers key) are grandfathered and must not
+            // be touched.
+            .filter(c => c.command_type === 'perform' && c.data?.cpt_code && c.command_uuid
+              && '_pointers' in (c.data || {}))
+            .map(c => {
+              const rawPointers = c.data._pointers || [];
+              const diagnosis_pointers = rawPointers
+                .map(u => ({ command_uuid: u, icd10_code: dxCodeByRef.get(u) || '' }))
+                .filter(p => p.icd10_code);
+              // If all stored pointers are stale (the diagnoses were removed from the
+              // note after the charge was linked), sending an empty payload would
+              // destructively clear a previously-enriched BLI. Skip silently instead.
+              // Only send empty when _pointers was truly [] — that means advisory-only
+              // (never linked) or amendment unlink-all (provider deliberately unchecked).
+              if (rawPointers.length > 0 && diagnosis_pointers.length === 0) return null;
+              return { command_uuid: c.command_uuid, diagnosis_pointers, modifiers: c.data._modifiers || [] };
+            })
+            .filter(Boolean);
+          const removedCharges = amendDeletes
+            .filter(c => c.command_type === 'perform' && c.command_uuid)
+            .map(c => c.command_uuid);
+
+          if (enrichCharges.length || removedCharges.length) {
+            // The home-app applies the /insert-commands originate+commit effects
+            // asynchronously. Retry on timing-race errors (billing_line_item_not_found
+            // and no_assessment_resolved) until the commits propagate, then sign.
+            const enrichBody = JSON.stringify({ note_uuid: noteId, charges: enrichCharges, removed_charges: removedCharges });
+            let enrichData = {};
+            let blocked = false;
+            for (let attempt = 0; attempt < 8; attempt++) {
+              try {
+                const enrichRes = await fetch(`${API_BASE}/enrich-charges`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: enrichBody,
+                });
+                enrichData = await enrichRes.json().catch(() => ({}));
+                if (enrichRes.status === 422) { blocked = true; break; }
+                // fetch() only rejects on network failure, not on HTTP error status.
+                // A 5xx (deploy/proxy), 401/403 (auth flip), or any non-OK response
+                // would otherwise leave enrichData={} → loop breaks with no errors →
+                // sign proceeds and the provider's pointers/modifiers are silently
+                // dropped. Block instead so the cm-sign-error banner surfaces.
+                if (!enrichRes.ok) { blocked = true; break; }
+              } catch (enrichErr) {
+                console.error('enrich-charges fetch failed:', enrichErr);
+                blocked = true; // network failure — block sign rather than drop enrichment silently
+                break;
+              }
+              const pending = (enrichData.errors || []).some(e =>
+                e.reason === 'billing_line_item_not_found' || e.reason === 'no_assessment_resolved'
+              );
+              if (!pending) break; // every charge resolved (or only non-transient errors remain)
+              await new Promise(resolve => setTimeout(resolve, 700)); // let the commit effects apply
+            }
+            // Treat remaining errors after retries as blocking — same early-return
+            // as the 422-blocked branch. Two cases:
+            //   billing_line_item_not_found — BLI never materialized within retry window
+            //   no_assessment_resolved      — BLI found but Assessment codings not yet
+            //                                 populated (timing race); provider linked the
+            //                                 charge so this is NOT advisory-only
+            // Advisory-only 0-pointer charges never reach this point: the backend emits
+            // a clear (no error) for them, so they don't contribute to this list.
+            const enrichStillPending = (enrichData.errors || []).some(e =>
+              e.reason === 'billing_line_item_not_found' || e.reason === 'no_assessment_resolved'
+            );
+            if (blocked || enrichStillPending) {
+              // Ensure the cm-sign-error banner renders even when the block came from
+              // a transport failure (5xx/network) that carries no per-charge errors —
+              // otherwise sign would silently halt with no explanation.
+              const blockingErrors = (enrichData.errors && enrichData.errors.length)
+                ? enrichData.errors
+                : [{ command_uuid: '', reason: 'enrichment_unavailable' }];
+              setChargeErrors(blockingErrors);
+              setApproved(false);
+              setConfirming(false);
+              saveSummaryToCache(noteData, updatedCommands, false, { recommendations: updatedRecommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
+              setInserting(false);
+              return;
+            }
+            if (enrichData.errors && enrichData.errors.length) console.warn('enrich-charges partial errors', enrichData.errors);
+          }
+        }
+
         // CACHE_FLIP_UNCONDITIONAL_ON_APPROVE_SUCCESS - KOALA-5485 cache-flip regression:
         // the approved=true cache write must fire UNCONDITIONALLY on the success branch,
         // NOT gated on `data.attempted.length > 0`. Two paths reach here with zero
@@ -2118,7 +2394,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     } finally {
       setInserting(false);
     }
-  }, [commands, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions, canEdit, inserting]);
+  }, [commands, chargeMatrixDiagnoses, recommendations, noteId, noteData, saveSummaryToCache, unmatchedConditions, diagnosisSuggestions, canEdit, inserting]);
 
   const handleAddNow = useCallback(async (command, isRecommendation, index) => {
     if (!canEdit) return;
@@ -2577,7 +2853,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddResolveCondition: canEdit ? handleAddResolveCondition : null,
           onAddHistory: canEdit ? handleAddHistory : null,
           onAddQuestionnaire: canEdit ? handleAddQuestionnaire : null,
-          onAddCharge: canEdit ? handleAddCharge : null,
+          onAddCharge: canEdit ? handleAddTemplateCharge : null,
+          searchCharges,
+          suggestedCharges: selectedTemplate?.charges || [],
           onAddTemplateCharge: canEdit ? handleAddTemplateCharge : null,
           onRemoveChargeByCpt: canEdit ? handleRemoveChargeByCpt : null,
           templateCharges: selectedTemplate ? (selectedTemplate.charges || []) : [],
@@ -2601,6 +2879,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           alertFacilityEnabled,
           onEditingChange: handleEditingChange,
           questionnaireScores: collectQuestionnaireScores(commands),
+          chargeMatrixDiagnoses,
+          chargeMatrixCharges,
+          onToggleChargePointer: canEdit ? onToggleChargePointer : null,
+          onReorderDiagnoses: canEdit ? onReorderDiagnoses : null,
+          onAddChargeModifier: canEdit ? onAddChargeModifier : null,
+          onRemoveChargeModifier: canEdit ? onRemoveChargeModifier : null,
+          onRemoveChargeByUuid: canEdit ? onRemoveChargeByUuid : null,
         })}
         ${fromTheNoteCommands.length > 0 && html`
           <div class="summary-section from-the-note-section">
@@ -2672,6 +2957,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
                 </div>
               `}
+              ${!canSignCharges(chargeMatrixCharges) && html`
+                <div class="summary-footer-warning">Some charges have no linked diagnosis — you can still sign, but consider linking them for cleaner billing.</div>
+              `}
+              ${(chargeErrors && chargeErrors.length)
+                ? html`<div class="summary-footer-warning cm-sign-error">Some charges could not be saved (${chargeErrors.length}). Please review the charges and try again.</div>`
+                : null}
               <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
               ${!wasFinalized && html`<div class="approve-warning">This action is permanent and cannot be undone.</div>`}
             </div>
