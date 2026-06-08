@@ -19,9 +19,11 @@ def test_valid_charge_has_no_errors():
     assert validate_charge_enrichment([_charge()]) == []
 
 
-def test_charge_with_zero_pointers_is_invalid():
-    errors = validate_charge_enrichment([_charge(pointers=())])
-    assert errors == [{"command_uuid": "c1", "errors": ["at_least_one_pointer"]}]
+def test_charge_with_zero_pointers_is_valid():
+    # Zero-pointer charges are advisory-only; the frontend filters them out of
+    # the enrichment payload before they reach the server. The validator must
+    # not reject them so unlinked charges never hard-block sign.
+    assert validate_charge_enrichment([_charge(pointers=())]) == []
 
 
 def test_charge_over_pointer_cap_is_invalid():
@@ -44,11 +46,12 @@ def test_multiple_violations_on_one_charge_are_all_reported():
 
 
 def test_each_invalid_charge_reported_separately():
-    errors = validate_charge_enrichment([_charge("a", pointers=()), _charge("b")])
-    assert errors == [{"command_uuid": "a", "errors": ["at_least_one_pointer"]}]
+    too_many = tuple(f"A0{i}.0" for i in range(MAX_DIAGNOSIS_POINTERS + 1))
+    errors = validate_charge_enrichment([_charge("a", pointers=too_many), _charge("b")])
+    assert errors == [{"command_uuid": "a", "errors": ["too_many_pointers"]}]
 
 
-def test_zero_pointers_and_too_many_modifiers_both_reported():
+def test_zero_pointers_with_too_many_modifiers_reports_only_modifier_error():
     modifiers = [str(n) for n in range(MAX_MODIFIERS + 1)]
     errors = validate_charge_enrichment([_charge(pointers=(), modifiers=modifiers)])
-    assert errors == [{"command_uuid": "c1", "errors": ["at_least_one_pointer", "too_many_modifiers"]}]
+    assert errors == [{"command_uuid": "c1", "errors": ["too_many_modifiers"]}]

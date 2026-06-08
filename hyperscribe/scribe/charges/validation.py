@@ -4,6 +4,11 @@ This is the single source of truth used by BOTH the frontend (to gate the
 "Accept and sign" button) and the ``/enrich-charges`` write path (to reject
 invalid payloads defensively). The caps come from CMS-1500 box 24E (≤4
 diagnosis pointers per service line) and the 4-modifier line limit.
+
+Note: zero-pointer charges are intentionally NOT rejected here. Linking charges
+to diagnoses is advisory-only in the UI — the frontend filters them out of the
+enrichment payload before they reach this validator, so they arrive as plain
+PerformCommands without BLI enrichment rather than as a hard sign block.
 """
 
 from __future__ import annotations
@@ -19,17 +24,14 @@ def validate_charge_enrichment(charges: list[dict[str, Any]]) -> list[dict[str, 
     violate a rule. An empty list means every charge is valid.
 
     Rules (order of error codes is stable for test/UI consumption):
-      * ``at_least_one_pointer`` — a charge must point to ≥1 diagnosis.
-      * ``too_many_pointers``    — ≤ ``MAX_DIAGNOSIS_POINTERS`` pointers.
-      * ``too_many_modifiers``   — ≤ ``MAX_MODIFIERS`` modifiers.
+      * ``too_many_pointers``  — ≤ ``MAX_DIAGNOSIS_POINTERS`` pointers.
+      * ``too_many_modifiers`` — ≤ ``MAX_MODIFIERS`` modifiers.
     """
     failures: list[dict[str, Any]] = []
     for charge in charges:
         errors: list[str] = []
         pointers = charge.get("diagnosis_pointers") or []
         modifiers = charge.get("modifiers") or []
-        if not pointers:
-            errors.append("at_least_one_pointer")
         if len(pointers) > MAX_DIAGNOSIS_POINTERS:
             errors.append("too_many_pointers")
         if len(modifiers) > MAX_MODIFIERS:

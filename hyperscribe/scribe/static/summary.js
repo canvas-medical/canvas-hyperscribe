@@ -2185,7 +2185,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                 .map(u => ({ command_uuid: u, icd10_code: dxCodeByRef.get(u) || '' }))
                 .filter(p => p.icd10_code),
               modifiers: c.data._modifiers || [],
-            }));
+            }))
+            // Only send charges that have at least one resolved pointer — unlinked
+            // charges are advisory-only and should not generate errors or block sign.
+            .filter(c => c.diagnosis_pointers.length > 0);
           const removedCharges = amendDeletes
             .filter(c => c.command_type === 'perform' && c.command_uuid)
             .map(c => c.command_uuid);
