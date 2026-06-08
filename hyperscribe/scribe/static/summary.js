@@ -535,6 +535,29 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       locked: Boolean(c.already_documented || c.command_uuid),
     })), [commands]);
 
+  // Prune stale diagnosis pointers. When a linked diagnosis is rejected or removed
+  // it leaves chargeMatrixDiagnoses, but its _localId lingers in charges' _pointers.
+  // Stale UUIDs eat cap slots and can push the sign payload over MAX_POINTERS
+  // (reject a linked dx → add a replacement → re-accept the original = 5 live
+  // pointers → server 422). Drop any pointer not backed by a live matrix diagnosis.
+  // Safe against load churn: _localId is preserved across cache restore / sync, so a
+  // valid diagnosis never drops out of the live set and never has its pointer pruned.
+  useEffect(() => {
+    const live = new Set(chargeMatrixDiagnoses.map(d => d.command_uuid));
+    setCommands(prev => {
+      let changed = false;
+      const next = prev.map(c => {
+        if (c.command_type !== 'perform' || !('_pointers' in (c.data || {}))) return c;
+        const cur = c.data._pointers || [];
+        const pruned = cur.filter(u => live.has(u));
+        if (pruned.length === cur.length) return c;
+        changed = true;
+        return { ...c, data: { ...c.data, _pointers: pruned } };
+      });
+      return changed ? next : prev; // same ref when nothing pruned → no re-render loop
+    });
+  }, [chargeMatrixDiagnoses]);
+
   const chargeMatrixCharges = useMemo(() => {
     const dxRefs = new Set(chargeMatrixDiagnoses.map(d => d.command_uuid));
     return commands
@@ -570,16 +593,21 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }));
   }, [chargeMatrixDiagnoses]);
 
+  // Both modifier handlers also stamp _pointers so a modifier-only edit opts the
+  // charge into plugin-managed enrichment. The enrich filter (and hasPointerData)
+  // key on the _pointers KEY being present; without this stamp, a modifier added
+  // to a pre-plugin charge (no _pointers key) is silently excluded from
+  // /enrich-charges and never written to the BLI. Mirrors onToggleChargePointer.
   const onAddChargeModifier = useCallback((chargeUuid, code) => setCommands(prev => prev.map(c => {
     if (!matrixRef(chargeUuid)(c)) return c;
     const cur = c.data._modifiers || [];
     if (cur.includes(code) || cur.length >= MAX_MODIFIERS) return c;
-    return { ...c, data: { ...c.data, _modifiers: [...cur, code] } };
+    return { ...c, data: { ...c.data, _pointers: c.data._pointers || [], _modifiers: [...cur, code] } };
   })), []);
 
   const onRemoveChargeModifier = useCallback((chargeUuid, code) => setCommands(prev => prev.map(c =>
     matrixRef(chargeUuid)(c)
-      ? { ...c, data: { ...c.data, _modifiers: (c.data._modifiers || []).filter(m => m !== code) } }
+      ? { ...c, data: { ...c.data, _pointers: c.data._pointers || [], _modifiers: (c.data._modifiers || []).filter(m => m !== code) } }
       : c)), []);
 
   const onReorderDiagnoses = useCallback((nextUuids) => setCommands(prev => {
@@ -2224,8 +2252,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                 });
                 enrichData = await enrichRes.json().catch(() => ({}));
                 if (enrichRes.status === 422) { blocked = true; break; }
+                // fetch() only rejects on network failure, not on HTTP error status.
+                // A 5xx (deploy/proxy), 401/403 (auth flip), or any non-OK response
+                // would otherwise leave enrichData={} → loop breaks with no errors →
+                // sign proceeds and the provider's pointers/modifiers are silently
+                // dropped. Block instead so the cm-sign-error banner surfaces.
+                if (!enrichRes.ok) { blocked = true; break; }
               } catch (enrichErr) {
                 console.error('enrich-charges fetch failed:', enrichErr);
+                blocked = true; // network failure — block sign rather than drop enrichment silently
                 break;
               }
               const pending = (enrichData.errors || []).some(e =>
@@ -2246,7 +2281,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               e.reason === 'billing_line_item_not_found' || e.reason === 'no_assessment_resolved'
             );
             if (blocked || enrichStillPending) {
-              setChargeErrors(enrichData.errors || []);
+              // Ensure the cm-sign-error banner renders even when the block came from
+              // a transport failure (5xx/network) that carries no per-charge errors —
+              // otherwise sign would silently halt with no explanation.
+              const blockingErrors = (enrichData.errors && enrichData.errors.length)
+                ? enrichData.errors
+                : [{ command_uuid: '', reason: 'enrichment_unavailable' }];
+              setChargeErrors(blockingErrors);
               setApproved(false);
               setConfirming(false);
               saveSummaryToCache(noteData, updatedCommands, false, { recommendations: updatedRecommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
