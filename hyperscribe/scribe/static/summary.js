@@ -2187,27 +2187,31 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           const enrichCharges = updatedCommands
             // Only send plugin-managed charges (_pointers key present). Pre-plugin
             // historical charges (no _pointers key) are grandfathered and must not
-            // be touched. Zero-pointer plugin charges go through so the backend can
-            // emit an explicit clear — covers advisory-only new charges (no-op) and
-            // amendment unlink-all (clears the BLI's old assessment_ids).
+            // be touched.
             .filter(c => c.command_type === 'perform' && c.data?.cpt_code && c.command_uuid
               && '_pointers' in (c.data || {}))
-            .map(c => ({
-              command_uuid: c.command_uuid,
-              diagnosis_pointers: (c.data._pointers || [])
+            .map(c => {
+              const rawPointers = c.data._pointers || [];
+              const diagnosis_pointers = rawPointers
                 .map(u => ({ command_uuid: u, icd10_code: dxCodeByRef.get(u) || '' }))
-                .filter(p => p.icd10_code),
-              modifiers: c.data._modifiers || [],
-            }));
+                .filter(p => p.icd10_code);
+              // If all stored pointers are stale (the diagnoses were removed from the
+              // note after the charge was linked), sending an empty payload would
+              // destructively clear a previously-enriched BLI. Skip silently instead.
+              // Only send empty when _pointers was truly [] — that means advisory-only
+              // (never linked) or amendment unlink-all (provider deliberately unchecked).
+              if (rawPointers.length > 0 && diagnosis_pointers.length === 0) return null;
+              return { command_uuid: c.command_uuid, diagnosis_pointers, modifiers: c.data._modifiers || [] };
+            })
+            .filter(Boolean);
           const removedCharges = amendDeletes
             .filter(c => c.command_type === 'perform' && c.command_uuid)
             .map(c => c.command_uuid);
 
           if (enrichCharges.length || removedCharges.length) {
             // The home-app applies the /insert-commands originate+commit effects
-            // asynchronously, so the BillingLineItems may not exist the instant
-            // this runs. Retry on `billing_line_item_not_found` (the only
-            // transient/timing error) until they appear, then proceed to sign.
+            // asynchronously. Retry on timing-race errors (billing_line_item_not_found
+            // and no_assessment_resolved) until the commits propagate, then sign.
             const enrichBody = JSON.stringify({ note_uuid: noteId, charges: enrichCharges, removed_charges: removedCharges });
             let enrichData = {};
             let blocked = false;
@@ -2224,7 +2228,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                 console.error('enrich-charges fetch failed:', enrichErr);
                 break;
               }
-              const pending = (enrichData.errors || []).some(e => e.reason === 'billing_line_item_not_found');
+              const pending = (enrichData.errors || []).some(e =>
+                e.reason === 'billing_line_item_not_found' || e.reason === 'no_assessment_resolved'
+              );
               if (!pending) break; // every charge resolved (or only non-transient errors remain)
               await new Promise(resolve => setTimeout(resolve, 700)); // let the commit effects apply
             }
