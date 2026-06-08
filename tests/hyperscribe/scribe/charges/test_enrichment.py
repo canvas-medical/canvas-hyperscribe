@@ -7,6 +7,11 @@ from hyperscribe.scribe.charges.enrichment import (
     build_assessment_index,
 )
 
+# Charge command_uuids must be real UUIDs — _find_billing_line_item pre-validates
+# the shape before the ORM lookup (a malformed value would 500 the request).
+VALID_UUID = "11111111-1111-4111-8111-111111111111"
+VALID_UUID_2 = "22222222-2222-4222-8222-222222222222"
+
 
 def test_normalize_icd10_strips_dots_and_uppercases():
     assert _normalize_icd10("m25.511") == "M25511"
@@ -37,7 +42,9 @@ def test_build_assessment_index_maps_normalized_code_to_ids(mock_assessment):
 
     assert index["M25511"] == ["aid-1"]
     assert index["K219"] == ["aid-2"]
-    mock_assessment.objects.filter.assert_called_once_with(note=note, entered_in_error_id__isnull=True)
+    mock_assessment.objects.filter.assert_called_once_with(
+        note=note, entered_in_error_id__isnull=True, deleted=False
+    )
 
 
 @patch("hyperscribe.scribe.charges.enrichment.Assessment")
@@ -92,7 +99,7 @@ def test_update_effect_built_for_charge_with_pointer_and_modifier(
     mock_update.return_value = SimpleNamespace(apply=lambda: "UPDATE_EFFECT")
 
     charges = [{
-        "command_uuid": "perform-1",
+        "command_uuid": VALID_UUID,
         "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
         "modifiers": ["25"],
     }]
@@ -100,7 +107,7 @@ def test_update_effect_built_for_charge_with_pointer_and_modifier(
 
     assert effects == ["UPDATE_EFFECT"]
     assert errors == []
-    assert enriched == [{"command_uuid": "perform-1", "billing_line_item_id": "bli-1",
+    assert enriched == [{"command_uuid": VALID_UUID, "billing_line_item_id": "bli-1",
                          "assessment_ids": ["aid-1"], "modifiers": ["25"]}]
     mock_update.assert_called_once_with(
         billing_line_item_id="bli-1",
@@ -129,7 +136,7 @@ def test_missing_bli_records_error_and_no_effect(
     mock_bli.objects.filter.return_value = bli_qs
 
     charges = [{
-        "command_uuid": "perform-1",
+        "command_uuid": VALID_UUID,
         "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
         "modifiers": [],
     }]
@@ -137,7 +144,7 @@ def test_missing_bli_records_error_and_no_effect(
 
     assert effects == []
     assert enriched == []
-    assert errors == [{"command_uuid": "perform-1", "reason": "billing_line_item_not_found"}]
+    assert errors == [{"command_uuid": VALID_UUID, "reason": "billing_line_item_not_found"}]
     mock_update.assert_not_called()
 
 
@@ -158,7 +165,7 @@ def test_removed_charge_emits_remove_effect(
     mock_bli.objects.filter.return_value = bli_qs
     mock_remove.return_value = SimpleNamespace(apply=lambda: "REMOVE_EFFECT")
 
-    effects, enriched, errors = build_charge_enrichment_effects([], ["perform-removed"], "note-uuid")
+    effects, enriched, errors = build_charge_enrichment_effects([], [VALID_UUID], "note-uuid")
 
     assert effects == ["REMOVE_EFFECT"]
     assert enriched == []
@@ -190,13 +197,13 @@ def test_unresolvable_command_uuid_records_error(
     mock_command.objects.get.side_effect = mock_command.DoesNotExist
 
     charges = [{
-        "command_uuid": "missing-perform",
+        "command_uuid": VALID_UUID,
         "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
         "modifiers": [],
     }]
     effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
     assert effects == []
-    assert errors == [{"command_uuid": "missing-perform", "reason": "billing_line_item_not_found"}]
+    assert errors == [{"command_uuid": VALID_UUID, "reason": "billing_line_item_not_found"}]
     mock_update.assert_not_called()
 
 
@@ -221,7 +228,7 @@ def test_empty_pointers_clears_bli_without_error(
     mock_bli.objects.filter.return_value = bli_qs
     mock_update.return_value = SimpleNamespace(apply=lambda: "CLEAR_EFFECT")
 
-    charges = [{"command_uuid": "perform-1", "diagnosis_pointers": [], "modifiers": []}]
+    charges = [{"command_uuid": VALID_UUID, "diagnosis_pointers": [], "modifiers": []}]
     effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
 
     assert errors == []
@@ -250,7 +257,7 @@ def test_pointer_not_in_index_reports_error_and_does_not_clear(
     mock_bli.objects.filter.return_value = bli_qs
 
     charges = [{
-        "command_uuid": "perform-1",
+        "command_uuid": VALID_UUID,
         "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "Z00.00"}],
         "modifiers": [],
     }]
@@ -258,7 +265,7 @@ def test_pointer_not_in_index_reports_error_and_does_not_clear(
 
     assert effects == []
     assert enriched == []
-    assert errors == [{"command_uuid": "perform-1", "reason": "no_assessment_resolved"}]
+    assert errors == [{"command_uuid": VALID_UUID, "reason": "no_assessment_resolved"}]
     mock_update.assert_not_called()
 
 
@@ -281,12 +288,12 @@ def test_multiple_charges_accumulate_enriched_and_errors_independently(
 
     charges = [
         {
-            "command_uuid": "ok",
+            "command_uuid": VALID_UUID,
             "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
             "modifiers": [],
         },
         {
-            "command_uuid": "bad",
+            "command_uuid": VALID_UUID_2,
             "diagnosis_pointers": [{"command_uuid": "d1", "icd10_code": "M25.511"}],
             "modifiers": [],
         },
@@ -294,8 +301,8 @@ def test_multiple_charges_accumulate_enriched_and_errors_independently(
     effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
 
     assert effects == ["UPDATE_EFFECT"]
-    assert [e["command_uuid"] for e in enriched] == ["ok"]
-    assert errors == [{"command_uuid": "bad", "reason": "billing_line_item_not_found"}]
+    assert [e["command_uuid"] for e in enriched] == [VALID_UUID]
+    assert errors == [{"command_uuid": VALID_UUID_2, "reason": "billing_line_item_not_found"}]
 
 
 # ── _find_billing_line_item: ambiguous CPT fallback guard ──
@@ -321,7 +328,7 @@ def test_find_billing_line_item_fallback_ambiguous_cpt_returns_none(mock_command
 
     mock_bli.objects.filter.side_effect = [primary_qs, fallback_qs]
 
-    result = _find_billing_line_item(note, "uuid-1")
+    result = _find_billing_line_item(note, VALID_UUID)
 
     assert result is None
     fallback_qs.first.assert_not_called()  # must not pick blindly
@@ -351,7 +358,7 @@ def test_find_billing_line_item_fallback_unambiguous_cpt_returns_bli(mock_comman
 
     mock_bli.objects.filter.side_effect = [primary_qs, fallback_qs]
 
-    result = _find_billing_line_item(note, "uuid-1")
+    result = _find_billing_line_item(note, VALID_UUID)
 
     assert result is expected_bli
     fallback_qs.first.assert_called_once()
@@ -402,9 +409,21 @@ def test_removed_charge_already_absent_is_silently_skipped(
     mock_command.DoesNotExist = Exception
     mock_command.objects.get.side_effect = mock_command.DoesNotExist
 
-    effects, enriched, errors = build_charge_enrichment_effects([], ["already-removed"], "note-uuid")
+    effects, enriched, errors = build_charge_enrichment_effects([], [VALID_UUID], "note-uuid")
 
     assert effects == []
     assert enriched == []
     assert errors == []
     mock_remove.assert_not_called()
+
+
+@patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.Command")
+def test_find_billing_line_item_invalid_uuid_returns_none_without_orm(mock_command, mock_bli):
+    """A malformed/empty command_uuid must be rejected before the ORM lookup —
+    Command.objects.get on a UUIDField raises django ValidationError (uncatchable
+    in the plugin sandbox) which would 500 the whole /enrich-charges request."""
+    for bad in ("", "perform-1", "not-a-uuid", None):
+        assert _find_billing_line_item(SimpleNamespace(dbid=1), bad) is None
+    mock_command.objects.get.assert_not_called()
+    mock_bli.objects.filter.assert_not_called()

@@ -8,6 +8,7 @@ already exists when we resolve. See design spec §3-§5.
 
 from __future__ import annotations
 
+import uuid
 from collections import defaultdict
 from typing import Any
 
@@ -36,14 +37,17 @@ def _normalize_icd10(code: str | None) -> str:
 def build_assessment_index(note: Any) -> dict[str, list[str]]:
     """Map normalized ICD-10 code -> [Assessment.id, ...] for the note.
 
-    Excludes entered-in-error assessments. The default Assessment manager
-    already filters ``deleted=False`` (AuditedModel). ``prefetch_related`` on
+    Excludes entered-in-error AND soft-deleted assessments. Note that
+    ``Assessment.objects`` is Django's plain manager — unlike ``Condition`` it
+    does NOT opt into the SDK's ``deleted=False``-filtering manager, so we must
+    filter ``deleted=False`` explicitly or a soft-deleted diagnosis would resolve
+    and get linked onto a BillingLineItem. ``prefetch_related`` on
     ``condition__codings`` collapses the per-assessment coding reads to avoid
     an N+1.
     """
     index: dict[str, list[str]] = defaultdict(list)
     assessments = Assessment.objects.filter(
-        note=note, entered_in_error_id__isnull=True
+        note=note, entered_in_error_id__isnull=True, deleted=False
     ).prefetch_related("condition__codings")
     for assessment in assessments:
         condition = assessment.condition
@@ -81,6 +85,15 @@ def _find_billing_line_item(note: Any, command_uuid: str) -> Any | None:
     the precise lookup; the loose ``cpt + note`` match used by PR #257 is
     ambiguous when two charges share a CPT. Returns None if the command or BLI
     can't be found."""
+    # Pre-validate the UUID shape. A malformed or empty command_uuid makes the
+    # UUIDField lookup raise django ValidationError (NOT DoesNotExist), which the
+    # plugin sandbox cannot catch — it would 500 the whole request and abort
+    # enrichment for every charge. Guard it the way session_view does for note_uuid.
+    try:
+        uuid.UUID(str(command_uuid))
+    except (ValueError, TypeError, AttributeError):
+        log.info("enrich_charges: command_uuid %r is not a valid uuid", command_uuid)
+        return None
     try:
         command = Command.objects.get(id=command_uuid)
     except Command.DoesNotExist:
