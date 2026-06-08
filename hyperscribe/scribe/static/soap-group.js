@@ -8,6 +8,7 @@ import { VitalsRow } from '/plugin-io/api/hyperscribe/scribe/static/vitals-row.j
 import { TaskRow } from '/plugin-io/api/hyperscribe/scribe/static/task-row.js';
 import { OrderRow } from '/plugin-io/api/hyperscribe/scribe/static/order-row.js';
 import { HistoryReviewRow } from '/plugin-io/api/hyperscribe/scribe/static/history-review-row.js';
+import { ExamSectionsRow } from '/plugin-io/api/hyperscribe/scribe/static/sections-exam-row.js';
 import { HistoryEntryRow } from '/plugin-io/api/hyperscribe/scribe/static/history-entry-row.js';
 import { DiagnoseRow } from '/plugin-io/api/hyperscribe/scribe/static/diagnose-row.js';
 import { QuestionnaireRow } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-row.js';
@@ -646,7 +647,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onRemoveChargeByUuid = () => {} }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam }) {
   const isCharges = title === 'CHARGES';
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
@@ -926,13 +927,15 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 <div class="subsection-title">${s.title}</div>
                 <div class=${`content-block rec-narrative${peRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
                   ${peRowReadOnly && entry.command.already_documented && ICON_LOCK}
-                  <${HistoryReviewRow}
+                  <${ExamSectionsRow}
                     command=${entry.command}
                     commandIndex=${entry.index}
                     onEdit=${onEditCommand}
                     readOnly=${peRowReadOnly}
-                    textareaRows=${2}
                     onEditingChange=${onEditingChange}
+                    sectionKind="physical_exam"
+                    templates=${examTemplates}
+                    onCarryForward=${onCarryForwardExam}
                   />
                 </div>
               </div>
@@ -1261,13 +1264,15 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <div class="subsection-title">Review of Systems</div>
             <div class=${`content-block rec-narrative${rosRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
               ${rosRowReadOnly && entry.command.already_documented && ICON_LOCK}
-              <${HistoryReviewRow}
+              <${ExamSectionsRow}
                 command=${entry.command}
                 commandIndex=${entry.index}
                 onEdit=${onEditCommand}
                 readOnly=${rosRowReadOnly}
-                textareaRows=${2}
                 onEditingChange=${onEditingChange}
+                sectionKind="ros"
+                templates=${examTemplates}
+                onCarryForward=${onCarryForwardExam}
               />
             </div>
           `;
