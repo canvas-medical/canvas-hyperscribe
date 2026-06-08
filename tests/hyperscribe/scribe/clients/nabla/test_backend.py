@@ -158,6 +158,61 @@ def test_generate_note_physical_exam_excludes_vitals() -> None:
     assert "vitals section" in instruction_lower
 
 
+def _section_entry(payload: dict, section_key: str) -> dict:
+    entries = [e for e in payload["note_sections_customization"] if e.get("section_key") == section_key]
+    assert len(entries) == 1, f"expected exactly one {section_key} customization entry"
+    return entries[0]
+
+
+def test_generate_note_hpi_uses_detailed_level_of_detail() -> None:
+    backend, mock_rest_client = _make_backend()
+    mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+
+    backend.generate_note(Transcript())
+
+    payload = mock_rest_client.generate_note.call_args.args[0]
+    hpi_entry = _section_entry(payload, "HISTORY_OF_PRESENT_ILLNESS")
+    assert hpi_entry["level_of_detail"] == "DETAILED"
+
+
+def test_generate_note_social_history_instruction() -> None:
+    backend, mock_rest_client = _make_backend()
+    mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+
+    backend.generate_note(Transcript())
+
+    payload = mock_rest_client.generate_note.call_args.args[0]
+    instruction = _section_entry(payload, "SOCIAL_HISTORY")["custom_instruction"]
+    lower = instruction.lower()
+
+    # Old "be thorough / include all" filler-prone phrasing is gone.
+    assert "be thorough" not in lower
+    # Core guardrails of the validated rewrite.
+    assert "patient's own social history" in instruction
+    assert "only what is actually discussed" in instruction
+    assert "caregiver, or a companion in the room" in instruction
+    assert "never state that a topic was not discussed" in lower
+    assert "leave this section empty" in instruction
+
+
+def test_generate_note_family_history_instruction() -> None:
+    backend, mock_rest_client = _make_backend()
+    mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+
+    backend.generate_note(Transcript())
+
+    payload = mock_rest_client.generate_note.call_args.args[0]
+    instruction = _section_entry(payload, "FAMILY_HISTORY")["custom_instruction"]
+    lower = instruction.lower()
+
+    assert "be thorough" not in lower
+    assert "biological relatives" in instruction
+    assert "omit rather than guess" in instruction
+    # No-filler guardrail, quoted example phrasing preserved.
+    assert 'no other family history discussed.' in instruction
+    assert "if none is discussed, leave empty" in lower
+
+
 def test_generate_normalized_data() -> None:
     backend, mock_rest_client = _make_backend()
     mock_rest_client.generate_normalized_data.return_value = {
