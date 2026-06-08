@@ -179,10 +179,11 @@ def test_enrich_charges_happy_path(mock_build, mock_audit, mock_auth):
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.build_charge_enrichment_effects")
 def test_enrich_charges_accepts_charge_without_pointer(mock_build, mock_audit, mock_auth):
-    # Zero-pointer charges are advisory-only; the validator must not reject them.
-    # The frontend filters them out before sending, but if one arrives the server
-    # passes it through to enrichment (which returns no_assessment_resolved, not 422).
-    mock_build.return_value = ([], [], [{"command_uuid": "c1", "reason": "no_assessment_resolved"}])
+    # Zero-pointer charges are advisory-only; the backend emits a clear effect
+    # (no error) so sign is never blocked. Covers advisory-only new charges and
+    # amendment unlink-all.
+    mock_build.return_value = ([], [{"command_uuid": "c1", "billing_line_item_id": "b1",
+                                     "assessment_ids": [], "modifiers": []}], [])
     view = _post_instance({
         "note_uuid": "note-1",
         "charges": [{"command_uuid": "c1", "diagnosis_pointers": [], "modifiers": []}],
@@ -190,7 +191,7 @@ def test_enrich_charges_accepts_charge_without_pointer(mock_build, mock_audit, m
     result = view.post_enrich_charges()
     assert result[0].status_code == HTTPStatus.OK
     body = json.loads(result[0].content)
-    assert body["errors"] == [{"command_uuid": "c1", "reason": "no_assessment_resolved"}]
+    assert body["errors"] == []
 
 
 def test_enrich_charges_requires_auth():

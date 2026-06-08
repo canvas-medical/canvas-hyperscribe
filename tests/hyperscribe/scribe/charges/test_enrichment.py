@@ -205,6 +205,39 @@ def test_unresolvable_command_uuid_records_error(
 @patch("hyperscribe.scribe.charges.enrichment.Command")
 @patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
 @patch("hyperscribe.scribe.charges.enrichment.Note")
+def test_empty_pointers_clears_bli_without_error(
+    mock_note, mock_index, mock_command, mock_bli, mock_update
+):
+    """When diagnosis_pointers is empty the backend emits an explicit
+    UpdateBillingLineItem(assessment_ids=[]) clear — covers advisory-only new
+    charges (no-op, BLI was already empty) and amendment unlink-all (clears old
+    links). No no_assessment_resolved error should be produced."""
+    _patch_note(mock_note)
+    mock_index.return_value = {}
+    mock_command.objects.get.return_value = SimpleNamespace(dbid=42)
+    bli = SimpleNamespace(id="bli-1")
+    bli_qs = MagicMock()
+    bli_qs.first.return_value = bli
+    mock_bli.objects.filter.return_value = bli_qs
+    mock_update.return_value = SimpleNamespace(apply=lambda: "CLEAR_EFFECT")
+
+    charges = [{"command_uuid": "perform-1", "diagnosis_pointers": [], "modifiers": []}]
+    effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
+
+    assert errors == []
+    assert effects == ["CLEAR_EFFECT"]
+    mock_update.assert_called_once_with(
+        billing_line_item_id="bli-1",
+        assessment_ids=[],
+        modifiers=[],
+    )
+
+
+@patch("hyperscribe.scribe.charges.enrichment.UpdateBillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.Command")
+@patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
+@patch("hyperscribe.scribe.charges.enrichment.Note")
 def test_pointer_not_in_index_reports_error_and_does_not_clear(
     mock_note, mock_index, mock_command, mock_bli, mock_update
 ):

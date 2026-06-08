@@ -165,10 +165,21 @@ def build_charge_enrichment_effects(
         if bli is None:
             errors.append({"command_uuid": command_uuid, "reason": "billing_line_item_not_found"})
             continue
-        assessment_ids = _resolve_assessment_ids(charge.get("diagnosis_pointers") or [], index)
-        if not assessment_ids:
-            errors.append({"command_uuid": command_uuid, "reason": "no_assessment_resolved"})
-            continue
+        raw_pointers = charge.get("diagnosis_pointers") or []
+        if raw_pointers:
+            # Pointers were sent — resolve them. If none resolve the ICD codes to
+            # live Assessments, that is an unexpected failure (timing race or bad
+            # code): surface it so sign is blocked and the provider can retry.
+            assessment_ids = _resolve_assessment_ids(raw_pointers, index)
+            if not assessment_ids:
+                errors.append({"command_uuid": command_uuid, "reason": "no_assessment_resolved"})
+                continue
+        else:
+            # Empty pointers sent explicitly: advisory-only new charge (BLI already
+            # has no links — clearing is a no-op) OR amendment unlink-all (provider
+            # removed every pointer, intent is to clear the BLI). Emit the clear
+            # without recording an error so sign is never blocked on advisory unlinking.
+            assessment_ids = []
         modifier_codes = [str(m) for m in (charge.get("modifiers") or [])]
         modifiers = [{"code": code, "system": CPT_MODIFIER_SYSTEM} for code in modifier_codes]
         effects.append(
