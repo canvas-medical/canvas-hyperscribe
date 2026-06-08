@@ -555,13 +555,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // The matrix keys rows/columns on _localId (stable, unique per command).
   const matrixRef = (localId) => (c) => c._localId === localId;
 
-  const onToggleChargePointer = useCallback((chargeUuid, dxUuid) => setCommands(prev => prev.map(c => {
-    if (!matrixRef(chargeUuid)(c)) return c;
-    const cur = c.data._pointers || [];
-    const has = cur.includes(dxUuid);
-    if (!has && cur.length >= MAX_POINTERS) return c;
-    return { ...c, data: { ...c.data, _pointers: has ? cur.filter(u => u !== dxUuid) : [...cur, dxUuid] } };
-  })), []);
+  const onToggleChargePointer = useCallback((chargeUuid, dxUuid) => {
+    // Use the live (dxRefs-filtered) count for the cap check — raw _pointers may
+    // contain stale UUIDs from rejected diagnoses that were previously linked,
+    // causing the cap to fire even though the footer pill reads < MAX_POINTERS.
+    const liveDxUuids = new Set(chargeMatrixDiagnoses.map(d => d.command_uuid));
+    setCommands(prev => prev.map(c => {
+      if (!matrixRef(chargeUuid)(c)) return c;
+      const cur = c.data._pointers || [];
+      const has = cur.includes(dxUuid);
+      const liveCount = cur.filter(u => liveDxUuids.has(u)).length;
+      if (!has && liveCount >= MAX_POINTERS) return c;
+      return { ...c, data: { ...c.data, _pointers: has ? cur.filter(u => u !== dxUuid) : [...cur, dxUuid] } };
+    }));
+  }, [chargeMatrixDiagnoses]);
 
   const onAddChargeModifier = useCallback((chargeUuid, code) => setCommands(prev => prev.map(c => {
     if (!matrixRef(chargeUuid)(c)) return c;
@@ -2178,17 +2185,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         {
           const dxCodeByRef = new Map(chargeMatrixDiagnoses.map(d => [d.command_uuid, d.code]));
           const enrichCharges = updatedCommands
-            .filter(c => c.command_type === 'perform' && c.data?.cpt_code && c.command_uuid)
+            // Only send plugin-managed charges (_pointers key present). Pre-plugin
+            // historical charges (no _pointers key) are grandfathered and must not
+            // be touched. Zero-pointer plugin charges go through so the backend can
+            // emit an explicit clear — covers advisory-only new charges (no-op) and
+            // amendment unlink-all (clears the BLI's old assessment_ids).
+            .filter(c => c.command_type === 'perform' && c.data?.cpt_code && c.command_uuid
+              && '_pointers' in (c.data || {}))
             .map(c => ({
               command_uuid: c.command_uuid,
               diagnosis_pointers: (c.data._pointers || [])
                 .map(u => ({ command_uuid: u, icd10_code: dxCodeByRef.get(u) || '' }))
                 .filter(p => p.icd10_code),
               modifiers: c.data._modifiers || [],
-            }))
-            // Only send charges that have at least one resolved pointer — unlinked
-            // charges are advisory-only and should not generate errors or block sign.
-            .filter(c => c.diagnosis_pointers.length > 0);
+            }));
           const removedCharges = amendDeletes
             .filter(c => c.command_type === 'perform' && c.command_uuid)
             .map(c => c.command_uuid);
@@ -2218,11 +2228,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               if (!pending) break; // every charge resolved (or only non-transient errors remain)
               await new Promise(resolve => setTimeout(resolve, 700)); // let the commit effects apply
             }
-            // Treat loop exhaustion with unresolved BLIs identically to the 422-blocked
-            // case — signing with pending not_found errors would silently drop diagnosis
-            // pointers and modifiers, producing a malformed CMS-1500 claim with no
-            // indication to the provider that anything went wrong.
-            const enrichStillPending = (enrichData.errors || []).some(e => e.reason === 'billing_line_item_not_found');
+            // Treat remaining errors after retries as blocking — same early-return
+            // as the 422-blocked branch. Two cases:
+            //   billing_line_item_not_found — BLI never materialized within retry window
+            //   no_assessment_resolved      — BLI found but Assessment codings not yet
+            //                                 populated (timing race); provider linked the
+            //                                 charge so this is NOT advisory-only
+            // Advisory-only 0-pointer charges never reach this point: the backend emits
+            // a clear (no error) for them, so they don't contribute to this list.
+            const enrichStillPending = (enrichData.errors || []).some(e =>
+              e.reason === 'billing_line_item_not_found' || e.reason === 'no_assessment_resolved'
+            );
             if (blocked || enrichStillPending) {
               setChargeErrors(enrichData.errors || []);
               setApproved(false);
