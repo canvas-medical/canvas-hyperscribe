@@ -18,27 +18,19 @@ function slug(title) {
 const TEMPLATE_FIELD = { physical_exam: 'pe_sections', ros: 'ros_sections' };
 const LABEL = { physical_exam: 'physical exam', ros: 'review of systems' };
 
-function confirmCopy(action, templates, sectionKind) {
+function confirmCopy(kind, sectionKind) {
   const what = LABEL[sectionKind] === 'review of systems' ? 'Review of Systems' : 'Physical Exam';
-  if (action.kind === 'clear') {
+  if (kind === 'clear') {
     return {
       title: `Clear ${what.toLowerCase()}?`,
-      body: `This removes all systems and findings from the ${what}. You can add systems again or carry forward your last exam.`,
+      body: `This removes all systems and findings from the ${what}. You can add systems again, apply a template, or carry forward your last exam.`,
       go: 'Clear',
     };
   }
-  if (action.kind === 'carry') {
-    return {
-      title: 'Carry forward last exam?',
-      body: `This replaces the current ${what} with the one from your most recent prior note for this patient (the last note you were the provider on). Current findings will be discarded.`,
-      go: 'Replace',
-    };
-  }
-  const name = templates[action.templateIndex] ? templates[action.templateIndex].name : '';
   return {
-    title: `Apply “${name}”?`,
-    body: `This replaces the current ${what} with the systems and findings from the selected visit template. Current findings will be discarded.`,
-    go: 'Apply template',
+    title: 'Carry forward last exam?',
+    body: `This replaces the current ${what} with the one from your most recent prior note for this patient (the last note you were the provider on). Current findings will be discarded.`,
+    go: 'Replace',
   };
 }
 
@@ -48,17 +40,18 @@ function confirmCopy(action, templates, sectionKind) {
 // All mutations funnel through onEdit(commandIndex, { sections }).
 export function ExamSectionsRow({
   command, commandIndex, onEdit, readOnly, onEditingChange,
-  sectionKind, templates = [], onCarryForward,
+  sectionKind, templates = [], onCarryForward, onCombine,
 }) {
   const sections = (command.data && command.data.sections) || [];
   const seed = () => sections.map(s => ({ key: s.key || slug(s.title), title: s.title || '', text: stripMarkers(s.text), _new: false }));
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(seed);
-  const [confirm, setConfirm] = useState(null);   // { kind: 'carry'|'clear'|'template', templateIndex? }
+  const [confirm, setConfirm] = useState(null);     // { kind: 'carry'|'clear' }
   const [menuOpen, setMenuOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('');
+  const [menuSel, setMenuSel] = useState(-1);        // selected template index in the Template menu
+  const [busy, setBusy] = useState(false);           // carry-forward loading
+  const [merging, setMerging] = useState(false);     // AI-merge loading
   const listRef = useRef(null);
   const focusNew = useRef(false);
 
@@ -94,12 +87,15 @@ export function ExamSectionsRow({
   // Close the template menu on any outside click.
   useEffect(() => {
     if (!menuOpen) return;
-    const close = () => setMenuOpen(false);
+    const close = () => { setMenuOpen(false); setMenuSel(-1); };
     document.addEventListener('click', close);
     return () => document.removeEventListener('click', close);
   }, [menuOpen]);
 
-  const enterEdit = () => { if (!readOnly) { setDraft(seed()); setNotice(''); setEditing(true); } };
+  const enterEdit = () => { if (!readOnly) { setDraft(seed()); setEditing(true); } };
+
+  // Map any [{key?,title,text}] into clean draft rows.
+  const toRows = (secs) => secs.map(s => ({ key: s.key || slug(s.title), title: s.title || '', text: stripMarkers(s.text), _new: false }));
 
   const persist = (rows) => {
     const cleaned = rows
@@ -108,33 +104,49 @@ export function ExamSectionsRow({
     onEdit(commandIndex, { sections: cleaned });
   };
 
-  const handleSave = () => { persist(draft); setEditing(false); setNotice(''); };
-  const handleCancel = () => { setDraft(seed()); setEditing(false); setNotice(''); };
+  const handleSave = () => { persist(draft); setEditing(false); };
+  const handleCancel = () => { setDraft(seed()); setEditing(false); };
 
   const updateText = (i, val) => setDraft(d => d.map((s, j) => (j === i ? { ...s, text: val } : s)));
   const updateTitle = (i, val) => setDraft(d => d.map((s, j) => (j === i ? { ...s, title: val } : s)));
   const removeRow = (i) => setDraft(d => d.filter((_, j) => j !== i));
   const addSystem = () => { focusNew.current = true; setDraft(d => [...d, { key: '', title: '', text: '', _new: true }]); };
 
-  const runAction = async () => {
-    const action = confirm;
-    setConfirm(null);
-    if (!action) return;
-    if (action.kind === 'clear') { setDraft([]); setNotice(''); return; }
-    if (action.kind === 'template') {
-      const t = templates[action.templateIndex];
-      const secs = (t && t[TEMPLATE_FIELD[sectionKind]]) || [];
-      setDraft(secs.map(s => ({ key: s.key || slug(s.title), title: s.title || '', text: stripMarkers(s.text), _new: false })));
-      setNotice('');
+  // Template ▾ → Clear & Replace (deterministic) or AI Merge (LLM blend into current findings).
+  const applyTemplate = async (mode) => {
+    if (menuSel < 0) return;
+    const tmpl = templates[menuSel];
+    const templateSecs = (tmpl && tmpl[TEMPLATE_FIELD[sectionKind]]) || [];
+    if (mode === 'replace') {
+      setDraft(toRows(templateSecs));
+      setMenuOpen(false); setMenuSel(-1);
       return;
     }
-    if (action.kind === 'carry') {
-      setBusy(true); setNotice('');
+    // AI Merge — blend the template into the current card findings via the backend.
+    setMerging(true);
+    const current = draft
+      .map(s => ({ key: s.key || slug(s.title), title: (s.title || '').trim(), text: (s.text || '').trim() }))
+      .filter(s => s.title || s.text);
+    let merged = null;
+    try { merged = onCombine && (await onCombine(sectionKind, templateSecs, current)); } catch (e) { merged = null; }
+    setMerging(false);
+    // Silent no-op when the merge fails / returns nothing (no notice banner).
+    if (Array.isArray(merged) && merged.length) setDraft(toRows(merged));
+    setMenuOpen(false); setMenuSel(-1);
+  };
+
+  // Carry forward / Clear — confirmed single-click actions.
+  const runConfirm = async () => {
+    const kind = confirm;
+    setConfirm(null);
+    if (kind === 'clear') { setDraft([]); return; }
+    if (kind === 'carry') {
+      setBusy(true);
       let secs = [];
       try { secs = (onCarryForward && (await onCarryForward(sectionKind))) || []; } catch (e) { secs = []; }
       setBusy(false);
-      if (!secs.length) { setNotice(`No prior ${LABEL[sectionKind]} found to carry forward.`); return; }
-      setDraft(secs.map(s => ({ key: s.key || slug(s.title), title: s.title || '', text: stripMarkers(s.text), _new: false })));
+      // Silent no-op when there is no prior exam to carry forward.
+      if (secs.length) setDraft(toRows(secs));
     }
   };
 
@@ -161,34 +173,38 @@ export function ExamSectionsRow({
     <div class="exam-edit editing">
       <div class="exam-toolbar">
         <span class="exam-dropdown">
-          <button type="button" class="exam-action-btn" onClick=${(e) => { e.stopPropagation(); setMenuOpen(o => !o); }} title="Apply a configured visit template's exam">
-            <span class="exam-ico">⊞</span> Apply template <span class="exam-ico">▾</span>
+          <button type="button" class="exam-action-btn" onClick=${(e) => { e.stopPropagation(); setMenuOpen(o => { const n = !o; if (n) setMenuSel(-1); return n; }); }} title="Apply a configured visit template">
+            <span class="exam-ico">⊞</span> Template <span class="exam-ico">▾</span>
           </button>
           ${menuOpen && html`
             <div class="exam-menu" onClick=${(e) => e.stopPropagation()}>
               ${templates.length === 0
                 ? html`<div class="exam-menu-empty">No visit templates configured.</div>`
                 : html`
-                  <div class="exam-menu-head">Apply exam from template</div>
+                  <div class="exam-menu-head">Apply a visit template</div>
                   ${templates.map((t, i) => {
                     const secs = (t[TEMPLATE_FIELD[sectionKind]] || []);
-                    return html`<button type="button" class="exam-menu-item" onClick=${() => { setMenuOpen(false); setConfirm({ kind: 'template', templateIndex: i }); }}>
-                      ${t.name}<small>${secs.length} system${secs.length === 1 ? '' : 's'}</small>
-                    </button>`;
+                    return html`<div class=${`exam-tmpl-row${i === menuSel ? ' sel' : ''}`} onClick=${() => setMenuSel(i)}>
+                      <span class="exam-tmpl-radio"></span>
+                      <span class="exam-tmpl-meta"><span class="exam-tmpl-name">${t.name}</span><span class="exam-tmpl-sub">${secs.length} system${secs.length === 1 ? '' : 's'}</span></span>
+                    </div>`;
                   })}
+                  <div class="exam-tmpl-divider"></div>
+                  <div class="exam-tmpl-foot">
+                    <button type="button" class="exam-foot-btn" disabled=${menuSel < 0} onClick=${() => applyTemplate('replace')}>⇄ Clear &amp; Replace</button>
+                    <button type="button" class="exam-foot-btn merge" disabled=${menuSel < 0 || merging} onClick=${() => applyTemplate('merge')}>✦ ${merging ? 'Merging…' : 'AI Merge'}</button>
+                  </div>
                 `}
             </div>
           `}
         </span>
-        <button type="button" class="exam-action-btn" disabled=${busy} onClick=${() => setConfirm({ kind: 'carry' })} title="Overwrite with your last documented exam">
+        <button type="button" class="exam-action-btn" disabled=${busy} onClick=${() => setConfirm('carry')} title="Overwrite with your last documented exam">
           <span class="exam-ico">⤵</span> ${busy ? 'Loading…' : 'Carry forward'}
         </button>
-        <button type="button" class="exam-action-btn exam-clear" onClick=${() => setConfirm({ kind: 'clear' })} title="Remove all systems and findings">
+        <button type="button" class="exam-action-btn" onClick=${() => setConfirm('clear')} title="Remove all systems and findings">
           <span class="exam-ico">⊘</span> Clear
         </button>
       </div>
-
-      ${notice && html`<div class="exam-notice">${notice}</div>`}
 
       <div class="exam-list" ref=${listRef}>
         ${draft.map((s, i) => html`
@@ -220,12 +236,12 @@ export function ExamSectionsRow({
       ${confirm && html`
         <div class="exam-confirm-overlay" onClick=${() => setConfirm(null)}>
           <div class="exam-confirm" onClick=${(e) => e.stopPropagation()}>
-            ${(() => { const c = confirmCopy(confirm, templates, sectionKind); return html`
+            ${(() => { const c = confirmCopy(confirm, sectionKind); return html`
               <h3>${c.title}</h3>
               <p>${c.body}</p>
               <div class="exam-confirm-actions">
                 <button type="button" class="form-btn form-btn-cancel" onClick=${() => setConfirm(null)}>Cancel</button>
-                <button type="button" class="form-btn exam-confirm-go" onClick=${runAction}>${c.go}</button>
+                <button type="button" class="form-btn exam-confirm-go" onClick=${runConfirm}>${c.go}</button>
               </div>
             `; })()}
           </div>

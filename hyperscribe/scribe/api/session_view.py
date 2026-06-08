@@ -963,6 +963,41 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         sections = _last_exam_sections(note_uuid, staff_id, kind)
         return [JSONResponse({"sections": sections}, status_code=HTTPStatus.OK)]
 
+    @api.post("/combine-exam")
+    def post_combine_exam(self) -> list[Union[Response, Effect]]:
+        """AI Merge: blend a visit template into the current PE/ROS findings via the
+        Anthropic reconciliation. Body: ``{note_id, kind, template_sections,
+        current_sections}``.
+
+        Returns ``{"sections": [...], "merged": bool}``. ``merged`` is ``false`` (and
+        the current sections are echoed back unchanged) when no API key is configured
+        or the LLM merge fails — the client then leaves the card as-is (silent no-op).
+        """
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_uuid = str(data.get("note_id") or data.get("note_uuid") or "")
+        kind = str(data.get("kind", ""))
+        # Edit-gate: AI Merge overwrites the working note, so it's provider-only.
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+        if kind not in _EXAM_KIND_TO_COMMAND_TYPE:
+            return [JSONResponse({"error": "invalid kind"}, status_code=HTTPStatus.BAD_REQUEST)]
+        template_sections = data.get("template_sections") or []
+        current_sections = data.get("current_sections") or []
+        section_label = "Review of Systems" if kind == "ros" else "Physical Exam"
+        api_key = self.secrets.get("AnthropicAPIKey", "")
+        reconciled = (
+            reconcile_sections(template_sections, current_sections, api_key, section_label) if api_key else None
+        )
+        if not reconciled:
+            return [JSONResponse({"sections": current_sections, "merged": False}, status_code=HTTPStatus.OK)]
+        sections = [
+            {"key": s.get("key", ""), "title": s.get("title", ""), "text": s.get("text", "")} for s in reconciled
+        ]
+        return [JSONResponse({"sections": sections, "merged": True}, status_code=HTTPStatus.OK)]
+
     @api.post("/save-summary")
     def post_save_summary(self) -> list[Union[Response, Effect]]:
         try:
@@ -1181,92 +1216,10 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         )
         prefill_diagnose_backgrounds(commands_list, note_uuid)
 
-        # ── Step 2.5: Reconcile template ROS/PE with Nabla-generated ones ──
-        template_ros: list[dict[str, str]] | None = data.get("template_ros_sections")
-        template_pe: list[dict[str, str]] | None = data.get("template_pe_sections")
-        reconciliation_api_key = self.secrets.get("AnthropicAPIKey", "")
-        cmd_types = [c["command_type"] for c in commands_list]
-        log.info(
-            "step 2.5: template_ros=%s, template_pe=%s, api_key=%s, cmd_types=%s",
-            len(template_ros) if template_ros else None,
-            len(template_pe) if template_pe else None,
-            bool(reconciliation_api_key),
-            cmd_types,
-        )
-        if template_ros or template_pe:
-            has_ros = any(c["command_type"] == "ros" for c in commands_list)
-            has_pe = any(c["command_type"] == "physical_exam" for c in commands_list)
-
-            # If Nabla didn't generate ROS/PE but the template has them,
-            # inject the template sections as commands (all unchanged).
-            if template_ros and not has_ros:
-                ros_display = " | ".join(s["title"] for s in template_ros)
-                ros_secs: list[dict[str, Any]] = [
-                    {
-                        "key": s["key"],
-                        "title": s["title"],
-                        "text": s["text"],
-                        "updated": False,
-                        "template_text": s["text"],
-                    }
-                    for s in template_ros
-                ]
-                commands_list.append(
-                    {
-                        "command_type": "ros",
-                        "display": ros_display,
-                        "data": {"sections": ros_secs},
-                        "selected": True,
-                        "section_key": "_ros",
-                        "already_documented": False,
-                    }
-                )
-            if template_pe and not has_pe:
-                pe_display = " | ".join(s["title"] for s in template_pe)
-                pe_secs: list[dict[str, Any]] = [
-                    {
-                        "key": s["key"],
-                        "title": s["title"],
-                        "text": s["text"],
-                        "updated": False,
-                        "template_text": s["text"],
-                    }
-                    for s in template_pe
-                ]
-                commands_list.append(
-                    {
-                        "command_type": "physical_exam",
-                        "display": pe_display,
-                        "data": {"sections": pe_secs},
-                        "selected": True,
-                        "section_key": "physical_exam",
-                        "already_documented": False,
-                    }
-                )
-
-            # Reconcile when both template and Nabla versions exist.
-            if reconciliation_api_key:
-                for cmd in commands_list:
-                    if cmd["command_type"] == "ros" and template_ros and has_ros:
-                        reconciled = reconcile_sections(
-                            template_ros,
-                            cmd["data"].get("sections", []),
-                            reconciliation_api_key,
-                            "Review of Systems",
-                        )
-                        if reconciled:
-                            cmd["data"]["sections"] = reconciled
-                            cmd["display"] = " | ".join(s["title"] for s in reconciled)
-                    elif cmd["command_type"] == "physical_exam" and template_pe and has_pe:
-                        reconciled = reconcile_sections(
-                            template_pe,
-                            cmd["data"].get("sections", []),
-                            reconciliation_api_key,
-                            "Physical Exam",
-                        )
-                        if reconciled:
-                            cmd["data"]["sections"] = reconciled
-                            cmd["display"] = " | ".join(s["title"] for s in reconciled)
+        # Template ROS/PE reconciliation is no longer part of generation — it is an
+        # on-demand action in the PE/ROS card (Template ▾ → AI Merge, POST /combine-exam).
+        # Generation now yields the raw Nabla findings; the provider brings in a
+        # template explicitly. See ``post_combine_exam``.
 
         # ── Step 3: Recommend commands ──
         _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
