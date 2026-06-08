@@ -250,24 +250,30 @@ class NablaBackend(ScribeBackend):
                 {
                     "section_key": "HISTORY_OF_PRESENT_ILLNESS",
                     "style": "PARAGRAPH",
-                    "level_of_detail": "DEFAULT",
+                    "level_of_detail": "DETAILED",
                     "custom_instruction": hpi_custom_instructions,
                 },
                 {
                     "section_key": "SOCIAL_HISTORY",
                     "custom_instruction": (
-                        "Be thorough. Include all relevant details discussed for: "
-                        "Living Situation, Social Support, Caregiving Resources, "
-                        "Occupation, Alcohol, Tobacco, Recreational Drugs, and Exposures."
+                        "Document only the patient's own social history, and only what is actually "
+                        "discussed in this encounter. Do not attribute anyone else's family, children, "
+                        "activities, or history to the patient; exclude social details belonging to the "
+                        "clinician, a caregiver, or a companion in the room. Never state that a topic was "
+                        "not discussed or that no information was provided. If the patient's own social "
+                        "history is not discussed, leave this section empty."
                     ),
                 },
                 {
                     "section_key": "FAMILY_HISTORY",
                     "custom_instruction": (
-                        "Be thorough. Document all family members mentioned, their relationship "
-                        "to the patient, and any medical conditions or causes of death "
-                        "discussed. Distinguish between the patient's own history and "
-                        "family members' history."
+                        "Family history covers medical conditions or causes of death in the patient's "
+                        "own biological relatives — not social anecdotes or a healthy relative's "
+                        "activities. Document only what is actually discussed; name the relative and "
+                        "relationship. Do not attribute the relatives of the clinician, a caregiver, or "
+                        "a companion in the room to the patient; when the relationship or speaker is "
+                        "unclear, omit rather than guess. Never add filler such as \"no other family "
+                        "history discussed.\" If none is discussed, leave empty."
                     ),
                 },
                 {
