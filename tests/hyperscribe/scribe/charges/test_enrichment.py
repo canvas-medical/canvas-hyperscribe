@@ -1,7 +1,11 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from hyperscribe.scribe.charges.enrichment import _normalize_icd10, build_assessment_index
+from hyperscribe.scribe.charges.enrichment import (
+    _find_billing_line_item,
+    _normalize_icd10,
+    build_assessment_index,
+)
 
 
 def test_normalize_icd10_strips_dots_and_uppercases():
@@ -259,6 +263,65 @@ def test_multiple_charges_accumulate_enriched_and_errors_independently(
     assert effects == ["UPDATE_EFFECT"]
     assert [e["command_uuid"] for e in enriched] == ["ok"]
     assert errors == [{"command_uuid": "bad", "reason": "billing_line_item_not_found"}]
+
+
+# ── _find_billing_line_item: ambiguous CPT fallback guard ──
+
+
+@patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.Command")
+def test_find_billing_line_item_fallback_ambiguous_cpt_returns_none(mock_command, mock_bli):
+    """When the primary command_id lookup misses and multiple ACTIVE BLIs share
+    the same CPT, the fallback must return None instead of picking arbitrarily
+    — otherwise it would silently overwrite the wrong charge's claim data."""
+    from canvas_sdk.v1.data.billing import BillingLineItemStatus
+
+    note = SimpleNamespace(dbid=1)
+    command = SimpleNamespace(dbid=42, data={"cpt_code": "99213"})
+    mock_command.objects.get.return_value = command
+
+    primary_qs = MagicMock()
+    primary_qs.first.return_value = None  # command_id lookup misses
+
+    fallback_qs = MagicMock()
+    fallback_qs.count.return_value = 2   # two BLIs share this CPT
+
+    mock_bli.objects.filter.side_effect = [primary_qs, fallback_qs]
+
+    result = _find_billing_line_item(note, "uuid-1")
+
+    assert result is None
+    fallback_qs.first.assert_not_called()  # must not pick blindly
+    mock_bli.objects.filter.assert_any_call(
+        note=note, cpt="99213", status=BillingLineItemStatus.ACTIVE
+    )
+
+
+@patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.Command")
+def test_find_billing_line_item_fallback_unambiguous_cpt_returns_bli(mock_command, mock_bli):
+    """When the primary command_id lookup misses but exactly one ACTIVE BLI
+    shares the CPT, the fallback may safely call .first() and return it."""
+    from canvas_sdk.v1.data.billing import BillingLineItemStatus
+
+    note = SimpleNamespace(dbid=1)
+    expected_bli = SimpleNamespace(id="bli-1")
+    command = SimpleNamespace(dbid=42, data={"cpt_code": "99213"})
+    mock_command.objects.get.return_value = command
+
+    primary_qs = MagicMock()
+    primary_qs.first.return_value = None  # command_id lookup misses
+
+    fallback_qs = MagicMock()
+    fallback_qs.count.return_value = 1
+    fallback_qs.first.return_value = expected_bli
+
+    mock_bli.objects.filter.side_effect = [primary_qs, fallback_qs]
+
+    result = _find_billing_line_item(note, "uuid-1")
+
+    assert result is expected_bli
+    fallback_qs.first.assert_called_once()
 
 
 # ── Coverage gap: ambiguous ICD-10 warning path in _resolve_assessment_ids ──
