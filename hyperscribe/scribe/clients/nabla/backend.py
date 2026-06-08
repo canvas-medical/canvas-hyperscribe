@@ -223,13 +223,12 @@ class NablaBackend(ScribeBackend):
         # labels (for parse_ros_subsections).
         hpi_custom_instructions = (
             f"Open with one sentence in this exact format: {opening}\n"
-            "If the provider dictates a structured summary, use it as the PRIMARY source. "
-            "Write in complete sentences with a clear subject (never omit the subject), in a formal clinical tone.\n"
+            "After it, write complete sentences with a clear subject; do not restate the name or "
+            "age, and avoid fragments. Use any dictated structured summary as the PRIMARY source.\n"
             "End with a complete Review of Systems covering whatever systems are clinically "
-            "appropriate (you choose them), noting positive and negative findings. Format it "
-            'to be parsed: a line containing only "ROS", then each system on its own line as '
-            '"System: findings", with a 1-3 word system name (e.g. General, HEENT, '
-            "Cardiovascular). Never exceed three words."
+            "appropriate (you choose them), with positive and negative findings. To parse it: a "
+            'line containing only "ROS", then each system on its own line as "System: findings", '
+            "with a 1-3 word name (e.g. General, HEENT, Cardiovascular). Never exceed three words."
         )
 
         payload: dict[str, Any] = {

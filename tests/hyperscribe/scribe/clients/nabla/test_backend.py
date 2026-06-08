@@ -111,9 +111,11 @@ def test_generate_note_hpi_ros_instruction() -> None:
     # Combined HPI+ROS instruction must stay within Nabla's 700-character limit.
     assert len(instruction) <= 700, f"HPI/ROS instruction is {len(instruction)} chars (>700)"
 
-    # HPI: full-sentence narrative with explicit subjects.
+    # HPI: full-sentence narrative with a clear subject, and no duplicate demographic
+    # intro (the opener already states name/age, so the narrative must not restate them).
     assert "Open with one sentence in this exact format:" in instruction
-    assert "never omit the subject" in instruction
+    assert "clear subject" in instruction
+    assert "do not restate the name or age" in instruction
 
     # ROS: Nabla picks the systems (no fixed list), but the parseable format is pinned —
     # the standalone "ROS" marker (_split_ros) and 1-3 word "System: findings" rows
@@ -121,7 +123,7 @@ def test_generate_note_hpi_ros_instruction() -> None:
     assert "you choose them" in instruction
     assert 'a line containing only "ROS"' in instruction
     assert '"System: findings"' in instruction
-    assert "1-3 word system name" in instruction
+    assert "1-3 word name" in instruction
     assert "Never exceed three words." in instruction
 
     # The old hard-coded ROS system scaffold is gone.
