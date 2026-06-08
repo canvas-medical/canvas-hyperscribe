@@ -2215,7 +2215,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               if (!pending) break; // every charge resolved (or only non-transient errors remain)
               await new Promise(resolve => setTimeout(resolve, 700)); // let the commit effects apply
             }
-            if (blocked) {
+            // Treat loop exhaustion with unresolved BLIs identically to the 422-blocked
+            // case — signing with pending not_found errors would silently drop diagnosis
+            // pointers and modifiers, producing a malformed CMS-1500 claim with no
+            // indication to the provider that anything went wrong.
+            const enrichStillPending = (enrichData.errors || []).some(e => e.reason === 'billing_line_item_not_found');
+            if (blocked || enrichStillPending) {
               setChargeErrors(enrichData.errors || []);
               setApproved(false);
               setConfirming(false);

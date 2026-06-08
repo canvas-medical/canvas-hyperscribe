@@ -19,9 +19,13 @@ from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
 from logger import log
 
-# The Coding system CMS modifiers are expressed under. Matches the Canvas SDK
+# The Coding system modifiers are expressed under. Matches the Canvas SDK
 # billing-line-item effect docs example. VERIFY ON INSTANCE (spec §9.3) before
 # relying on this exact string.
+# Known gap: GV and GW (in the picker seed) are HCPCS Level II modifiers
+# (CMS-owned, not AMA-CPT). They should carry a different system URI once
+# confirmed on instance. All modifiers use this URI for now — live UAT passed,
+# but branch per-code if Canvas validates the system field on BLI writes.
 CPT_MODIFIER_SYSTEM = "http://www.ama-assn.org/go/cpt"
 
 
@@ -102,11 +106,22 @@ def _find_billing_line_item(note: Any, command_uuid: str) -> Any | None:
                 cpt = perform.get("value")
             cpt = cpt or data.get("cpt_code")
         if cpt:
-            bli = (
-                BillingLineItem.objects.filter(
-                    note=note, cpt=cpt, status=BillingLineItemStatus.ACTIVE
-                ).first()
+            qs = BillingLineItem.objects.filter(
+                note=note, cpt=cpt, status=BillingLineItemStatus.ACTIVE
             )
+            count = qs.count()
+            if count > 1:
+                # Multiple ACTIVE BLIs share this CPT — .first() would pick one
+                # arbitrarily and write the wrong charge's pointers onto it.
+                # Bail so the caller surfaces billing_line_item_not_found instead
+                # of silently corrupting a different charge's claim data.
+                log.warning(
+                    "enrich_charges: ambiguous cpt %s matches %d BLIs on note"
+                    " — skipping fallback to avoid silent miswrite",
+                    cpt, count,
+                )
+            else:
+                bli = qs.first()
         log.info(
             "enrich_charges: cmd=%s dbid=%s cpt=%s bli_found=%s (command_id miss)",
             command_uuid, command.dbid, cpt, bli is not None,
