@@ -533,6 +533,75 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
     }
 
 
+# Carry-forward maps the frontend section kind to the ScribeSummary proposal
+# command_type. NOTE: these are the plugin's own command_types, NOT the official
+# Canvas command schema_keys ("exam" / "ros") — we deliberately read ScribeSummary
+# (Scribe-created commands only) so the official commands can never be surfaced.
+_EXAM_KIND_TO_COMMAND_TYPE = {"physical_exam": "physical_exam", "ros": "ros"}
+
+
+def _last_exam_sections(note_uuid: str, staff_id: str, kind: str) -> list[dict[str, str]]:
+    """Return the {key,title,text} sections of the most recent prior Physical Exam /
+    Review of Systems the provider documented in Scribe.
+
+    Scope: the patient's prior notes where the logged-in staff is the note provider
+    (the "last note I was the provider on"), most recent ``datetime_of_service``
+    first, excluding the current note. The first such note whose ``ScribeSummary``
+    holds a non-empty PE/ROS command wins.
+
+    Best-effort, mirroring ``carry_forward.py``: any failure returns ``[]`` so the
+    caller degrades to "no prior exam found" rather than raising. ``note.id`` is the
+    only identifier logged — never patient/clinical content.
+    """
+    command_type = _EXAM_KIND_TO_COMMAND_TYPE.get(kind)
+    if not command_type or not staff_id:
+        return []
+    try:
+        patient_id = Note.objects.values_list("patient__id", flat=True).get(id=note_uuid)
+    except Note.DoesNotExist:
+        return []
+    if not patient_id:
+        return []
+    try:
+        # Cap the scan: the carry-forward target is almost always one of the most
+        # recent encounters; an unbounded scan over a long chart is wasteful.
+        prior_dbids = list(
+            Note.objects.filter(patient__id=patient_id, provider__id=staff_id)
+            .exclude(id=note_uuid)
+            .order_by("-datetime_of_service")
+            .values_list("dbid", flat=True)[:50]
+        )
+    except Exception:
+        log.exception("last-exam: prior-note query failed for note %s", note_uuid)
+        return []
+    if not prior_dbids:
+        return []
+    summaries = {
+        row["note_id"]: row["commands"]
+        for row in ScribeSummary.objects.filter(note_id__in=prior_dbids).values("note_id", "commands")
+    }
+    for dbid in prior_dbids:  # most-recent first
+        commands = summaries.get(dbid)
+        if not isinstance(commands, list):
+            continue
+        for cmd in commands:
+            if not isinstance(cmd, dict) or cmd.get("command_type") != command_type:
+                continue
+            raw_data = cmd.get("data")
+            data = raw_data if isinstance(raw_data, dict) else {}
+            raw_sections = data.get("sections")
+            if not isinstance(raw_sections, list):
+                continue
+            sections = [
+                {"key": s.get("key", ""), "title": s.get("title", ""), "text": s.get("text", "")}
+                for s in raw_sections
+                if isinstance(s, dict) and (s.get("title") or s.get("text"))
+            ]
+            if sections:
+                return sections
+    return []
+
+
 def _load_assignees() -> list[dict[str, Any]]:
     """Load active staff members and teams for task assignment."""
     assignees: list[dict[str, Any]] = []
@@ -874,6 +943,25 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
         return [JSONResponse(data, status_code=HTTPStatus.OK)]
+
+    @api.get("/last-exam")
+    def get_last_exam(self) -> list[Union[Response, Effect]]:
+        """Carry-forward source: the most recent prior Physical Exam / Review of
+        Systems the provider documented in Scribe (last note they were the provider
+        on). Returns ``{"sections": [...]}`` ([] when none found). ``kind`` is
+        ``physical_exam`` | ``ros``.
+        """
+        note_uuid = str(self.request.query_params.get("note_id", ""))
+        kind = str(self.request.query_params.get("kind", ""))
+        # Edit-gate: carry-forward overwrites the working note, so it's provider-only.
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+        if kind not in _EXAM_KIND_TO_COMMAND_TYPE:
+            return [JSONResponse({"error": "invalid kind"}, status_code=HTTPStatus.BAD_REQUEST)]
+        headers = getattr(self.request, "headers", {}) or {}
+        staff_id = headers.get("canvas-logged-in-user-id") or ""
+        sections = _last_exam_sections(note_uuid, staff_id, kind)
+        return [JSONResponse({"sections": sections}, status_code=HTTPStatus.OK)]
 
     @api.post("/save-summary")
     def post_save_summary(self) -> list[Union[Response, Effect]]:

@@ -348,7 +348,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onRemoveChargeByUuid } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onRemoveChargeByUuid, examTemplates, onCarryForwardExam } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -411,6 +411,8 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         alertFacilityEnabled=${alertFacilityEnabled}
         onEditingChange=${onEditingChange}
         questionnaireScores=${isObjective ? questionnaireScores : null}
+        examTemplates=${(isObjective || isSubjective) ? examTemplates : null}
+        onCarryForwardExam=${(isObjective || isSubjective) ? onCarryForwardExam : null}
       />`;
     })
     .filter(Boolean);
@@ -1294,6 +1296,21 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setUnmatchedConditions(codes.filter(c => !matchedSet.has(c)));
   }, [sectionConditions, commands, noteData, unmatchedConditions]);
 
+
+  // Carry forward the most recent prior Physical Exam / Review of Systems the
+  // provider documented in Scribe (last note they were the provider on).
+  // Returns an array of {key,title,text} sections, or [] when none is found.
+  const handleCarryForwardExam = useCallback(async (kind) => {
+    try {
+      const res = await fetch(`${API_BASE}/last-exam?note_id=${encodeURIComponent(noteId)}&kind=${encodeURIComponent(kind)}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data.sections) ? data.sections : [];
+    } catch (e) {
+      console.error('carry-forward exam failed:', e);
+      return [];
+    }
+  }, [noteId]);
 
   const handleEdit = useCallback((index, newData, newType) => {
     logEvent('EDIT_COMMAND', { index, commandType: newType || commands[index]?.command_type, sectionKey: commands[index]?.section_key, data: newData });
@@ -2886,6 +2903,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddChargeModifier: canEdit ? onAddChargeModifier : null,
           onRemoveChargeModifier: canEdit ? onRemoveChargeModifier : null,
           onRemoveChargeByUuid: canEdit ? onRemoveChargeByUuid : null,
+          examTemplates: templates,
+          onCarryForwardExam: handleCarryForwardExam,
         })}
         ${fromTheNoteCommands.length > 0 && html`
           <div class="summary-section from-the-note-section">
