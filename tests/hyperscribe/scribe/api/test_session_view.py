@@ -1891,6 +1891,241 @@ def test_summary_js_commit_recommendations_helper_centralizes_prime() -> None:
         )
 
 
+def test_summary_js_schema_key_to_section_key_map_exists() -> None:
+    """KOALA-5687: ``summary.js`` exposes a ``SCHEMA_KEY_TO_SECTION_KEY`` const
+    that maps home-app's raw ``schema_key`` (returned by ``/note-commands``)
+    onto Scribe-side ``section_key`` values for the known SOAP slots.
+
+    Why: ``GET /note-commands`` stamps every fetched command with
+    ``section_key = "from_the_note"`` regardless of the underlying schema_key.
+    The amend flow (``VOID_RECREATE``) re-emits commands under fresh uuids; the
+    local row's old uuid no longer matches anything in the fetch, so
+    ``syncNoteCommands`` drops the local entry and appends the fetched one as
+    a ``from_the_note`` card under ADDITIONAL COMMANDS. The map restores the
+    proper SOAP ``section_key`` at merge time.
+
+    Pins the high-confidence mappings (anchored to either the SDK Meta.key
+    constants or live ``commands_command.schema_key`` DB rows). Mappings the
+    contractor could not anchor to a primary source were intentionally
+    omitted — the fallback is ``from_the_note`` (current behavior), which is
+    strictly safer than fabricating a wrong section_key.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) The const must exist.
+    assert "const SCHEMA_KEY_TO_SECTION_KEY" in src, (
+        "summary.js must declare a `const SCHEMA_KEY_TO_SECTION_KEY` mapping "
+        "home-app schema_keys to Scribe section_keys. Without it the amend "
+        "VOID_RECREATE flow leaves edited commands stranded in ADDITIONAL "
+        "COMMANDS instead of their original SOAP section (KOALA-5687)."
+    )
+
+    # (2) Marker comment must be present so the WHY survives future cleanups.
+    assert "KOALA_5687" in src, (
+        "summary.js is missing the KOALA_5687 marker comment explaining why "
+        "the SCHEMA_KEY_TO_SECTION_KEY map exists. The pin test for the merge "
+        "site references this marker; do not strip it on a cleanup pass."
+    )
+
+    # (3) High-confidence mappings — each entry must literally appear inside
+    # the SCHEMA_KEY_TO_SECTION_KEY object literal. We slice from the const
+    # declaration to the next `};` so we don't accidentally match the same
+    # key/value pair elsewhere in the file (e.g. inside SOAP_GROUPS).
+    map_start = src.find("const SCHEMA_KEY_TO_SECTION_KEY")
+    map_end = src.find("};", map_start)
+    assert map_end != -1, (
+        "Could not find the end of the SCHEMA_KEY_TO_SECTION_KEY object "
+        "literal (looked for `};` after the const declaration)."
+    )
+    map_body = src[map_start:map_end]
+
+    required_mappings = [
+        # schema_key (raw home-app key) -> Scribe section_key
+        ("reasonForVisit", "chief_complaint"),
+        ("hpi", "history_of_present_illness"),
+        ("reviewOfSystems", "_ros"),
+        ("historyReview", "_history_review"),
+        ("medicalHistory", "past_medical_history"),
+        ("chartReview", "_chart_review"),
+        ("vitals", "vitals"),
+        ("physicalExam", "physical_exam"),
+        ("labResult", "lab_results"),
+        ("imageResult", "imaging_results"),
+        ("medicationStatement", "current_medications"),
+        ("allergy", "allergies"),
+        ("familyHistory", "family_history"),
+        ("surgicalHistory", "past_surgical_history"),
+        ("assess", "assessment_and_plan"),
+        ("diagnose", "assessment_and_plan"),
+        ("plan", "assessment_and_plan"),
+    ]
+    for schema_key, section_key in required_mappings:
+        pair = f"{schema_key}: '{section_key}'"
+        alt_pair = f'{schema_key}: "{section_key}"'
+        assert pair in map_body or alt_pair in map_body, (
+            f"SCHEMA_KEY_TO_SECTION_KEY is missing the mapping "
+            f"`{schema_key}` -> `{section_key}`. This was empirically "
+            f"anchored to either the SDK Meta.key in canvas-plugins or to a "
+            f"live `commands_command.schema_key` DB row on localhost. "
+            f"Removing it would re-strand amended commands of this type in "
+            f"ADDITIONAL COMMANDS (KOALA-5687)."
+        )
+
+
+def test_summary_js_sync_note_commands_uses_schema_key_section_map() -> None:
+    """KOALA-5687: the ``syncNoteCommands`` merge applies
+    ``SCHEMA_KEY_TO_SECTION_KEY`` to fetched commands so that amended
+    (VOID_RECREATE'd) SOAP commands render in their proper section instead
+    of the catch-all ``from_the_note`` bucket.
+
+    Two structural pins inside the syncNoteCommands callback body:
+      1. The ``KOALA_5687`` marker comment must be present inside the body
+         (intent breadcrumb co-located with the merge site).
+      2. The body must look up ``SCHEMA_KEY_TO_SECTION_KEY[cmd.command_type]``
+         — the actual remap call.
+
+    The same map should be consulted on BOTH the append branch (fetched cmd
+    has no local match — the bug-direct path) and, defensively, on the
+    local-stays branch (a prior pre-fix sync may have already written
+    ``section_key=from_the_note`` into local state, so a refresh after
+    upgrade should self-heal those stale entries). Pin (2) enforces "at
+    least one lookup"; pin (3) enforces both lookups.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    sync_decl = "const syncNoteCommands = useCallback(async () => {"
+    sync_idx = src.find(sync_decl)
+    assert sync_idx != -1, (
+        "Expected to find `const syncNoteCommands = useCallback(async () => {` "
+        "in summary.js. If the callback signature changed, update this pin."
+    )
+
+    # Walk braces to find the matching close.
+    open_brace_pos = sync_idx + len(sync_decl) - 1
+    depth = 0
+    close_pos = -1
+    for i in range(open_brace_pos, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                close_pos = i
+                break
+    assert close_pos != -1, "Could not find matching close brace for syncNoteCommands callback body."
+    body = src[sync_idx:close_pos]
+
+    # (1) Marker comment inside the merge function.
+    assert "KOALA_5687" in body, (
+        "syncNoteCommands body is missing the KOALA_5687 marker comment. The "
+        "marker is load-bearing: it documents WHY the section_key override "
+        "exists (amend's VOID_RECREATE returns fresh uuids stamped "
+        "from_the_note; the map remaps them back to their SOAP section). "
+        "Do not strip on cleanup."
+    )
+
+    # (2) The map lookup must appear inside the merge body.
+    assert "SCHEMA_KEY_TO_SECTION_KEY[cmd.command_type]" in body, (
+        "syncNoteCommands body must look up "
+        "`SCHEMA_KEY_TO_SECTION_KEY[cmd.command_type]` to remap fetched "
+        "commands' section_key off of `from_the_note` and back onto their "
+        "proper SOAP section (KOALA-5687)."
+    )
+
+    # (3) Both branches of the merge should consult the map. We count the
+    # number of `SCHEMA_KEY_TO_SECTION_KEY[` lookups inside the body — the
+    # append branch (fetched cmd has no local match) is the bug-direct path;
+    # the local-stays branch (`fetchedByUuid.has(cmd.command_uuid)` matched)
+    # is defensive for already-mis-stamped local state.
+    lookups = body.count("SCHEMA_KEY_TO_SECTION_KEY[")
+    assert lookups >= 2, (
+        "syncNoteCommands body must consult SCHEMA_KEY_TO_SECTION_KEY in "
+        "BOTH merge branches: the append branch (bug-direct: fetched cmd "
+        "with no local match) AND the local-stays branch (defensive: prior "
+        "pre-fix sync may have written `section_key=from_the_note` into "
+        "local state, so a refresh should self-heal). Found only "
+        f"{lookups} lookup(s) inside the callback body."
+    )
+
+
+def test_summary_js_sync_note_commands_falls_back_to_from_the_note_when_unmapped() -> None:
+    """KOALA-5687 negative pin: when a fetched ``command_type`` is NOT in
+    ``SCHEMA_KEY_TO_SECTION_KEY`` (e.g. ``educationalMaterial``, ``perform``,
+    ``task``, ``goal``, ``followUp``, an ad-hoc questionnaire, anything else
+    home-app might surface), the merge must still push the fetched cmd as-is
+    — preserving the existing ``from_the_note`` fallback that lands it under
+    ADDITIONAL COMMANDS.
+
+    This is a *guardrail* pin (passes on baseline AND after the fix); its job
+    is to prevent a future refactor from collapsing the conditional and
+    pushing a remapped object unconditionally, which would mis-stamp unknown
+    command_types or hide their existence.
+
+    Pinned via two checks inside the syncNoteCommands body:
+      1. The literal un-remapped append ``merged.push(cmd);`` must remain
+         (the fallback branch).
+      2. The append branch around the ``SCHEMA_KEY_TO_SECTION_KEY`` lookup
+         must split into mapped/unmapped paths — proxied by the presence of
+         a falsy-check (`if (mappedSection)` or `mappedSection ?`) within
+         a short window of the lookup. We don't pin the exact identifier so
+         the implementer can name the local variable freely; we just pin
+         that *some* conditional consumes the lookup result.
+    """
+    from pathlib import Path
+    import re
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    sync_decl = "const syncNoteCommands = useCallback(async () => {"
+    sync_idx = src.find(sync_decl)
+    assert sync_idx != -1, "Expected to find syncNoteCommands declaration."
+
+    open_brace_pos = sync_idx + len(sync_decl) - 1
+    depth = 0
+    close_pos = -1
+    for i in range(open_brace_pos, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                close_pos = i
+                break
+    body = src[sync_idx:close_pos]
+
+    # (1) The un-remapped fallback must remain.
+    assert "merged.push(cmd);" in body, (
+        "syncNoteCommands body must retain a literal `merged.push(cmd);` "
+        "fallback for fetched commands whose command_type is NOT in "
+        "SCHEMA_KEY_TO_SECTION_KEY. Removing it (e.g. pushing a remapped "
+        "object unconditionally) would mis-stamp unknown command_types or "
+        "drop them entirely (KOALA-5687)."
+    )
+
+    # (2) The lookup result must feed into a conditional. We look for a
+    # `SCHEMA_KEY_TO_SECTION_KEY[...]` lookup followed within ~200 chars by
+    # either a ternary using the local variable or an `if (` checking
+    # truthiness of a single identifier — both are accepted shapes.
+    lookup_re = re.compile(
+        r"SCHEMA_KEY_TO_SECTION_KEY\[[^\]]+\][\s\S]{0,200}?(\?|if\s*\()",
+        re.MULTILINE,
+    )
+    assert lookup_re.search(body), (
+        "The result of `SCHEMA_KEY_TO_SECTION_KEY[...]` must feed into a "
+        "conditional (either an `if (...)` or a `? :` ternary) so the "
+        "mapped path coexists with the un-remapped `merged.push(cmd)` "
+        "fallback. Without the conditional gate, unknown command_types "
+        "either get mis-stamped or fall out of the merge (KOALA-5687)."
+    )
+
+
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.build_effects")
 def test_insert_commands_audit_payload_excludes_display_phi(mock_build: MagicMock, mock_audit: MagicMock) -> None:

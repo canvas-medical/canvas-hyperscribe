@@ -272,8 +272,8 @@ class NablaBackend(ScribeBackend):
                         "activities. Document only what is actually discussed; name the relative and "
                         "relationship. Do not attribute the relatives of the clinician, a caregiver, or "
                         "a companion in the room to the patient; when the relationship or speaker is "
-                        "unclear, omit rather than guess. Never add filler such as \"no other family "
-                        "history discussed.\" If none is discussed, leave empty."
+                        'unclear, omit rather than guess. Never add filler such as "no other family '
+                        'history discussed." If none is discussed, leave empty.'
                     ),
                 },
                 {

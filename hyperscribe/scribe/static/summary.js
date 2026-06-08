@@ -198,6 +198,58 @@ const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 // tab.
 const FROM_THE_NOTE_SECTION = 'from_the_note';
 
+// KOALA_5687_SCHEMA_KEY_TO_SECTION_KEY: home-app's `/note-commands` endpoint
+// stamps every returned command with `section_key = "from_the_note"` (the
+// catch-all bucket) regardless of the underlying schema_key. The amend flow
+// (`VOID_RECREATE` in builder.py) re-emits commands under fresh uuids; the
+// local row's old uuid no longer matches anything in the next sync fetch, so
+// `syncNoteCommands` drops the local entry and appends the fetched copy as
+// a `from_the_note` card. The user-visible bug: amended HPI / ROS / Vitals /
+// Physical Exam / A&P cards reshuffle into ADDITIONAL COMMANDS instead of
+// staying in their proper SOAP group.
+//
+// This map is keyed by the raw home-app `schema_key` (i.e. `command_type` in
+// the /note-commands response). Only entries anchored to a primary source
+// (canvas-plugins SDK `Meta.key` or live `commands_command.schema_key` DB
+// rows) are included; unknowns fall back to `from_the_note` (current
+// behavior) — strictly safer than fabricating a wrong section_key.
+//
+// Defense-in-depth: not just for amend. Any sync that surfaces a SOAP-typed
+// command whose uuid the client doesn't know about (e.g. a chart-side
+// re-emit, a future race we haven't found) lands in the right group instead
+// of the catch-all.
+const SCHEMA_KEY_TO_SECTION_KEY = {
+  // Subjective
+  reasonForVisit: 'chief_complaint',
+  hpi: 'history_of_present_illness',
+  reviewOfSystems: '_ros',
+  // History
+  historyReview: '_history_review',
+  medicalHistory: 'past_medical_history',
+  familyHistory: 'family_history',
+  surgicalHistory: 'past_surgical_history',
+  // Objective
+  vitals: 'vitals',
+  physicalExam: 'physical_exam',
+  labResult: 'lab_results',
+  imageResult: 'imaging_results',
+  chartReview: '_chart_review',
+  medicationStatement: 'current_medications',
+  allergy: 'allergies',
+  // Assessment & Plan
+  // `assess`, `diagnose`, and `plan` all live in the same SOAP group; the
+  // SoapGroup renderer treats `assessment_and_plan` as the canonical key
+  // (see SOAP_GROUPS above), so they all collapse there. The `plan`
+  // mapping is intentionally `assessment_and_plan` rather than the bare
+  // `plan` section_key: the ap_split.py extractor stamps Plan commands
+  // with `assessment_and_plan` post-split (see _serialize_proposal), and
+  // matching that keeps amended commands rendered in the same group as
+  // their pre-amend siblings.
+  assess: 'assessment_and_plan',
+  diagnose: 'assessment_and_plan',
+  plan: 'assessment_and_plan',
+};
+
 // Convert a schema_key/command_type (camelCase or snake_case) into a Title
 // Case label for display: 'prescriptionChangeResponse' → 'Prescription
 // Change Response', 'lab_review' → 'Lab Review'. Used by the FROM THE NOTE
@@ -817,8 +869,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             // commands we preserve the local entry as before; overlaying
             // would force section_key to from_the_note and yank the card
             // out of its original SOAP group.
+            //
+            // KOALA_5687 (defensive): when the fetched cmd's schema_key maps
+            // to a known SOAP section, override section_key on the overlay
+            // so it renders in its proper group instead of staying in
+            // from_the_note. Self-heals stale from_the_note-stamped local
+            // state (e.g. amend's VOID_RECREATE re-stamp arrived after a
+            // sync had already mis-bucketed the cmd).
             if (cmd.section_key === FROM_THE_NOTE_SECTION || cmd._from_note) {
-              merged.push({ ...fetchedCmd, already_documented: true });
+              const mappedSection = SCHEMA_KEY_TO_SECTION_KEY[fetchedCmd.command_type];
+              merged.push({
+                ...fetchedCmd,
+                already_documented: true,
+                ...(mappedSection ? { section_key: mappedSection } : {}),
+              });
             } else {
               merged.push({ ...cmd, already_documented: true });
             }
@@ -833,9 +897,23 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           // the SOAP groups via the `recommendations` array, not as locked
           // ADDITIONAL COMMANDS cards.
           if (recommendationUuids.has(cmd.command_uuid)) continue;
-          // New ad-hoc command from the note body — append as-is so it
-          // lands in the FROM THE NOTE block.
-          merged.push(cmd);
+          // KOALA_5687 (bug-direct): home-app stamped every fetched cmd as
+          // `from_the_note`. When the schema_key maps to a known SOAP
+          // section, override before append so the card renders in its
+          // proper group instead of ADDITIONAL COMMANDS. Critical for
+          // amend's VOID_RECREATE flow, where the new uuid means the
+          // local-stays branch above never fires (the old uuid was already
+          // dropped). Unknown command_types fall through to the literal
+          // `merged.push(cmd)` and land under FROM THE NOTE — current
+          // behavior, intentional.
+          const appendMappedSection = SCHEMA_KEY_TO_SECTION_KEY[cmd.command_type];
+          if (appendMappedSection) {
+            merged.push({ ...cmd, section_key: appendMappedSection });
+          } else {
+            // New ad-hoc command from the note body — append as-is so it
+            // lands in the FROM THE NOTE block.
+            merged.push(cmd);
+          }
         }
         return merged;
       });
