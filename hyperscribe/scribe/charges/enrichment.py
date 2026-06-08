@@ -180,11 +180,21 @@ def build_charge_enrichment_effects(
             continue
         raw_pointers = charge.get("diagnosis_pointers") or []
         if raw_pointers:
-            # Pointers were sent — resolve them. If none resolve the ICD codes to
-            # live Assessments, that is an unexpected failure (timing race or bad
-            # code): surface it so sign is blocked and the provider can retry.
+            # Pointers were sent — resolve them. EVERY sent ICD code must resolve to
+            # a live Assessment. Surface no_assessment_resolved if any fails:
+            #   * total failure (none resolve) — bad code or BLI/Assessment not yet
+            #     committed; the frontend retries then blocks sign.
+            #   * partial failure on a multi-pointer charge — one code's Condition
+            #     codings haven't been written yet by the async commit while another
+            #     code's have. Without this check the truncated assessment_ids would
+            #     be written silently, dropping a pointer from the CMS-1500 claim with
+            #     no error and no retry. Comparing requested vs resolved code SETS
+            #     catches the partial case that `not assessment_ids` alone misses.
             assessment_ids = _resolve_assessment_ids(raw_pointers, index)
-            if not assessment_ids:
+            requested_codes = {_normalize_icd10(p.get("icd10_code")) for p in raw_pointers}
+            requested_codes.discard("")  # ignore malformed/empty-code pointers
+            resolved_codes = {code for code in requested_codes if index.get(code)}
+            if not assessment_ids or resolved_codes != requested_codes:
                 errors.append({"command_uuid": command_uuid, "reason": "no_assessment_resolved"})
                 continue
         else:

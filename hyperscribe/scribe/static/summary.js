@@ -1668,10 +1668,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       // an amend-mode delete that the user just toggled back on, also clear
       // the `_amend_deleted` tag so handleInsert does NOT POST a delete for
       // it. The user changed their mind - no chart state change required.
-      const existing = prev.find(c => c.command_type === 'perform' && c.data.cpt_code === cptCode);
+      // Optional chaining is required: perform commands synced from /note-commands
+      // (charges added via the chart command-rail outside Scribe) land in commands[]
+      // with NO `data` key, so `c.data.cpt_code` would throw a TypeError inside this
+      // reducer and silently kill the add. `undefined?.cpt_code` is falsy → skipped.
+      const existing = prev.find(c => c.command_type === 'perform' && c.data?.cpt_code === cptCode);
       if (existing) {
         return prev.map(c => {
-          if (c.command_type === 'perform' && c.data.cpt_code === cptCode) {
+          if (c.command_type === 'perform' && c.data?.cpt_code === cptCode) {
             const { _amend_deleted, ...rest } = c;
             return { ...rest, selected: true };
           }
@@ -1706,7 +1710,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // also drops it. Chart stays committed.
     const amending = wasFinalized && !approved;
     setCommands(prev => prev.map(c => {
-      if (c.command_type !== 'perform' || c.data.cpt_code !== cptCode) return c;
+      // Optional chaining: synced from_the_note perform commands have no `data` key
+      // (see handleAddTemplateCharge); `c.data.cpt_code` would throw here otherwise.
+      if (c.command_type !== 'perform' || c.data?.cpt_code !== cptCode) return c;
       if (c.already_documented && isAmendingSectionEditable(c, amending)) {
         return { ...c, selected: false, _amend_deleted: true };
       }

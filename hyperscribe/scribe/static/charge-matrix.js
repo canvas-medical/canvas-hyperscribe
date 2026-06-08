@@ -152,7 +152,12 @@ export function ChargeMatrix({
     let to = targetIdx;
     if (isAmending && to < lockedCount) to = lockedCount; // can't cross into the locked group
     const next = dxs.map(d => d.command_uuid);
-    next.splice(to, 0, next.splice(from, 1)[0]);
+    // Drop-above-target semantics (the indicator is a top-border on the target row).
+    // For a forward drag (from < to), the inner splice(from,1) removes the dragged
+    // item first, shifting the target down one slot, so we insert at `to - 1` to land
+    // above it. Backward drags (from >= to) are unaffected.
+    const insertAt = from < to ? to - 1 : to;
+    next.splice(insertAt, 0, next.splice(from, 1)[0]);
     onReorderDiagnoses(next);
   }
 

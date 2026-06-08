@@ -274,6 +274,82 @@ def test_pointer_not_in_index_reports_error_and_does_not_clear(
 @patch("hyperscribe.scribe.charges.enrichment.Command")
 @patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
 @patch("hyperscribe.scribe.charges.enrichment.Note")
+def test_partial_pointer_resolution_reports_error_and_does_not_write(
+    mock_note, mock_index, mock_command, mock_bli, mock_update
+):
+    """A multi-pointer charge where only SOME codes resolve must surface
+    no_assessment_resolved and emit NO effect — never write a truncated
+    assessment_ids set (which would silently drop a pointer from the claim).
+    Reachable as a timing race: one diagnosis's Condition codings have committed
+    while a sibling's have not yet."""
+    _patch_note(mock_note)
+    mock_index.return_value = {"M25511": ["aid-1"]}  # M25.511 resolves; E11.9 does not
+    mock_command.objects.get.return_value = SimpleNamespace(dbid=42)
+    bli = SimpleNamespace(id="bli-1")
+    bli_qs = MagicMock()
+    bli_qs.first.return_value = bli
+    mock_bli.objects.filter.return_value = bli_qs
+
+    charges = [{
+        "command_uuid": VALID_UUID,
+        "diagnosis_pointers": [
+            {"command_uuid": "d0", "icd10_code": "M25.511"},
+            {"command_uuid": "d1", "icd10_code": "E11.9"},
+        ],
+        "modifiers": [],
+    }]
+    effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
+
+    assert effects == []
+    assert enriched == []
+    assert errors == [{"command_uuid": VALID_UUID, "reason": "no_assessment_resolved"}]
+    mock_update.assert_not_called()
+
+
+@patch("hyperscribe.scribe.charges.enrichment.UpdateBillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.Command")
+@patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
+@patch("hyperscribe.scribe.charges.enrichment.Note")
+def test_all_pointers_resolve_writes_full_set(
+    mock_note, mock_index, mock_command, mock_bli, mock_update
+):
+    """When EVERY sent code resolves, the full assessment_ids set is written and
+    no error is recorded (guards against the partial-resolution check over-firing
+    on a fully-resolvable multi-pointer charge)."""
+    _patch_note(mock_note)
+    mock_index.return_value = {"M25511": ["aid-1"], "E119": ["aid-2"]}
+    mock_command.objects.get.return_value = SimpleNamespace(dbid=42)
+    bli = SimpleNamespace(id="bli-1")
+    bli_qs = MagicMock()
+    bli_qs.first.return_value = bli
+    mock_bli.objects.filter.return_value = bli_qs
+    mock_update.return_value = SimpleNamespace(apply=lambda: "UPDATE_EFFECT")
+
+    charges = [{
+        "command_uuid": VALID_UUID,
+        "diagnosis_pointers": [
+            {"command_uuid": "d0", "icd10_code": "M25.511"},
+            {"command_uuid": "d1", "icd10_code": "E11.9"},
+        ],
+        "modifiers": [],
+    }]
+    effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
+
+    assert errors == []
+    assert effects == ["UPDATE_EFFECT"]
+    mock_update.assert_called_once_with(
+        billing_line_item_id="bli-1",
+        assessment_ids=["aid-1", "aid-2"],
+        modifiers=[],
+    )
+
+
+@patch("hyperscribe.scribe.charges.enrichment.UpdateBillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
+@patch("hyperscribe.scribe.charges.enrichment.Command")
+@patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
+@patch("hyperscribe.scribe.charges.enrichment.Note")
 def test_multiple_charges_accumulate_enriched_and_errors_independently(
     mock_note, mock_index, mock_command, mock_bli, mock_update
 ):
