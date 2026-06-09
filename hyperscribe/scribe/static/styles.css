@@ -1844,26 +1844,14 @@ h2 { margin-bottom: 4px; }
 .exam-action-btn:active { background: #e8edf2; }
 .exam-action-btn:disabled { opacity: .6; cursor: wait; }
 .exam-action-btn .exam-ico { font-size: 15px; line-height: 1; opacity: .75; }
-/* Template ▾ select-then-act menu */
+/* Template ▾ menu — pick a template, then confirm via the shared popover. */
 .exam-dropdown { position: relative; }
-.exam-menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; width: 340px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 14px 36px rgba(15,23,42,.16); padding: 8px; }
-.exam-menu-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #9ca3af; padding: 8px 10px 6px; }
+.exam-menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; min-width: 240px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 14px 36px rgba(15,23,42,.16); padding: 6px; }
+.exam-menu-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #9ca3af; padding: 6px 10px 4px; }
 .exam-menu-empty { padding: 10px; color: #9ca3af; font-size: 13px; }
-.exam-tmpl-row { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; cursor: pointer; }
-.exam-tmpl-row:hover { background: #f8fafc; }
-.exam-tmpl-row.sel { background: #f5f7ff; }
-.exam-tmpl-radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #cbd5e1; flex: 0 0 16px; }
-.exam-tmpl-row.sel .exam-tmpl-radio { border-color: #4338ca; background: radial-gradient(circle, #4338ca 0 5px, #fff 6px); }
-.exam-tmpl-meta { flex: 1; }
-.exam-tmpl-name { display: block; font-size: 14px; color: #1f2937; }
-.exam-tmpl-sub { display: block; font-size: 12px; color: #9ca3af; margin-top: 1px; }
-.exam-tmpl-divider { height: 1px; background: #eef0f2; margin: 6px 4px; }
-.exam-tmpl-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 8px 6px 4px; }
-.exam-foot-btn { height: 34px; padding: 0 14px; font-size: 13px; font-weight: 600; border-radius: 7px; cursor: pointer; border: 1.5px solid #d1d5db; background: #fff; color: #374151; }
-.exam-foot-btn:hover:not(:disabled) { background: #f5f7fa; }
-.exam-foot-btn:disabled { opacity: .45; cursor: not-allowed; }
-.exam-foot-btn.merge { background: #4338ca; color: #fff; border-color: #4338ca; }
-.exam-foot-btn.merge:hover:not(:disabled) { background: #3730a3; }
+.exam-menu-item { display: block; width: 100%; text-align: left; border: 0; background: #fff; padding: 9px 10px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 14px; color: #1f2937; }
+.exam-menu-item:hover { background: #f1f5f9; }
+.exam-menu-item small { display: block; color: #9ca3af; font-size: 12px; margin-top: 1px; }
 
 /* Editable system rows */
 .exam-list { display: flex; flex-direction: column; }
