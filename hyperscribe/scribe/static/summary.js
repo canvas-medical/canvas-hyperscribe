@@ -763,16 +763,30 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // "on the note" signal.
     const onNote = (c) => c.already_documented || c.command_uuid;
     const documentedCount = commands.filter(onNote).length;
+    // KOALA-5687: keep recommendations that are already on the note (accepted +
+    // inserted: command_uuid + already_documented). They live in the
+    // `recommendations` array — NOT `commands` — and carry no section_key, so
+    // syncNoteCommands relies on `recommendationUuids` (built from
+    // recommendationsRef) to keep them out of the from_the_note bucket. Blanket
+    // -clearing here emptied that guard, so the next sync re-appended these
+    // still-on-chart commands (medication_statement, allergy, refer, task,
+    // prescribe) as ADDITIONAL COMMANDS. Filtering by `onNote` preserves the
+    // KOALA-5634 protection while still dropping un-inserted AI recs (the
+    // original intent — they have no uuid/flag, so they won't re-insert).
+    const keptRecommendations = recommendations.filter(onNote);
     logEvent('AMENDMENT_STARTED', {
       commands_at_start: documentedCount,
       dropped_commands: commands.length - documentedCount,
-      dropped_recommendations: recommendations.length,
+      dropped_recommendations: recommendations.length - keptRecommendations.length,
     });
     // Scribe should mirror the signed note during amendment: drop AI recs that
     // never made it into the note. Leaving them in state would also re-insert
     // them on re-Approve via the `insertable` filter.
     setCommands(prev => prev.filter(onNote));
-    setRecommendations([]);
+    // commitRecommendations primes recommendationsRef synchronously so the very
+    // next syncNoteCommands sees the kept uuids and keeps them out of
+    // ADDITIONAL COMMANDS (KOALA_5634_RECOMMENDATIONS_REF).
+    commitRecommendations(keptRecommendations);
     setUnmatchedConditions([]);
     setDiagnosisSuggestions({});
     setApproved(false);

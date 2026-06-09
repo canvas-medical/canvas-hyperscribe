@@ -2060,6 +2060,59 @@ def test_summary_js_handleinsert_brackets_amend_with_guard() -> None:
     )
 
 
+def test_summary_js_make_changes_preserves_on_note_recommendations() -> None:
+    """KOALA-5687: starting an amend must NOT blanket-clear recommendations.
+
+    Accepted recommendations (medication_statement, allergy, refer, task,
+    prescribe) live in the `recommendations` array with command_uuid +
+    already_documented and carry NO section_key — syncNoteCommands keeps them
+    out of the from_the_note bucket only via `recommendationUuids` (built from
+    recommendationsRef). A blanket `setRecommendations([])` in handleMakeChanges
+    emptied that guard, so the next sync re-appended these still-on-chart
+    commands as ADDITIONAL COMMANDS. handleMakeChanges must instead keep the
+    on-note recommendations (filter by the same `onNote` predicate it uses for
+    commands) and prime the ref so the guard survives the amend.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    decl = "const handleMakeChanges = useCallback("
+    start = src.find(decl)
+    assert start != -1, "Expected `const handleMakeChanges = useCallback(` in summary.js."
+    open_brace_pos = src.find("{", start)
+    depth = 0
+    end = -1
+    for i in range(open_brace_pos, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    assert end != -1, "Could not find handleMakeChanges body."
+    body = src[start:end]
+
+    assert "setRecommendations([])" not in body, (
+        "handleMakeChanges must NOT blanket-clear recommendations — that drops "
+        "accepted/inserted recs from the array, emptying the recommendationUuids "
+        "guard so the next sync reshuffles them into ADDITIONAL COMMANDS "
+        "(KOALA-5687)."
+    )
+    assert "recommendations.filter(onNote)" in body, (
+        "handleMakeChanges must keep on-note recommendations via "
+        "`recommendations.filter(onNote)` (same predicate as commands), so "
+        "accepted recs stay in their SOAP section through the amend (KOALA-5687)."
+    )
+    assert "commitRecommendations(keptRecommendations)" in body, (
+        "handleMakeChanges must commit the kept recommendations via "
+        "`commitRecommendations(...)` so recommendationsRef is primed "
+        "synchronously for the next syncNoteCommands (KOALA_5634_RECOMMENDATIONS_REF)."
+    )
+
+
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.build_effects")
 def test_insert_commands_audit_payload_excludes_display_phi(mock_build: MagicMock, mock_audit: MagicMock) -> None:
