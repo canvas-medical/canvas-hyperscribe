@@ -18,19 +18,29 @@ function slug(title) {
 const TEMPLATE_FIELD = { physical_exam: 'pe_sections', ros: 'ros_sections' };
 const LABEL = { physical_exam: 'physical exam', ros: 'review of systems' };
 
-function confirmCopy(kind, sectionKind) {
+// Copy for the confirm popover shared by Template / Carry forward / Clear.
+function confirmCopy(action, sectionKind, templates) {
   const what = LABEL[sectionKind] === 'review of systems' ? 'Review of Systems' : 'Physical Exam';
-  if (kind === 'clear') {
+  if (action.kind === 'clear') {
     return {
       title: `Clear ${what.toLowerCase()}?`,
       body: `This removes all systems and findings from the ${what}. You can add systems again, apply a template, or carry forward your last exam.`,
       go: 'Clear',
     };
   }
+  if (action.kind === 'carry') {
+    return {
+      title: 'Carry forward last exam?',
+      body: `This replaces the current ${what} with the one from your most recent prior note for this patient (the last note you were the provider on). Current findings will be discarded.`,
+      go: 'Replace',
+    };
+  }
+  // template
+  const name = (templates[action.index] || {}).name || '';
   return {
-    title: 'Carry forward last exam?',
-    body: `This replaces the current ${what} with the one from your most recent prior note for this patient (the last note you were the provider on). Current findings will be discarded.`,
-    go: 'Replace',
+    title: `Apply "${name}"?`,
+    body: `This replaces the current ${what} with the "${name}" template. Current findings will be discarded.`,
+    go: 'Apply',
   };
 }
 
@@ -40,18 +50,16 @@ function confirmCopy(kind, sectionKind) {
 // All mutations funnel through onEdit(commandIndex, { sections }).
 export function ExamSectionsRow({
   command, commandIndex, onEdit, readOnly, onEditingChange,
-  sectionKind, templates = [], onCarryForward, onCombine,
+  sectionKind, templates = [], onCarryForward,
 }) {
   const sections = (command.data && command.data.sections) || [];
   const seed = () => sections.map(s => ({ key: s.key || slug(s.title), title: s.title || '', text: stripMarkers(s.text), _new: false }));
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(seed);
-  const [confirm, setConfirm] = useState(null);     // { kind: 'carry'|'clear' }
+  const [confirm, setConfirm] = useState(null);     // { kind: 'carry'|'clear'|'template', index? }
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuSel, setMenuSel] = useState(-1);        // selected template index in the Template menu
   const [busy, setBusy] = useState(false);           // carry-forward loading
-  const [merging, setMerging] = useState(false);     // AI-merge loading
   const listRef = useRef(null);
   const focusNew = useRef(false);
 
@@ -60,12 +68,10 @@ export function ExamSectionsRow({
     return () => onEditingChange && onEditingChange(commandIndex, false);
   }, [editing, commandIndex]);
 
-  // Re-seed from the source when the command changes and we're not mid-edit.
   useEffect(() => {
     if (!editing) setDraft(seed());
   }, [command.data]);
 
-  // Auto-size textareas whenever the edit list changes.
   useEffect(() => {
     if (!editing || !listRef.current) return;
     listRef.current.querySelectorAll('textarea').forEach(t => {
@@ -74,7 +80,6 @@ export function ExamSectionsRow({
     });
   }, [editing, draft]);
 
-  // Focus the most-recently added system's name input.
   useEffect(() => {
     if (focusNew.current && listRef.current) {
       const inputs = listRef.current.querySelectorAll('.exam-esys input');
@@ -84,17 +89,15 @@ export function ExamSectionsRow({
     }
   }, [draft.length]);
 
-  // Close the template menu on any outside click.
   useEffect(() => {
     if (!menuOpen) return;
-    const close = () => { setMenuOpen(false); setMenuSel(-1); };
+    const close = () => setMenuOpen(false);
     document.addEventListener('click', close);
     return () => document.removeEventListener('click', close);
   }, [menuOpen]);
 
   const enterEdit = () => { if (!readOnly) { setDraft(seed()); setEditing(true); } };
 
-  // Map any [{key?,title,text}] into clean draft rows.
   const toRows = (secs) => secs.map(s => ({ key: s.key || slug(s.title), title: s.title || '', text: stripMarkers(s.text), _new: false }));
 
   const persist = (rows) => {
@@ -112,41 +115,24 @@ export function ExamSectionsRow({
   const removeRow = (i) => setDraft(d => d.filter((_, j) => j !== i));
   const addSystem = () => { focusNew.current = true; setDraft(d => [...d, { key: '', title: '', text: '', _new: true }]); };
 
-  // Template ▾ → Clear & Replace (deterministic) or AI Merge (LLM blend into current findings).
-  const applyTemplate = async (mode) => {
-    if (menuSel < 0) return;
-    const tmpl = templates[menuSel];
-    const templateSecs = (tmpl && tmpl[TEMPLATE_FIELD[sectionKind]]) || [];
-    if (mode === 'replace') {
-      setDraft(toRows(templateSecs));
-      setMenuOpen(false); setMenuSel(-1);
+  // Template / Carry forward / Clear — all confirmed via the same popover.
+  const runConfirm = async () => {
+    const action = confirm;
+    setConfirm(null);
+    if (!action) return;
+    if (action.kind === 'clear') { setDraft([]); return; }
+    if (action.kind === 'template') {
+      const tmpl = templates[action.index];
+      const secs = (tmpl && tmpl[TEMPLATE_FIELD[sectionKind]]) || [];
+      setDraft(toRows(secs));
       return;
     }
-    // AI Merge — blend the template into the current card findings via the backend.
-    setMerging(true);
-    const current = draft
-      .map(s => ({ key: s.key || slug(s.title), title: (s.title || '').trim(), text: (s.text || '').trim() }))
-      .filter(s => s.title || s.text);
-    let merged = null;
-    try { merged = onCombine && (await onCombine(sectionKind, templateSecs, current)); } catch (e) { merged = null; }
-    setMerging(false);
-    // Silent no-op when the merge fails / returns nothing (no notice banner).
-    if (Array.isArray(merged) && merged.length) setDraft(toRows(merged));
-    setMenuOpen(false); setMenuSel(-1);
-  };
-
-  // Carry forward / Clear — confirmed single-click actions.
-  const runConfirm = async () => {
-    const kind = confirm;
-    setConfirm(null);
-    if (kind === 'clear') { setDraft([]); return; }
-    if (kind === 'carry') {
+    if (action.kind === 'carry') {
       setBusy(true);
       let secs = [];
       try { secs = (onCarryForward && (await onCarryForward(sectionKind))) || []; } catch (e) { secs = []; }
       setBusy(false);
-      // Silent no-op when there is no prior exam to carry forward.
-      if (secs.length) setDraft(toRows(secs));
+      if (secs.length) setDraft(toRows(secs));  // silent no-op when no prior exam
     }
   };
 
@@ -167,13 +153,12 @@ export function ExamSectionsRow({
   }
 
   // ── EDIT ──
-  // The `editing` class suppresses the app's .content-block:hover grey
-  // (the wrapper uses :not(:has(.editing)) to gate that hover state).
+  // The `editing` class suppresses the app's .content-block:hover grey.
   return html`
     <div class="exam-edit editing">
       <div class="exam-toolbar">
         <span class="exam-dropdown">
-          <button type="button" class="exam-action-btn" onClick=${(e) => { e.stopPropagation(); setMenuOpen(o => { const n = !o; if (n) setMenuSel(-1); return n; }); }} title="Apply a configured visit template">
+          <button type="button" class="exam-action-btn" onClick=${(e) => { e.stopPropagation(); setMenuOpen(o => !o); }} title="Apply a configured visit template">
             <span class="exam-ico">⊞</span> Template <span class="exam-ico">▾</span>
           </button>
           ${menuOpen && html`
@@ -184,24 +169,18 @@ export function ExamSectionsRow({
                   <div class="exam-menu-head">Apply a visit template</div>
                   ${templates.map((t, i) => {
                     const secs = (t[TEMPLATE_FIELD[sectionKind]] || []);
-                    return html`<div class=${`exam-tmpl-row${i === menuSel ? ' sel' : ''}`} onClick=${() => setMenuSel(i)}>
-                      <span class="exam-tmpl-radio"></span>
-                      <span class="exam-tmpl-meta"><span class="exam-tmpl-name">${t.name}</span><span class="exam-tmpl-sub">${secs.length} system${secs.length === 1 ? '' : 's'}</span></span>
-                    </div>`;
+                    return html`<button type="button" class="exam-menu-item" onClick=${() => { setMenuOpen(false); setConfirm({ kind: 'template', index: i }); }}>
+                      ${t.name}<small>${secs.length} system${secs.length === 1 ? '' : 's'}</small>
+                    </button>`;
                   })}
-                  <div class="exam-tmpl-divider"></div>
-                  <div class="exam-tmpl-foot">
-                    <button type="button" class="exam-foot-btn" disabled=${menuSel < 0} onClick=${() => applyTemplate('replace')}>⇄ Clear & Replace</button>
-                    <button type="button" class="exam-foot-btn merge" disabled=${menuSel < 0 || merging} onClick=${() => applyTemplate('merge')}>✦ ${merging ? 'Merging…' : 'AI Merge'}</button>
-                  </div>
                 `}
             </div>
           `}
         </span>
-        <button type="button" class="exam-action-btn" disabled=${busy} onClick=${() => setConfirm('carry')} title="Overwrite with your last documented exam">
+        <button type="button" class="exam-action-btn" disabled=${busy} onClick=${() => setConfirm({ kind: 'carry' })} title="Overwrite with your last documented exam">
           <span class="exam-ico">⤵</span> ${busy ? 'Loading…' : 'Carry forward'}
         </button>
-        <button type="button" class="exam-action-btn" onClick=${() => setConfirm('clear')} title="Remove all systems and findings">
+        <button type="button" class="exam-action-btn" onClick=${() => setConfirm({ kind: 'clear' })} title="Remove all systems and findings">
           <span class="exam-ico">⊘</span> Clear
         </button>
       </div>
@@ -236,7 +215,7 @@ export function ExamSectionsRow({
       ${confirm && html`
         <div class="exam-confirm-overlay" onClick=${() => setConfirm(null)}>
           <div class="exam-confirm" onClick=${(e) => e.stopPropagation()}>
-            ${(() => { const c = confirmCopy(confirm, sectionKind); return html`
+            ${(() => { const c = confirmCopy(confirm, sectionKind, templates); return html`
               <h3>${c.title}</h3>
               <p>${c.body}</p>
               <div class="exam-confirm-actions">

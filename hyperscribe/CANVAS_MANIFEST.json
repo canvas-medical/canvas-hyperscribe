@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.155.0",
-  "plugin_version": "2026-06-09 v0.3.8 (feat-physical-exam-improvements)",
+  "plugin_version": "2026-06-09 v0.3.9 (feat-physical-exam-improvements)",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -287,7 +287,7 @@
   "tags": {
     "version_date": "2026-06-09",
     "version_branch": "feat-physical-exam-improvements",
-    "version_semantic": "0.3.8"
+    "version_semantic": "0.3.9"
   },
   "custom_data": {
     "namespace": "canvas_medical__scribe",

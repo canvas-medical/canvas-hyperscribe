@@ -82,7 +82,6 @@ from hyperscribe.scribe.commands.problem_list_match import (
 )
 from hyperscribe.scribe.recommendations import recommend_commands
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
-from hyperscribe.scribe.recommendations.reconciliation import reconcile_sections
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
@@ -963,41 +962,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         sections = _last_exam_sections(note_uuid, staff_id, kind)
         return [JSONResponse({"sections": sections}, status_code=HTTPStatus.OK)]
 
-    @api.post("/combine-exam")
-    def post_combine_exam(self) -> list[Union[Response, Effect]]:
-        """AI Merge: blend a visit template into the current PE/ROS findings via the
-        Anthropic reconciliation. Body: ``{note_id, kind, template_sections,
-        current_sections}``.
-
-        Returns ``{"sections": [...], "merged": bool}``. ``merged`` is ``false`` (and
-        the current sections are echoed back unchanged) when no API key is configured
-        or the LLM merge fails — the client then leaves the card as-is (silent no-op).
-        """
-        try:
-            data: dict[str, Any] = json.loads(self.request.body)
-        except (json.JSONDecodeError, ValueError) as exc:
-            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
-        note_uuid = str(data.get("note_id") or data.get("note_uuid") or "")
-        kind = str(data.get("kind", ""))
-        # Edit-gate: AI Merge overwrites the working note, so it's provider-only.
-        if denial := _authorize_edit(note_uuid, self.request):
-            return [denial]
-        if kind not in _EXAM_KIND_TO_COMMAND_TYPE:
-            return [JSONResponse({"error": "invalid kind"}, status_code=HTTPStatus.BAD_REQUEST)]
-        template_sections = data.get("template_sections") or []
-        current_sections = data.get("current_sections") or []
-        section_label = "Review of Systems" if kind == "ros" else "Physical Exam"
-        api_key = self.secrets.get("AnthropicAPIKey", "")
-        reconciled = (
-            reconcile_sections(template_sections, current_sections, api_key, section_label) if api_key else None
-        )
-        if not reconciled:
-            return [JSONResponse({"sections": current_sections, "merged": False}, status_code=HTTPStatus.OK)]
-        sections = [
-            {"key": s.get("key", ""), "title": s.get("title", ""), "text": s.get("text", "")} for s in reconciled
-        ]
-        return [JSONResponse({"sections": sections, "merged": True}, status_code=HTTPStatus.OK)]
-
     @api.post("/save-summary")
     def post_save_summary(self) -> list[Union[Response, Effect]]:
         try:
@@ -1216,10 +1180,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         )
         prefill_diagnose_backgrounds(commands_list, note_uuid)
 
-        # Template ROS/PE reconciliation is no longer part of generation — it is an
-        # on-demand action in the PE/ROS card (Template ▾ → AI Merge, POST /combine-exam).
-        # Generation now yields the raw Nabla findings; the provider brings in a
-        # template explicitly. See ``post_combine_exam``.
+        # Template ROS/PE reconciliation is not part of generation. Generation yields
+        # the raw Nabla findings; the provider applies a template explicitly from the
+        # PE/ROS card (Template ▾ → pick a template → confirm → replace).
 
         # ── Step 3: Recommend commands ──
         _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
