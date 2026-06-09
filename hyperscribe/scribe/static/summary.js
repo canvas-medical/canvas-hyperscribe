@@ -198,58 +198,6 @@ const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 // tab.
 const FROM_THE_NOTE_SECTION = 'from_the_note';
 
-// KOALA_5687_SCHEMA_KEY_TO_SECTION_KEY: home-app's `/note-commands` endpoint
-// stamps every returned command with `section_key = "from_the_note"` (the
-// catch-all bucket) regardless of the underlying schema_key. The amend flow
-// (`VOID_RECREATE` in builder.py) re-emits commands under fresh uuids; the
-// local row's old uuid no longer matches anything in the next sync fetch, so
-// `syncNoteCommands` drops the local entry and appends the fetched copy as
-// a `from_the_note` card. The user-visible bug: amended HPI / ROS / Vitals /
-// Physical Exam / A&P cards reshuffle into ADDITIONAL COMMANDS instead of
-// staying in their proper SOAP group.
-//
-// This map is keyed by the raw home-app `schema_key` (i.e. `command_type` in
-// the /note-commands response). Only entries anchored to a primary source
-// (canvas-plugins SDK `Meta.key` or live `commands_command.schema_key` DB
-// rows) are included; unknowns fall back to `from_the_note` (current
-// behavior) — strictly safer than fabricating a wrong section_key.
-//
-// Defense-in-depth: not just for amend. Any sync that surfaces a SOAP-typed
-// command whose uuid the client doesn't know about (e.g. a chart-side
-// re-emit, a future race we haven't found) lands in the right group instead
-// of the catch-all.
-const SCHEMA_KEY_TO_SECTION_KEY = {
-  // Subjective
-  reasonForVisit: 'chief_complaint',
-  hpi: 'history_of_present_illness',
-  reviewOfSystems: '_ros',
-  // History
-  historyReview: '_history_review',
-  medicalHistory: 'past_medical_history',
-  familyHistory: 'family_history',
-  surgicalHistory: 'past_surgical_history',
-  // Objective
-  vitals: 'vitals',
-  physicalExam: 'physical_exam',
-  labResult: 'lab_results',
-  imageResult: 'imaging_results',
-  chartReview: '_chart_review',
-  medicationStatement: 'current_medications',
-  allergy: 'allergies',
-  // Assessment & Plan
-  // `assess`, `diagnose`, and `plan` all live in the same SOAP group; the
-  // SoapGroup renderer treats `assessment_and_plan` as the canonical key
-  // (see SOAP_GROUPS above), so they all collapse there. The `plan`
-  // mapping is intentionally `assessment_and_plan` rather than the bare
-  // `plan` section_key: the ap_split.py extractor stamps Plan commands
-  // with `assessment_and_plan` post-split (see _serialize_proposal), and
-  // matching that keeps amended commands rendered in the same group as
-  // their pre-amend siblings.
-  assess: 'assessment_and_plan',
-  diagnose: 'assessment_and_plan',
-  plan: 'assessment_and_plan',
-};
-
 // Convert a schema_key/command_type (camelCase or snake_case) into a Title
 // Case label for display: 'prescriptionChangeResponse' → 'Prescription
 // Change Response', 'lab_review' → 'Lab Review'. Used by the FROM THE NOTE
@@ -519,6 +467,24 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
   const addNowAttemptedRef = useRef([]);
+  // KOALA-5687: amend edits use VOID_RECREATE (EnterInError old uuid + originate
+  // new uuid). Between the EIE and the local re-stamp there's a window where the
+  // chart's uuids no longer match local state; a syncNoteCommands landing in that
+  // window would drop the local rich card and re-append the chart row stamped
+  // `from_the_note`, reshuffling amended 1st-party commands into ADDITIONAL
+  // COMMANDS. Three coordinated guards keep the sync from corrupting state:
+  //   - amendEditInFlightRef: true for the duration of /edit-existing-commands +
+  //     re-stamp; syncNoteCommands bails if it sees this set (at fetch start or
+  //     after the fetch resolves).
+  //   - amendGenRef: bumped once each amend completes; a sync that captured an
+  //     older generation before its fetch bails after the await (the amend
+  //     finished mid-fetch).
+  //   - amendUuidRemapRef: accumulates old_uuid -> new_uuid across the session so
+  //     a sync that still holds an old uuid can bridge it to the re-originated
+  //     command instead of dropping the rich local card.
+  const amendEditInFlightRef = useRef(false);
+  const amendGenRef = useRef(0);
+  const amendUuidRemapRef = useRef(new Map());
   // KOALA_5634_RECOMMENDATIONS_REF: live mirror of `recommendations`. syncNoteCommands
   // needs to consult both `commands` (via the `setCommands(prev => ...)` updater) AND
   // `recommendations` when deciding whether a fetched uuid is "Scribe-side" vs
@@ -831,6 +797,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // outside the Scribe).
   const syncNoteCommands = useCallback(async () => {
     if (!noteId) return;
+    // KOALA-5687: don't sync while an amend edit is mid-flight. The window
+    // between EnterInError (old uuid voided on the chart) and the local
+    // re-stamp (local rows updated to the new uuids) is exactly when a sync
+    // would see the old uuid missing from the fetch, drop the rich local card,
+    // and re-append the chart row as a `from_the_note` bucket — reshuffling
+    // amended 1st-party commands into ADDITIONAL COMMANDS.
+    if (amendEditInFlightRef.current) return;
+    const genAtFetchStart = amendGenRef.current;
     try {
       const res = await fetch(
         `${API_BASE}/note-commands?note_id=${encodeURIComponent(noteId)}`,
@@ -838,6 +812,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       );
       if (!res.ok) return;
       const data = await res.json();
+      // KOALA-5687: if an amend started or completed while this fetch was in
+      // flight, the payload is stale (taken against pre-amend chart uuids).
+      // Bail — a fresh sync will run after the amend settles.
+      if (amendEditInFlightRef.current || amendGenRef.current !== genAtFetchStart) return;
       const fetched = data.commands || [];
       const fetchedByUuid = new Map(fetched.map(c => [c.command_uuid, c]));
       // KOALA_5634_SYNC_CONSULTS_RECOMMENDATIONS: collect uuids from the live
@@ -851,6 +829,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           .map(r => r && r.command_uuid)
           .filter(Boolean)
       );
+      // KOALA-5687: old_uuid -> new_uuid for commands re-originated by amend
+      // this session. Lets the drop branch below bridge a local card whose
+      // (old) uuid is gone from the chart to its re-originated row, keeping the
+      // rich local entry (snake command_type + structured data + original
+      // section_key) instead of losing it to the thin `from_the_note` fetch.
+      const amendRemap = amendUuidRemapRef.current;
       setCommands(prev => {
         const merged = [];
         const keptUuids = new Set();
@@ -869,24 +853,24 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             // commands we preserve the local entry as before; overlaying
             // would force section_key to from_the_note and yank the card
             // out of its original SOAP group.
-            //
-            // KOALA_5687 (defensive): when the fetched cmd's schema_key maps
-            // to a known SOAP section, override section_key on the overlay
-            // so it renders in its proper group instead of staying in
-            // from_the_note. Self-heals stale from_the_note-stamped local
-            // state (e.g. amend's VOID_RECREATE re-stamp arrived after a
-            // sync had already mis-bucketed the cmd).
             if (cmd.section_key === FROM_THE_NOTE_SECTION || cmd._from_note) {
-              const mappedSection = SCHEMA_KEY_TO_SECTION_KEY[fetchedCmd.command_type];
-              merged.push({
-                ...fetchedCmd,
-                already_documented: true,
-                ...(mappedSection ? { section_key: mappedSection } : {}),
-              });
+              merged.push({ ...fetchedCmd, already_documented: true });
             } else {
               merged.push({ ...cmd, already_documented: true });
             }
             keptUuids.add(cmd.command_uuid);
+            continue;
+          }
+          // KOALA-5687: the local uuid is gone from the chart. Before dropping,
+          // check whether amend re-originated this command under a new uuid that
+          // IS on the chart. If so, keep the rich local card under the new uuid
+          // (preserving its SOAP section_key + structured data) rather than
+          // letting it fall away and resurface as a thin `from_the_note` card.
+          const bridgedUuid = amendRemap.get(cmd.command_uuid);
+          if (bridgedUuid && fetchedByUuid.has(bridgedUuid) && !keptUuids.has(bridgedUuid)) {
+            merged.push({ ...cmd, command_uuid: bridgedUuid, already_documented: true });
+            keptUuids.add(bridgedUuid);
+            continue;
           }
           // else: had a UUID but it's gone from the note → drop.
         }
@@ -897,23 +881,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           // the SOAP groups via the `recommendations` array, not as locked
           // ADDITIONAL COMMANDS cards.
           if (recommendationUuids.has(cmd.command_uuid)) continue;
-          // KOALA_5687 (bug-direct): home-app stamped every fetched cmd as
-          // `from_the_note`. When the schema_key maps to a known SOAP
-          // section, override before append so the card renders in its
-          // proper group instead of ADDITIONAL COMMANDS. Critical for
-          // amend's VOID_RECREATE flow, where the new uuid means the
-          // local-stays branch above never fires (the old uuid was already
-          // dropped). Unknown command_types fall through to the literal
-          // `merged.push(cmd)` and land under FROM THE NOTE — current
-          // behavior, intentional.
-          const appendMappedSection = SCHEMA_KEY_TO_SECTION_KEY[cmd.command_type];
-          if (appendMappedSection) {
-            merged.push({ ...cmd, section_key: appendMappedSection });
-          } else {
-            // New ad-hoc command from the note body — append as-is so it
-            // lands in the FROM THE NOTE block.
-            merged.push(cmd);
-          }
+          // New ad-hoc command from the note body — append as-is so it
+          // lands in the FROM THE NOTE block.
+          merged.push(cmd);
         }
         return merged;
       });
@@ -1979,6 +1949,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       const amendPayload = amendEdits.map(({ _template_inserted, _amend_edited, ...rest }) => rest);
       logEvent('AMEND_EDIT_SENDING', { count: amendPayload.length, sectionKeys: amendPayload.map(c => c.section_key) });
       try {
+        // KOALA-5687: guard the EIE→re-stamp window. While this is set,
+        // syncNoteCommands bails instead of dropping the (about-to-be-voided)
+        // local rows and re-bucketing the re-originated rows into ADDITIONAL
+        // COMMANDS. Cleared on every exit path of this block.
+        amendEditInFlightRef.current = true;
         const editRes = await fetch(`${API_BASE}/edit-existing-commands`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2005,6 +1980,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           // already-voided deleted commands on reload. Mirrors 1539 / 1692.
           saveSummaryToCache(noteData, workingCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
           setInserting(false);
+          amendEditInFlightRef.current = false;
           logEvent('AMEND_EDIT_ERROR', { error: editData.error, conflicts: editData.conflicts || null });
           return;
         }
@@ -2039,12 +2015,22 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           diagnosis_suggestions: diagnosisSuggestions,
           selected_template_name: selectedTemplate?.name || null, mode,
         });
+        // KOALA-5687: record this session's old→new uuid mappings so a later
+        // sync can bridge a stale local uuid to its re-originated row, bump the
+        // amend generation so a sync that raced this edit bails, then release
+        // the in-flight guard now that local state mirrors the chart.
+        for (const [oldUuid, newUuid] of amendUuidRemap) {
+          amendUuidRemapRef.current.set(oldUuid, newUuid);
+        }
+        amendGenRef.current += 1;
+        amendEditInFlightRef.current = false;
       } catch (err) {
         console.error('Amend edits failed:', err);
         setError('Failed to apply amendment edits');
         setApproved(false);
         setConfirming(false);
         setInserting(false);
+        amendEditInFlightRef.current = false;
         logEvent('AMEND_EDIT_ERROR', { error: 'network' });
         return;
       }

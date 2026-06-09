@@ -1891,238 +1891,172 @@ def test_summary_js_commit_recommendations_helper_centralizes_prime() -> None:
         )
 
 
-def test_summary_js_schema_key_to_section_key_map_exists() -> None:
-    """KOALA-5687: ``summary.js`` exposes a ``SCHEMA_KEY_TO_SECTION_KEY`` const
-    that maps home-app's raw ``schema_key`` (returned by ``/note-commands``)
-    onto Scribe-side ``section_key`` values for the known SOAP slots.
+def _sync_note_commands_body(src: str) -> str:
+    """Return the source of the ``syncNoteCommands`` useCallback body.
 
-    Why: ``GET /note-commands`` stamps every fetched command with
-    ``section_key = "from_the_note"`` regardless of the underlying schema_key.
-    The amend flow (``VOID_RECREATE``) re-emits commands under fresh uuids; the
-    local row's old uuid no longer matches anything in the fetch, so
-    ``syncNoteCommands`` drops the local entry and appends the fetched one as
-    a ``from_the_note`` card under ADDITIONAL COMMANDS. The map restores the
-    proper SOAP ``section_key`` at merge time.
-
-    Pins the high-confidence mappings (anchored to either the SDK Meta.key
-    constants or live ``commands_command.schema_key`` DB rows). Mappings the
-    contractor could not anchor to a primary source were intentionally
-    omitted — the fallback is ``from_the_note`` (current behavior), which is
-    strictly safer than fabricating a wrong section_key.
+    Walks braces from the callback declaration to its matching close so the
+    structural pins below scope their assertions to the merge logic only.
     """
-    from pathlib import Path
-
-    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
-    src = summary_js.read_text()
-
-    # (1) The const must exist.
-    assert "const SCHEMA_KEY_TO_SECTION_KEY" in src, (
-        "summary.js must declare a `const SCHEMA_KEY_TO_SECTION_KEY` mapping "
-        "home-app schema_keys to Scribe section_keys. Without it the amend "
-        "VOID_RECREATE flow leaves edited commands stranded in ADDITIONAL "
-        "COMMANDS instead of their original SOAP section (KOALA-5687)."
-    )
-
-    # (2) Marker comment must be present so the WHY survives future cleanups.
-    assert "KOALA_5687" in src, (
-        "summary.js is missing the KOALA_5687 marker comment explaining why "
-        "the SCHEMA_KEY_TO_SECTION_KEY map exists. The pin test for the merge "
-        "site references this marker; do not strip it on a cleanup pass."
-    )
-
-    # (3) High-confidence mappings — each entry must literally appear inside
-    # the SCHEMA_KEY_TO_SECTION_KEY object literal. We slice from the const
-    # declaration to the next `};` so we don't accidentally match the same
-    # key/value pair elsewhere in the file (e.g. inside SOAP_GROUPS).
-    map_start = src.find("const SCHEMA_KEY_TO_SECTION_KEY")
-    map_end = src.find("};", map_start)
-    assert map_end != -1, (
-        "Could not find the end of the SCHEMA_KEY_TO_SECTION_KEY object "
-        "literal (looked for `};` after the const declaration)."
-    )
-    map_body = src[map_start:map_end]
-
-    required_mappings = [
-        # schema_key (raw home-app key) -> Scribe section_key
-        ("reasonForVisit", "chief_complaint"),
-        ("hpi", "history_of_present_illness"),
-        ("reviewOfSystems", "_ros"),
-        ("historyReview", "_history_review"),
-        ("medicalHistory", "past_medical_history"),
-        ("chartReview", "_chart_review"),
-        ("vitals", "vitals"),
-        ("physicalExam", "physical_exam"),
-        ("labResult", "lab_results"),
-        ("imageResult", "imaging_results"),
-        ("medicationStatement", "current_medications"),
-        ("allergy", "allergies"),
-        ("familyHistory", "family_history"),
-        ("surgicalHistory", "past_surgical_history"),
-        ("assess", "assessment_and_plan"),
-        ("diagnose", "assessment_and_plan"),
-        ("plan", "assessment_and_plan"),
-    ]
-    for schema_key, section_key in required_mappings:
-        pair = f"{schema_key}: '{section_key}'"
-        alt_pair = f'{schema_key}: "{section_key}"'
-        assert pair in map_body or alt_pair in map_body, (
-            f"SCHEMA_KEY_TO_SECTION_KEY is missing the mapping "
-            f"`{schema_key}` -> `{section_key}`. This was empirically "
-            f"anchored to either the SDK Meta.key in canvas-plugins or to a "
-            f"live `commands_command.schema_key` DB row on localhost. "
-            f"Removing it would re-strand amended commands of this type in "
-            f"ADDITIONAL COMMANDS (KOALA-5687)."
-        )
-
-
-def test_summary_js_sync_note_commands_uses_schema_key_section_map() -> None:
-    """KOALA-5687: the ``syncNoteCommands`` merge applies
-    ``SCHEMA_KEY_TO_SECTION_KEY`` to fetched commands so that amended
-    (VOID_RECREATE'd) SOAP commands render in their proper section instead
-    of the catch-all ``from_the_note`` bucket.
-
-    Two structural pins inside the syncNoteCommands callback body:
-      1. The ``KOALA_5687`` marker comment must be present inside the body
-         (intent breadcrumb co-located with the merge site).
-      2. The body must look up ``SCHEMA_KEY_TO_SECTION_KEY[cmd.command_type]``
-         — the actual remap call.
-
-    The same map should be consulted on BOTH the append branch (fetched cmd
-    has no local match — the bug-direct path) and, defensively, on the
-    local-stays branch (a prior pre-fix sync may have already written
-    ``section_key=from_the_note`` into local state, so a refresh after
-    upgrade should self-heal those stale entries). Pin (2) enforces "at
-    least one lookup"; pin (3) enforces both lookups.
-    """
-    from pathlib import Path
-
-    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
-    src = summary_js.read_text()
-
     sync_decl = "const syncNoteCommands = useCallback(async () => {"
     sync_idx = src.find(sync_decl)
     assert sync_idx != -1, (
-        "Expected to find `const syncNoteCommands = useCallback(async () => {` "
-        "in summary.js. If the callback signature changed, update this pin."
+        "Expected `const syncNoteCommands = useCallback(async () => {` in "
+        "summary.js. If the callback signature changed, update this helper."
     )
-
-    # Walk braces to find the matching close.
     open_brace_pos = sync_idx + len(sync_decl) - 1
     depth = 0
-    close_pos = -1
     for i in range(open_brace_pos, len(src)):
         if src[i] == "{":
             depth += 1
         elif src[i] == "}":
             depth -= 1
             if depth == 0:
-                close_pos = i
-                break
-    assert close_pos != -1, "Could not find matching close brace for syncNoteCommands callback body."
-    body = src[sync_idx:close_pos]
-
-    # (1) Marker comment inside the merge function.
-    assert "KOALA_5687" in body, (
-        "syncNoteCommands body is missing the KOALA_5687 marker comment. The "
-        "marker is load-bearing: it documents WHY the section_key override "
-        "exists (amend's VOID_RECREATE returns fresh uuids stamped "
-        "from_the_note; the map remaps them back to their SOAP section). "
-        "Do not strip on cleanup."
-    )
-
-    # (2) The map lookup must appear inside the merge body.
-    assert "SCHEMA_KEY_TO_SECTION_KEY[cmd.command_type]" in body, (
-        "syncNoteCommands body must look up "
-        "`SCHEMA_KEY_TO_SECTION_KEY[cmd.command_type]` to remap fetched "
-        "commands' section_key off of `from_the_note` and back onto their "
-        "proper SOAP section (KOALA-5687)."
-    )
-
-    # (3) Both branches of the merge should consult the map. We count the
-    # number of `SCHEMA_KEY_TO_SECTION_KEY[` lookups inside the body — the
-    # append branch (fetched cmd has no local match) is the bug-direct path;
-    # the local-stays branch (`fetchedByUuid.has(cmd.command_uuid)` matched)
-    # is defensive for already-mis-stamped local state.
-    lookups = body.count("SCHEMA_KEY_TO_SECTION_KEY[")
-    assert lookups >= 2, (
-        "syncNoteCommands body must consult SCHEMA_KEY_TO_SECTION_KEY in "
-        "BOTH merge branches: the append branch (bug-direct: fetched cmd "
-        "with no local match) AND the local-stays branch (defensive: prior "
-        "pre-fix sync may have written `section_key=from_the_note` into "
-        "local state, so a refresh should self-heal). Found only "
-        f"{lookups} lookup(s) inside the callback body."
-    )
+                return src[sync_idx:i]
+    raise AssertionError("Could not find matching close brace for syncNoteCommands callback body.")
 
 
-def test_summary_js_sync_note_commands_falls_back_to_from_the_note_when_unmapped() -> None:
-    """KOALA-5687 negative pin: when a fetched ``command_type`` is NOT in
-    ``SCHEMA_KEY_TO_SECTION_KEY`` (e.g. ``educationalMaterial``, ``perform``,
-    ``task``, ``goal``, ``followUp``, an ad-hoc questionnaire, anything else
-    home-app might surface), the merge must still push the fetched cmd as-is
-    — preserving the existing ``from_the_note`` fallback that lands it under
-    ADDITIONAL COMMANDS.
+def test_summary_js_section_key_remap_removed() -> None:
+    """KOALA-5687 (fix correction): the frontend ``SCHEMA_KEY_TO_SECTION_KEY``
+    remap was removed.
 
-    This is a *guardrail* pin (passes on baseline AND after the fix); its job
-    is to prevent a future refactor from collapsing the conditional and
-    pushing a remapped object unconditionally, which would mis-stamp unknown
-    command_types or hide their existence.
+    Background: ``/note-commands`` returns thin cards — ``command_type`` is
+    home-app's raw camelCase ``schema_key`` and there is NO structured ``data``.
+    The SOAP-group renderers key off snake_case ``command_type`` and read
+    ``command.data.*``. Re-bucketing a thin ``from_the_note`` card into a SOAP
+    section therefore produced cards the renderer either silently dropped
+    (camelCase mismatch — e.g. medications) or crashed on (unguarded
+    ``data.rejected`` read — blank tab). The remap was the wrong layer; the fix
+    is to keep the rich local command across the amend uuid change instead.
 
-    Pinned via two checks inside the syncNoteCommands body:
-      1. The literal un-remapped append ``merged.push(cmd);`` must remain
-         (the fallback branch).
-      2. The append branch around the ``SCHEMA_KEY_TO_SECTION_KEY`` lookup
-         must split into mapped/unmapped paths — proxied by the presence of
-         a falsy-check (`if (mappedSection)` or `mappedSection ?`) within
-         a short window of the lookup. We don't pin the exact identifier so
-         the implementer can name the local variable freely; we just pin
-         that *some* conditional consumes the lookup result.
+    Pins that the map is gone and the ``from_the_note`` fallback append is
+    intact (thin chart cards still land in ADDITIONAL COMMANDS, unchanged).
     """
     from pathlib import Path
-    import re
 
     summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
     src = summary_js.read_text()
 
-    sync_decl = "const syncNoteCommands = useCallback(async () => {"
-    sync_idx = src.find(sync_decl)
-    assert sync_idx != -1, "Expected to find syncNoteCommands declaration."
+    assert "SCHEMA_KEY_TO_SECTION_KEY" not in src, (
+        "The SCHEMA_KEY_TO_SECTION_KEY remap must stay removed. It re-bucketed "
+        "thin `from_the_note` cards (camelCase command_type, no `data`) into "
+        "SOAP groups, which the snake_case + data-driven renderers drop or "
+        "crash on (KOALA-5687). Keep amended commands rich-local instead."
+    )
 
-    open_brace_pos = sync_idx + len(sync_decl) - 1
-    depth = 0
-    close_pos = -1
-    for i in range(open_brace_pos, len(src)):
-        if src[i] == "{":
-            depth += 1
-        elif src[i] == "}":
-            depth -= 1
-            if depth == 0:
-                close_pos = i
-                break
-    body = src[sync_idx:close_pos]
-
-    # (1) The un-remapped fallback must remain.
+    body = _sync_note_commands_body(src)
     assert "merged.push(cmd);" in body, (
-        "syncNoteCommands body must retain a literal `merged.push(cmd);` "
-        "fallback for fetched commands whose command_type is NOT in "
-        "SCHEMA_KEY_TO_SECTION_KEY. Removing it (e.g. pushing a remapped "
-        "object unconditionally) would mis-stamp unknown command_types or "
-        "drop them entirely (KOALA-5687)."
+        "syncNoteCommands must retain the literal `merged.push(cmd);` append so "
+        "genuinely ad-hoc note-body commands still land in ADDITIONAL COMMANDS "
+        "under their `from_the_note` section_key."
     )
 
-    # (2) The lookup result must feed into a conditional. We look for a
-    # `SCHEMA_KEY_TO_SECTION_KEY[...]` lookup followed within ~200 chars by
-    # either a ternary using the local variable or an `if (` checking
-    # truthiness of a single identifier — both are accepted shapes.
-    lookup_re = re.compile(
-        r"SCHEMA_KEY_TO_SECTION_KEY\[[^\]]+\][\s\S]{0,200}?(\?|if\s*\()",
-        re.MULTILINE,
+
+def test_summary_js_sync_guards_against_amend_race() -> None:
+    """KOALA-5687: ``syncNoteCommands`` must not corrupt state while an amend
+    edit is in flight.
+
+    The amend VOID_RECREATE window (EnterInError old uuid → originate new uuid →
+    local re-stamp) is when a racing sync would see the old uuid missing from
+    the fetch, drop the rich local card, and re-append the chart row as a
+    ``from_the_note`` bucket. Two guards close the window:
+      1. An in-flight flag (``amendEditInFlightRef``) — a bare early-return at
+         the top AND a re-check after the fetch resolves (the fetch may land
+         mid-window).
+      2. A generation counter (``amendGenRef``) captured before the fetch and
+         compared after it — catches a sync whose fetch resolves just after the
+         amend completed (flag already cleared).
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+    body = _sync_note_commands_body(src)
+
+    # (1) In-flight guard must be consulted at least twice: once before the
+    # fetch (don't even start) and once after the await (the fetch landed
+    # mid-window). Pre-fix code referenced this ref zero times.
+    inflight_checks = body.count("amendEditInFlightRef.current")
+    assert inflight_checks >= 2, (
+        "syncNoteCommands must check `amendEditInFlightRef.current` both before "
+        "the /note-commands fetch and after it resolves, so a sync landing in "
+        "the EIE→re-stamp window bails instead of reshuffling amended commands "
+        f"into ADDITIONAL COMMANDS (KOALA-5687). Found {inflight_checks} check(s)."
     )
-    assert lookup_re.search(body), (
-        "The result of `SCHEMA_KEY_TO_SECTION_KEY[...]` must feed into a "
-        "conditional (either an `if (...)` or a `? :` ternary) so the "
-        "mapped path coexists with the un-remapped `merged.push(cmd)` "
-        "fallback. Without the conditional gate, unknown command_types "
-        "either get mis-stamped or fall out of the merge (KOALA-5687)."
+
+    # (2) Generation counter: captured before the fetch and re-compared after,
+    # so a sync whose fetch resolves right after the amend settles bails too.
+    assert "amendGenRef.current" in body, (
+        "syncNoteCommands must capture `amendGenRef.current` before the fetch "
+        "and compare it after, to bail when an amend completed mid-fetch "
+        "(KOALA-5687)."
+    )
+    assert "!== genAtFetchStart" in body or "genAtFetchStart !==" in body, (
+        "syncNoteCommands must compare the captured amend generation against "
+        "`amendGenRef.current` after the fetch resolves (KOALA-5687)."
+    )
+
+
+def test_summary_js_sync_bridges_amend_uuids() -> None:
+    """KOALA-5687: when a local command's uuid is gone from the chart but amend
+    re-originated it under a new uuid that IS on the chart, the merge keeps the
+    rich local card under the new uuid instead of dropping it.
+
+    This is what actually returns amended 1st-party commands to their SOAP
+    section: the local row carries the snake_case command_type, structured
+    ``data``, and original ``section_key`` — none of which the thin
+    ``/note-commands`` payload can reconstruct.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+    body = _sync_note_commands_body(src)
+
+    assert "amendUuidRemapRef.current" in body, (
+        "syncNoteCommands must consult `amendUuidRemapRef.current` (old→new uuid "
+        "bridge) before dropping a local command whose uuid vanished from the "
+        "chart (KOALA-5687)."
+    )
+    # The bridge keeps the LOCAL card (spread of `cmd`) re-stamped with the
+    # bridged uuid — not the thin fetched card.
+    assert "command_uuid: bridgedUuid" in body, (
+        "The bridge branch must keep the rich local command under the "
+        "re-originated uuid (`{ ...cmd, command_uuid: bridgedUuid, ... }`), "
+        "preserving its SOAP section_key + structured data (KOALA-5687)."
+    )
+
+
+def test_summary_js_handleinsert_brackets_amend_with_guard() -> None:
+    """KOALA-5687: handleInsert must raise the in-flight guard before
+    /edit-existing-commands and lower it — plus record the uuid remap and bump
+    the generation — after the re-stamp, on every exit path.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "amendEditInFlightRef.current = true" in src, (
+        "handleInsert must set `amendEditInFlightRef.current = true` before the "
+        "/edit-existing-commands POST so a racing sync bails (KOALA-5687)."
+    )
+    # Cleared on success AND both failure exits (error-return + catch) — three
+    # `= false` sites bracket the window.
+    clears = src.count("amendEditInFlightRef.current = false")
+    assert clears >= 3, (
+        "handleInsert must clear `amendEditInFlightRef.current` on every exit of "
+        "the amend-edit block (success, validation-error return, network catch). "
+        f"Found {clears} clear site(s) (KOALA-5687)."
+    )
+    assert "amendGenRef.current += 1" in src, (
+        "handleInsert must bump `amendGenRef.current` after the amend re-stamp "
+        "so a sync that raced the edit bails on the generation check "
+        "(KOALA-5687)."
+    )
+    assert "amendUuidRemapRef.current.set(" in src, (
+        "handleInsert must record this session's old→new uuid mappings into "
+        "`amendUuidRemapRef` after the re-stamp so the sync bridge can keep "
+        "rich local cards (KOALA-5687)."
     )
 
 
