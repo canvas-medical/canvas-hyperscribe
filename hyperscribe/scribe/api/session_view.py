@@ -2133,6 +2133,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     "command_type": schema_key,
                     "section_key": FROM_THE_NOTE_SECTION,
                     "label": _humanize_schema_key(schema_key),
+                    "data": data,
                     "details": _details_for_command(data),
                     "already_documented": True,
                     "_from_note": True,
