@@ -2002,7 +2002,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // downstream `allInsertable` filter that drops unaccepted/no-ICD diagnose
         // rows entirely. Flipping a row without an ICD would create an assess
         // with `condition_id=undefined` which would tank /insert-commands.
-        if (!c.data.icd10_code || !c.data.accepted) return c;
+        if (!c.data?.icd10_code || !c.data?.accepted) return c;
         const code = (c.data.icd10_code || '').replace('.', '').toUpperCase();
         const match = codeToMatch.get(code);
         if (!match) return c;
@@ -2110,7 +2110,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // would tank the batch).
     const allInsertable = [...insertable, ...acceptedRecs]
       .map(({ _template_inserted, ...c }) => c)
-      .filter(c => c.command_type !== 'diagnose' || (c.data.icd10_code && c.data.accepted));
+      .filter(c => c.command_type !== 'diagnose' || (c.data?.icd10_code && c.data?.accepted));
 
     // Prescriptions first so they appear at the top of the note.
     // Diagnosis rank is the commands[] order of diagnose/assess rows (the matrix
@@ -2519,7 +2519,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     .filter(entry => entry.command.section_key === FROM_THE_NOTE_SECTION);
 
   const insertableCount = commands.filter(c => {
-    if (c.command_type === 'diagnose') return c.data.icd10_code && c.data.accepted && c.display;
+    if (c.command_type === 'diagnose') return c.data?.icd10_code && c.data?.accepted && c.display;
     return !c.already_documented && c.display;
   }).length
     + recommendations.filter(c => c.accepted && !c.already_documented && c.display).length;
