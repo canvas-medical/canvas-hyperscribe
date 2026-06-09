@@ -3053,7 +3053,7 @@ def test_insert_metadata_invalid_json() -> None:
 @patch("canvas_sdk.v1.data.command.Command")
 def test_note_commands_returns_full_shape(mock_command: MagicMock) -> None:
     """Every synced Command lands in `from_the_note` with the locked-card
-    shape the frontend renders: label + details list."""
+    shape the frontend renders: label + raw data + details list."""
     mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
         {"id": "uuid-1", "schema_key": "hpi", "data": {"narrative": "Pain"}},
     ]
@@ -3068,11 +3068,44 @@ def test_note_commands_returns_full_shape(mock_command: MagicMock) -> None:
             "command_type": "hpi",
             "section_key": "from_the_note",
             "label": "HPI",
+            "data": {"narrative": "Pain"},
             "details": [{"label": "Narrative", "value": "Pain"}],
             "already_documented": True,
             "_from_note": True,
         }
     ]
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_includes_data_for_diagnose(mock_command: MagicMock) -> None:
+    """KOALA-5759: every synced command must carry its raw ``data`` payload.
+
+    A Diagnose committed on the Commands tab stores its code under
+    ``data.diagnose.extra.coding[].code`` with no top-level ``icd10_code``. The
+    Scribe tab reads ``c.data.icd10_code`` for every ``diagnose`` command at
+    render time, so a synced card with no ``data`` key at all leaves ``c.data``
+    undefined and the deref blanks the whole tab. Pin that ``/note-commands``
+    returns the full ``data`` object.
+    """
+    committed_diagnose = {
+        "diagnose": {
+            "text": "Essential hypertension",
+            "extra": {"coding": [{"code": "I10", "system": "ICD-10", "display": "Essential hypertension"}]},
+            "annotations": ["I10"],
+        },
+        "today_assessment": "BP elevated",
+    }
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "u-dx", "schema_key": "diagnose", "data": committed_diagnose},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    command = json.loads(result[0].content)["commands"][0]
+    assert command["command_type"] == "diagnose"
+    assert command["data"] == committed_diagnose
+    assert "icd10_code" not in command["data"]
 
 
 @patch("canvas_sdk.v1.data.command.Command")
