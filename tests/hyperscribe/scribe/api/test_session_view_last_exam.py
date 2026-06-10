@@ -149,6 +149,16 @@ def test_last_exam_prior_query_error_swallowed(mock_note: MagicMock) -> None:
 
 @patch("hyperscribe.scribe.api.session_view.ScribeSummary")
 @patch("hyperscribe.scribe.api.session_view.Note")
+def test_last_exam_summary_query_error_swallowed(mock_note: MagicMock, mock_summary: MagicMock) -> None:
+    # Prior notes resolve fine, but the ScribeSummary query fails — best-effort: return [] (no 500).
+    _wire_prior_notes(mock_note, "patient-uuid", [10, 20])
+    mock_summary.objects.filter.side_effect = RuntimeError("db blip")
+
+    assert _last_exam_sections("note-uuid", "staff-1", "physical_exam") == []
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
 def test_last_exam_command_without_sections_skipped(mock_note: MagicMock, mock_summary: MagicMock) -> None:
     # Matching command_type but data is non-dict / missing / has no section list.
     _wire_prior_notes(mock_note, "patient-uuid", [10])
