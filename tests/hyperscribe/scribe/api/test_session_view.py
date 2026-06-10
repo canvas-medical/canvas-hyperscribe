@@ -395,9 +395,13 @@ def test_get_summary_heals_to_ai_from_transcript_items(
 @patch("hyperscribe.scribe.api.session_view.ScribeAuditLog")
 @patch("hyperscribe.scribe.api.session_view.ScribeSummary")
 @patch("hyperscribe.scribe.api.session_view.Note")
-def test_get_summary_heals_to_manual_when_content_without_recording(
+def test_get_summary_does_not_heal_to_manual_when_content_without_recording(
     mock_note: MagicMock, mock_summary: MagicMock, mock_audit: MagicMock, mock_transcript: MagicMock
 ) -> None:
+    """KOALA-5512: committed commands without a Start event / transcript must NOT
+    infer 'manual'. The enter-orders-then-dictate workflow leaves a note with
+    content but no recording; healing to 'manual' persisted permanently and hid
+    Start AI Scribe, blocking AI dictation with no way back."""
     mock_note.objects.values_list.return_value.get.return_value = 42
     mock_summary.objects.filter.return_value.values.return_value.first.return_value = _heal_summary_row(
         commands=[{"command_type": "hpi"}]
@@ -410,9 +414,8 @@ def test_get_summary_heals_to_manual_when_content_without_recording(
     result = view.get_summary()
 
     assert result[0].status_code == HTTPStatus.OK
-    assert json.loads(result[0].content)["mode"] == "manual"
-    mock_summary.objects.filter.assert_any_call(note_id=42, mode="")
-    mock_summary.objects.filter.return_value.update.assert_called_once_with(mode="manual")
+    assert json.loads(result[0].content)["mode"] is None
+    mock_summary.objects.filter.return_value.update.assert_not_called()
 
 
 @patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
