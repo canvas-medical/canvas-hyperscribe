@@ -2113,6 +2113,54 @@ def test_summary_js_make_changes_preserves_on_note_recommendations() -> None:
     )
 
 
+def test_soap_group_js_wasinserted_rec_branch_keys_off_command_uuid() -> None:
+    """KOALA-5687: an accepted recommendation that was inserted (command_uuid +
+    already_documented) must still render in its SOAP section in the readOnly
+    view — mirroring the command branch's KOALA-5485 semantics.
+
+    The stale rec branch `accepted && !already_documented && display` hid every
+    inserted rec (medication_statement, allergy, refer, task, prescribe) once
+    approved; the bug only surfaced after the reshuffle into ADDITIONAL COMMANDS
+    was fixed (that had been the only thing rendering them). Pin that the rec
+    branch now distinguishes on `command_uuid` and no longer uses the old test.
+    """
+    from pathlib import Path
+
+    soap_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "soap-group.js"
+    src = soap_js.read_text()
+
+    decl = "function wasInserted(cmd, isRec = false) {"
+    start = src.find(decl)
+    assert start != -1, "Expected `function wasInserted(cmd, isRec = false) {` in soap-group.js."
+    open_brace_pos = start + len(decl) - 1
+    depth = 0
+    end = -1
+    for i in range(open_brace_pos, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    assert end != -1, "Could not find wasInserted body."
+    body = src[start:end]
+
+    # The rec branch must gate on command_uuid (on-note signal), not the stale
+    # "hide anything already_documented" test.
+    assert "cmd.already_documented && !cmd.command_uuid" in body, (
+        "wasInserted's recommendation branch must hide a rec only when it is "
+        "already_documented WITHOUT a command_uuid (external/legacy context), so "
+        "accepted recs inserted this session keep rendering post-approve "
+        "(KOALA-5687)."
+    )
+    assert "cmd.accepted && !cmd.already_documented && cmd.display" not in body, (
+        "The stale rec test `accepted && !already_documented && display` must be "
+        "gone — it hid every inserted recommendation in the approved view "
+        "(KOALA-5687)."
+    )
+
+
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.build_effects")
 def test_insert_commands_audit_payload_excludes_display_phi(mock_build: MagicMock, mock_audit: MagicMock) -> None:
