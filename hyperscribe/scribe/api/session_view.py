@@ -575,29 +575,32 @@ def _last_exam_sections(note_uuid: str, staff_id: str, kind: str) -> list[dict[s
         return []
     if not prior_dbids:
         return []
-    summaries = {
-        row["note_id"]: row["commands"]
-        for row in ScribeSummary.objects.filter(note_id__in=prior_dbids).values("note_id", "commands")
-    }
-    for dbid in prior_dbids:  # most-recent first
-        commands = summaries.get(dbid)
-        if not isinstance(commands, list):
-            continue
-        for cmd in commands:
-            if not isinstance(cmd, dict) or cmd.get("command_type") != command_type:
+    try:
+        summaries = {
+            row["note_id"]: row["commands"]
+            for row in ScribeSummary.objects.filter(note_id__in=prior_dbids).values("note_id", "commands")
+        }
+        for dbid in prior_dbids:  # most-recent first
+            commands = summaries.get(dbid)
+            if not isinstance(commands, list):
                 continue
-            raw_data = cmd.get("data")
-            data = raw_data if isinstance(raw_data, dict) else {}
-            raw_sections = data.get("sections")
-            if not isinstance(raw_sections, list):
-                continue
-            sections = [
-                {"key": s.get("key", ""), "title": s.get("title", ""), "text": s.get("text", "")}
-                for s in raw_sections
-                if isinstance(s, dict) and (s.get("title") or s.get("text"))
-            ]
-            if sections:
-                return sections
+            for cmd in commands:
+                if not isinstance(cmd, dict) or cmd.get("command_type") != command_type:
+                    continue
+                raw_data = cmd.get("data")
+                data = raw_data if isinstance(raw_data, dict) else {}
+                raw_sections = data.get("sections")
+                if not isinstance(raw_sections, list):
+                    continue
+                sections = [
+                    {"key": s.get("key", ""), "title": s.get("title", ""), "text": s.get("text", "")}
+                    for s in raw_sections
+                    if isinstance(s, dict) and (s.get("title") or s.get("text"))
+                ]
+                if sections:
+                    return sections
+    except Exception:
+        log.exception("last-exam: summary query/parse failed for note %s", note_uuid)
     return []
 
 
