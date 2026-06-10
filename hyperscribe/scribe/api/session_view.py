@@ -461,8 +461,15 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
     ScribeSummary.objects.update_or_create(note_id=note_dbid, defaults=defaults)
 
 
-def _infer_mode_for_heal(note_dbid: int, has_user_content: bool) -> str:
-    """Pick the user's mode from session artifacts. '' means no signal — don't heal."""
+def _infer_mode_for_heal(note_dbid: int) -> str:
+    """Pick the user's mode from explicit session artifacts. '' means no signal — don't heal.
+
+    Only an explicit Start (audit event) or an existing transcript resolves a
+    mode. Committed commands are NOT a signal: KOALA-5512 — the common
+    enter-orders/vitals-then-dictate workflow leaves a note with user content
+    but no recording, and inferring 'manual' there persisted permanently and
+    hid Start AI Scribe, blocking AI dictation with no way back.
+    """
     events = (ScribeAuditLog.objects.filter(note_id=note_dbid).values_list("events", flat=True).first()) or []
     last_start = ""
     for event in events:
@@ -477,21 +484,7 @@ def _infer_mode_for_heal(note_dbid: int, has_user_content: bool) -> str:
         return last_start
     if ScribeTranscript.objects.filter(note_id=note_dbid).values_list("items", flat=True).first():
         return "ai"
-    return "manual" if has_user_content else ""
-
-
-def _has_user_authored_content(row: dict[str, Any]) -> bool:
-    """True iff the row has note content the user actually authored.
-
-    Template-inserted commands (carrying ``_template_inserted: true``) are
-    mechanical artifacts of a template selection, not evidence of manual
-    authorship — they must not trip the "content without recording → manual"
-    fallback in the heal.
-    """
-    if row["note_data"]:
-        return True
-    commands = row["commands"] or []
-    return any(isinstance(cmd, dict) and not cmd.get("_template_inserted") for cmd in commands)
+    return ""
 
 
 def _load_summary(note_id: str) -> dict[str, Any] | None:
@@ -515,7 +508,7 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
         return None
     mode = row["mode"] or ""
     if not mode:
-        inferred = _infer_mode_for_heal(note_dbid, _has_user_authored_content(row))
+        inferred = _infer_mode_for_heal(note_dbid)
         if inferred:
             updated = ScribeSummary.objects.filter(note_id=note_dbid, mode="").update(mode=inferred)
             if updated:
