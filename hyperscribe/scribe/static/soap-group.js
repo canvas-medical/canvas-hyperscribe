@@ -239,7 +239,20 @@ const HISTORY_ADD_LABELS = {
 function wasInserted(cmd, isRec = false) {
   // Items added via "Add Now" were already inserted — show them in approved view.
   if (cmd._added_now) return true;
-  if (isRec) return !!(cmd.accepted && !cmd.already_documented && cmd.display);
+  if (isRec) {
+    // KOALA-5687: mirror the command branch's KOALA-5485 semantics for recs.
+    // An accepted recommendation inserted via the Approve flow carries a
+    // command_uuid AND already_documented — it IS on the note and must keep
+    // rendering in its SOAP section in the approved/readOnly view. The previous
+    // `accepted && !already_documented` test hid EVERY such inserted rec
+    // (medication_statement, allergy, refer, task, prescribe) post-approve; that
+    // was latent until KOALA-5687 stopped them reshuffling into ADDITIONAL
+    // COMMANDS, which had been the only thing rendering them. already_documented
+    // WITHOUT a command_uuid is external/legacy chart context → stay hidden.
+    if (!cmd.accepted || !cmd.display) return false;
+    if (cmd.already_documented && !cmd.command_uuid) return false;
+    return true;
+  }
   // KOALA-5485 changed ``already_documented`` semantics: it now also gets
   // stamped on commands inserted via THIS session's Approve (so amendment
   // mode can identify what's in the chart). A command with both flags set
