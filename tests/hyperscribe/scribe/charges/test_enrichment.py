@@ -22,9 +22,7 @@ def test_normalize_icd10_strips_dots_and_uppercases():
 
 def _assessment(assessment_id, codes):
     """A fake Assessment whose condition has the given coding codes."""
-    condition = SimpleNamespace(
-        codings=SimpleNamespace(all=lambda: [SimpleNamespace(code=c) for c in codes])
-    )
+    condition = SimpleNamespace(codings=SimpleNamespace(all=lambda: [SimpleNamespace(code=c) for c in codes]))
     return SimpleNamespace(id=assessment_id, condition=condition)
 
 
@@ -42,9 +40,7 @@ def test_build_assessment_index_maps_normalized_code_to_ids(mock_assessment):
 
     assert index["M25511"] == ["aid-1"]
     assert index["K219"] == ["aid-2"]
-    mock_assessment.objects.filter.assert_called_once_with(
-        note=note, entered_in_error_id__isnull=True, deleted=False
-    )
+    mock_assessment.objects.filter.assert_called_once_with(note=note, entered_in_error_id__isnull=True, deleted=False)
 
 
 @patch("hyperscribe.scribe.charges.enrichment.Assessment")
@@ -89,6 +85,7 @@ def test_update_effect_built_for_charge_with_pointer_and_modifier(
     mock_note, mock_index, mock_command, mock_bli, mock_update
 ):
     from canvas_sdk.v1.data.billing import BillingLineItemStatus
+
     _patch_note(mock_note)
     mock_index.return_value = {"M25511": ["aid-1"]}
     mock_command.objects.get.return_value = SimpleNamespace(dbid=42)
@@ -98,24 +95,28 @@ def test_update_effect_built_for_charge_with_pointer_and_modifier(
     mock_bli.objects.filter.return_value = bli_qs
     mock_update.return_value = SimpleNamespace(apply=lambda: "UPDATE_EFFECT")
 
-    charges = [{
-        "command_uuid": VALID_UUID,
-        "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
-        "modifiers": ["25"],
-    }]
+    charges = [
+        {
+            "command_uuid": VALID_UUID,
+            "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
+            "modifiers": ["25"],
+        }
+    ]
     effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
 
     assert effects == ["UPDATE_EFFECT"]
     assert errors == []
-    assert enriched == [{"command_uuid": VALID_UUID, "billing_line_item_id": "bli-1",
-                         "assessment_ids": ["aid-1"], "modifiers": ["25"]}]
+    assert enriched == [
+        {"command_uuid": VALID_UUID, "billing_line_item_id": "bli-1", "assessment_ids": ["aid-1"], "modifiers": ["25"]}
+    ]
     mock_update.assert_called_once_with(
         billing_line_item_id="bli-1",
         assessment_ids=["aid-1"],
         modifiers=[{"code": "25", "system": CPT_MODIFIER_SYSTEM}],
     )
     mock_bli.objects.filter.assert_called_once_with(
-        note=mock_note.objects.get.return_value, command_id=42,
+        note=mock_note.objects.get.return_value,
+        command_id=42,
         status=BillingLineItemStatus.ACTIVE,
     )
 
@@ -125,9 +126,7 @@ def test_update_effect_built_for_charge_with_pointer_and_modifier(
 @patch("hyperscribe.scribe.charges.enrichment.Command")
 @patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
 @patch("hyperscribe.scribe.charges.enrichment.Note")
-def test_missing_bli_records_error_and_no_effect(
-    mock_note, mock_index, mock_command, mock_bli, mock_update
-):
+def test_missing_bli_records_error_and_no_effect(mock_note, mock_index, mock_command, mock_bli, mock_update):
     _patch_note(mock_note)
     mock_index.return_value = {"M25511": ["aid-1"]}
     mock_command.objects.get.return_value = SimpleNamespace(dbid=42)
@@ -135,11 +134,13 @@ def test_missing_bli_records_error_and_no_effect(
     bli_qs.first.return_value = None
     mock_bli.objects.filter.return_value = bli_qs
 
-    charges = [{
-        "command_uuid": VALID_UUID,
-        "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
-        "modifiers": [],
-    }]
+    charges = [
+        {
+            "command_uuid": VALID_UUID,
+            "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
+            "modifiers": [],
+        }
+    ]
     effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
 
     assert effects == []
@@ -153,9 +154,7 @@ def test_missing_bli_records_error_and_no_effect(
 @patch("hyperscribe.scribe.charges.enrichment.Command")
 @patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
 @patch("hyperscribe.scribe.charges.enrichment.Note")
-def test_removed_charge_emits_remove_effect(
-    mock_note, mock_index, mock_command, mock_bli, mock_remove
-):
+def test_removed_charge_emits_remove_effect(mock_note, mock_index, mock_command, mock_bli, mock_remove):
     _patch_note(mock_note)
     mock_index.return_value = {}
     mock_command.objects.get.return_value = SimpleNamespace(dbid=99)
@@ -188,19 +187,19 @@ def test_unknown_note_returns_error(mock_note):
 @patch("hyperscribe.scribe.charges.enrichment.Command")
 @patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
 @patch("hyperscribe.scribe.charges.enrichment.Note")
-def test_unresolvable_command_uuid_records_error(
-    mock_note, mock_index, mock_command, mock_bli, mock_update
-):
+def test_unresolvable_command_uuid_records_error(mock_note, mock_index, mock_command, mock_bli, mock_update):
     _patch_note(mock_note)
     mock_index.return_value = {"M25511": ["aid-1"]}
     mock_command.DoesNotExist = Exception
     mock_command.objects.get.side_effect = mock_command.DoesNotExist
 
-    charges = [{
-        "command_uuid": VALID_UUID,
-        "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
-        "modifiers": [],
-    }]
+    charges = [
+        {
+            "command_uuid": VALID_UUID,
+            "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "M25.511"}],
+            "modifiers": [],
+        }
+    ]
     effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
     assert effects == []
     assert errors == [{"command_uuid": VALID_UUID, "reason": "billing_line_item_not_found"}]
@@ -212,9 +211,7 @@ def test_unresolvable_command_uuid_records_error(
 @patch("hyperscribe.scribe.charges.enrichment.Command")
 @patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
 @patch("hyperscribe.scribe.charges.enrichment.Note")
-def test_empty_pointers_clears_bli_without_error(
-    mock_note, mock_index, mock_command, mock_bli, mock_update
-):
+def test_empty_pointers_clears_bli_without_error(mock_note, mock_index, mock_command, mock_bli, mock_update):
     """When diagnosis_pointers is empty the backend emits an explicit
     UpdateBillingLineItem(assessment_ids=[]) clear — covers advisory-only new
     charges (no-op, BLI was already empty) and amendment unlink-all (clears old
@@ -256,11 +253,13 @@ def test_pointer_not_in_index_reports_error_and_does_not_clear(
     bli_qs.first.return_value = bli
     mock_bli.objects.filter.return_value = bli_qs
 
-    charges = [{
-        "command_uuid": VALID_UUID,
-        "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "Z00.00"}],
-        "modifiers": [],
-    }]
+    charges = [
+        {
+            "command_uuid": VALID_UUID,
+            "diagnosis_pointers": [{"command_uuid": "d0", "icd10_code": "Z00.00"}],
+            "modifiers": [],
+        }
+    ]
     effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
 
     assert effects == []
@@ -290,14 +289,16 @@ def test_partial_pointer_resolution_reports_error_and_does_not_write(
     bli_qs.first.return_value = bli
     mock_bli.objects.filter.return_value = bli_qs
 
-    charges = [{
-        "command_uuid": VALID_UUID,
-        "diagnosis_pointers": [
-            {"command_uuid": "d0", "icd10_code": "M25.511"},
-            {"command_uuid": "d1", "icd10_code": "E11.9"},
-        ],
-        "modifiers": [],
-    }]
+    charges = [
+        {
+            "command_uuid": VALID_UUID,
+            "diagnosis_pointers": [
+                {"command_uuid": "d0", "icd10_code": "M25.511"},
+                {"command_uuid": "d1", "icd10_code": "E11.9"},
+            ],
+            "modifiers": [],
+        }
+    ]
     effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
 
     assert effects == []
@@ -311,9 +312,7 @@ def test_partial_pointer_resolution_reports_error_and_does_not_write(
 @patch("hyperscribe.scribe.charges.enrichment.Command")
 @patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
 @patch("hyperscribe.scribe.charges.enrichment.Note")
-def test_all_pointers_resolve_writes_full_set(
-    mock_note, mock_index, mock_command, mock_bli, mock_update
-):
+def test_all_pointers_resolve_writes_full_set(mock_note, mock_index, mock_command, mock_bli, mock_update):
     """When EVERY sent code resolves, the full assessment_ids set is written and
     no error is recorded (guards against the partial-resolution check over-firing
     on a fully-resolvable multi-pointer charge)."""
@@ -326,14 +325,16 @@ def test_all_pointers_resolve_writes_full_set(
     mock_bli.objects.filter.return_value = bli_qs
     mock_update.return_value = SimpleNamespace(apply=lambda: "UPDATE_EFFECT")
 
-    charges = [{
-        "command_uuid": VALID_UUID,
-        "diagnosis_pointers": [
-            {"command_uuid": "d0", "icd10_code": "M25.511"},
-            {"command_uuid": "d1", "icd10_code": "E11.9"},
-        ],
-        "modifiers": [],
-    }]
+    charges = [
+        {
+            "command_uuid": VALID_UUID,
+            "diagnosis_pointers": [
+                {"command_uuid": "d0", "icd10_code": "M25.511"},
+                {"command_uuid": "d1", "icd10_code": "E11.9"},
+            ],
+            "modifiers": [],
+        }
+    ]
     effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
 
     assert errors == []
@@ -357,8 +358,10 @@ def test_multiple_charges_accumulate_enriched_and_errors_independently(
     mock_index.return_value = {"M25511": ["aid-1"]}
     mock_command.objects.get.return_value = SimpleNamespace(dbid=42)
     # first charge's BLI is found; second charge's BLI is missing
-    found_qs = MagicMock(); found_qs.first.return_value = SimpleNamespace(id="bli-1")
-    missing_qs = MagicMock(); missing_qs.first.return_value = None
+    found_qs = MagicMock()
+    found_qs.first.return_value = SimpleNamespace(id="bli-1")
+    missing_qs = MagicMock()
+    missing_qs.first.return_value = None
     mock_bli.objects.filter.side_effect = [found_qs, missing_qs]
     mock_update.return_value = SimpleNamespace(apply=lambda: "UPDATE_EFFECT")
 
@@ -400,7 +403,7 @@ def test_find_billing_line_item_fallback_ambiguous_cpt_returns_none(mock_command
     primary_qs.first.return_value = None  # command_id lookup misses
 
     fallback_qs = MagicMock()
-    fallback_qs.count.return_value = 2   # two BLIs share this CPT
+    fallback_qs.count.return_value = 2  # two BLIs share this CPT
 
     mock_bli.objects.filter.side_effect = [primary_qs, fallback_qs]
 
@@ -408,9 +411,7 @@ def test_find_billing_line_item_fallback_ambiguous_cpt_returns_none(mock_command
 
     assert result is None
     fallback_qs.first.assert_not_called()  # must not pick blindly
-    mock_bli.objects.filter.assert_any_call(
-        note=note, cpt="99213", status=BillingLineItemStatus.ACTIVE
-    )
+    mock_bli.objects.filter.assert_any_call(note=note, cpt="99213", status=BillingLineItemStatus.ACTIVE)
 
 
 @patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
@@ -418,7 +419,6 @@ def test_find_billing_line_item_fallback_ambiguous_cpt_returns_none(mock_command
 def test_find_billing_line_item_fallback_unambiguous_cpt_returns_bli(mock_command, mock_bli):
     """When the primary command_id lookup misses but exactly one ACTIVE BLI
     shares the CPT, the fallback may safely call .first() and return it."""
-    from canvas_sdk.v1.data.billing import BillingLineItemStatus
 
     note = SimpleNamespace(dbid=1)
     expected_bli = SimpleNamespace(id="bli-1")
@@ -470,14 +470,13 @@ def test_resolve_assessment_ids_deduplicates_across_pointers():
 
 # ── Coverage gap: idempotent removal path (BLI already absent) ──
 
+
 @patch("hyperscribe.scribe.charges.enrichment.RemoveBillingLineItem")
 @patch("hyperscribe.scribe.charges.enrichment.BillingLineItem")
 @patch("hyperscribe.scribe.charges.enrichment.Command")
 @patch("hyperscribe.scribe.charges.enrichment.build_assessment_index")
 @patch("hyperscribe.scribe.charges.enrichment.Note")
-def test_removed_charge_already_absent_is_silently_skipped(
-    mock_note, mock_index, mock_command, mock_bli, mock_remove
-):
+def test_removed_charge_already_absent_is_silently_skipped(mock_note, mock_index, mock_command, mock_bli, mock_remove):
     """When the BLI for a removed command can't be found, no error is recorded
     and no RemoveBillingLineItem effect is emitted (idempotent removal)."""
     _patch_note(mock_note)

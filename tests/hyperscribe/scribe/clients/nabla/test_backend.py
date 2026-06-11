@@ -209,7 +209,7 @@ def test_generate_note_family_history_instruction() -> None:
     assert "biological relatives" in instruction
     assert "omit rather than guess" in instruction
     # No-filler guardrail, quoted example phrasing preserved.
-    assert 'no other family history discussed.' in instruction
+    assert "no other family history discussed." in instruction
     assert "if none is discussed, leave empty" in lower
 
 
