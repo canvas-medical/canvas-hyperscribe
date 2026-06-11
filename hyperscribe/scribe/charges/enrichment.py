@@ -58,9 +58,7 @@ def build_assessment_index(note: Any) -> dict[str, list[str]]:
     return dict(index)
 
 
-def _resolve_assessment_ids(
-    pointers: list[dict[str, Any]], index: dict[str, list[str]]
-) -> list[str]:
+def _resolve_assessment_ids(pointers: list[dict[str, Any]], index: dict[str, list[str]]) -> list[str]:
     """Resolve a charge's diagnosis pointers to Assessment ids via the code
     index. De-duplicates while preserving order. When an ICD code maps to more
     than one assessment (rare: two assessments of the same condition on one
@@ -102,11 +100,9 @@ def _find_billing_line_item(note: Any, command_uuid: str) -> Any | None:
         # the frontend retries. Log so we can tell timing apart from a real miss.
         log.info("enrich_charges: command %s not present yet", command_uuid)
         return None
-    bli = (
-        BillingLineItem.objects.filter(
-            note=note, command_id=command.dbid, status=BillingLineItemStatus.ACTIVE
-        ).first()
-    )
+    bli = BillingLineItem.objects.filter(
+        note=note, command_id=command.dbid, status=BillingLineItemStatus.ACTIVE
+    ).first()
     if bli is None:
         # Fallback to the SDK-documented cpt + note lookup in case command_id
         # isn't populated the way we expect. cpt lives in the perform command's
@@ -119,9 +115,7 @@ def _find_billing_line_item(note: Any, command_uuid: str) -> Any | None:
                 cpt = perform.get("value")
             cpt = cpt or data.get("cpt_code")
         if cpt:
-            qs = BillingLineItem.objects.filter(
-                note=note, cpt=cpt, status=BillingLineItemStatus.ACTIVE
-            )
+            qs = BillingLineItem.objects.filter(note=note, cpt=cpt, status=BillingLineItemStatus.ACTIVE)
             count = qs.count()
             if count > 1:
                 # Multiple ACTIVE BLIs share this CPT — .first() would pick one
@@ -131,13 +125,17 @@ def _find_billing_line_item(note: Any, command_uuid: str) -> Any | None:
                 log.warning(
                     "enrich_charges: ambiguous cpt %s matches %d BLIs on note"
                     " — skipping fallback to avoid silent miswrite",
-                    cpt, count,
+                    cpt,
+                    count,
                 )
             else:
                 bli = qs.first()
         log.info(
             "enrich_charges: cmd=%s dbid=%s cpt=%s bli_found=%s (command_id miss)",
-            command_uuid, command.dbid, cpt, bli is not None,
+            command_uuid,
+            command.dbid,
+            cpt,
+            bli is not None,
         )
     return bli
 
@@ -166,7 +164,10 @@ def build_charge_enrichment_effects(
     index = build_assessment_index(note)
     log.info(
         "enrich_charges: note=%s charges=%d removed=%d assessment_codes=%d",
-        note_uuid, len(charges), len(removed_command_uuids), len(index),
+        note_uuid,
+        len(charges),
+        len(removed_command_uuids),
+        len(index),
     )
     effects: list[Effect] = []
     enriched: list[dict[str, Any]] = []
@@ -212,12 +213,14 @@ def build_charge_enrichment_effects(
                 modifiers=modifiers,
             ).apply()
         )
-        enriched.append({
-            "command_uuid": command_uuid,
-            "billing_line_item_id": str(bli.id),
-            "assessment_ids": assessment_ids,
-            "modifiers": modifier_codes,
-        })
+        enriched.append(
+            {
+                "command_uuid": command_uuid,
+                "billing_line_item_id": str(bli.id),
+                "assessment_ids": assessment_ids,
+                "modifiers": modifier_codes,
+            }
+        )
 
     for command_uuid in removed_command_uuids:
         bli = _find_billing_line_item(note, command_uuid)
@@ -228,7 +231,9 @@ def build_charge_enrichment_effects(
 
     log.info(
         "enrich_charges result: enriched=%d errors=%d effects=%d (%s)",
-        len(enriched), len(errors), len(effects),
+        len(enriched),
+        len(errors),
+        len(effects),
         ",".join(f"{e['command_uuid']}:{e['reason']}" for e in errors) or "ok",
     )
     return effects, enriched, errors
