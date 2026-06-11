@@ -1,0 +1,12 @@
+{
+  "name": "scribe-harness-verify",
+  "private": true,
+  "type": "module",
+  "description": "Headless fidelity check for the Scribe UI harness.",
+  "scripts": {
+    "verify": "node verify.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}

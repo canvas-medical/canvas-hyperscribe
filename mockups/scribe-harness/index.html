@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scribe harness — Phase 1 spike</title>
+
+<!--
+  PHASE 1 SPIKE — boots the REAL <Scribe> component (hyperscribe/scribe/static)
+  in a plain browser with stubbed IO + fetch, rendering a populated review-state
+  summary. No build step, no Canvas, no backend, no LLM, no mic.
+
+  Run from the REPO ROOT:
+      python3 -m http.server 8000
+  then open:
+      http://localhost:8000/mockups/scribe-harness/
+
+  The import map is the linchpin: the real modules cross-import via absolute
+  /plugin-io/... URLs. We remap that prefix to the real files on disk so they
+  load unmodified. Relative value resolves against this file's location, so the
+  harness is portable as long as the repo layout is preserved.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "/plugin-io/api/hyperscribe/scribe/static/recording-hook.js": "./mock-recording-hook.js",
+    "/plugin-io/api/hyperscribe/scribe/static/": "../../hyperscribe/scribe/static/"
+  }
+}
+</script>
+
+<!-- Real shipping stylesheet — pixel-identical, edits here land on the plugin. -->
+<link rel="stylesheet" href="../../hyperscribe/scribe/static/styles.css" />
+<!-- Gallery chrome (namespaced gallery-*; never touches the product styles). -->
+<link rel="stylesheet" href="gallery.css" />
+
+<!-- Classic scripts run before any deferred module, so the IO + fetch stubs are
+     installed before <Scribe> mounts and fires its effects. -->
+<script src="mock-io.js"></script>
+<script src="mock-fetch.js"></script>
+
+<style>
+  /* Harness chrome only — NOT part of the Scribe UI. Kept visually distinct
+     (dark rail) so it can never be mistaken for the product surface. */
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .harness { display: flex; min-height: 100vh; }
+  .harness-rail {
+    width: 220px; flex-shrink: 0; background: #0b1722; color: #cdd8e3;
+    padding: 16px 14px; box-sizing: border-box;
+  }
+  .harness-rail h1 { font-size: 13px; letter-spacing: .5px; text-transform: uppercase; color: #6f8499; margin: 0 0 12px; }
+  .harness-rail .tag { font-size: 11px; color: #5b7088; margin-bottom: 16px; line-height: 1.4; }
+  .harness-rail button {
+    display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 8px 10px;
+    background: #14283b; color: #cdd8e3; border: 1px solid #20364c;
+    border-radius: 6px; font-size: 12px; cursor: pointer;
+  }
+  .harness-rail button:hover { background: #1c344b; }
+  .harness-rail label { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #8aa0b6; margin-top: 14px; }
+  .harness-stage {
+    flex: 1; min-width: 0; background: #eef1f4; padding: 24px; box-sizing: border-box;
+    display: flex; justify-content: center; align-items: flex-start;
+  }
+  /* The Scribe app renders inside a modal in Canvas; emulate that frame so the
+     mock reads at the real surface width. */
+  .harness-frame {
+    width: 720px; max-width: 100%; background: #fff; border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(11,23,34,.18); overflow: hidden; min-height: 200px;
+  }
+  /* Gallery needs the full stage width for side-by-side states. */
+  .harness-frame.wide { width: 100%; background: transparent; box-shadow: none; border-radius: 0; }
+  .harness-rail .rail-section {
+    font-size: 11px; letter-spacing: .5px; text-transform: uppercase;
+    color: #5b7088; margin: 18px 0 6px;
+  }
+  /* Stack the optional flow stepper above the product surface. */
+  .stage-col { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+
+  /* Guided-flow stepper — harness chrome, sits above the surface. */
+  .flow-bar {
+    width: 720px; max-width: 100%; background: #0e1d2b; color: #cdd8e3;
+    border-radius: 12px; padding: 14px 16px; box-sizing: border-box;
+  }
+  .flow-bar-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .flow-tabs { display: flex; gap: 6px; }
+  .flow-tab {
+    padding: 5px 12px; border-radius: 999px; border: 1px solid #24405a;
+    background: transparent; color: #9fb3c8; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .flow-tab.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  .flow-nav { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #8aa0b6; }
+  .flow-nav button {
+    padding: 5px 12px; border-radius: 6px; border: 1px solid #24405a;
+    background: #14283b; color: #cdd8e3; font-size: 12px; cursor: pointer;
+  }
+  .flow-nav button:disabled { opacity: .4; cursor: not-allowed; }
+  .flow-steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 10px; }
+  .flow-step-pill {
+    display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px;
+    background: #14283b; border: 1px solid #24405a; color: #9fb3c8;
+    font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .flow-step-pill .num {
+    display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px;
+    border-radius: 50%; background: #24405a; color: #cdd8e3; font-size: 10px;
+  }
+  .flow-step-pill.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  .flow-step-pill.active .num { background: #fff; color: #1f6feb; }
+  .flow-caption { font-size: 12.5px; line-height: 1.5; color: #aebfcf; }
+  .flow-caption strong { color: #fff; }
+</style>
+</head>
+<body>
+<div class="harness">
+  <nav class="harness-rail">
+    <h1>Scribe harness</h1>
+    <div class="tag">Real components, stubbed IO. Not the product chrome.</div>
+    <div class="rail-section">View</div>
+    <button id="btn-flow">Guided flow</button>
+    <button id="btn-gallery">Component gallery</button>
+    <button id="btn-header">Header states</button>
+    <div class="rail-section">Scenarios</div>
+    <div id="scenario-buttons"></div>
+    <label><input type="checkbox" id="chk-mocklog" checked /> log mock calls</label>
+  </nav>
+  <main class="harness-stage">
+    <div class="stage-col">
+      <div id="flow-bar" class="flow-bar" hidden></div>
+      <div class="harness-frame" id="app"></div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  import { h, render } from 'https://esm.sh/preact@10.25.4';
+  import { Scribe } from '/plugin-io/api/hyperscribe/scribe/static/summary.js';
+  import { SCENARIOS, byId } from './fixtures/scenarios.js';
+  import { Gallery } from './fixtures/gallery.js';
+  import { FLOWS, flowById } from './fixtures/flow.js';
+  import { HeaderStates } from './fixtures/header.js';
+
+  const appEl = document.getElementById('app');
+  const flowBar = document.getElementById('flow-bar');
+  const galleryBtn = document.getElementById('btn-gallery');
+  const flowBtn = document.getElementById('btn-flow');
+  const headerBtn = document.getElementById('btn-header');
+
+  function highlight(activeKey) {
+    galleryBtn.style.outline = activeKey === '__gallery__' ? '2px solid #4f8fd0' : 'none';
+    flowBtn.style.outline = activeKey === '__flow__' ? '2px solid #4f8fd0' : 'none';
+    headerBtn.style.outline = activeKey === '__header__' ? '2px solid #4f8fd0' : 'none';
+    [...document.querySelectorAll('#scenario-buttons button')].forEach((b) => {
+      b.style.outline = b.dataset.id === activeKey ? '2px solid #4f8fd0' : 'none';
+    });
+  }
+
+  // Core: render a scenario's <Scribe> into the surface. Shared by the scenario
+  // rail and the guided flow so behavior stays identical.
+  function applyScenario(id) {
+    const scn = byId(id);
+    window.__MOCK.noteCommands = scn.noteCommands || [];   // mock-fetch note-commands
+    window.__MOCK.recording = scn.recording || null;       // mock-recording-hook
+    appEl.classList.remove('wide');
+    render(null, appEl);                                    // full reset — no leaked state
+    render(h(Scribe, { view: 'summary', ...scn.config }), appEl);
+    return scn;
+  }
+
+  function mount(id) {
+    flowBar.hidden = true;
+    const scn = applyScenario(id);
+    highlight(scn.id);
+    console.debug('[harness] mounted scenario:', scn.id);
+  }
+
+  function showGallery() {
+    flowBar.hidden = true;
+    window.__MOCK.noteCommands = [];
+    window.__MOCK.recording = null;
+    appEl.classList.add('wide');
+    render(null, appEl);
+    render(h(Gallery, {}), appEl);
+    highlight('__gallery__');
+    console.debug('[harness] mounted component gallery');
+  }
+
+  function showHeader() {
+    flowBar.hidden = true;
+    window.__MOCK.noteCommands = [];
+    window.__MOCK.recording = null;   // recording state is per-instance via transcript
+    appEl.classList.add('wide');
+    render(null, appEl);
+    render(h(HeaderStates, {}), appEl);
+    highlight('__header__');
+    console.debug('[harness] mounted header states');
+  }
+
+  // ── Guided flow ────────────────────────────────────────────────────────────
+  let flowId = FLOWS[0].id;
+  let stepIndex = 0;
+
+  function renderFlowBar() {
+    const flow = flowById(flowId);
+    const step = flow.steps[stepIndex];
+    flowBar.innerHTML = '';
+
+    const top = document.createElement('div'); top.className = 'flow-bar-top';
+    const tabs = document.createElement('div'); tabs.className = 'flow-tabs';
+    FLOWS.forEach((f) => {
+      const t = document.createElement('button');
+      t.className = 'flow-tab' + (f.id === flowId ? ' active' : '');
+      t.textContent = f.label;
+      t.onclick = () => { flowId = f.id; stepIndex = 0; runFlowStep(); };
+      tabs.appendChild(t);
+    });
+    const nav = document.createElement('div'); nav.className = 'flow-nav';
+    const prev = document.createElement('button'); prev.textContent = '← Prev'; prev.disabled = stepIndex === 0;
+    prev.onclick = () => { if (stepIndex > 0) { stepIndex--; runFlowStep(); } };
+    const pos = document.createElement('span'); pos.textContent = `Step ${stepIndex + 1} / ${flow.steps.length}`;
+    const next = document.createElement('button'); next.textContent = 'Next →'; next.disabled = stepIndex === flow.steps.length - 1;
+    next.onclick = () => { if (stepIndex < flow.steps.length - 1) { stepIndex++; runFlowStep(); } };
+    nav.append(prev, pos, next);
+    top.append(tabs, nav);
+
+    const steps = document.createElement('div'); steps.className = 'flow-steps';
+    flow.steps.forEach((s, i) => {
+      const pill = document.createElement('button');
+      pill.className = 'flow-step-pill' + (i === stepIndex ? ' active' : '');
+      pill.innerHTML = `<span class="num">${i + 1}</span>${s.title}`;
+      pill.onclick = () => { stepIndex = i; runFlowStep(); };
+      steps.appendChild(pill);
+    });
+
+    const cap = document.createElement('div'); cap.className = 'flow-caption';
+    cap.innerHTML = `<strong>${step.title}.</strong> ${step.caption}`;
+
+    flowBar.append(top, steps, cap);
+  }
+
+  function runFlowStep() {
+    const step = flowById(flowId).steps[stepIndex];
+    applyScenario(step.scenarioId);
+    renderFlowBar();
+  }
+
+  function showFlow() {
+    flowBar.hidden = false;
+    stepIndex = 0;
+    runFlowStep();
+    highlight('__flow__');
+    console.debug('[harness] entered guided flow:', flowId);
+  }
+
+  // Build the scenario rail from the SCENARIOS list.
+  const railEl = document.getElementById('scenario-buttons');
+  SCENARIOS.forEach((scn) => {
+    const btn = document.createElement('button');
+    btn.textContent = scn.label;
+    btn.dataset.id = scn.id;
+    btn.addEventListener('click', () => mount(scn.id));
+    railEl.appendChild(btn);
+  });
+
+  galleryBtn.addEventListener('click', showGallery);
+  flowBtn.addEventListener('click', showFlow);
+  headerBtn.addEventListener('click', showHeader);
+  document.getElementById('chk-mocklog').addEventListener('change', (e) => {
+    window.__MOCK.log = e.target.checked;
+  });
+
+  // Expose for headless verification.
+  window.__mount = mount;
+  window.__showGallery = showGallery;
+  window.__showFlow = showFlow;
+  window.__showHeader = showHeader;
+  window.__flowGoto = (fid, idx) => { flowId = fid; stepIndex = idx; runFlowStep(); };
+  window.__scenarioIds = SCENARIOS.map((s) => s.id);
+
+  // Boot into the kitchen-sink scenario.
+  mount(SCENARIOS[0].id);
+</script>
+</body>
+</html>
