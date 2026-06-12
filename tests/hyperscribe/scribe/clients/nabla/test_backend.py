@@ -96,6 +96,40 @@ def test_generate_note_with_patient_context() -> None:
     assert "Jane Doe" in payload["note_sections_customization"][1]["custom_instruction"]
 
 
+def test_generate_note_hpi_ros_instruction() -> None:
+    backend, mock_rest_client = _make_backend()
+    mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+
+    backend.generate_note(Transcript())
+
+    payload = mock_rest_client.generate_note.call_args.args[0]
+    hpi = next(
+        e for e in payload["note_sections_customization"] if e.get("section_key") == "HISTORY_OF_PRESENT_ILLNESS"
+    )
+    instruction = hpi["custom_instruction"]
+
+    # Combined HPI+ROS instruction must stay within Nabla's 700-character limit.
+    assert len(instruction) <= 700, f"HPI/ROS instruction is {len(instruction)} chars (>700)"
+
+    # HPI: full-sentence narrative with a clear subject, and no duplicate demographic
+    # intro (the opener already states name/age, so the narrative must not restate them).
+    assert "Open with one sentence in this exact format:" in instruction
+    assert "clear subject" in instruction
+    assert "do not restate the name or age" in instruction
+
+    # ROS: Nabla picks the systems (no fixed list), but the parseable format is pinned —
+    # the standalone "ROS" marker (_split_ros) and 1-3 word "System: findings" rows
+    # (parse_ros_subsections).
+    assert "you choose them" in instruction
+    assert 'a line containing only "ROS"' in instruction
+    assert '"System: findings"' in instruction
+    assert "1-3 word name" in instruction
+    assert "Never exceed three words." in instruction
+
+    # The old hard-coded ROS system scaffold is gone.
+    assert "Musculoskeletal:" not in instruction
+
+
 def test_generate_note_with_unknown_gender_omits_field() -> None:
     backend, mock_rest_client = _make_backend()
     mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
