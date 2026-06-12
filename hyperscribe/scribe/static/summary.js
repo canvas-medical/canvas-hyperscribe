@@ -2726,6 +2726,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               Regenerate${!selectedTemplate ? ' (select visit type)' : ''}
             </button>
           `}
+          ${recommendations.length > 0 && html`
+            <label class="hide-rejected-label hide-rejected-label--top-bar" onClick=${() => setHideRejected(prev => !prev)}>
+              Hide Rejected Recommendations
+              <div class="toggle-switch${hideRejected ? ' on' : ''}">
+                <div class="toggle-knob" />
+              </div>
+            </label>
+          `}
         </div>
       `}
       ${(isRecording || recording.entries.length > 0) && html`
@@ -2825,16 +2833,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         </div>
       `}
       ${error && html`<p class="error" style="padding: 0 16px;">${error}</p>`}
-      ${canEdit && recommendations.length > 0 && html`
-        <div class="hide-rejected-toggle">
-          <label class="hide-rejected-label" onClick=${() => setHideRejected(prev => !prev)}>
-            <div class="toggle-switch${hideRejected ? ' on' : ''}">
-              <div class="toggle-knob" />
-            </div>
-            Hide Rejected Recommendations
-          </label>
-        </div>
-      `}
       <div class=${`summary-body${inserting ? ' summary-body--inserting' : ''}`}>
         ${renderSoapGroups(effectiveSections, commandBySectionKey, handleEdit, handleDelete, {
           adHocCommands,
