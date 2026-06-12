@@ -478,8 +478,8 @@ h2 { margin-bottom: 4px; }
 }
 @keyframes approve-spin { to { transform: rotate(360deg); } }
 
-.hide-rejected-toggle { display: flex; justify-content: flex-end; padding: 8px 8px 0; }
 .hide-rejected-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #6b7280; cursor: pointer; user-select: none; }
+.hide-rejected-label--top-bar { margin-left: auto; white-space: nowrap; }
 .toggle-switch { width: 36px; height: 20px; border-radius: 10px; background: #d1d5db; position: relative; transition: background 0.2s; flex-shrink: 0; }
 .toggle-switch.on { background: #16a34a; }
 .toggle-knob { width: 16px; height: 16px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
