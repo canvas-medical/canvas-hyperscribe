@@ -348,7 +348,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onRemoveChargeByUuid } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onRemoveChargeByUuid, examTemplates, onCarryForwardExam } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -411,6 +411,8 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         alertFacilityEnabled=${alertFacilityEnabled}
         onEditingChange=${onEditingChange}
         questionnaireScores=${isObjective ? questionnaireScores : null}
+        examTemplates=${(isObjective || isSubjective) ? examTemplates : null}
+        onCarryForwardExam=${(isObjective || isSubjective) ? onCarryForwardExam : null}
       />`;
     })
     .filter(Boolean);
@@ -467,6 +469,24 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [cachedTemplateName, setCachedTemplateName] = useState(initSummary?.selected_template_name ?? null);
   const cacheLoadedRef = useRef(!!initialData);
   const addNowAttemptedRef = useRef([]);
+  // KOALA-5687: amend edits use VOID_RECREATE (EnterInError old uuid + originate
+  // new uuid). Between the EIE and the local re-stamp there's a window where the
+  // chart's uuids no longer match local state; a syncNoteCommands landing in that
+  // window would drop the local rich card and re-append the chart row stamped
+  // `from_the_note`, reshuffling amended 1st-party commands into ADDITIONAL
+  // COMMANDS. Three coordinated guards keep the sync from corrupting state:
+  //   - amendEditInFlightRef: true for the duration of /edit-existing-commands +
+  //     re-stamp; syncNoteCommands bails if it sees this set (at fetch start or
+  //     after the fetch resolves).
+  //   - amendGenRef: bumped once each amend completes; a sync that captured an
+  //     older generation before its fetch bails after the await (the amend
+  //     finished mid-fetch).
+  //   - amendUuidRemapRef: accumulates old_uuid -> new_uuid across the session so
+  //     a sync that still holds an old uuid can bridge it to the re-originated
+  //     command instead of dropping the rich local card.
+  const amendEditInFlightRef = useRef(false);
+  const amendGenRef = useRef(0);
+  const amendUuidRemapRef = useRef(new Map());
   // KOALA_5634_RECOMMENDATIONS_REF: live mirror of `recommendations`. syncNoteCommands
   // needs to consult both `commands` (via the `setCommands(prev => ...)` updater) AND
   // `recommendations` when deciding whether a fetched uuid is "Scribe-side" vs
@@ -745,16 +765,30 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // "on the note" signal.
     const onNote = (c) => c.already_documented || c.command_uuid;
     const documentedCount = commands.filter(onNote).length;
+    // KOALA-5687: keep recommendations that are already on the note (accepted +
+    // inserted: command_uuid + already_documented). They live in the
+    // `recommendations` array — NOT `commands` — and carry no section_key, so
+    // syncNoteCommands relies on `recommendationUuids` (built from
+    // recommendationsRef) to keep them out of the from_the_note bucket. Blanket
+    // -clearing here emptied that guard, so the next sync re-appended these
+    // still-on-chart commands (medication_statement, allergy, refer, task,
+    // prescribe) as ADDITIONAL COMMANDS. Filtering by `onNote` preserves the
+    // KOALA-5634 protection while still dropping un-inserted AI recs (the
+    // original intent — they have no uuid/flag, so they won't re-insert).
+    const keptRecommendations = recommendations.filter(onNote);
     logEvent('AMENDMENT_STARTED', {
       commands_at_start: documentedCount,
       dropped_commands: commands.length - documentedCount,
-      dropped_recommendations: recommendations.length,
+      dropped_recommendations: recommendations.length - keptRecommendations.length,
     });
     // Scribe should mirror the signed note during amendment: drop AI recs that
     // never made it into the note. Leaving them in state would also re-insert
     // them on re-Approve via the `insertable` filter.
     setCommands(prev => prev.filter(onNote));
-    setRecommendations([]);
+    // commitRecommendations primes recommendationsRef synchronously so the very
+    // next syncNoteCommands sees the kept uuids and keeps them out of
+    // ADDITIONAL COMMANDS (KOALA_5634_RECOMMENDATIONS_REF).
+    commitRecommendations(keptRecommendations);
     setUnmatchedConditions([]);
     setDiagnosisSuggestions({});
     setApproved(false);
@@ -779,6 +813,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // outside the Scribe).
   const syncNoteCommands = useCallback(async () => {
     if (!noteId) return;
+    // KOALA-5687: don't sync while an amend edit is mid-flight. The window
+    // between EnterInError (old uuid voided on the chart) and the local
+    // re-stamp (local rows updated to the new uuids) is exactly when a sync
+    // would see the old uuid missing from the fetch, drop the rich local card,
+    // and re-append the chart row as a `from_the_note` bucket — reshuffling
+    // amended 1st-party commands into ADDITIONAL COMMANDS.
+    if (amendEditInFlightRef.current) return;
+    const genAtFetchStart = amendGenRef.current;
     try {
       const res = await fetch(
         `${API_BASE}/note-commands?note_id=${encodeURIComponent(noteId)}`,
@@ -786,6 +828,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       );
       if (!res.ok) return;
       const data = await res.json();
+      // KOALA-5687: if an amend started or completed while this fetch was in
+      // flight, the payload is stale (taken against pre-amend chart uuids).
+      // Bail — a fresh sync will run after the amend settles.
+      if (amendEditInFlightRef.current || amendGenRef.current !== genAtFetchStart) return;
       const fetched = data.commands || [];
       const fetchedByUuid = new Map(fetched.map(c => [c.command_uuid, c]));
       // KOALA_5634_SYNC_CONSULTS_RECOMMENDATIONS: collect uuids from the live
@@ -799,6 +845,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           .map(r => r && r.command_uuid)
           .filter(Boolean)
       );
+      // KOALA-5687: old_uuid -> new_uuid for commands re-originated by amend
+      // this session. Lets the drop branch below bridge a local card whose
+      // (old) uuid is gone from the chart to its re-originated row, keeping the
+      // rich local entry (snake command_type + structured data + original
+      // section_key) instead of losing it to the thin `from_the_note` fetch.
+      const amendRemap = amendUuidRemapRef.current;
       setCommands(prev => {
         const merged = [];
         const keptUuids = new Set();
@@ -823,6 +875,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               merged.push({ ...cmd, already_documented: true });
             }
             keptUuids.add(cmd.command_uuid);
+            continue;
+          }
+          // KOALA-5687: the local uuid is gone from the chart. Before dropping,
+          // check whether amend re-originated this command under a new uuid that
+          // IS on the chart. If so, keep the rich local card under the new uuid
+          // (preserving its SOAP section_key + structured data) rather than
+          // letting it fall away and resurface as a thin `from_the_note` card.
+          const bridgedUuid = amendRemap.get(cmd.command_uuid);
+          if (bridgedUuid && fetchedByUuid.has(bridgedUuid) && !keptUuids.has(bridgedUuid)) {
+            merged.push({ ...cmd, command_uuid: bridgedUuid, already_documented: true });
+            keptUuids.add(bridgedUuid);
+            continue;
           }
           // else: had a UUID but it's gone from the note → drop.
         }
@@ -1026,8 +1090,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           note_id: noteId,
           note_uuid: noteId,
           patient_id: patientId,
-          template_ros_sections: selectedTemplate?.ros_sections || null,
-          template_pe_sections: selectedTemplate?.pe_sections || null,
           patient_context: {
             name: patientName || '',
             birth_date: patientBirthDate || '',
@@ -1295,6 +1357,21 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     setUnmatchedConditions(codes.filter(c => !matchedSet.has(c)));
   }, [sectionConditions, commands, noteData, unmatchedConditions]);
 
+
+  // Carry forward the most recent prior Physical Exam / Review of Systems the
+  // provider documented in Scribe (last note they were the provider on).
+  // Returns an array of {key,title,text} sections, or [] when none is found.
+  const handleCarryForwardExam = useCallback(async (kind) => {
+    try {
+      const res = await fetch(`${API_BASE}/last-exam?note_id=${encodeURIComponent(noteId)}&kind=${encodeURIComponent(kind)}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data.sections) ? data.sections : [];
+    } catch (e) {
+      console.error('carry-forward exam failed:', e);
+      return [];
+    }
+  }, [noteId]);
 
   const handleEdit = useCallback((index, newData, newType) => {
     logEvent('EDIT_COMMAND', { index, commandType: newType || commands[index]?.command_type, sectionKey: commands[index]?.section_key, data: newData });
@@ -1902,6 +1979,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       const amendPayload = amendEdits.map(({ _template_inserted, _amend_edited, ...rest }) => rest);
       logEvent('AMEND_EDIT_SENDING', { count: amendPayload.length, sectionKeys: amendPayload.map(c => c.section_key) });
       try {
+        // KOALA-5687: guard the EIE→re-stamp window. While this is set,
+        // syncNoteCommands bails instead of dropping the (about-to-be-voided)
+        // local rows and re-bucketing the re-originated rows into ADDITIONAL
+        // COMMANDS. Cleared on every exit path of this block.
+        amendEditInFlightRef.current = true;
         const editRes = await fetch(`${API_BASE}/edit-existing-commands`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1928,6 +2010,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           // already-voided deleted commands on reload. Mirrors 1539 / 1692.
           saveSummaryToCache(noteData, workingCommands, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions, selected_template_name: selectedTemplate?.name || null, mode });
           setInserting(false);
+          amendEditInFlightRef.current = false;
           logEvent('AMEND_EDIT_ERROR', { error: editData.error, conflicts: editData.conflicts || null });
           return;
         }
@@ -1962,12 +2045,22 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           diagnosis_suggestions: diagnosisSuggestions,
           selected_template_name: selectedTemplate?.name || null, mode,
         });
+        // KOALA-5687: record this session's old→new uuid mappings so a later
+        // sync can bridge a stale local uuid to its re-originated row, bump the
+        // amend generation so a sync that raced this edit bails, then release
+        // the in-flight guard now that local state mirrors the chart.
+        for (const [oldUuid, newUuid] of amendUuidRemap) {
+          amendUuidRemapRef.current.set(oldUuid, newUuid);
+        }
+        amendGenRef.current += 1;
+        amendEditInFlightRef.current = false;
       } catch (err) {
         console.error('Amend edits failed:', err);
         setError('Failed to apply amendment edits');
         setApproved(false);
         setConfirming(false);
         setInserting(false);
+        amendEditInFlightRef.current = false;
         logEvent('AMEND_EDIT_ERROR', { error: 'network' });
         return;
       }
@@ -2726,6 +2819,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               Regenerate${!selectedTemplate ? ' (select visit type)' : ''}
             </button>
           `}
+          ${recommendations.length > 0 && html`
+            <label class="hide-rejected-label hide-rejected-label--top-bar" onClick=${() => setHideRejected(prev => !prev)}>
+              Hide Rejected Recommendations
+              <div class="toggle-switch${hideRejected ? ' on' : ''}">
+                <div class="toggle-knob" />
+              </div>
+            </label>
+          `}
         </div>
       `}
       ${(isRecording || recording.entries.length > 0) && html`
@@ -2825,16 +2926,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         </div>
       `}
       ${error && html`<p class="error" style="padding: 0 16px;">${error}</p>`}
-      ${canEdit && recommendations.length > 0 && html`
-        <div class="hide-rejected-toggle">
-          <label class="hide-rejected-label" onClick=${() => setHideRejected(prev => !prev)}>
-            <div class="toggle-switch${hideRejected ? ' on' : ''}">
-              <div class="toggle-knob" />
-            </div>
-            Hide Rejected Recommendations
-          </label>
-        </div>
-      `}
       <div class=${`summary-body${inserting ? ' summary-body--inserting' : ''}`}>
         ${renderSoapGroups(effectiveSections, commandBySectionKey, handleEdit, handleDelete, {
           adHocCommands,
@@ -2887,6 +2978,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddChargeModifier: canEdit ? onAddChargeModifier : null,
           onRemoveChargeModifier: canEdit ? onRemoveChargeModifier : null,
           onRemoveChargeByUuid: canEdit ? onRemoveChargeByUuid : null,
+          examTemplates: templates,
+          onCarryForwardExam: handleCarryForwardExam,
         })}
         ${fromTheNoteCommands.length > 0 && html`
           <div class="summary-section from-the-note-section">

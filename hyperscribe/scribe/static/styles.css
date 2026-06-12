@@ -478,8 +478,8 @@ h2 { margin-bottom: 4px; }
 }
 @keyframes approve-spin { to { transform: rotate(360deg); } }
 
-.hide-rejected-toggle { display: flex; justify-content: flex-end; padding: 8px 8px 0; }
 .hide-rejected-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #6b7280; cursor: pointer; user-select: none; }
+.hide-rejected-label--top-bar { margin-left: auto; white-space: nowrap; }
 .toggle-switch { width: 36px; height: 20px; border-radius: 10px; background: #d1d5db; position: relative; transition: background 0.2s; flex-shrink: 0; }
 .toggle-switch.on { background: #16a34a; }
 .toggle-knob { width: 16px; height: 16px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
@@ -1822,3 +1822,76 @@ h2 { margin-bottom: 4px; }
 
 /* -- sign gate error (layers onto .summary-footer-warning) -- */
 .cm-sign-error { color: #c0392b; font-weight: 600; margin-top: 4px; }
+
+/* ============================================================
+   Physical Exam / Review of Systems — compact inline editor
+   (ExamSectionsRow). Scoped with the exam- prefix.
+   ============================================================ */
+
+/* DISPLAY — inline rows: system label + findings on one line */
+.exam-rows { display: flex; flex-direction: column; }
+.exam-clickable { cursor: pointer; border-radius: 8px; }
+.exam-row { display: flex; gap: 16px; padding: 6px 0; border-bottom: 1px solid #f3f4f6; align-items: baseline; }
+.exam-row:last-child { border-bottom: 0; }
+.exam-sys { flex: 0 0 150px; min-width: 0; overflow-wrap: anywhere; font-size: 12px; font-weight: 700; color: #4b5563; text-transform: uppercase; letter-spacing: .02em; padding-top: 1px; }
+.exam-find { flex: 1; font-size: 14px; line-height: 1.45; color: #1f2937; white-space: pre-line; }
+.exam-empty { padding: 14px 4px; color: #9ca3af; font-size: 14px; }
+
+/* EDIT — in-card toolbar (Apply template / Carry forward / Clear) */
+.exam-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-bottom: 14px; margin-bottom: 12px; border-bottom: 1px solid #eef0f2; }
+.exam-action-btn { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: #052B49; background: #fff; border: 1.5px solid #d1d5db; border-radius: 8px; padding: 9px 14px; cursor: pointer; transition: all .15s; }
+.exam-action-btn:hover { background: #f5f7fa; border-color: #052B49; }
+.exam-action-btn:active { background: #e8edf2; }
+.exam-action-btn:disabled { opacity: .6; cursor: wait; }
+.exam-action-btn .exam-ico { font-size: 15px; line-height: 1; opacity: .75; }
+/* Template ▾ menu — pick a template, then confirm via the shared popover. */
+.exam-dropdown { position: relative; }
+.exam-menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; min-width: 240px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 14px 36px rgba(15,23,42,.16); padding: 6px; }
+.exam-menu-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #9ca3af; padding: 6px 10px 4px; }
+.exam-menu-empty { padding: 10px; color: #9ca3af; font-size: 13px; }
+.exam-menu-item { display: block; width: 100%; text-align: left; border: 0; background: #fff; padding: 9px 10px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 14px; color: #1f2937; }
+.exam-menu-item:hover { background: #f1f5f9; }
+.exam-menu-item small { display: block; color: #9ca3af; font-size: 12px; margin-top: 1px; }
+
+/* Editable system rows */
+.exam-list { display: flex; flex-direction: column; }
+.exam-erow { display: flex; gap: 16px; padding: 8px 0; border-bottom: 1px solid #f3f4f6; align-items: flex-start; }
+.exam-erow:first-child { padding-top: 2px; }
+.exam-esys { flex: 0 0 150px; min-width: 0; overflow-wrap: anywhere; padding-top: 8px; }
+.exam-elabel { font-size: 12px; font-weight: 700; color: #4b5563; text-transform: uppercase; letter-spacing: .02em; }
+.exam-esys input { width: 100%; padding: 7px 9px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 700; color: #4b5563; text-transform: uppercase; letter-spacing: .02em; }
+.exam-esys input::placeholder { text-transform: none; font-weight: 600; letter-spacing: normal; color: #9ca3af; }
+.exam-efind { flex: 1; }
+.exam-efind textarea { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; font-size: 14px; line-height: 1.45; resize: vertical; }
+.exam-efind textarea:focus, .exam-esys input:focus { outline: none; border-color: #052B49; box-shadow: 0 0 0 3px rgba(5,43,73,.12); }
+
+/* Remove × — fixed-width slot so rows don't reflow */
+.exam-controls { flex: 0 0 30px; display: flex; justify-content: flex-end; margin-top: 6px; }
+.exam-remove { width: 26px; height: 26px; border: 1px solid transparent; background: transparent; border-radius: 6px; color: #9ca3af; cursor: pointer; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+.exam-remove:hover { color: #dc2626; border-color: #fca5a5; background: #fef2f2; }
+/* Pointer devices: × hidden until row hover/focus */
+@media (hover: hover) {
+  .exam-remove { opacity: 0; transition: opacity .12s; }
+  .exam-erow:hover .exam-remove, .exam-erow:focus-within .exam-remove { opacity: 1; }
+}
+/* Touch devices (iPad): × always visible, same size — just no reveal */
+@media (hover: none) {
+  .exam-remove { opacity: 1; border-color: #e5e7eb; background: #fff; }
+}
+
+.exam-add { padding: 10px 0 2px; }
+.exam-add-btn { display: inline-flex; align-items: center; gap: 7px; width: 100%; justify-content: center; font-size: 13px; font-weight: 600; color: #052B49; background: #fff; border: 1.5px dashed #cbd5e1; border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+.exam-add-btn:hover { background: #f8fafc; border-color: #94a3b8; }
+
+.exam-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #eef0f2; }
+
+/* Confirm dialog (carry forward / clear / apply template).
+   Scoped to the PE/ROS card (absolute within the position:relative .content-block),
+   NOT a full-viewport overlay — it dims and centers over this card only. */
+.exam-confirm-overlay { position: absolute; inset: 0; background: rgba(15,23,42,.35); display: flex; align-items: center; justify-content: center; z-index: 20; padding: 16px; border-radius: 8px; }
+.exam-confirm { background: #fff; border-radius: 12px; padding: 22px 24px; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+.exam-confirm h3 { margin: 0 0 8px; font-size: 16px; color: #052B49; }
+.exam-confirm p { margin: 0 0 18px; font-size: 14px; color: #4b5563; line-height: 1.5; }
+.exam-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.exam-confirm-go { background: #052B49; color: #fff; border: none; }
+.exam-confirm-go:hover { opacity: .92; }

@@ -215,22 +215,20 @@ class NablaBackend(ScribeBackend):
         else:
             opening = "'[PATIENT_NAME] is a [AGE]-year-old [GENDER] who presents today for [CHIEF COMPLAINT].'"
 
+        # Combined HPI + ROS instruction. Nabla folds ROS into the end of HPI, so this
+        # one string drives both; it is subject to a 700-character limit. The ROS is no
+        # longer a fixed system list — Nabla picks clinically-appropriate systems — but
+        # the format is constrained so the downstream parsers still work: a standalone
+        # "ROS" marker line (for _split_ros) and "System: findings" rows with 1-3 word
+        # labels (for parse_ros_subsections).
         hpi_custom_instructions = (
-            f"Begin this section with a single opening sentence in this exact format: {opening}\n"
-            "If the provider dictates a structured summary, use it as the PRIMARY source.\n"
-            "Write in complete sentences with clear subjects. "
-            "Do not use sentence fragments or omit the subject of a sentence. "
-            "Use formal medical terminology and a professional clinical narrative tone throughout.\n"
-            "Include ROS at the end of this section and add positive and negative symptoms as mentioned.\n"
-            "ROS\n"
-            "General:\n"
-            "Skin:\n"
-            "HEENT:\n"
-            "Cardiovascular:\n"
-            "Respiratory:\n"
-            "Gastrointestinal:\n"
-            "Genitourinary:\n"
-            "Musculoskeletal:"
+            f"Open with one sentence in this exact format: {opening}\n"
+            "After it, write complete sentences with a clear subject; do not restate the name or "
+            "age, and avoid fragments. Use any dictated structured summary as the PRIMARY source.\n"
+            "End with a complete Review of Systems covering whatever systems are clinically "
+            "appropriate (you choose them), with positive and negative findings. To parse it: a "
+            'line containing only "ROS", then each system on its own line as "System: findings", '
+            "with a 1-3 word name (e.g. General, HEENT, Cardiovascular). Never exceed three words."
         )
 
         payload: dict[str, Any] = {
@@ -272,8 +270,8 @@ class NablaBackend(ScribeBackend):
                         "activities. Document only what is actually discussed; name the relative and "
                         "relationship. Do not attribute the relatives of the clinician, a caregiver, or "
                         "a companion in the room to the patient; when the relationship or speaker is "
-                        "unclear, omit rather than guess. Never add filler such as \"no other family "
-                        "history discussed.\" If none is discussed, leave empty."
+                        'unclear, omit rather than guess. Never add filler such as "no other family '
+                        'history discussed." If none is discussed, leave empty.'
                     ),
                 },
                 {
