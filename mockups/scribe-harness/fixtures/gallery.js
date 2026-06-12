@@ -16,6 +16,7 @@ import htm from 'https://esm.sh/htm@3.1.1';
 import { CommandRow } from '/plugin-io/api/hyperscribe/scribe/static/command-row.js';
 import { VitalsRow } from '/plugin-io/api/hyperscribe/scribe/static/vitals-row.js';
 import { HistoryReviewRow } from '/plugin-io/api/hyperscribe/scribe/static/history-review-row.js';
+import { ExamSectionsRow } from '/plugin-io/api/hyperscribe/scribe/static/sections-exam-row.js';
 import { HistoryEntryRow } from '/plugin-io/api/hyperscribe/scribe/static/history-entry-row.js';
 import { MedicationRow } from '/plugin-io/api/hyperscribe/scribe/static/medication-row.js';
 import { AllergyRow } from '/plugin-io/api/hyperscribe/scribe/static/allergy-row.js';
@@ -76,10 +77,15 @@ const GROUPS = [
       { name: 'editing (new)', props: { command: emptyVitals } },
       { name: 'read-only', props: { command: c.vitals(), readOnly: true } },
     ] },
-  { title: 'HistoryReviewRow', file: 'history-review-row.js', note: 'ROS & Physical Exam (Subsequent Visit template)',
+  { title: 'ExamSectionsRow', file: 'sections-exam-row.js', note: 'Physical Exam & ROS section editor — carry-forward + visit-template fill (Subsequent Visit template content)',
+    Comp: ExamSectionsRow, states: [
+      { name: 'Physical Exam (view)', props: { command: c.physicalExam(), sectionKind: 'physical_exam', templates: [], onCarryForward: noop } },
+      { name: 'ROS (view)', props: { command: c.reviewOfSystems(), sectionKind: 'ros', templates: [], onCarryForward: noop } },
+      { name: 'read-only', props: { command: c.physicalExam(), sectionKind: 'physical_exam', readOnly: true, templates: [], onCarryForward: noop } },
+    ] },
+  { title: 'HistoryReviewRow', file: 'history-review-row.js', note: 'Structured review sections (chart review / history review)',
     Comp: HistoryReviewRow, states: [
-      { name: 'ROS (view)', props: { command: c.reviewOfSystems() } },
-      { name: 'Physical Exam (view)', props: { command: c.physicalExam() } },
+      { name: 'review sections (view)', props: { command: c.reviewOfSystems() } },
       { name: 'read-only', props: { command: c.reviewOfSystems(), readOnly: true } },
     ] },
   { title: 'HistoryEntryRow', file: 'history-entry-row.js', note: 'medical / surgical / family history entries',

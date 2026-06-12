@@ -74,7 +74,7 @@ export const HEADER_STATES = [
     caption: 'Recording finished, no summary yet. The header offers “Recording complete — Generate a structured summary”.',
     config: cfg({}, { mode: 'ai', note: null }, { started: true, finalized: true, items: ITEMS }) },
   { id: 'review', label: '6 · In review (with recommendations)',
-    caption: 'A summary has been generated and includes AI recommendations, so the "Hide Rejected Recommendations" toggle appears above the body.',
+    caption: 'A summary has been generated and includes AI recommendations, so the "Hide Rejected Recommendations" toggle appears in the top bar (right-aligned, in line with the visit type).',
     config: cfg({}, { mode: 'ai', note: NOTE, recommendations: RECS }, { started: true, finalized: true, items: ITEMS }) },
   { id: 'amending', label: '7 · Amending (after sign)',
     caption: 'The signed note is reopened to amend. An amber pill reads “Editing charting”.',

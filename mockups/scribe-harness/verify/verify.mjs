@@ -79,7 +79,9 @@ const hdr = await page.evaluate(() => {
     generateBanner: has('.summary-generate-banner'),
     subjectiveContext,
     recTranscript: recCard ? recCard.querySelectorAll('.transcript-entry').length : 0,
-    reviewToggle: !!document.querySelector('#h-review .hide-rejected-toggle'),
+    // feat/canvas-scribe relocated this into the top bar (label-first, switch-last):
+    // class is now `.hide-rejected-label--top-bar`. Accept either, for resilience.
+    reviewToggle: !!document.querySelector('#h-review .hide-rejected-label--top-bar, #h-review .hide-rejected-toggle'),
   };
 });
 ok(hdr.count === 10, `10 header-state cards (got ${hdr.count})`);
