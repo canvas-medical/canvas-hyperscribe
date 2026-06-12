@@ -91,7 +91,7 @@ class ExperimentRunner:
                     case_id=record["case_id"],
                     model_generator_id=record["model_note_generator_id"],
                     model_grader_id=record["model_note_grader_id"],
-                    cycle_overlap=record["cycle_transcript_overlap"]
+                    cycle_overlap=record["cycle_transcript_overlap"],
                 )
             )
 
