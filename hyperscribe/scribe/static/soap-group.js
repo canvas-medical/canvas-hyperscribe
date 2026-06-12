@@ -239,7 +239,20 @@ const HISTORY_ADD_LABELS = {
 function wasInserted(cmd, isRec = false) {
   // Items added via "Add Now" were already inserted — show them in approved view.
   if (cmd._added_now) return true;
-  if (isRec) return !!(cmd.accepted && !cmd.already_documented && cmd.display);
+  if (isRec) {
+    // KOALA-5687: mirror the command branch's KOALA-5485 semantics for recs.
+    // An accepted recommendation inserted via the Approve flow carries a
+    // command_uuid AND already_documented — it IS on the note and must keep
+    // rendering in its SOAP section in the approved/readOnly view. The previous
+    // `accepted && !already_documented` test hid EVERY such inserted rec
+    // (medication_statement, allergy, refer, task, prescribe) post-approve; that
+    // was latent until KOALA-5687 stopped them reshuffling into ADDITIONAL
+    // COMMANDS, which had been the only thing rendering them. already_documented
+    // WITHOUT a command_uuid is external/legacy chart context → stay hidden.
+    if (!cmd.accepted || !cmd.display) return false;
+    if (cmd.already_documented && !cmd.command_uuid) return false;
+    return true;
+  }
   // KOALA-5485 changed ``already_documented`` semantics: it now also gets
   // stamped on commands inserted via THIS session's Approve (so amendment
   // mode can identify what's in the chart). A command with both flags set
@@ -249,13 +262,19 @@ function wasInserted(cmd, isRec = false) {
   // this session (legacy chart commands loaded for context) and should hide.
   if (cmd.already_documented && !cmd.command_uuid) return false;
   if (!cmd.display) return false;
-  if (cmd.command_type === 'imaging_order' && (!cmd.data.image_code || !cmd.data.service_provider || !cmd.data.ordering_provider_id || !cmd.data.diagnosis_codes || cmd.data.diagnosis_codes.length === 0)) return false;
-  if (cmd.command_type === 'prescribe' && (!cmd.data.fdb_code || !cmd.data.sig || cmd.data.quantity_to_dispense == null || !cmd.data.type_to_dispense || cmd.data.refills == null)) return false;
-  if ((cmd.command_type === 'refill' || cmd.command_type === 'adjust_prescription') && !cmd.data.fdb_code) return false;
-  if (cmd.command_type === 'lab_order' && (!cmd.data.lab_partner || !cmd.data.tests_order_codes || cmd.data.tests_order_codes.length === 0)) return false;
-  if (cmd.command_type === 'refer' && (!cmd.data.service_provider || !cmd.data.clinical_question || !cmd.data.notes_to_specialist || !cmd.data.diagnosis_codes || cmd.data.diagnosis_codes.length === 0)) return false;
-  if (cmd.command_type === 'perform' && (!cmd.data.cpt_code || cmd.selected === false)) return false;
-  if (cmd.command_type === 'diagnose' && (!cmd.data.icd10_code || !cmd.data.accepted)) return false;
+  // KOALA-5687: tolerate a missing `data` object. A thin `from_the_note` card
+  // (label + details, no structured `data`) must never reach this function in a
+  // SOAP group post-fix, but an unguarded `cmd.data.x` read here would throw and
+  // blank the entire Scribe tab if one ever did. Default to {} so an incomplete
+  // command is treated as "not inserted" instead of crashing the render.
+  const data = cmd.data || {};
+  if (cmd.command_type === 'imaging_order' && (!data.image_code || !data.service_provider || !data.ordering_provider_id || !data.diagnosis_codes || data.diagnosis_codes.length === 0)) return false;
+  if (cmd.command_type === 'prescribe' && (!data.fdb_code || !data.sig || data.quantity_to_dispense == null || !data.type_to_dispense || data.refills == null)) return false;
+  if ((cmd.command_type === 'refill' || cmd.command_type === 'adjust_prescription') && !data.fdb_code) return false;
+  if (cmd.command_type === 'lab_order' && (!data.lab_partner || !data.tests_order_codes || data.tests_order_codes.length === 0)) return false;
+  if (cmd.command_type === 'refer' && (!data.service_provider || !data.clinical_question || !data.notes_to_specialist || !data.diagnosis_codes || data.diagnosis_codes.length === 0)) return false;
+  if (cmd.command_type === 'perform' && (!data.cpt_code || cmd.selected === false)) return false;
+  if (cmd.command_type === 'diagnose' && (!data.icd10_code || !data.accepted)) return false;
   return true;
 }
 
@@ -726,12 +745,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                     `;
                   })}
-                  ${cmds.filter(e => e.command.command_type === 'diagnose' && (!readOnly || wasInserted(e.command)) && (!shouldHideRejected || !e.command.data.rejected)).map(entry => {
-                    const hasCode = !!entry.command.data.icd10_code;
-                    const isAccepted = hasCode && entry.command.data.accepted;
-                    const isRejected = entry.command.data.rejected;
+                  ${cmds.filter(e => e.command.command_type === 'diagnose' && (!readOnly || wasInserted(e.command)) && (!shouldHideRejected || !(e.command.data && e.command.data.rejected))).map(entry => {
+                    // KOALA-5687: default `data` to {} — an unguarded read here
+                    // throws and blanks the whole tab if a dataless card ever
+                    // lands in this group (see wasInserted note).
+                    const dxData = entry.command.data || {};
+                    const hasCode = !!dxData.icd10_code;
+                    const isAccepted = hasCode && dxData.accepted;
+                    const isRejected = dxData.rejected;
                     const isIncomplete = !hasCode && !isRejected;
-                    const header = entry.command.data.condition_header || '';
+                    const header = dxData.condition_header || '';
                     const suggestions = (!hasCode && !isRejected && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
 
                     const handleAcceptDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, accepted: true, rejected: false }, 'diagnose');

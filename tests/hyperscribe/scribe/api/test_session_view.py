@@ -1894,6 +1894,276 @@ def test_summary_js_commit_recommendations_helper_centralizes_prime() -> None:
         )
 
 
+def _sync_note_commands_body(src: str) -> str:
+    """Return the source of the ``syncNoteCommands`` useCallback body.
+
+    Walks braces from the callback declaration to its matching close so the
+    structural pins below scope their assertions to the merge logic only.
+    """
+    sync_decl = "const syncNoteCommands = useCallback(async () => {"
+    sync_idx = src.find(sync_decl)
+    assert sync_idx != -1, (
+        "Expected `const syncNoteCommands = useCallback(async () => {` in "
+        "summary.js. If the callback signature changed, update this helper."
+    )
+    open_brace_pos = sync_idx + len(sync_decl) - 1
+    depth = 0
+    for i in range(open_brace_pos, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return src[sync_idx:i]
+    raise AssertionError("Could not find matching close brace for syncNoteCommands callback body.")
+
+
+def test_summary_js_section_key_remap_removed() -> None:
+    """KOALA-5687 (fix correction): the frontend ``SCHEMA_KEY_TO_SECTION_KEY``
+    remap was removed.
+
+    Background: ``/note-commands`` returns thin cards — ``command_type`` is
+    home-app's raw camelCase ``schema_key`` and there is NO structured ``data``.
+    The SOAP-group renderers key off snake_case ``command_type`` and read
+    ``command.data.*``. Re-bucketing a thin ``from_the_note`` card into a SOAP
+    section therefore produced cards the renderer either silently dropped
+    (camelCase mismatch — e.g. medications) or crashed on (unguarded
+    ``data.rejected`` read — blank tab). The remap was the wrong layer; the fix
+    is to keep the rich local command across the amend uuid change instead.
+
+    Pins that the map is gone and the ``from_the_note`` fallback append is
+    intact (thin chart cards still land in ADDITIONAL COMMANDS, unchanged).
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "SCHEMA_KEY_TO_SECTION_KEY" not in src, (
+        "The SCHEMA_KEY_TO_SECTION_KEY remap must stay removed. It re-bucketed "
+        "thin `from_the_note` cards (camelCase command_type, no `data`) into "
+        "SOAP groups, which the snake_case + data-driven renderers drop or "
+        "crash on (KOALA-5687). Keep amended commands rich-local instead."
+    )
+
+    body = _sync_note_commands_body(src)
+    assert "merged.push(cmd);" in body, (
+        "syncNoteCommands must retain the literal `merged.push(cmd);` append so "
+        "genuinely ad-hoc note-body commands still land in ADDITIONAL COMMANDS "
+        "under their `from_the_note` section_key."
+    )
+
+
+def test_summary_js_sync_guards_against_amend_race() -> None:
+    """KOALA-5687: ``syncNoteCommands`` must not corrupt state while an amend
+    edit is in flight.
+
+    The amend VOID_RECREATE window (EnterInError old uuid → originate new uuid →
+    local re-stamp) is when a racing sync would see the old uuid missing from
+    the fetch, drop the rich local card, and re-append the chart row as a
+    ``from_the_note`` bucket. Two guards close the window:
+      1. An in-flight flag (``amendEditInFlightRef``) — a bare early-return at
+         the top AND a re-check after the fetch resolves (the fetch may land
+         mid-window).
+      2. A generation counter (``amendGenRef``) captured before the fetch and
+         compared after it — catches a sync whose fetch resolves just after the
+         amend completed (flag already cleared).
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+    body = _sync_note_commands_body(src)
+
+    # (1) In-flight guard must be consulted at least twice: once before the
+    # fetch (don't even start) and once after the await (the fetch landed
+    # mid-window). Pre-fix code referenced this ref zero times.
+    inflight_checks = body.count("amendEditInFlightRef.current")
+    assert inflight_checks >= 2, (
+        "syncNoteCommands must check `amendEditInFlightRef.current` both before "
+        "the /note-commands fetch and after it resolves, so a sync landing in "
+        "the EIE→re-stamp window bails instead of reshuffling amended commands "
+        f"into ADDITIONAL COMMANDS (KOALA-5687). Found {inflight_checks} check(s)."
+    )
+
+    # (2) Generation counter: captured before the fetch and re-compared after,
+    # so a sync whose fetch resolves right after the amend settles bails too.
+    assert "amendGenRef.current" in body, (
+        "syncNoteCommands must capture `amendGenRef.current` before the fetch "
+        "and compare it after, to bail when an amend completed mid-fetch "
+        "(KOALA-5687)."
+    )
+    assert "!== genAtFetchStart" in body or "genAtFetchStart !==" in body, (
+        "syncNoteCommands must compare the captured amend generation against "
+        "`amendGenRef.current` after the fetch resolves (KOALA-5687)."
+    )
+
+
+def test_summary_js_sync_bridges_amend_uuids() -> None:
+    """KOALA-5687: when a local command's uuid is gone from the chart but amend
+    re-originated it under a new uuid that IS on the chart, the merge keeps the
+    rich local card under the new uuid instead of dropping it.
+
+    This is what actually returns amended 1st-party commands to their SOAP
+    section: the local row carries the snake_case command_type, structured
+    ``data``, and original ``section_key`` — none of which the thin
+    ``/note-commands`` payload can reconstruct.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+    body = _sync_note_commands_body(src)
+
+    assert "amendUuidRemapRef.current" in body, (
+        "syncNoteCommands must consult `amendUuidRemapRef.current` (old→new uuid "
+        "bridge) before dropping a local command whose uuid vanished from the "
+        "chart (KOALA-5687)."
+    )
+    # The bridge keeps the LOCAL card (spread of `cmd`) re-stamped with the
+    # bridged uuid — not the thin fetched card.
+    assert "command_uuid: bridgedUuid" in body, (
+        "The bridge branch must keep the rich local command under the "
+        "re-originated uuid (`{ ...cmd, command_uuid: bridgedUuid, ... }`), "
+        "preserving its SOAP section_key + structured data (KOALA-5687)."
+    )
+
+
+def test_summary_js_handleinsert_brackets_amend_with_guard() -> None:
+    """KOALA-5687: handleInsert must raise the in-flight guard before
+    /edit-existing-commands and lower it — plus record the uuid remap and bump
+    the generation — after the re-stamp, on every exit path.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "amendEditInFlightRef.current = true" in src, (
+        "handleInsert must set `amendEditInFlightRef.current = true` before the "
+        "/edit-existing-commands POST so a racing sync bails (KOALA-5687)."
+    )
+    # Cleared on success AND both failure exits (error-return + catch) — three
+    # `= false` sites bracket the window.
+    clears = src.count("amendEditInFlightRef.current = false")
+    assert clears >= 3, (
+        "handleInsert must clear `amendEditInFlightRef.current` on every exit of "
+        "the amend-edit block (success, validation-error return, network catch). "
+        f"Found {clears} clear site(s) (KOALA-5687)."
+    )
+    assert "amendGenRef.current += 1" in src, (
+        "handleInsert must bump `amendGenRef.current` after the amend re-stamp "
+        "so a sync that raced the edit bails on the generation check "
+        "(KOALA-5687)."
+    )
+    assert "amendUuidRemapRef.current.set(" in src, (
+        "handleInsert must record this session's old→new uuid mappings into "
+        "`amendUuidRemapRef` after the re-stamp so the sync bridge can keep "
+        "rich local cards (KOALA-5687)."
+    )
+
+
+def test_summary_js_make_changes_preserves_on_note_recommendations() -> None:
+    """KOALA-5687: starting an amend must NOT blanket-clear recommendations.
+
+    Accepted recommendations (medication_statement, allergy, refer, task,
+    prescribe) live in the `recommendations` array with command_uuid +
+    already_documented and carry NO section_key — syncNoteCommands keeps them
+    out of the from_the_note bucket only via `recommendationUuids` (built from
+    recommendationsRef). A blanket `setRecommendations([])` in handleMakeChanges
+    emptied that guard, so the next sync re-appended these still-on-chart
+    commands as ADDITIONAL COMMANDS. handleMakeChanges must instead keep the
+    on-note recommendations (filter by the same `onNote` predicate it uses for
+    commands) and prime the ref so the guard survives the amend.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    decl = "const handleMakeChanges = useCallback("
+    start = src.find(decl)
+    assert start != -1, "Expected `const handleMakeChanges = useCallback(` in summary.js."
+    open_brace_pos = src.find("{", start)
+    depth = 0
+    end = -1
+    for i in range(open_brace_pos, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    assert end != -1, "Could not find handleMakeChanges body."
+    body = src[start:end]
+
+    assert "setRecommendations([])" not in body, (
+        "handleMakeChanges must NOT blanket-clear recommendations — that drops "
+        "accepted/inserted recs from the array, emptying the recommendationUuids "
+        "guard so the next sync reshuffles them into ADDITIONAL COMMANDS "
+        "(KOALA-5687)."
+    )
+    assert "recommendations.filter(onNote)" in body, (
+        "handleMakeChanges must keep on-note recommendations via "
+        "`recommendations.filter(onNote)` (same predicate as commands), so "
+        "accepted recs stay in their SOAP section through the amend (KOALA-5687)."
+    )
+    assert "commitRecommendations(keptRecommendations)" in body, (
+        "handleMakeChanges must commit the kept recommendations via "
+        "`commitRecommendations(...)` so recommendationsRef is primed "
+        "synchronously for the next syncNoteCommands (KOALA_5634_RECOMMENDATIONS_REF)."
+    )
+
+
+def test_soap_group_js_wasinserted_rec_branch_keys_off_command_uuid() -> None:
+    """KOALA-5687: an accepted recommendation that was inserted (command_uuid +
+    already_documented) must still render in its SOAP section in the readOnly
+    view — mirroring the command branch's KOALA-5485 semantics.
+
+    The stale rec branch `accepted && !already_documented && display` hid every
+    inserted rec (medication_statement, allergy, refer, task, prescribe) once
+    approved; the bug only surfaced after the reshuffle into ADDITIONAL COMMANDS
+    was fixed (that had been the only thing rendering them). Pin that the rec
+    branch now distinguishes on `command_uuid` and no longer uses the old test.
+    """
+    from pathlib import Path
+
+    soap_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "soap-group.js"
+    src = soap_js.read_text()
+
+    decl = "function wasInserted(cmd, isRec = false) {"
+    start = src.find(decl)
+    assert start != -1, "Expected `function wasInserted(cmd, isRec = false) {` in soap-group.js."
+    open_brace_pos = start + len(decl) - 1
+    depth = 0
+    end = -1
+    for i in range(open_brace_pos, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    assert end != -1, "Could not find wasInserted body."
+    body = src[start:end]
+
+    # The rec branch must gate on command_uuid (on-note signal), not the stale
+    # "hide anything already_documented" test.
+    assert "cmd.already_documented && !cmd.command_uuid" in body, (
+        "wasInserted's recommendation branch must hide a rec only when it is "
+        "already_documented WITHOUT a command_uuid (external/legacy context), so "
+        "accepted recs inserted this session keep rendering post-approve "
+        "(KOALA-5687)."
+    )
+    assert "cmd.accepted && !cmd.already_documented && cmd.display" not in body, (
+        "The stale rec test `accepted && !already_documented && display` must be "
+        "gone — it hid every inserted recommendation in the approved view "
+        "(KOALA-5687)."
+    )
+
+
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.build_effects")
 def test_insert_commands_audit_payload_excludes_display_phi(mock_build: MagicMock, mock_audit: MagicMock) -> None:
