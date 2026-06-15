@@ -41,7 +41,7 @@ def test_to_dict():
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "line 1\nline 2\nline 3"},
+                    {"type": "text", "text": "line 1\nline 2\nline 3", "cache_control": {"type": "ephemeral"}},
                     {"type": "text", "text": "line 4\nline 5\nline 6"},
                 ],
             },
@@ -62,7 +62,7 @@ def test_to_dict():
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "line 1\nline 2\nline 3"},
+                    {"type": "text", "text": "line 1\nline 2\nline 3", "cache_control": {"type": "ephemeral"}},
                     {"type": "text", "text": "line 4\nline 5\nline 6"},
                 ],
             },
