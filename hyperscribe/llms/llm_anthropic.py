@@ -18,7 +18,14 @@ class LlmAnthropic(LlmBase):
         roles = {self.ROLE_SYSTEM: "user", self.ROLE_USER: "user", self.ROLE_MODEL: "assistant"}
         for prompt in self.prompts:
             role = roles[prompt.role]
-            part = {"type": "text", "text": "\n".join(prompt.text)}
+            part: dict = {"type": "text", "text": "\n".join(prompt.text)}
+            # Cache the stable system instructions (Anthropic prompt caching) so the
+            # repeated stage calls within a session reuse the prefix instead of
+            # re-billing it on every audio cycle. The volatile transcript/data lives in
+            # the user prompt, which stays uncached. System prompts below the model's
+            # minimum cacheable size are silently left uncached, so this is a safe no-op.
+            if prompt.role == self.ROLE_SYSTEM:
+                part["cache_control"] = {"type": "ephemeral"}
             # contiguous parts for the same role are merged
             if messages and messages[-1]["role"] == role:
                 messages[-1]["content"].append(part)
