@@ -8,8 +8,10 @@ dependencies = [
     # 0.155.0 ships ENTER_IN_ERROR_CUSTOM_COMMAND_COMMAND in the proto enum,
     # required by the KOALA-5485 amend path for CustomCommand-routed sections
     # (_ros, _history_review, _chart_review, physical_exam, lab_results).
-    "canvas>=0.155.0",
-    "canvas[test-utils]>=0.155.0",
+    # 0.164.0 adds the ConfigureCommandButtons effect, used to hide chart-section
+    # command buttons while the Scribe tab is active (KOALA-5808).
+    "canvas>=0.164.0",
+    "canvas[test-utils]>=0.164.0",
     "mypy>=1.15.0",
     "ffmpeg-python>=0.2.0",
 ]
