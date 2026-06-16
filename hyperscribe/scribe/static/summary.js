@@ -193,6 +193,12 @@ function VerificationSummary({ result }) {
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
+// Note-application identifier of the Scribe tab (matches ScribeApp.IDENTIFIER).
+// NOTE_TAB_CHANGE messages carry the newly-active tab in `tab`; we hide the
+// chart-section command buttons while that tab is Scribe and restore them on a
+// switch to any other tab.
+const SCRIBE_TAB_IDENTIFIER = 'hyperscribe__scribe';
+
 // Section_key for commands the backend can't map to a Scribe section.
 // They render in the "FROM THE NOTE" catch-all block at the bottom of the
 // tab.
@@ -964,11 +970,25 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const onCanvasMessage = (event) => {
       if (event.detail?.type === 'NOTE_TAB_CHANGE') {
         syncNoteCommands();
+        // Hide all chart-section command buttons while the Scribe tab is active;
+        // restore them when the user switches to the note body or any other tab.
+        // ScribeApp.handle() already hides on the initial tab open (including
+        // default-open, which emits no NOTE_TAB_CHANGE); this covers subsequent
+        // switches once every tab's iframe is mounted. Fire-and-forget: the
+        // effect is re-asserted on the next switch if it's missed.
+        if (noteId) {
+          const hidden = event.detail.tab === SCRIBE_TAB_IDENTIFIER;
+          fetch(`${API_BASE}/configure-command-buttons`, {
+            method: 'POST',
+            credentials: 'include',
+            body: JSON.stringify({ note_id: noteId, hidden }),
+          }).catch(() => {});
+        }
       }
     };
     window.addEventListener('canvas-message', onCanvasMessage);
     return () => window.removeEventListener('canvas-message', onCanvasMessage);
-  }, [syncNoteCommands]);
+  }, [syncNoteCommands, noteId]);
 
   // Pull the note's command rail once on mount so ADDITIONAL COMMANDS
   // populates without waiting for a tab switch. The cache-load effect below
