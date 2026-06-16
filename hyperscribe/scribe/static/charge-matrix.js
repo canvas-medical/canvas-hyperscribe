@@ -6,6 +6,10 @@ const html = htm.bind(h);
 
 export const MAX_POINTERS = 4;
 export const MAX_MODIFIERS = 4;
+// Soft cap on a charge comment — warns past it, never blocks typing/saving.
+// The underlying perform.notes field is an unconstrained string; this is a UX
+// guideline so the popover stays sane, not a hard limit.
+export const MAX_COMMENT = 500;
 
 // Common modifiers seeded into the picker. code -> description.
 export const MODIFIER_SEED = [
@@ -56,6 +60,26 @@ export function ModifierPicker({ selected, onToggle, onClose }) {
           <span class="cm-popover-code">${freeCode}</span>
           <span class="cm-popover-desc">Use code "${freeCode}"</span>
         </button>` : null}
+      </div>
+    </div>`;
+}
+
+// Free-text comment editor for a charge — the saved text lands as the perform
+// command's `notes`. Soft cap (warns past MAX_COMMENT, never blocks). Save with
+// empty text clears the comment (handled by the caller).
+export function CommentEditor({ value, onSave, onCancel }) {
+  const [text, setText] = useState(value || '');
+  const over = text.length > MAX_COMMENT;
+  return html`
+    <div class="cm-popover cm-popover-comment" role="dialog">
+      <textarea class="cm-comment-ta" autofocus placeholder="Add a comment for this charge…"
+        value=${text} onInput=${e => setText(e.target.value)}></textarea>
+      <div class="cm-comment-foot">
+        <span class="cm-comment-count${over ? ' over' : ''}">${text.length} / ${MAX_COMMENT}</span>
+        <div class="cm-comment-actions">
+          <button class="cm-comment-btn cm-comment-btn-ghost" onClick=${onCancel}>Cancel</button>
+          <button class="cm-comment-btn cm-comment-btn-primary" onClick=${() => onSave(text.trim())}>Save</button>
+        </div>
       </div>
     </div>`;
 }
@@ -111,9 +135,11 @@ export function ChargeMatrix({
   diagnoses, charges, isAmending, readOnly, searchCharges, suggested,
   onTogglePointer, onReorderDiagnoses,
   onAddModifier, onRemoveModifier, onAddCharge, onRemoveCharge,
+  onSetComment, onClearComment,
 }) {
-  // Single popover state so only one (modifier or charge-search) is ever open.
-  // { kind: 'mod', id: <charge uuid> } | { kind: 'charge' } | null
+  // Single popover state so only one popover is ever open.
+  // { kind: 'mod', id } | { kind: 'commentEdit', id } | { kind: 'commentRead', id }
+  // | { kind: 'charge' } | null
   const [popover, setPopover] = useState(null);
 
   // Close the open popover (modifier picker / CPT search) on an outside click
@@ -123,7 +149,8 @@ export function ChargeMatrix({
     if (!popover) return undefined;
     const onPointerDown = (e) => {
       const t = e.target;
-      if (t && t.closest && (t.closest('.cm-popover') || t.closest('.cm-modadd') || t.closest('.cm-add-btn'))) return;
+      if (t && t.closest && (t.closest('.cm-popover') || t.closest('.cm-modadd') || t.closest('.cm-add-btn')
+          || t.closest('.cm-noteadd') || t.closest('.cm-notechip'))) return;
       setPopover(null);
     };
     const onKeyDown = (e) => { if (e.key === 'Escape') setPopover(null); };
@@ -142,6 +169,10 @@ export function ChargeMatrix({
   const suggestedAvailable = (suggested || []).filter(s => !existingCpts.has(s.cpt_code));
   const lockedCount = isAmending ? dxs.filter(d => d.locked).length : 0;
   const colSpan = chs.length + 2; // diagnosis col + charge cols + add col
+  // Diagnoses present but no charges yet (and the note is editable): show a
+  // ghost charge column nudging the provider to add a charge to bill the visit.
+  // It replaces the orphaned "+" add column 1-for-1, so colSpan is unchanged.
+  const showGhostCharge = !readOnly && chs.length === 0 && dxs.length > 0;
 
   function handleDrop(e, targetIdx) {
     e.preventDefault();
@@ -164,6 +195,14 @@ export function ChargeMatrix({
   const headerCells = chs.map(charge => {
     const mods = charge.modifiers || [];
     const open = popover && popover.kind === 'mod' && popover.id === charge.command_uuid;
+    const comment = charge.comment || '';
+    const cmtEdit = popover && popover.kind === 'commentEdit' && popover.id === charge.command_uuid;
+    const cmtRead = popover && popover.kind === 'commentRead' && popover.id === charge.command_uuid;
+    // Editable whenever the matrix is. Editing a comment on a charge already on
+    // the signed claim is handled in summary.js by entering the old charge in
+    // error and re-entering a clone with the new comment (with explicit BLI
+    // cleanup so /enrich-charges stays unambiguous).
+    const commentEditable = !readOnly;
     return html`
       <th class="cm-charge-head" key=${charge.command_uuid}>
         <div class="cm-cpt-row">
@@ -171,7 +210,7 @@ export function ChargeMatrix({
           ${!readOnly ? html`<button class="cm-colremove" title="Remove charge"
             onClick=${() => onRemoveCharge(charge.command_uuid)}>×</button>` : null}
         </div>
-        <div class="cm-mods">
+        <div class="cm-affordances">
           ${mods.map(code => readOnly
             ? html`<span class="cm-modchip cm-modchip-static" key=${code}>${code}</span>`
             : html`<span class="cm-modchip" key=${code} title="Remove modifier"
@@ -182,6 +221,16 @@ export function ChargeMatrix({
             ? html`<button class="cm-modadd"
                 onClick=${() => setPopover(open ? null : { kind: 'mod', id: charge.command_uuid })}>+ Modifier</button>`
             : null}
+          ${comment
+            ? html`<span class="cm-notechip" title="View comment"
+                onClick=${() => setPopover(cmtRead ? null : { kind: 'commentRead', id: charge.command_uuid })}>
+                <svg class="cm-notechip-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span class="cm-notechip-label">${comment}</span>
+              </span>`
+            : (commentEditable
+                ? html`<button class="cm-noteadd"
+                    onClick=${() => setPopover(cmtEdit ? null : { kind: 'commentEdit', id: charge.command_uuid })}>+ Comment</button>`
+                : null)}
         </div>
         ${open && !readOnly ? html`<${ModifierPicker} selected=${mods}
             onToggle=${code => {
@@ -193,6 +242,28 @@ export function ChargeMatrix({
               }
             }}
             onClose=${() => setPopover(null)} />` : null}
+        ${cmtEdit && commentEditable ? html`<${CommentEditor} value=${comment}
+            onSave=${text => {
+              if (text) onSetComment(charge.command_uuid, text);
+              else onClearComment(charge.command_uuid);
+              setPopover(null);
+            }}
+            onCancel=${() => setPopover(null)} />` : null}
+        ${cmtRead ? html`
+          <div class="cm-popover cm-popover-comment" role="dialog">
+            <div class="cm-comment-read">${comment}</div>
+            ${commentEditable
+              ? html`<div class="cm-comment-foot">
+                  <span></span>
+                  <div class="cm-comment-actions">
+                    <button class="cm-comment-btn cm-comment-btn-danger"
+                      onClick=${() => { onClearComment(charge.command_uuid); setPopover(null); }}>Remove</button>
+                    <button class="cm-comment-btn cm-comment-btn-ghost"
+                      onClick=${() => setPopover({ kind: 'commentEdit', id: charge.command_uuid })}>Edit</button>
+                  </div>
+                </div>`
+              : html`<div class="cm-comment-meta">Read-only — note finalized.</div>`}
+          </div>` : null}
       </th>`;
   });
 
@@ -238,7 +309,9 @@ export function ChargeMatrix({
               onChange=${() => onTogglePointer(charge.command_uuid, dx.command_uuid)} />
           </td>`;
         })}
-        <td class="cm-add-cell"></td>
+        ${showGhostCharge
+          ? html`<td class="cm-ghost-cell"><span class="cm-ghost-check"></span></td>`
+          : html`<td class="cm-add-cell"></td>`}
       </tr>`;
   };
 
@@ -271,7 +344,7 @@ export function ChargeMatrix({
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h16v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M8 8h8M8 12h8"/></svg>
           </div>
           <div class="cm-empty-title">No charges yet</div>
-          <div class="cm-empty-hint">Add a diagnosis in the Plan, then add a charge here to link them.</div>
+          <div class="cm-empty-hint">Add a condition above, then a charge here.</div>
           ${!readOnly ? html`<div class="cm-empty-add">
             <button class="cm-empty-btn" onClick=${() => setPopover(chargeOpen ? null : { kind: 'charge' })}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -290,16 +363,24 @@ export function ChargeMatrix({
           <tr>
             <th class="cm-dx-head"></th>
             ${headerCells}
-            <th class="cm-add-head">
-              ${!readOnly ? html`
-                <button class="cm-add-btn" title="Add charge"
-                  onClick=${() => setPopover(chargeOpen ? null : { kind: 'charge' })}>+</button>
-                ${chargePicker}` : null}
-            </th>
+            ${showGhostCharge
+              ? html`<th class="cm-ghost-head">
+                  <button class="cm-empty-btn" onClick=${() => setPopover(chargeOpen ? null : { kind: 'charge' })}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    Add charge
+                  </button>
+                  ${chargePicker}
+                </th>`
+              : html`<th class="cm-add-head">
+                  ${!readOnly ? html`
+                    <button class="cm-add-btn" title="Add charge"
+                      onClick=${() => setPopover(chargeOpen ? null : { kind: 'charge' })}>+</button>
+                    ${chargePicker}` : null}
+                </th>`}
           </tr>
         </thead>
         <tbody>${dxs.length === 0
-          ? html`<tr><td class="cm-empty" colSpan=${colSpan}>Add a diagnosis in the Plan to link it to this charge.</td></tr>`
+          ? html`<tr><td class="cm-empty" colSpan=${colSpan}>Add a condition above to link this charge.</td></tr>`
           : bodyRows}</tbody>
         ${chs.length > 0 ? html`
           <tfoot>

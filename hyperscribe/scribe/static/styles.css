@@ -1692,31 +1692,60 @@ h2 { margin-bottom: 4px; }
   font-weight: 600;
 }
 .cm-dx-head { width: auto; }
-.cm-charge-head { position: relative; width: 170px; border-left: 1px solid #eef1f4; }
+.cm-charge-head { position: relative; width: 206px; border-left: 1px solid #eef1f4; }
 .cm-add-head { position: relative; width: 52px; border-left: 1px solid #eef1f4; }
 
-.cm-cpt-row { display: inline-flex; align-items: center; gap: 6px; }
+/* Ghost charge column — shown when there are diagnoses but no charges yet.
+   Soft red wash nudges the provider to add a charge; the divider stays neutral
+   (no red vertical line) and the "Add charge" button reuses .cm-empty-btn. */
+.cm-ghost-head { position: relative; width: 206px; border-left: 1px dashed #cfd8e0; background: #fdeeec; }
+.cm-ghost-cell { border-left: 1px dashed #cfd8e0; background: #fdeeec; text-align: center; }
+.cm-ghost-check { display: inline-block; width: 18px; height: 18px; border: 1.5px dashed #cbd5de; border-radius: 4px; vertical-align: middle; }
+
+.cm-cpt-row { display: flex; align-items: center; justify-content: center; }
 .cm-cpt { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 15px; font-weight: 700; color: #052B49; }
+/* Pulled out of flow so the CPT stays centered in the cell whether or not the
+   remove button is showing. */
 .cm-colremove {
+  position: absolute; top: 9px; right: 10px;
   border: none; background: transparent; color: #b3bdc7; font-size: 15px; line-height: 1;
   cursor: pointer; padding: 0 2px; border-radius: 4px; opacity: 0; transition: opacity .12s, color .12s;
 }
 .cm-charge-head:hover .cm-colremove { opacity: 1; }
 .cm-colremove:hover { color: #c0392b; background: #fbeceb; }
 
-.cm-mods { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 7px; }
+/* Modifier + comment affordances share one centered, wrapping row so the
+   "+ Modifier" and "+ Comment" buttons sit side by side rather than stacked. */
+.cm-affordances { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 7px; }
 .cm-modchip {
-  display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 8px;
-  border-radius: 6px; background: #eef3f8; border: 1px solid #d7e2ee; color: #2c5277;
-  font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px;
+  border-radius: 6px; background: #f3f5f7; border: 1px solid #e2e7ec; color: #475569;
+  font-size: 12px; font-weight: 600; cursor: pointer;
 }
-.cm-modchip:hover { background: #e3ecf5; }
-.cm-modchip-x { color: #8aa0b6; font-weight: 400; }
+.cm-modchip:hover { background: #eaeef2; }
+.cm-modchip-x { color: #94a3b8; font-weight: 400; }
 .cm-modadd {
   height: 22px; padding: 0 8px; border: 1px dashed #cfd8e0; border-radius: 6px; background: #fff;
   color: #6a7682; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .12s;
 }
 .cm-modadd:hover { background: #f5f8fb; }
+
+/* -- charge comment (perform.notes) -- */
+.cm-noteadd {
+  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px;
+  border: 1px dashed #cfd8e0; border-radius: 6px; background: #fff;
+  color: #6a7682; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .12s;
+}
+.cm-noteadd:hover { background: #f5f8fb; }
+.cm-noteadd svg { stroke: currentColor; }
+.cm-notechip {
+  display: inline-flex; align-items: center; gap: 4px; height: 22px; max-width: 150px; padding: 0 8px;
+  border-radius: 6px; background: #f3f5f7; border: 1px solid #e2e7ec; color: #475569;
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: background .12s;
+}
+.cm-notechip:hover { background: #eaeef2; }
+.cm-notechip-icon { stroke: #94a3b8; flex-shrink: 0; }
+.cm-notechip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .cm-add-btn {
   width: 30px; height: 30px; border: none; background: transparent; color: #052B49;
@@ -1819,6 +1848,30 @@ h2 { margin-bottom: 4px; }
 .cm-popover-desc { color: #5b6b7a; font-size: 13px; flex: 1; }
 .cm-popover-check { color: #059669; font-weight: 700; }
 .cm-popover-empty { padding: 12px 8px; color: #6a7682; font-size: 13px; text-align: center; }
+
+/* -- comment editor / reader popover -- */
+.cm-popover-comment { width: 280px; max-height: none; }
+.cm-comment-ta {
+  width: 100%; box-sizing: border-box; min-height: 78px; resize: vertical; padding: 8px 9px;
+  border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; line-height: 1.45; color: #1b2733;
+}
+.cm-comment-ta:focus { outline: none; border-color: #93b4d4; box-shadow: 0 0 0 3px rgba(82,130,180,.12); }
+.cm-comment-read {
+  font-size: 13px; color: #1b2733; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  background: #fcfdfe; border: 1px solid #f0f2f4; border-radius: 6px; padding: 9px 10px; max-height: 160px; overflow: auto;
+}
+.cm-comment-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.cm-comment-count { font-size: 11px; color: #93a0ac; }
+.cm-comment-count.over { color: #c0392b; font-weight: 600; }
+.cm-comment-meta { font-size: 11px; color: #93a0ac; margin-top: 7px; }
+.cm-comment-actions { display: flex; gap: 6px; }
+.cm-comment-btn { height: 28px; padding: 0 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid transparent; font-family: inherit; }
+.cm-comment-btn-ghost { background: #fff; border-color: #d3dce4; color: #6a7682; }
+.cm-comment-btn-ghost:hover { background: #f5f8fb; }
+.cm-comment-btn-primary { background: #052B49; color: #fff; }
+.cm-comment-btn-primary:hover { background: #0a3a5e; }
+.cm-comment-btn-danger { background: #fff; border-color: #f0d2d0; color: #c0392b; }
+.cm-comment-btn-danger:hover { background: #fbeceb; }
 
 /* -- sign gate error (layers onto .summary-footer-warning) -- */
 .cm-sign-error { color: #c0392b; font-weight: 600; margin-top: 4px; }
