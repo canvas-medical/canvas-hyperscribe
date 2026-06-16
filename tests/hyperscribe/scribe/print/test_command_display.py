@@ -1,3 +1,9 @@
+from pathlib import Path
+
+import hyperscribe
+from django.conf import settings
+from django.template import Context, Engine
+
 from hyperscribe.scribe.print.command_display import (
     SOAP_SECTIONS,
     _decode_b64_html,
@@ -8,6 +14,25 @@ from hyperscribe.scribe.print.command_display import (
     _schema_key_to_label,
     extract_command_display,
 )
+
+
+def _render_print_note(commands: list[dict]) -> str:
+    """Render the real print_scribe_note.html template with the given body commands.
+
+    The SDK's ``render_to_string`` requires plugin context (unavailable in unit
+    tests), so drive Django's template engine directly against the template dir.
+    This exercises the actual template — including the perform/charge branch that
+    prints a charge comment (``perform.notes``).
+    """
+    if not settings.configured:
+        settings.configure(USE_TZ=True)
+        import django
+
+        django.setup()
+    templates_root = str(Path(hyperscribe.__file__).resolve().parent)
+    engine = Engine(dirs=[templates_root])
+    template = engine.get_template("scribe/print/templates/print_scribe_note.html")
+    return template.render(Context({"patient_name": "Test Patient", "commands": commands}))
 
 
 # --- helpers ---
@@ -141,6 +166,50 @@ def test_extract_perform_with_cpt_inline() -> None:
     )
     assert result["cpt_code"] == "99213"
     assert "CPT" not in result["description"]
+
+
+def test_extract_perform_with_comment_notes() -> None:
+    """A charge comment (perform.notes) surfaces as `notes` so the print template
+    renders it beneath the CPT/description."""
+    result = extract_command_display(
+        "perform",
+        {"cpt_code": "96372", "description": "Injection", "notes": "Given in left deltoid per protocol."},
+    )
+    assert result["cpt_code"] == "96372"
+    assert result["notes"] == "Given in left deltoid per protocol."
+    assert "Given in left deltoid per protocol." in result["content"]
+
+
+def test_extract_perform_without_comment_has_empty_notes() -> None:
+    result = extract_command_display("perform", {"cpt_code": "99213", "description": "Office visit"})
+    assert result["notes"] == ""
+
+
+def test_print_template_renders_perform_comment() -> None:
+    """The print template renders a charge comment (perform.notes) under the charge."""
+    html = _render_print_note(
+        [
+            {
+                "schema_key": "perform",
+                "cpt_code": "96372",
+                "description": "Injection",
+                "notes": "Given in left deltoid per protocol.",
+            }
+        ]
+    )
+    assert "Given in left deltoid per protocol." in html
+    # the comment is wrapped in the order-view-details div (CSS rule uses
+    # `.order-view-details {`, so matching `class="..."` targets the rendered div)
+    assert 'class="order-view-details"' in html
+
+
+def test_print_template_omits_empty_perform_comment() -> None:
+    """A charge with no comment renders no comment div."""
+    html = _render_print_note(
+        [{"schema_key": "perform", "cpt_code": "99213", "description": "Office visit", "notes": ""}]
+    )
+    assert "99213" in html
+    assert 'class="order-view-details"' not in html
 
 
 def test_extract_action_command_stop_medication() -> None:
