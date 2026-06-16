@@ -348,7 +348,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onRemoveChargeByUuid, examTemplates, onCarryForwardExam } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -390,6 +390,8 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onReorderDiagnoses=${isCharges ? onReorderDiagnoses : null}
         onAddChargeModifier=${isCharges ? onAddChargeModifier : null}
         onRemoveChargeModifier=${isCharges ? onRemoveChargeModifier : null}
+        onSetChargeComment=${isCharges ? onSetChargeComment : null}
+        onClearChargeComment=${isCharges ? onClearChargeComment : null}
         onRemoveChargeByUuid=${isCharges ? onRemoveChargeByUuid : null}
         readOnly=${readOnly}
         isAmending=${isAmending}
@@ -586,6 +588,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         command_uuid: c._localId,
         cpt: c.data.cpt_code,
         description: c.data.description || '',
+        comment: c.data.notes || '',
         modifiers: c.data._modifiers || [],
         pointers: (c.data._pointers || []).filter(u => dxRefs.has(u)),
         // True only when this plugin has written _pointers to the charge. Pre-plugin
@@ -629,6 +632,48 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     matrixRef(chargeUuid)(c)
       ? { ...c, data: { ...c.data, _pointers: c.data._pointers || [], _modifiers: (c.data._modifiers || []).filter(m => m !== code) } }
       : c)), []);
+
+  // Comment handlers write the perform command's native `notes` field, committed
+  // via /insert-commands and rendered by the existing scribe-print template —
+  // no enrichment needed (unlike _modifiers/_pointers on the BLI).
+  //
+  // For a charge NOT yet on the claim (fresh note, or one added during this
+  // amendment) we edit notes in place; the insert path carries it.
+  //
+  // For a charge ALREADY on the signed claim, notes can't be edited in place
+  // (committed perform commands reject .edit(); the only edit path re-originates).
+  // So we mirror the home-app "enter in error + re-enter" gesture: void the old
+  // command (_amend_deleted → /delete-existing-commands) and add a fresh clone
+  // carrying the same CPT/modifiers/pointers with the new comment (→ /insert-
+  // commands). Entering the old command in error leaves its BillingLineItem
+  // ACTIVE (command_id is null on BLIs, so home-app can't auto-void it), so the
+  // sign flow explicitly removes the old charge's BLI after the delete and BEFORE
+  // the clone is inserted — see the "early charge-BLI removal" step in handleInsert.
+  const setChargeComment = (chargeUuid, notes) => setCommands(prev => {
+    const idx = prev.findIndex(c => matrixRef(chargeUuid)(c));
+    if (idx < 0) return prev;
+    const target = prev[idx];
+    // Mirror onRemoveChargeByUuid's gate: only a charge actually on the signed
+    // claim needs the void+re-enter dance. Everything else edits notes in place.
+    if (!(target.already_documented && isAmendingSectionEditable(target, wasFinalized && !approved))) {
+      return prev.map(c => matrixRef(chargeUuid)(c) ? { ...c, data: { ...c.data, notes } } : c);
+    }
+    const { _amend_edited, _template_inserted, ...base } = target;
+    const clone = {
+      ...base,
+      _localId: crypto.randomUUID(),
+      command_uuid: null,
+      already_documented: false,
+      _amend_deleted: false,
+      selected: true,
+      data: { ...target.data, notes },
+    };
+    const next = prev.map((c, i) => i === idx ? { ...c, selected: false, _amend_deleted: true } : c);
+    next.splice(idx + 1, 0, clone);
+    return next;
+  });
+  const onSetChargeComment = useCallback((chargeUuid, text) => setChargeComment(chargeUuid, text), [wasFinalized, approved]);
+  const onClearChargeComment = useCallback((chargeUuid) => setChargeComment(chargeUuid, ''), [wasFinalized, approved]);
 
   const onReorderDiagnoses = useCallback((nextUuids) => setCommands(prev => {
     // The matrix keys rows on _localId (stable, unique), so reorder must too —
@@ -1965,6 +2010,30 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           diagnosis_suggestions: diagnosisSuggestions,
           selected_template_name: selectedTemplate?.name || null, mode,
         });
+        // Early charge-BLI removal. Entering a perform command in error does NOT
+        // void its BillingLineItem (BLIs carry command_id=null, so home-app can't
+        // auto-void them), so a just-deleted charge leaves an orphan ACTIVE BLI.
+        // Remove those orphans NOW — after the EIE hard-commit, before any clone
+        // is inserted — while each CPT still resolves to exactly one ACTIVE BLI,
+        // so enrich's CPT fallback captures the correct BLI id. Without this, a
+        // comment edit's re-entered clone would create a second same-CPT BLI and
+        // wedge the final enrich (ambiguous-CPT → billing_line_item_not_found).
+        // Best-effort: the final enrich retries removed_charges as a backstop, so
+        // a failure here never blocks signing.
+        const earlyRemovedChargeUuids = amendDeletes
+          .filter(c => c.command_type === 'perform' && c.command_uuid)
+          .map(c => c.command_uuid);
+        if (earlyRemovedChargeUuids.length) {
+          try {
+            await fetch(`${API_BASE}/enrich-charges`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ note_uuid: noteId, charges: [], removed_charges: earlyRemovedChargeUuids }),
+            });
+          } catch (earlyErr) {
+            console.warn('early charge-BLI removal failed (final enrich retries):', earlyErr);
+          }
+        }
       } catch (err) {
         console.error('Amend deletes failed:', err);
         setError('Failed to apply amendment deletes');
@@ -2332,9 +2401,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               return { command_uuid: c.command_uuid, diagnosis_pointers, modifiers: c.data._modifiers || [] };
             })
             .filter(Boolean);
-          const removedCharges = amendDeletes
-            .filter(c => c.command_type === 'perform' && c.command_uuid)
-            .map(c => c.command_uuid);
+          // Charge-BLI removal is handled by the EARLY removal step (after
+          // /delete-existing-commands, before /insert-commands), where each
+          // removed charge's CPT still resolves to exactly one ACTIVE BLI. We
+          // must NOT re-send removed_charges here: a comment edit re-enters a
+          // clone with the SAME CPT, so by now the old uuid's CPT fallback would
+          // resolve to the CLONE's BLI and this loop would delete it. Leave empty.
+          const removedCharges = [];
 
           if (enrichCharges.length || removedCharges.length) {
             // The home-app applies the /insert-commands originate+commit effects
@@ -2977,6 +3050,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onReorderDiagnoses: canEdit ? onReorderDiagnoses : null,
           onAddChargeModifier: canEdit ? onAddChargeModifier : null,
           onRemoveChargeModifier: canEdit ? onRemoveChargeModifier : null,
+          onSetChargeComment: canEdit ? onSetChargeComment : null,
+          onClearChargeComment: canEdit ? onClearChargeComment : null,
           onRemoveChargeByUuid: canEdit ? onRemoveChargeByUuid : null,
           examTemplates: templates,
           onCarryForwardExam: handleCarryForwardExam,

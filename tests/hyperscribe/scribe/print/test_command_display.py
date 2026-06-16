@@ -143,6 +143,23 @@ def test_extract_perform_with_cpt_inline() -> None:
     assert "CPT" not in result["description"]
 
 
+def test_extract_perform_with_comment_notes() -> None:
+    """A charge comment (perform.notes) surfaces as `notes` so the print template
+    renders it beneath the CPT/description."""
+    result = extract_command_display(
+        "perform",
+        {"cpt_code": "96372", "description": "Injection", "notes": "Given in left deltoid per protocol."},
+    )
+    assert result["cpt_code"] == "96372"
+    assert result["notes"] == "Given in left deltoid per protocol."
+    assert "Given in left deltoid per protocol." in result["content"]
+
+
+def test_extract_perform_without_comment_has_empty_notes() -> None:
+    result = extract_command_display("perform", {"cpt_code": "99213", "description": "Office visit"})
+    assert result["notes"] == ""
+
+
 def test_extract_action_command_stop_medication() -> None:
     result = extract_command_display(
         "stopMedication",
