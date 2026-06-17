@@ -39,7 +39,7 @@ def test_build_user_prompt() -> None:
     assert "## HPI" in result
 
 
-def test_recommend_is_generic_no_provider() -> None:
+def test_recommend_is_generic_with_placeholder_provider() -> None:
     note = _make_note([NoteSection(key="assessment_and_plan", title="A&P", text="Refer to ENT.")])
     client = _make_client(
         {
@@ -60,26 +60,44 @@ def test_recommend_is_generic_no_provider() -> None:
     assert len(proposals) == 1
     p = proposals[0]
     assert p.command_type == "refer"
-    # generic: display is the specialty, no specific provider attached
+    # generic: display is the specialty; recipient is a placeholder, not a real provider
     assert p.display == "ENT"
-    assert "service_provider" not in p.data
     assert p.data["refer_to_display"] == "ENT"
+    sp = p.data["service_provider"]
+    assert sp["last_name"] == "(TBD)"
+    assert sp["first_name"] == ""
+    assert sp["specialty"] == "ENT"
+    assert sp["practice_name"] == "ENT"
     assert p.data["indication"] == "Chronic sinusitis"
     assert p.data["clinical_question"] == "Specialized intervention"
     assert p.data["priority"] == "Routine"
     assert p.data["notes_to_specialist"] == "Further evaluation needed"
 
 
-def test_recommend_indication_absent_is_none() -> None:
+def test_recommend_defaults_clinical_question_and_notes() -> None:
     note = _make_note([NoteSection(key="plan", title="Plan", text="Refer to cardiology.")])
     client = _make_client({"referrals": [{"specialty": "Cardiology", "priority": "Routine"}]})
 
     proposals = ReferRecommender().recommend(note, client)
 
     assert len(proposals) == 1
-    assert proposals[0].data["indication"] is None
-    assert proposals[0].data["notes_to_specialist"] is None
-    assert proposals[0].data["priority"] == "Routine"
+    data = proposals[0].data
+    assert data["indication"] is None
+    # defaults fill the sign-required fields
+    assert data["clinical_question"] == "Assistance with Ongoing Management"
+    assert data["notes_to_specialist"] == "Referral to Cardiology"
+    assert data["service_provider"]["last_name"] == "(TBD)"
+
+
+def test_recommend_notes_fall_back_to_indication() -> None:
+    note = _make_note([NoteSection(key="plan", title="Plan", text="Refer to ortho.")])
+    client = _make_client(
+        {"referrals": [{"specialty": "Orthopedics", "indication": "Rotator cuff tear", "priority": "Routine"}]}
+    )
+
+    proposals = ReferRecommender().recommend(note, client)
+
+    assert proposals[0].data["notes_to_specialist"] == "Rotator cuff tear"
 
 
 def test_recommend_multiple_referrals_all_generic() -> None:
@@ -97,7 +115,7 @@ def test_recommend_multiple_referrals_all_generic() -> None:
 
     assert len(proposals) == 2
     assert [p.display for p in proposals] == ["ENT", "Dermatology"]
-    assert all("service_provider" not in p.data for p in proposals)
+    assert all(p.data["service_provider"]["last_name"] == "(TBD)" for p in proposals)
     assert proposals[1].data["priority"] == "Urgent"
 
 

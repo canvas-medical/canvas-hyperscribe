@@ -13,6 +13,14 @@ from hyperscribe.scribe.recommendations.schemas import ReferRecommendationList
 
 _RELEVANT_KEYS = {"assessment_and_plan", "plan", "history_of_present_illness"}
 
+# A referral is auto-signed on insert (see ReferParser.post_originate_effects), and
+# Canvas core requires a recipient and a clinical question to sign it. Since these
+# are generic referrals (no provider lookup), supply a placeholder recipient and a
+# neutral default clinical question so the command is insert/sign-ready; the provider
+# can replace the recipient and adjust the clinical question in the UI.
+_DEFAULT_CLINICAL_QUESTION = "Assistance with Ongoing Management"
+_PLACEHOLDER_LAST_NAME = "(TBD)"  # non-empty recipient, mirrors the science "(TBD)" convention
+
 _SYSTEM_PROMPT = (
     "You are a clinical data extraction assistant. "
     "Extract only referrals the provider intends to make from the clinical note sections below. "
@@ -73,22 +81,28 @@ class ReferRecommender(BaseRecommender):
             specialty = (ref.specialty or "").strip()
             if not specialty:
                 continue
+            indication = (ref.indication or "").strip() or None
             # Recommend a generic referral to the specialty only — no automatic
-            # science-service provider lookup. The provider can search for and attach
-            # a specific provider in the UI if they want one. The indication is
-            # resolved to a validated diagnosis code downstream
-            # (see _referral_diagnosis.link_referral_diagnoses) so the generic
-            # referral is commit-ready.
+            # science-service provider lookup. A placeholder recipient keeps the
+            # command insert/sign-ready (the provider can replace it in the UI),
+            # and the indication is resolved to a validated diagnosis code
+            # downstream (see _referral_diagnosis.link_referral_diagnoses).
             proposals.append(
                 CommandProposal(
                     command_type="refer",
                     display=specialty,
                     data={
+                        "service_provider": {
+                            "first_name": "",
+                            "last_name": _PLACEHOLDER_LAST_NAME,
+                            "specialty": specialty,
+                            "practice_name": specialty,
+                        },
                         "refer_to_display": specialty,
-                        "indication": (ref.indication or "").strip() or None,
-                        "clinical_question": ref.clinical_question or None,
+                        "indication": indication,
+                        "clinical_question": ref.clinical_question or _DEFAULT_CLINICAL_QUESTION,
                         "priority": ref.priority or "Routine",
-                        "notes_to_specialist": ref.reason or None,
+                        "notes_to_specialist": ref.reason or indication or f"Referral to {specialty}",
                     },
                     section_key="_recommended",
                 )
