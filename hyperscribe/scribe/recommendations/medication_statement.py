@@ -8,10 +8,11 @@ from logger import log
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 from canvas_sdk.commands.constants import CodeSystems
 
-from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
+from hyperscribe.scribe.recommendations._medication_match import resolve_medication_detail
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import MedicationRecommendationList
+from hyperscribe.structures.medication_detail import MedicationDetail
 
 _RELEVANT_KEYS = {"current_medications", "history_of_present_illness", "assessment_and_plan", "plan"}
 
@@ -21,7 +22,9 @@ _SYSTEM_PROMPT = (
     "Include medications the patient is currently taking or that were mentioned as part of their medication history. "
     "Do NOT include medications that are being newly prescribed — only include existing/current medications. "
     "For each medication, provide the full name with strength, the sig (directions), "
-    "and a comma-separated list of search keywords (synonyms, brand/generic names) for database lookup (max 5)."
+    "and a comma-separated list of search keywords (synonyms, brand/generic names) for database lookup (max 5). "
+    "CRITICAL: preserve the exact strength/dose as stated in the note (e.g. '20 mg'); "
+    "never round it or substitute a different strength."
 )
 
 
@@ -32,21 +35,17 @@ def _build_user_prompt(sections: list[NoteSection]) -> str:
     return "\n\n".join(parts)
 
 
-def _resolve_medication(keywords: str, cache: dict[str, dict[str, str] | None] | None = None) -> dict[str, str] | None:
-    """Search CanvasScience for the best medication match using the keyword list."""
-    if cache is None:
-        cache = {}
-    for keyword in keywords.split(","):
-        keyword = keyword.strip()
-        if not keyword:
-            continue
-        key = keyword.lower()
-        if key not in cache:
-            results = CanvasScience.medication_details([keyword])
-            cache[key] = {"fdb_code": results[0].fdb_code, "description": results[0].description} if results else None
-        if cache[key] is not None:
-            return cache[key]
-    return None
+def _resolve_medication(
+    medication_name: str,
+    keywords: str,
+    cache: dict[str, list[MedicationDetail]] | None = None,
+) -> MedicationDetail | None:
+    """Resolve the stated medication to the FDB candidate matching its strength.
+
+    Delegates to the shared strength-aware resolver so the medication-statement
+    and prescription recommenders stay in sync.
+    """
+    return resolve_medication_detail(medication_name, keywords, cache)
 
 
 class MedicationRecommender(BaseRecommender):
@@ -81,19 +80,19 @@ class MedicationRecommender(BaseRecommender):
             log.exception(f"Failed to parse medication LLM response: {response.response}")
             return []
 
-        lookup_cache: dict[str, dict[str, str] | None] = {}
+        lookup_cache: dict[str, list[MedicationDetail]] = {}
         proposals: list[CommandProposal] = []
         for med in parsed.medications:
-            resolved = _resolve_medication(med.keywords, lookup_cache)
+            resolved = _resolve_medication(med.medication_name, med.keywords, lookup_cache)
             fdb_code: dict[str, str] | None = None
             display = med.medication_name
             if resolved:
                 fdb_code = {
                     "system": CodeSystems.FDB,
-                    "code": resolved["fdb_code"],
-                    "display": resolved["description"],
+                    "code": resolved.fdb_code,
+                    "display": resolved.description,
                 }
-                display = resolved["description"]
+                display = resolved.description
 
             proposals.append(
                 CommandProposal(
