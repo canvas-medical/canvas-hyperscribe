@@ -40,30 +40,63 @@ def test_build_user_prompt() -> None:
     assert "## Assessment & Plan" in result
 
 
-@patch("hyperscribe.scribe.recommendations.medication_statement.CanvasScience.medication_details")
+@patch("hyperscribe.scribe.recommendations._medication_match.CanvasScience.medication_details")
 def test_resolve_medication_found(mock_details: MagicMock) -> None:
     from hyperscribe.structures.medication_detail import MedicationDetail
 
     mock_details.return_value = [
         MedicationDetail(fdb_code="12345", description="Lisinopril 10mg Tablet", quantities=[]),
     ]
-    result = _resolve_medication("lisinopril, lisinopril 10mg")
+    result = _resolve_medication("Lisinopril 10mg", "lisinopril, lisinopril 10mg")
     assert result is not None
-    assert result["fdb_code"] == "12345"
-    assert result["description"] == "Lisinopril 10mg Tablet"
-    mock_details.assert_called_once_with(["lisinopril"])
+    assert result.fdb_code == "12345"
+    assert result.description == "Lisinopril 10mg Tablet"
+    # the full medication name is searched first so FDB returns the stated strength
+    mock_details.assert_called_once_with(["Lisinopril 10mg"])
 
 
-@patch("hyperscribe.scribe.recommendations.medication_statement.CanvasScience.medication_details")
+@patch("hyperscribe.scribe.recommendations._medication_match.CanvasScience.medication_details")
+def test_resolve_medication_matches_stated_strength(mock_details: MagicMock) -> None:
+    """Regression: a 20 mg statement must not resolve to the 10 mg group."""
+    from hyperscribe.structures.medication_detail import MedicationDetail
+
+    # FDB returns the 10 mg group first, then the 20 mg group.
+    mock_details.return_value = [
+        MedicationDetail(fdb_code="10", description="Lisinopril 10 mg Tablet", quantities=[]),
+        MedicationDetail(fdb_code="20", description="Lisinopril 20 mg Tablet", quantities=[]),
+    ]
+    result = _resolve_medication("Lisinopril 20 mg", "lisinopril")
+    assert result is not None
+    assert result.fdb_code == "20"
+    assert result.description == "Lisinopril 20 mg Tablet"
+
+
+@patch("hyperscribe.scribe.recommendations._medication_match.CanvasScience.medication_details")
+def test_resolve_medication_falls_back_to_first_when_no_strength_match(mock_details: MagicMock) -> None:
+    from hyperscribe.structures.medication_detail import MedicationDetail
+
+    mock_details.return_value = [
+        MedicationDetail(fdb_code="10", description="Lisinopril 10 mg Tablet", quantities=[]),
+        MedicationDetail(fdb_code="40", description="Lisinopril 40 mg Tablet", quantities=[]),
+    ]
+    # stated strength (5 mg) is not in the candidate set -> fall back to first
+    result = _resolve_medication("Lisinopril 5 mg", "lisinopril")
+    assert result is not None
+    assert result.fdb_code == "10"
+
+
+@patch("hyperscribe.scribe.recommendations._medication_match.CanvasScience.medication_details")
 def test_resolve_medication_not_found(mock_details: MagicMock) -> None:
     mock_details.return_value = []
-    result = _resolve_medication("xyznonexistent")
+    result = _resolve_medication("xyznonexistent 5mg", "xyznonexistent")
     assert result is None
 
 
 @patch("hyperscribe.scribe.recommendations.medication_statement._resolve_medication")
 def test_recommend_success(mock_resolve: MagicMock) -> None:
-    mock_resolve.return_value = {"fdb_code": "12345", "description": "Lisinopril 10mg Tablet"}
+    from hyperscribe.structures.medication_detail import MedicationDetail
+
+    mock_resolve.return_value = MedicationDetail(fdb_code="12345", description="Lisinopril 10mg Tablet", quantities=[])
 
     note = _make_note(
         [
@@ -118,6 +151,31 @@ def test_recommend_no_fdb_match(mock_resolve: MagicMock) -> None:
     assert len(proposals) == 1
     assert proposals[0].data["fdb_code"] is None
     assert proposals[0].data["medication_text"] == "SomeDrug 5mg"
+
+
+@patch("hyperscribe.scribe.recommendations.medication_statement._resolve_medication")
+def test_recommend_blanks_placeholder_sig(mock_resolve: MagicMock) -> None:
+    """A medication with no stated directions surfaces a blank sig, not "<UNKNOWN>"."""
+    mock_resolve.return_value = None
+
+    note = _make_note(
+        [
+            NoteSection(key="current_medications", title="Current Medications", text="- Lisinopril 20mg"),
+        ]
+    )
+    client = _make_client(
+        {
+            "medications": [
+                {"medicationName": "Lisinopril 20mg", "sig": "<UNKNOWN>", "keywords": "lisinopril"},
+            ]
+        }
+    )
+
+    recommender = MedicationRecommender()
+    proposals = recommender.recommend(note, client)
+
+    assert len(proposals) == 1
+    assert proposals[0].data["sig"] == ""
 
 
 def test_recommend_empty_note() -> None:
@@ -190,9 +248,11 @@ def test_recommend_malformed_response() -> None:
 
 @patch("hyperscribe.scribe.recommendations.medication_statement._resolve_medication")
 def test_recommend_multiple_medications(mock_resolve: MagicMock) -> None:
+    from hyperscribe.structures.medication_detail import MedicationDetail
+
     mock_resolve.side_effect = [
-        {"fdb_code": "111", "description": "Lisinopril 10mg"},
-        {"fdb_code": "222", "description": "Metformin 500mg"},
+        MedicationDetail(fdb_code="111", description="Lisinopril 10mg", quantities=[]),
+        MedicationDetail(fdb_code="222", description="Metformin 500mg", quantities=[]),
     ]
 
     note = _make_note(

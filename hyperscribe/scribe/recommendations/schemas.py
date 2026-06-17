@@ -5,7 +5,10 @@ from canvas_sdk.clients.llms.structures import BaseModelLlmJson
 
 class MedicationRecommendation(BaseModelLlmJson):
     medication_name: str = Field(description="Full medication name including strength")
-    sig: str = Field(description="Directions/sig for the medication")
+    sig: str | None = Field(
+        default=None,
+        description="Directions/sig exactly as stated in the note; leave null if no directions are stated",
+    )
     keywords: str = Field(description="Comma-separated synonyms for searching (max 5)")
 
 
@@ -32,7 +35,10 @@ class AllergyRecommendationList(BaseModelLlmJson):
 
 class PrescriptionRecommendation(BaseModelLlmJson):
     medication_name: str = Field(description="Full medication name including strength/form")
-    sig: str = Field(description="Directions/sig for the prescription")
+    sig: str | None = Field(
+        default=None,
+        description="Directions/sig exactly as stated in the note; leave null if no directions are stated",
+    )
     days_supply: int | None = Field(default=None, description="Number of days supply")
     quantity_to_dispense: str | None = Field(default=None, description="Quantity to dispense")
     refills: int | None = Field(default=None, description="Number of refills")
