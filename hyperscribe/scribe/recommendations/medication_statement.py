@@ -9,7 +9,7 @@ from canvas_sdk.clients.llms.libraries import LlmAnthropic
 from canvas_sdk.commands.constants import CodeSystems
 
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
-from hyperscribe.scribe.recommendations._medication_match import resolve_medication_detail
+from hyperscribe.scribe.recommendations._medication_match import resolve_medication_detail, sanitize_sig
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import MedicationRecommendationList
 from hyperscribe.structures.medication_detail import MedicationDetail
@@ -101,7 +101,7 @@ class MedicationRecommender(BaseRecommender):
                     data={
                         "medication_text": display,
                         "fdb_code": fdb_code,
-                        "sig": med.sig,
+                        "sig": sanitize_sig(med.sig),
                     },
                     section_key="_recommended",
                 )

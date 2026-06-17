@@ -153,6 +153,31 @@ def test_recommend_no_fdb_match(mock_resolve: MagicMock) -> None:
     assert proposals[0].data["medication_text"] == "SomeDrug 5mg"
 
 
+@patch("hyperscribe.scribe.recommendations.medication_statement._resolve_medication")
+def test_recommend_blanks_placeholder_sig(mock_resolve: MagicMock) -> None:
+    """A medication with no stated directions surfaces a blank sig, not "<UNKNOWN>"."""
+    mock_resolve.return_value = None
+
+    note = _make_note(
+        [
+            NoteSection(key="current_medications", title="Current Medications", text="- Lisinopril 20mg"),
+        ]
+    )
+    client = _make_client(
+        {
+            "medications": [
+                {"medicationName": "Lisinopril 20mg", "sig": "<UNKNOWN>", "keywords": "lisinopril"},
+            ]
+        }
+    )
+
+    recommender = MedicationRecommender()
+    proposals = recommender.recommend(note, client)
+
+    assert len(proposals) == 1
+    assert proposals[0].data["sig"] == ""
+
+
 def test_recommend_empty_note() -> None:
     note = _make_note(
         [

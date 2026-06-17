@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from hyperscribe.scribe.recommendations._medication_match import (
     extract_strengths,
     resolve_medication_detail,
+    sanitize_sig,
     select_medication,
 )
 from hyperscribe.structures.medication_detail import MedicationDetail
@@ -111,3 +112,24 @@ def test_resolve_caches_per_expression(mock_details: MagicMock) -> None:
 def test_resolve_no_results(mock_details: MagicMock) -> None:
     mock_details.return_value = []
     assert resolve_medication_detail("Nonexistent 5 mg", "nonexistent") is None
+
+
+def test_sanitize_sig_keeps_real_directions() -> None:
+    assert sanitize_sig("Take 1 tablet by mouth daily") == "Take 1 tablet by mouth daily"
+    # surrounding whitespace is trimmed but content preserved
+    assert sanitize_sig("  Take 1 tablet daily  ") == "Take 1 tablet daily"
+
+
+def test_sanitize_sig_blanks_angle_bracket_placeholder() -> None:
+    assert sanitize_sig("<UNKNOWN>") == ""
+    assert sanitize_sig("<unknown>") == ""
+    assert sanitize_sig("<none stated>") == ""
+
+
+def test_sanitize_sig_blanks_known_tokens() -> None:
+    for token in ["unknown", "Unknown", "N/A", "n/a", "none", "NULL", "-", "TBD", "?", ""]:
+        assert sanitize_sig(token) == "", token
+
+
+def test_sanitize_sig_none() -> None:
+    assert sanitize_sig(None) == ""

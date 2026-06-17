@@ -8,7 +8,7 @@ from logger import log
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
-from hyperscribe.scribe.recommendations._medication_match import resolve_medication_detail
+from hyperscribe.scribe.recommendations._medication_match import resolve_medication_detail, sanitize_sig
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import PrescriptionRecommendationList
 from hyperscribe.structures.medication_detail import MedicationDetail
@@ -101,7 +101,7 @@ class PrescriptionRecommender(BaseRecommender):
                     data={
                         "fdb_code": fdb_code,
                         "medication_text": display,
-                        "sig": med.sig,
+                        "sig": sanitize_sig(med.sig),
                         "days_supply": med.days_supply,
                         "quantity_to_dispense": med.quantity_to_dispense,
                         "refills": med.refills,

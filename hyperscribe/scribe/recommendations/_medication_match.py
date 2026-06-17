@@ -44,6 +44,29 @@ _STRENGTH_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Tokens the LLM emits for the required `sig` field when the note states no
+# directions. The recommendation schema forces a string, so the model fills it
+# with a placeholder rather than leaving it empty.
+_SIG_PLACEHOLDERS = {"unknown", "unk", "n/a", "na", "none", "null", "-", "tbd", "?"}
+
+
+def sanitize_sig(sig: str | None) -> str:
+    """Return the sig directions, blanking out LLM placeholder values.
+
+    A blank sig is rendered as no directions line in the scribe UI (and stored
+    as ``None`` on the command), instead of literal placeholder text like
+    "<UNKNOWN>". Any value wholly wrapped in angle brackets (``<...>``) is
+    treated as a placeholder, as are the known no-value tokens.
+    """
+    if sig is None:
+        return ""
+    cleaned = sig.strip()
+    if cleaned.startswith("<") and cleaned.endswith(">"):
+        return ""
+    if cleaned.lower() in _SIG_PLACEHOLDERS:
+        return ""
+    return cleaned
+
 
 def extract_strengths(text: str) -> set[str]:
     """Return the normalized strength tokens found in ``text``.
