@@ -42,7 +42,7 @@ def test_build_user_prompt() -> None:
     assert "## HPI" in result
 
 
-@patch("hyperscribe.scribe.recommendations.prescription.CanvasScience.medication_details")
+@patch("hyperscribe.scribe.recommendations._medication_match.CanvasScience.medication_details")
 def test_resolve_prescription_found(mock_details: MagicMock) -> None:
     detail = MedicationDetail(
         fdb_code="99999",
@@ -58,18 +58,32 @@ def test_resolve_prescription_found(mock_details: MagicMock) -> None:
         ],
     )
     mock_details.return_value = [detail]
-    result = _resolve_prescription("sumatriptan, sumatriptan 50mg")
+    result = _resolve_prescription("Sumatriptan 50mg", "sumatriptan, sumatriptan 50mg")
     assert result is not None
     assert result.fdb_code == "99999"
     assert result.description == "Sumatriptan 50mg Tablet"
     assert len(result.quantities) == 1
-    mock_details.assert_called_once_with(["sumatriptan"])
+    # the full medication name is searched first so FDB returns the stated strength
+    mock_details.assert_called_once_with(["Sumatriptan 50mg"])
 
 
-@patch("hyperscribe.scribe.recommendations.prescription.CanvasScience.medication_details")
+@patch("hyperscribe.scribe.recommendations._medication_match.CanvasScience.medication_details")
+def test_resolve_prescription_matches_stated_strength(mock_details: MagicMock) -> None:
+    """Regression: a 20 mg prescription must not resolve to the 10 mg group."""
+    mock_details.return_value = [
+        MedicationDetail(fdb_code="10", description="Lisinopril 10 mg Tablet", quantities=[]),
+        MedicationDetail(fdb_code="20", description="Lisinopril 20 mg Tablet", quantities=[]),
+    ]
+    result = _resolve_prescription("Lisinopril 20 mg", "lisinopril")
+    assert result is not None
+    assert result.fdb_code == "20"
+    assert result.description == "Lisinopril 20 mg Tablet"
+
+
+@patch("hyperscribe.scribe.recommendations._medication_match.CanvasScience.medication_details")
 def test_resolve_prescription_not_found(mock_details: MagicMock) -> None:
     mock_details.return_value = []
-    result = _resolve_prescription("xyznonexistent")
+    result = _resolve_prescription("xyznonexistent 5mg", "xyznonexistent")
     assert result is None
 
 

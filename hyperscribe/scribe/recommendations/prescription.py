@@ -7,8 +7,8 @@ from logger import log
 
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 
-from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
+from hyperscribe.scribe.recommendations._medication_match import resolve_medication_detail
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import PrescriptionRecommendationList
 from hyperscribe.structures.medication_detail import MedicationDetail
@@ -24,7 +24,9 @@ _SYSTEM_PROMPT = (
     "Only include medications that are being newly prescribed or started during this visit. "
     "For each prescription, provide the full medication name with strength/form, the sig (directions), "
     "days supply and quantity to dispense if mentioned, number of refills if mentioned, "
-    "and a comma-separated list of search keywords (synonyms, brand/generic names) for database lookup (max 5)."
+    "and a comma-separated list of search keywords (synonyms, brand/generic names) for database lookup (max 5). "
+    "CRITICAL: preserve the exact strength/dose as stated in the note (e.g. '20 mg'); "
+    "never round it or substitute a different strength."
 )
 
 
@@ -36,22 +38,16 @@ def _build_user_prompt(sections: list[NoteSection]) -> str:
 
 
 def _resolve_prescription(
-    keywords: str, cache: dict[str, MedicationDetail | None] | None = None
+    medication_name: str,
+    keywords: str,
+    cache: dict[str, list[MedicationDetail]] | None = None,
 ) -> MedicationDetail | None:
-    """Search CanvasScience for the best medication match using the keyword list."""
-    if cache is None:
-        cache = {}
-    for keyword in keywords.split(","):
-        keyword = keyword.strip()
-        if not keyword:
-            continue
-        key = keyword.lower()
-        if key not in cache:
-            results = CanvasScience.medication_details([keyword])
-            cache[key] = results[0] if results else None
-        if cache[key] is not None:
-            return cache[key]
-    return None
+    """Resolve the stated medication to the FDB candidate matching its strength.
+
+    Delegates to the shared strength-aware resolver so the medication-statement
+    and prescription recommenders stay in sync.
+    """
+    return resolve_medication_detail(medication_name, keywords, cache)
 
 
 class PrescriptionRecommender(BaseRecommender):
@@ -86,10 +82,10 @@ class PrescriptionRecommender(BaseRecommender):
             log.exception(f"Failed to parse prescription LLM response: {response.response}")
             return []
 
-        lookup_cache: dict[str, MedicationDetail | None] = {}
+        lookup_cache: dict[str, list[MedicationDetail]] = {}
         proposals: list[CommandProposal] = []
         for med in parsed.prescriptions:
-            detail = _resolve_prescription(med.keywords, lookup_cache)
+            detail = _resolve_prescription(med.medication_name, med.keywords, lookup_cache)
             fdb_code: str | None = None
             display = med.medication_name
             quantities: list[dict[str, str]] = []
