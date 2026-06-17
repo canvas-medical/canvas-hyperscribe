@@ -28,7 +28,41 @@ def test_extract_strengths_no_strength() -> None:
 
 
 def test_extract_strengths_combination_product() -> None:
-    assert extract_strengths("Lisinopril-HCTZ 20-12.5 mg tablet") == {"20-12.5mg"}
+    # combination strengths split into one token per component, sharing the unit
+    assert extract_strengths("Lisinopril-HCTZ 20-12.5 mg tablet") == {"20mg", "12.5mg"}
+    assert extract_strengths("Symbicort 160/4.5 mcg") == {"160mcg", "4.5mcg"}
+    # and FDB's split rendering of the same product yields the same tokens
+    assert extract_strengths("Symbicort 160 mcg-4.5 mcg/actuation HFA") == {"160mcg", "4.5mcg"}
+
+
+def test_extract_strengths_comma_thousands_separator() -> None:
+    assert extract_strengths("metformin 1,000 mg tablet") == {"1000mg"}
+    assert extract_strengths("metformin 1000 mg") == {"1000mg"}
+    # stated and FDB-formatted strengths normalize to the same token
+    assert extract_strengths("metformin 1000 mg").issubset(extract_strengths("metformin 1,000 mg tablet"))
+
+
+def test_extract_strengths_folds_units_plural() -> None:
+    # "2000 units" (stated) and "2,000 unit" (FDB) must match
+    assert extract_strengths("vitamin D 2000 units") == {"2000unit"}
+    assert extract_strengths("Vitamin D3 50 mcg (2,000 unit) tablet") == {"50mcg", "2000unit"}
+    assert extract_strengths("vitamin D 2000 units").issubset(
+        extract_strengths("Vitamin D3 50 mcg (2,000 unit) tablet")
+    )
+
+
+def test_select_medication_matches_combination_and_comma() -> None:
+    candidates = [
+        _detail("x", "metformin 500 mg tablet"),
+        _detail("y", "metformin 1,000 mg tablet"),
+    ]
+    assert select_medication("metformin 1000 mg", candidates).fdb_code == "y"
+
+    combo = [
+        _detail("mono", "budesonide 160 mcg inhaler"),
+        _detail("combo", "Symbicort 160 mcg-4.5 mcg/actuation HFA aerosol inhaler"),
+    ]
+    assert select_medication("Symbicort 160/4.5 mcg", combo).fdb_code == "combo"
 
 
 def test_extract_strengths_distinguishes_similar_numbers() -> None:

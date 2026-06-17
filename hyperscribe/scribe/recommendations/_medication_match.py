@@ -34,12 +34,14 @@ import re
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.structures.medication_detail import MedicationDetail
 
-# A strength is a number (optionally decimal, optionally a hyphen/slash-joined
-# compound like "20-12.5" for combination products) followed by a dosage unit.
-# We capture the whole "<number><unit>" token so matching is exact and "20 mg"
+# A strength is a number followed by a dosage unit. The number may carry comma
+# thousands separators ("1,000") and may be a hyphen/slash-joined compound that
+# shares one unit ("20-12.5 mg", "160/4.5 mcg") for combination products. Each
+# component is normalized to an exact "<number><unit>" token so that "20 mg"
 # never matches "120 mg" or "2.5 mg".
+_NUMBER = r"\d[\d,]*(?:\.\d+)?"
 _STRENGTH_RE = re.compile(
-    r"(\d+(?:\.\d+)?(?:\s*[-/]\s*\d+(?:\.\d+)?)*)\s*"
+    rf"({_NUMBER}(?:\s*[-/]\s*{_NUMBER})*)\s*"
     r"(mcg|mg|g|ml|%|iu|meq|units?)\b",
     re.IGNORECASE,
 )
@@ -71,13 +73,19 @@ def sanitize_sig(sig: str | None) -> str:
 def extract_strengths(text: str) -> set[str]:
     """Return the normalized strength tokens found in ``text``.
 
-    "Lisinopril 20 mg tablet" -> {"20mg"}; "20 MG" and "20mg" both normalize to
-    "20mg"; combination strengths keep their joined form ("20-12.5mg").
+    "Lisinopril 20 mg tablet" -> {"20mg"}; "20 MG", "20mg" and "1,000 mg" all
+    normalize (commas stripped, "units" folded to "unit"). A combination strength
+    is split into one token per component sharing the unit, so both the stated
+    "Symbicort 160/4.5 mcg" and FDB's "160 mcg-4.5 mcg/actuation" yield
+    {"160mcg", "4.5mcg"} and therefore match.
     """
     result: set[str] = set()
     for amount, unit in _STRENGTH_RE.findall(text or ""):
-        normalized_amount = re.sub(r"\s+", "", amount)
-        result.add(f"{normalized_amount}{unit.lower()}")
+        unit_normalized = "unit" if unit.lower() == "units" else unit.lower()
+        for component in re.split(r"[-/]", amount):
+            number = re.sub(r"[\s,]", "", component)
+            if number:
+                result.add(f"{number}{unit_normalized}")
     return result
 
 

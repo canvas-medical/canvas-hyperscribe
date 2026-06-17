@@ -26,7 +26,9 @@ _SYSTEM_PROMPT = (
     "days supply and quantity to dispense if mentioned, number of refills if mentioned, "
     "and a comma-separated list of search keywords (synonyms, brand/generic names) for database lookup (max 5). "
     "CRITICAL: preserve the exact strength/dose as stated in the note (e.g. '20 mg'); "
-    "never round it or substitute a different strength."
+    "never round it or substitute a different strength. "
+    "If the note does not state directions, leave the sig null rather than "
+    "guessing or inferring a frequency."
 )
 
 

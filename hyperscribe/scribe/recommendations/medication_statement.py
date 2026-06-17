@@ -24,7 +24,9 @@ _SYSTEM_PROMPT = (
     "For each medication, provide the full name with strength, the sig (directions), "
     "and a comma-separated list of search keywords (synonyms, brand/generic names) for database lookup (max 5). "
     "CRITICAL: preserve the exact strength/dose as stated in the note (e.g. '20 mg'); "
-    "never round it or substitute a different strength."
+    "never round it or substitute a different strength. "
+    "If the note does not state directions for a medication, leave the sig null rather than "
+    "guessing or inferring a frequency."
 )
 
 
