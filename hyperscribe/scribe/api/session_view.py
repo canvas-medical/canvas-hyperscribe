@@ -81,6 +81,7 @@ from hyperscribe.scribe.commands.problem_list_match import (
     prefer_patient_specific_codes,
 )
 from hyperscribe.scribe.recommendations import recommend_commands
+from hyperscribe.scribe.recommendations._referral_diagnosis import link_referral_diagnoses
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
@@ -1227,6 +1228,18 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 diagnosis_suggestions = suggest_diagnoses(unmatched_headers, api_key)
             except Exception:
                 log.exception("suggest_diagnoses failed (non-critical)")
+
+        # ── Step 4b: Give generic referrals a validated indication ──
+        # Match each referral's condition to a code already in the note (diagnose
+        # commands → diagnosis suggestions → unmatched conditions) so a generic,
+        # provider-less referral is commit-ready. Never fabricates a code.
+        if recommendations_list:
+            try:
+                link_referral_diagnoses(
+                    recommendations_list, commands_list, unmatched_conditions, diagnosis_suggestions
+                )
+            except Exception:
+                log.exception("link_referral_diagnoses failed (non-critical)")
 
         # ── Save to database ──
         # `mode` and `selected_template_name` are owned by the session lifecycle

@@ -54,6 +54,13 @@ class PrescriptionRecommendationList(BaseModelLlmJson):
 
 class ReferRecommendation(BaseModelLlmJson):
     specialty: str = Field(description="Medical specialty for the referral (e.g. Cardiology, ENT, Dermatology)")
+    indication: str | None = Field(
+        default=None,
+        description=(
+            "The condition or problem this referral addresses, copied verbatim from the note's "
+            "problem/assessment name (e.g. 'Shoulder muscle spasm'); null if the note does not state one"
+        ),
+    )
     clinical_question: str | None = Field(
         default=None,
         description=(

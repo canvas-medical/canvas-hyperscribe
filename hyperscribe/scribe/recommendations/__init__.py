@@ -30,7 +30,9 @@ def _build_recommenders(zip_codes: list[str] | None = None) -> list[BaseRecommen
         MedicationRecommender(),
         AllergyRecommender(),
         PrescriptionRecommender(),
-        ReferRecommender(zip_codes=zip_codes),
+        # zip_codes is intentionally not passed: referrals are recommended
+        # generically (specialty only), without a provider lookup.
+        ReferRecommender(),
         TaskRecommender(),
     ]
 
