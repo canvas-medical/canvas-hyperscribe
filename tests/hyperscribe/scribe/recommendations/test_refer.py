@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from http import HTTPStatus
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from canvas_sdk.clients.llms.structures import LlmResponse, LlmTokens
 
@@ -11,34 +11,6 @@ from hyperscribe.scribe.recommendations.refer import (
     ReferRecommender,
     _build_user_prompt,
 )
-
-_MATCHED_RESULT = {
-    "name": "Jane Smith (ENT Clinic), Otolaryngology",
-    "description": "Phone: 555-1234",
-    "data": {
-        "first_name": "Jane",
-        "last_name": "Smith",
-        "specialty": "Otolaryngology",
-        "practice_name": "ENT Clinic",
-        "business_fax": "",
-        "business_phone": "555-1234",
-        "business_address": "123 Main St",
-    },
-}
-
-_DERM_RESULT = {
-    "name": "Bob Brown (Skin Clinic), Dermatology",
-    "description": "",
-    "data": {
-        "first_name": "Bob",
-        "last_name": "Brown",
-        "specialty": "Dermatology",
-        "practice_name": "Skin Clinic",
-        "business_fax": "",
-        "business_phone": "",
-        "business_address": "",
-    },
-}
 
 
 def _make_note(sections: list[NoteSection] | None = None) -> ClinicalNote:
@@ -67,16 +39,14 @@ def test_build_user_prompt() -> None:
     assert "## HPI" in result
 
 
-@patch("hyperscribe.scribe.recommendations.refer.search_refer_providers")
-def test_recommend_with_matching_provider(mock_search: MagicMock) -> None:
-    mock_search.return_value = [_MATCHED_RESULT]
-
+def test_recommend_is_generic_no_provider() -> None:
     note = _make_note([NoteSection(key="assessment_and_plan", title="A&P", text="Refer to ENT.")])
     client = _make_client(
         {
             "referrals": [
                 {
                     "specialty": "ENT",
+                    "indication": "Chronic sinusitis",
                     "clinicalQuestion": "Specialized intervention",
                     "priority": "Routine",
                     "reason": "Further evaluation needed",
@@ -88,46 +58,37 @@ def test_recommend_with_matching_provider(mock_search: MagicMock) -> None:
     proposals = ReferRecommender().recommend(note, client)
 
     assert len(proposals) == 1
-    assert proposals[0].command_type == "refer"
-    assert proposals[0].data["service_provider"]["first_name"] == "Jane"
-    assert proposals[0].data["refer_to_display"] == "Jane Smith (ENT Clinic), Otolaryngology"
-    assert proposals[0].data["clinical_question"] == "Specialized intervention"
-    assert proposals[0].data["notes_to_specialist"] == "Further evaluation needed"
-    mock_search.assert_called_once_with("ENT", None)
+    p = proposals[0]
+    assert p.command_type == "refer"
+    # generic: display is the specialty, no specific provider attached
+    assert p.display == "ENT"
+    assert "service_provider" not in p.data
+    assert p.data["refer_to_display"] == "ENT"
+    assert p.data["indication"] == "Chronic sinusitis"
+    assert p.data["clinical_question"] == "Specialized intervention"
+    assert p.data["priority"] == "Routine"
+    assert p.data["notes_to_specialist"] == "Further evaluation needed"
 
 
-@patch("hyperscribe.scribe.recommendations.refer.search_refer_providers")
-def test_recommend_incomplete_when_no_provider_found(mock_search: MagicMock) -> None:
-    mock_search.return_value = []
-
-    note = _make_note([NoteSection(key="assessment_and_plan", title="A&P", text="Refer to ENT.")])
-    client = _make_client({"referrals": [{"specialty": "ENT", "priority": "Routine", "reason": "Evaluation needed"}]})
+def test_recommend_indication_absent_is_none() -> None:
+    note = _make_note([NoteSection(key="plan", title="Plan", text="Refer to cardiology.")])
+    client = _make_client({"referrals": [{"specialty": "Cardiology", "priority": "Routine"}]})
 
     proposals = ReferRecommender().recommend(note, client)
 
     assert len(proposals) == 1
-    assert proposals[0].command_type == "refer"
-    assert proposals[0].display == "ENT"
-    assert proposals[0].data.get("service_provider") is None
-    assert proposals[0].data.get("refer_to_display") is None
+    assert proposals[0].data["indication"] is None
+    assert proposals[0].data["notes_to_specialist"] is None
     assert proposals[0].data["priority"] == "Routine"
-    assert proposals[0].data["notes_to_specialist"] == "Evaluation needed"
-    mock_search.assert_called_once_with("ENT", None)
 
 
-@patch("hyperscribe.scribe.recommendations.refer.search_refer_providers")
-def test_recommend_multiple_mixed_matches(mock_search: MagicMock) -> None:
-    mock_search.side_effect = [
-        [],  # ENT not found → incomplete
-        [_DERM_RESULT],
-    ]
-
+def test_recommend_multiple_referrals_all_generic() -> None:
     note = _make_note([NoteSection(key="plan", title="Plan", text="Refer to ENT and Dermatology.")])
     client = _make_client(
         {
             "referrals": [
-                {"specialty": "ENT", "priority": "Routine"},
-                {"specialty": "Dermatology", "priority": "Routine"},
+                {"specialty": "ENT", "indication": "Sinusitis", "priority": "Routine"},
+                {"specialty": "Dermatology", "indication": "Rash", "priority": "Urgent"},
             ]
         }
     )
@@ -135,9 +96,16 @@ def test_recommend_multiple_mixed_matches(mock_search: MagicMock) -> None:
     proposals = ReferRecommender().recommend(note, client)
 
     assert len(proposals) == 2
-    assert proposals[0].data.get("service_provider") is None
-    assert proposals[0].data.get("refer_to_display") is None
-    assert proposals[1].data["service_provider"]["specialty"] == "Dermatology"
+    assert [p.display for p in proposals] == ["ENT", "Dermatology"]
+    assert all("service_provider" not in p.data for p in proposals)
+    assert proposals[1].data["priority"] == "Urgent"
+
+
+def test_recommend_skips_blank_specialty() -> None:
+    note = _make_note([NoteSection(key="plan", title="Plan", text="Refer out.")])
+    client = _make_client({"referrals": [{"specialty": "  ", "priority": "Routine"}]})
+
+    assert ReferRecommender().recommend(note, client) == []
 
 
 def test_recommend_empty_note() -> None:
@@ -182,10 +150,8 @@ def test_recommend_malformed_response() -> None:
     assert ReferRecommender().recommend(note, client) == []
 
 
-@patch("hyperscribe.scribe.recommendations.refer.search_refer_providers")
-def test_recommend_no_referrals_found(mock_search: MagicMock) -> None:
+def test_recommend_no_referrals_found() -> None:
     note = _make_note([NoteSection(key="assessment_and_plan", title="A&P", text="Continue meds.")])
     client = _make_client({"referrals": []})
 
     assert ReferRecommender().recommend(note, client) == []
-    mock_search.assert_not_called()

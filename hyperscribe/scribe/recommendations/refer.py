@@ -8,7 +8,6 @@ from logger import log
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
-from hyperscribe.scribe.contacts import search_refer_providers
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import ReferRecommendationList
 
@@ -22,8 +21,9 @@ _SYSTEM_PROMPT = (
     "Look for phrases like 'refer to', 'referral to', 'consult with', 'send to', "
     "'evaluation by', or mentions of scheduling with a specialist. "
     "Do NOT include follow-up appointments with the same provider — those are not referrals. "
-    "For each referral, extract the specialty, provider/practice name if mentioned, "
-    "clinical question category, priority, and reason."
+    "For each referral, extract the specialty, the condition/problem the referral addresses "
+    "(copy the problem name verbatim from the note's assessment/plan), the clinical question "
+    "category, priority, and reason."
 )
 
 
@@ -35,9 +35,6 @@ def _build_user_prompt(sections: list[NoteSection]) -> str:
 
 
 class ReferRecommender(BaseRecommender):
-    def __init__(self, zip_codes: list[str] | None = None) -> None:
-        self.zip_codes = zip_codes
-
     def recommend(
         self, note: ClinicalNote, client: LlmAnthropic, transcript: Transcript | None = None
     ) -> list[CommandProposal]:
@@ -57,49 +54,43 @@ class ReferRecommender(BaseRecommender):
             return []
 
         if response.code != HTTPStatus.OK:
-            log.info(f"LLM returned {response.code} for refer recommendations: {response.response}")
+            # Do not log response.response: it is derived from the note and may contain PHI.
+            log.info(
+                f"LLM returned {response.code} for refer recommendations "
+                f"(response length: {len(response.response or '')})"
+            )
             return []
 
         try:
             parsed = ReferRecommendationList.model_validate(json.loads(response.response))
         except Exception:
-            log.exception(f"Failed to parse refer LLM response: {response.response}")
+            # Do not log response.response: it is derived from the note and may contain PHI.
+            log.exception(f"Failed to parse refer LLM response (response length: {len(response.response or '')})")
             return []
+
         proposals: list[CommandProposal] = []
         for ref in parsed.referrals:
-            search_term = ref.specialty or ""
-            if not search_term:
+            specialty = (ref.specialty or "").strip()
+            if not specialty:
                 continue
-
-            results = search_refer_providers(search_term, self.zip_codes)
-            if results:
-                match = results[0]
-                display = match["name"]
-                proposals.append(
-                    CommandProposal(
-                        command_type="refer",
-                        display=display or search_term,
-                        data={
-                            "service_provider": match["data"],
-                            "refer_to_display": display or search_term,
-                            "clinical_question": ref.clinical_question or None,
-                            "priority": ref.priority or "Routine",
-                            "notes_to_specialist": ref.reason or None,
-                        },
-                        section_key="_recommended",
-                    )
+            # Recommend a generic referral to the specialty only — no automatic
+            # science-service provider lookup. The provider can search for and attach
+            # a specific provider in the UI if they want one. The indication is
+            # resolved to a validated diagnosis code downstream
+            # (see _referral_diagnosis.link_referral_diagnoses) so the generic
+            # referral is commit-ready.
+            proposals.append(
+                CommandProposal(
+                    command_type="refer",
+                    display=specialty,
+                    data={
+                        "refer_to_display": specialty,
+                        "indication": (ref.indication or "").strip() or None,
+                        "clinical_question": ref.clinical_question or None,
+                        "priority": ref.priority or "Routine",
+                        "notes_to_specialist": ref.reason or None,
+                    },
+                    section_key="_recommended",
                 )
-            else:
-                proposals.append(
-                    CommandProposal(
-                        command_type="refer",
-                        display=search_term,
-                        data={
-                            "clinical_question": ref.clinical_question or None,
-                            "priority": ref.priority or "Routine",
-                            "notes_to_specialist": ref.reason or None,
-                        },
-                        section_key="_recommended",
-                    )
-                )
+            )
         return proposals
