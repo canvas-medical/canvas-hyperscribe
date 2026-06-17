@@ -73,13 +73,18 @@ class MedicationRecommender(BaseRecommender):
             return []
 
         if response.code != HTTPStatus.OK:
-            log.info(f"LLM returned {response.code} for medication recommendations: {response.response}")
+            # Do not log response.response: it is derived from the note and may contain PHI.
+            log.info(
+                f"LLM returned {response.code} for medication recommendations "
+                f"(response length: {len(response.response or '')})"
+            )
             return []
 
         try:
             parsed = MedicationRecommendationList.model_validate(json.loads(response.response))
         except Exception:
-            log.exception(f"Failed to parse medication LLM response: {response.response}")
+            # Do not log response.response: it is derived from the note and may contain PHI.
+            log.exception(f"Failed to parse medication LLM response (response length: {len(response.response or '')})")
             return []
 
         lookup_cache: dict[str, list[MedicationDetail]] = {}
