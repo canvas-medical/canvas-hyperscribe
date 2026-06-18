@@ -821,6 +821,30 @@ h2 { margin-bottom: 4px; }
 .lab-test-chip { display: inline-flex; align-items: center; gap: 8px; background: #e8e7f8; color: #3b3a8e; font-size: 14px; padding: 8px 14px; border-radius: 8px; }
 .lab-test-chip-remove { background: none; border: none; color: #3b3a8e; font-size: 18px; cursor: pointer; padding: 0 2px; line-height: 1; }
 .lab-test-chip-remove:active { color: #d32f2f; }
+
+/* ── Referral card (collapsed meta + expanded form) ── */
+.order-view-meta { font-size: 13px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+.refer-search-field { position: relative; }
+.refer-search-field .refer-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #9aa1ad; pointer-events: none; }
+.refer-search-input { padding-left: 34px; }
+
+.refer-token-input { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; min-height: 40px; padding: 5px 8px 5px 30px; border: 1px solid #ddd; border-radius: 6px; background: #fff; box-sizing: border-box; cursor: text; }
+.refer-token-input:focus-within { border-color: #aab2bd; box-shadow: 0 0 0 3px rgba(5, 43, 73, 0.08); }
+.refer-token-input > .refer-search-icon { position: absolute; left: 9px; top: 12px; width: 15px; height: 15px; color: #9aa1ad; pointer-events: none; }
+.refer-token-input input { flex: 1; min-width: 130px; border: none; outline: none; font-family: inherit; font-size: 14px; padding: 4px 2px; background: transparent; color: #333; }
+.refer-token-chip { display: inline-flex; align-items: center; gap: 7px; background: #eef0f4; color: #3a475c; font-size: 12.5px; padding: 4px 6px 4px 10px; border-radius: 6px; }
+.refer-token-chip button { background: none; border: none; color: #98a1ad; font-size: 15px; line-height: 1; cursor: pointer; padding: 0; }
+.refer-token-chip button:active { color: #dc2626; }
+
+.refer-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+
+.refer-priority { display: inline-flex; gap: 8px; }
+.refer-pill { border: 1.5px solid #d6dae1; border-radius: 6px; padding: 8px 18px; font-family: inherit; font-size: 13px; font-weight: 600; color: #5b6678; background: #fff; cursor: pointer; transition: all 0.12s; }
+.refer-pill.active { background: #eef0f4; border-color: #aab2bd; color: #1f2733; }
+
+.refer-add-comment { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px; font-weight: 600; color: #052B49; background: none; border: none; padding: 0; cursor: pointer; align-self: flex-start; }
+
 .diag-search-wrapper { position: relative; flex: 1; min-width: 0; }
 .diag-search-spinner { font-size: 12px; color: #888; font-style: italic; margin-top: 2px; display: block; }
 .diag-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; margin-top: 2px; }
