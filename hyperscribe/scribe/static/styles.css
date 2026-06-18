@@ -843,12 +843,15 @@ select.history-form-input {
 .refer-token-input:focus-within { border-color: #aab2bd; box-shadow: 0 0 0 3px rgba(5, 43, 73, 0.08); }
 .refer-token-input > .refer-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #9aa1ad; pointer-events: none; }
 .refer-token-input input { flex: 1; min-width: 60px; border: none; outline: none; font-family: inherit; font-size: 14px; padding: 0; background: transparent; color: #333; }
-.refer-token-chip { display: inline-flex; align-items: center; gap: 6px; min-width: 0; background: #eef0f4; color: #3a475c; font-size: 12.5px; padding: 4px 6px 4px 10px; border-radius: 6px; }
+.refer-token-chip { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 6px; min-width: 0; background: #eef0f4; color: #3a475c; font-size: 12.5px; padding: 4px 6px 4px 10px; border-radius: 6px; }
 .refer-token-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .refer-token-chip button { flex: none; background: none; border: none; color: #98a1ad; font-size: 15px; line-height: 1; cursor: pointer; padding: 0; }
 .refer-token-chip button:active { color: #dc2626; }
 
 .refer-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+/* grid items default to min-width:auto and would expand past their track to fit
+   wide chips — pin them to 0 so the column stays 1fr and the field never grows */
+.refer-grid2 > .history-form-field { min-width: 0; }
 /* normalize the select height so the priority pills can match it exactly */
 .refer-grid2 .history-form-input { box-sizing: border-box; height: 40px; }
 
