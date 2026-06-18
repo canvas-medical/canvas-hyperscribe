@@ -1,6 +1,6 @@
 {
-  "sdk_version": "0.155.0",
-  "plugin_version": "2026-06-10 v0.3.10 (feat-physical-exam-improvements)",
+  "sdk_version": "0.163.0",
+  "plugin_version": "2026-06-16 v0.3.11 (koala-5808)",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -183,6 +183,15 @@
         }
       },
       {
+        "class": "hyperscribe.scribe.handlers.note_command_buttons:NoteCommandButtonsRestoreHandler",
+        "description": "Restore chart-section command buttons when a Scribe note is closed",
+        "data_access": {
+          "event": "NOTE_CLOSED",
+          "read": [],
+          "write": []
+        }
+      },
+      {
         "class": "hyperscribe.scribe.print.button:PrintScribeNoteButton",
         "description": "Note header dropdown button that launches a print preview of the scribe summary",
         "data_access": {
@@ -294,9 +303,9 @@
     "VisitTemplates"
   ],
   "tags": {
-    "version_date": "2026-06-10",
-    "version_branch": "feat-physical-exam-improvements",
-    "version_semantic": "0.3.10"
+    "version_date": "2026-06-16",
+    "version_branch": "koala-5808",
+    "version_semantic": "0.3.11"
   },
   "custom_data": {
     "namespace": "canvas_medical__scribe",

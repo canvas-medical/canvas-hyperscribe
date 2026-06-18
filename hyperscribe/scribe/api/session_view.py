@@ -13,6 +13,7 @@ from logger import log
 
 from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
+from canvas_sdk.effects.configure_command_buttons import ConfigureCommandButtons
 from canvas_sdk.effects.note.note import Note as NoteEffect
 from canvas_sdk.effects.simple_api import Broadcast, JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
@@ -39,6 +40,7 @@ from canvas_sdk.v1.data.patient import Patient
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
+from hyperscribe.scribe.command_buttons import configure_command_buttons_effect
 
 import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
 from hyperscribe.scribe.backend import (
@@ -988,6 +990,37 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             payload["mode"] = data["mode"]
         _save_summary(note_id, payload)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
+
+    @api.post("/configure-command-buttons")
+    def post_configure_command_buttons(self) -> list[Union[Response, Effect]]:
+        """Hide or restore all chart-section command buttons for the note's patient.
+
+        Called by the Scribe frontend on note-tab changes: hide while the Scribe
+        tab is active, restore when the user navigates to any other tab. The
+        effect is sticky and patient-scoped, so restores are explicit (here and on
+        NOTE_CLOSED). Authorization is read-level: any staff who can load the chart
+        (author, scribe, covering provider) may toggle their own button visibility.
+        """
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_id = str(data.get("note_id", ""))
+        if not note_id:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_read(note_id, self.request):
+            return [denial]
+        try:
+            patient_id = Note.objects.values_list("patient__id", flat=True).get(id=note_id)
+        except Note.DoesNotExist:
+            return [JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)]
+
+        hidden = bool(data.get("hidden", False))
+        visibility = ConfigureCommandButtons.Visibility.HIDDEN if hidden else ConfigureCommandButtons.Visibility.VISIBLE
+        return [
+            JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK),
+            configure_command_buttons_effect(patient_id, visibility),
+        ]
 
     @api.get("/summary-progress")
     def get_summary_progress(self) -> list[Union[Response, Effect]]:

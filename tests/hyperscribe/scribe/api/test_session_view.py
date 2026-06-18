@@ -758,6 +758,146 @@ def test_save_summary_does_not_set_was_finalized_when_unapproved(mock_summary: M
     assert "was_finalized" not in kwargs["defaults"]
 
 
+# --- /configure-command-buttons ---
+
+
+def _configure_buttons_locations(result: Any) -> list[dict[str, str]]:
+    """Pull the locations list off the ConfigureCommandButtons effect in a result."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    effect = result[1]
+    payload = json.loads(effect.payload)
+    assert effect.type == ConfigureCommandButtons.Meta.effect_type
+    return payload["data"]["locations"]
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_hidden(mock_note: MagicMock) -> None:
+    """hidden=True hides every command-button location for the note's patient."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-1"
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "note-uuid-1", "hidden": True}),
+    )
+    result = view.post_configure_command_buttons()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"status": "ok"}
+    mock_note.objects.values_list.assert_called_once_with("patient__id", flat=True)
+    mock_note.objects.values_list.return_value.get.assert_called_once_with(id="note-uuid-1")
+
+    locations = _configure_buttons_locations(result)
+    # One config per Location, all hidden, no duplicates.
+    assert len(locations) == len(list(ConfigureCommandButtons.Location))
+    assert {loc["location"] for loc in locations} == {loc.value for loc in ConfigureCommandButtons.Location}
+    assert all(loc["visibility"] == ConfigureCommandButtons.Visibility.HIDDEN for loc in locations)
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_restore(mock_note: MagicMock) -> None:
+    """hidden=False (and the default) restores every location to visible."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-2"
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "note-uuid-2", "hidden": False}),
+    )
+    result = view.post_configure_command_buttons()
+
+    assert result[0].status_code == HTTPStatus.OK
+    locations = _configure_buttons_locations(result)
+    assert all(loc["visibility"] == ConfigureCommandButtons.Visibility.VISIBLE for loc in locations)
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_defaults_to_visible(mock_note: MagicMock) -> None:
+    """Omitting `hidden` is treated as a restore (visible)."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-3"
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "note-uuid-3"}),
+    )
+    result = view.post_configure_command_buttons()
+
+    locations = _configure_buttons_locations(result)
+    assert all(loc["visibility"] == ConfigureCommandButtons.Visibility.VISIBLE for loc in locations)
+
+
+def test_configure_command_buttons_missing_note_id() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(headers={}, body=json.dumps({"hidden": True}))
+    result = view.post_configure_command_buttons()
+
+    assert len(result) == 1
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_id" in json.loads(result[0].content)["error"]
+
+
+def test_configure_command_buttons_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(headers={}, body="not-json")
+    result = view.post_configure_command_buttons()
+
+    assert len(result) == 1
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_note_not_found(mock_note: MagicMock) -> None:
+    from canvas_sdk.v1.data.note import Note as RealNote
+
+    mock_note.objects.values_list.return_value.get.side_effect = RealNote.DoesNotExist
+    mock_note.DoesNotExist = RealNote.DoesNotExist
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "missing", "hidden": True}),
+    )
+    result = view.post_configure_command_buttons()
+
+    assert len(result) == 1
+    assert result[0].status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.no_authorize_bypass
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_uses_authorize_read(mock_note: MagicMock) -> None:
+    """A denial from _authorize_read short-circuits before applying any effect,
+    and the endpoint uses read-level (not edit-level) auth so non-author staff
+    viewing the chart can still toggle their own button visibility."""
+    from hyperscribe.scribe.api import session_view
+
+    denial = JSONResponse({"error": "denied"}, status_code=HTTPStatus.FORBIDDEN)
+    with (
+        patch.object(session_view, "_authorize_read", return_value=denial) as read_auth,
+        patch.object(session_view, "_authorize_edit") as edit_auth,
+    ):
+        view = _helper_instance()
+        view.request = SimpleNamespace(
+            headers={"canvas-logged-in-user-id": "staff-1"},
+            body=json.dumps({"note_id": "note-uuid", "hidden": True}),
+        )
+        result = view.post_configure_command_buttons()
+
+    assert result == [denial]
+    read_auth.assert_called_once()
+    edit_auth.assert_not_called()
+    mock_note.objects.values_list.assert_not_called()
+
+
 # --- /generate-note ---
 
 
