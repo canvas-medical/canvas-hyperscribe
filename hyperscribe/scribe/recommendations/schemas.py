@@ -70,7 +70,6 @@ class ReferRecommendation(BaseModelLlmJson):
             "'Diagnostic Uncertainty'"
         ),
     )
-    priority: str = Field(default="Routine", description="'Routine' or 'Urgent'")
     reason: str | None = Field(default=None, description="Brief reason or notes for the referral")
 
 

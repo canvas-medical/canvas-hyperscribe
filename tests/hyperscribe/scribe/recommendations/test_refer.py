@@ -48,7 +48,6 @@ def test_recommend_is_generic_with_placeholder_provider() -> None:
                     "specialty": "ENT",
                     "indication": "Chronic sinusitis",
                     "clinicalQuestion": "Specialized intervention",
-                    "priority": "Routine",
                     "reason": "Further evaluation needed",
                 },
             ]
@@ -71,13 +70,14 @@ def test_recommend_is_generic_with_placeholder_provider() -> None:
     assert sp["practice_name"] == "ENT"
     assert p.data["indication"] == "Chronic sinusitis"
     assert p.data["clinical_question"] == "Specialized intervention"
-    assert p.data["priority"] == "Routine"
+    # priority is left blank for the provider to set
+    assert "priority" not in p.data
     assert p.data["notes_to_specialist"] == "Further evaluation needed"
 
 
 def test_recommend_defaults_clinical_question_and_notes() -> None:
     note = _make_note([NoteSection(key="plan", title="Plan", text="Refer to cardiology.")])
-    client = _make_client({"referrals": [{"specialty": "Cardiology", "priority": "Routine"}]})
+    client = _make_client({"referrals": [{"specialty": "Cardiology"}]})
 
     proposals = ReferRecommender().recommend(note, client)
 
@@ -93,7 +93,7 @@ def test_recommend_defaults_clinical_question_and_notes() -> None:
 def test_recommend_notes_fall_back_to_indication() -> None:
     note = _make_note([NoteSection(key="plan", title="Plan", text="Refer to ortho.")])
     client = _make_client(
-        {"referrals": [{"specialty": "Orthopedics", "indication": "Rotator cuff tear", "priority": "Routine"}]}
+        {"referrals": [{"specialty": "Orthopedics", "indication": "Rotator cuff tear"}]}
     )
 
     proposals = ReferRecommender().recommend(note, client)
@@ -106,8 +106,8 @@ def test_recommend_multiple_referrals_all_generic() -> None:
     client = _make_client(
         {
             "referrals": [
-                {"specialty": "ENT", "indication": "Sinusitis", "priority": "Routine"},
-                {"specialty": "Dermatology", "indication": "Rash", "priority": "Urgent"},
+                {"specialty": "ENT", "indication": "Sinusitis"},
+                {"specialty": "Dermatology", "indication": "Rash"},
             ]
         }
     )
@@ -117,12 +117,12 @@ def test_recommend_multiple_referrals_all_generic() -> None:
     assert len(proposals) == 2
     assert [p.display for p in proposals] == ["ENT", "Dermatology"]
     assert all(p.data["service_provider"]["last_name"] == "TBD" for p in proposals)
-    assert proposals[1].data["priority"] == "Urgent"
+    assert all("priority" not in p.data for p in proposals)
 
 
 def test_recommend_skips_blank_specialty() -> None:
     note = _make_note([NoteSection(key="plan", title="Plan", text="Refer out.")])
-    client = _make_client({"referrals": [{"specialty": "  ", "priority": "Routine"}]})
+    client = _make_client({"referrals": [{"specialty": "  "}]})
 
     assert ReferRecommender().recommend(note, client) == []
 

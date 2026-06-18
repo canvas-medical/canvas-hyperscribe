@@ -34,7 +34,7 @@ _SYSTEM_PROMPT = (
     "Do NOT include follow-up appointments with the same provider — those are not referrals. "
     "For each referral, extract the specialty, the condition/problem the referral addresses "
     "(copy the problem name verbatim from the note's assessment/plan), the clinical question "
-    "category, priority, and reason."
+    "category, and reason."
 )
 
 
@@ -104,7 +104,7 @@ class ReferRecommender(BaseRecommender):
                         "refer_to_display": specialty,
                         "indication": indication,
                         "clinical_question": ref.clinical_question or _DEFAULT_CLINICAL_QUESTION,
-                        "priority": ref.priority or "Routine",
+                        # priority is intentionally left blank for the provider to set in the UI
                         "notes_to_specialist": ref.reason or indication or f"Referral to {specialty}",
                     },
                     section_key="_recommended",
