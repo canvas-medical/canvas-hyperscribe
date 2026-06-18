@@ -631,6 +631,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [referNotesToSpecialist, setReferNotesToSpecialist] = useState(command.data.notes_to_specialist || '');
   const [referComment, setReferComment] = useState(command.data.comment || '');
   const [referCommentOpen, setReferCommentOpen] = useState(!!(command.data.comment));
+  const [referPriorityOpen, setReferPriorityOpen] = useState(!!(command.data.priority));
   const referProviderInputRef = useRef(null);
   const referDiagInputRef = useRef(null);
 
@@ -1639,47 +1640,47 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     <div class="history-search-dropdown"><div class="history-search-result search-no-results">No providers found</div></div>
                   `}
                 </div>
-                <div class="history-form-field">
-                  <label class="history-form-label">Indications</label>
-                  <div class="refer-token-input" style="position: relative;" onClick=${() => referDiagInputRef.current && referDiagInputRef.current.focus()}>
-                    ${ICON_SEARCH}
-                    ${referDiagnoses.map(d => html`
-                      <span class="refer-token-chip" key=${d.code}>
-                        ${(d.formatted_code || d.code)}${d.display && d.display !== (d.formatted_code || d.code) ? ` — ${d.display}` : ''}
-                        <button type="button" onClick=${(e) => { e.stopPropagation(); handleReferDiagRemove(d.code); }}>×</button>
-                      </span>
-                    `)}
-                    <input
-                      ref=${referDiagInputRef}
-                      type="text"
-                      value=${referDiagQuery}
-                      onInput=${handleReferDiagInput}
-                      onFocus=${() => setReferDiagFocused(true)}
-                      onBlur=${() => setTimeout(() => setReferDiagFocused(false), 150)}
-                      placeholder=${referDiagnoses.length ? '' : 'Search diagnoses...'}
-                    />
-                    ${referDiagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
-                    ${referDiagResults.length > 0 && html`
-                      <div class="history-search-dropdown">
-                        ${referDiagResults.map(d => html`
-                          <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                    ${!referDiagSearching && referDiagSearched && referDiagResults.length === 0 && referDiagQuery.length >= 2 && html`
-                      <div class="history-search-dropdown"><div class="history-search-result search-no-results">No diagnoses found</div></div>
-                    `}
-                    ${referDiagFocused && !referDiagQuery && referDiagSuggestions.length > 0 && html`
-                      <div class="history-search-dropdown">
-                        <div class="diag-suggestion-header">Patient conditions</div>
-                        ${referDiagSuggestions.map(d => html`
-                          <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
-                        `)}
-                      </div>
-                    `}
-                  </div>
-                </div>
                 <div class="refer-grid2">
+                  <div class="history-form-field">
+                    <label class="history-form-label">Indications</label>
+                    <div class="refer-token-input" style="position: relative;" onClick=${() => referDiagInputRef.current && referDiagInputRef.current.focus()}>
+                      ${ICON_SEARCH}
+                      ${referDiagnoses.map(d => html`
+                        <span class="refer-token-chip" key=${d.code}>
+                          ${(d.formatted_code || d.code)}${d.display && d.display !== (d.formatted_code || d.code) ? ` — ${d.display}` : ''}
+                          <button type="button" onClick=${(e) => { e.stopPropagation(); handleReferDiagRemove(d.code); }}>×</button>
+                        </span>
+                      `)}
+                      <input
+                        ref=${referDiagInputRef}
+                        type="text"
+                        value=${referDiagQuery}
+                        onInput=${handleReferDiagInput}
+                        onFocus=${() => setReferDiagFocused(true)}
+                        onBlur=${() => setTimeout(() => setReferDiagFocused(false), 150)}
+                        placeholder=${referDiagnoses.length ? '' : 'Search diagnoses...'}
+                      />
+                      ${referDiagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                      ${referDiagResults.length > 0 && html`
+                        <div class="history-search-dropdown">
+                          ${referDiagResults.map(d => html`
+                            <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                          `)}
+                        </div>
+                      `}
+                      ${!referDiagSearching && referDiagSearched && referDiagResults.length === 0 && referDiagQuery.length >= 2 && html`
+                        <div class="history-search-dropdown"><div class="history-search-result search-no-results">No diagnoses found</div></div>
+                      `}
+                      ${referDiagFocused && !referDiagQuery && referDiagSuggestions.length > 0 && html`
+                        <div class="history-search-dropdown">
+                          <div class="diag-suggestion-header">Patient conditions</div>
+                          ${referDiagSuggestions.map(d => html`
+                            <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                          `)}
+                        </div>
+                      `}
+                    </div>
+                  </div>
                   <div class="history-form-field">
                     <label class="history-form-label">Clinical Question</label>
                     <select class="history-form-input" value=${referClinicalQuestion} onChange=${(e) => setReferClinicalQuestion(e.target.value)}>
@@ -1689,6 +1690,12 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                       `)}
                     </select>
                   </div>
+                </div>
+                <div class="history-form-field">
+                  <label class="history-form-label">Notes to Specialist</label>
+                  <textarea class="history-form-textarea" rows="2" value=${referNotesToSpecialist} onInput=${(e) => setReferNotesToSpecialist(e.target.value)} placeholder="Required" />
+                </div>
+                ${(referPriorityOpen || referPriority) && html`
                   <div class="history-form-field">
                     <label class="history-form-label">Priority</label>
                     <div class="refer-priority">
@@ -1696,18 +1703,18 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                       <button type="button" class="refer-pill${referPriority === 'Urgent' ? ' active' : ''}" onClick=${() => setReferPriority(referPriority === 'Urgent' ? '' : 'Urgent')}>Urgent</button>
                     </div>
                   </div>
-                </div>
-                <div class="history-form-field">
-                  <label class="history-form-label">Notes to Specialist</label>
-                  <textarea class="history-form-textarea" rows="2" value=${referNotesToSpecialist} onInput=${(e) => setReferNotesToSpecialist(e.target.value)} placeholder="Required" />
-                </div>
-                ${(referCommentOpen || referComment) ? html`
+                `}
+                ${(referCommentOpen || referComment) && html`
                   <div class="history-form-field">
                     <label class="history-form-label">Comment</label>
                     <textarea class="history-form-textarea" rows="2" value=${referComment} onInput=${(e) => setReferComment(e.target.value)} placeholder="Optional" />
                   </div>
-                ` : html`
-                  <button type="button" class="refer-add-comment" onClick=${() => setReferCommentOpen(true)}>+ Add comment</button>
+                `}
+                ${(!(referPriorityOpen || referPriority) || !(referCommentOpen || referComment)) && html`
+                  <div class="refer-disclosures">
+                    ${!(referPriorityOpen || referPriority) && html`<button type="button" class="refer-add-pill" onClick=${() => setReferPriorityOpen(true)}>+ Add priority</button>`}
+                    ${!(referCommentOpen || referComment) && html`<button type="button" class="refer-add-pill" onClick=${() => setReferCommentOpen(true)}>+ Add comment</button>`}
+                  </div>
                 `}
               </div>
             `}

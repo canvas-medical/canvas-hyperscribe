@@ -851,11 +851,14 @@ select.history-form-input {
 .refer-grid2 .history-form-input { box-sizing: border-box; height: 40px; }
 
 /* Priority — segmented toggle: connected track, sliding white selection; unset = neither */
-.refer-priority { display: flex; box-sizing: border-box; height: 40px; gap: 2px; padding: 3px; background: #eef0f4; border-radius: 6px; }
-.refer-pill { flex: 1; border: none; background: transparent; border-radius: 4px; font-family: inherit; font-size: 13px; font-weight: 600; color: #6b7280; cursor: pointer; transition: all 0.12s; }
+.refer-priority { display: flex; box-sizing: border-box; height: 40px; max-width: 260px; gap: 2px; padding: 3px; background: #eef0f4; border-radius: 6px; }
+.refer-pill { flex: 1; border: none; background: transparent; border-radius: 4px; font-family: inherit; font-size: 13px; font-weight: 600; color: #6b7280; cursor: pointer; transition: all 0.12s; padding: 0 16px; }
 .refer-pill.active { background: #fff; color: #1f2733; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.18); }
 
-.refer-add-comment { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px; font-weight: 600; color: #052B49; background: none; border: none; padding: 0; cursor: pointer; align-self: flex-start; }
+/* Optional fields (Priority, Comment) revealed via soft-pill disclosures */
+.refer-disclosures { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.refer-add-pill { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px; font-weight: 600; color: #41506a; background: #eef0f4; border: none; border-radius: 999px; padding: 7px 14px; cursor: pointer; transition: all 0.12s; }
+.refer-add-pill:hover { background: #e2e6ec; color: #1f2733; }
 
 .diag-search-wrapper { position: relative; flex: 1; min-width: 0; }
 .diag-search-spinner { font-size: 12px; color: #888; font-style: italic; margin-top: 2px; display: block; }
