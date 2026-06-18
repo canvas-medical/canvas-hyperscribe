@@ -24,6 +24,9 @@ def test_links_code_from_diagnose_command() -> None:
     commands = [_diagnose("Shoulder muscle spasm:", "M62.838", "Other muscle spasm")]
     link_referral_diagnoses(recs, commands, [], {})
     assert recs[0]["data"]["diagnosis_codes"] == ["M62.838"]
+    # the ICD-10 name is attached for display alongside the code
+    assert recs[0]["data"]["diagnosis_displays"] == ["Other muscle spasm"]
+    assert recs[0]["data"]["diagnosis_formatted"] == ["M62.838"]
 
 
 def test_diagnose_command_takes_priority_over_suggestions() -> None:
@@ -38,9 +41,12 @@ def test_falls_back_to_suggestions_when_diagnose_uncoded() -> None:
     recs = [_refer("Shoulder muscle spasm")]
     # diagnose command exists but has no code yet
     commands = [_diagnose("Shoulder muscle spasm:", None)]
-    suggestions = {"Shoulder muscle spasm:": [{"code": "M6281", "formatted_code": "M62.81"}]}
+    suggestions = {
+        "Shoulder muscle spasm:": [{"code": "M6281", "formatted_code": "M62.81", "display": "Muscle weakness"}]
+    }
     link_referral_diagnoses(recs, commands, [], suggestions)
     assert recs[0]["data"]["diagnosis_codes"] == ["M62.81"]
+    assert recs[0]["data"]["diagnosis_displays"] == ["Muscle weakness"]
 
 
 def test_falls_back_to_unmatched_conditions() -> None:
@@ -53,6 +59,7 @@ def test_falls_back_to_unmatched_conditions() -> None:
     ]
     link_referral_diagnoses(recs, commands=[], unmatched_conditions=unmatched, diagnosis_suggestions={})
     assert recs[0]["data"]["diagnosis_codes"] == ["J45.909"]
+    assert recs[0]["data"]["diagnosis_displays"] == ["Unspecified asthma, uncomplicated"]
 
 
 def test_containment_match() -> None:
