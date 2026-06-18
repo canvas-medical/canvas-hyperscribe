@@ -30,20 +30,22 @@ def _normalize(text: str | None) -> str:
     return (text or "").strip().rstrip(":").strip().lower()
 
 
-def _match(indication: str, table: dict[str, str]) -> str | None:
-    """Return the code whose condition key matches ``indication`` (exact, then containment)."""
+# Each matchable entry maps a normalized condition key -> (code, display) so the
+# referral can carry both the ICD-10 code and its human-readable name.
+def _match(indication: str, table: dict[str, tuple[str, str]]) -> tuple[str, str] | None:
+    """Return the (code, display) whose condition key matches ``indication`` (exact, then containment)."""
     if not indication:
         return None
     if indication in table:
         return table[indication]
-    for key, code in table.items():
+    for key, value in table.items():
         if key and (indication in key or key in indication):
-            return code
+            return value
     return None
 
 
-def _codes_from_diagnose_commands(commands: list[dict[str, Any]]) -> dict[str, str]:
-    result: dict[str, str] = {}
+def _codes_from_diagnose_commands(commands: list[dict[str, Any]]) -> dict[str, tuple[str, str]]:
+    result: dict[str, tuple[str, str]] = {}
     for command in commands or []:
         if command.get("command_type") != "diagnose":
             continue
@@ -51,27 +53,29 @@ def _codes_from_diagnose_commands(commands: list[dict[str, Any]]) -> dict[str, s
         code = (data.get("icd10_code") or "").strip()
         if not code:
             continue
-        for key in (_normalize(data.get("condition_header")), _normalize(data.get("icd10_display"))):
+        display = (data.get("icd10_display") or "").strip()
+        for key in (_normalize(data.get("condition_header")), _normalize(display)):
             if key:
-                result.setdefault(key, code)
+                result.setdefault(key, (code, display))
     return result
 
 
-def _codes_from_suggestions(diagnosis_suggestions: dict[str, Any]) -> dict[str, str]:
-    result: dict[str, str] = {}
+def _codes_from_suggestions(diagnosis_suggestions: dict[str, Any]) -> dict[str, tuple[str, str]]:
+    result: dict[str, tuple[str, str]] = {}
     for header, suggestions in (diagnosis_suggestions or {}).items():
         if not suggestions:
             continue
         first = suggestions[0]
         code = first.get("formatted_code") or first.get("code")
+        display = (first.get("display") or "").strip()
         key = _normalize(header)
         if code and key:
-            result.setdefault(key, code)
+            result.setdefault(key, (code, display))
     return result
 
 
-def _codes_from_unmatched_conditions(unmatched_conditions: list[dict[str, Any]]) -> dict[str, str]:
-    result: dict[str, str] = {}
+def _codes_from_unmatched_conditions(unmatched_conditions: list[dict[str, Any]]) -> dict[str, tuple[str, str]]:
+    result: dict[str, tuple[str, str]] = {}
     for condition in unmatched_conditions or []:
         code = ""
         display = ""
@@ -84,7 +88,7 @@ def _codes_from_unmatched_conditions(unmatched_conditions: list[dict[str, Any]])
             continue
         for key in (_normalize(condition.get("corresponding_note_problem")), _normalize(display)):
             if key:
-                result.setdefault(key, code)
+                result.setdefault(key, (code, display))
     return result
 
 
@@ -94,11 +98,12 @@ def link_referral_diagnoses(
     unmatched_conditions: list[dict[str, Any]],
     diagnosis_suggestions: dict[str, Any],
 ) -> None:
-    """Attach a validated ICD-10 code to each generic ``refer`` proposal, in place.
+    """Attach a validated ICD-10 indication to each generic ``refer`` proposal, in place.
 
     Mutates ``recommendations``: for every ``refer`` proposal that has an
-    ``indication`` but no ``diagnosis_codes`` yet, sets ``data["diagnosis_codes"]``
-    to a single best-matched validated code. Leaves proposals untouched when no
+    ``indication`` but no ``diagnosis_codes`` yet, sets ``data["diagnosis_codes"]``,
+    ``data["diagnosis_displays"]`` (the ICD-10 name), and ``data["diagnosis_formatted"]``
+    to a single best-matched validated diagnosis. Leaves proposals untouched when no
     match is found (no fabrication).
     """
     diagnose_codes = _codes_from_diagnose_commands(commands)
@@ -114,11 +119,14 @@ def link_referral_diagnoses(
         indication = _normalize(data.get("indication"))
         if not indication:
             continue
-        code = (
+        match = (
             _match(indication, diagnose_codes)
             or _match(indication, suggestion_codes)
             or _match(indication, unmatched_codes)
         )
-        if code:
+        if match:
+            code, display = match
             data["diagnosis_codes"] = [code]
+            data["diagnosis_displays"] = [display or code]
+            data["diagnosis_formatted"] = [code]
             proposal["data"] = data

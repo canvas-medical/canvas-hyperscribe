@@ -1667,7 +1667,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   <div class="lab-selected-tests">
                     ${referDiagnoses.map(d => html`
                       <span class="lab-test-chip" key=${d.code}>
-                        ${d.formatted_code || d.code}
+                        ${(d.formatted_code || d.code)}${d.display && d.display !== (d.formatted_code || d.code) ? ` — ${d.display}` : ''}
                         <button type="button" class="lab-test-chip-remove" onClick=${() => handleReferDiagRemove(d.code)}>×</button>
                       </span>
                     `)}
