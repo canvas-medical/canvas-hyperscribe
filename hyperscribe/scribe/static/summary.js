@@ -1490,8 +1490,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           const parts = [newData.image_display, newData.additional_details, newData.comment, newData.priority].filter(Boolean);
           next = { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
         } else if (type === 'refer') {
-          const parts = [newData.refer_to_display, newData.clinical_question, newData.priority].filter(Boolean);
-          next = { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral' };
+          // Headline is the specialty only (refer_to_display); clinical_question /
+          // priority show on the detail line, not the collapsed headline.
+          next = { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral' };
         } else if (type === 'familyHistory') {
           const parts = [newData.condition_display, newData.relative, newData.note].filter(Boolean);
           next = { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
@@ -1652,8 +1653,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '', accepted: true };
       }
       if (type === 'refer') {
-        const parts = [newData.refer_to_display, newData.clinical_question, newData.priority].filter(Boolean);
-        return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral', accepted: true };
+        return { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral', accepted: true };
       }
       return { ...cmd, data: newData, accepted: true };
     }));
