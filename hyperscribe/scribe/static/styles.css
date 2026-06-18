@@ -827,7 +827,16 @@ h2 { margin-bottom: 4px; }
 
 .refer-search-field { position: relative; }
 .refer-search-field .refer-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #9aa1ad; pointer-events: none; }
-.refer-search-input { padding-left: 34px; }
+/* higher specificity than .history-form-input so the icon padding isn't reset by its `padding` shorthand */
+.refer-search-field .refer-search-input { padding-left: 36px; }
+
+/* Clean chevron for selects (replaces the default OS caret) */
+select.history-form-input {
+  -webkit-appearance: none; appearance: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 34px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
 
 .refer-token-input { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; min-height: 40px; padding: 5px 8px 5px 30px; border: 1px solid #ddd; border-radius: 6px; background: #fff; box-sizing: border-box; cursor: text; }
 .refer-token-input:focus-within { border-color: #aab2bd; box-shadow: 0 0 0 3px rgba(5, 43, 73, 0.08); }
@@ -838,9 +847,12 @@ h2 { margin-bottom: 4px; }
 .refer-token-chip button:active { color: #dc2626; }
 
 .refer-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+/* normalize the select height so the priority pills can match it exactly */
+.refer-grid2 .history-form-input { box-sizing: border-box; height: 40px; }
 
-.refer-priority { display: inline-flex; gap: 8px; }
-.refer-pill { border: 1.5px solid #d6dae1; border-radius: 6px; padding: 8px 18px; font-family: inherit; font-size: 13px; font-weight: 600; color: #5b6678; background: #fff; cursor: pointer; transition: all 0.12s; }
+.refer-priority { display: flex; gap: 8px; }
+.refer-pill { flex: 1; box-sizing: border-box; height: 40px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #d6dae1; border-radius: 6px; padding: 0 14px; font-family: inherit; font-size: 13px; font-weight: 600; color: #5b6678; background: #fff; cursor: pointer; transition: all 0.12s; }
+.refer-pill:hover { border-color: #aab2bd; }
 .refer-pill.active { background: #eef0f4; border-color: #aab2bd; color: #1f2733; }
 
 .refer-add-comment { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px; font-weight: 600; color: #052B49; background: none; border: none; padding: 0; cursor: pointer; align-self: flex-start; }
