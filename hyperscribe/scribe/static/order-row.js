@@ -975,7 +975,10 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setReferDiagQuery('');
     setReferDiagResults([]);
     setReferDiagSearched(false);
-    if (referDiagInputRef.current) referDiagInputRef.current.focus({ preventScroll: true });
+    // Close the dropdown after a selection; the provider can click back into
+    // the field to search for another indication.
+    setReferDiagFocused(false);
+    if (referDiagInputRef.current) referDiagInputRef.current.blur();
   };
 
   const handleReferDiagRemove = (code) => {
