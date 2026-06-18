@@ -1622,6 +1622,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                       class="history-form-input refer-search-input"
                       value=${referProviderQuery || referProviderDisplay}
                       onInput=${handleReferProviderInput}
+                      onBlur=${() => setTimeout(() => { setReferProviderResults([]); setReferProviderSearched(false); }, 150)}
                       placeholder="Search providers..."
                     />
                   </div>
@@ -1645,12 +1646,15 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     <label class="history-form-label">Indications</label>
                     <div class="refer-token-input" style="position: relative;" onClick=${() => referDiagInputRef.current && referDiagInputRef.current.focus()}>
                       ${ICON_SEARCH}
-                      ${referDiagnoses.map(d => html`
-                        <span class="refer-token-chip" key=${d.code}>
-                          ${(d.formatted_code || d.code)}${d.display && d.display !== (d.formatted_code || d.code) ? ` — ${d.display}` : ''}
-                          <button type="button" onClick=${(e) => { e.stopPropagation(); handleReferDiagRemove(d.code); }}>×</button>
-                        </span>
-                      `)}
+                      ${referDiagnoses.map(d => {
+                        const label = (d.formatted_code || d.code) + (d.display && d.display !== (d.formatted_code || d.code) ? ` — ${d.display}` : '');
+                        return html`
+                          <span class="refer-token-chip" key=${d.code} title=${label}>
+                            <span class="refer-token-text">${label}</span>
+                            <button type="button" onClick=${(e) => { e.stopPropagation(); handleReferDiagRemove(d.code); }}>×</button>
+                          </span>
+                        `;
+                      })}
                       <input
                         ref=${referDiagInputRef}
                         type="text"
