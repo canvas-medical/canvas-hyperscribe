@@ -1614,34 +1614,40 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
             `}
             ${activeTab === 'refer' && html`
               <div class="order-form">
-                <div class="history-form-field" style="position: relative;">
+                <div class="history-form-field">
                   <label class="history-form-label">Refer To</label>
-                  <div class="refer-search-field">
+                  <div class="refer-token-input" style="position: relative;" onClick=${() => referProviderInputRef.current && referProviderInputRef.current.focus()}>
                     ${ICON_SEARCH}
-                    <input
-                      ref=${referProviderInputRef}
-                      type="text"
-                      class="history-form-input refer-search-input"
-                      value=${referProviderQuery || referProviderDisplay}
-                      onInput=${handleReferProviderInput}
-                      onBlur=${() => setTimeout(() => { setReferProviderResults([]); setReferProviderSearched(false); }, 150)}
-                      placeholder="Search providers..."
-                    />
+                    ${referProviderDisplay ? html`
+                      <span class="refer-token-chip" title=${referProviderDisplay}>
+                        <span class="refer-token-text">${referProviderDisplay}</span>
+                        <button type="button" onClick=${(e) => { e.stopPropagation(); setReferProvider(null); setReferProviderDisplay(''); setReferProviderQuery(''); }}>×</button>
+                      </span>
+                    ` : html`
+                      <input
+                        ref=${referProviderInputRef}
+                        type="text"
+                        value=${referProviderQuery}
+                        onInput=${handleReferProviderInput}
+                        onBlur=${() => setTimeout(() => { setReferProviderResults([]); setReferProviderSearched(false); }, 150)}
+                        placeholder="Search providers..."
+                      />
+                    `}
+                    ${referProviderSearching && html`<span class="diag-search-spinner">Searching...</span>`}
+                    ${referProviderResults.length > 0 && html`
+                      <div class="history-search-dropdown">
+                        ${referProviderResults.map((r, i) => html`
+                          <div key=${i} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferProviderSelect(r); }}>
+                            <div style="font-weight:600">${r.name}</div>
+                            ${r.description && html`<div style="font-size:12px;color:#888">${r.description}</div>`}
+                          </div>
+                        `)}
+                      </div>
+                    `}
+                    ${!referProviderSearching && referProviderSearched && referProviderResults.length === 0 && referProviderQuery.length >= 2 && html`
+                      <div class="history-search-dropdown"><div class="history-search-result search-no-results">No providers found</div></div>
+                    `}
                   </div>
-                  ${referProviderSearching && html`<span class="diag-search-spinner">Searching...</span>`}
-                  ${referProviderResults.length > 0 && html`
-                    <div class="history-search-dropdown">
-                      ${referProviderResults.map((r, i) => html`
-                        <div key=${i} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferProviderSelect(r); }}>
-                          <div style="font-weight:600">${r.name}</div>
-                          ${r.description && html`<div style="font-size:12px;color:#888">${r.description}</div>`}
-                        </div>
-                      `)}
-                    </div>
-                  `}
-                  ${!referProviderSearching && referProviderSearched && referProviderResults.length === 0 && referProviderQuery.length >= 2 && html`
-                    <div class="history-search-dropdown"><div class="history-search-result search-no-results">No providers found</div></div>
-                  `}
                 </div>
                 <div class="refer-grid2">
                   <div class="history-form-field">
