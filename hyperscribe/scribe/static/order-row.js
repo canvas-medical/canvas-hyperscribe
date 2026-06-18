@@ -972,6 +972,8 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   };
 
   const handleReferDiagSelect = (diag) => {
+    // cap indications at 2 so the field stays a single fixed-size line
+    if (referDiagnoses.length >= 2 || referDiagnoses.some(d => d.code === diag.code)) return;
     setReferDiagnoses([...referDiagnoses, diag]);
     setReferDiagQuery('');
     setReferDiagResults([]);
@@ -1655,15 +1657,17 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                           </span>
                         `;
                       })}
-                      <input
-                        ref=${referDiagInputRef}
-                        type="text"
-                        value=${referDiagQuery}
-                        onInput=${handleReferDiagInput}
-                        onFocus=${() => setReferDiagFocused(true)}
-                        onBlur=${() => setTimeout(() => setReferDiagFocused(false), 150)}
-                        placeholder=${referDiagnoses.length ? '' : 'Search diagnoses...'}
-                      />
+                      ${referDiagnoses.length < 2 && html`
+                        <input
+                          ref=${referDiagInputRef}
+                          type="text"
+                          value=${referDiagQuery}
+                          onInput=${handleReferDiagInput}
+                          onFocus=${() => setReferDiagFocused(true)}
+                          onBlur=${() => setTimeout(() => setReferDiagFocused(false), 150)}
+                          placeholder=${referDiagnoses.length ? '' : 'Search diagnoses...'}
+                        />
+                      `}
                       ${referDiagSearching && html`<span class="diag-search-spinner">Searching...</span>`}
                       ${referDiagResults.length > 0 && html`
                         <div class="history-search-dropdown">
