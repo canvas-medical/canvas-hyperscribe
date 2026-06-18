@@ -232,11 +232,9 @@ function buildDisplay(type, data) {
     return parts.join(' | ') || '';
   }
   if (type === 'refer') {
-    const parts = [];
-    if (data.refer_to_display) parts.push(data.refer_to_display);
-    if (data.clinical_question) parts.push(data.clinical_question);
-    if (data.priority) parts.push(data.priority);
-    return parts.join(' | ') || '';
+    // Headline is the specialty only; clinical_question / priority belong on the
+    // detail line, not the collapsed headline.
+    return data.refer_to_display || '';
   }
   return '';
 }
@@ -628,7 +626,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [referDiagSearched, setReferDiagSearched] = useState(false);
   const [referDiagFocused, setReferDiagFocused] = useState(false);
   const [referClinicalQuestion, setReferClinicalQuestion] = useState(command.data.clinical_question || '');
-  const [referPriority, setReferPriority] = useState(command.data.priority || 'Routine');
+  const [referPriority, setReferPriority] = useState(command.data.priority || '');
   const [referNotesToSpecialist, setReferNotesToSpecialist] = useState(command.data.notes_to_specialist || '');
   const [referComment, setReferComment] = useState(command.data.comment || '');
   const referProviderInputRef = useRef(null);
@@ -1126,7 +1124,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
         diagnosis_displays: referDiagnoses.map(d => d.display),
         diagnosis_formatted: referDiagnoses.map(d => d.formatted_code || d.code),
         clinical_question: referClinicalQuestion || null,
-        priority: referPriority || 'Routine',
+        priority: referPriority || null,
         notes_to_specialist: referNotesToSpecialist || null,
         comment: referComment || null,
       };
