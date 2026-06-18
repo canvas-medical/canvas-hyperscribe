@@ -19,7 +19,10 @@ _RELEVANT_KEYS = {"assessment_and_plan", "plan", "history_of_present_illness"}
 # neutral default clinical question so the command is insert/sign-ready; the provider
 # can replace the recipient and adjust the clinical question in the UI.
 _DEFAULT_CLINICAL_QUESTION = "Assistance with Ongoing Management"
-_PLACEHOLDER_LAST_NAME = "(TBD)"  # non-empty recipient, mirrors the science "(TBD)" convention
+# Canvas core rejects a blank recipient name on ORIGINATE_REFER_COMMAND
+# ("first_name: This field may not be blank."), so the placeholder name fields
+# must be non-empty. "TBD" marks them clearly for the provider to replace.
+_PLACEHOLDER_NAME = "TBD"
 
 _SYSTEM_PROMPT = (
     "You are a clinical data extraction assistant. "
@@ -93,8 +96,8 @@ class ReferRecommender(BaseRecommender):
                     display=specialty,
                     data={
                         "service_provider": {
-                            "first_name": "",
-                            "last_name": _PLACEHOLDER_LAST_NAME,
+                            "first_name": _PLACEHOLDER_NAME,
+                            "last_name": _PLACEHOLDER_NAME,
                             "specialty": specialty,
                             "practice_name": specialty,
                         },
