@@ -64,8 +64,9 @@ def test_recommend_is_generic_with_placeholder_provider() -> None:
     assert p.display == "ENT"
     assert p.data["refer_to_display"] == "ENT"
     sp = p.data["service_provider"]
-    assert sp["last_name"] == "(TBD)"
-    assert sp["first_name"] == ""
+    # Canvas core rejects a blank first_name, so placeholder names are non-empty
+    assert sp["first_name"] == "TBD"
+    assert sp["last_name"] == "TBD"
     assert sp["specialty"] == "ENT"
     assert sp["practice_name"] == "ENT"
     assert p.data["indication"] == "Chronic sinusitis"
@@ -86,7 +87,7 @@ def test_recommend_defaults_clinical_question_and_notes() -> None:
     # defaults fill the sign-required fields
     assert data["clinical_question"] == "Assistance with Ongoing Management"
     assert data["notes_to_specialist"] == "Referral to Cardiology"
-    assert data["service_provider"]["last_name"] == "(TBD)"
+    assert data["service_provider"]["last_name"] == "TBD"
 
 
 def test_recommend_notes_fall_back_to_indication() -> None:
@@ -115,7 +116,7 @@ def test_recommend_multiple_referrals_all_generic() -> None:
 
     assert len(proposals) == 2
     assert [p.display for p in proposals] == ["ENT", "Dermatology"]
-    assert all(p.data["service_provider"]["last_name"] == "(TBD)" for p in proposals)
+    assert all(p.data["service_provider"]["last_name"] == "TBD" for p in proposals)
     assert proposals[1].data["priority"] == "Urgent"
 
 
