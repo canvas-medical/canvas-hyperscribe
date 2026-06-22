@@ -348,7 +348,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -408,6 +408,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddCondition=${isPlan ? onAddCondition : null}
         unmatchedConditions=${isPlan ? unmatchedConditions : null}
         diagnosisSuggestions=${isPlan ? diagnosisSuggestions : null}
+        noteDiagnoses=${noteDiagnoses}
         onAddNow=${(isPlan || isObjective) ? onAddNow : null}
         hideRejected=${hideRejected}
         alertFacilityEnabled=${alertFacilityEnabled}
@@ -556,6 +557,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       label: c.data?.icd10_display || c.data?.label || c.display || '',
       locked: Boolean(c.already_documented || c.command_uuid),
     })), [commands]);
+
+  // Accepted A&P diagnoses staged in this note, shaped for the referral
+  // Indications dropdown ({code, formatted_code, display}). Reuses the same
+  // accept filter as chargeMatrixDiagnoses so unreviewed AI suggestions stay
+  // hidden. `code` is normalized (no dot, upper) to dedup against chart
+  // conditions and already-selected chips; formatted_code keeps the dotted form.
+  const noteDiagnoses = useMemo(() => chargeMatrixDiagnoses
+    .filter(d => d.code)
+    .map(d => ({
+      code: d.code.replace(/\./g, '').toUpperCase(),
+      formatted_code: d.code,
+      display: d.label,
+    })), [chargeMatrixDiagnoses]);
 
   // Prune stale diagnosis pointers. When a linked diagnosis is rejected or removed
   // it leaves chargeMatrixDiagnoses, but its _localId lingers in charges' _pointers.
@@ -1490,8 +1504,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           const parts = [newData.image_display, newData.additional_details, newData.comment, newData.priority].filter(Boolean);
           next = { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
         } else if (type === 'refer') {
-          const parts = [newData.refer_to_display, newData.clinical_question, newData.priority].filter(Boolean);
-          next = { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral' };
+          // Headline is the specialty only (refer_to_display); clinical_question /
+          // priority show on the detail line, not the collapsed headline.
+          next = { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral' };
         } else if (type === 'familyHistory') {
           const parts = [newData.condition_display, newData.relative, newData.note].filter(Boolean);
           next = { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
@@ -1652,8 +1667,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '', accepted: true };
       }
       if (type === 'refer') {
-        const parts = [newData.refer_to_display, newData.clinical_question, newData.priority].filter(Boolean);
-        return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral', accepted: true };
+        return { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral', accepted: true };
       }
       return { ...cmd, data: newData, accepted: true };
     }));
@@ -3045,6 +3059,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onEditingChange: handleEditingChange,
           questionnaireScores: collectQuestionnaireScores(commands),
           chargeMatrixDiagnoses,
+          noteDiagnoses,
           chargeMatrixCharges,
           onToggleChargePointer: canEdit ? onToggleChargePointer : null,
           onReorderDiagnoses: canEdit ? onReorderDiagnoses : null,

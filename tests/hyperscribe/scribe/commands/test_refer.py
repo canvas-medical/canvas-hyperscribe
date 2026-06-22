@@ -8,6 +8,41 @@ def test_extract_returns_none() -> None:
     assert parser.extract("refer to cardiology") is None
 
 
+def _complete_refer_data() -> dict:
+    return {
+        "service_provider": {"last_name": "(TBD)", "specialty": "Cardiology"},
+        "clinical_question": "Assistance with Ongoing Management",
+        "notes_to_specialist": "Please evaluate",
+        "diagnosis_codes": ["I10"],
+    }
+
+
+def test_validate_passes_when_complete() -> None:
+    assert ReferParser().validate(_complete_refer_data()) == []
+
+
+def test_validate_requires_all_four_sign_fields() -> None:
+    errors = ReferParser().validate({})
+    assert "Referral recipient is required" in errors
+    assert "Clinical question is required" in errors
+    assert "Notes to specialist is required" in errors
+    assert "At least one indication is required" in errors
+
+
+def test_validate_flags_missing_recipient() -> None:
+    data = _complete_refer_data()
+    data["service_provider"] = None
+    errors = ReferParser().validate(data)
+    assert errors == ["Referral recipient is required"]
+
+
+def test_validate_flags_missing_indication() -> None:
+    data = _complete_refer_data()
+    data["diagnosis_codes"] = []
+    errors = ReferParser().validate(data)
+    assert errors == ["At least one indication is required"]
+
+
 def test_build_routine_priority() -> None:
     parser = ReferParser()
     data = {"comment": "Follow up", "priority": "Routine"}
