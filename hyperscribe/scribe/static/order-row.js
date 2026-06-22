@@ -288,7 +288,7 @@ function InteractionWarningInline({ warning }) {
   `;
 }
 
-export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, noteId, staffId, staffName, isRecommendation, onEditingChange }) {
+export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, noteId, staffId, staffName, noteDiagnoses = [], isRecommendation, onEditingChange }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   useEffect(() => {
@@ -933,8 +933,6 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const handleReferProviderInput = (e) => {
     const val = e.target.value;
     setReferProviderQuery(val);
-    setReferProvider(null);
-    setReferProviderDisplay(val);
     debouncedReferProviderSearch(val);
   };
 
@@ -988,10 +986,32 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setReferDiagnoses(referDiagnoses.filter(d => d.code !== code));
   };
 
+  // Tolerant ICD-10 code key so the same diagnosis from different sources
+  // (chart conditions, live search, staged note dx) dedups regardless of dot
+  // formatting or case.
+  const normDiagCode = (c) => (c || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+
+  // Diagnoses staged in this note's A&P, shown first as the most relevant
+  // indications. Excludes anything already selected as a chip.
+  const noteDiagSuggestions = (() => {
+    if (referDiagQuery || !noteDiagnoses || noteDiagnoses.length === 0) return [];
+    const selected = new Set(referDiagnoses.map(d => normDiagCode(d.code)));
+    const seen = new Set();
+    return noteDiagnoses.filter(d => {
+      const key = normDiagCode(d.code);
+      if (!key || selected.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
+
   const referDiagSuggestions = (() => {
     if (!referDiagQuery && patientConditions.length > 0) {
-      const alreadySelected = new Set(referDiagnoses.map(d => d.code));
-      return patientConditions.filter(c => !alreadySelected.has(c.code));
+      const alreadySelected = new Set(referDiagnoses.map(d => normDiagCode(d.code)));
+      // Suppress chart conditions already surfaced under "From this note".
+      const noteCodes = new Set(noteDiagSuggestions.map(d => normDiagCode(d.code)));
+      return patientConditions.filter(c =>
+        !alreadySelected.has(normDiagCode(c.code)) && !noteCodes.has(normDiagCode(c.code)));
     }
     return [];
   })();
@@ -1685,12 +1705,20 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                       ${!referDiagSearching && referDiagSearched && referDiagResults.length === 0 && referDiagQuery.length >= 2 && html`
                         <div class="history-search-dropdown"><div class="history-search-result search-no-results">No diagnoses found</div></div>
                       `}
-                      ${referDiagFocused && !referDiagQuery && referDiagSuggestions.length > 0 && html`
+                      ${referDiagFocused && !referDiagQuery && (noteDiagSuggestions.length > 0 || referDiagSuggestions.length > 0) && html`
                         <div class="history-search-dropdown">
-                          <div class="diag-suggestion-header">Patient conditions</div>
-                          ${referDiagSuggestions.map(d => html`
-                            <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
-                          `)}
+                          ${noteDiagSuggestions.length > 0 && html`
+                            <div class="diag-suggestion-header">From this note</div>
+                            ${noteDiagSuggestions.map(d => html`
+                              <div key=${`note-${d.code}`} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                            `)}
+                          `}
+                          ${referDiagSuggestions.length > 0 && html`
+                            <div class="diag-suggestion-header">Patient conditions</div>
+                            ${referDiagSuggestions.map(d => html`
+                              <div key=${`cond-${d.code}`} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleReferDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                            `)}
+                          `}
                         </div>
                       `}
                     </div>
@@ -1821,16 +1849,14 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
       const name = displays[i] || '';
       return name && name !== fmt ? `${name} (${fmt})` : fmt;
     }).filter(Boolean);
-    const metaParts = [];
-    if (indications.length) metaParts.push(indications.join(', '));
-    if (d.notes_to_specialist) metaParts.push(d.notes_to_specialist);
-    const meta = metaParts.join(' · ');
+    const indicationsLine = indications.join(', ');
     return html`
       <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
         <div class="order-view">
           <span class="command-type-label">Refer</span>
           <div class="order-view-name">${command.display || 'Referral'}</div>
-          ${meta && html`<div class="order-view-meta">${meta}</div>`}
+          ${indicationsLine && html`<div class="order-view-meta">${indicationsLine}</div>`}
+          ${d.notes_to_specialist && html`<div class="order-view-meta">${d.notes_to_specialist}</div>`}
         </div>
       </div>
     `;
