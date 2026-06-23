@@ -92,9 +92,7 @@ def test_recommend_defaults_clinical_question_and_notes() -> None:
 
 def test_recommend_notes_fall_back_to_indication() -> None:
     note = _make_note([NoteSection(key="plan", title="Plan", text="Refer to ortho.")])
-    client = _make_client(
-        {"referrals": [{"specialty": "Orthopedics", "indication": "Rotator cuff tear"}]}
-    )
+    client = _make_client({"referrals": [{"specialty": "Orthopedics", "indication": "Rotator cuff tear"}]})
 
     proposals = ReferRecommender().recommend(note, client)
 
