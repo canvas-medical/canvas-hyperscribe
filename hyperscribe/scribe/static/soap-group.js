@@ -1191,6 +1191,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             ? visibleAdHoc.filter(e => e.command.command_type === historyType)
             : [];
           const showHistoryText = s.text && !isCoveredHistory;
+          // social_history has no manual input affordance (not in NARRATIVE_SECTIONS,
+          // no SECTION_TO_HISTORY_TYPE entry), so an empty Social History section is a
+          // dead, un-fillable header. Hide it whenever it has nothing to show; the AI
+          // path still renders it once it supplies history_review content.
+          if (key === 'social_history' && !showHistoryText && historyEntries.length === 0 && !cmds) return null;
           if (readOnly && !showHistoryText && !cmds && historyEntries.length === 0) return null;
           if (!showHistoryText && historyEntries.length === 0 && !onAddHistory && !cmds) return null;
           return html`

@@ -1375,7 +1375,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       { command_type: 'hpi', display: '', data: { narrative: '' }, selected: true, section_key: 'history_of_present_illness', already_documented: false },
       // Vitals is intentionally NOT pre-populated: an empty vitals card auto-opens its editor and blocks
       // commit until saved/cancelled (KOALA-5802). It's added on demand via the "+ Vitals" button instead.
-      { command_type: 'plan', display: '', data: { narrative: '' }, selected: true, section_key: 'assessment_and_plan', already_documented: false },
+      // Plan is intentionally NOT pre-populated either: providers add it on demand via the "+ Plan" button
+      // so Assessment & Plan starts empty rather than showing a blank Plan card.
     ];
     // Add PE from template if available.
     if (selectedTemplate?.pe_sections?.length > 0) {
