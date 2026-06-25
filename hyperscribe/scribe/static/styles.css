@@ -1391,18 +1391,30 @@ select.history-form-input {
 }
 
 .template-select {
-  padding: 8px 12px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  /* extra right padding leaves room for the custom chevron so the label never collides with it */
+  padding: 8px 38px 8px 14px;
   font-family: inherit;
   font-size: 13px;
+  line-height: 1.2;
   font-weight: 500;
   border: 1px solid #ddd;
   border-radius: 6px;
-  background: #fff;
+  /* custom chevron, comfortably inset from the right edge (replaces the cramped OS default arrow) */
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
   color: #333;
   cursor: pointer;
   min-width: 170px;
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
-.template-select:focus { outline: none; border-color: #052B49; }
+.template-select:hover { border-color: #c4c9cf; }
+.template-select:focus { outline: none; border-color: #052B49; box-shadow: 0 0 0 3px rgba(5, 43, 73, 0.12); }
 .template-select:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .start-ai-btn {
@@ -1416,6 +1428,7 @@ select.history-form-input {
   color: #fff;
   font-family: inherit;
   font-size: 13px;
+  line-height: 1.2;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -1435,6 +1448,7 @@ select.history-form-input {
   color: #052B49;
   font-family: inherit;
   font-size: 13px;
+  line-height: 1.2;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;

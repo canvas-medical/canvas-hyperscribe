@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.155.0",
-  "plugin_version": "2026-06-24 v0.3.12",
+  "plugin_version": "2026-06-24 v0.3.13",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
