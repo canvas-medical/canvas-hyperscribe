@@ -8,6 +8,7 @@ from logger import log
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
+from hyperscribe.scribe.recommendations._dosage import derive_dispense_fields
 from hyperscribe.scribe.recommendations._medication_match import resolve_medication_detail, sanitize_sig
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import PrescriptionRecommendationList
@@ -16,6 +17,31 @@ from hyperscribe.structures.medication_detail import MedicationDetail
 _RELEVANT_KEYS = {"assessment_and_plan", "plan", "history_of_present_illness", "prescription"}
 
 _SYSTEM_PROMPT = (
+    "You are a clinical data extraction assistant. "
+    "Extract only NEW prescriptions the provider intends to write from the clinical note sections below. "
+    "Do NOT include medications the patient is already taking, continuing, "
+    "or that are part of their medication history "
+    "— those are medication statements, not new prescriptions. "
+    "Only include medications that are being newly prescribed or started during this visit. "
+    "For each prescription, provide the full medication name with strength/form, the sig (directions), "
+    "days supply and quantity to dispense if mentioned, number of refills if mentioned, "
+    "and a comma-separated list of search keywords (synonyms, brand/generic names) for database lookup (max 5). "
+    "CRITICAL: preserve the exact strength/dose as stated in the note (e.g. '20 mg'); "
+    "never round it or substitute a different strength. "
+    "DAYS SUPPLY: capture it whenever the note states a duration ANYWHERE for the medication, including "
+    "when it is spelled out in words ('ninety-day supply' = 90) or expressed as a treatment course "
+    "('for 30 days' = 30, 'five-day course' = 5, 'for two weeks' = 14). The duration is often stated in the "
+    "assessment/plan even when the prescription line only lists a dispense quantity — check both and report it. "
+    "Do NOT infer or calculate days supply from the quantity or frequency; only report a duration the note "
+    "actually states, otherwise leave it null. "
+    "If the note does not state directions, leave the sig null rather than "
+    "guessing or inferring a frequency."
+)
+
+# Baseline (canvas-scribe) extraction prompt, used when the dispense-field engine
+# is gated OFF for a provider — keeps days-supply extraction at its original,
+# pass-through-only behavior so off matches the base branch.
+_SYSTEM_PROMPT_BASELINE = (
     "You are a clinical data extraction assistant. "
     "Extract only NEW prescriptions the provider intends to write from the clinical note sections below. "
     "Do NOT include medications the patient is already taking, continuing, "
@@ -53,6 +79,11 @@ def _resolve_prescription(
 
 
 class PrescriptionRecommender(BaseRecommender):
+    def __init__(self, dispense_engine_enabled: bool = True) -> None:
+        # When False, emit prescribe proposals in the baseline (canvas-scribe)
+        # shape — no dispense-field engine (quantity / days / refills / type).
+        self.dispense_engine_enabled = dispense_engine_enabled
+
     def recommend(
         self, note: ClinicalNote, client: LlmAnthropic, transcript: Transcript | None = None
     ) -> list[CommandProposal]:
@@ -64,7 +95,7 @@ class PrescriptionRecommender(BaseRecommender):
             return []
 
         client.reset_prompts()
-        client.set_system_prompt([_SYSTEM_PROMPT])
+        client.set_system_prompt([_SYSTEM_PROMPT if self.dispense_engine_enabled else _SYSTEM_PROMPT_BASELINE])
         client.set_user_prompt([_build_user_prompt(sections)])
         client.set_schema(PrescriptionRecommendationList)
 
@@ -103,19 +134,42 @@ class PrescriptionRecommender(BaseRecommender):
                 display = detail.description
                 quantities = [q._asdict() for q in detail.quantities]
 
+            data = {
+                "fdb_code": fdb_code,
+                "medication_text": display,
+                "sig": sanitize_sig(med.sig),
+                "days_supply": med.days_supply,
+                "quantities": quantities,
+            }
+            if self.dispense_engine_enabled:
+                # Fill the dispense fields (type_to_dispense, quantity, refills) so the
+                # provider does not have to hand-enter them. Derivation is guardrailed:
+                # the dispense form is deterministic, the quantity is recomputed
+                # arithmetically (or left blank), and refills default to a single fill.
+                # ``derive_dispense_fields`` is the SOLE writer of quantity_to_dispense
+                # and refills — quantity is intentionally not pre-seeded here so a raw,
+                # un-normalized extracted value (e.g. "6 tablets") can never leak through.
+                data.update(
+                    derive_dispense_fields(
+                        detail,
+                        stated_sig=med.sig,
+                        stated_days_supply=med.days_supply,
+                        stated_quantity=med.quantity_to_dispense,
+                        stated_refills=med.refills,
+                        client=client,
+                    )
+                )
+            else:
+                # Engine OFF for this provider: baseline (canvas-scribe) shape —
+                # raw passthrough, no type_to_dispense, no refills floor/class,
+                # no computed quantity.
+                data["quantity_to_dispense"] = med.quantity_to_dispense
+                data["refills"] = med.refills
             proposals.append(
                 CommandProposal(
                     command_type="prescribe",
                     display=display,
-                    data={
-                        "fdb_code": fdb_code,
-                        "medication_text": display,
-                        "sig": sanitize_sig(med.sig),
-                        "days_supply": med.days_supply,
-                        "quantity_to_dispense": med.quantity_to_dispense,
-                        "refills": med.refills,
-                        "quantities": quantities,
-                    },
+                    data=data,
                     section_key="_recommended",
                 )
             )

@@ -39,7 +39,14 @@ class PrescriptionRecommendation(BaseModelLlmJson):
         default=None,
         description="Directions/sig exactly as stated in the note; leave null if no directions are stated",
     )
-    days_supply: int | None = Field(default=None, description="Number of days supply")
+    days_supply: int | None = Field(
+        default=None,
+        description=(
+            "Number of days the prescription should cover, when the note states a duration — including "
+            "spelled-out ('ninety-day supply' = 90) or course forms ('for 10 days' = 10, "
+            "'five-day course' = 5). Do not infer from quantity/frequency; null if no duration is stated."
+        ),
+    )
     quantity_to_dispense: str | None = Field(default=None, description="Quantity to dispense")
     refills: int | None = Field(default=None, description="Number of refills")
     keywords: str = Field(description="Comma-separated synonyms for searching (max 5)")
@@ -49,6 +56,47 @@ class PrescriptionRecommendationList(BaseModelLlmJson):
     prescriptions: list[PrescriptionRecommendation] = Field(
         default_factory=list,
         description="List of new prescriptions to be written",
+    )
+
+
+class DosageDerivation(BaseModelLlmJson):
+    """LLM output for computing how much of a medication to dispense.
+
+    The model's ONLY job is to interpret the prescriber's directions into a
+    dosing frequency (``units_per_dose`` x ``doses_per_day``). The dispense
+    quantity is then recomputed arithmetically from those numbers in
+    ``_dosage.py`` — the model never gets to be the sole source of a clinical
+    number. ``derivable`` is the refusal switch: when the directions don't
+    state a clear frequency, the model must set it false and we leave the
+    quantity blank rather than guessing.
+    """
+
+    derivable: bool = Field(
+        description=(
+            "True ONLY if the directions clearly state both how much to take per dose and how "
+            "often. False if the frequency or amount is vague, missing, or 'as directed'."
+        ),
+    )
+    units_per_dose: float | None = Field(
+        default=None,
+        description="Dosage-form units taken per administration (e.g. 1 tablet, 2 puffs); null if not derivable",
+    )
+    doses_per_day: float | None = Field(
+        default=None,
+        description="Number of administrations per day implied by the directions; null if not derivable",
+    )
+    quantity_to_dispense: float | None = Field(
+        default=None,
+        description=(
+            "The model's own estimate of units_per_dose x doses_per_day x days supply; "
+            "used only as an internal consistency check; null if not derivable"
+        ),
+    )
+    discrete: bool = Field(
+        default=True,
+        description=(
+            "True for countable forms (tablets, capsules, patches), false for measured forms (mL, grams, ounces)"
+        ),
     )
 
 

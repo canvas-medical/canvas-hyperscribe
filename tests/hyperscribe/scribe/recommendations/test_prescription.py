@@ -8,6 +8,7 @@ from canvas_sdk.clients.llms.structures import LlmResponse, LlmTokens
 
 from hyperscribe.scribe.backend.models import ClinicalNote, NoteSection
 from hyperscribe.scribe.recommendations.prescription import (
+    _SYSTEM_PROMPT,
     PrescriptionRecommender,
     _build_user_prompt,
     _resolve_prescription,
@@ -29,6 +30,17 @@ def _make_client(response_data: dict | None = None, code: HTTPStatus = HTTPStatu
             tokens=LlmTokens(prompt=100, generated=50),
         )
     return client
+
+
+def test_system_prompt_instructs_days_supply_capture() -> None:
+    # Regression: lisinopril/HCTZ/azithromycin lost a stated days supply because
+    # the prompt under-emphasized it and the value was spelled out or course-based.
+    prompt = _SYSTEM_PROMPT.lower()
+    assert "days supply" in prompt
+    assert "spelled out" in prompt or "ninety-day" in prompt
+    assert "course" in prompt
+    # Stays conservative: never inferred from quantity/frequency.
+    assert "do not infer" in prompt
 
 
 def test_build_user_prompt() -> None:
@@ -142,8 +154,13 @@ def test_recommend_success(mock_resolve: MagicMock) -> None:
     assert proposals[0].data["refills"] == 2
     assert len(proposals[0].data["quantities"]) == 1
     assert proposals[0].data["quantities"][0]["representative_ndc"] == "12345678901"
+    # Dispense form is pre-filled deterministically in the encoded ndc|qty|code
+    # form the order-row dropdown uses to pre-select an option.
+    assert proposals[0].data["type_to_dispense"] == "12345678901|9|C48542"
+    assert proposals[0].data["type_to_dispense_label"] == "Tablet"
     assert proposals[0].section_key == "_recommended"
 
+    # Provider stated the quantity, so no extra dosage LLM round-trip happens.
     client.reset_prompts.assert_called_once()
     client.set_schema.assert_called_once()
 
@@ -323,8 +340,90 @@ def test_recommend_optional_fields_default_none(mock_resolve: MagicMock) -> None
 
     assert len(proposals) == 1
     assert proposals[0].data["days_supply"] is None
-    assert proposals[0].data["quantity_to_dispense"] is None
-    assert proposals[0].data["refills"] is None
+    # quantity is owned by derive_dispense_fields and left unset (absent) when it
+    # can't be determined — never pre-seeded with a raw extracted value.
+    assert proposals[0].data.get("quantity_to_dispense") is None
+    # Refills default to a single fill (0) rather than None: the field is required
+    # by the Rx validator and 0 is the conservative default we never need to guess.
+    assert proposals[0].data["refills"] == 0
+
+
+@patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
+def test_recommend_engine_off_emits_baseline_shape(mock_resolve: MagicMock) -> None:
+    """With the dispense engine gated OFF, prescribe proposals are the canvas-scribe
+    baseline shape: raw passthrough, no type_to_dispense, no refills floor/class,
+    no computed quantity, and no extra LLM (derive) call."""
+    detail = MedicationDetail(
+        fdb_code="99999",
+        description="Sumatriptan 50mg Tablet",
+        quantities=[
+            MedicationDetailQuantity(
+                quantity="9",
+                representative_ndc="12345678901",
+                clinical_quantity_description="tablet",
+                ncpdp_quantity_qualifier_code="C48542",
+                ncpdp_quantity_qualifier_description="Tablet",
+            ),
+        ],
+    )
+    mock_resolve.return_value = detail
+    note = _make_note([NoteSection(key="assessment_and_plan", title="A&P", text="Start sumatriptan 50mg.")])
+    client = _make_client(
+        {
+            "prescriptions": [
+                {
+                    "medicationName": "Sumatriptan 50mg",
+                    "sig": "Take 1 tablet at onset",
+                    "keywords": "sumatriptan",
+                },
+            ]
+        }
+    )
+
+    proposals = PrescriptionRecommender(dispense_engine_enabled=False).recommend(note, client)
+
+    data = proposals[0].data
+    assert "type_to_dispense" not in data  # no dispense-form preselection
+    assert "type_to_dispense_label" not in data
+    assert data["quantity_to_dispense"] is None  # raw passthrough (not computed)
+    assert data["refills"] is None  # raw passthrough — NO 0-floor / class default
+    client.request.assert_called_once()  # extraction only; no derive call
+
+
+@patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
+def test_recommend_normalizes_unit_suffixed_quantity(mock_resolve: MagicMock) -> None:
+    """Regression: a stated quantity like "6 tablets" must normalize to "6", not
+    leak through as a non-numeric string (which fails Surescripts validation)."""
+    mock_resolve.return_value = MedicationDetail(
+        fdb_code="172089",
+        description="Azithromycin 250mg Tablet",
+        quantities=[
+            MedicationDetailQuantity(
+                quantity="1",
+                representative_ndc="64980072703",
+                clinical_quantity_description="tablet",
+                ncpdp_quantity_qualifier_code="C48542",
+                ncpdp_quantity_qualifier_description="Tablet",
+            ),
+        ],
+    )
+    note = _make_note([NoteSection(key="plan", title="Plan", text="Azithromycin Z-pak.")])
+    client = _make_client(
+        {
+            "prescriptions": [
+                {
+                    "medicationName": "Azithromycin 250mg",
+                    "sig": "2 tablets on day 1, then 1 tablet daily for 4 days",
+                    "quantityToDispense": "6 tablets",
+                    "keywords": "azithromycin",
+                },
+            ]
+        }
+    )
+
+    proposals = PrescriptionRecommender().recommend(note, client)
+
+    assert proposals[0].data["quantity_to_dispense"] == "6"
 
 
 @patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
