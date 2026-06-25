@@ -540,7 +540,11 @@ class NablaBackend(ScribeBackend):
                 "Specifically, exclude heart rate (pulse, HR), "
                 "blood pressure (BP), oxygen saturation (SpO2), and "
                 "respiratory rate (breaths per minute, RR) — "
-                "vital signs belong in the Vitals section."
+                "vital signs belong in the Vitals section.\n"
+                "Organize the exam by system, with each system on its own line as "
+                '"System: findings" — a 1-3 word system name (e.g. General, HEENT, '
+                "Cardiovascular, Musculoskeletal), then a colon, then the findings. "
+                "Never exceed three words in the system name."
             ),
         }
 

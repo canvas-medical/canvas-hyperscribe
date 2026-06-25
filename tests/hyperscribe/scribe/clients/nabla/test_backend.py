@@ -538,6 +538,23 @@ def test_non_psychiatry_uses_generic() -> None:
     assert payload["note_template_key"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
 
 
+def test_physical_exam_instruction_requests_colon_delimited_systems() -> None:
+    """The PHYSICAL_EXAM customization asks for "System: findings" rows so the exam
+    parses into per-system subsections (parse_ros_subsections needs the colon;
+    regression for colon-less PE collapsing into one block). The instruction is
+    shared, so this must hold for BOTH the generic and psychiatry branches, and the
+    original vitals-exclusion directive must be retained."""
+    backend, mock_rest_client = _make_backend()
+    mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
+    for visit_template_name in ("", "Psychiatry"):
+        backend.generate_note(Transcript(), visit_template_name=visit_template_name)
+        payload = mock_rest_client.generate_note.call_args.args[0]
+        pe = next(c for c in payload["note_sections_customization"] if c["section_key"] == "PHYSICAL_EXAM")
+        instruction = pe["custom_instruction"]
+        assert "System: findings" in instruction, visit_template_name
+        assert "vital signs belong in the Vitals section" in instruction, visit_template_name
+
+
 def test_empty_name_uses_generic() -> None:
     """An empty visit_template_name routes to the generic Nabla template."""
     backend, mock_rest_client = _make_backend()
