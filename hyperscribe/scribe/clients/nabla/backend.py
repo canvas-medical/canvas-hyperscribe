@@ -589,7 +589,7 @@ class NablaBackend(ScribeBackend):
                         "Thought Process:\n"
                         "Thought Content:\n"
                         "Insight:\n"
-                        "Judgement:"
+                        "Judgment:"
                     ),
                 },
                 physical_exam_instruction,

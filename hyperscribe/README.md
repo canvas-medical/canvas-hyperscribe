@@ -104,7 +104,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
       "questionnaires": ["PHQ-9", "GAD-7"],
       "ros_template": "General:\nHEENT:\nCardiovascular:",
       "pe_template": "General:\nHEENT:\nCardiovascular:",
-      "mse_template": "Appearance:\nBehavior/Rapport:\nMovement:\nSpeech:\nMood:\nOrientation:\nAttention/Concentration:\nThought Process:\nThought Content:\nInsight:\nJudgement:",
+      "mse_template": "Appearance:\nBehavior/Rapport:\nMovement:\nSpeech:\nMood:\nOrientation:\nAttention/Concentration:\nThought Process:\nThought Content:\nInsight:\nJudgment:",
       "charges": ["99213", "G2211"]
     }
   ]
@@ -112,7 +112,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 ```
 
 - `name` — must exactly match the visit-template name the operator selects. The name `Psychiatry` routes the note to the psychiatry flow (AP-merged template, Mental Status Exam section).
-- `ros_template` / `pe_template` / `mse_template` — optional newline-separated scaffolds that populate the **Template** dropdown on the Review of Systems / Physical Exam / **Mental Status Exam** cards respectively. Each line is one system written as `Label:` (optionally followed by default findings). The label must be **1–3 words** — longer labels are skipped by the parser. `mse_template` only surfaces on the Mental Status Exam card (psychiatry visits); keep its labels aligned with the 11 categories the MSE prompt requests (Appearance, Behavior/Rapport, Movement, Speech, Mood, Orientation, Attention/Concentration, Thought Process, Thought Content, Insight, Judgement) so AI-generated and template-applied scaffolds line up.
+- `ros_template` / `pe_template` / `mse_template` — optional newline-separated scaffolds that populate the **Template** dropdown on the Review of Systems / Physical Exam / **Mental Status Exam** cards respectively. Each line is one system written as `Label:` (optionally followed by default findings). The label must be **1–3 words** — longer labels are skipped by the parser. `mse_template` only surfaces on the Mental Status Exam card (psychiatry visits); keep its labels aligned with the 11 categories the MSE prompt requests (Appearance, Behavior/Rapport, Movement, Speech, Mood, Orientation, Attention/Concentration, Thought Process, Thought Content, Insight, Judgment) so AI-generated and template-applied scaffolds line up.
 - `questionnaires` / `charges` — questionnaires and charge (CPT) codes pre-loaded for the visit.
 
 
