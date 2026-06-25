@@ -147,6 +147,22 @@ def test_stated_quantity_passed_through_without_llm() -> None:
     client.request.assert_not_called()
 
 
+def test_stated_quantity_with_unit_word_coerces_to_number() -> None:
+    # "6 tablets" from the note must normalize to "6" (and win over derivation,
+    # even with a multi-step sig that would otherwise be refused).
+    client = _client()
+    out = derive_dispense_fields(
+        _detail(),
+        stated_sig="take 2 tablets on day 1, then 1 tablet daily for 4 days",
+        stated_days_supply=5,
+        stated_quantity="6 tablets",
+        stated_refills=None,
+        client=client,
+    )
+    assert out["quantity_to_dispense"] == "6"
+    client.request.assert_not_called()
+
+
 def test_stated_quantity_normalizes_trailing_zeros() -> None:
     out = derive_dispense_fields(
         _detail(),
@@ -337,7 +353,8 @@ def test_zero_frequency_leaves_quantity_blank() -> None:
 
 def test_form_class_buckets() -> None:
     assert _dispense_form_class(_quantity(clinical_desc="30 gram tube", ncpdp_desc="Gram")) == "container"
-    assert _dispense_form_class(_quantity(clinical_desc="100 mL bottle", ncpdp_desc="Milliliter")) == "container"
+    # mL bottles are divisible liquids -> compute the volume, not 1 container.
+    assert _dispense_form_class(_quantity(clinical_desc="100 mL bottle", ncpdp_desc="Milliliter")) == "volume_mass"
     assert _dispense_form_class(_quantity(clinical_desc="albuterol inhaler", ncpdp_desc="Gram")) == "container"
     assert _dispense_form_class(_quantity(clinical_desc="6 tablet blister pack", ncpdp_desc="Tablet")) == "container"
     assert _dispense_form_class(_quantity(clinical_desc="0.5 mL syringe", ncpdp_desc="Milliliter")) == "injectable"
@@ -366,17 +383,23 @@ def test_container_form_dispenses_one_without_llm() -> None:
     client.request.assert_not_called()
 
 
-def test_ml_bottle_is_container_qty_one() -> None:
+def test_ml_bottle_computes_volume_not_one_container() -> None:
+    # A divisible liquid bottle must compute the course volume (10 mL BID x 10d =
+    # 200 mL), not under-supply with a single 100 mL bottle.
     detail = _detail([_quantity(clinical_desc="100 mL bottle", ncpdp_desc="Milliliter", ncpdp_code="C28254")])
+    client = _client(
+        {"derivable": True, "unitsPerDose": 10, "dosesPerDay": 2, "quantityToDispense": 200, "discrete": False}
+    )
     out = derive_dispense_fields(
         detail,
-        stated_sig="take 10 mL twice daily",
-        stated_days_supply=30,
+        stated_sig="take 10 mL by mouth twice daily for 10 days",
+        stated_days_supply=10,
         stated_quantity=None,
         stated_refills=None,
-        client=_client(),
+        client=client,
     )
-    assert out["quantity_to_dispense"] == "1"
+    assert out["quantity_to_dispense"] == "200"
+    client.request.assert_called_once()
 
 
 def test_injectable_leaves_quantity_blank() -> None:
@@ -477,12 +500,27 @@ def test_chronic_refill_defaults_by_class() -> None:
         out = derive_dispense_fields(
             _detail(description=description),
             stated_sig="1 by mouth once daily",
-            stated_days_supply=90,
+            stated_days_supply=None,  # no dictated duration -> class default applies
             stated_quantity="90",  # stated quantity -> isolates the refill default
             stated_refills=None,
             client=_client(),
         )
         assert out["refills"] == expected, description
+
+
+def test_chronic_with_stated_days_does_not_inflate_refills() -> None:
+    # amlodipine "for 30 days, reassess": a dictated duration implies a defined
+    # fill, so the chronic class refill default (5) is NOT applied.
+    out = derive_dispense_fields(
+        _detail(description="amlodipine 5 mg tablet"),
+        stated_sig="1 tablet by mouth once daily",
+        stated_days_supply=30,
+        stated_quantity=None,
+        stated_refills=None,
+        client=_client({"derivable": True, "unitsPerDose": 1, "dosesPerDay": 1, "quantityToDispense": 30}),
+    )
+    assert out["refills"] == 0
+    assert out["quantity_to_dispense"] == "30"
 
 
 def test_controlled_substance_forces_zero_refills() -> None:

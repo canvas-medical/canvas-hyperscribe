@@ -115,14 +115,15 @@ class PrescriptionRecommender(BaseRecommender):
                 "medication_text": display,
                 "sig": sanitize_sig(med.sig),
                 "days_supply": med.days_supply,
-                "quantity_to_dispense": med.quantity_to_dispense,
-                "refills": med.refills,
                 "quantities": quantities,
             }
             # Fill the dispense fields (type_to_dispense, quantity, refills) so the
             # provider does not have to hand-enter them. Derivation is guardrailed:
             # the dispense form is deterministic, the quantity is recomputed
             # arithmetically (or left blank), and refills default to a single fill.
+            # ``derive_dispense_fields`` is the SOLE writer of quantity_to_dispense
+            # and refills — quantity is intentionally not pre-seeded here so a raw,
+            # un-normalized extracted value (e.g. "6 tablets") can never leak through.
             data.update(
                 derive_dispense_fields(
                     detail,
