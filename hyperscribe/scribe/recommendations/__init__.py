@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from logger import log
 
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
@@ -25,11 +27,28 @@ def _make_settings(api_key: str) -> LlmSettingsAnthropic:
     )
 
 
-def _build_recommenders(zip_codes: list[str] | None = None) -> list[BaseRecommender]:
+def prescription_dispense_enabled(allowlist_raw: str | None, provider_id: str | None) -> bool:
+    """Whether the prescription dispense-field engine is enabled for this provider.
+
+    The allowlist is a comma/space-separated list of staff keys (same tokenization
+    as the other scribe staffer secrets). **Blank/unset -> enabled for all users**
+    (fail-open, by product decision); otherwise enabled only when the note's
+    provider is in the list.
+    """
+    allowed = re.findall(r"[A-Za-z0-9]+", allowlist_raw or "")
+    if not allowed:
+        return True
+    return bool(provider_id) and str(provider_id) in allowed
+
+
+def _build_recommenders(
+    zip_codes: list[str] | None = None,
+    dispense_engine_enabled: bool = True,
+) -> list[BaseRecommender]:
     return [
         MedicationRecommender(),
         AllergyRecommender(),
-        PrescriptionRecommender(),
+        PrescriptionRecommender(dispense_engine_enabled=dispense_engine_enabled),
         # zip_codes is intentionally not passed: referrals are recommended
         # generically (specialty only), without a provider lookup.
         ReferRecommender(),
@@ -42,10 +61,17 @@ def recommend_commands(
     api_key: str,
     zip_codes: list[str] | None = None,
     transcript: Transcript | None = None,
+    dispense_engine_enabled: bool = True,
 ) -> list[CommandProposal]:
-    """Run all recommenders against the clinical note and return proposals."""
+    """Run all recommenders against the clinical note and return proposals.
+
+    ``dispense_engine_enabled`` gates only the prescription dispense-field engine
+    (quantity / days supply / refills / dispense type); when False, prescribe
+    recommendations are emitted in the baseline (canvas-scribe) shape. All other
+    recommendation types are unaffected.
+    """
     proposals: list[CommandProposal] = []
-    for recommender in _build_recommenders(zip_codes):
+    for recommender in _build_recommenders(zip_codes, dispense_engine_enabled):
         try:
             client = LlmAnthropic(_make_settings(api_key))
             proposals.extend(recommender.recommend(note, client, transcript=transcript))
