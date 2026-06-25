@@ -88,6 +88,9 @@ _DOSE_RANGE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Leading number in a stated quantity, so "6 tablets" -> "6", "30 capsules" -> "30".
+_LEADING_NUMBER_RE = re.compile(r"^(\d+(?:\.\d+)?)")
+
 
 def _dispense_form_class(quantity_form: MedicationDetailQuantity) -> str:
     """Classify the dispensing form: container | injectable | countable | volume_mass.
@@ -101,6 +104,13 @@ def _dispense_form_class(quantity_form: MedicationDetailQuantity) -> str:
     qualifier = (quantity_form.ncpdp_quantity_qualifier_description or "").strip().lower()
     if _INJECTABLE_RE.search(description):
         return "injectable"
+    # Liquids (mL) are divisible: compute the volume from the sig rather than
+    # dispensing one container — even when the form names a bottle ("100 mL
+    # bottle"). A blanket 1-container default under-supplies multi-day courses
+    # (10 mL BID x 10d needs 200 mL, not one 100 mL bottle). Checked before the
+    # container match for that reason.
+    if qualifier in _VOLUME_MASS_QUALIFIERS and qualifier == "milliliter":
+        return "volume_mass"
     if _CONTAINER_RE.search(description):
         return "container"
     if qualifier in _COUNTABLE_QUALIFIERS:
@@ -165,10 +175,13 @@ def derive_dispense_fields(
     controlled = _drug_class.is_controlled(detail.description if detail else None)
 
     # 3. Refills — stated wins; chronic non-controlled meds get the class default
-    #    (Q4); everything else a conservative single fill.
+    #    (Q4), but ONLY when no duration was dictated. A stated days-supply implies
+    #    a defined fill (often a trial: "amlodipine for 30 days, reassess"), so we
+    #    don't auto-inflate refills on top of it. Everything else: a single fill.
+    stated_days = _coerce_positive_int(stated_days_supply)
     if stated_refills is not None:
         out["refills"] = stated_refills
-    elif drug_class.bucket == _drug_class.CHRONIC and not controlled:
+    elif drug_class.bucket == _drug_class.CHRONIC and not controlled and stated_days is None:
         out["refills"] = drug_class.refills
     else:
         out["refills"] = 0
@@ -198,7 +211,7 @@ def derive_dispense_fields(
     if _is_multistep_sig(sig):
         return out
 
-    days = _coerce_positive_int(stated_days_supply)
+    days = stated_days
     # No dictated duration but a chronic maintenance med: assume a 30-day month to
     # compute the quantity. Not written to the days_supply field.
     if days is None and drug_class.bucket == _drug_class.CHRONIC:
@@ -296,16 +309,19 @@ def _dosage_user_prompt(
 def _coerce_quantity(value: str | None) -> str | None:
     """Normalize a stated quantity to a clean, positive, trailing-zero-free string.
 
-    Returns None when the value is missing or not a positive finite number, so the
-    caller falls back to derivation.
+    Extracts the leading number so unit-suffixed values from the note ("6 tablets",
+    "30 capsules") normalize to the bare count ("6", "30") rather than failing —
+    otherwise the raw string would slip through and break Surescripts validation.
+    Returns None when there is no leading positive number, so the caller falls back
+    to derivation.
     """
     if value is None:
         return None
-    text = str(value).strip()
-    if not text:
+    match = _LEADING_NUMBER_RE.match(str(value).strip())
+    if not match:
         return None
     try:
-        decimal_value = Decimal(text)
+        decimal_value = Decimal(match.group(1))
     except (ArithmeticError, ValueError):
         return None
     if not decimal_value.is_finite() or decimal_value <= 0:

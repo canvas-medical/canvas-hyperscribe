@@ -340,10 +340,48 @@ def test_recommend_optional_fields_default_none(mock_resolve: MagicMock) -> None
 
     assert len(proposals) == 1
     assert proposals[0].data["days_supply"] is None
-    assert proposals[0].data["quantity_to_dispense"] is None
+    # quantity is owned by derive_dispense_fields and left unset (absent) when it
+    # can't be determined — never pre-seeded with a raw extracted value.
+    assert proposals[0].data.get("quantity_to_dispense") is None
     # Refills default to a single fill (0) rather than None: the field is required
     # by the Rx validator and 0 is the conservative default we never need to guess.
     assert proposals[0].data["refills"] == 0
+
+
+@patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
+def test_recommend_normalizes_unit_suffixed_quantity(mock_resolve: MagicMock) -> None:
+    """Regression: a stated quantity like "6 tablets" must normalize to "6", not
+    leak through as a non-numeric string (which fails Surescripts validation)."""
+    mock_resolve.return_value = MedicationDetail(
+        fdb_code="172089",
+        description="Azithromycin 250mg Tablet",
+        quantities=[
+            MedicationDetailQuantity(
+                quantity="1",
+                representative_ndc="64980072703",
+                clinical_quantity_description="tablet",
+                ncpdp_quantity_qualifier_code="C48542",
+                ncpdp_quantity_qualifier_description="Tablet",
+            ),
+        ],
+    )
+    note = _make_note([NoteSection(key="plan", title="Plan", text="Azithromycin Z-pak.")])
+    client = _make_client(
+        {
+            "prescriptions": [
+                {
+                    "medicationName": "Azithromycin 250mg",
+                    "sig": "2 tablets on day 1, then 1 tablet daily for 4 days",
+                    "quantityToDispense": "6 tablets",
+                    "keywords": "azithromycin",
+                },
+            ]
+        }
+    )
+
+    proposals = PrescriptionRecommender().recommend(note, client)
+
+    assert proposals[0].data["quantity_to_dispense"] == "6"
 
 
 @patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
