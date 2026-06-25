@@ -215,7 +215,7 @@ const SOAP_GROUPS = [
   { title: 'SUBJECTIVE', color: 'subjective', keys: new Set(['chief_complaint', 'history_of_present_illness', 'review_of_systems']) },
   { title: 'HISTORY', color: 'history', keys: new Set(['past_medical_history', 'past_surgical_history',
     'past_obstetric_history', 'family_history', 'social_history']) },
-  { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'physical_exam', 'lab_results', 'imaging_results',
+  { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'mental_status_exam', 'physical_exam', 'lab_results', 'imaging_results',
     'current_medications', 'allergies', 'immunizations']) },
   { title: 'ASSESSMENT & PLAN', color: 'plan', keys: new Set(['plan', 'assessment_and_plan', 'prescription', 'appointments']) },
   { title: 'CHARGES', color: 'charges', keys: new Set(['charges']) },
@@ -243,6 +243,7 @@ const EDITABLE_AMEND_SECTIONS = new Set([
   '_ros',
   '_history_review',
   '_chart_review',
+  'mental_status_exam',
   'physical_exam',
   'lab_results',
   'imaging_results',
@@ -317,6 +318,7 @@ const SKELETON_SECTIONS = [
   { key: 'family_history', title: 'Family History', text: '' },
   { key: 'social_history', title: 'Social History', text: '' },
   { key: 'vitals', title: 'Vitals', text: '' },
+  { key: 'mental_status_exam', title: 'Mental Status Exam', text: '' },
   { key: 'physical_exam', title: 'Physical Exam', text: '' },
   { key: 'current_medications', title: 'Meds Discussed', text: '' },
   { key: 'allergies', title: 'Allergies Discussed', text: '' },
@@ -348,7 +350,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -416,6 +418,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         questionnaireScores=${isObjective ? questionnaireScores : null}
         examTemplates=${(isObjective || isSubjective) ? examTemplates : null}
         onCarryForwardExam=${(isObjective || isSubjective) ? onCarryForwardExam : null}
+        isPsychiatry=${isObjective ? isPsychiatry : false}
       />`;
     })
     .filter(Boolean);
@@ -1333,6 +1336,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
     }
 
+    if (tmpl.mse_sections && tmpl.mse_sections.length > 0) {
+      templateCommands.push({
+        command_type: 'mental_status_exam',
+        display: tmpl.mse_sections.map(s => s.title).join(' | '),
+        data: { sections: tmpl.mse_sections },
+        selected: true,
+        section_key: 'mental_status_exam',
+        already_documented: false,
+        _template_inserted: true,
+      });
+    }
+
     if (tmpl.pe_sections && tmpl.pe_sections.length > 0) {
       templateCommands.push({
         command_type: 'physical_exam',
@@ -1380,6 +1395,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       // commit until saved/cancelled (KOALA-5802). It's added on demand via the "+ Vitals" button instead.
       { command_type: 'plan', display: '', data: { narrative: '' }, selected: true, section_key: 'assessment_and_plan', already_documented: false },
     ];
+    // Add MSE from template if available (psychiatry only).
+    if (selectedTemplate?.mse_sections?.length > 0) {
+      const mseSections = selectedTemplate.mse_sections.map(s => ({ key: s.key, title: s.title, text: s.text, updated: false, template_text: s.text }));
+      const mseDisplay = mseSections.map(s => s.title).join(' | ');
+      manualCommands.push({ command_type: 'mental_status_exam', display: mseDisplay, data: { sections: mseSections }, selected: true, section_key: 'mental_status_exam', already_documented: false });
+    }
     // Add PE from template if available.
     if (selectedTemplate?.pe_sections?.length > 0) {
       const peSections = selectedTemplate.pe_sections.map(s => ({ key: s.key, title: s.title, text: s.text, updated: false, template_text: s.text }));
@@ -1387,10 +1408,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       manualCommands.push({ command_type: 'physical_exam', display: peDisplay, data: { sections: peSections }, selected: true, section_key: 'physical_exam', already_documented: false });
     }
     setCommands(prev => {
-      // Keep any existing ad-hoc commands and template-inserted commands (ROS, PE, questionnaires).
+      // Keep any existing ad-hoc commands and template-inserted commands (ROS, MSE, PE, questionnaires).
       const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
       const existing = prev.filter(c => {
-        if (c._template_inserted && c.command_type === 'physical_exam') return false;
+        if (c._template_inserted && (c.command_type === 'physical_exam' || c.command_type === 'mental_status_exam')) return false;
         return adHocKeys.has(c.section_key) || c._template_inserted;
       });
       return [...manualCommands, ...existing];
@@ -1458,7 +1479,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (i !== index) return cmd;
         const type = newType || cmd.command_type;
         let next;
-        if (type === 'history_review' || type === 'chart_review' || type === 'ros' || type === 'physical_exam') {
+        if (type === 'history_review' || type === 'chart_review' || type === 'ros' || type === 'physical_exam' || type === 'mental_status_exam') {
           const display = (newData.sections || []).map(s => s.title).join(' | ');
           next = { ...cmd, data: newData, display };
         } else if (type === 'vitals') {
@@ -2204,7 +2225,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       console.error('Failed to fetch patient conditions for assess check:', err);
     }
 
-    const SECTION_TYPES = new Set(['physical_exam', 'ros', 'chart_review', 'history_review']);
+    const SECTION_TYPES = new Set(['physical_exam', 'mental_status_exam', 'ros', 'chart_review', 'history_review']);
     const insertable = workingCommands.filter(c => {
       // Either flag means "already on the note." command_uuid is the
       // authoritative signal (set whenever a command is inserted, whether
@@ -2782,6 +2803,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   ).length;
   const hasUnsavedEdits = editingFields.size > 0;
 
+  // Psychiatry visits surface the Mental Status Exam card (gated server-side by
+  // NablaBackend.is_psychiatry_template, surfaced per-template on /visit-templates).
+  const isPsychiatry = !!selectedTemplate?.is_psychiatry;
   // Ensure sections with ad-hoc buttons are always present even if Nabla omits them.
   const ENSURE_KEYS = new Map([
     ['vitals', { key: 'vitals', title: 'Vitals', text: '' }],
@@ -2794,6 +2818,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     ['imaging_results', { key: 'imaging_results', title: 'Imaging Results', text: '' }],
     ['physical_exam', { key: 'physical_exam', title: 'Physical Exam', text: '' }],
   ]);
+  // Mental Status Exam is psychiatry-only — only force its (possibly empty)
+  // section when the selected visit template is the psychiatry one.
+  if (isPsychiatry) {
+    ENSURE_KEYS.set('mental_status_exam', { key: 'mental_status_exam', title: 'Mental Status Exam', text: '' });
+  }
   const effectiveSections = (() => {
     const base = noteData ? noteData.sections : SKELETON_SECTIONS;
     const existing = new Set(base.map(s => s.key.toLowerCase()));
@@ -3073,6 +3102,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onRemoveChargeByUuid: canEdit ? onRemoveChargeByUuid : null,
           examTemplates: templates,
           onCarryForwardExam: handleCarryForwardExam,
+          isPsychiatry,
         })}
         ${fromTheNoteCommands.length > 0 && html`
           <div class="summary-section from-the-note-section">

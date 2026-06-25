@@ -13,6 +13,7 @@ ScribeSessionView._ROUTES = {}
 
 PE_SECTIONS = [{"key": "general", "title": "General", "text": "Well-appearing."}]
 ROS_SECTIONS = [{"key": "constitutional", "title": "Constitutional", "text": "Denies fever."}]
+MSE_SECTIONS = [{"key": "mood", "title": "Mood", "text": "Euthymic."}]
 
 
 def _view(staff_id: str = "staff-1") -> ScribeSessionView:
@@ -57,6 +58,17 @@ def test_last_exam_happy_ros(mock_note: MagicMock, mock_summary: MagicMock) -> N
     ]
 
     assert _last_exam_sections("note-uuid", "staff-1", "ros") == ROS_SECTIONS
+
+
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_last_exam_happy_mental_status_exam(mock_note: MagicMock, mock_summary: MagicMock) -> None:
+    _wire_prior_notes(mock_note, "patient-uuid", [10])
+    mock_summary.objects.filter.return_value.values.return_value = [
+        _summary_row(10, command_type="mental_status_exam", sections=MSE_SECTIONS)
+    ]
+
+    assert _last_exam_sections("note-uuid", "staff-1", "mental_status_exam") == MSE_SECTIONS
 
 
 @patch("hyperscribe.scribe.api.session_view.ScribeSummary")
