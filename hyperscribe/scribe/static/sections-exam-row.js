@@ -15,12 +15,17 @@ function slug(title) {
   return (title || '').toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'system';
 }
 
-const TEMPLATE_FIELD = { physical_exam: 'pe_sections', ros: 'ros_sections' };
-const LABEL = { physical_exam: 'physical exam', ros: 'review of systems' };
+const TEMPLATE_FIELD = { physical_exam: 'pe_sections', ros: 'ros_sections', mental_status_exam: 'mse_sections' };
+const LABEL = { physical_exam: 'physical exam', ros: 'review of systems', mental_status_exam: 'mental status exam' };
+const TITLE_CASE = {
+  physical_exam: 'Physical Exam',
+  ros: 'Review of Systems',
+  mental_status_exam: 'Mental Status Exam',
+};
 
 // Copy for the confirm popover shared by Template / Carry forward / Clear.
 function confirmCopy(action, sectionKind, templates) {
-  const what = LABEL[sectionKind] === 'review of systems' ? 'Review of Systems' : 'Physical Exam';
+  const what = TITLE_CASE[sectionKind] || 'Physical Exam';
   if (action.kind === 'clear') {
     return {
       title: `Clear ${what.toLowerCase()}?`,

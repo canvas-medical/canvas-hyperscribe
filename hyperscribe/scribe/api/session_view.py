@@ -557,7 +557,11 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
 # command_type. NOTE: these are the plugin's own command_types, NOT the official
 # Canvas command schema_keys ("exam" / "ros") — we deliberately read ScribeSummary
 # (Scribe-created commands only) so the official commands can never be surfaced.
-_EXAM_KIND_TO_COMMAND_TYPE = {"physical_exam": "physical_exam", "ros": "ros"}
+_EXAM_KIND_TO_COMMAND_TYPE = {
+    "physical_exam": "physical_exam",
+    "ros": "ros",
+    "mental_status_exam": "mental_status_exam",
+}
 
 
 def _last_exam_sections(note_uuid: str, staff_id: str, kind: str) -> list[dict[str, str]]:
@@ -717,6 +721,9 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
         pe_sections: list[dict[str, str]] | None = None
         if raw_pe := tmpl.get("pe_template"):
             pe_sections = parse_ros_subsections(raw_pe)
+        mse_sections: list[dict[str, str]] | None = None
+        if raw_mse := tmpl.get("mse_template"):
+            mse_sections = parse_ros_subsections(raw_mse)
         resolved_charges: list[dict[str, str]] = []
         for code in tmpl.get("charges", []):
             code = str(code).strip()
@@ -725,12 +732,15 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
                 log.warning("visit-templates: charge CPT code %r not found", code)
                 continue
             resolved_charges.append({"cpt_code": record.cpt_code, "description": record.short_name or record.name})
+        template_name = tmpl.get("name", "")
         result_templates.append(
             {
-                "name": tmpl.get("name", ""),
+                "name": template_name,
                 "questionnaires": resolved,
                 "ros_sections": ros_sections,
                 "pe_sections": pe_sections,
+                "mse_sections": mse_sections,
+                "is_psychiatry": NablaBackend.is_psychiatry_template(template_name),
                 "charges": resolved_charges,
             }
         )

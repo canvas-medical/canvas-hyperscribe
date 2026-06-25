@@ -584,11 +584,12 @@ def test_extract_vitals_with_telemetry_out_of_range_pulse_refused() -> None:
     assert "pulse" not in result.proposal.data
 
 
-# --- mental_health_exam preference ---
+# --- mental_status_exam (psychiatry-only, separate from ROS) ---
 
 
-def test_mental_health_exam_preferred_over_review_of_systems() -> None:
-    """Under the psychiatry gate, when both sections exist, prefer mental_health_exam."""
+def test_mental_status_exam_and_ros_coexist() -> None:
+    """Under the psychiatry gate, review_of_systems and mental_health_exam produce
+    two distinct commands: a baseline ROS and a separate Mental Status Exam."""
     note = ClinicalNote(
         title="Psych Note",
         sections=[
@@ -605,15 +606,23 @@ def test_mental_health_exam_preferred_over_review_of_systems() -> None:
         ],
     )
     proposals = extract_commands(note, is_psychiatry=True)
+
     ros_proposals = [p for p in proposals if p.command_type == "ros"]
     assert len(ros_proposals) == 1
-    titles = [s["title"] for s in ros_proposals[0].data["sections"]]
-    assert "Depressive Symptoms" in titles
-    assert "Anxiety Symptoms" in titles
+    ros_titles = [s["title"] for s in ros_proposals[0].data["sections"]]
+    assert "General" in ros_titles
+    assert "Depressive Symptoms" not in ros_titles  # MSE content does NOT leak into ROS
+
+    mse_proposals = [p for p in proposals if p.command_type == "mental_status_exam"]
+    assert len(mse_proposals) == 1
+    assert mse_proposals[0].section_key == "mental_status_exam"
+    mse_titles = [s["title"] for s in mse_proposals[0].data["sections"]]
+    assert "Depressive Symptoms" in mse_titles
+    assert "Anxiety Symptoms" in mse_titles
 
 
-def test_mental_health_exam_only() -> None:
-    """Under the psychiatry gate, mental_health_exam alone produces an ROS command."""
+def test_mental_status_exam_only() -> None:
+    """Under the psychiatry gate, mental_health_exam alone produces a mental_status_exam command (not ros)."""
     note = ClinicalNote(
         title="Psych Note",
         sections=[
@@ -625,11 +634,45 @@ def test_mental_health_exam_only() -> None:
         ],
     )
     proposals = extract_commands(note, is_psychiatry=True)
-    ros_proposals = [p for p in proposals if p.command_type == "ros"]
-    assert len(ros_proposals) == 1
-    secs = ros_proposals[0].data["sections"]
+    assert not [p for p in proposals if p.command_type == "ros"]
+    mse_proposals = [p for p in proposals if p.command_type == "mental_status_exam"]
+    assert len(mse_proposals) == 1
+    secs = mse_proposals[0].data["sections"]
     assert any(s["title"] == "Hallucinations" for s in secs)
     assert any(s["title"] == "Delusions/Paranoia" for s in secs)
+
+
+def test_mental_status_exam_ordered_before_physical_exam() -> None:
+    """The MSE proposal is emitted before the Physical Exam proposal (UI renders MSE above PE)."""
+    note = ClinicalNote(
+        title="Psych Note",
+        sections=[
+            NoteSection(key="physical_exam", title="Physical Exam", text="General: Well-appearing."),
+            NoteSection(key="MENTAL_HEALTH_EXAM", title="Mental Status Exam", text="Mood: Euthymic."),
+        ],
+    )
+    proposals = extract_commands(note, is_psychiatry=True)
+    types = [p.command_type for p in proposals]
+    assert "mental_status_exam" in types
+    assert "physical_exam" in types
+    assert types.index("mental_status_exam") < types.index("physical_exam")
+
+
+def test_mental_health_exam_ignored_when_not_psychiatry() -> None:
+    """Without the psychiatry gate, mental_health_exam is ignored entirely (no MSE command)."""
+    note = ClinicalNote(
+        title="Visit",
+        sections=[
+            NoteSection(
+                key="MENTAL_HEALTH_EXAM",
+                title="Mental Status Exam",
+                text="Mood: Euthymic\nInsight: Good",
+            ),
+        ],
+    )
+    proposals = extract_commands(note, is_psychiatry=False)
+    assert not [p for p in proposals if p.command_type == "mental_status_exam"]
+    assert not [p for p in proposals if p.command_type == "ros"]
 
 
 def test_review_of_systems_used_when_no_mental_health_exam() -> None:
@@ -650,8 +693,8 @@ def test_review_of_systems_used_when_no_mental_health_exam() -> None:
     assert ros_proposals[0].data["sections"][0]["title"] == "General"
 
 
-def test_mental_health_exam_fallback_uses_correct_label() -> None:
-    """Psych gate + unparseable mental_health_exam falls back to 'Mental Health Exam' as the label."""
+def test_mental_status_exam_fallback_uses_correct_label() -> None:
+    """Psych gate + unparseable mental_health_exam falls back to 'Mental Status Exam' as the label."""
     note = ClinicalNote(
         title="Psych Note",
         sections=[
@@ -663,10 +706,10 @@ def test_mental_health_exam_fallback_uses_correct_label() -> None:
         ],
     )
     proposals = extract_commands(note, is_psychiatry=True)
-    ros_proposals = [p for p in proposals if p.command_type == "ros"]
-    assert len(ros_proposals) == 1
-    assert ros_proposals[0].data["sections"][0]["title"] == "Mental Health Exam"
-    assert ros_proposals[0].data["sections"][0]["key"] == "mental_health_exam"
+    mse_proposals = [p for p in proposals if p.command_type == "mental_status_exam"]
+    assert len(mse_proposals) == 1
+    assert mse_proposals[0].data["sections"][0]["title"] == "Mental Status Exam"
+    assert mse_proposals[0].data["sections"][0]["key"] == "mental_status_exam"
 
 
 def test_review_of_systems_fallback_uses_correct_label() -> None:
@@ -750,8 +793,8 @@ def test_note_without_any_ros_section_emits_no_ros_command() -> None:
     assert ros_proposals == []
 
 
-def test_mental_health_exam_present_routes_to_ros_under_psych_gate() -> None:
-    """Mental_health_exam routes to ROS when the psychiatry gate is on.
+def test_mental_health_exam_routes_to_mse_command_under_psych_gate() -> None:
+    """Mental_health_exam routes to a mental_status_exam command when the psychiatry gate is on.
 
     Belt-and-braces: section presence alone no longer routes — the caller must
     also pass ``is_psychiatry=True``. This prevents debug PUTs or template
@@ -768,12 +811,12 @@ def test_mental_health_exam_present_routes_to_ros_under_psych_gate() -> None:
         ],
     )
     proposals = extract_commands(note, is_psychiatry=True)
-    ros_proposals = [p for p in proposals if p.command_type == "ros"]
-    assert len(ros_proposals) == 1
-    secs = ros_proposals[0].data["sections"]
-    titles = [s["title"] for s in secs]
+    mse_proposals = [p for p in proposals if p.command_type == "mental_status_exam"]
+    assert len(mse_proposals) == 1
+    titles = [s["title"] for s in mse_proposals[0].data["sections"]]
     assert "Depressive Symptoms" in titles
     assert "Anxiety Symptoms" in titles
+    assert not [p for p in proposals if p.command_type == "ros"]
 
 
 def test_extract_ros_ignores_mental_health_exam_when_not_psychiatry() -> None:
@@ -811,8 +854,9 @@ def test_extract_ros_ignores_mental_health_exam_when_not_psychiatry() -> None:
     assert "Anxiety Symptoms" not in titles
 
 
-def test_extract_ros_uses_mental_health_exam_when_psychiatry() -> None:
-    """Belt-and-braces gate: the same payload under is_psychiatry=True routes through mental_health_exam."""
+def test_extract_separates_ros_and_mse_when_psychiatry() -> None:
+    """Belt-and-braces gate: under is_psychiatry=True the same payload yields a baseline
+    ROS (from review_of_systems) AND a separate MSE (from mental_health_exam)."""
     note = ClinicalNote(
         title="Psychiatry",
         sections=[
@@ -829,9 +873,15 @@ def test_extract_ros_uses_mental_health_exam_when_psychiatry() -> None:
         ],
     )
     proposals = extract_commands(note, is_psychiatry=True)
+
     ros_proposals = [p for p in proposals if p.command_type == "ros"]
     assert len(ros_proposals) == 1
-    titles = [s["title"] for s in ros_proposals[0].data["sections"]]
-    assert "Depressive Symptoms" in titles
-    assert "Anxiety Symptoms" in titles
-    assert "General" not in titles
+    ros_titles = [s["title"] for s in ros_proposals[0].data["sections"]]
+    assert "General" in ros_titles
+    assert "Depressive Symptoms" not in ros_titles
+
+    mse_proposals = [p for p in proposals if p.command_type == "mental_status_exam"]
+    assert len(mse_proposals) == 1
+    mse_titles = [s["title"] for s in mse_proposals[0].data["sections"]]
+    assert "Depressive Symptoms" in mse_titles
+    assert "General" not in mse_titles

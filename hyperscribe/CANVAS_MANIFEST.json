@@ -225,6 +225,12 @@
         "section": "objective"
       },
       {
+        "name": "MentalStatusExam",
+        "label": "Mental Status Exam",
+        "schema_key": "mentalStatusExam",
+        "section": "objective"
+      },
+      {
         "name": "PhysicalExam",
         "label": "Physical Exam",
         "schema_key": "physicalExam",
