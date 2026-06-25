@@ -13,20 +13,27 @@ from hyperscribe.scribe.backend import (
     Observation,
     PatientContext,
     ScribeBackend,
+    ScribeError,
     Transcript,
 )
 from hyperscribe.scribe.clients.nabla.auth import NablaAuth
 from hyperscribe.scribe.clients.nabla.client import NablaClient
 
 
-_NABLA_API_VERSION = "2026-02-20"
+_NABLA_API_VERSION = "2026-06-12"
 _NOTE_LOCALE = "ENGLISH_US"
 _NOTE_TEMPLATE = "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
-_PSYCHIATRY_NOTE_TEMPLATE = "PSYCHIATRY_MULTIPLE_SECTIONS"
+_PSYCHIATRY_NOTE_TEMPLATE = "PSYCHIATRY_MULTIPLE_SECTIONS_AP_MERGED"
 
-# Visit templates that route to the PSYCHIATRY_MULTIPLE_SECTIONS Nabla template
-# and trigger the psych-specific note customization (Mental Health Exam, no
-# medical ROS scaffold, A&P merge for ICD-10 matching).
+# Visit templates that route to the PSYCHIATRY_MULTIPLE_SECTIONS_AP_MERGED Nabla
+# template and trigger the psych-specific note customization (Mental Health Exam,
+# no medical ROS scaffold).
+#
+# The AP-merged template (available since nabla-api-version 2026-06-12) returns a
+# single ASSESSMENT_AND_PLAN section structured by problem (split_by_problem), so
+# the A&P parses through the same path as generic visits — no local re-merge. The
+# legacy separate-section re-merge in _parse_note is kept as a dormant fallback
+# (its guard self-disables when assessment_and_plan is present).
 #
 # Exact match is intentional: the visit template name comes from the
 # server-controlled /visit-templates endpoint, so we never see whitespace or
@@ -69,6 +76,55 @@ class NablaBackend(ScribeBackend):
             return False
         return "psych" in visit_template_name.lower()
 
+    @staticmethod
+    def _template_supports_option(template_detail: dict[str, Any], section_key: str, option: str) -> bool:
+        """Return True if ``section_key`` lists ``option`` among its supported customization options.
+
+        Tolerant of the GET /generate-note/templates/{key} response shape (doc-unconfirmed,
+        pinned at UAT): sections may live at the top level or nested under ``template``;
+        each section's key may be ``key`` or ``section_key``; the options list may be
+        ``supported_customization_options`` or ``customization_options``, holding either
+        plain strings or dicts with a ``name``/``key``. Matching ignores case and
+        underscores (so "SPLIT_BY_PROBLEM" / "split_by_problem" / "splitByProblem" match).
+        """
+
+        def _norm(value: str) -> str:
+            return value.replace("_", "").lower()
+
+        sections = template_detail.get("sections")
+        if not sections and isinstance(template_detail.get("template"), dict):
+            sections = template_detail["template"].get("sections")
+        target = _norm(section_key)
+        want = _norm(option)
+        for section in sections or []:
+            if not isinstance(section, dict):
+                continue
+            key = section.get("key") or section.get("section_key") or ""
+            if _norm(str(key)) != target:
+                continue
+            options = section.get("supported_customization_options") or section.get("customization_options") or []
+            for opt in options:
+                name = opt if isinstance(opt, str) else (opt.get("name") or opt.get("key") or "")
+                if _norm(str(name)) == want:
+                    return True
+        return False
+
+    def supports_psychiatry_ap_split_by_problem(self, *, locale: str = _NOTE_LOCALE) -> bool:
+        """Best-effort capability check: does the psychiatry AP-merged template support
+        ``split_by_problem`` on ASSESSMENT_AND_PLAN at the current API version?
+
+        This is the premise of the AP-merged psychiatry path (the local A&P re-merge is
+        only a fallback). Intended for diagnostics/UAT — call it after a version bump to
+        confirm the template honors the option, rather than discovering a 400 at
+        generate-note time. Returns False (rather than raising) on any lookup failure so a
+        caller can log/alert without breaking the request path.
+        """
+        try:
+            detail = self._rest_client.get_note_template(_PSYCHIATRY_NOTE_TEMPLATE, locale=locale)
+        except ScribeError:
+            return False
+        return self._template_supports_option(detail, "ASSESSMENT_AND_PLAN", "split_by_problem")
+
     def get_transcription_config(self, *, user_external_id: str = "") -> dict[str, Any]:
         access_token, refresh_token = self._auth.get_user_tokens(user_external_id)
         hostname = self._auth.base_url.split("://", 1)[-1].split("/", 1)[0]
@@ -110,7 +166,10 @@ class NablaBackend(ScribeBackend):
                     if s.key not in self._LOCAL_ONLY_KEYS
                 ],
                 "locale": _NOTE_LOCALE,
-                "template": _NOTE_TEMPLATE,
+                # API 2026-06-12 renamed the template identifier to *_key. The nested
+                # note.template field here is doc-unconfirmed for normalized-data —
+                # VERIFY against the live API/Postman; flip back to "template" if Nabla 400s.
+                "template_key": _NOTE_TEMPLATE,
             },
             "include_corresponding_note_problems": True,
         }
@@ -175,17 +234,7 @@ class NablaBackend(ScribeBackend):
 
     @staticmethod
     def _strip_bullet(line: str) -> str:
-        """Remove leading bullet prefix (-, *, •) from a line, after trimming whitespace.
-
-        Indentation is stripped here, so callers that need to distinguish
-        top-level bullets from nested sub-bullets must inspect the raw line
-        themselves *before* calling this. ``_reformat_plan_as_ap`` is the one
-        caller that cares about indent: it computes the indent prefix on the
-        raw line and routes nested sub-bullets to the preceding header's
-        body so we don't emit phantom diagnose blocks for category labels
-        (Pharmacotherapy / Psychotherapy / Follow-up) that sit under a
-        parent diagnosis like ``- Major Depressive Disorder:``.
-        """
+        """Remove a leading bullet prefix (-, *, •) from a line, after trimming whitespace."""
         stripped = line.strip()
         if re.match(r"^[-•*]\s", stripped):
             return stripped[2:].strip()
@@ -195,153 +244,74 @@ class NablaBackend(ScribeBackend):
     def _reformat_plan_as_ap(assessment_text: str, plan_text: str) -> str:
         """Merge separate Assessment and Plan sections into a single A&P block.
 
-        The psychiatry template returns Assessment as bullet-point impressions
-        and Plan as bullets like "- Problem: plan details...".
+        The non-merged psychiatry template returns ASSESSMENT as a bullet list of
+        diagnoses/impressions and PLAN as a bullet list of free-form *actions* (it
+        does NOT organize the plan by problem, despite the section instruction).
 
-        parse_ap_blocks() needs non-bullet headers to create blocks that
-        match_condition() can map to ICD-10 codes. We produce:
+        Downstream, parse_ap_blocks() turns every non-bullet line into a block
+        header and split_plan_into_diagnoses() turns each header into a diagnosis
+        (ICD-10 matched). So the ASSESSMENT items must be the headers (diagnoses)
+        and the PLAN actions must be bullet bodies. Critically, ONLY assessment
+        items may become headers — a plan action promoted to a header becomes a
+        phantom diagnosis (e.g. "Increase escitalopram to 15 mg"), and a catch-all
+        header like "General Plan" gets matched to a bogus ICD-10 too.
 
-            Depression and mood disturbance
-            - Persistent depressive disorder with prominent bereavement
-            - Initiate cross-taper from citalopram to sertraline 50 mg
+        This mirrors the standard (generic) flow, where Nabla's split_by_problem
+        already groups each problem with its plan. Here we approximate that
+        association: every plan action attaches to the assessment diagnosis it
+        overlaps most (argmax of significant-word overlap), so it rides along as
+        that diagnosis's body. Actions with no overlap attach to the last
+        diagnosis block — never their own header. We produce, e.g.:
 
-        Each plan problem becomes a header. Assessment items are matched to
-        plan blocks by word overlap and included as body content alongside
-        plan details, so that both clinical impressions and actions appear
-        under each diagnosis.
-
-        Nested sub-bullets (e.g. ``- MDD:\\n  - Pharmacotherapy: ...``) are
-        detected by raw-line indent and attached to the preceding parent's
-        body. Without this guard, indented category labels would become
-        phantom diagnose blocks downstream.
+            Generalized anxiety disorder
+            - Referral to CBT for anxiety and panic
+            Panic disorder with episodic attacks
+            - Slow breathing techniques during panic
+            Generalized anxiety disorder
+            - Referral to CBT for anxiety and panic
+            - Schedule follow-up in four weeks   (no overlap → first/primary block)
         """
-        # Short-circuit: when Nabla returns assessment but no plan (e.g. an
-        # emergency or deferred-plan visit), return the assessment unchanged.
-        # If we merge-with-empty-plan we'd emit each assessment item as a
-        # bare line, which parse_ap_blocks treats as a header-only block →
-        # one phantom diagnose command per line. Returning the bullet-prefixed
-        # original keeps bullets as bodies, so parse_ap_blocks produces zero
-        # header-only blocks.
-        if not plan_text.strip():
+        assessment_items = [item for line in assessment_text.split("\n") if (item := NablaBackend._strip_bullet(line))]
+        plan_items = [item for line in plan_text.split("\n") if (item := NablaBackend._strip_bullet(line))]
+
+        # No plan: each assessment line already becomes a header downstream, so
+        # return it unchanged (also covers the both-empty case → "").
+        if not plan_items:
             return assessment_text
 
-        # Parse assessment items.
-        assessment_items: list[str] = []
-        for line in assessment_text.split("\n"):
-            item = NablaBackend._strip_bullet(line)
-            if item:
-                assessment_items.append(item)
+        # No assessment diagnoses to anchor to: emit the plan as header-less
+        # bullets. parse_ap_blocks yields one header-less block, which
+        # match_condition ignores — so no phantom *named* diagnosis is minted.
+        if not assessment_items:
+            return "\n".join(f"- {p}" for p in plan_items)
 
-        # Parse plan items into (header, bodies) groups, coalescing duplicate
-        # headers so that multiple bullets for the same problem (e.g.
-        # "- Depression: Start sertraline" + "- Depression: Titrate weekly")
-        # produce a single block instead of duplicate diagnose commands.
-        plan_groups: dict[str, list[str]] = {}
-        plan_order: list[str] = []
-        for raw_line in plan_text.split("\n"):
-            # Indent-aware: nested sub-bullets (indent >= 2 chars) belong to
-            # the most recent header's body, not as new headers. Threshold is
-            # 2 (not 1) so a stray single-space prefix on a top-level bullet
-            # from Nabla format drift doesn't get misclassified as nested.
-            # Standard markdown nesting is 2 spaces; tabs treated identically.
-            stripped_line = raw_line.lstrip()
-            indent = len(raw_line) - len(stripped_line)
-            stripped = NablaBackend._strip_bullet(raw_line)
-            if not stripped:
-                continue
-            is_nested = indent >= 2 and bool(plan_order)
-            if is_nested:
-                # Sub-bullet under an existing parent — append as body.
-                # Drop the colon-prefix label if present, but keep the
-                # whole line so downstream readers see what was nested.
-                plan_groups[plan_order[-1]].append(stripped)
-                continue
-            if ":" in stripped:
-                header, body = stripped.split(":", 1)
-                header = header.strip()
-                body = body.strip()
-                key = header.lower() if header else ""
-                if key not in plan_groups:
-                    plan_groups[key] = []
-                    plan_order.append(key)
-                if body:
-                    plan_groups[key].append(body)
-            else:
-                # Colon-less bullets (e.g. "Order CBC" or "Schedule follow-up")
-                # are cross-cutting actions, not diagnoses. Attach to the most
-                # recent plan group's body to avoid phantom diagnose commands.
-                if plan_order:
-                    plan_groups[plan_order[-1]].append(stripped)
-                else:
-                    # No prior group exists — treat as a standalone header.
-                    key = stripped.lower()
-                    plan_groups[key] = []
-                    plan_order.append(key)
-
-        # Build coalesced (header, bodies) list preserving first-seen order.
-        plan_blocks: list[tuple[str, list[str]]] = []
-        for key in plan_order:
-            # Use the original-cased header from the first top-level occurrence.
-            display_header = key  # fallback
-            for raw_line in plan_text.split("\n"):
-                indent = len(raw_line) - len(raw_line.lstrip())
-                if indent > 0:
-                    continue  # skip nested lines when picking the header label
-                s = NablaBackend._strip_bullet(raw_line)
-                if s and ":" in s:
-                    h = s.split(":", 1)[0].strip()
-                    if h.lower() == key:
-                        display_header = h
-                        break
-                elif s and s.lower() == key:
-                    display_header = s
-                    break
-            plan_blocks.append((display_header, plan_groups[key]))
-
-        if not plan_blocks:
-            # Plan had no parseable bullets (e.g. only whitespace markers).
-            # Return assessment unchanged — same reasoning as the empty-plan
-            # short-circuit above: emitting bare lines would create phantom
-            # header-only blocks downstream.
-            return assessment_text
-
-        # Match each assessment item to the best plan block by word overlap.
-        # Items with no overlap stay as standalone header-only blocks.
-        block_assessments: dict[int, list[str]] = {i: [] for i in range(len(plan_blocks))}
-        unmatched_assessments: list[str] = []
-        for item in assessment_items:
-            item_words = set(NablaBackend._significant_words(item))
-            if not item_words:
-                unmatched_assessments.append(item)
-                continue
-            best_idx = 0
+        # Attach each plan action to the assessment diagnosis it overlaps most.
+        # No threshold and no catch-all header: actions only ever land as bodies
+        # under a real diagnosis. Cross-cutting actions with no diagnosis words
+        # (e.g. "Safety plan...", "Follow-up...") have zero overlap and default to
+        # the FIRST block — Nabla lists the primary/chief diagnosis first, so an
+        # orphan action reads far better there than under an incidental
+        # last-listed problem (e.g. a well-controlled comorbidity).
+        header_words = [set(NablaBackend._significant_words(a)) for a in assessment_items]
+        block_bodies: dict[int, list[str]] = {i: [] for i in range(len(assessment_items))}
+        for action in plan_items:
+            action_words = set(NablaBackend._significant_words(action))
+            best_idx = 0  # zero-overlap actions → first (primary) diagnosis block
             best_score = 0.0
-            for i, (header, _) in enumerate(plan_blocks):
-                header_words = set(NablaBackend._significant_words(header))
-                if not header_words:
-                    continue
-                overlap = len(item_words & header_words) / min(len(item_words), len(header_words))
-                if overlap > best_score:
-                    best_score = overlap
-                    best_idx = i
-            if best_score >= 0.5:
-                block_assessments[best_idx].append(item)
-            else:
-                unmatched_assessments.append(item)
+            if action_words:
+                for i, words in enumerate(header_words):
+                    if not words:
+                        continue
+                    overlap = len(action_words & words) / min(len(action_words), len(words))
+                    if overlap > best_score:
+                        best_score = overlap
+                        best_idx = i
+            block_bodies[best_idx].append(action)
 
-        # Build merged blocks: header + assessment bullets + plan bullets.
-        output: list[str] = []
-        for i, (header, bodies) in enumerate(plan_blocks):
-            lines = [header] if header else []
-            for a in block_assessments.get(i, []):
-                lines.append(f"- {a}")
-            for b in bodies:
-                lines.append(f"- {b}")
-            output.append("\n".join(lines))
-
-        # Append unmatched assessment items as standalone header-only blocks.
-        for item in unmatched_assessments:
-            output.append(item)
+        # Build blocks: assessment diagnosis as header, matched actions as bullets.
+        output = [
+            "\n".join([header, *(f"- {b}" for b in block_bodies[i])]) for i, header in enumerate(assessment_items)
+        ]
 
         return "\n\n".join(output)
 
@@ -514,15 +484,22 @@ class NablaBackend(ScribeBackend):
             "age, and avoid fragments. Use any dictated structured summary as the PRIMARY source."
         )
 
-        # Generic visits embed a medical ROS at the end of the HPI; psychiatry
-        # visits get their ROS from the dedicated MENTAL_HEALTH_EXAM section, so
-        # the HPI omits the redundant medical ROS block. The ROS is no longer a
-        # fixed system list — Nabla picks clinically-appropriate systems — but
-        # the format is constrained so the downstream parsers still work: a
-        # standalone "ROS" marker line (for _split_ros) and "System: findings"
-        # rows with 1-3 word labels (for parse_ros_subsections).
+        # Both branches append a dynamic ROS to the HPI: Nabla picks the
+        # clinically-appropriate categories, but the format is constrained so the
+        # downstream parsers still work — a standalone "ROS" marker line (for
+        # _split_ros) and "Label: findings" rows with 1-3 word names (for
+        # parse_ros_subsections). Generic visits get a medical ROS
+        # ("System: findings"); psychiatry visits get a psychiatric ROS
+        # ("Category: findings"), distinct from the structured Mental Health Exam
+        # section.
         if is_psychiatry:
-            hpi_custom_instructions = hpi_base_instructions
+            hpi_custom_instructions = (
+                hpi_base_instructions + "\n"
+                "End with a complete psychiatric Review of Systems covering whatever psychiatric "
+                "categories are clinically appropriate (you choose them), with positive and negative "
+                'findings. Output a line containing only "ROS", then each category on its own line as '
+                '"Category: findings", with a 1-3 word name. Never exceed three words.'
+            )
         else:
             hpi_custom_instructions = (
                 hpi_base_instructions + "\n"
@@ -580,13 +557,13 @@ class NablaBackend(ScribeBackend):
             # section. If it never emits one, the customization is harmless;
             # if it does, this instruction prevents BP/HR leaking into PE
             # (the same drift bug that motivated the generic branch).
+            #
+            # The AP-merged template returns a single ASSESSMENT_AND_PLAN section
+            # structured by problem (split_by_problem) — same customization as the
+            # generic branch — so the A&P parses through the shared PlanParser path
+            # with no local re-merge.
             sections_customization = [
-                {"section_key": "ASSESSMENT", "style": "BULLET_POINTS"},
-                {
-                    "section_key": "PLAN",
-                    "style": "BULLET_POINTS",
-                    "custom_instruction": "Organize by problem, with the plan for each problem grouped together.",
-                },
+                {"section_key": "ASSESSMENT_AND_PLAN", "style": "BULLET_POINTS", "split_by_problem": True},
                 {
                     "section_key": "HISTORY_OF_PRESENT_ILLNESS",
                     "style": "PARAGRAPH",
@@ -597,9 +574,22 @@ class NablaBackend(ScribeBackend):
                 {
                     "section_key": "MENTAL_HEALTH_EXAM",
                     "custom_instruction": (
-                        "Be thorough. Use these categories: "
-                        "Depressive Symptoms, Anxiety Symptoms, Sleep, Appetite, "
-                        "SI/HI, Hallucinations, Delusions/Paranoia, Manic Symptoms."
+                        "Complete the Mental Status Exam using ONLY info explicitly stated in the "
+                        'transcript. Do not infer, assume, or add boilerplate (e.g., "normal," "WNL"). '
+                        "If a category isn't addressed, leave it blank. Output all 11 labels below in "
+                        "this exact order, none added, merged, or renamed. To parse it: each category "
+                        'on its own line as "Category: findings".\n'
+                        "Appearance:\n"
+                        "Behavior/Rapport:\n"
+                        "Movement:\n"
+                        "Speech:\n"
+                        "Mood:\n"
+                        "Orientation:\n"
+                        "Attention/Concentration:\n"
+                        "Thought Process:\n"
+                        "Thought Content:\n"
+                        "Insight:\n"
+                        "Judgement:"
                     ),
                 },
                 physical_exam_instruction,
@@ -629,7 +619,7 @@ class NablaBackend(ScribeBackend):
                 }
                 for item in transcript.items
             ],
-            "note_template": note_template,
+            "note_template_key": note_template,
             "note_locale": _NOTE_LOCALE,
             "note_sections_customization": sections_customization,
         }

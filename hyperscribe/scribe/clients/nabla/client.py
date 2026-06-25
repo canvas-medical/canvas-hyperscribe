@@ -20,7 +20,11 @@ class NablaClient:
     def _headers(self) -> dict[str, str]:
         return {
             "Authorization": f"Bearer {self._auth.get_access_token()}",
-            "nabla-api-version": self._api_version,
+            # Per Nabla docs, the per-request version OVERRIDE header is
+            # "X-Nabla-Api-Version" ("nabla-api-version" is the query-param form).
+            # Sending the wrong header name silently falls back to the org's
+            # pinned version, so the override never applied to REST calls.
+            "X-Nabla-Api-Version": self._api_version,
         }
 
     _FRIENDLY_ERRORS: dict[str, str] = {
@@ -69,6 +73,32 @@ class NablaClient:
                 raise ScribeNoteGenerationError(friendly, status_code=status) from exc
             detail = self._extract_error_detail(exc)
             raise ScribeNoteGenerationError(f"Nabla generate note failed: {exc}{detail}", status_code=status) from exc
+        result: dict[str, Any] = response.json()
+        return result
+
+    def get_note_template(self, template_key: str, *, locale: str = "ENGLISH_US") -> dict[str, Any]:
+        """Fetch a note template's definition (sections + supported_customization_options).
+
+        Backs the capability check for whether a template/section supports an option
+        like ``split_by_problem`` at the current API version (added 2026-06-12). Used
+        for diagnostics/UAT rather than the hot path — prefer this over discovering an
+        unsupported customization via a 400 at generate-note time.
+        """
+        url = f"{self._auth.base_url}/v1/core/server/generate-note/templates/{template_key}"
+        try:
+            response = self._session.get(
+                url,
+                headers=self._headers(),
+                params={"locale": locale},
+                timeout=30,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            status = getattr(exc.response, "status_code", 0) if hasattr(exc, "response") else 0
+            detail = self._extract_error_detail(exc)
+            raise ScribeNoteGenerationError(
+                f"Nabla get note template failed: {exc}{detail}", status_code=status
+            ) from exc
         result: dict[str, Any] = response.json()
         return result
 
