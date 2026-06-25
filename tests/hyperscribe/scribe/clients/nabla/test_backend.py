@@ -8,6 +8,7 @@ from hyperscribe.scribe.backend import (
     NoteSection,
     PatientContext,
     ScribeBackend,
+    ScribeError,
     Transcript,
     TranscriptItem,
 )
@@ -36,7 +37,7 @@ def test_get_transcription_config() -> None:
     config = backend.get_transcription_config(user_external_id="staff-key")
 
     assert config["vendor"] == "nabla"
-    assert config["ws_url"] == "wss://us.api.nabla.com/v1/core/user/transcribe-ws?nabla-api-version=2026-02-20"
+    assert config["ws_url"] == "wss://us.api.nabla.com/v1/core/user/transcribe-ws?nabla-api-version=2026-06-12"
     assert config["access_token"] == "user-access-token"
     assert config["refresh_token"] == "user-refresh-token"
     assert config["sample_rate"] == 16000
@@ -71,7 +72,7 @@ def test_generate_note() -> None:
     assert result.sections[0].key == "subjective"
 
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+    assert payload["note_template_key"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
     assert payload["note_locale"] == "ENGLISH_US"
     assert len(payload["transcript_items"]) == 1
     assert payload["transcript_items"][0]["speaker_type"] == "patient"
@@ -450,13 +451,82 @@ def test_parse_normalized_data_empty() -> None:
 # so it's always exactly "Psychiatry" — no need for case-insensitive matching.
 
 
+# --- template capability check (split_by_problem support) ---
+
+
+def test_template_supports_option_string_list() -> None:
+    """Section options as a plain string list, exact key match."""
+    detail = {
+        "sections": [
+            {"key": "ASSESSMENT_AND_PLAN", "supported_customization_options": ["STYLE", "SPLIT_BY_PROBLEM"]},
+        ]
+    }
+    assert NablaBackend._template_supports_option(detail, "ASSESSMENT_AND_PLAN", "split_by_problem") is True
+
+
+def test_template_supports_option_tolerates_shape_variants() -> None:
+    """Nested under 'template', section_key field, dict-shaped options, case/underscore drift."""
+    detail = {
+        "template": {
+            "sections": [
+                {
+                    "section_key": "assessmentAndPlan",
+                    "customization_options": [{"name": "splitByProblem"}, {"key": "style"}],
+                }
+            ]
+        }
+    }
+    assert NablaBackend._template_supports_option(detail, "ASSESSMENT_AND_PLAN", "split_by_problem") is True
+
+
+def test_template_supports_option_absent_returns_false() -> None:
+    """Option not listed for the section → False (and unknown section → False)."""
+    detail = {"sections": [{"key": "ASSESSMENT_AND_PLAN", "supported_customization_options": ["STYLE"]}]}
+    assert NablaBackend._template_supports_option(detail, "ASSESSMENT_AND_PLAN", "split_by_problem") is False
+    assert NablaBackend._template_supports_option(detail, "PHYSICAL_EXAM", "split_by_problem") is False
+
+
+def test_supports_psychiatry_ap_split_by_problem_true() -> None:
+    backend, mock_rest_client = _make_backend()
+    mock_rest_client.get_note_template.return_value = {
+        "sections": [{"key": "ASSESSMENT_AND_PLAN", "supported_customization_options": ["SPLIT_BY_PROBLEM"]}]
+    }
+    assert backend.supports_psychiatry_ap_split_by_problem() is True
+    # Queries the psych AP-merged template specifically.
+    assert mock_rest_client.get_note_template.call_args.args[0] == "PSYCHIATRY_MULTIPLE_SECTIONS_AP_MERGED"
+
+
+def test_supports_psychiatry_ap_split_by_problem_false_when_unsupported() -> None:
+    backend, mock_rest_client = _make_backend()
+    mock_rest_client.get_note_template.return_value = {
+        "sections": [{"key": "ASSESSMENT_AND_PLAN", "supported_customization_options": ["STYLE"]}]
+    }
+    assert backend.supports_psychiatry_ap_split_by_problem() is False
+
+
+def test_supports_psychiatry_ap_split_by_problem_false_on_lookup_error() -> None:
+    """Best-effort: a failed template lookup returns False, never raises."""
+    backend, mock_rest_client = _make_backend()
+    mock_rest_client.get_note_template.side_effect = ScribeError("boom", status_code=500)
+    assert backend.supports_psychiatry_ap_split_by_problem() is False
+
+
 def test_psychiatry_selects_psychiatry_template() -> None:
-    """The 'Psychiatry' visit template routes the Nabla payload to PSYCHIATRY_MULTIPLE_SECTIONS."""
+    """The 'Psychiatry' visit template routes to PSYCHIATRY_MULTIPLE_SECTIONS_AP_MERGED
+    (available since nabla-api-version 2026-06-12) and uses the same single
+    ASSESSMENT_AND_PLAN + split_by_problem customization as generic visits, so the
+    A&P parses through the shared path with no local re-merge.
+    """
     backend, mock_rest_client = _make_backend()
     mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
     backend.generate_note(Transcript(), visit_template_name="Psychiatry")
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
+    assert payload["note_template_key"] == "PSYCHIATRY_MULTIPLE_SECTIONS_AP_MERGED"
+    customization = {c["section_key"]: c for c in payload["note_sections_customization"]}
+    assert "ASSESSMENT_AND_PLAN" in customization
+    assert customization["ASSESSMENT_AND_PLAN"]["split_by_problem"] is True
+    assert "ASSESSMENT" not in customization
+    assert "PLAN" not in customization
 
 
 def test_non_psychiatry_uses_generic() -> None:
@@ -465,7 +535,7 @@ def test_non_psychiatry_uses_generic() -> None:
     mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
     backend.generate_note(Transcript(), visit_template_name="Primary Care")
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+    assert payload["note_template_key"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
 
 
 def test_empty_name_uses_generic() -> None:
@@ -474,7 +544,7 @@ def test_empty_name_uses_generic() -> None:
     mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
     backend.generate_note(Transcript(), visit_template_name="")
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+    assert payload["note_template_key"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
 
 
 def test_psychiatry_payload_has_mental_health_exam() -> None:
@@ -611,196 +681,129 @@ def test_merge_ap_plan_only() -> None:
 # --- _reformat_plan_as_ap (function-based per CLAUDE.md) ---
 
 
-def test_reformat_plan_basic_merge() -> None:
-    """Assessment item + matching plan bullet collapse into a single block."""
-    assessment = "- Depression with low mood"
-    plan = "- Depression: Start sertraline 50mg"
-    result = NablaBackend._reformat_plan_as_ap(assessment, plan)
-    assert "Depression" in result
-    assert "- Depression with low mood" in result
-    assert "- Start sertraline 50mg" in result
-
-
-def test_reformat_plan_multiple_blocks() -> None:
-    """Multiple distinct problems produce one block each, with assessment items routed by overlap."""
-    assessment = "- Depression\n- Anxiety disorder"
-    plan = "- Depression: Start SSRI\n- Anxiety: Continue therapy"
+def test_reformat_assessment_items_become_headers() -> None:
+    """Assessment items are the block headers (diagnoses); plan actions are bullet bodies."""
+    assessment = "- Generalized anxiety disorder\n- Panic attacks twice weekly"
+    plan = "- Increase escitalopram for anxiety\n- Slow breathing during panic attacks"
     result = NablaBackend._reformat_plan_as_ap(assessment, plan)
     blocks = result.split("\n\n")
     assert len(blocks) == 2
-    assert "Depression" in blocks[0]
-    assert "- Depression" in blocks[0]
-    assert "Anxiety" in blocks[1]
+    # Each block leads with the assessment diagnosis (non-bullet header).
+    assert blocks[0].splitlines()[0] == "Generalized anxiety disorder"
+    assert blocks[1].splitlines()[0] == "Panic attacks twice weekly"
+    # Plan actions attach as bullets under the diagnosis they overlap most.
+    assert "- Increase escitalopram for anxiety" in blocks[0]
+    assert "- Slow breathing during panic attacks" in blocks[1]
 
 
-def test_reformat_plan_unmatched_assessment_becomes_standalone() -> None:
-    """Assessment items with no word overlap stay standalone, not piled under block 0."""
-    assessment = "- Completely unrelated finding xyz"
-    plan = "- Depression: Start SSRI\n- Anxiety: Continue therapy"
+def test_reformat_only_assessment_items_become_headers() -> None:
+    """A plan action NEVER becomes a header — there is no catch-all 'General Plan'
+    header. Unmatched actions attach to a real diagnosis (the last block), as bodies."""
+    assessment = "- Generalized anxiety disorder"
+    plan = "- Increase escitalopram dosage to 15 mg daily\n- Schedule follow-up in four weeks"
     result = NablaBackend._reformat_plan_as_ap(assessment, plan)
     blocks = result.split("\n\n")
-    assert len(blocks) == 3
-    assert "Completely unrelated finding xyz" in blocks[2]
-    assert "unrelated" not in blocks[0]
+    headers = [b.splitlines()[0] for b in blocks]
+    # The only header is the diagnosis — no "General Plan", no plan-action headers.
+    assert headers == ["Generalized anxiety disorder"]
+    assert "General Plan" not in result
+    # Both plan actions ride along as bodies under the diagnosis.
+    assert "- Increase escitalopram dosage to 15 mg daily" in blocks[0]
+    assert "- Schedule follow-up in four weeks" in blocks[0]
 
 
-def test_reformat_plan_multiple_unmatched_all_standalone() -> None:
-    """Each unmatched assessment item becomes its own standalone block."""
-    assessment = "- Alpha bravo\n- Charlie delta"
-    plan = "- Depression: Start SSRI"
+def test_reformat_zero_overlap_action_attaches_to_first_diagnosis() -> None:
+    """A cross-cutting plan action with no overlap attaches to the FIRST (primary)
+    diagnosis block, not an incidental last-listed one, and never its own header."""
+    assessment = "- Generalized anxiety disorder\n- Hypothyroidism, well controlled"
+    plan = "- Establish a safety plan for escalation of suicidal thoughts"
     result = NablaBackend._reformat_plan_as_ap(assessment, plan)
     blocks = result.split("\n\n")
-    assert len(blocks) == 3
-    assert "Alpha bravo" in blocks[1]
-    assert "Charlie delta" in blocks[2]
+    headers = [b.splitlines()[0] for b in blocks]
+    assert headers == ["Generalized anxiety disorder", "Hypothyroidism, well controlled"]
+    # Falls to the FIRST/primary block (zero-overlap default) — not under the
+    # incidental "Hypothyroidism" comorbidity — and never a standalone header.
+    assert "- Establish a safety plan for escalation of suicidal thoughts" in blocks[0]
+    assert "Establish a safety plan" not in blocks[1]
 
 
-def test_reformat_plan_low_overlap_not_matched() -> None:
-    """Items sharing only a generic medical word do not match (>= 0.5 threshold)."""
-    assessment = "- Patient denies any disorder symptoms today"
-    plan = "- Major depressive disorder: Continue sertraline"
-    result = NablaBackend._reformat_plan_as_ap(assessment, plan)
-    blocks = result.split("\n\n")
-    assert len(blocks) == 2
-    assert "Patient denies" not in blocks[0]
-
-
-def test_reformat_plan_colonless_bullet_attaches_to_previous() -> None:
-    """Plan bullets without a colon attach to the previous block, not as standalone."""
-    assessment = "- Depression"
-    plan = "- Depression: Continue sertraline\n- Order CBC and TSH\n- Schedule follow-up in 2 weeks"
-    result = NablaBackend._reformat_plan_as_ap(assessment, plan)
-    blocks = result.split("\n\n")
-    assert len(blocks) == 1
-    assert "Order CBC and TSH" in blocks[0]
-    assert "Schedule follow-up in 2 weeks" in blocks[0]
-
-
-def test_reformat_plan_colonless_bullet_first_becomes_standalone() -> None:
-    """A colon-less bullet with no prior group becomes a standalone header."""
-    assessment = ""
-    plan = "- Order CBC and TSH"
-    result = NablaBackend._reformat_plan_as_ap(assessment, plan)
-    assert "Order CBC and TSH" in result
-
-
-def test_reformat_plan_duplicate_headers_coalesced() -> None:
-    """Multiple plan bullets for the same problem produce one block."""
-    assessment = "- Depression and low mood"
-    plan = "- Depression: Start sertraline 50mg\n- Depression: Titrate weekly to 100mg\n- Anxiety: Continue therapy"
-    result = NablaBackend._reformat_plan_as_ap(assessment, plan)
-    blocks = result.split("\n\n")
-    assert len(blocks) == 2
-    depression_block = blocks[0]
-    assert "Depression" in depression_block
-    assert "- Start sertraline 50mg" in depression_block
-    assert "- Titrate weekly to 100mg" in depression_block
-    assert "- Depression and low mood" in depression_block
-    anxiety_block = blocks[1]
-    assert "Anxiety" in anxiety_block
-    assert "- Continue therapy" in anxiety_block
-
-
-def test_reformat_plan_duplicate_headers_case_insensitive() -> None:
-    """Headers differing only in case are coalesced."""
-    assessment = ""
-    plan = "- depression: Start SSRI\n- Depression: Add therapy"
-    result = NablaBackend._reformat_plan_as_ap(assessment, plan)
-    blocks = result.split("\n\n")
-    assert len(blocks) == 1
-    assert "- Start SSRI" in blocks[0]
-    assert "- Add therapy" in blocks[0]
-
-
-def test_reformat_plan_as_ap_empty_plan_returns_assessment_unchanged() -> None:
-    """Empty plan_text: return assessment unchanged so parse_ap_blocks does NOT emit phantom header-only blocks.
-
-    Without the short-circuit, ``- MDD\\n- GAD`` assessment lines would be
-    emitted as bare lines joined by ``\\n\\n``. parse_ap_blocks would then
-    treat each as a header-only block → one phantom diagnose command per
-    line. Returning assessment unchanged keeps bullets as bullets, which
-    parse_ap_blocks treats as bodies of a headerless block (zero diagnose
-    commands minted downstream).
-    """
-    # Use the imported parse_ap_blocks to demonstrate the downstream guarantee.
-    from hyperscribe.scribe.commands.ap_split import parse_ap_blocks
-
-    assessment = "Assessment\n- MDD\n- GAD"
-    plan = ""
-    result = NablaBackend._reformat_plan_as_ap(assessment, plan)
-    # Returned text equals assessment exactly.
-    assert result == assessment
-    # parse_ap_blocks on the result yields ONE block (header "Assessment",
-    # body with bullets) — zero header-only phantom blocks.
-    blocks = parse_ap_blocks(result)
-    header_only_blocks = [b for b in blocks if not b.body]
-    assert header_only_blocks == [], "phantom header-only blocks would mint phantom diagnose commands"
-
-
-def test_reformat_plan_empty_plan_with_pure_assessment_lines() -> None:
-    """Assessment-only payload of bullets returns unchanged; downstream sees one (possibly headerless) block."""
+def test_reformat_plan_empty_plan_returns_assessment_unchanged() -> None:
+    """Empty plan: each assessment line already becomes a header downstream, so return unchanged."""
     from hyperscribe.scribe.commands.ap_split import parse_ap_blocks
 
     assessment = "- MDD\n- GAD"
-    plan = ""
-    result = NablaBackend._reformat_plan_as_ap(assessment, plan)
+    result = NablaBackend._reformat_plan_as_ap(assessment, "")
     assert result == assessment
+    # Bullets with no preceding header → one headerless block; match_condition
+    # refuses the empty header, so no phantom diagnose commands are minted.
     blocks = parse_ap_blocks(result)
-    # All bullets without a preceding non-bullet header → exactly one headerless block.
-    # match_condition will refuse the empty header, so no phantom diagnose commands are emitted.
     assert all(not b.header for b in blocks)
 
 
-def test_reformat_plan_empty_assessment() -> None:
-    """Empty assessment + non-empty plan returns the plan rebuilt as a header block."""
-    assessment = ""
-    plan = "- Depression: Start SSRI"
+def test_reformat_both_empty_returns_empty() -> None:
+    """No assessment and no plan → empty string."""
+    assert NablaBackend._reformat_plan_as_ap("", "") == ""
+
+
+def test_reformat_empty_assessment_emits_headerless_plan() -> None:
+    """No assessment diagnoses: the plan surfaces as header-less bullets so no
+    phantom *named* diagnosis is minted (parse_ap_blocks yields one header-less
+    block that match_condition ignores)."""
+    from hyperscribe.scribe.commands.ap_split import parse_ap_blocks
+
+    plan = "- Increase escitalopram dosage\n- Schedule follow-up"
+    result = NablaBackend._reformat_plan_as_ap("", plan)
+    assert "- Increase escitalopram dosage" in result
+    assert "- Schedule follow-up" in result
+    blocks = parse_ap_blocks(result)
+    assert all(not b.header for b in blocks)  # no named diagnosis header
+
+
+def test_reformat_real_psychiatry_note_regression() -> None:
+    """Regression for the live psychiatry misparse: plan ACTIONS must not become
+    diagnosis headers, and the real 'passive suicidal ideation' diagnosis must
+    survive as a header (it was previously absorbed under the 'establish a safety
+    plan' plan action and lost)."""
+    from hyperscribe.scribe.commands.ap_split import parse_ap_blocks
+
+    assessment = (
+        "- Ongoing anxiety with prominent worry, restlessness, and difficulty controlling anxious thoughts\n"
+        "- Panic attacks occurring approximately twice weekly, characterized by palpitations and acute fear\n"
+        "- Low mood present intermittently, secondary to anxiety\n"
+        "- Sleep disturbance attributed to anxiety and racing thoughts\n"
+        "- Passive suicidal ideation without plan or intent\n"
+        "- Partial response to escitalopram 10 mg daily after five weeks, with initial side effects resolved"
+    )
+    plan = (
+        "- Increase escitalopram dosage to 15 mg daily, to be taken in the morning with breakfast. "
+        "Maintain this higher dose for one month before reassessment.\n"
+        "- Referred to a cognitive behavioral therapist for initiation of CBT to address anxiety and panic symptoms.\n"
+        "- Advise to reduce caffeine intake, limiting to one or two coffees earlier in the day.\n"
+        "- Instruct to utilize slow breathing techniques during episodes of panic.\n"
+        "- Establish a safety plan for management of suicidal ideation: if passive thoughts escalate to active "
+        "intent or planning, immediately contact the psychiatrist, partner, the 988 crisis line, or present to ER.\n"
+        "- Schedule a follow-up appointment in four weeks to monitor response to medication adjustment."
+    )
     result = NablaBackend._reformat_plan_as_ap(assessment, plan)
-    assert "Depression" in result
-    assert "Start SSRI" in result
+    headers = [b.header for b in parse_ap_blocks(result)]
 
-
-def test_reformat_plan_handles_nested_bullets() -> None:
-    """Nested sub-bullets attach to the parent header, not as new diagnose headers.
-
-    Replaces the previous ``test_reformat_plan_pins_flat_bullet_assumption``
-    which pinned the BROKEN behavior. The fix uses raw-line indent
-    detection: indented bullets under an existing parent header are
-    appended to the parent's body. Without the fix, indented category
-    labels (Pharmacotherapy / Psychotherapy / Follow-up) become phantom
-    diagnose blocks downstream.
-    """
-    plan_text = (
-        "- Major Depressive Disorder:\n  - Pharmacotherapy: Start sertraline 50 mg\n  - Psychotherapy: Refer to CBT"
-    )
-    result = NablaBackend._reformat_plan_as_ap("", plan_text)
-    blocks = result.split("\n\n")
-    # Single block, not three: the two indented bullets fold under MDD.
-    assert len(blocks) == 1, f"expected one block but got {len(blocks)}: {blocks!r}"
-    block = blocks[0]
-    assert "Major Depressive Disorder" in block
-    assert "Pharmacotherapy" in block
-    assert "Psychotherapy" in block
-
-
-def test_reformat_plan_nested_bullet_with_top_level_problem_blocks() -> None:
-    """Nested bullets under one parent don't bleed into the next top-level header."""
-    plan_text = (
-        "- Depression:\n"
-        "  - Pharmacotherapy: Start sertraline\n"
-        "  - Psychotherapy: Refer to CBT\n"
-        "- Anxiety: Continue lorazepam PRN"
-    )
-    result = NablaBackend._reformat_plan_as_ap("", plan_text)
-    blocks = result.split("\n\n")
-    assert len(blocks) == 2, f"expected 2 blocks but got {len(blocks)}: {blocks!r}"
-    depression_block = blocks[0]
-    anxiety_block = blocks[1]
-    assert "Depression" in depression_block
-    assert "Pharmacotherapy" in depression_block
-    assert "Psychotherapy" in depression_block
-    assert "Anxiety" in anxiety_block
-    assert "Pharmacotherapy" not in anxiety_block
+    # The real diagnosis survives as a header.
+    assert "Passive suicidal ideation without plan or intent" in headers
+    # Plan actions are NOT diagnosis headers, and there is NO catch-all header.
+    assert not any(h.startswith("Increase escitalopram dosage") for h in headers)
+    assert not any(h.startswith("Establish a safety plan") for h in headers)
+    assert "General Plan" not in result
+    # The safety-plan action attaches under the passive-SI diagnosis (word overlap).
+    assert "Establish a safety plan for management of suicidal ideation" in result
+    # Headers are EXACTLY the six assessment diagnoses — nothing more.
+    assert headers == [
+        "Ongoing anxiety with prominent worry, restlessness, and difficulty controlling anxious thoughts",
+        "Panic attacks occurring approximately twice weekly, characterized by palpitations and acute fear",
+        "Low mood present intermittently, secondary to anxiety",
+        "Sleep disturbance attributed to anxiety and racing thoughts",
+        "Passive suicidal ideation without plan or intent",
+        "Partial response to escitalopram 10 mg daily after five weeks, with initial side effects resolved",
+    ]
 
 
 # --- _significant_words (function-based per CLAUDE.md) ---
@@ -879,7 +882,7 @@ def test_default_template_does_not_trigger_psych_path() -> None:
     backend.generate_note(Transcript(), visit_template_name="")
 
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+    assert payload["note_template_key"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
     assert "MENTAL_HEALTH_EXAM" not in _section_keys(payload)
     # Generic HPI carries a Review of Systems (dynamic — Nabla picks systems).
     assert "Review of Systems" in _hpi_instruction(payload)
@@ -893,7 +896,7 @@ def test_subsequent_visit_does_not_trigger_psych_path() -> None:
     backend.generate_note(Transcript(), visit_template_name="Subsequent Visit")
 
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+    assert payload["note_template_key"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
     assert "MENTAL_HEALTH_EXAM" not in _section_keys(payload)
     assert "Review of Systems" in _hpi_instruction(payload)
 
@@ -906,7 +909,7 @@ def test_psychiatry_template_triggers_psych_path() -> None:
     backend.generate_note(Transcript(), visit_template_name="Psychiatry")
 
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "PSYCHIATRY_MULTIPLE_SECTIONS"
+    assert payload["note_template_key"] == "PSYCHIATRY_MULTIPLE_SECTIONS_AP_MERGED"
     keys = _section_keys(payload)
     assert "MENTAL_HEALTH_EXAM" in keys
     # Psych branch should NOT carry the generic medical ROS scaffold in HPI.
@@ -921,7 +924,7 @@ def test_unknown_template_does_not_trigger_psych_path() -> None:
     backend.generate_note(Transcript(), visit_template_name="Bogus Template")
 
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+    assert payload["note_template_key"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
     assert "MENTAL_HEALTH_EXAM" not in _section_keys(payload)
 
 
@@ -933,7 +936,7 @@ def test_psychiatry_match_is_exact_case_sensitive() -> None:
     backend.generate_note(Transcript(), visit_template_name="psychiatry")
 
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+    assert payload["note_template_key"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
     assert "MENTAL_HEALTH_EXAM" not in _section_keys(payload)
 
 
@@ -945,7 +948,7 @@ def test_psychiatry_match_ignores_trailing_whitespace_by_design() -> None:
     backend.generate_note(Transcript(), visit_template_name="Psychiatry ")
 
     payload = mock_rest_client.generate_note.call_args.args[0]
-    assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+    assert payload["note_template_key"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
     assert "MENTAL_HEALTH_EXAM" not in _section_keys(payload)
 
 
@@ -964,7 +967,7 @@ def test_none_template_does_not_crash() -> None:
 
     payload = mock_rest_client.generate_note.call_args.args[0]
     # `None in frozenset({"Psychiatry"})` is False → generic path.
-    assert payload["note_template"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
+    assert payload["note_template_key"] == "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
     assert "MENTAL_HEALTH_EXAM" not in _section_keys(payload)
 
 
@@ -1032,20 +1035,23 @@ def test_generate_note_psychiatry_merges_ap() -> None:
 
 
 def test_psychiatry_hpi_prompt_only_when_psychiatry() -> None:
-    """The HPI custom instruction requests a Review of Systems for default visits and omits it for psychiatry."""
+    """Both HPIs append a dynamic ROS, but with different formats: generic uses a
+    medical ROS ("System: findings"); psychiatry uses a psychiatric ROS ("Category: findings")."""
     backend, mock_rest_client = _make_backend()
     mock_rest_client.generate_note.return_value = {"title": "Note", "sections": []}
 
-    # Default visit: appends the dynamic ROS request.
+    # Default visit: appends the medical ROS request.
     backend.generate_note(Transcript(), visit_template_name="")
     generic_hpi = _hpi_instruction(mock_rest_client.generate_note.call_args.args[0])
     assert "Review of Systems" in generic_hpi
     assert "System: findings" in generic_hpi
+    assert "Category: findings" not in generic_hpi
 
-    # Psychiatry visit: omits the ROS request (ROS comes from MENTAL_HEALTH_EXAM).
+    # Psychiatry visit: appends a psychiatric ROS using the "Category: findings" format.
     backend.generate_note(Transcript(), visit_template_name="Psychiatry")
     psych_hpi = _hpi_instruction(mock_rest_client.generate_note.call_args.args[0])
-    assert "Review of Systems" not in psych_hpi
+    assert "psychiatric Review of Systems" in psych_hpi
+    assert "Category: findings" in psych_hpi
     assert "System: findings" not in psych_hpi
     # Both HPIs share the "structured summary" guidance and opening template.
     assert "structured summary" in psych_hpi.lower()
