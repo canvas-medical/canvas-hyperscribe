@@ -286,28 +286,37 @@ def split_plan_into_diagnoses(
     active_icd10_index = _build_active_condition_icd10_index(note) if note is not None else {}
 
     for block in blocks:
+        # Strip a trailing colon from the header. split_by_problem templates emit
+        # problem headers as "Diagnosis:" (followed by bulleted plan), and the
+        # colon breaks the exact match against Nabla's colon-less
+        # corresponding_note_problem (e.g. header "Right rotator cuff tendinitis:"
+        # vs problem "Right rotator cuff tendinitis" → missed M75.41). Normalize
+        # once and use it for matching, display, and the stored condition_header.
+        header = block.header.strip()
+        if header.endswith(":"):
+            header = header[:-1].strip()
         # Prefer exact match via Nabla's corresponding_note_problem field.
         matched = next(
             (
                 c
                 for c in codes
                 if c.get("corresponding_note_problem")
-                and c["corresponding_note_problem"].strip().lower() == block.header.strip().lower()
+                and c["corresponding_note_problem"].strip().lower() == header.lower()
             ),
             None,
         )
         if not matched:
-            matched = match_condition(block.header, codes)
+            matched = match_condition(header, codes)
         icd: dict[str, Any] | None = None
         if matched:
             icd = next((cd for cd in (matched.get("coding") or []) if cd.get("code")), None)
             matched_set.add(id(matched))
         if icd and matched:
-            display = icd.get("display") or matched.get("display") or block.header
+            display = icd.get("display") or matched.get("display") or header
             icd10_code: str | None = icd["code"]
             icd10_display = icd.get("display") or matched.get("display") or ""
         else:
-            display = block.header
+            display = header
             icd10_code = None
             icd10_display = ""
         # KOALA_5635_STAMP_CONDITION_ID — when this proposal's icd10_code
@@ -320,7 +329,7 @@ def split_plan_into_diagnoses(
         data: dict[str, Any] = {
             "icd10_code": icd10_code,
             "icd10_display": icd10_display,
-            "condition_header": block.header,
+            "condition_header": header,
             "today_assessment": "\n".join(block.body),
             "accepted": False,
         }
