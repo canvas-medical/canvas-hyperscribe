@@ -349,6 +349,48 @@ def test_recommend_optional_fields_default_none(mock_resolve: MagicMock) -> None
 
 
 @patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
+def test_recommend_engine_off_emits_baseline_shape(mock_resolve: MagicMock) -> None:
+    """With the dispense engine gated OFF, prescribe proposals are the canvas-scribe
+    baseline shape: raw passthrough, no type_to_dispense, no refills floor/class,
+    no computed quantity, and no extra LLM (derive) call."""
+    detail = MedicationDetail(
+        fdb_code="99999",
+        description="Sumatriptan 50mg Tablet",
+        quantities=[
+            MedicationDetailQuantity(
+                quantity="9",
+                representative_ndc="12345678901",
+                clinical_quantity_description="tablet",
+                ncpdp_quantity_qualifier_code="C48542",
+                ncpdp_quantity_qualifier_description="Tablet",
+            ),
+        ],
+    )
+    mock_resolve.return_value = detail
+    note = _make_note([NoteSection(key="assessment_and_plan", title="A&P", text="Start sumatriptan 50mg.")])
+    client = _make_client(
+        {
+            "prescriptions": [
+                {
+                    "medicationName": "Sumatriptan 50mg",
+                    "sig": "Take 1 tablet at onset",
+                    "keywords": "sumatriptan",
+                },
+            ]
+        }
+    )
+
+    proposals = PrescriptionRecommender(dispense_engine_enabled=False).recommend(note, client)
+
+    data = proposals[0].data
+    assert "type_to_dispense" not in data  # no dispense-form preselection
+    assert "type_to_dispense_label" not in data
+    assert data["quantity_to_dispense"] is None  # raw passthrough (not computed)
+    assert data["refills"] is None  # raw passthrough — NO 0-floor / class default
+    client.request.assert_called_once()  # extraction only; no derive call
+
+
+@patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
 def test_recommend_normalizes_unit_suffixed_quantity(mock_resolve: MagicMock) -> None:
     """Regression: a stated quantity like "6 tablets" must normalize to "6", not
     leak through as a non-numeric string (which fails Surescripts validation)."""

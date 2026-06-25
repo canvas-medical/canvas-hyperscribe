@@ -136,6 +136,9 @@ class Constants:
     MODALITY_SCRIBE = "scribe"
     # PILOT: remove SECRET_SCRIBE_PILOT_STAFFERS when scribe pilot ends
     SECRET_SCRIBE_PILOT_STAFFERS = "ScribePilotStaffers"
+    # Comma-separated staff keys allowed the prescription dispense-field engine
+    # (quantity / days supply / refills / dispense type). Blank = all users.
+    SECRET_SCRIBE_PRESCRIPTION_STAFFERS = "ScribePrescriptionStaffers"
     SECRET_TRIAL_STAFFERS_LIST = "TrialStaffersList"
     # JSON credentials which take precedence over the secrets
     AWS_S3_CREDENTIALS_LOGS = "S3CredentialsLogs"
