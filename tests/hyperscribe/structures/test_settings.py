@@ -29,6 +29,8 @@ def test_class():
         "trial_staffers_policy": AccessPolicy,
         "cycle_transcript_overlap": int,
         "custom_prompts": list[CustomPrompt],
+        "modality": str,
+        "scribe_pilot_staffers": list[str],
     }
     assert is_namedtuple(tested, fields)
 
@@ -111,6 +113,8 @@ def test__from_dict_base(is_true, clamp_int):
                 "CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1","active":true},'
                 '{"command":"theCommand2","prompt":"thePrompt2","active":false},'
                 '{"command":"theCommand3","prompt":"thePrompt3"}]',
+                "Modality": "copilot",
+                "ScribePilotStaffers": "abc123 def456",
             },
             False,
         )
@@ -134,6 +138,8 @@ def test__from_dict_base(is_true, clamp_int):
             staffers_policy=AccessPolicy(policy=staffers, items=["32", "47"]),
             trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=54,
+            modality="copilot",
+            scribe_pilot_staffers=["abc123", "def456"],
         )
         assert result == expected
         calls = [call("rfv"), call("audit"), call("tuning"), call("commands"), call("staffers")]
@@ -194,6 +200,43 @@ def test__from_dict_base(is_true, clamp_int):
         ]
         assert clamp_int.mock_calls == calls
         reset_mocks()
+
+
+def test_is_scribe_modality():
+    """PILOT: remove this test when scribe pilot ends."""
+    base_kwargs = dict(
+        llm_text=VendorKey(vendor="v", api_key="k"),
+        llm_audio=VendorKey(vendor="v", api_key="k"),
+        structured_rfv=False,
+        audit_llm=False,
+        reasoning_llm=False,
+        custom_prompts=[],
+        is_tuning=False,
+        api_signing_key="key",
+        max_workers=3,
+        hierarchical_detection_threshold=5,
+        send_progress=False,
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
+        cycle_transcript_overlap=100,
+    )
+
+    # Global scribe mode → always True regardless of staff id
+    settings = Settings(**base_kwargs, modality="scribe", scribe_pilot_staffers=[])
+    assert settings.is_scribe_modality("anyone") is True
+    assert settings.is_scribe_modality("") is True
+
+    # Global copilot mode, no pilot list → always False
+    settings = Settings(**base_kwargs, modality="copilot", scribe_pilot_staffers=[])
+    assert settings.is_scribe_modality("staff1") is False
+
+    # Global copilot mode, staff in pilot list → True
+    settings = Settings(**base_kwargs, modality="copilot", scribe_pilot_staffers=["staff1", "staff2"])
+    assert settings.is_scribe_modality("staff1") is True
+    assert settings.is_scribe_modality("staff2") is True
+    assert settings.is_scribe_modality("staff3") is False
+    assert settings.is_scribe_modality("") is False
 
 
 def test_clamp_int():
@@ -262,6 +305,7 @@ def test_llm_audio_model():
             staffers_policy=AccessPolicy(policy=True, items=[]),
             trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=54,
+            modality="",
         )
         result = tested.llm_audio_model()
         assert result == expected, f"---> {vendor}"

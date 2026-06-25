@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scribe</title>
+  <link rel="stylesheet" href="/plugin-io/api/hyperscribe/scribe/static/styles.css" />
+</head>
+<body>
+  <div id="app"></div>
+  <script id="scribe-initial-data" type="application/json">{{ initial_data | safe }}</script>
+  <script>
+    // Capture the message port early, before module scripts load.
+    (function() {
+      var messagePort = null;
+      var resizeTimer = null;
+
+      function sendResize() {
+        if (!messagePort) return;
+        var appEl = document.getElementById('app');
+        messagePort.postMessage({ type: 'RESIZE', width: appEl.scrollWidth, height: appEl.scrollHeight });
+      }
+
+      window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'INIT_CHANNEL' && event.ports && event.ports[0]) {
+          messagePort = event.ports[0];
+          // Bridge incoming messages on the port to a CustomEvent on `window`
+          // so React components can listen via a single dispatcher.
+          messagePort.onmessage = function(portEvent) {
+            window.dispatchEvent(new CustomEvent('canvas-message', { detail: portEvent.data }));
+          };
+          messagePort.start();
+          let view = '{{ view }}'
+          if (view !== 'audit') {
+              sendResize();
+          }
+        }
+      });
+
+      // Expose for components that need to send messages (e.g. CLOSE_MODAL).
+      window.__canvasPort = function() { return messagePort; };
+
+      function sendResizeDebounced() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(sendResize, 100);
+      }
+
+      var observer = new ResizeObserver(sendResizeDebounced);
+      observer.observe(document.getElementById('app'));
+    })();
+  </script>
+  <script type="module">
+    import { h, render } from 'https://esm.sh/preact@10.25.4';
+    import { App } from '/plugin-io/api/hyperscribe/scribe/static/app.js';
+    const initialDataEl = document.getElementById('scribe-initial-data');
+    const initialData = initialDataEl ? JSON.parse(initialDataEl.textContent) : null;
+    const config = {
+      noteId: '{{ note_id }}',
+      view: '{{ view }}',
+      providerName: '{{ provider_name }}',
+      providerPhotoUrl: '{{ provider_photo_url }}',
+      patientName: '{{ patient_name }}',
+      patientBirthDate: '{{ patient_birth_date }}',
+      patientGender: '{{ patient_gender }}',
+      patientId: '{{ patient_id }}',
+      staffId: '{{ staff_id }}',
+      staffName: '{{ staff_name }}',
+      debugMode: '{{ debug_mode }}' === 'true',
+      noteEditable: '{{ note_editable }}' === 'true',
+      isAuthor: '{{ is_author }}' === 'true',
+      alertFacilityEnabled: '{{ alert_facility_enabled }}' === 'true',
+      manualModeOnly: '{{ manual_mode_only }}' === 'true',
+      initialData: initialData,
+    };
+    render(h(App, config), document.getElementById('app'));
+  </script>
+</body>
+</html>

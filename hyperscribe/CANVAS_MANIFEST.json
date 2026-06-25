@@ -1,9 +1,14 @@
 {
-  "sdk_version": "0.85.0",
-  "plugin_version": "2026-04-17 v0.2.157 (db-20260417-automated-transcript)",
+  "sdk_version": "0.155.0",
+  "plugin_version": "2026-06-24 v0.3.13",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
-  "url_permissions": [],
+  "url_permissions": [
+    {
+      "url": "https://esm.sh",
+      "permissions": ["SCRIPTS"]
+    }
+  ],
   "components": {
     "protocols": [
       {
@@ -113,6 +118,87 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.scribe.application.transcript_app:ScribeApp",
+        "description": "Note application for Canvas Scribe with recording and transcript",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.application.debug_cache_app:ScribeCacheApp",
+        "description": "Debug cache for the canvas scribe application.",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.application.audit_app:ScribeAuditApp",
+        "description": "Audit log for the canvas scribe application.",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.api.scribe_view:ScribeView",
+        "description": "Serve the Scribe UI and static assets",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.api.session_view:ScribeSessionView",
+        "description": "Scribe session management API",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.handlers.note_state:NoteStateHandler",
+        "description": "Triggers WebSocket broadcast on note state changes",
+        "data_access": {
+          "event": "NOTE_STATE_CHANGE_EVENT_CREATED",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.handlers.note_lock_guard:NoteLockGuard",
+        "description": "Block locking a Scribe-documented note until the Scribe tab is finalized",
+        "data_access": {
+          "event": "NOTE_STATE_CHANGE_EVENT_PRE_CREATE",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.print.button:PrintScribeNoteButton",
+        "description": "Note header dropdown button that launches a print preview of the scribe summary",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.print.view:PrintScribeNoteView",
+        "description": "SimpleAPI endpoint that renders the scribe summary as a printable HTML document",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
       }
     ],
     "applications": [
@@ -125,12 +211,57 @@
         "show_in_panel": false
       }
     ],
-    "commands": [],
+    "commands": [
+      {
+        "name": "HistoryReview",
+        "label": "History Review",
+        "schema_key": "historyReview",
+        "section": "history"
+      },
+      {
+        "name": "ChartReview",
+        "label": "Chart Review",
+        "schema_key": "chartReview",
+        "section": "objective"
+      },
+      {
+        "name": "MentalStatusExam",
+        "label": "Mental Status Exam",
+        "schema_key": "mentalStatusExam",
+        "section": "objective"
+      },
+      {
+        "name": "PhysicalExam",
+        "label": "Physical Exam",
+        "schema_key": "physicalExam",
+        "section": "objective"
+      },
+      {
+        "name": "ReviewOfSystems",
+        "label": "Review Of Systems",
+        "schema_key": "reviewOfSystems",
+        "section": "subjective"
+      },
+      {
+        "name": "LabResults",
+        "label": "Lab Results",
+        "schema_key": "labResult",
+        "section": "objective"
+      },
+      {
+        "name": "ImageResults",
+        "label": "Image Results",
+        "schema_key": "imageResult",
+        "section": "objective"
+      }
+    ],
     "content": [],
     "effects": [],
     "views": []
   },
   "secrets": [
+    "AlertFacilityEnabled",
+    "AnthropicAPIKey",
     "APISigningKey",
     "AudioHost",
     "AudioHostSharedSecret",
@@ -145,24 +276,38 @@
     "CommandsPolicy",
     "CustomPrompts",
     "CycleTranscriptOverlap",
+    "EnableCacheApp",
     "HierarchicalDetectionThreshold",
     "IsTuning",
     "KeyAudioLLM",
     "KeyTextLLM",
     "MaxWorkers",
+    "Modality",
+    "namespace_read_write_access_key",
     "NotionAPIKey",
     "NotionFeedbackDatabaseId",
+    "ScribeBackend",
+    "ScribeDebugStaffers",
+    "ScribeManualModeOnly",
+    "ScribeNoteTypes",
+    "ScribePilotStaffers",
+    "ScribeTabName",
     "StaffersList",
     "StaffersPolicy",
     "StructuredReasonForVisit",
     "TrialStaffersList",
     "VendorAudioLLM",
-    "VendorTextLLM"
+    "VendorTextLLM",
+    "VisitTemplates"
   ],
   "tags": {
-    "version_date": "2026-04-17",
-    "version_branch": "db-20260417-automated-transcript",
-    "version_semantic": "0.2.157"
+    "version_date": "2026-06-10",
+    "version_branch": "feat-physical-exam-improvements",
+    "version_semantic": "0.3.10"
+  },
+  "custom_data": {
+    "namespace": "canvas_medical__scribe",
+    "access": "read_write"
   },
   "references": [],
   "license": "",
