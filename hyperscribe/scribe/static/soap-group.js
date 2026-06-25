@@ -1191,8 +1191,18 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             ? visibleAdHoc.filter(e => e.command.command_type === historyType)
             : [];
           const showHistoryText = s.text && !isCoveredHistory;
+          // social_history has no manual input affordance (not in NARRATIVE_SECTIONS,
+          // no SECTION_TO_HISTORY_TYPE entry), so an empty Social History section is a
+          // dead, un-fillable header. Hide it whenever it has nothing to show; the AI
+          // path still renders it once it supplies history_review content.
+          if (key === 'social_history' && !showHistoryText && historyEntries.length === 0 && !cmds) return null;
           if (readOnly && !showHistoryText && !cmds && historyEntries.length === 0) return null;
-          if (!showHistoryText && historyEntries.length === 0 && !onAddHistory && !cmds) return null;
+          // Plan sections render their Add/Resolve Condition buttons (and any ad-hoc
+          // resolves) from the fall-through branch below, even with no narrative command.
+          // Without this exemption an empty A&P (e.g. manual mode, where no empty plan
+          // card is pre-seeded) would be dropped here, taking those buttons with it.
+          const planAddable = PLAN_SECTIONS.has(key) && (onAddCondition || onAddResolveCondition);
+          if (!showHistoryText && historyEntries.length === 0 && !onAddHistory && !cmds && !planAddable) return null;
           return html`
             <div class="subsection" key=${s.key}>
               <div class="subsection-title">${s.title}</div>

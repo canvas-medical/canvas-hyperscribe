@@ -421,7 +421,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, initialData = null }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, manualModeOnly = false, initialData = null }) {
   const initSummary = initialData?.summary ?? null;
   const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
@@ -1375,7 +1375,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       { command_type: 'hpi', display: '', data: { narrative: '' }, selected: true, section_key: 'history_of_present_illness', already_documented: false },
       // Vitals is intentionally NOT pre-populated: an empty vitals card auto-opens its editor and blocks
       // commit until saved/cancelled (KOALA-5802). It's added on demand via the "+ Vitals" button instead.
-      { command_type: 'plan', display: '', data: { narrative: '' }, selected: true, section_key: 'assessment_and_plan', already_documented: false },
+      // Plan is intentionally NOT pre-populated either: providers add it on demand via the "+ Plan" button
+      // so Assessment & Plan starts empty rather than showing a blank Plan card.
     ];
     // Add PE from template if available.
     if (selectedTemplate?.pe_sections?.length > 0) {
@@ -2874,10 +2875,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </select>
           `}
           ${showTopControls && html`
-            <button class="start-ai-btn" onClick=${handleStartAI} disabled=${!selectedTemplate}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" /></svg>
-              Start AI Scribe
-            </button>
+            ${!manualModeOnly && html`
+              <button class="start-ai-btn" onClick=${handleStartAI} disabled=${!selectedTemplate}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" /></svg>
+                Start AI Scribe
+              </button>
+            `}
             <button class="start-manual-btn" onClick=${handleStartManual} disabled=${!selectedTemplate}>
               Manual
             </button>
