@@ -1825,6 +1825,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const handleAddTemplateCharge = useCallback((cptCode, description) => {
     logEvent('ADD_TEMPLATE_CHARGE', { cptCode, description });
     if (!canEdit) return;
+    // Auto-associate a freshly added charge with the first MAX_POINTERS (4)
+    // diagnoses currently listed in the matrix, in rank order. command_uuid here
+    // is the diagnosis command's _localId — the same identity stored in _pointers
+    // and toggled by onToggleChargePointer. One-time seed at selection time:
+    // diagnoses added later are NOT retroactively linked, and re-selecting an
+    // existing charge (below) preserves its prior pointers.
+    const defaultPointers = chargeMatrixDiagnoses.slice(0, MAX_POINTERS).map(d => d.command_uuid);
     setCommands(prev => {
       // Re-select if already exists but deselected. KOALA-5485: if this was
       // an amend-mode delete that the user just toggled back on, also clear
@@ -1847,14 +1854,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       return [...prev, {
         command_type: 'perform',
         display: `${cptCode} — ${description}`,
-        data: { cpt_code: cptCode, description, notes: '', _modifiers: [], _pointers: [] },
+        data: { cpt_code: cptCode, description, notes: '', _modifiers: [], _pointers: defaultPointers },
         selected: true,
         section_key: '_charges_ad_hoc',
         already_documented: false,
         _localId: crypto.randomUUID(),
       }];
     });
-  }, [canEdit]);
+  }, [canEdit, chargeMatrixDiagnoses]);
 
   const handleRemoveChargeByCpt = useCallback((cptCode) => {
     logEvent('REMOVE_CHARGE', { cptCode });
