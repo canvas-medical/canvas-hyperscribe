@@ -8,6 +8,7 @@ from canvas_sdk.clients.llms.structures import LlmResponse, LlmTokens
 
 from hyperscribe.scribe.backend.models import ClinicalNote, NoteSection
 from hyperscribe.scribe.recommendations.prescription import (
+    _SYSTEM_PROMPT,
     PrescriptionRecommender,
     _build_user_prompt,
     _resolve_prescription,
@@ -29,6 +30,17 @@ def _make_client(response_data: dict | None = None, code: HTTPStatus = HTTPStatu
             tokens=LlmTokens(prompt=100, generated=50),
         )
     return client
+
+
+def test_system_prompt_instructs_days_supply_capture() -> None:
+    # Regression: lisinopril/HCTZ/azithromycin lost a stated days supply because
+    # the prompt under-emphasized it and the value was spelled out or course-based.
+    prompt = _SYSTEM_PROMPT.lower()
+    assert "days supply" in prompt
+    assert "spelled out" in prompt or "ninety-day" in prompt
+    assert "course" in prompt
+    # Stays conservative: never inferred from quantity/frequency.
+    assert "do not infer" in prompt
 
 
 def test_build_user_prompt() -> None:
@@ -142,8 +154,13 @@ def test_recommend_success(mock_resolve: MagicMock) -> None:
     assert proposals[0].data["refills"] == 2
     assert len(proposals[0].data["quantities"]) == 1
     assert proposals[0].data["quantities"][0]["representative_ndc"] == "12345678901"
+    # Dispense form is pre-filled deterministically in the encoded ndc|qty|code
+    # form the order-row dropdown uses to pre-select an option.
+    assert proposals[0].data["type_to_dispense"] == "12345678901|9|C48542"
+    assert proposals[0].data["type_to_dispense_label"] == "Tablet"
     assert proposals[0].section_key == "_recommended"
 
+    # Provider stated the quantity, so no extra dosage LLM round-trip happens.
     client.reset_prompts.assert_called_once()
     client.set_schema.assert_called_once()
 
@@ -324,7 +341,9 @@ def test_recommend_optional_fields_default_none(mock_resolve: MagicMock) -> None
     assert len(proposals) == 1
     assert proposals[0].data["days_supply"] is None
     assert proposals[0].data["quantity_to_dispense"] is None
-    assert proposals[0].data["refills"] is None
+    # Refills default to a single fill (0) rather than None: the field is required
+    # by the Rx validator and 0 is the conservative default we never need to guess.
+    assert proposals[0].data["refills"] == 0
 
 
 @patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
