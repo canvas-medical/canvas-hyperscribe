@@ -343,6 +343,40 @@ def test_split_plan_corresponding_note_problem() -> None:
     assert updated[0]["data"]["accepted"] is False
 
 
+def test_split_plan_strips_trailing_colon_from_split_by_problem_header() -> None:
+    """split_by_problem headers arrive as 'Diagnosis:' — the trailing colon must be
+    stripped so the exact corresponding_note_problem match still lands (regression:
+    'Right rotator cuff tendinitis:' previously missed M75.41)."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {
+                "narrative": (
+                    "Right rotator cuff tendinitis:\n"
+                    "- Consistent with rotator cuff tendinitis or impingement.\n"
+                    "- Referred to orthopedics."
+                )
+            },
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "",
+                "coding": [{"code": "M75.41", "display": "Impingement syndrome of right shoulder"}],
+                "corresponding_note_problem": "Right rotator cuff tendinitis",
+            },
+        ],
+    }
+    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    assert len(updated) == 1
+    assert updated[0]["data"]["icd10_code"] == "M75.41"
+    # The stored header is colon-stripped, not "Right rotator cuff tendinitis:".
+    assert updated[0]["data"]["condition_header"] == "Right rotator cuff tendinitis"
+    assert unmatched == []
+
+
 def test_unspecified_does_not_cause_false_match() -> None:
     """'unspecified' should not cause unrelated conditions to match via word overlap."""
     conditions = [
