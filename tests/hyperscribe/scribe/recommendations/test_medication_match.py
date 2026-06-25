@@ -2,13 +2,19 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import re
+
 from hyperscribe.scribe.recommendations._medication_match import (
+    ascii_fold_sig,
     extract_strengths,
     resolve_medication_detail,
     sanitize_sig,
     select_medication,
 )
 from hyperscribe.structures.medication_detail import MedicationDetail
+
+# Mirrors _rx_validation._RE_INVALID_CHARACTERS — anything outside printable ASCII.
+_NON_ASCII = re.compile(r"[^ -~]")
 
 
 def _detail(fdb_code: str, description: str) -> MedicationDetail:
@@ -167,3 +173,29 @@ def test_sanitize_sig_blanks_known_tokens() -> None:
 
 def test_sanitize_sig_none() -> None:
     assert sanitize_sig(None) == ""
+
+
+def test_sanitize_sig_folds_en_dash() -> None:
+    # The regression that prompted this: azithromycin "days 2–5" (en-dash) fails
+    # Surescripts sig validation; it must fold to an ASCII hyphen.
+    result = sanitize_sig("take 2 tablets on day 1, then 1 tablet daily on days 2–5")
+    assert result == "take 2 tablets on day 1, then 1 tablet daily on days 2-5"
+    assert not _NON_ASCII.search(result)
+
+
+def test_sanitize_sig_folds_typographic_characters() -> None:
+    assert ascii_fold_sig("don’t exceed 3…") == "don't exceed 3..."
+    assert ascii_fold_sig("“twice” daily") == '"twice" daily'
+    assert ascii_fold_sig("1 tablet daily") == "1 tablet daily"
+
+
+def test_sanitize_sig_preserves_micrograms() -> None:
+    # Stripping the micro sign would turn "µg" into "g" — a 1000x dosing error.
+    assert sanitize_sig("take 50 µg by mouth daily") == "take 50 mcg by mouth daily"
+    assert sanitize_sig("take 50 μg by mouth daily") == "take 50 mcg by mouth daily"
+
+
+def test_sanitize_sig_drops_residual_non_ascii() -> None:
+    folded = sanitize_sig("apply to café area 5°")
+    assert not _NON_ASCII.search(folded)
+    assert "cafe" in folded

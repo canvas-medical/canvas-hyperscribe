@@ -8,6 +8,7 @@ from logger import log
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
+from hyperscribe.scribe.recommendations._dosage import derive_dispense_fields
 from hyperscribe.scribe.recommendations._medication_match import resolve_medication_detail, sanitize_sig
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import PrescriptionRecommendationList
@@ -27,6 +28,12 @@ _SYSTEM_PROMPT = (
     "and a comma-separated list of search keywords (synonyms, brand/generic names) for database lookup (max 5). "
     "CRITICAL: preserve the exact strength/dose as stated in the note (e.g. '20 mg'); "
     "never round it or substitute a different strength. "
+    "DAYS SUPPLY: capture it whenever the note states a duration ANYWHERE for the medication, including "
+    "when it is spelled out in words ('ninety-day supply' = 90) or expressed as a treatment course "
+    "('for 30 days' = 30, 'five-day course' = 5, 'for two weeks' = 14). The duration is often stated in the "
+    "assessment/plan even when the prescription line only lists a dispense quantity — check both and report it. "
+    "Do NOT infer or calculate days supply from the quantity or frequency; only report a duration the note "
+    "actually states, otherwise leave it null. "
     "If the note does not state directions, leave the sig null rather than "
     "guessing or inferring a frequency."
 )
@@ -103,19 +110,34 @@ class PrescriptionRecommender(BaseRecommender):
                 display = detail.description
                 quantities = [q._asdict() for q in detail.quantities]
 
+            data = {
+                "fdb_code": fdb_code,
+                "medication_text": display,
+                "sig": sanitize_sig(med.sig),
+                "days_supply": med.days_supply,
+                "quantity_to_dispense": med.quantity_to_dispense,
+                "refills": med.refills,
+                "quantities": quantities,
+            }
+            # Fill the dispense fields (type_to_dispense, quantity, refills) so the
+            # provider does not have to hand-enter them. Derivation is guardrailed:
+            # the dispense form is deterministic, the quantity is recomputed
+            # arithmetically (or left blank), and refills default to a single fill.
+            data.update(
+                derive_dispense_fields(
+                    detail,
+                    stated_sig=med.sig,
+                    stated_days_supply=med.days_supply,
+                    stated_quantity=med.quantity_to_dispense,
+                    stated_refills=med.refills,
+                    client=client,
+                )
+            )
             proposals.append(
                 CommandProposal(
                     command_type="prescribe",
                     display=display,
-                    data={
-                        "fdb_code": fdb_code,
-                        "medication_text": display,
-                        "sig": sanitize_sig(med.sig),
-                        "days_supply": med.days_supply,
-                        "quantity_to_dispense": med.quantity_to_dispense,
-                        "refills": med.refills,
-                        "quantities": quantities,
-                    },
+                    data=data,
                     section_key="_recommended",
                 )
             )
