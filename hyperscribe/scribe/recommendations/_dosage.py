@@ -91,6 +91,12 @@ _DOSE_RANGE_RE = re.compile(
 # Leading number in a stated quantity, so "6 tablets" -> "6", "30 capsules" -> "30".
 _LEADING_NUMBER_RE = re.compile(r"^(\d+(?:\.\d+)?)")
 
+# Fractional / split-tablet dosing ("half a tablet", "1/2 tab", "0.5 tablet").
+# When the per-dose amount is fractional we must NOT fall back to 1 unit/dose —
+# that would over-dispense ~2x — so the countable default is suppressed for these
+# and the quantity is left for the provider unless the model read the amount.
+_FRACTIONAL_DOSE_RE = re.compile(r"\bhalf\b|\bquarter\b|½|¼|¾|\b\d*\.\d+\b|\b\d+\s*/\s*\d+\b", re.IGNORECASE)
+
 
 def _dispense_form_class(quantity_form: MedicationDetailQuantity) -> str:
     """Classify the dispensing form: container | injectable | countable | volume_mass.
@@ -125,14 +131,26 @@ def _is_multistep_sig(sig: str) -> bool:
     return bool(_MULTISTEP_RE.search(sig) or _DOSE_RANGE_RE.search(sig))
 
 
+def _is_fractional_dose_sig(sig: str) -> bool:
+    """True if the sig implies a fractional per-dose amount (half/quarter/decimal).
+
+    Used to suppress the countable 1-unit/dose default, since defaulting a
+    fractional dose to 1 unit would over-dispense.
+    """
+    return bool(_FRACTIONAL_DOSE_RE.search(sig))
+
+
 _DOSAGE_SYSTEM_PROMPT = (
     "You are a clinical pharmacy assistant. You are given a medication's dispensing form and the "
     "prescriber's directions (the sig). Your ONLY task is to interpret the directions into a dosing "
     "frequency: how many dosage-form units are taken per administration (units_per_dose) and how "
     "many administrations there are per day (doses_per_day). "
-    "Do NOT invent a frequency the directions do not state. If the directions do not clearly state "
-    "both how much and how often to take (e.g. 'as directed', 'PRN' with no cap, or no frequency at "
-    "all), set derivable=false and leave the numeric fields null. Never guess. "
+    "For countable forms (tablets, capsules, patches), if the directions state a clear frequency but "
+    "not the number of units per dose (e.g. 'twice daily' without 'one tablet'), assume 1 unit per "
+    "administration and set derivable=true. "
+    "Do NOT invent a frequency the directions do not state. If there is no clear frequency at all "
+    "(e.g. 'as directed', or 'as needed' with no schedule), set derivable=false and leave the numeric "
+    "fields null. Never guess. "
     "Set discrete=true for countable forms (tablets, capsules, patches) and false for measured "
     "forms (mL, grams, ounces)."
 )
@@ -223,7 +241,7 @@ def derive_dispense_fields(
     if detail is None or quantity_form is None or days is None or not sig:
         return out
 
-    derived = _derive_quantity(detail, quantity_form, sig, days, client)
+    derived = _derive_quantity(detail, quantity_form, sig, days, client, form_class)
     if derived is not None:
         out["quantity_to_dispense"] = derived
     return out
@@ -235,6 +253,7 @@ def _derive_quantity(
     sig: str,
     days_supply: int,
     client: LlmAnthropic,
+    form_class: str | None,
 ) -> str | None:
     """Ask the model to read the frequency, then compute the quantity ourselves."""
     client.reset_prompts()
@@ -259,14 +278,23 @@ def _derive_quantity(
         log.exception("Failed to parse dosage derivation response")
         return None
 
+    doses = parsed.doses_per_day
+    units = parsed.units_per_dose
+    # Countable forms: a clear frequency with an unstated per-dose count means
+    # 1 unit/dose by convention ("twice daily" = 1 tablet twice daily). Suppressed
+    # for fractional/split-dose sigs, where defaulting to 1 would over-dispense.
+    countable_default_applies = units is None and form_class == "countable" and doses is not None and doses > 0
+    if countable_default_applies and not _is_fractional_dose_sig(sig):
+        units = 1.0
+
     # Refuse rather than guess.
-    if not parsed.derivable or parsed.units_per_dose is None or parsed.doses_per_day is None:
+    if not parsed.derivable or units is None or doses is None:
         return None
-    if parsed.units_per_dose <= 0 or parsed.doses_per_day <= 0:
+    if units <= 0 or doses <= 0:
         return None
 
     # Arithmetic is authoritative — the model only interpreted the directions.
-    computed = parsed.units_per_dose * parsed.doses_per_day * days_supply
+    computed = units * doses * days_supply
     if not (0 < computed <= _MAX_QUANTITY):
         log.info(f"Derived dosage quantity {computed} out of plausible range; leaving blank")
         return None

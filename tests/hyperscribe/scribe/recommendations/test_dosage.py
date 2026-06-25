@@ -453,6 +453,93 @@ def test_is_multistep_sig_direct() -> None:
     assert not _is_multistep_sig("take 10 mL by mouth twice daily for 10 days")
 
 
+# --- countable units_per_dose default (terse frequency-only sigs) ----------------
+
+
+def test_frequency_only_sig_defaults_one_unit_countable() -> None:
+    # "twice daily" with no per-dose count -> 1 unit/dose -> 1 x 2 x 30 = 60.
+    client = _client({"derivable": True, "dosesPerDay": 2, "unitsPerDose": None})
+    out = derive_dispense_fields(
+        _detail(description="apixaban 5 mg tablet"),
+        stated_sig="twice daily",
+        stated_days_supply=None,  # chronic -> 30-day assumption
+        stated_quantity=None,
+        stated_refills=None,
+        client=client,
+    )
+    assert out["quantity_to_dispense"] == "60"
+
+
+def test_once_daily_defaults_one_unit() -> None:
+    client = _client({"derivable": True, "dosesPerDay": 1, "unitsPerDose": None})
+    out = derive_dispense_fields(
+        _detail(description="metoprolol succinate 25 mg tablet"),
+        stated_sig="once daily",
+        stated_days_supply=None,
+        stated_quantity=None,
+        stated_refills=None,
+        client=client,
+    )
+    assert out["quantity_to_dispense"] == "30"
+
+
+def test_fractional_sig_does_not_default_to_one() -> None:
+    # "1/2 tablet daily": defaulting an unstated count to 1 would over-dispense, so
+    # the default is suppressed and the quantity is left for the provider.
+    client = _client({"derivable": True, "dosesPerDay": 1, "unitsPerDose": None})
+    out = derive_dispense_fields(
+        _detail(),
+        stated_sig="take 1/2 tablet daily",
+        stated_days_supply=30,
+        stated_quantity=None,
+        stated_refills=None,
+        client=client,
+    )
+    assert "quantity_to_dispense" not in out
+
+
+def test_fractional_word_sig_does_not_default() -> None:
+    client = _client({"derivable": True, "dosesPerDay": 1, "unitsPerDose": None})
+    out = derive_dispense_fields(
+        _detail(),
+        stated_sig="take half a tablet daily",
+        stated_days_supply=30,
+        stated_quantity=None,
+        stated_refills=None,
+        client=client,
+    )
+    assert "quantity_to_dispense" not in out
+
+
+def test_liquid_frequency_only_does_not_default() -> None:
+    # Liquids need an explicit amount; "twice daily" without mL stays blank.
+    detail = _detail([_quantity(clinical_desc="Milliliter", ncpdp_desc="Milliliter", ncpdp_code="C28254")])
+    client = _client({"derivable": True, "dosesPerDay": 2, "unitsPerDose": None})
+    out = derive_dispense_fields(
+        detail,
+        stated_sig="twice daily",
+        stated_days_supply=10,
+        stated_quantity=None,
+        stated_refills=None,
+        client=client,
+    )
+    assert "quantity_to_dispense" not in out
+
+
+def test_explicit_units_per_dose_not_overridden() -> None:
+    # A stated "2 tablets" is honored, not replaced by the 1-unit default.
+    client = _client({"derivable": True, "dosesPerDay": 2, "unitsPerDose": 2, "quantityToDispense": 120})
+    out = derive_dispense_fields(
+        _detail(),
+        stated_sig="take 2 tablets twice daily",
+        stated_days_supply=30,
+        stated_quantity=None,
+        stated_refills=None,
+        client=client,
+    )
+    assert out["quantity_to_dispense"] == "120"
+
+
 # --- Wave 2: chronic gate (refills + 30-day assumption) --------------------------
 
 
