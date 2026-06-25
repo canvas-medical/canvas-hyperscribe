@@ -131,6 +131,8 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
                         ],
                         "ros_sections": None,
                         "pe_sections": None,
+                        "mse_sections": None,
+                        "is_psychiatry": False,
                         "charges": [],
                     },
                     {
@@ -138,6 +140,8 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
                         "questionnaires": [],
                         "ros_sections": None,
                         "pe_sections": None,
+                        "mse_sections": None,
+                        "is_psychiatry": False,
                         "charges": [],
                     },
                 ]
@@ -184,6 +188,8 @@ def test_get_visit_templates_skips_missing_questionnaire(mock_model: MagicMock, 
                         ],
                         "ros_sections": None,
                         "pe_sections": None,
+                        "mse_sections": None,
+                        "is_psychiatry": False,
                         "charges": [],
                     }
                 ]
@@ -265,6 +271,8 @@ def test_get_visit_templates_preserves_integer_zero_score_value(
                         ],
                         "ros_sections": None,
                         "pe_sections": None,
+                        "mse_sections": None,
+                        "is_psychiatry": False,
                         "charges": [],
                     }
                 ]
@@ -292,6 +300,8 @@ def test_get_visit_templates_no_questionnaire_names(mock_model: MagicMock, mock_
                         "questionnaires": [],
                         "ros_sections": None,
                         "pe_sections": None,
+                        "mse_sections": None,
+                        "is_psychiatry": False,
                         "charges": [],
                     }
                 ]
@@ -331,6 +341,8 @@ def test_get_visit_templates_parses_ros_and_pe() -> None:
                             {"key": "general", "title": "GENERAL", "text": "NAD. Well-developed."},
                             {"key": "heent", "title": "HEENT", "text": "NCAT."},
                         ],
+                        "mse_sections": None,
+                        "is_psychiatry": False,
                         "charges": [],
                     }
                 ]
@@ -364,6 +376,8 @@ def test_get_visit_templates_null_ros_pe() -> None:
                         "questionnaires": [],
                         "ros_sections": None,
                         "pe_sections": None,
+                        "mse_sections": None,
+                        "is_psychiatry": False,
                         "charges": [],
                     }
                 ]
@@ -371,6 +385,39 @@ def test_get_visit_templates_null_ros_pe() -> None:
             status_code=HTTPStatus.OK,
         )
     ]
+
+
+def test_get_visit_templates_psychiatry_parses_mse_and_sets_flag() -> None:
+    """The 'Psychiatry' template exposes is_psychiatry=True and parses mse_template into mse_sections."""
+    secret = json.dumps(
+        {
+            "templates": [
+                {
+                    "name": "Psychiatry",
+                    "questionnaires": [],
+                    "mse_template": "Appearance: Well-groomed.\nMood: Euthymic.",
+                }
+            ]
+        }
+    )
+    view = _helper_instance(template_secret=secret)
+    result = view.get_visit_templates()
+    template = json.loads(result[0].content)["templates"][0]
+    assert template["is_psychiatry"] is True
+    assert template["mse_sections"] == [
+        {"key": "appearance", "title": "Appearance", "text": "Well-groomed."},
+        {"key": "mood", "title": "Mood", "text": "Euthymic."},
+    ]
+
+
+def test_get_visit_templates_non_psychiatry_flag_false() -> None:
+    """A non-'Psychiatry' template name sets is_psychiatry=False even with an mse_template present."""
+    secret = json.dumps({"templates": [{"name": "Psychiatry Follow-Up", "questionnaires": []}]})
+    view = _helper_instance(template_secret=secret)
+    result = view.get_visit_templates()
+    template = json.loads(result[0].content)["templates"][0]
+    assert template["is_psychiatry"] is False
+    assert template["mse_sections"] is None
 
 
 @patch("hyperscribe.scribe.api.session_view.ChargeDescriptionMaster")

@@ -88,6 +88,7 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
                 "note_editable": "true" if note_editable else "",
                 "is_author": "true" if is_author else "",
                 "alert_facility_enabled": "true" if self.secrets.get("AlertFacilityEnabled") else "",
+                "manual_mode_only": "true" if self.secrets.get("ScribeManualModeOnly") else "",
                 "initial_data": _safe_json(initial_data),
             },
         )

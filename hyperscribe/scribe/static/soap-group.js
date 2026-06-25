@@ -38,6 +38,7 @@ const EDITABLE_AMEND_SECTIONS = new Set([
   '_ros',
   '_history_review',
   '_chart_review',
+  'mental_status_exam',
   'physical_exam',
   'lab_results',
   'imaging_results',
@@ -647,7 +648,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false }) {
   const isCharges = title === 'CHARGES';
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
@@ -915,6 +916,34 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     <button type="button" class="ad-hoc-btn" onClick=${onAddVitals}>+ Vitals</button>
                   </div>
                 `}
+              </div>
+            `;
+          }
+
+          // Mental Status Exam: psychiatry-only, mirrors the Physical Exam card and
+          // renders directly above it (section order in SKELETON/ENSURE places
+          // mental_status_exam before physical_exam). Gated on isPsychiatry so a
+          // stray command on a non-psych visit never surfaces the card.
+          if (key === 'mental_status_exam') {
+            if (!isPsychiatry || !cmds) return null;
+            const entry = cmds[0];
+            const mseRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+            return html`
+              <div class="subsection" key=${s.key}>
+                <div class="subsection-title">${s.title}</div>
+                <div class=${`content-block rec-narrative${mseRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
+                  ${mseRowReadOnly && entry.command.already_documented && ICON_LOCK}
+                  <${ExamSectionsRow}
+                    command=${entry.command}
+                    commandIndex=${entry.index}
+                    onEdit=${onEditCommand}
+                    readOnly=${mseRowReadOnly}
+                    onEditingChange=${onEditingChange}
+                    sectionKind="mental_status_exam"
+                    templates=${examTemplates}
+                    onCarryForward=${onCarryForwardExam}
+                  />
+                </div>
               </div>
             `;
           }
@@ -1191,8 +1220,18 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             ? visibleAdHoc.filter(e => e.command.command_type === historyType)
             : [];
           const showHistoryText = s.text && !isCoveredHistory;
+          // social_history has no manual input affordance (not in NARRATIVE_SECTIONS,
+          // no SECTION_TO_HISTORY_TYPE entry), so an empty Social History section is a
+          // dead, un-fillable header. Hide it whenever it has nothing to show; the AI
+          // path still renders it once it supplies history_review content.
+          if (key === 'social_history' && !showHistoryText && historyEntries.length === 0 && !cmds) return null;
           if (readOnly && !showHistoryText && !cmds && historyEntries.length === 0) return null;
-          if (!showHistoryText && historyEntries.length === 0 && !onAddHistory && !cmds) return null;
+          // Plan sections render their Add/Resolve Condition buttons (and any ad-hoc
+          // resolves) from the fall-through branch below, even with no narrative command.
+          // Without this exemption an empty A&P (e.g. manual mode, where no empty plan
+          // card is pre-seeded) would be dropped here, taking those buttons with it.
+          const planAddable = PLAN_SECTIONS.has(key) && (onAddCondition || onAddResolveCondition);
+          if (!showHistoryText && historyEntries.length === 0 && !onAddHistory && !cmds && !planAddable) return null;
           return html`
             <div class="subsection" key=${s.key}>
               <div class="subsection-title">${s.title}</div>

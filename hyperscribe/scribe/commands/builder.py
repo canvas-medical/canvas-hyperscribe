@@ -27,6 +27,7 @@ from hyperscribe.scribe.commands.lab_order import LabOrderParser
 from hyperscribe.scribe.commands.lab_results import LabResultsParser
 from hyperscribe.scribe.commands.medical_history import MedicalHistoryParser
 from hyperscribe.scribe.commands.medication_statement import MedicationParser
+from hyperscribe.scribe.commands.mental_status_exam import MentalStatusExamParser
 from hyperscribe.scribe.commands.perform import PerformParser
 from hyperscribe.scribe.commands.physical_exam import PhysicalExamParser
 from hyperscribe.scribe.commands.plan import PlanParser
@@ -59,6 +60,7 @@ _BUILDERS: dict[str, CommandParser] = {
     "lab_results": LabResultsParser(),
     "medicalHistory": MedicalHistoryParser(),
     "medication_statement": MedicationParser(),
+    "mental_status_exam": MentalStatusExamParser(),
     "perform": PerformParser(),
     "physical_exam": PhysicalExamParser(),
     "plan": PlanParser(),
@@ -538,6 +540,7 @@ EDITABLE_AMEND_SECTIONS: frozenset[str] = frozenset(
         "_ros",
         "_history_review",
         "_chart_review",
+        "mental_status_exam",
         "physical_exam",
         "lab_results",
         "imaging_results",
@@ -597,6 +600,7 @@ DIRECT_EDIT_SECTIONS: frozenset[str] = frozenset({"chief_complaint"})
 #   * RosParser            -> CustomCommand("reviewOfSystems")
 #   * HistoryReviewParser  -> CustomCommand("historyReview")
 #   * ChartReviewParser    -> CustomCommand("chartReview")
+#   * MentalStatusExamParser -> CustomCommand("mentalStatusExam")
 #   * PhysicalExamParser   -> CustomCommand("physicalExam")
 #   * LabResultsParser     -> CustomCommand("labResult")
 #   * ImageResultsParser   -> CustomCommand("imageResult")
@@ -605,6 +609,7 @@ CUSTOM_COMMAND_ROUTED_SECTIONS: frozenset[str] = frozenset(
         "_ros",
         "_history_review",
         "_chart_review",
+        "mental_status_exam",
         "physical_exam",
         "lab_results",
         "imaging_results",
