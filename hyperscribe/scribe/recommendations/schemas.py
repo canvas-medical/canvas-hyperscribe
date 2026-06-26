@@ -132,3 +132,36 @@ class DiagnosisSuggestionList(BaseModelLlmJson):
         default_factory=list,
         description="List of diagnosis suggestions per condition",
     )
+
+
+class EvidenceTurn(BaseModelLlmJson):
+    speaker: str = Field(description="Speaker label of the transcript turn")
+    quote: str = Field(description="Verbatim quote from the transcript, lightly cleaned of disfluencies")
+    item_id: str = Field(description="item_id of the transcript turn the quote came from")
+
+
+class QuestionnaireItemFill(BaseModelLlmJson):
+    question_dbid: int = Field(description="dbid of the question being answered")
+    status: str = Field(description="answered, denied, or not_assessed")
+    selected_option_dbid: int | None = Field(
+        default=None, description="Single choice: dbid of the one chosen option; null otherwise"
+    )
+    selected_option_dbids: list[int] = Field(
+        default_factory=list, description="Multiple choice: dbids of every option the respondent affirmed"
+    )
+    value: str | None = Field(
+        default=None, description="Free-text span, or the stated integer as a string; null otherwise"
+    )
+    evidence: list[EvidenceTurn] = Field(
+        default_factory=list, description="Transcript turn(s) supporting the answer; required unless not_assessed"
+    )
+    confidence: str = Field(default="low", description="high, medium, or low")
+    rationale: str = Field(default="", description="One sentence linking the evidence to the classification")
+
+
+class QuestionnaireFillResult(BaseModelLlmJson):
+    questionnaire_dbid: int = Field(description="dbid of the questionnaire being completed")
+    items: list[QuestionnaireItemFill] = Field(
+        default_factory=list,
+        description="One entry per answered or explicitly denied question; omit untouched questions",
+    )
