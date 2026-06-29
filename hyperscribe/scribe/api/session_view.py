@@ -813,7 +813,12 @@ def _note_provider_id(note_uuid: str | None) -> str | None:
         return None
     try:
         provider_id = Note.objects.values_list("provider__id", flat=True).get(id=note_uuid)
+    except Note.DoesNotExist:
+        return None
     except Exception:
+        # Unexpected query failure (DB/ORM): degrade gracefully to the gated-off
+        # path, but surface it to Sentry so we can tell *why* the engine is off.
+        log.exception("dispense-gate: provider lookup failed for note %s", note_uuid)
         return None
     return str(provider_id) if provider_id is not None else None
 
