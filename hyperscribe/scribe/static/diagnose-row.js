@@ -319,8 +319,8 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
                 class="diagnose-picker-row"
                 onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
               >
-                <span class="diagnose-picker-code">${formatIcdCode(r.code)}</span>
                 <span class="diagnose-picker-name">${r.display || r.description}</span>
+                <span class="diagnose-picker-code">${formatIcdCode(r.code)}</span>
               </div>
             `)}
           </div>
@@ -335,8 +335,8 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
                 class="diagnose-picker-row"
                 onMouseDown=${(e) => { e.preventDefault(); handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code }); }}
               >
-                <span class="diagnose-picker-code">${s.formatted_code}</span>
                 <span class="diagnose-picker-name">${s.display}</span>
+                <span class="diagnose-picker-code">${s.formatted_code}</span>
               </div>
             `)}
           </div>
