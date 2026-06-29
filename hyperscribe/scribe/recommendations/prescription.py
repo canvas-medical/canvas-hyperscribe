@@ -140,6 +140,13 @@ class PrescriptionRecommender(BaseRecommender):
                 "sig": sanitize_sig(med.sig),
                 "days_supply": med.days_supply,
                 "quantities": quantities,
+                # canvas-core's Prescribe schema requires `substitutions` (default
+                # ALLOWED), but that default is NOT applied to SDK-originated
+                # commands. Without it, a recommendation accepted *without* opening
+                # the order row (which seeds its own "allowed" default) fails both
+                # the approve-time isRxIncomplete gate and the server-side REVIEW
+                # validator, rolling back the whole batch. Emit the default here.
+                "substitutions": "allowed",
             }
             if self.dispense_engine_enabled:
                 # Fill the dispense fields (type_to_dispense, quantity, refills) so the
