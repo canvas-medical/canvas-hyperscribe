@@ -403,7 +403,7 @@ const ICON_LOCK = html`<svg class="command-row-icon-lock" width="14" height="14"
 // in readOnly mode and for any command that's already in the chart (e.g. synced
 // from the note body — those are view-only in the Scribe). Callers that share a
 // recommendation-actions container with sibling controls (Add Now, Accept/Reject
-// pairs) inline the rec-btn-reject button directly instead of using this helper.
+// pairs) inline the rec-remove-x button directly instead of using this helper.
 function renderDeleteAction(command, readOnly, onDelete, index) {
   if (readOnly || command.already_documented) return null;
   return html`
@@ -416,7 +416,7 @@ function renderDeleteAction(command, readOnly, onDelete, index) {
 // Shared inner content for a recommendation card's <div class="recommendation-actions">.
 // Used by every recommendation type so the accept/reject/accepted/settled states stay
 // identical. Returns null (empty actions) for read-only, not-yet-documented rows.
-//   - already in chart  -> quiet "Added" / "Already in Chart" settled status (no buttons)
+//   - already in chart  -> quiet "Added" / "Already in chart" settled status (no buttons)
 //   - rejected (shown)  -> "Rejected" + Accept (restore)
 //   - accepted          -> optional "Add Now" + neutral remove ✕ (✕ rejects = hides, recoverable)
 //   - unreviewed        -> Reject + Accept (Accept disabled when acceptDisabled)
@@ -424,7 +424,7 @@ function renderDeleteAction(command, readOnly, onDelete, index) {
 // are () => void. command is read for _adding / _added_now / already_documented.
 function renderRecActions({ command, index, isAccepted, isRejected, incomplete, missingLabel, acceptDisabled, readOnly, onAccept, onReject, onAddNow }) {
   if (command.already_documented) {
-    const label = command._added_now ? 'Added' : 'Already in Chart';
+    const label = command._added_now ? 'Added' : 'Already in chart';
     return html`<span class="rec-settled"><span class="rec-settled-label">${label}</span><span class="rec-settled-check">${ICON_CHECK}</span></span>`;
   }
   if (readOnly) return null;
@@ -801,8 +801,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
 
                     const diagnoseRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
                     return html`
-                      <div class=${`content-block recommendation-block rec-diagnose${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
-                        ${(readOnly || isAmending) && entry.command.already_documented && ICON_LOCK}
+                      <div class=${`content-block recommendation-block rec-diagnose${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && diagnoseRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                        ${(readOnly || isAmending) && diagnoseRowReadOnly && entry.command.already_documented && ICON_LOCK}
                         <div class="recommendation-content">
                           <${DiagnoseRow}
                             command=${entry.command}
@@ -1073,8 +1073,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const isUnreviewed = !isAccepted && !isRejected;
                     const medRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
                     return html`
-                    <div class=${`content-block recommendation-block rec-medication${isRejected ? ' rec-rejected' : ''}${isUnreviewed && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-med-' + entry.index}>
-                      ${(readOnly || isAmending) && entry.command.already_documented && ICON_LOCK}
+                    <div class=${`content-block recommendation-block rec-medication${isRejected ? ' rec-rejected' : ''}${isUnreviewed && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && medRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-med-' + entry.index}>
+                      ${(readOnly || isAmending) && medRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${MedicationRow}
                           command=${entry.command}
@@ -1179,8 +1179,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const isRejected = entry.command.rejected;
                     const allergyRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
                     return html`
-                    <div class=${`content-block recommendation-block rec-allergy${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-allergy-' + entry.index}>
-                      ${(readOnly || isAmending) && entry.command.already_documented && ICON_LOCK}
+                    <div class=${`content-block recommendation-block rec-allergy${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && allergyRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-allergy-' + entry.index}>
+                      ${(readOnly || isAmending) && allergyRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
                       <div class="recommendation-content">
                         <${AllergyRow}
                           command=${entry.command}
@@ -1553,8 +1553,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const rxRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
 
                 return html`
-                <div class=${`content-block recommendation-block rec-prescribe${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-rx-' + entry.index}>
-                  ${(readOnly || isAmending) && entry.command.already_documented && ICON_LOCK}
+                <div class=${`content-block recommendation-block rec-prescribe${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && rxRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-rx-' + entry.index}>
+                  ${(readOnly || isAmending) && rxRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
@@ -1602,8 +1602,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const referRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
 
                 return html`
-                <div class=${`content-block recommendation-block rec-refer${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-refer-' + entry.index}>
-                  ${(readOnly || isAmending) && entry.command.already_documented && ICON_LOCK}
+                <div class=${`content-block recommendation-block rec-refer${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && referRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-refer-' + entry.index}>
+                  ${(readOnly || isAmending) && referRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
@@ -1643,8 +1643,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const isRejected = entry.command.rejected;
                 const taskRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
                 return html`
-                <div class=${`content-block recommendation-block rec-task${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-task-' + entry.index}>
-                  ${(readOnly || isAmending) && entry.command.already_documented && ICON_LOCK}
+                <div class=${`content-block recommendation-block rec-task${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && taskRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-task-' + entry.index}>
+                  ${(readOnly || isAmending) && taskRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${TaskRow}
                       command=${entry.command}

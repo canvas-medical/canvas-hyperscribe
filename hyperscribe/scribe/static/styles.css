@@ -561,10 +561,6 @@ h2 { margin-bottom: 4px; }
 .rec-btn-add-now:active:not(:disabled) { opacity: 0.7; }
 .rec-btn-add-now:disabled { opacity: 0.6; cursor: wait; }
 
-/* Muted button (unselected state in accept/reject toggle) */
-.rec-btn-muted { background: #e5e7eb; color: #9ca3af; }
-.rec-btn-disabled { opacity: 0.4; cursor: not-allowed; }
-
 /* Missing field highlights */
 .field-missing { color: #c2410c; }
 .input-missing { border-color: #f59e0b; background: #fffbeb; }
@@ -576,25 +572,6 @@ h2 { margin-bottom: 4px; }
   color: #991b1b; background: #fef2f2; border-radius: 12px;
   white-space: nowrap;
 }
-
-/* Accepted badge */
-.rec-accepted-badge {
-  padding: 3px 10px; font-size: 11px; font-weight: 600;
-  color: #166534; background: #dcfce7; border-radius: 12px;
-  white-space: nowrap;
-}
-
-/* Icon buttons — 36px square, iPad touch targets */
-.rec-btn {
-  width: 36px; height: 36px; border: none; border-radius: 6px;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; padding: 0; transition: opacity 0.15s;
-}
-.rec-btn:active { opacity: 0.7; }
-.rec-btn svg { width: 18px; height: 18px; }
-.rec-btn-reject { background: #dc2626; color: #fff; }
-.rec-btn-accept { background: #16a34a; color: #fff; }
-.rec-btn-edit   { background: #2563eb; color: #fff; }
 
 /* Text save/cancel buttons (distinct from icon approve/reject) */
 .form-btn { height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; flex-shrink: 0; transition: opacity 0.15s; }
