@@ -550,12 +550,14 @@ h2 { margin-bottom: 4px; }
   border-radius: 12px; white-space: nowrap;
 }
 
-/* Add Now button for immediate order insertion */
+/* Add Now button for immediate order insertion — tonal navy, calm secondary action */
 .rec-btn-add-now {
-  height: 36px; padding: 0 12px; font-size: 12px; font-weight: 600;
-  color: #059669; background: #ecfdf5; border: 1.5px solid #059669; border-radius: 6px;
-  cursor: pointer; white-space: nowrap; transition: opacity 0.15s;
+  height: 34px; padding: 0 14px; min-width: 86px; font-size: 13px; font-weight: 500;
+  color: #052B49; background: #eef3f9; border: 1px solid rgba(5, 43, 73, 0.14); border-radius: 8px;
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
 }
+.rec-btn-add-now:hover:not(:disabled) { background: #e2ebf5; border-color: rgba(5, 43, 73, 0.26); }
 .rec-btn-add-now:active:not(:disabled) { opacity: 0.7; }
 .rec-btn-add-now:disabled { opacity: 0.6; cursor: wait; }
 
@@ -614,6 +616,60 @@ h2 { margin-bottom: 4px; }
 /* Center order view cards (single-line content) */
 .recommendation-block:has(.order-view) { align-items: center; }
 .recommendation-block:has(.order-view) .recommendation-actions { padding-top: 0; }
+
+/* ============================================================
+   Accept / reject review workflow (recommendation cards)
+   ============================================================ */
+
+/* "Settle" transition: emphasis eases away when a card is accepted (preact reuses the node) */
+.recommendation-block { transition: background 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease; }
+@media (prefers-reduced-motion: reduce) { .recommendation-block { transition: none; } }
+
+/* Needs-action card (#9) — white card, darker steel-navy border + soft lift, no fill */
+.recommendation-block.rec-needs-review {
+  border-color: #5b7aa6;
+  box-shadow: 0 3px 12px -4px rgba(5, 43, 73, 0.22);
+}
+
+/* Reject / Accept controls (uniform width so they align in a column) */
+.rec-reject-btn, .rec-accept-btn {
+  height: 34px; min-width: 86px; padding: 0 14px; font-size: 13px; font-weight: 500;
+  border-radius: 8px; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.rec-reject-btn { background: #fff; color: #6b7280; border: 1px solid #d1d5db; }
+.rec-reject-btn:hover { border-color: #9ca3af; color: #374151; }
+.rec-accept-btn { background: #052B49; color: #fff; border: none; padding: 0 16px; }
+.rec-accept-btn:hover:not(:disabled) { background: #0b3c60; }
+.rec-accept-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.rec-reject-btn:active, .rec-accept-btn:active { opacity: 0.8; }
+
+/* Neutral remove ✕ (NOT red — distinct from the old destructive reject) */
+.rec-remove-x {
+  width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent;
+  color: #9ca3af; cursor: pointer; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s;
+}
+.rec-remove-x:hover { background: #eef2f6; color: #052B49; }
+.rec-remove-x svg { width: 15px; height: 15px; }
+
+/* Settled status — quiet "Added" / "Already in Chart" (label aligns with Add Now, check with ✕) */
+.rec-settled { display: inline-flex; align-items: center; gap: 8px; }
+.rec-settled-label { font-size: 13px; font-weight: 500; color: #9aa4b0; white-space: nowrap; }
+.rec-settled-check {
+  width: 28px; height: 28px; flex-shrink: 0; color: #b4bcc5;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.rec-settled-check svg { width: 14px; height: 14px; }
+
+/* AI-origin sparkle — trails the name only while a recommendation is pending review */
+.rec-ai-sparkle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; margin-left: 7px; vertical-align: -1px;
+  color: #052B49; opacity: 0.78;
+}
+.rec-ai-sparkle svg { width: 13px; height: 13px; }
 
 /* Subsection titles (gray section labels) */
 .subsection-title { font-size: 13px; font-weight: 600; color: #6b7280; margin-bottom: 8px; }
