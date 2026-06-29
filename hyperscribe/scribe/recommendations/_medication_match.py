@@ -51,14 +51,67 @@ _STRENGTH_RE = re.compile(
 # with a placeholder rather than leaving it empty.
 _SIG_PLACEHOLDERS = {"unknown", "unk", "n/a", "na", "none", "null", "-", "tbd", "?"}
 
+# The note-generation LLM frequently emits typographic Unicode (en/em dashes in
+# "days 2–5", smart quotes, ellipses, non-breaking spaces) that the Surescripts
+# NewRx wire format rejects — ``canvas_core``'s prescribe schema (mirrored in
+# ``scribe/commands/_rx_validation.py``) only allows printable ASCII, so an
+# unfolded sig fails the REVIEW step and rolls back the whole prescription.
+# Map the common offenders to ASCII equivalents BEFORE the catch-all strip so a
+# replacement is never silently dropped. The micro sign is handled explicitly —
+# stripping it would turn "µg" into "g", a 1000x dosing error — and maps to "mc"
+# so "µg" -> "mcg".
+_SIG_UNICODE_REPLACEMENTS = {
+    "‐": "-",
+    "‑": "-",
+    "‒": "-",
+    "–": "-",
+    "—": "-",
+    "―": "-",
+    "‘": "'",
+    "’": "'",
+    "‚": "'",
+    "‛": "'",
+    "“": '"',
+    "”": '"',
+    "„": '"',
+    "…": "...",
+    " ": " ",
+    " ": " ",
+    " ": " ",
+    " ": " ",
+    "µ": "mc",
+    "μ": "mc",  # micro sign / Greek mu -> "mc" so "µg" -> "mcg"
+}
+
+
+def ascii_fold_sig(text: str) -> str:
+    """Fold a sig to printable ASCII so it survives Surescripts validation.
+
+    Maps the common typographic offenders (dashes, smart quotes, ellipsis,
+    non-breaking spaces, the micro sign) to ASCII, then drops any residual
+    non-ASCII. Mirrors the allowed set in
+    ``_rx_validation._RE_INVALID_CHARACTERS`` (space through tilde).
+
+    NOTE: ``unicodedata`` is not an allowed import in the Canvas plugin sandbox,
+    so accent folding (e.g. "é" -> "e") is not attempted — residual accented
+    characters are simply dropped. This is fine for prescription sigs, which are
+    ASCII in practice; the explicit map covers the cases the note LLM actually
+    produces.
+    """
+    for unicode_char, replacement in _SIG_UNICODE_REPLACEMENTS.items():
+        text = text.replace(unicode_char, replacement)
+    return text.encode("ascii", "ignore").decode("ascii")
+
 
 def sanitize_sig(sig: str | None) -> str:
-    """Return the sig directions, blanking out LLM placeholder values.
+    """Return the sig directions, blanking placeholders and folding to ASCII.
 
     A blank sig is rendered as no directions line in the scribe UI (and stored
     as ``None`` on the command), instead of literal placeholder text like
     "<UNKNOWN>". Any value wholly wrapped in angle brackets (``<...>``) is
-    treated as a placeholder, as are the known no-value tokens.
+    treated as a placeholder, as are the known no-value tokens. Surviving
+    directions are folded to printable ASCII so they pass Surescripts'
+    sig validation downstream.
     """
     if sig is None:
         return ""
@@ -67,7 +120,7 @@ def sanitize_sig(sig: str | None) -> str:
         return ""
     if cleaned.lower() in _SIG_PLACEHOLDERS:
         return ""
-    return cleaned
+    return ascii_fold_sig(cleaned)
 
 
 def extract_strengths(text: str) -> set[str]:

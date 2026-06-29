@@ -81,7 +81,7 @@ from hyperscribe.scribe.commands.problem_list_match import (
     ActivePatientCondition,
     prefer_patient_specific_codes,
 )
-from hyperscribe.scribe.recommendations import recommend_commands
+from hyperscribe.scribe.recommendations import prescription_dispense_enabled, recommend_commands
 from hyperscribe.scribe.recommendations._referral_diagnosis import link_referral_diagnoses
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
 from hyperscribe.scribe.recommendations.interactions import (
@@ -806,6 +806,23 @@ def _parse_note(data: dict[str, Any]) -> ClinicalNote:
     return ClinicalNote(title=str(data.get("title", "")), sections=sections)
 
 
+def _note_provider_id(note_uuid: str | None) -> str | None:
+    """The note's provider (prescriber) staff id, or None. Used to gate the
+    prescription dispense-field engine against the allowlist secret."""
+    if not note_uuid:
+        return None
+    try:
+        provider_id = Note.objects.values_list("provider__id", flat=True).get(id=note_uuid)
+    except Note.DoesNotExist:
+        return None
+    except Exception:
+        # Unexpected query failure (DB/ORM): degrade gracefully to the gated-off
+        # path, but surface it to Sentry so we can tell *why* the engine is off.
+        log.exception("dispense-gate: provider lookup failed for note %s", note_uuid)
+        return None
+    return str(provider_id) if provider_id is not None else None
+
+
 class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     """Scribe session management API."""
 
@@ -1237,7 +1254,20 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             try:
                 patient_id = str(data.get("patient_id", ""))
                 zip_codes = resolve_zip_codes(patient_id, note_id) or None
-                rec_proposals = recommend_commands(note, api_key, zip_codes=zip_codes, transcript=transcript)
+                allowlist = self.secrets.get(Constants.SECRET_SCRIBE_PRESCRIPTION_STAFFERS, "")
+                provider_id = _note_provider_id(note_uuid)
+                dispense_engine_enabled = prescription_dispense_enabled(allowlist, provider_id)
+                log.info(
+                    f"Prescription dispense engine: {'ON' if dispense_engine_enabled else 'OFF'} "
+                    f"(allowlist_set={bool((allowlist or '').strip())})"
+                )
+                rec_proposals = recommend_commands(
+                    note,
+                    api_key,
+                    zip_codes=zip_codes,
+                    transcript=transcript,
+                    dispense_engine_enabled=dispense_engine_enabled,
+                )
                 annotate_duplicates(rec_proposals, note_uuid)
                 prefill_assess_backgrounds_for_proposals(rec_proposals, note_uuid)
                 recommendations_list = [
@@ -1473,8 +1503,12 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         patient_id = str(data.get("patient_id", ""))
         rec_note_id = str(data.get("note_id", ""))
         zip_codes = resolve_zip_codes(patient_id, rec_note_id) or None
+        allowlist = self.secrets.get(Constants.SECRET_SCRIBE_PRESCRIPTION_STAFFERS, "")
+        dispense_engine_enabled = prescription_dispense_enabled(allowlist, _note_provider_id(rec_note_id))
         try:
-            proposals = recommend_commands(note, api_key, zip_codes=zip_codes)
+            proposals = recommend_commands(
+                note, api_key, zip_codes=zip_codes, dispense_engine_enabled=dispense_engine_enabled
+            )
         except Exception:
             log.exception("recommend_commands failed")
             return [
