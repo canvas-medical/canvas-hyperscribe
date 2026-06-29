@@ -4049,67 +4049,63 @@ def test_diagnose_row_handle_clear_code_preserves_code_to_protect_charge_links()
     )
 
 
-def test_diagnose_row_has_background_help_text() -> None:
-    """KOALA-5635 (ROUND 3): the Background field must render the helper
-    text ``Optional. You write this. Carries forward to every note.``
-    directly under the BACKGROUND label, per Kevin's v2 mock. This pins
-    the user-facing string so a future refactor can't quietly drop it.
-    """
-    src = _read_diagnose_row_js()
-    expected = "Optional. You write this. Carries forward to every note."
-    assert expected in src, (
-        f"diagnose-row.js must contain the Background helper text exactly: "
-        f"{expected!r}. Per Kevin's UAT mock the line sits under the "
-        "BACKGROUND label and explains that the field is user-written and "
-        "carries forward to subsequent notes."
-    )
-
-
-def test_diagnose_row_background_has_visible_char_counter() -> None:
-    """KOALA-5635 (ROUND 3): the Background field must render a visible
-    ``<count> / 2048`` character counter at all times, not only when the
-    user exceeds the limit. Round-2 only emitted the counter on
-    over-limit; round-3 makes it always visible to match the mock and
-    the Today's-assessment counter behavior.
+def test_diagnose_row_background_help_text_is_concise() -> None:
+    """Condition-card UI polish (supersedes KOALA-5635 round-3 wording):
+    the Background field shows a single concise help line
+    ``Carries forward to future notes`` under the textarea in EDIT mode.
+    The earlier verbose hint (``Optional. You write this. Carries forward
+    to every note.``) was dropped per Kevin's UI polish, and no help text
+    is shown in the collapsed read view (it stays clean).
 
     Pins:
-      1. Edit-mode counter exists (``${background.length} / 2048``).
-      2. Read-only counter is rendered with a CONDITIONAL class template
-         (``char-counter${...near-limit/over-limit...}``) sitting on
-         ``data.background.length``. The HEAD shape was a hard-coded
-         ``class="char-counter over-limit"`` rendered only on the
-         over-limit branch — this pin rejects that shape.
+      1. The concise help string is present.
+      2. The old verbose hint string is gone.
     """
     src = _read_diagnose_row_js()
-    # The edit-mode counter is rendered as ``${background.length} / 2048``
-    # inside an unconditional ``<div class="char-counter...">``. Match the
-    # template-literal expression (allow flexible whitespace).
-    edit_counter_pattern = re.compile(r"\$\{background\.length\}\s*/\s*2048")
-    matches = edit_counter_pattern.findall(src)
-    assert matches, (
-        "diagnose-row.js must render a visible ``${background.length} / 2048`` "
-        "character counter on the Background textarea. Per Kevin's UAT mock "
-        "the counter must be visible at all character counts, not only when "
-        "the user exceeds 2048. Mirror the Today's-assessment counter shape."
+    assert "Carries forward to future notes" in src, (
+        "diagnose-row.js must contain the concise Background help line "
+        "'Carries forward to future notes', shown under the Background box "
+        "in edit mode."
     )
-    # The read-only counter must be ALWAYS-VISIBLE — i.e. the surrounding
-    # ``class="char-counter..."`` attribute is a template literal that
-    # toggles ``near-limit``/``over-limit`` based on the length, not a
-    # hard-coded ``over-limit``-only branch (the round-2 shape).
-    #
-    # Pin the read-only template literal anchored on
-    # ``(data.background || '').length`` so a future refactor that switches
-    # back to "only render when over-limit" trips this assertion.
-    always_visible_pattern = re.compile(r'class="char-counter\$\{\(data\.background \|\| \'\'\)\.length\s*>')
-    assert always_visible_pattern.search(src), (
-        "diagnose-row.js must render the read-only Background ``<count> / "
-        "2048`` counter with a CONDITIONAL class template "
-        "(``char-counter${(data.background || '').length > ...``) so the "
-        "counter shows at every length and only the visual treatment "
-        "changes near/over the limit. The round-2 shape "
-        '(``class="char-counter over-limit"`` inside an over-limit-only '
-        "branch) is rejected — Kevin's UAT mock requires the counter at "
-        "all character counts."
+    assert "Optional. You write this. Carries forward to every note." not in src, (
+        "The old verbose Background hint was removed in the condition-card UI "
+        "polish; the concise 'Carries forward to future notes' line replaces "
+        "it, and the collapsed read view shows no help text."
+    )
+
+
+def test_diagnose_row_background_counter_is_edit_only() -> None:
+    """Condition-card UI polish (supersedes KOALA-5635 round-3 wording):
+    the Background character counter renders ONLY in edit mode, with the
+    numerator wrapped in ``.cc-num`` (bold-red over limit, gray denominator).
+    The collapsed read view shows NO counter — an over-limit background is
+    surfaced as a ``Background too long`` warning pill in the actions column
+    (soap-group.js) instead.
+
+    Pins:
+      1. Edit-mode counter exists as ``<span class="cc-num">${background.length}
+         </span> / 2048``.
+      2. The collapsed read view does NOT render a Background counter anchored
+         on ``(data.background || '').length`` (the old always-visible shape).
+    """
+    src = _read_diagnose_row_js()
+    # Edit-mode counter: numerator in .cc-num, denominator " / 2048".
+    edit_counter_pattern = re.compile(r'cc-num">\$\{background\.length\}</span>\s*/\s*2048')
+    assert edit_counter_pattern.search(src), (
+        "diagnose-row.js must render the edit-mode Background counter as "
+        '``<span class="cc-num">${background.length}</span> / 2048`` so the '
+        "numerator can be highlighted near/over the limit while the "
+        "denominator stays neutral."
+    )
+    # The collapsed read view must NOT render a Background char counter
+    # anchored on ``data.background.length`` — the counter is edit-only now
+    # and the over-limit signal lives in the actions column (warning pill).
+    read_counter_pattern = re.compile(r"char-counter\$\{\(data\.background \|\| ''\)\.length\s*>")
+    assert not read_counter_pattern.search(src), (
+        "The collapsed read view must NOT render a Background char counter. "
+        "Per the condition-card UI polish the counter shows only in edit mode; "
+        "an over-limit background is surfaced as a 'Background too long' "
+        "warning pill in soap-group.js."
     )
 
 
