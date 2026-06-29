@@ -6,6 +6,7 @@ const html = htm.bind(h);
 
 const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const ICON_SEARCH = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>`;
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -225,6 +226,16 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
     setSearching(false);
   };
 
+  // Close the "Change" picker on a coded card and revert to showing the code.
+  // (The no-code picker has no close — that card still needs a code.)
+  const handleCloseChange = () => {
+    setEditingCode(false);
+    setQuery('');
+    setResults([]);
+    setSearched(false);
+    setSearching(false);
+  };
+
   const handleAddBackground = () => {
     addedBgRef.current = true;
     setShowBackground(true);
@@ -285,7 +296,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   // Integrated picker — search input on top, then live results (while typing)
   // or the recommended codes (when the query is empty). Shared by the no-code
   // state and the "Change diagnosis" flow.
-  const pickerPanel = (placeholder) => html`
+  const pickerPanel = (placeholder, onClose) => html`
     <div class="diagnose-picker">
       <div class="diagnose-picker-search">
         ${ICON_SEARCH}
@@ -297,6 +308,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
           onKeyDown=${handleKeyDown}
           placeholder=${placeholder}
         />
+        ${onClose && html`<button type="button" class="diagnose-picker-close" onClick=${onClose} title="Close" aria-label="Close search">${ICON_X}</button>`}
       </div>
       ${results.length > 0
         ? html`
@@ -347,7 +359,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
       </div>
 
       ${/* "Change diagnosis" picker (already-coded card). */ ''}
-      ${hasCode && editingCode && !readOnly && pickerPanel('Search for a different code…')}
+      ${hasCode && editingCode && !readOnly && pickerPanel('Search for a different code…', handleCloseChange)}
 
       ${/* No-diagnosis-code state: the integrated picker is the persistent UI. */ ''}
       ${!hasCode && !readOnly && pickerPanel('Search a diagnosis code, or pick a recommendation below…')}
