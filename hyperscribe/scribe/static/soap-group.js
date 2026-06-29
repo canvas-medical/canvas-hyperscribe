@@ -791,9 +791,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                         <div class="recommendation-content">
                           <div class="diagnose-row">
                             <div class="diagnose-row-header">
-                              <span class="diagnose-row-title">
-                                ${entry.command.display}${aFormatted ? html`<span class="diagnose-icd-code">${aFormatted}</span>` : ''}
-                              </span>
+                              <span class="diagnose-row-title">${entry.command.display}</span>
+                              ${aFormatted ? html`<span class="diagnose-icd-code">${aFormatted}</span>` : ''}
                             </div>
                             <${AssessNarrative}
                               command=${entry.command}
