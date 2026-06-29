@@ -459,8 +459,13 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingCha
   }, [editing, commandIndex]);
   const [narrative, setNarrative] = useState(data.narrative || '');
   const [background, setBackground] = useState(data.background || '');
+  // Whether the Background field is shown in edit mode. True when there's
+  // preexisting background; the "+ Add background" pill flips it on otherwise.
+  const [showBackground, setShowBackground] = useState((data.background || '').length > 0);
   const backgroundRef = useRef(null);
   const narrativeRef = useRef(null);
+  // Only auto-focus background when the user explicitly clicks "+ Add background".
+  const addedBgRef = useRef(false);
 
   // Sync local state when ``data`` changes from outside (e.g. carry-forward
   // fetch returning AFTER first render of this row). useState initializes
@@ -471,12 +476,20 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingCha
     if (!editing) {
       setNarrative(data.narrative || '');
       setBackground(data.background || '');
+      setShowBackground((data.background || '').length > 0);
     }
   }, [data.narrative, data.background, editing]);
 
   useEffect(() => {
     if (editing && narrativeRef.current) narrativeRef.current.focus({ preventScroll: true });
   }, [editing]);
+
+  useEffect(() => {
+    if (showBackground && addedBgRef.current && backgroundRef.current) {
+      backgroundRef.current.focus({ preventScroll: true });
+      addedBgRef.current = false;
+    }
+  }, [showBackground]);
 
   const handleSave = () => {
     onEdit(commandIndex, { ...data, narrative, background }, 'assess');
@@ -486,33 +499,56 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingCha
   const handleCancel = () => {
     setNarrative(data.narrative || '');
     setBackground(data.background || '');
+    setShowBackground((data.background || '').length > 0);
     setEditing(false);
+  };
+
+  const handleAddBackground = () => {
+    addedBgRef.current = true;
+    setShowBackground(true);
   };
 
   if (editing && !readOnly) {
     const saveDisabled = narrative.length > 2048 || background.length > 2048;
     return html`
       <div class="diagnose-edit-area editing">
-        <div class="diagnose-body-label">Background</div>
-        <textarea
-          ref=${backgroundRef}
-          class="command-row-textarea"
-          maxLength=${2048}
-          value=${background}
-          onInput=${(e) => setBackground(e.target.value)}
-          onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}
-        />
-        <div class="char-counter${background.length > 1900 ? background.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${background.length} / 2048</div>
-        <div class="diagnose-body-label">Today's assessment</div>
-        <textarea
-          ref=${narrativeRef}
-          class="command-row-textarea"
-          maxLength=${2048}
-          value=${narrative}
-          onInput=${(e) => setNarrative(e.target.value)}
-          onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}
-        />
-        <div class="char-counter${narrative.length > 1900 ? narrative.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${narrative.length} / 2048</div>
+        ${showBackground
+          ? html`
+            <div class="diagnose-field">
+              <div class="diagnose-body-label">Background</div>
+              <textarea
+                ref=${backgroundRef}
+                class="command-row-textarea"
+                rows=${2}
+                maxLength=${2048}
+                value=${background}
+                onInput=${(e) => setBackground(e.target.value)}
+                onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}
+              />
+              <div class="diagnose-bg-footer">
+                <span class="diagnose-bg-help">Carries forward to future notes</span>
+                <span class="char-counter${background.length > 1900 ? background.length > 2048 ? ' over-limit' : ' near-limit' : ''}"><span class="cc-num">${background.length}</span> / 2048</span>
+              </div>
+            </div>
+          `
+          : html`
+            <div class="refer-disclosures">
+              <button type="button" class="refer-add-pill" onClick=${handleAddBackground}>+ Add background</button>
+            </div>
+          `}
+        <div class="diagnose-field">
+          <div class="diagnose-body-label">Today's assessment</div>
+          <textarea
+            ref=${narrativeRef}
+            class="command-row-textarea"
+            rows=${5}
+            maxLength=${2048}
+            value=${narrative}
+            onInput=${(e) => setNarrative(e.target.value)}
+            onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}
+          />
+          <div class="char-counter${narrative.length > 1900 ? narrative.length > 2048 ? ' over-limit' : ' near-limit' : ''}"><span class="cc-num">${narrative.length}</span> / 2048</div>
+        </div>
         <div class="command-row-actions">
           <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
           <button type="button" class="form-btn form-btn-save" disabled=${saveDisabled} onClick=${handleSave}>Save</button>
@@ -525,28 +561,21 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingCha
   const backgroundText = data.background || '';
   const hasBackground = backgroundText.length > 0;
   const hasNarrative = narrativeText.length > 0;
-  const narrativeOverLimit = narrativeText.length > 2048;
-  const backgroundOverLimit = backgroundText.length > 2048;
+  // Collapsed view: Background block only when present; no char counters.
+  // Over-limit is surfaced as a warning pill in the actions column.
   return html`
     <div
       class="diagnose-row-body${readOnly ? '' : ' editable'}"
       onClick=${() => !readOnly && setEditing(true)}
     >
-      ${!hasBackground && !hasNarrative
-        ? html`<div class="diagnose-body-empty">No assessment text</div>`
-        : html`
-          ${hasBackground && html`
-            <div class="diagnose-body-label">Background</div>
-            ${backgroundText.split('\n').map((line, i) => html`<div key=${'b' + i} class="diagnose-body-line">${line}</div>`)}
-            ${backgroundOverLimit && html`<div class="char-counter over-limit">${backgroundText.length} / 2048 — text must be shortened before approving</div>`}
-          `}
-          ${hasNarrative && html`
-            <div class="diagnose-body-label">Today's assessment</div>
-            ${narrativeText.split('\n').map((line, i) => html`<div key=${'n' + i} class="diagnose-body-line">${line}</div>`)}
-            ${narrativeOverLimit && html`<div class="char-counter over-limit">${narrativeText.length} / 2048 — text must be shortened before approving</div>`}
-          `}
-        `
-      }
+      ${hasBackground && html`
+        <div class="diagnose-body-label">Background</div>
+        ${backgroundText.split('\n').map((line, i) => html`<div key=${'b' + i} class="diagnose-body-line">${line}</div>`)}
+      `}
+      <div class="diagnose-body-label">Today's assessment</div>
+      ${hasNarrative
+        ? narrativeText.split('\n').map((line, i) => html`<div key=${'n' + i} class="diagnose-body-line">${line}</div>`)
+        : html`<div class="diagnose-body-empty">No assessment text</div>`}
     </div>
   `;
 }
@@ -776,11 +805,23 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             />
                           </div>
                         </div>
-                        ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`
-                          <div class="recommendation-actions">
-                            <button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>
-                          </div>
-                        `}
+                        ${(() => {
+                          // Over-limit pills surface even on read-only/locked rows (the
+                          // inline counter was removed from the read view), so an
+                          // over-2048 background/assessment is never silently hidden.
+                          // Remove button keeps the target's rec-remove-x styling.
+                          const showRemove = !readOnly && !entry.command.already_documented && !entry.command._adding;
+                          const bgOver = (aData.background || '').length > 2048;
+                          const asmtOver = (aData.narrative || '').length > 2048;
+                          if (!showRemove && !bgOver && !asmtOver) return null;
+                          return html`
+                            <div class="recommendation-actions">
+                              ${bgOver && html`<span class="rec-warning-pill">Background too long</span>`}
+                              ${asmtOver && html`<span class="rec-warning-pill">Assessment too long</span>`}
+                              ${showRemove && html`<button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>`}
+                            </div>
+                          `;
+                        })()}
                       </div>
                     `;
                   })}
@@ -816,7 +857,14 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             aiPending=${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented}
                           />
                         </div>
+                        ${/* Target's accept/reject redesign (renderRecActions) is kept;
+                            the over-limit warning pills are layered in front of it so an
+                            over-2048 background/assessment is never silently hidden, on
+                            editable and read-only rows alike. renderRecActions owns the
+                            "Missing Diagnosis Code" pill, accept/reject, and badges. */ ''}
                         <div class="recommendation-actions">
+                          ${(dxData.background || '').length > 2048 && html`<span class="rec-warning-pill">Background too long</span>`}
+                          ${(dxData.today_assessment || '').length > 2048 && html`<span class="rec-warning-pill">Assessment too long</span>`}
                           ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: isIncomplete, missingLabel: 'Diagnosis Code', acceptDisabled: false, readOnly, onAccept: handleAcceptDiagnose, onReject: handleRejectDiagnose, onAddNow: null })}
                         </div>
                       </div>
