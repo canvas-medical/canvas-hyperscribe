@@ -273,8 +273,11 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
 
   const conditionHeader = data.condition_header || command.display;
   const formattedCode = hasCode ? formatIcdCode(data.icd10_code) : null;
+  // Name leads, the ICD code trails it as a quiet gray identifier (matches the
+  // name's size/weight, color-differentiated only). Changing the code is done
+  // via the header "Change" affordance, not by clicking the code.
   const title = hasCode
-    ? html`<span class="diagnose-icd-prefix${readOnly ? '' : ' clickable'}" onClick=${() => !readOnly && handleClearCode()} title=${readOnly ? formattedCode : 'Click to change diagnosis'}>${formattedCode}</span> ${data.icd10_display || conditionHeader}`
+    ? html`${data.icd10_display || conditionHeader}<span class="diagnose-icd-code">${formattedCode}</span>`
     : conditionHeader;
 
   const recCodes = suggestions || [];

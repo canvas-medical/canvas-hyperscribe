@@ -1030,9 +1030,9 @@ select.history-form-input {
 .diagnose-search-result:hover { background: #f0f0f0; }
 .diagnose-result-display { flex: 1; }
 .diagnose-result-code { font-size: 11px; font-weight: 600; color: #059669; margin-left: 8px; white-space: nowrap; }
-.diagnose-icd-prefix { font-size: 12px; font-weight: 700; color: #059669; margin-right: 2px; }
-.diagnose-icd-prefix.clickable { cursor: pointer; }
-.diagnose-icd-prefix.clickable:hover { text-decoration: underline; }
+/* Trailing ICD code: inherits the title's size/weight (15px/700); only the
+   color differs — a quiet light-gray identifier after the diagnosis name. */
+.diagnose-icd-code { color: #9aa6b2; margin-left: 8px; }
 .diagnose-suggestions { margin-top: 10px; }
 .diagnose-suggestions-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .diagnose-suggestion-btn {
@@ -1074,9 +1074,13 @@ select.history-form-input {
 .diagnose-edit-area .char-counter.over-limit { color: #9ca3af; font-weight: 400; }
 .diagnose-edit-area .char-counter.over-limit .cc-num { color: #dc2626; font-weight: 700; }
 
-/* "Change diagnosis" ghost text link in the card header. */
-.diagnose-change-btn { background: none; border: none; padding: 4px 6px; font-size: 12px; font-weight: 600; color: #052B49; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; border-radius: 5px; flex-shrink: 0; }
-.diagnose-change-btn:hover { background: #eef4ff; }
+/* "Change diagnosis" — a quiet affordance that reveals on card hover (or
+   keyboard focus) and lifts to navy with a soft highlight on its own hover, so
+   it adds no visual noise at rest. */
+.diagnose-change-btn { background: none; border: none; padding: 3px 9px; font-size: 12.5px; font-weight: 600; color: #9aa6b2; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; border-radius: 7px; flex-shrink: 0; opacity: 0; transition: opacity 0.14s ease, color 0.12s, background 0.12s; }
+.recommendation-block:hover .diagnose-change-btn,
+.diagnose-change-btn:focus-visible { opacity: 1; }
+.diagnose-change-btn:hover { color: #052B49; background: #eef4ff; }
 .diagnose-change-btn svg { width: 13px; height: 13px; }
 
 /* Integrated diagnosis picker — search field on top, recommendations / live
