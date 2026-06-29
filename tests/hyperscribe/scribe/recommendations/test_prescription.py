@@ -158,6 +158,9 @@ def test_recommend_success(mock_resolve: MagicMock) -> None:
     # form the order-row dropdown uses to pre-select an option.
     assert proposals[0].data["type_to_dispense"] == "12345678901|9|C48542"
     assert proposals[0].data["type_to_dispense_label"] == "Tablet"
+    # canvas-core requires substitutions; emit the ALLOWED default so an
+    # accepted-without-edit recommendation clears validation.
+    assert proposals[0].data["substitutions"] == "allowed"
     assert proposals[0].section_key == "_recommended"
 
     # Provider stated the quantity, so no extra dosage LLM round-trip happens.
@@ -387,6 +390,8 @@ def test_recommend_engine_off_emits_baseline_shape(mock_resolve: MagicMock) -> N
     assert "type_to_dispense_label" not in data
     assert data["quantity_to_dispense"] is None  # raw passthrough (not computed)
     assert data["refills"] is None  # raw passthrough — NO 0-floor / class default
+    # substitutions default is required even in baseline shape (canvas-core gate).
+    assert data["substitutions"] == "allowed"
     client.request.assert_called_once()  # extraction only; no derive call
 
 
