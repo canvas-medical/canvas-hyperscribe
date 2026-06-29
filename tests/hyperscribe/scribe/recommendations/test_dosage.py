@@ -554,7 +554,7 @@ def test_chronic_no_days_assumes_30_and_computes() -> None:
         client=client,
     )
     assert out["quantity_to_dispense"] == "30"
-    assert out["refills"] == 5  # antihypertensive default
+    assert out["refills"] == 3  # uniform chronic default
     # The assumption feeds the quantity math but is NOT written to days_supply.
     assert "days_supply" not in out
     client.request.assert_called_once()
@@ -575,24 +575,25 @@ def test_acute_no_days_stays_blank() -> None:
     client.request.assert_not_called()
 
 
-def test_chronic_refill_defaults_by_class() -> None:
-    cases = [
-        ("lisinopril 10 mg tablet", 5),
-        ("atorvastatin 20 mg tablet", 4),
-        ("sertraline 50 mg tablet", 4),
-        ("metformin 500 mg tablet", 3),
-        ("omeprazole 20 mg capsule", 3),
-    ]
-    for description, expected in cases:
+def test_chronic_meds_get_uniform_refill_default() -> None:
+    # All chronic classes share one default (CHRONIC_REFILL_DEFAULT = 3) — no
+    # per-class 3/4/5 variation.
+    for description in [
+        "lisinopril 10 mg tablet",
+        "atorvastatin 20 mg tablet",
+        "sertraline 50 mg tablet",
+        "metformin 500 mg tablet",
+        "omeprazole 20 mg capsule",
+    ]:
         out = derive_dispense_fields(
             _detail(description=description),
             stated_sig="1 by mouth once daily",
-            stated_days_supply=None,  # no dictated duration -> class default applies
+            stated_days_supply=None,  # no dictated duration -> chronic default applies
             stated_quantity="90",  # stated quantity -> isolates the refill default
             stated_refills=None,
             client=_client(),
         )
-        assert out["refills"] == expected, description
+        assert out["refills"] == 3, description
 
 
 def test_chronic_with_stated_days_does_not_inflate_refills() -> None:

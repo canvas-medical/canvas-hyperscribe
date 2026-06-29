@@ -3,8 +3,11 @@
 Two recommendation behaviors must only fire for **chronic maintenance**
 medications and be suppressed for everything else:
 
-- suggesting a **non-zero refill count** (Brigade data Q4: antihypertensives ~5,
-  statins/SSRIs ~4, oral antidiabetics ~3; antibiotics/steroids stay at 0), and
+- suggesting a **non-zero refill count** for chronic maintenance meds — a single
+  uniform default (``CHRONIC_REFILL_DEFAULT``), not a per-class number. Earlier
+  Brigade Q4 medians varied by class (~3-5), but unexplained per-drug variation
+  in a field the provider reviews adds confusion without proven benefit, so all
+  chronic classes share one conservative default; acute/controlled stay at 0. And
 - assuming a **30-day supply** to compute the dispense quantity when no duration
   was dictated (valid for a chronic once-daily med, dangerous over-supply for an
   acute antibiotic).
@@ -33,11 +36,18 @@ ACUTE = "acute"
 NEITHER = "neither"
 UNKNOWN = "unknown"
 
+# Single, uniform refill default for chronic maintenance meds (when the provider
+# didn't state a count). Deliberately one number across all chronic classes:
+# predictable, conservative (under-supply bias), and easy to communicate. The
+# class table below still drives the chronic/acute gate and the 30-day quantity
+# assumption — it just no longer varies the refill count per class.
+CHRONIC_REFILL_DEFAULT = 3
+
 
 class DrugClass(NamedTuple):
     bucket: str
     therapeutic_class: str
-    refills: int  # suggested chronic refill default; 0 for non-chronic
+    refills: int  # CHRONIC_REFILL_DEFAULT for chronic classes; 0 otherwise
 
 
 # Controlled substances — force refills to 0 regardless of therapeutic class.
@@ -158,7 +168,7 @@ _RULES: list[tuple[re.Pattern[str], str, str, int]] = [
         ),
         "antihypertensive",
         CHRONIC,
-        5,
+        CHRONIC_REFILL_DEFAULT,
     ),
     (
         re.compile(
@@ -167,7 +177,7 @@ _RULES: list[tuple[re.Pattern[str], str, str, int]] = [
         ),
         "statin",
         CHRONIC,
-        4,
+        CHRONIC_REFILL_DEFAULT,
     ),
     (
         re.compile(
@@ -178,7 +188,7 @@ _RULES: list[tuple[re.Pattern[str], str, str, int]] = [
         ),
         "ssri_snri",
         CHRONIC,
-        4,
+        CHRONIC_REFILL_DEFAULT,
     ),
     (
         re.compile(
@@ -191,7 +201,7 @@ _RULES: list[tuple[re.Pattern[str], str, str, int]] = [
         ),
         "oral_antidiabetic",
         CHRONIC,
-        3,
+        CHRONIC_REFILL_DEFAULT,
     ),
     (
         re.compile(
@@ -208,7 +218,7 @@ _RULES: list[tuple[re.Pattern[str], str, str, int]] = [
         ),
         "chronic_other",
         CHRONIC,
-        3,
+        CHRONIC_REFILL_DEFAULT,
     ),
 ]
 
