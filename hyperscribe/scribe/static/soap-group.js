@@ -854,7 +854,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             suggestions=${suggestions}
                             onAccept=${handleAcceptDiagnose}
                             onEditingChange=${onEditingChange}
-                            aiPending=${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented}
                           />
                         </div>
                         ${/* Target's accept/reject redesign (renderRecActions) is kept;
