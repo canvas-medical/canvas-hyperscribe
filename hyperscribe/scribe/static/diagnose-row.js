@@ -6,7 +6,6 @@ const html = htm.bind(h);
 
 const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const ICON_SEARCH = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>`;
-const AI_SPARKLE = html`<span class="rec-ai-sparkle" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.3l1.72 5.72c.18.6.66 1.08 1.26 1.26L20.7 11l-5.72 1.72c-.6.18-1.08.66-1.26 1.26L12 19.7l-1.72-5.72c-.18-.6-.66-1.08-1.26-1.26L3.3 11l5.72-1.72c.6-.18 1.08-.66 1.26-1.26z"/></svg></span>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -25,7 +24,7 @@ function formatIcdCode(raw) {
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
-export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions, onAccept, onEditingChange, aiPending }) {
+export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions, onAccept, onEditingChange }) {
   const data = command.data || {};
   const hasCode = !!data.icd10_code;
   // KOALA_5635_BACKGROUND_ALWAYS_RENDER — Background is available on EVERY
@@ -338,7 +337,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   return html`
     <div class="diagnose-row" ref=${containerRef}>
       <div class="diagnose-row-header">
-        <span class="diagnose-row-title">${title}${aiPending ? AI_SPARKLE : ''}</span>
+        <span class="diagnose-row-title">${title}</span>
         ${hasCode && !readOnly && html`
           <button type="button" class="diagnose-change-btn" onClick=${handleClearCode} title="Change diagnosis">${ICON_PENCIL} Change</button>
         `}
