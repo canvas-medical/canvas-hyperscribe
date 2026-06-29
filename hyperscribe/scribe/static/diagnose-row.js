@@ -284,12 +284,10 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
 
   const conditionHeader = data.condition_header || command.display;
   const formattedCode = hasCode ? formatIcdCode(data.icd10_code) : null;
-  // Name leads, the ICD code trails it as a quiet gray identifier (matches the
-  // name's size/weight, color-differentiated only). Changing the code is done
-  // via the header "Change" affordance, not by clicking the code.
-  const title = hasCode
-    ? html`${data.icd10_display || conditionHeader}<span class="diagnose-icd-code">${formattedCode}</span>`
-    : conditionHeader;
+  // Name leads; the ICD code trails it as a small green pill (a sibling of the
+  // title so the pill aligns cleanly). Changing the code is done via the header
+  // "Change" affordance, not by clicking the code.
+  const titleText = hasCode ? (data.icd10_display || conditionHeader) : conditionHeader;
 
   const recCodes = suggestions || [];
 
@@ -352,7 +350,8 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   return html`
     <div class="diagnose-row" ref=${containerRef}>
       <div class="diagnose-row-header">
-        <span class="diagnose-row-title">${title}</span>
+        <span class="diagnose-row-title">${titleText}</span>
+        ${hasCode && html`<span class="diagnose-icd-code">${formattedCode}</span>`}
         ${hasCode && !readOnly && html`
           <button type="button" class="diagnose-change-btn" onClick=${handleClearCode} title="Change diagnosis">${ICON_PENCIL} Change</button>
         `}
