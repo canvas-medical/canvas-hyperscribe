@@ -132,6 +132,7 @@ const SUMMARY_FIELDS = [
   { key: 'selected_template_name', name: 'selected_template_name', type: 'text' },
   { key: 'mode', name: 'mode', type: 'text' },
   { key: 'raw_response', name: 'raw_response', type: 'json' },
+  { key: 'raw_normalized_response', name: 'raw_normalized_response', type: 'json' },
   { key: 'updated_at', name: 'updated_at', type: 'text' },
 ];
 

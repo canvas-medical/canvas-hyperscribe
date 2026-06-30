@@ -19,6 +19,13 @@ class DiagnoseParser(CommandParser):
 
     def validate(self, data: dict[str, Any]) -> list[str]:
         errors: list[str] = []
+        # Hard block (server-side guard): a diagnose command must carry an ICD-10
+        # code. The frontend blocks approval of an uncoded diagnosis; this mirrors
+        # that on the insert path so the requirement can't be bypassed via the API.
+        # (A diagnosis that matched an active problem flips to ``assess`` upstream
+        # and is built by a different parser, so it never reaches here uncoded.)
+        if not (data.get("icd10_code") or "").strip():
+            errors.append("Diagnosis is missing an ICD-10 code")
         if len(data.get("today_assessment") or "") > 2048:
             errors.append("Assessment text exceeds 2048 characters")
         return errors

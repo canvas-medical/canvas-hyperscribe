@@ -93,15 +93,18 @@ const _commandValidationReason = (c) => {
   if (c.command_type === 'imaging_order') return 'imaging_incomplete';
   if (c.command_type === 'lab_order') return 'lab_incomplete';
   if (c.command_type === 'perform') return 'perform_incomplete';
+  if (c.command_type === 'diagnose' && !(c.data && c.data.icd10_code)) return 'diagnose_uncoded';
   return 'validation';
 };
-const _validationErrorMessage = (c, reason) => {
-  if (reason === 'rx_incomplete') return 'This prescription is missing required fields or contains invalid values (e.g. non-ASCII characters in sig, refills out of range, trailing-zero quantity). Open it to fix before approving.';
-  if (reason === 'refer_incomplete') return 'This referral is missing required fields (indications, notes to specialist, clinical question, or service provider). Open it to fix before approving.';
-  if (reason === 'imaging_incomplete') return 'This imaging order is missing required fields (image code, service provider, ordering provider, or diagnosis codes). Open it to fix before approving.';
-  if (reason === 'lab_incomplete') return 'This lab order is missing required fields (lab partner or tests). Open it to fix before approving.';
-  if (reason === 'perform_incomplete') return 'This perform command is missing a CPT code. Open it to fix before approving.';
-  return 'This command has invalid values. Open it to fix before approving.';
+const _validationErrorMessage = (c, reason, context = 'approving') => {
+  const suffix = `Open it to fix before ${context}.`;
+  if (reason === 'rx_incomplete') return `This prescription is missing required fields or contains invalid values (e.g. non-ASCII characters in sig, refills out of range, trailing-zero quantity). ${suffix}`;
+  if (reason === 'refer_incomplete') return `This referral is missing required fields (indications, notes to specialist, clinical question, or service provider). ${suffix}`;
+  if (reason === 'imaging_incomplete') return `This imaging order is missing required fields (image code, service provider, ordering provider, or diagnosis codes). ${suffix}`;
+  if (reason === 'lab_incomplete') return `This lab order is missing required fields (lab partner or tests). ${suffix}`;
+  if (reason === 'perform_incomplete') return `This perform command is missing a CPT code. ${suffix}`;
+  if (reason === 'diagnose_uncoded') return `This diagnosis needs an ICD-10 code. Pick one (or reject it) before ${context}.`;
+  return `This command has invalid values. ${suffix}`;
 };
 
 function formatTime(ms) {
@@ -2304,6 +2307,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.command_type === 'lab_order' && (!c.data.lab_partner || !c.data.tests_order_codes || c.data.tests_order_codes.length === 0)) return false;
       if (c.command_type === 'refer' && (!c.data.service_provider || !c.data.clinical_question || !c.data.notes_to_specialist || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
+      // Hard block: a surfaced diagnosis must carry an ICD-10 code before the note
+      // can be approved. The provider either codes it (via the picker) or rejects
+      // it. A coded diagnose that matched an active problem has already flipped to
+      // `assess` upstream (which is exempt — it carries condition_id, not a code).
+      if (c.command_type === 'diagnose' && !(c.data && c.data.icd10_code) && !(c.data && c.data.rejected)) return false;
       return true;
     });
     // Pre-existing finalized notes (signed before the explicit
@@ -2662,6 +2670,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const handleAddNow = useCallback(async (command, isRecommendation, index) => {
     if (!canEdit) return;
+    // Mirror handleInsert's entry-clear so a panel from a prior blocked click
+    // doesn't persist across a subsequent successful Add Now.
+    setValidationError(null);
     logEvent('ADD_NOW', { commandType: command.command_type, isRecommendation, index });
     // Mark as adding to show spinner and prevent double-clicks.
     const setAdding = (flag) => {
@@ -2683,7 +2694,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         {
           command_type: command.command_type,
           display: (command.display || '').slice(0, 80),
-          errors: [_validationErrorMessage(command, _addNowReason)],
+          errors: [_validationErrorMessage(command, _addNowReason, 'adding')],
+          _context: 'adding',
         },
       ]);
       return;
@@ -2746,8 +2758,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       logEvent('ADD_NOW_SUCCESS', { commandType: command.command_type, index });
     } catch (err) {
       console.error('Add Now failed:', err);
+      // Mirror handleInsert's catch: surface a banner so a network failure
+      // (offline, plugin-runner restart, non-JSON 5xx) doesn't leave the
+      // spinner stopped with no user feedback.
+      setError('Failed to add command');
       setAdding(false);
-      logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index });
+      logEvent('ADD_NOW_ERROR', { commandType: command.command_type, index, error: String(err) });
     }
   }, [noteId, canEdit]);
 
@@ -3191,7 +3207,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       ${verificationResult && html`<${VerificationSummary} result=${verificationResult} />`}
       ${validationError && html`
         <div class="validation-error">
-          <strong>Please fix before approving:</strong>
+          <strong>${(Array.isArray(validationError) && validationError.some(v => v._context === 'adding')) ? 'Please fix before adding:' : 'Please fix before approving:'}</strong>
           <ul>
             ${(Array.isArray(validationError) ? validationError : [{ display: '', errors: [validationError] }]).map(v => html`
               ${v.errors.map(e => html`<li key=${e}><strong>${v.display || v.command_type}</strong>: ${e}</li>`)}

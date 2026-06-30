@@ -76,3 +76,17 @@ def test_command_type() -> None:
 def test_data_field_is_none() -> None:
     parser = DiagnoseParser()
     assert parser.data_field is None
+
+
+def test_validate_requires_icd10_code() -> None:
+    """Hard block: an uncoded diagnosis is rejected on the insert path."""
+    parser = DiagnoseParser()
+    assert "Diagnosis is missing an ICD-10 code" in parser.validate({"icd10_code": "", "today_assessment": "x"})
+    assert "Diagnosis is missing an ICD-10 code" in parser.validate({"today_assessment": "x"})
+    assert parser.validate({"icd10_code": "F33.1", "today_assessment": "x"}) == []
+
+
+def test_validate_flags_long_assessment() -> None:
+    parser = DiagnoseParser()
+    errors = parser.validate({"icd10_code": "F33.1", "today_assessment": "x" * 2049})
+    assert "Assessment text exceeds 2048 characters" in errors

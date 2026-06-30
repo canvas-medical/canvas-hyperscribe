@@ -1,0 +1,317 @@
+"""Tests for the grounded ICD-10 candidate engine (``diagnosis_candidates``).
+
+The engine replaces the old first-match-wins code pick in the A&P belt. The
+canonical regression is the Jodie Foster note: Nabla emitted both ``R45.851``
+"Suicidal ideations" (a Chapter-18 symptom code, listed first) and ``F33.1`` for
+a single "Major depressive disorder, recurrent, moderate to severe" block. The
+old belt stamped R45.851 and orphaned F33.1; the engine must rank F33.1 first and
+never discard R45.851.
+
+These tests are pure — the only injected dependency is a fake ``science_search``
+callable returning ``Icd10Condition``-shaped objects.
+"""
+
+from __future__ import annotations
+
+from hyperscribe.scribe.commands.diagnosis_candidates import (
+    CandidateSource,
+    DiagnosisCandidate,
+    PatientConditionSnapshot,
+    _overlap_bucket,
+    assemble_block_candidates,
+    build_block_candidates,
+    expand_unspecified,
+    is_unspecified_code,
+    provenance_label,
+    rank_candidates,
+)
+from hyperscribe.structures.icd10_condition import Icd10Condition
+
+MDD_HEADER = "Major depressive disorder, recurrent, moderate to severe"
+
+
+def _nabla_block(*codings: tuple[str, str]) -> list[dict]:
+    """One Nabla condition dict whose ``coding`` is the given (code, display) pairs."""
+    return [{"display": "", "coding": [{"code": code, "display": display} for code, display in codings]}]
+
+
+# The Jodie Foster ordering: symptom code first, definitive code second.
+_JODIE_NABLA = _nabla_block(
+    ("R45.851", "Suicidal ideations"),
+    ("F33.1", "Major depressive disorder, recurrent, moderate"),
+)
+
+
+def test_f331_beats_r45851_no_chart() -> None:
+    result = build_block_candidates("apblock-0", MDD_HEADER, _JODIE_NABLA, chart=[])
+    assert result.chosen is not None
+    assert result.chosen.code == "F331"
+    assert result.ambiguous is False
+
+
+def test_f331_beats_r45851_with_active_f33() -> None:
+    chart = [
+        PatientConditionSnapshot(
+            condition_id="cond-1",
+            code="F33.1",
+            display="Major depressive disorder, recurrent, moderate",
+            system="ICD-10",
+            clinical_status="active",
+            onset_date="2010-01-01",
+            resolution_date="",
+        )
+    ]
+    result = build_block_candidates("apblock-0", MDD_HEADER, _JODIE_NABLA, chart=chart)
+    assert result.chosen is not None
+    assert result.chosen.code == "F331"
+    assert result.chosen.source == CandidateSource.ACTIVE_PROBLEM
+    # condition_id flows through so the diagnose->assess flip stays eligible.
+    assert result.chosen.condition_id == "cond-1"
+
+
+def test_no_orphan_symptom_code_survives_as_candidate() -> None:
+    result = build_block_candidates("apblock-0", MDD_HEADER, _JODIE_NABLA, chart=[])
+    codes = {candidate.code for candidate in result.candidates}
+    # F33.1 wins, but R45.851 is NOT discarded — it remains a (lower) candidate.
+    assert "F331" in codes
+    assert "R45851" in codes
+
+
+def test_ambiguous_two_definitive_codes_tie() -> None:
+    # Two genuinely different definitive codes, both overlapping the header equally.
+    nabla = _nabla_block(
+        ("G44.1", "Vascular headache"),
+        ("G44.209", "Tension-type headache"),
+    )
+    result = build_block_candidates("apblock-0", "Headache", nabla, chart=[])
+    assert result.chosen is None
+    assert result.ambiguous is True
+    # Both surfaced for the provider to choose.
+    codes = {candidate.code for candidate in result.candidates}
+    assert {"G441", "G44209"} <= codes
+
+
+def test_incidental_symptom_code_is_ambiguous() -> None:
+    # An R-code that does NOT match the header (incidental — the Jodie case where
+    # Nabla only emitted "Suicidal ideations" for a depression block) is surfaced,
+    # never auto-stamped as the diagnosis.
+    nabla = _nabla_block(("R45.851", "Suicidal ideations"))
+    result = build_block_candidates("apblock-0", MDD_HEADER, nabla, chart=[])
+    assert result.chosen is None
+    assert result.ambiguous is True
+
+
+def test_matching_symptom_code_is_applied() -> None:
+    # A symptom code that IS the documented problem (full header overlap) stays a
+    # legitimate primary diagnosis — auto-applied, not flagged.
+    nabla = _nabla_block(("R19.7", "Diarrhea, unspecified"))
+    result = build_block_candidates("apblock-0", "Diarrhea, unspecified", nabla, chart=[])
+    assert result.chosen is not None
+    assert result.chosen.code == "R197"
+    assert result.ambiguous is False
+
+
+def test_charted_specific_beats_nabla_unspecified() -> None:
+    # Nabla emits the unspecified parent; the patient's resolved-but-specific code wins.
+    nabla = _nabla_block(("E11.9", "Type 2 diabetes mellitus without complications"))
+    chart = [
+        PatientConditionSnapshot(
+            condition_id="cond-9",
+            code="E11.65",
+            display="Type 2 diabetes mellitus with hyperglycemia",
+            system="ICD-10",
+            clinical_status="resolved",
+            onset_date="2015-01-01",
+            resolution_date="2021-06-01",
+        )
+    ]
+    result = build_block_candidates("apblock-0", "Type 2 diabetes mellitus", nabla, chart=chart)
+    assert result.chosen is not None
+    assert result.chosen.code == "E1165"
+    assert result.chosen.source == CandidateSource.PRIOR_CONDITION
+    # Prior conditions never carry a flip-eligible condition_id (no SDK reactivation).
+    assert result.chosen.condition_id == ""
+
+
+def test_provenance_labels() -> None:
+    active = DiagnosisCandidate(code="F331", raw_code="F33.1", display="", source=CandidateSource.ACTIVE_PROBLEM)
+    resolved = DiagnosisCandidate(
+        code="F331",
+        raw_code="F33.1",
+        display="",
+        source=CandidateSource.PRIOR_CONDITION,
+        clinical_status="resolved",
+        resolution_date="2021-06-01",
+    )
+    remission = DiagnosisCandidate(
+        code="F331", raw_code="F33.1", display="", source=CandidateSource.PRIOR_CONDITION, clinical_status="remission"
+    )
+    nabla = DiagnosisCandidate(code="F331", raw_code="F33.1", display="", source=CandidateSource.NABLA)
+    science = DiagnosisCandidate(code="F331", raw_code="F33.1", display="", source=CandidateSource.SCIENCE_SEARCH)
+    more = DiagnosisCandidate(code="G4701", raw_code="G47.01", display="", source=CandidateSource.MORE_SPECIFIC)
+    assert provenance_label(active) == "Active problem"
+    assert provenance_label(resolved) == "Resolved 2021"
+    assert provenance_label(remission) == "In remission"
+    assert provenance_label(nabla) == "Detected in note"
+    assert provenance_label(science) == "ICD-10 search"
+    assert provenance_label(more) == "More specific option"
+
+
+def test_is_unspecified_code() -> None:
+    # Text-based (the reliable signal — numeric tail "00" is not distinguishable).
+    assert is_unspecified_code("G47.00", "Insomnia, unspecified") is True
+    assert is_unspecified_code("G4700") is False  # no display, numeric shape doesn't flag "00"
+    # Numeric backstop: bare root, root+9, root+9+digit.
+    assert is_unspecified_code("E03") is True
+    assert is_unspecified_code("F33.9") is True
+    assert is_unspecified_code("E11.90") is True
+    # Specified codes are not unspecified.
+    assert is_unspecified_code("F33.1", "Major depressive disorder, recurrent, moderate") is False
+    assert is_unspecified_code("Z99.89", "Other dependence") is False
+
+
+def test_expand_unspecified_offers_specific_siblings() -> None:
+    chosen = DiagnosisCandidate(
+        code="G4700", raw_code="G47.00", display="Insomnia, unspecified", source=CandidateSource.NABLA
+    )
+
+    def fake_search(expressions: list[str]) -> list[Icd10Condition]:
+        assert expressions == ["G47"]  # searched by family root
+        return [
+            Icd10Condition(code="G4700", label="Insomnia, unspecified"),
+            Icd10Condition(code="G4701", label="Insomnia due to medical condition"),
+            Icd10Condition(code="G4709", label="Other insomnia"),
+        ]
+
+    children = expand_unspecified(chosen, fake_search)
+    codes = {child.code for child in children}
+    assert "G4700" not in codes  # the unspecified bucket itself is excluded
+    assert {"G4701", "G4709"} <= codes
+    assert all(child.source == CandidateSource.MORE_SPECIFIC for child in children)
+
+
+def test_science_search_only_is_never_auto_applied() -> None:
+    # No chart, no Nabla coding -> science fallback fires but stays ambiguous.
+    def fake_search(expressions: list[str]) -> list[Icd10Condition]:
+        return [Icd10Condition(code="J069", label="Acute upper respiratory infection, unspecified")]
+
+    result = build_block_candidates(
+        "apblock-0", "Upper respiratory infection", nabla_for_block=[], chart=[], science_search=fake_search
+    )
+    assert result.chosen is None
+    assert result.ambiguous is True
+    assert any(c.source == CandidateSource.SCIENCE_SEARCH for c in result.candidates)
+
+
+def test_no_candidates_is_uncoded_not_ambiguous() -> None:
+    result = build_block_candidates("apblock-0", "Some freetext header", nabla_for_block=[], chart=[])
+    assert result.chosen is None
+    assert result.ambiguous is False
+    assert result.candidates == []
+
+
+def test_assemble_dedupes_to_highest_trust_source() -> None:
+    # Same code from Nabla and the active problem list -> keep the active one.
+    nabla = _nabla_block(("F33.1", "Major depressive disorder, recurrent, moderate"))
+    chart = [
+        PatientConditionSnapshot(
+            condition_id="cond-1",
+            code="F33.1",
+            display="Major depressive disorder, recurrent, moderate",
+            system="ICD-10",
+            clinical_status="active",
+            onset_date="",
+            resolution_date="",
+        )
+    ]
+    candidates = assemble_block_candidates(MDD_HEADER, nabla, chart)
+    f331 = [c for c in candidates if c.code == "F331"]
+    assert len(f331) == 1
+    assert f331[0].source == CandidateSource.ACTIVE_PROBLEM
+
+
+def test_rank_orders_definitive_above_symptom() -> None:
+    candidates = assemble_block_candidates(MDD_HEADER, _JODIE_NABLA, chart=[])
+    ranked = rank_candidates(MDD_HEADER, candidates)
+    assert ranked[0].code == "F331"
+    assert ranked[-1].code == "R45851"
+
+
+def test_provenance_labels_full_status_matrix() -> None:
+    def prior(status: str) -> DiagnosisCandidate:
+        return DiagnosisCandidate(
+            code="F331", raw_code="F33.1", display="", source=CandidateSource.PRIOR_CONDITION, clinical_status=status
+        )
+
+    assert provenance_label(prior("relapse")) == "Relapse"
+    assert provenance_label(prior("investigative")) == "Under investigation"
+    assert provenance_label(prior("")) == "Prior condition"
+    # Resolved with an unparseable date falls back to the bare label.
+    weird = DiagnosisCandidate(
+        code="F331",
+        raw_code="F33.1",
+        display="",
+        source=CandidateSource.PRIOR_CONDITION,
+        clinical_status="resolved",
+        resolution_date="unknown",
+    )
+    assert provenance_label(weird) == "Resolved"
+    # Unknown source -> empty label.
+    assert provenance_label(DiagnosisCandidate(code="F331", raw_code="F33.1", display="", source="mystery")) == ""
+
+
+def test_overlap_bucket_partial() -> None:
+    assert _overlap_bucket("left knee pain swelling", "knee pain stiffness") == 1
+    assert _overlap_bucket("Headache", "Headache") == 2
+    assert _overlap_bucket("Diabetes", "Suicidal ideations") == 0
+
+
+def test_assemble_skips_malformed_codings_and_snapshots() -> None:
+    nabla = [
+        {
+            "display": "",
+            "coding": [
+                {"code": "", "display": "blank code"},  # skipped: no code
+                {"display": "no code key"},  # skipped: no code
+                {"code": "F33.1", "display": "Major depressive disorder, recurrent, moderate"},
+            ],
+        }
+    ]
+    chart = [
+        PatientConditionSnapshot("c0", "", "Empty code", "ICD-10", "active", "", ""),  # skipped: no code
+        PatientConditionSnapshot("c1", "K21.9", "GERD", "ICD-10", "active", "", ""),  # skipped: no match
+    ]
+    candidates = assemble_block_candidates(MDD_HEADER, nabla, chart)
+    codes = {c.code for c in candidates}
+    assert codes == {"F331"}
+
+
+def test_assemble_survives_science_outage() -> None:
+    def boom(_expressions: list[str]) -> list:
+        raise RuntimeError("science down")
+
+    result = build_block_candidates("apblock-0", "Sciatica", nabla_for_block=[], chart=[], science_search=boom)
+    assert result.candidates == []
+    assert result.chosen is None
+    assert result.ambiguous is False
+
+
+def test_expand_unspecified_survives_science_outage_and_filters_family() -> None:
+    chosen = DiagnosisCandidate(
+        code="E039", raw_code="E03.9", display="Hypothyroidism, unspecified", source=CandidateSource.NABLA
+    )
+
+    def boom(_expressions: list[str]) -> list:
+        raise RuntimeError("science down")
+
+    assert expand_unspecified(chosen, boom) == []
+    assert expand_unspecified(chosen, None) == []
+
+    def cross_family(_expressions: list[str]) -> list[Icd10Condition]:
+        return [
+            Icd10Condition(code="E030", label="Postsurgical hypothyroidism"),  # same family, specific -> kept
+            Icd10Condition(code="E1165", label="Type 2 diabetes with hyperglycemia"),  # other family -> dropped
+        ]
+
+    children = expand_unspecified(chosen, cross_family)
+    assert {c.code for c in children} == {"E030"}

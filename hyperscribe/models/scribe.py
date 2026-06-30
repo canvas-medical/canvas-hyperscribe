@@ -43,6 +43,11 @@ class ScribeSummary(CustomModel):
     selected_template_name: Any = TextField(default="")
     mode: Any = TextField(default="")
     raw_response: Any = JSONField(default=dict)
+    # Raw Nabla /generate-normalized-data response, stored for analysis,
+    # evaluations, and debugging of the ICD-10 ranking pipeline. Same PHI
+    # class as raw_response (the raw note-generation response) — never log
+    # its contents.
+    raw_normalized_response: Any = JSONField(default=dict)
     updated_at: Any = DateTimeField(auto_now=True)
 
 
