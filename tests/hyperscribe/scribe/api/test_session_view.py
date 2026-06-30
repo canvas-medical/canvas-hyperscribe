@@ -16,6 +16,7 @@ from hyperscribe.scribe.api.session_view import (
     ScribeSessionView,
     _PROGRESS_CACHE_KEY_PREFIX,
     _match_conditions_to_sections,
+    _note_provider_id,
 )
 from hyperscribe.scribe.backend import ScribeError
 from hyperscribe.scribe.backend.models import (
@@ -136,6 +137,47 @@ def _mock_cache() -> MagicMock:
     cache.delete = lambda key: store.pop(key, None)
     cache._store = store
     return cache
+
+
+def test_note_provider_id_blank_note_uuid() -> None:
+    # No note id -> no lookup, no provider.
+    assert _note_provider_id(None) is None
+    assert _note_provider_id("") is None
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_note_provider_id_found(mock_note: MagicMock) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    assert _note_provider_id("note-uuid") == "42"
+    mock_note.objects.values_list.assert_called_once_with("provider__id", flat=True)
+    mock_note.objects.values_list.return_value.get.assert_called_once_with(id="note-uuid")
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_note_provider_id_null_provider(mock_note: MagicMock) -> None:
+    # Note exists but has no provider -> None, not the string "None".
+    mock_note.objects.values_list.return_value.get.return_value = None
+    assert _note_provider_id("note-uuid") is None
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_note_provider_id_note_missing(mock_note: MagicMock) -> None:
+    # Missing note is the normal not-found path: return None silently (no log).
+    mock_note.DoesNotExist = type("DoesNotExist", (Exception,), {})
+    mock_note.objects.values_list.return_value.get.side_effect = mock_note.DoesNotExist()
+    with patch("hyperscribe.scribe.api.session_view.log") as mock_log:
+        assert _note_provider_id("note-uuid") is None
+    mock_log.exception.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_note_provider_id_query_error_logs_to_sentry(mock_note: MagicMock) -> None:
+    # Unexpected query failure -> degrade to None but surface to Sentry via log.exception.
+    mock_note.DoesNotExist = type("DoesNotExist", (Exception,), {})
+    mock_note.objects.values_list.return_value.get.side_effect = RuntimeError("db down")
+    with patch("hyperscribe.scribe.api.session_view.log") as mock_log:
+        assert _note_provider_id("note-uuid") is None
+    mock_log.exception.assert_called_once()
 
 
 @patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
