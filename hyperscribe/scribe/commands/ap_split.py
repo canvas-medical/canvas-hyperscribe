@@ -350,6 +350,19 @@ def split_plan_into_diagnoses(
         block_candidates = build_block_candidates(block_id, header, nabla_for_block, chart, science_search)
         chosen = block_candidates.chosen
 
+        # An unspecified code is NOT auto-applied when grounded more-specific options
+        # exist: the block is left UNCODED and the picker offers the unspecified code
+        # FIRST, then the more-specific siblings — so the provider picks (one click to
+        # keep the unspecified, or refine). When no more-specific option exists there's
+        # nothing to choose between, so the unspecified code is applied as-is (avoids a
+        # pointless one-option picker).
+        unspecified_options: list[dict[str, str]] = []
+        if chosen is not None and is_unspecified_code(chosen.code, chosen.display):
+            children = expand_unspecified(chosen, science_search)
+            if children:
+                unspecified_options = [serialize_candidate(chosen), *(serialize_candidate(c) for c in children)]
+                chosen = None  # defer to a provider pick
+
         data: dict[str, Any] = {
             "icd10_code": chosen.raw_code if chosen else None,
             "icd10_display": chosen.display if chosen else "",
@@ -368,13 +381,9 @@ def split_plan_into_diagnoses(
             stamped_id = active_icd10_index.get(_normalize_icd10(chosen.raw_code)) or chosen.condition_id
             if stamped_id:
                 data["condition_id"] = stamped_id
-            # Unspecified nudge: the working code stays applied, but surface grounded
-            # more-specific siblings (from the science service) for one-click refine.
-            if is_unspecified_code(chosen.code, chosen.display):
-                children = expand_unspecified(chosen, science_search)
-                if children:
-                    data["unspecified"] = True
-                    data["candidate_suggestions"] = [serialize_candidate(child) for child in children]
+        elif unspecified_options:
+            # Uncoded: keep-as-unspecified (first) or refine to a more-specific code.
+            data["candidate_suggestions"] = unspecified_options
         elif block_candidates.ambiguous:
             # Leave the card UNCODED and surface the ranked options (with provenance)
             # for the provider to choose. Never auto-stamp an ambiguous code.

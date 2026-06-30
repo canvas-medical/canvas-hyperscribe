@@ -838,13 +838,12 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     // diagnosisSuggestions map. (Header-string keying was fragile and
                     // is gone.)
                     const blockId = dxData.block_id || '';
-                    // Uncoded card: ranked grounded options to pick from. Coded-but-
-                    // unspecified card: the more-specific children for the refine nudge.
-                    const suggestions = (!isRejected && (
-                      (!hasCode && (dxData.candidate_suggestions
-                        || (diagnosisSuggestions && blockId && diagnosisSuggestions[blockId])))
-                      || (hasCode && dxData.unspecified && dxData.candidate_suggestions)
-                    )) || null;
+                    // Uncoded card: ranked grounded options to pick from. The belt stamps
+                    // them on the command (data.candidate_suggestions), keyed by block_id;
+                    // fall back to the block_id-keyed diagnosisSuggestions map.
+                    const suggestions = (!hasCode && !isRejected
+                      && (dxData.candidate_suggestions
+                        || (diagnosisSuggestions && blockId && diagnosisSuggestions[blockId]))) || null;
 
                     const handleAcceptDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, accepted: true, rejected: false }, 'diagnose');
                     const handleRejectDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, rejected: true, accepted: false }, 'diagnose');
@@ -871,7 +870,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                         <div class="recommendation-actions">
                           ${(dxData.background || '').length > 2048 && html`<span class="rec-warning-pill">Background too long</span>`}
                           ${(dxData.today_assessment || '').length > 2048 && html`<span class="rec-warning-pill">Assessment too long</span>`}
-                          ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: isIncomplete, missingLabel: 'Diagnosis Code', acceptDisabled: false, readOnly, onAccept: handleAcceptDiagnose, onReject: handleRejectDiagnose, onAddNow: null })}
+                          ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: isIncomplete, missingLabel: 'Diagnosis Code', acceptDisabled: isIncomplete, readOnly, onAccept: handleAcceptDiagnose, onReject: handleRejectDiagnose, onAddNow: null })}
                         </div>
                       </div>
                     `;

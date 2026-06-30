@@ -11,6 +11,7 @@ from hyperscribe.scribe.commands.ap_split import (
     word_overlap,
 )
 from hyperscribe.scribe.commands.diagnosis_candidates import PatientConditionSnapshot
+from hyperscribe.structures.icd10_condition import Icd10Condition
 
 
 # --- parse_ap_blocks ---
@@ -912,3 +913,63 @@ def test_split_plan_surfaces_cross_family_chart_note_conflict() -> None:
     provs = {s["provenance"] for s in data["candidate_suggestions"]}
     assert "Active problem" in provs
     assert "Detected in note" in provs
+
+
+def test_split_plan_unspecified_with_refinements_left_uncoded() -> None:
+    """An unspecified code is NOT auto-applied when more-specific options exist: the
+    block is left uncoded and the picker offers the unspecified code first, then the
+    refinements (no `unspecified` flag, no auto-stamp)."""
+    commands = [
+        {"command_type": "plan", "data": {"narrative": "Insomnia\n- Trazodone"}, "section_key": "assessment_and_plan"},
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "Insomnia, unspecified",
+                "coding": [{"code": "G47.00", "display": "Insomnia, unspecified"}],
+                "corresponding_note_problem": "Insomnia",
+            },
+        ],
+    }
+
+    def science(_expressions: list[str]) -> list[Icd10Condition]:
+        return [
+            Icd10Condition(code="G4700", label="Insomnia, unspecified"),
+            Icd10Condition(code="G4701", label="Insomnia due to medical condition"),
+            Icd10Condition(code="G4709", label="Other insomnia"),
+        ]
+
+    updated, _ = split_plan_into_diagnoses(commands, section_conditions, science_search=science)
+    data = updated[0]["data"]
+    assert data["icd10_code"] is None
+    assert "unspecified" not in data
+    formatted = [s["formatted_code"] for s in data["candidate_suggestions"]]
+    assert formatted[0] == "G47.00"  # unspecified offered first
+    assert "G47.01" in formatted and "G47.09" in formatted
+    assert data["candidate_suggestions"][0]["provenance"] == "Detected in note"
+    assert data["candidate_suggestions"][1]["provenance"] == "More specific option"
+
+
+def test_split_plan_unspecified_without_refinements_is_applied() -> None:
+    """When no more-specific option exists, the unspecified code is applied as-is —
+    no pointless one-option picker."""
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "Hypothyroidism\n- Continue levothyroxine"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "Hypothyroidism, unspecified",
+                "coding": [{"code": "E03.9", "display": "Hypothyroidism, unspecified"}],
+                "corresponding_note_problem": "Hypothyroidism",
+            },
+        ],
+    }
+    updated, _ = split_plan_into_diagnoses(commands, section_conditions, science_search=lambda _e: [])
+    data = updated[0]["data"]
+    assert data["icd10_code"] == "E03.9"
+    assert "candidate_suggestions" not in data
