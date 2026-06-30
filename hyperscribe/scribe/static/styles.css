@@ -552,7 +552,7 @@ h2 { margin-bottom: 4px; }
 
 /* Add Now button for immediate order insertion — tonal navy, calm secondary action */
 .rec-btn-add-now {
-  height: 34px; padding: 0 14px; min-width: 86px; font-size: 13px; font-weight: 500;
+  height: 34px; padding: 0 14px; min-width: 86px; font-size: 13px; font-weight: 600;
   color: #052B49; background: #eef3f9; border: 1px solid rgba(5, 43, 73, 0.14); border-radius: 8px;
   cursor: pointer; white-space: nowrap;
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
@@ -610,7 +610,7 @@ h2 { margin-bottom: 4px; }
 
 /* Reject / Accept controls (uniform width so they align in a column) */
 .rec-reject-btn, .rec-accept-btn {
-  height: 34px; min-width: 86px; padding: 0 14px; font-size: 13px; font-weight: 500;
+  height: 34px; min-width: 86px; padding: 0 14px; font-size: 13px; font-weight: 600;
   border-radius: 8px; cursor: pointer; white-space: nowrap;
   display: inline-flex; align-items: center; justify-content: center;
   transition: background 0.15s, border-color 0.15s, opacity 0.15s;
