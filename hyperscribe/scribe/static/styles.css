@@ -550,18 +550,16 @@ h2 { margin-bottom: 4px; }
   border-radius: 12px; white-space: nowrap;
 }
 
-/* Add Now button for immediate order insertion */
+/* Add Now button for immediate order insertion — tonal navy, calm secondary action */
 .rec-btn-add-now {
-  height: 36px; padding: 0 12px; font-size: 12px; font-weight: 600;
-  color: #059669; background: #ecfdf5; border: 1.5px solid #059669; border-radius: 6px;
-  cursor: pointer; white-space: nowrap; transition: opacity 0.15s;
+  height: 34px; padding: 0 14px; min-width: 86px; font-size: 13px; font-weight: 600;
+  color: #052B49; background: #eef3f9; border: 1px solid rgba(5, 43, 73, 0.14); border-radius: 8px;
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
 }
+.rec-btn-add-now:hover:not(:disabled) { background: #e2ebf5; border-color: rgba(5, 43, 73, 0.26); }
 .rec-btn-add-now:active:not(:disabled) { opacity: 0.7; }
 .rec-btn-add-now:disabled { opacity: 0.6; cursor: wait; }
-
-/* Muted button (unselected state in accept/reject toggle) */
-.rec-btn-muted { background: #e5e7eb; color: #9ca3af; }
-.rec-btn-disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Missing field highlights */
 .field-missing { color: #c2410c; }
@@ -574,25 +572,6 @@ h2 { margin-bottom: 4px; }
   color: #991b1b; background: #fef2f2; border-radius: 12px;
   white-space: nowrap;
 }
-
-/* Accepted badge */
-.rec-accepted-badge {
-  padding: 3px 10px; font-size: 11px; font-weight: 600;
-  color: #166534; background: #dcfce7; border-radius: 12px;
-  white-space: nowrap;
-}
-
-/* Icon buttons — 36px square, iPad touch targets */
-.rec-btn {
-  width: 36px; height: 36px; border: none; border-radius: 6px;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; padding: 0; transition: opacity 0.15s;
-}
-.rec-btn:active { opacity: 0.7; }
-.rec-btn svg { width: 18px; height: 18px; }
-.rec-btn-reject { background: #dc2626; color: #fff; }
-.rec-btn-accept { background: #16a34a; color: #fff; }
-.rec-btn-edit   { background: #2563eb; color: #fff; }
 
 /* Text save/cancel buttons (distinct from icon approve/reject) */
 .form-btn { height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; flex-shrink: 0; transition: opacity 0.15s; }
@@ -614,6 +593,53 @@ h2 { margin-bottom: 4px; }
 /* Center order view cards (single-line content) */
 .recommendation-block:has(.order-view) { align-items: center; }
 .recommendation-block:has(.order-view) .recommendation-actions { padding-top: 0; }
+
+/* ============================================================
+   Accept / reject review workflow (recommendation cards)
+   ============================================================ */
+
+/* "Settle" transition: emphasis eases away when a card is accepted (preact reuses the node) */
+.recommendation-block { transition: background 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease; }
+@media (prefers-reduced-motion: reduce) { .recommendation-block { transition: none; } }
+
+/* Needs-action card (#9) — white card, darker steel-navy border + soft lift, no fill */
+.recommendation-block.rec-needs-review {
+  border-color: #5b7aa6;
+  box-shadow: 0 3px 12px -4px rgba(5, 43, 73, 0.22);
+}
+
+/* Reject / Accept controls (uniform width so they align in a column) */
+.rec-reject-btn, .rec-accept-btn {
+  height: 34px; min-width: 86px; padding: 0 14px; font-size: 13px; font-weight: 600;
+  border-radius: 8px; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.rec-reject-btn { background: #fff; color: #6b7280; border: 1px solid #d1d5db; }
+.rec-reject-btn:hover { border-color: #9ca3af; color: #374151; }
+.rec-accept-btn { background: #052B49; color: #fff; border: none; padding: 0 16px; }
+.rec-accept-btn:hover:not(:disabled) { background: #0b3c60; }
+.rec-accept-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.rec-reject-btn:active, .rec-accept-btn:active { opacity: 0.8; }
+
+/* Neutral remove ✕ (NOT red — distinct from the old destructive reject) */
+.rec-remove-x {
+  width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent;
+  color: #9ca3af; cursor: pointer; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s;
+}
+.rec-remove-x:hover { background: #eef2f6; color: #052B49; }
+.rec-remove-x svg { width: 15px; height: 15px; }
+
+/* Settled status — quiet "Added" / "Already in Chart" (label aligns with Add Now, check with ✕) */
+.rec-settled { display: inline-flex; align-items: center; gap: 8px; }
+.rec-settled-label { font-size: 13px; font-weight: 500; color: #9aa4b0; white-space: nowrap; }
+.rec-settled-check {
+  width: 28px; height: 28px; flex-shrink: 0; color: #b4bcc5;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.rec-settled-check svg { width: 14px; height: 14px; }
+
 
 /* Subsection titles (gray section labels) */
 .subsection-title { font-size: 13px; font-weight: 600; color: #6b7280; margin-bottom: 8px; }
@@ -982,7 +1008,7 @@ select.history-form-input {
 /* Diagnose row (per-condition A&P block) */
 .diagnose-row { padding: 4px 0; }
 .diagnose-row-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.diagnose-row-title { font-size: 15px; font-weight: 700; color: #333; flex: 1; line-height: 1.4; }
+.diagnose-row-title { font-size: 15px; font-weight: 700; color: #333; flex: 0 1 auto; line-height: 1.4; }
 .diagnose-search-btn { padding: 2px 10px; font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; border: 1px dashed #059669; border-radius: 10px; cursor: pointer; }
 .diagnose-search-btn:hover { background: #d1fae5; border-style: solid; }
 .diagnose-delete-btn { width: 20px; height: 20px; border: none; background: none; color: #999; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0; }
@@ -997,9 +1023,9 @@ select.history-form-input {
 .diagnose-search-result:hover { background: #f0f0f0; }
 .diagnose-result-display { flex: 1; }
 .diagnose-result-code { font-size: 11px; font-weight: 600; color: #059669; margin-left: 8px; white-space: nowrap; }
-.diagnose-icd-prefix { font-size: 12px; font-weight: 700; color: #059669; margin-right: 2px; }
-.diagnose-icd-prefix.clickable { cursor: pointer; }
-.diagnose-icd-prefix.clickable:hover { text-decoration: underline; }
+/* Trailing ICD code: a small filled light-green pill after the diagnosis name
+   (a flex sibling of the title so it stays cleanly centered). */
+.diagnose-icd-code { display: inline-flex; align-items: center; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #059669; background: #ecfdf3; border-radius: 6px; padding: 2px 8px; letter-spacing: 0.2px; white-space: nowrap; }
 .diagnose-suggestions { margin-top: 10px; }
 .diagnose-suggestions-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .diagnose-suggestion-btn {
@@ -1018,9 +1044,60 @@ select.history-form-input {
 .diagnose-body-empty { color: #aaa; font-style: italic; }
 .diagnose-body-label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; }
 .diagnose-body-label:first-child { margin-top: 0; }
-.diagnose-edit-area { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 4px; }
+/* Edit-area vertical rhythm: generous gap BETWEEN field groups; tight WITHIN
+   each group (label->box->help) via the .diagnose-field wrapper + label margin.
+   Shared by DiagnoseRow and AssessNarrative edit views. */
+.diagnose-edit-area { display: flex; flex-direction: column; align-items: flex-start; gap: 22px; margin-top: 12px; }
 .diagnose-edit-area .command-row-textarea { width: 100%; }
 .diagnose-edit-area .command-row-actions { align-self: flex-end; }
+.diagnose-field { width: 100%; }
+.diagnose-field .diagnose-body-label { margin-bottom: 7px; }
+.diagnose-field .char-counter { margin-top: 7px; }
+
+/* Background help line shares a row with the char counter under the box. */
+.diagnose-bg-footer { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 7px; }
+.diagnose-bg-footer .char-counter { margin-top: 0; }
+.diagnose-bg-help { font-size: 11px; color: #9ca3af; line-height: 1.4; }
+
+/* Char counter over limit: numerator bold-red, denominator stays gray.
+   Scoped to the edit area so the legacy global .char-counter.over-limit
+   (order-row comments, etc.) is unaffected. */
+.diagnose-edit-area .char-counter.near-limit { color: #9ca3af; font-weight: 400; }
+.diagnose-edit-area .char-counter.near-limit .cc-num { color: #f59e0b; font-weight: 600; }
+.diagnose-edit-area .char-counter.over-limit { color: #9ca3af; font-weight: 400; }
+.diagnose-edit-area .char-counter.over-limit .cc-num { color: #dc2626; font-weight: 700; }
+
+/* "Change diagnosis" — a quiet affordance that reveals on card hover (or
+   keyboard focus) and lifts to navy with a soft highlight on its own hover, so
+   it adds no visual noise at rest. */
+.diagnose-change-btn { background: none; border: none; padding: 3px 9px; font-size: 12.5px; font-weight: 600; color: #9aa6b2; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; border-radius: 7px; flex-shrink: 0; opacity: 0; transition: opacity 0.14s ease, color 0.12s, background 0.12s; }
+.recommendation-block:hover .diagnose-change-btn,
+.diagnose-change-btn:focus-visible { opacity: 1; }
+.diagnose-change-btn:hover { color: #052B49; background: #eef4ff; }
+.diagnose-change-btn svg { width: 13px; height: 13px; }
+
+/* Integrated diagnosis picker — search field on top, recommendations / live
+   results listed below. Shared by the no-code state and the "Change" flow.
+   Name leads (dark, semibold); the code is a quiet fixed-width identifier so
+   codes align in a column. Rows are single-line (ellipsis) for uniform height. */
+.diagnose-picker { margin: 16px 0 18px; border: 1px solid #e4e7ec; border-radius: 12px; overflow: hidden; background: #fff; }
+.diagnose-picker:focus-within { border-color: #052B49; }
+.diagnose-picker-search { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid #eef1f4; }
+.diagnose-picker-search svg { width: 18px; height: 18px; color: #9aa6b2; flex-shrink: 0; }
+.diagnose-picker-search input { border: none; outline: none; font-size: 14.5px; flex: 1; min-width: 0; font-family: inherit; color: #1f2733; background: none; }
+.diagnose-picker-search input::placeholder { color: #9aa6b2; }
+.diagnose-picker-close { background: none; border: none; padding: 4px; margin: -2px -4px -2px 4px; color: #9aa6b2; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; flex-shrink: 0; line-height: 0; }
+.diagnose-picker-close:hover { color: #374151; background: #f1f3f5; }
+.diagnose-picker-close svg { width: 16px; height: 16px; }
+.diagnose-picker-label { padding: 9px 16px 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #9aa6b2; }
+.diagnose-picker-list { padding: 0 0 3px; }
+.diagnose-picker-row { display: flex; align-items: center; gap: 0; padding: 9px 16px; cursor: pointer; transition: background 0.12s; }
+.diagnose-picker-row:hover { background: #f5f8ff; }
+.diagnose-picker-row + .diagnose-picker-row { box-shadow: inset 0 1px 0 #f4f6f9; }
+/* Name leads (shrinks + ellipsizes); code trails it as a small green pill. */
+.diagnose-picker-name { font-size: 14px; font-weight: 500; color: #1f2733; flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.diagnose-picker-code { display: inline-flex; align-items: center; flex-shrink: 0; font-size: 11.5px; font-weight: 700; color: #059669; background: #ecfdf3; border-radius: 6px; padding: 2px 8px; margin-left: 8px; letter-spacing: 0.2px; white-space: nowrap; }
+.diagnose-picker-empty { padding: 12px 16px; font-size: 13px; color: #9aa6b2; }
 
 /* Diagnose recommendation: header + actions on one row, everything else full-width below */
 .recommendation-block.rec-diagnose { display: grid; grid-template-columns: 1fr auto; align-items: start; }
@@ -1030,8 +1107,7 @@ select.history-form-input {
 .recommendation-block.rec-diagnose .recommendation-actions { grid-column: 2; grid-row: 1; }
 .recommendation-block.rec-diagnose .diagnose-edit-area,
 .recommendation-block.rec-diagnose .diagnose-row-body,
-.recommendation-block.rec-diagnose .history-form-field,
-.recommendation-block.rec-diagnose .diagnose-suggestions { grid-column: 1 / -1; }
+.recommendation-block.rec-diagnose .diagnose-picker { grid-column: 1 / -1; }
 
 /* Suggested codings + unmatched condition chips below A&P blocks */
 

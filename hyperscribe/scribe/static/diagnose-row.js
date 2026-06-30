@@ -4,8 +4,9 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
-const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
-const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
+const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+const ICON_SEARCH = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>`;
+const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -24,10 +25,10 @@ function formatIcdCode(raw) {
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
-export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions, onAccept, onEditingChange }) {
+export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestions, onEditingChange }) {
   const data = command.data || {};
   const hasCode = !!data.icd10_code;
-  // KOALA_5635_BACKGROUND_ALWAYS_RENDER — Background renders on EVERY
+  // KOALA_5635_BACKGROUND_ALWAYS_RENDER — Background is available on EVERY
   // diagnose-row card, regardless of whether the proposal matched an active
   // patient condition. Round-2 gated this on ``data.condition_id``; Kevin's
   // UAT explicitly rejected that gate: the field must be available for ALL
@@ -35,18 +36,29 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   // rec, user-initiated, prior-background-empty-or-not, and after an ICD
   // change.
   //
-  // No silent-drop risk on unmatched ICDs: ``DiagnoseCommand`` in the
-  // canvas-plugins SDK (canvas_sdk/commands/commands/diagnose.py) carries a
-  // ``background: str | None = None`` field, so background round-trips
-  // through both the diagnose and assess persistence paths.
+  // The UI polish layered on top (Kevin, condition-card-UI work): the
+  // Background SECTION is only shown when there's something to show —
+  //   * collapsed/read view: render the Background block only when
+  //     ``data.background`` is non-empty (no label/help/counter noise on an
+  //     empty card);
+  //   * edit view: when there's no preexisting background, show a "+ Add
+  //     background" pill (the refer-card .refer-add-pill disclosure pattern)
+  //     instead of an empty field; clicking it reveals the textarea.
+  // The data path is unchanged: ``DiagnoseCommand`` carries ``background``,
+  // so it round-trips through both the diagnose and assess persistence paths.
   //
   // The KOALA_5635_CLEAR_ON_ICD_CHANGE behavior (handleSelect /
-  // handleClearCode) is STILL in force — the section stays rendered after an
-  // ICD change, but the text content is explicitly cleared. That's the
-  // Council-blessed clinical-data-integrity safeguard against cross-
-  // attaching one condition's background text onto a different condition's
-  // Assessment row in the chart.
+  // handleClearCode) is STILL in force — the text content is explicitly
+  // cleared on an ICD change. That's the Council-blessed clinical-data-
+  // integrity safeguard against cross-attaching one condition's background
+  // text onto a different condition's Assessment row in the chart.
 
+  // editingCode drives the "change an already-assigned code" picker AND
+  // (preserved from the original) flags a no-code row as actively editing its
+  // code so summary.js's unsaved-edits footer treats a freshly-loaded
+  // unmatched-diagnosis card as in-progress. It initializes to ``!hasCode``.
+  // The Change picker render is gated on ``hasCode && editingCode``; the
+  // no-code picker renders off ``!hasCode`` (always shown until a code is set).
   const [editingCode, setEditingCode] = useState(!hasCode);
   const [editingText, setEditingText] = useState(false);
   useEffect(() => {
@@ -67,10 +79,17 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   // external prop change ONLY when not editing so a late carry-forward
   // fetch can't clobber in-progress typing.
   const [background, setBackground] = useState(data.background || '');
+  // Whether the Background field is shown in edit mode. True when there's
+  // preexisting background; the "+ Add background" pill flips it on otherwise.
+  const [showBackground, setShowBackground] = useState((data.background || '').length > 0);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
   const textareaRef = useRef(null);
   const backgroundRef = useRef(null);
+  // Only auto-focus the background textarea when the user explicitly clicks
+  // "+ Add background" — not when it shows because background already exists
+  // (the assessment textarea owns focus on entering edit mode).
+  const addedBgRef = useRef(false);
 
   // KOALA_5635_BACKGROUND_TEXTAREA — sync local ``background`` from data
   // when the row isn't being edited. Mirrors AssessNarrative; needed
@@ -79,9 +98,11 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   useEffect(() => {
     if (!editingText) {
       setBackground(data.background || '');
+      setShowBackground((data.background || '').length > 0);
     }
   }, [data.background, editingText]);
 
+  // Focus the picker search input when it opens (no-code on mount, or "Change").
   useEffect(() => {
     if (editingCode && inputRef.current) {
       inputRef.current.focus({ preventScroll: true });
@@ -94,18 +115,31 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
     }
   }, [editingText]);
 
-  // Close dropdown on outside click.
+  useEffect(() => {
+    if (showBackground && addedBgRef.current && backgroundRef.current) {
+      backgroundRef.current.focus({ preventScroll: true });
+      addedBgRef.current = false;
+    }
+  }, [showBackground]);
+
+  // Outside click clears any stale search query/results so the picker reverts
+  // to its recommendations. For an already-coded card the "Change" picker also
+  // closes; the no-code picker stays open (it's the persistent UI for an
+  // incomplete row and must not be dismissed).
   useEffect(() => {
     if (!editingCode) return;
     const handler = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setResults([]);
         setSearched(false);
+        setSearching(false);
+        setQuery('');
+        if (hasCode) setEditingCode(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [editingCode]);
+  }, [editingCode, hasCode]);
 
   const doSearch = useCallback(async (q) => {
     if (!q || q.length < 2) {
@@ -166,16 +200,18 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
     // cleared value without waiting for the prop-sync useEffect to run
     // (avoids a render flash where stale background flickers visible).
     setBackground('');
+    setShowBackground(false);
     setResults([]);
     setSearched(false);
+    setSearching(false);
     setQuery('');
     setEditingCode(false);
   };
 
   const handleClearCode = () => {
     if (readOnly) return;
-    // "Click to change diagnosis" enters edit mode WITHOUT clearing icd10_code /
-    // accepted. Clearing them here would drop this diagnosis out of
+    // "Change" enters code-edit mode WITHOUT clearing icd10_code / accepted.
+    // Clearing them here would drop this diagnosis out of
     // chargeMatrixDiagnoses mid-edit, and the pointer-prune effect in summary.js
     // would then permanently strip this diagnosis's _localId from every charge's
     // _pointers — silently wiping charge links before the replacement is picked.
@@ -185,12 +221,29 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
     // user abandons the edit (Escape), the original code is intact.
     setEditingCode(true);
     setQuery('');
+    setResults([]);
+    setSearched(false);
+    setSearching(false);
+  };
+
+  // Close the "Change" picker on a coded card and revert to showing the code.
+  // (The no-code picker has no close — that card still needs a code.)
+  const handleCloseChange = () => {
+    setEditingCode(false);
+    setQuery('');
+    setResults([]);
+    setSearched(false);
+    setSearching(false);
+  };
+
+  const handleAddBackground = () => {
+    addedBgRef.current = true;
+    setShowBackground(true);
   };
 
   const handleSaveAssessment = () => {
     // KOALA_5635_BACKGROUND_ALWAYS_RENDER — persist ``background`` on EVERY
-    // save, not only when ``condition_id`` is stamped. The render gate was
-    // removed per Kevin's UAT; the save gate must follow. DiagnoseCommand
+    // save, not only when ``condition_id`` is stamped. DiagnoseCommand
     // accepts background, so unmatched-ICD rows persist it cleanly through
     // the diagnose path. A round-tripped save that silently drops what the
     // user typed would be exactly the UX trap the UAT was pushing back on.
@@ -208,16 +261,18 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
   const handleCancelAssessment = () => {
     setAssessment(data.today_assessment || '');
     setBackground(data.background || '');
+    setShowBackground((data.background || '').length > 0);
     setEditingText(false);
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Escape') {
-      if (editingCode && hasCode) {
-        setEditingCode(false);
-        setResults([]);
-        setQuery('');
-      }
+    // Escape closes the "Change" picker on an already-coded card (restoring the
+    // original code). On a no-code row the picker is the persistent UI, so
+    // Escape is a no-op there.
+    if (e.key === 'Escape' && editingCode && hasCode) {
+      setEditingCode(false);
+      setResults([]);
+      setQuery('');
     }
   };
 
@@ -229,137 +284,150 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly,
 
   const conditionHeader = data.condition_header || command.display;
   const formattedCode = hasCode ? formatIcdCode(data.icd10_code) : null;
-  const title = hasCode
-    ? html`<span class="diagnose-icd-prefix${readOnly ? '' : ' clickable'}" onClick=${() => !readOnly && handleClearCode()} title=${readOnly ? formattedCode : 'Click to change diagnosis'}>${formattedCode}</span> ${data.icd10_display || conditionHeader}`
-    : conditionHeader;
+  // Name leads; the ICD code trails it as a small green pill (a sibling of the
+  // title so the pill aligns cleanly). Changing the code is done via the header
+  // "Change" affordance, not by clicking the code.
+  const titleText = hasCode ? (data.icd10_display || conditionHeader) : conditionHeader;
+
+  const recCodes = suggestions || [];
+
+  // Integrated picker — search input on top, then live results (while typing)
+  // or the recommended codes (when the query is empty). Shared by the no-code
+  // state and the "Change diagnosis" flow.
+  const pickerPanel = (placeholder, onClose) => html`
+    <div class="diagnose-picker">
+      <div class="diagnose-picker-search">
+        ${ICON_SEARCH}
+        <input
+          ref=${inputRef}
+          type="text"
+          value=${query}
+          onInput=${handleInput}
+          onKeyDown=${handleKeyDown}
+          placeholder=${placeholder}
+        />
+        ${onClose && html`<button type="button" class="diagnose-picker-close" onClick=${onClose} title="Close" aria-label="Close search">${ICON_X}</button>`}
+      </div>
+      ${results.length > 0
+        ? html`
+          <div class="diagnose-picker-list">
+            ${results.map((r, i) => html`
+              <div
+                key=${r.code || ('r' + i)}
+                class="diagnose-picker-row"
+                onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
+              >
+                <span class="diagnose-picker-name">${r.display || r.description}</span>
+                <span class="diagnose-picker-code">${formatIcdCode(r.code)}</span>
+              </div>
+            `)}
+          </div>
+        `
+        : (query.length < 2 && recCodes.length > 0)
+        ? html`
+          <div class="diagnose-picker-label">Recommended</div>
+          <div class="diagnose-picker-list">
+            ${recCodes.map(s => html`
+              <div
+                key=${s.code}
+                class="diagnose-picker-row"
+                onMouseDown=${(e) => { e.preventDefault(); handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code }); }}
+              >
+                <span class="diagnose-picker-name">${s.display}</span>
+                <span class="diagnose-picker-code">${s.formatted_code}</span>
+              </div>
+            `)}
+          </div>
+        `
+        : searching
+        ? html`<div class="diagnose-picker-empty">Searching…</div>`
+        : (searched && query.length >= 2)
+        ? html`<div class="diagnose-picker-empty">No diagnoses found</div>`
+        : null}
+    </div>
+  `;
 
   return html`
     <div class="diagnose-row" ref=${containerRef}>
       <div class="diagnose-row-header">
-        <span class="diagnose-row-title">${title}</span>
+        <span class="diagnose-row-title">${titleText}</span>
+        ${hasCode && html`<span class="diagnose-icd-code">${formattedCode}</span>`}
+        ${hasCode && !readOnly && html`
+          <button type="button" class="diagnose-change-btn" onClick=${handleClearCode} title="Change diagnosis">${ICON_PENCIL} Change</button>
+        `}
       </div>
 
-      ${editingCode && !readOnly && html`
-        <div class="history-form-field" style="position: relative;">
-          <input
-            ref=${inputRef}
-            type="text"
-            class="history-form-input"
-            value=${query}
-            onInput=${handleInput}
-            onKeyDown=${handleKeyDown}
-            placeholder="Search diagnosis..."
-          />
-          ${searching && html`<span class="diag-search-spinner">Searching...</span>`}
-          ${results.length > 0 && html`
-            <div class="history-search-dropdown">
-              ${results.map(r => html`
-                <div
-                  key=${r.code}
-                  class="history-search-result"
-                  onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
-                >
-                  ${r.code && html`<strong>${formatIcdCode(r.code)}</strong>`}${' '}${r.display || r.description}
-                </div>
-              `)}
-            </div>
-          `}
-          ${!searching && searched && results.length === 0 && query.length >= 2 && html`
-            <div class="history-search-dropdown">
-              <div class="history-search-result search-no-results">No diagnoses found</div>
-            </div>
-          `}
-        </div>
-      `}
+      ${/* "Change diagnosis" picker (already-coded card). */ ''}
+      ${hasCode && editingCode && !readOnly && pickerPanel('Search for a different code…', handleCloseChange)}
+
+      ${/* No-diagnosis-code state: the integrated picker is the persistent UI. */ ''}
+      ${!hasCode && !readOnly && pickerPanel('Search a diagnosis code, or pick a recommendation below…')}
 
       ${!editingText && html`
         <div
           class="diagnose-row-body${readOnly ? '' : ' editable'}"
           onClick=${() => !readOnly && setEditingText(true)}
         >
-          ${/* KOALA_5635_BACKGROUND_ALWAYS_RENDER — read-only Background
-              block. Renders on every editable card so the affordance is
-              visible regardless of condition_id (Kevin UAT). On truly
-              read-only cards (post-approval) we still suppress when there's
-              nothing to show — an empty BACKGROUND label on a locked card
-              is noise; the user can't act on it. Mirrors AssessNarrative
-              (soap-group.js) so a future merge can reconcile shape if rec-
-              diagnose is consolidated into the assess UI. */ ''}
-          ${(!readOnly || (data.background || '').length > 0) && html`
+          ${/* Collapsed view: Background block only when there's text to show.
+              No help line, no char counter — over-limit is surfaced as a
+              warning pill in the actions column (soap-group.js). */ ''}
+          ${(data.background || '').length > 0 && html`
             <div class="diagnose-body-label">Background</div>
-            <div class="rec-hint">Optional. You write this. Carries forward to every note.</div>
-            ${(data.background || '').length > 0
-              ? (data.background || '').split('\n').map((line, i) => html`
-                  <div key=${'b' + i} class="diagnose-body-line">${line}</div>
-                `)
-              : html`<div class="diagnose-body-empty">No background text</div>`}
-            <div class="char-counter${(data.background || '').length > 1900 ? (data.background || '').length > 2048 ? ' over-limit' : ' near-limit' : ''}">${(data.background || '').length} / 2048${(data.background || '').length > 2048 ? ' — text must be shortened before approving' : ''}</div>
+            ${(data.background || '').split('\n').map((line, i) => html`
+              <div key=${'b' + i} class="diagnose-body-line">${line}</div>
+            `)}
           `}
-          ${(!readOnly || (data.background || '').length > 0) && html`
-            <div class="diagnose-body-label">Today's assessment</div>
-          `}
-          ${(data.today_assessment || '').split('\n').map((line, i) => html`
-            <div key=${i} class="diagnose-body-line">${line}</div>
-          `)}
-          ${!data.today_assessment && !(!readOnly || (data.background || '').length > 0) && html`
-            <div class="diagnose-body-empty">No assessment text</div>
-          `}
-          ${(data.today_assessment || '').length > 2048 && html`
-            <div class="char-counter over-limit">${data.today_assessment.length} / 2048 — text must be shortened before approving</div>
-          `}
+          <div class="diagnose-body-label">Today's assessment</div>
+          ${(data.today_assessment || '').length > 0
+            ? (data.today_assessment || '').split('\n').map((line, i) => html`
+                <div key=${i} class="diagnose-body-line">${line}</div>
+              `)
+            : html`<div class="diagnose-body-empty">No assessment text</div>`}
         </div>
       `}
 
       ${editingText && !readOnly && html`
-        <div class="diagnose-edit-area">
-          ${/* KOALA_5635_BACKGROUND_ALWAYS_RENDER — editable Background
-              textarea. Renders unconditionally (Kevin UAT). 2-row textarea
-              (shorter than the 5-row Today's assessment below) with a
-              visible character counter at all character counts. */ ''}
-          <div class="diagnose-body-label">Background</div>
-          <div class="rec-hint">Optional. You write this. Carries forward to every note.</div>
-          <textarea
-            ref=${backgroundRef}
-            class="command-row-textarea"
-            rows=${2}
-            maxLength=${2048}
-            value=${background}
-            onInput=${(e) => setBackground(e.target.value)}
-            onKeyDown=${handleTextKeyDown}
-          />
-          <div class="char-counter${background.length > 1900 ? background.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${background.length} / 2048</div>
-          <div class="diagnose-body-label">Today's assessment</div>
-          <textarea
-            ref=${textareaRef}
-            class="command-row-textarea"
-            rows=${5}
-            maxLength=${2048}
-            value=${assessment}
-            onInput=${(e) => setAssessment(e.target.value)}
-            onKeyDown=${handleTextKeyDown}
-          />
-          <div class="char-counter${assessment.length > 1900 ? assessment.length > 2048 ? ' over-limit' : ' near-limit' : ''}">${assessment.length} / 2048</div>
+        <div class="diagnose-edit-area editing">
+          ${showBackground
+            ? html`
+              <div class="diagnose-field">
+                <div class="diagnose-body-label">Background</div>
+                <textarea
+                  ref=${backgroundRef}
+                  class="command-row-textarea"
+                  rows=${2}
+                  maxLength=${2048}
+                  value=${background}
+                  onInput=${(e) => setBackground(e.target.value)}
+                  onKeyDown=${handleTextKeyDown}
+                />
+                <div class="diagnose-bg-footer">
+                  <span class="diagnose-bg-help">Carries forward to future notes</span>
+                  <span class="char-counter${background.length > 1900 ? background.length > 2048 ? ' over-limit' : ' near-limit' : ''}"><span class="cc-num">${background.length}</span> / 2048</span>
+                </div>
+              </div>
+            `
+            : html`
+              <div class="refer-disclosures">
+                <button type="button" class="refer-add-pill" onClick=${handleAddBackground}>+ Add background</button>
+              </div>
+            `}
+          <div class="diagnose-field">
+            <div class="diagnose-body-label">Today's assessment</div>
+            <textarea
+              ref=${textareaRef}
+              class="command-row-textarea"
+              rows=${5}
+              maxLength=${2048}
+              value=${assessment}
+              onInput=${(e) => setAssessment(e.target.value)}
+              onKeyDown=${handleTextKeyDown}
+            />
+            <div class="char-counter${assessment.length > 1900 ? assessment.length > 2048 ? ' over-limit' : ' near-limit' : ''}"><span class="cc-num">${assessment.length}</span> / 2048</div>
+          </div>
           <div class="command-row-actions">
             <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancelAssessment}>Cancel</button>
             <button type="button" class="form-btn form-btn-save" disabled=${assessment.length > 2048 || background.length > 2048} onClick=${handleSaveAssessment}>Save</button>
-          </div>
-        </div>
-      `}
-
-      ${!hasCode && !readOnly && suggestions && suggestions.length > 0 && html`
-        <div class="diagnose-suggestions">
-          <div class="history-form-label">Suggested codes</div>
-          <div class="diagnose-suggestions-list">
-            ${suggestions.map(s => html`
-              <button
-                key=${s.code}
-                type="button"
-                class="diagnose-suggestion-btn"
-                onClick=${() => handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code })}
-              >
-                <strong>${s.formatted_code}</strong>${' '}${s.display}
-              </button>
-            `)}
           </div>
         </div>
       `}
