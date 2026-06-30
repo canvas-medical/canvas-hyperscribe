@@ -181,12 +181,17 @@ def test_expand_unspecified_offers_specific_siblings() -> None:
             Icd10Condition(code="G4700", label="Insomnia, unspecified"),
             Icd10Condition(code="G4701", label="Insomnia due to medical condition"),
             Icd10Condition(code="G4709", label="Other insomnia"),
+            # Same 3-char family but a DIFFERENT sub-category — must be excluded
+            # (these are what showed up as noise in UAT).
+            Icd10Condition(code="G4733", label="Obstructive sleep apnea"),
+            Icd10Condition(code="G4763", label="Sleep related bruxism"),
         ]
 
     children = expand_unspecified(chosen, fake_search)
     codes = {child.code for child in children}
     assert "G4700" not in codes  # the unspecified bucket itself is excluded
-    assert {"G4701", "G4709"} <= codes
+    assert {"G4701", "G4709"} == codes  # only the G47.0x insomnia sub-category
+    assert "G4733" not in codes and "G4763" not in codes  # apnea/bruxism filtered out
     assert all(child.source == CandidateSource.MORE_SPECIFIC for child in children)
 
 
@@ -235,6 +240,52 @@ def test_rank_orders_definitive_above_symptom() -> None:
     ranked = rank_candidates(MDD_HEADER, candidates)
     assert ranked[0].code == "F331"
     assert ranked[-1].code == "R45851"
+
+
+def test_cross_family_chart_vs_note_conflict_is_ambiguous() -> None:
+    # UAT regression: the patient's stale active problem F32.1 ("single episode")
+    # must NOT auto-override the encounter's documented F33.1 ("recurrent"). Different
+    # ICD families + the note matches F33.1 better -> surface both, let provider pick.
+    nabla = _nabla_block(("F33.1", "Major depressive disorder, recurrent, moderate"))
+    chart = [
+        PatientConditionSnapshot(
+            condition_id="cond-mdd",
+            code="F32.1",
+            display="Major depressive disorder, single episode, moderate",
+            system="ICD-10",
+            clinical_status="active",
+            onset_date="2002-01-01",
+            resolution_date="",
+        )
+    ]
+    result = build_block_candidates("apblock-0", MDD_HEADER, nabla, chart=chart)
+    assert result.chosen is None
+    assert result.ambiguous is True
+    by_code = {c.code: c for c in result.candidates}
+    assert {"F321", "F331"} <= set(by_code)
+    assert provenance_label(by_code["F321"]) == "Active problem"
+    assert provenance_label(by_code["F331"]) == "Detected in note"
+
+
+def test_same_family_active_still_auto_applies() -> None:
+    # Guard against over-triggering: a same-family active code (more specific) still
+    # wins over Nabla's unspecified one — this is continuity, not a conflict.
+    nabla = _nabla_block(("E11.9", "Type 2 diabetes mellitus without complications"))
+    chart = [
+        PatientConditionSnapshot(
+            condition_id="cond-dm",
+            code="E11.65",
+            display="Type 2 diabetes mellitus with hyperglycemia",
+            system="ICD-10",
+            clinical_status="active",
+            onset_date="2018-01-01",
+            resolution_date="",
+        )
+    ]
+    result = build_block_candidates("apblock-0", "Type 2 diabetes mellitus", nabla, chart=chart)
+    assert result.chosen is not None
+    assert result.chosen.code == "E1165"
+    assert result.ambiguous is False
 
 
 def test_provenance_labels_full_status_matrix() -> None:

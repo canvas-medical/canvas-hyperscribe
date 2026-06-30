@@ -872,3 +872,43 @@ def test_split_plan_prefers_charted_specific_over_nabla_unspecified() -> None:
     updated, _ = split_plan_into_diagnoses(commands, section_conditions, chart_conditions=chart)
     assert updated[0]["data"]["icd10_code"] == "E11.65"
     assert updated[0]["data"]["condition_id"] == "cond-dm"
+
+
+def test_split_plan_surfaces_cross_family_chart_note_conflict() -> None:
+    """UAT regression: a stale active problem F32.1 (single episode) must not override
+    the encounter-documented F33.1 (recurrent). The card is left uncoded with both
+    options surfaced (chart + note provenance) for the provider to choose."""
+    header = "Major depressive disorder, recurrent, moderate to severe"
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": f"{header}\n- Increase sertraline"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "Major depressive disorder, recurrent, moderate",
+                "coding": [{"code": "F33.1", "display": "Major depressive disorder, recurrent, moderate"}],
+                "corresponding_note_problem": header,
+            },
+        ],
+    }
+    chart = [
+        PatientConditionSnapshot(
+            condition_id="cond-mdd",
+            code="F32.1",
+            display="Major depressive disorder, single episode, moderate",
+            system="ICD-10",
+            clinical_status="active",
+            onset_date="2002-01-01",
+            resolution_date="",
+        )
+    ]
+    updated, _ = split_plan_into_diagnoses(commands, section_conditions, chart_conditions=chart)
+    data = updated[0]["data"]
+    assert data["icd10_code"] is None
+    provs = {s["provenance"] for s in data["candidate_suggestions"]}
+    assert "Active problem" in provs
+    assert "Detected in note" in provs
