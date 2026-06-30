@@ -6,7 +6,6 @@ const html = htm.bind(h);
 
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
-const AI_SPARKLE = html`<span class="rec-ai-sparkle" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.3l1.72 5.72c.18.6.66 1.08 1.26 1.26L20.7 11l-5.72 1.72c-.6.18-1.08.66-1.26 1.26L12 19.7l-1.72-5.72c-.18-.6-.66-1.08-1.26-1.26L3.3 11l5.72-1.72c.6-.18 1.08-.66 1.26-1.26z"/></svg></span>`;
 const ICON_SEARCH = html`<svg class="refer-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
@@ -289,7 +288,7 @@ function InteractionWarningInline({ warning }) {
   `;
 }
 
-export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, noteId, staffId, staffName, noteDiagnoses = [], isRecommendation, onEditingChange, aiPending }) {
+export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, noteId, staffId, staffName, noteDiagnoses = [], isRecommendation, onEditingChange }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   useEffect(() => {
@@ -1830,7 +1829,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
         <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
           <div class="order-view">
             <span class="command-type-label">${badgeLabel}</span>
-            <div class="order-view-name">${command.display}${aiPending ? AI_SPARKLE : ''}</div>
+            <div class="order-view-name">${command.display}</div>
             ${d.sig && html`<div class="order-view-sig">Sig: ${d.sig}</div>`}
             ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
           </div>
@@ -1855,7 +1854,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
       <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
         <div class="order-view">
           <span class="command-type-label">Refer</span>
-          <div class="order-view-name">${command.display || 'Referral'}${aiPending ? AI_SPARKLE : ''}</div>
+          <div class="order-view-name">${command.display || 'Referral'}</div>
           ${indicationsLine && html`<div class="order-view-meta">${indicationsLine}</div>`}
           ${d.notes_to_specialist && html`<div class="order-view-meta">${d.notes_to_specialist}</div>`}
         </div>
@@ -1874,7 +1873,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
       <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
         <div class="order-view">
           <span class="command-type-label">${badgeLabel}</span>
-          <div class="order-view-name">${command.display}${aiPending ? AI_SPARKLE : ''}</div>
+          <div class="order-view-name">${command.display}</div>
           ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
         </div>
       </div>
@@ -1885,7 +1884,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     <div class="order-row" onClick=${() => !readOnly && setEditing(true)}>
       <div class="order-view">
         <span class="command-type-label">${badgeLabel}</span>
-        <div class="order-view-name">${command.display}${aiPending ? AI_SPARKLE : ''}</div>
+        <div class="order-view-name">${command.display}</div>
       </div>
     </div>
   `;
