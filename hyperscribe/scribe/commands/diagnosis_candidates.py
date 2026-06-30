@@ -351,10 +351,6 @@ def resolve_choice(header: str, ranked: list[DiagnosisCandidate]) -> tuple[Diagn
         return None, False
     top = ranked[0]
 
-    # An active problem-list match is always trusted.
-    if top.source == CandidateSource.ACTIVE_PROBLEM:
-        return top, False
-
     # A science-only candidate has no chart/Nabla support — never auto-stamp it.
     if top.source == CandidateSource.SCIENCE_SEARCH:
         return None, True
@@ -366,6 +362,23 @@ def resolve_choice(header: str, ranked: list[DiagnosisCandidate]) -> tuple[Diagn
     # header with no definitive code) — surface it for the provider, never stamp it.
     if _is_symptom_or_context(top.code) and _overlap_bucket(header, top.display) < 1:
         return None, True
+
+    # Cross-entity conflict: another candidate in a DIFFERENT ICD-10 family matches the
+    # header at least as well as the top. That's a genuine disagreement about WHICH
+    # condition is being coded — most importantly a stale chart code vs the encounter's
+    # documented code (e.g. active-problem F32.1 "single episode" vs Nabla F33.1
+    # "recurrent" for a header that says "recurrent"). Never auto-pick the chart code
+    # over the documented one; surface both with provenance and let the provider choose.
+    top_root = _icd10_family_root(top.code)
+    top_bucket = _overlap_bucket(header, top.display)
+    for other in ranked[1:]:
+        if _icd10_family_root(other.code) != top_root and _overlap_bucket(header, other.display) >= top_bucket:
+            return None, True
+
+    # An active problem-list match (with no cross-family conflict above) is trusted
+    # for continuity of care.
+    if top.source == CandidateSource.ACTIVE_PROBLEM:
+        return top, False
 
     # If a second candidate ties the top through the meaningful tiers (1..4 — i.e.
     # only specificity/order separate them), it's genuinely ambiguous; surface both.
@@ -403,25 +416,32 @@ def expand_unspecified(
     """
     if science_search is None:
         return []
-    root = _icd10_family_root(chosen.code)
+    norm = icd10_normalize(chosen.code)
+    root = _icd10_family_root(norm)
     if not root:
         return []
+    # Scope the refinements to the unspecified code's own sub-category, not the whole
+    # 3-char family. ``G47.00`` ("Insomnia, unspecified") sits under ``G47.0`` (insomnia)
+    # within the broader ``G47`` (all sleep disorders) — so its refinements are
+    # ``G47.0x`` (G47.01/.09), NOT ``G47.33`` sleep apnea or ``G47.63`` bruxism. When the
+    # 4th char is itself the unspecified marker ``9`` (``E03.9``, ``F33.9``, ``E11.9``),
+    # the whole 3-char family IS the sub-category, so the root is the right scope.
+    scope_prefix = norm[:4] if len(norm) >= 4 and norm[3] != "9" else root
     try:
         hits = science_search([root]) or []
     except Exception:
         return []
     children: list[DiagnosisCandidate] = []
-    seen: set[str] = {chosen.code}
+    seen: set[str] = {norm}
     for hit in hits:
         code = icd10_normalize(getattr(hit, "code", ""))
         display = getattr(hit, "label", "")
         if not code or code in seen:
             continue
-        # Same family, and itself a specified code. We deliberately do NOT use
-        # "longer code = more specific": an unspecified bucket like ``G47.00`` has
-        # equally-long specified siblings (``G47.01``, ``G47.09``). Excluding other
-        # unspecified codes (the family root, ``*.9``) is the right filter.
-        if _icd10_family_root(code) != root or is_unspecified_code(code, display):
+        # Within the unspecified code's sub-category, and itself a specified code. We do
+        # NOT use "longer code = more specific": an unspecified bucket like ``G47.00`` has
+        # equally-long specified siblings (``G47.01``, ``G47.09``).
+        if not code.startswith(scope_prefix) or is_unspecified_code(code, display):
             continue
         seen.add(code)
         children.append(
