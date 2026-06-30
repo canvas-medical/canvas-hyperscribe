@@ -1127,9 +1127,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onEdit=${onEditRecommendation}
                           alertFacilityEnabled=${alertFacilityEnabled}
                           readOnly=${medRecRowReadOnly || isRejected}
-                          onEditingChange=${onEditingChange}
-                          aiPending=${isUnreviewed && !readOnly && !entry.command.already_documented}
-                        />
+                          onEditingChange=${onEditingChange}                        />
                       </div>
                       <div class="recommendation-actions">
                         ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: false, missingLabel: '', acceptDisabled: false, readOnly, onAccept: () => onAcceptRecommendation(entry.index), onReject: () => onRejectRecommendation(entry.index), onAddNow })}
@@ -1232,9 +1230,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditRecommendation}
                           readOnly=${allergyRecRowReadOnly || isRejected}
-                          onEditingChange=${onEditingChange}
-                          aiPending=${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented}
-                        />
+                          onEditingChange=${onEditingChange}                        />
                       </div>
                       <div class="recommendation-actions">
                         ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: false, missingLabel: '', acceptDisabled: false, readOnly, onAccept: () => onAcceptRecommendation(entry.index), onReject: () => onRejectRecommendation(entry.index), onAddNow: null })}
@@ -1612,9 +1608,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       staffName=${staffName}
                       noteDiagnoses=${noteDiagnoses}
                       isRecommendation=${true}
-                      onEditingChange=${onEditingChange}
-                      aiPending=${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented}
-                    />
+                      onEditingChange=${onEditingChange}                    />
                   </div>
                   <div class="recommendation-actions">
                     ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: isIncomplete, missingLabel: missingFields.join(', '), acceptDisabled: isIncomplete, readOnly, onAccept: () => onAcceptRecommendation(entry.index), onReject: () => onRejectRecommendation(entry.index), onAddNow })}
@@ -1661,9 +1655,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       staffName=${staffName}
                       noteDiagnoses=${noteDiagnoses}
                       isRecommendation=${true}
-                      onEditingChange=${onEditingChange}
-                      aiPending=${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented}
-                    />
+                      onEditingChange=${onEditingChange}                    />
                   </div>
                   <div class="recommendation-actions">
                     ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: isIncomplete, missingLabel: missingFields.join(', '), acceptDisabled: isIncomplete, readOnly, onAccept: () => onAcceptRecommendation(entry.index), onReject: () => onRejectRecommendation(entry.index), onAddNow })}
@@ -1698,9 +1690,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       onDelete=${onDeleteRecommendation}
                       assignees=${assignees}
                       readOnly=${taskRecRowReadOnly || isRejected}
-                      onEditingChange=${onEditingChange}
-                      aiPending=${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented}
-                    />
+                      onEditingChange=${onEditingChange}                    />
                     ${entry.command.data.due_date_hint && html`<div class="rec-hint">Suggested timing: ${entry.command.data.due_date_hint}</div>`}
                     ${entry.command.data.assignee_hint && html`<div class="rec-hint">Suggested assignee: ${entry.command.data.assignee_hint}</div>`}
                   </div>

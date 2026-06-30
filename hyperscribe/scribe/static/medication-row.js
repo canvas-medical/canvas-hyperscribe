@@ -6,8 +6,6 @@ const html = htm.bind(h);
 
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
-// AI-origin sparkle — shown after the name only while a recommendation is pending review.
-const AI_SPARKLE = html`<span class="rec-ai-sparkle" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.3l1.72 5.72c.18.6.66 1.08 1.26 1.26L20.7 11l-5.72 1.72c-.6.18-1.08.66-1.26 1.26L12 19.7l-1.72-5.72c-.18-.6-.66-1.08-1.26-1.26L3.3 11l5.72-1.72c.6-.18 1.08-.66 1.26-1.26z"/></svg></span>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -26,7 +24,7 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityEnabled, onEditingChange, aiPending }) {
+export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityEnabled, onEditingChange }) {
   const [editing, setEditing] = useState(!command.display);
   useEffect(() => {
     onEditingChange?.(commandIndex, editing);
@@ -224,7 +222,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     <div class="medication-row"
          onClick=${() => !readOnly && setEditing(true)}>
       <div class="order-view">
-        <div class="order-view-name">${command.display}${aiPending ? AI_SPARKLE : ''}</div>
+        <div class="order-view-name">${command.display}</div>
         ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
         ${alertFacilityEnabled && command.data.alert_facility && html`<span class="badge badge-alert">Alert Facility</span>`}
       </div>
