@@ -168,17 +168,10 @@ def provenance_label(candidate: DiagnosisCandidate) -> str:
     if source == CandidateSource.ACTIVE_PROBLEM:
         return "Active problem"
     if source == CandidateSource.PRIOR_CONDITION:
-        status = (candidate.clinical_status or "").lower()
-        if status == "resolved":
-            year = candidate.resolution_date[:4]
-            return f"Resolved {year}" if year.isdigit() else "Resolved"
-        if status == "remission":
-            return "In remission"
-        if status == "relapse":
-            return "Relapse"
-        if status == "investigative":
-            return "Under investigation"
-        return "Prior condition"
+        # One catch-all for every non-active status (resolved / remission / relapse /
+        # investigative) — the date/status variants add noise without changing what
+        # the provider does (pick it to re-document).
+        return "Past condition"
     if source == CandidateSource.NABLA:
         return "Detected in note"
     if source == CandidateSource.SCIENCE_SEARCH:

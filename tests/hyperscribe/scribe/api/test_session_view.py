@@ -4629,7 +4629,10 @@ def test_generate_summary_success(
     view = _helper_instance()
     view.secrets["AnthropicAPIKey"] = "test-key"
     view.request = SimpleNamespace(body=json.dumps({"note_id": "55", "note_uuid": "55"}))
-    result = view.post_generate_summary()
+    # No more-specific options available -> the (3-char/unspecified) Nabla code is
+    # applied as-is rather than surfaced for a pick (decision: no one-option picker).
+    with patch("hyperscribe.scribe.api.session_view.CanvasScience.search_conditions", return_value=[]):
+        result = view.post_generate_summary()
 
     assert result[0].status_code == HTTPStatus.OK
     data = json.loads(result[0].content)
@@ -4803,7 +4806,10 @@ def test_generate_summary_empty_active_problem_list_leaves_nabla_code_intact(
     view = _helper_instance()
     view.secrets["AnthropicAPIKey"] = "test-key"
     view.request = SimpleNamespace(body=json.dumps({"note_id": "55", "note_uuid": "55", "patient_id": "patient-key-1"}))
-    result = view.post_generate_summary()
+    # Mock the science search empty so the unspecified/3-char Nabla code is applied
+    # as-is (no more-specific options to surface) — isolates the active-problem-list path.
+    with patch("hyperscribe.scribe.api.session_view.CanvasScience.search_conditions", return_value=[]):
+        result = view.post_generate_summary()
 
     assert result[0].status_code == HTTPStatus.OK
     data = json.loads(result[0].content)

@@ -334,8 +334,8 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
                 onMouseDown=${(e) => { e.preventDefault(); handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code }); }}
               >
                 <span class="diagnose-picker-name">${s.display}</span>
-                ${s.provenance ? html`<span class="diagnose-picker-prov">${s.provenance}</span>` : ''}
                 <span class="diagnose-picker-code">${s.formatted_code}</span>
+                ${s.provenance ? html`<span class="diagnose-picker-prov">${s.provenance}</span>` : ''}
               </div>
             `)}
           </div>
@@ -356,22 +356,16 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
         ${hasCode && !readOnly && html`
           <button type="button" class="diagnose-change-btn" onClick=${handleClearCode} title="Change diagnosis">${ICON_PENCIL} Change</button>
         `}
-        ${/* Unspecified nudge — the working code stays applied; clicking opens the
-            Change picker, pre-loaded with grounded more-specific siblings. */ ''}
-        ${hasCode && !readOnly && data.unspecified && html`
-          <button type="button" class="diagnose-unspecified-nudge" onClick=${handleClearCode} title="This code is unspecified — pick a more specific one">Unspecified — refine</button>
-        `}
       </div>
 
       ${/* "Change diagnosis" picker (already-coded card). */ ''}
       ${hasCode && editingCode && !readOnly && pickerPanel('Search for a different code…', handleCloseChange)}
 
-      ${/* No-diagnosis-code state: the integrated picker is the persistent UI. When
-          the ranker left this block intentionally uncoded (ambiguous), it sent
-          ranked options — tell the provider it's theirs to choose. */ ''}
-      ${!hasCode && !readOnly && recCodes.length > 0 && html`
-        <div class="diagnose-ambiguity-hint">Multiple possible codes — select one</div>
-      `}
+      ${/* No-diagnosis-code state: the integrated picker is the persistent UI. The
+          ranker leaves a block uncoded when codes conflict or an unspecified code
+          has more-specific options; the picker's ranked recommendations (with
+          provenance) are the provider's pick list. The "Missing: Diagnosis Code"
+          action pill is the sole needs-a-pick signal — no separate hint. */ ''}
       ${!hasCode && !readOnly && pickerPanel('Search a diagnosis code, or pick a recommendation below…')}
 
       ${!editingText && html`

@@ -150,8 +150,9 @@ def test_provenance_labels() -> None:
     science = DiagnosisCandidate(code="F331", raw_code="F33.1", display="", source=CandidateSource.SCIENCE_SEARCH)
     more = DiagnosisCandidate(code="G4701", raw_code="G47.01", display="", source=CandidateSource.MORE_SPECIFIC)
     assert provenance_label(active) == "Active problem"
-    assert provenance_label(resolved) == "Resolved 2021"
-    assert provenance_label(remission) == "In remission"
+    # Every non-active status collapses to one catch-all tag.
+    assert provenance_label(resolved) == "Past condition"
+    assert provenance_label(remission) == "Past condition"
     assert provenance_label(nabla) == "Detected in note"
     assert provenance_label(science) == "ICD-10 search"
     assert provenance_label(more) == "More specific option"
@@ -294,19 +295,11 @@ def test_provenance_labels_full_status_matrix() -> None:
             code="F331", raw_code="F33.1", display="", source=CandidateSource.PRIOR_CONDITION, clinical_status=status
         )
 
-    assert provenance_label(prior("relapse")) == "Relapse"
-    assert provenance_label(prior("investigative")) == "Under investigation"
-    assert provenance_label(prior("")) == "Prior condition"
-    # Resolved with an unparseable date falls back to the bare label.
-    weird = DiagnosisCandidate(
-        code="F331",
-        raw_code="F33.1",
-        display="",
-        source=CandidateSource.PRIOR_CONDITION,
-        clinical_status="resolved",
-        resolution_date="unknown",
-    )
-    assert provenance_label(weird) == "Resolved"
+    # Every non-active clinical status maps to the single "Past condition" tag.
+    assert provenance_label(prior("relapse")) == "Past condition"
+    assert provenance_label(prior("investigative")) == "Past condition"
+    assert provenance_label(prior("resolved")) == "Past condition"
+    assert provenance_label(prior("")) == "Past condition"
     # Unknown source -> empty label.
     assert provenance_label(DiagnosisCandidate(code="F331", raw_code="F33.1", display="", source="mystery")) == ""
 
