@@ -25,7 +25,7 @@ function formatIcdCode(raw) {
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
-export function DiagnoseRow({ command, commandIndex, onEdit, onDelete, readOnly, suggestions, onAccept, onEditingChange }) {
+export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestions, onEditingChange }) {
   const data = command.data || {};
   const hasCode = !!data.icd10_code;
   // KOALA_5635_BACKGROUND_ALWAYS_RENDER — Background is available on EVERY

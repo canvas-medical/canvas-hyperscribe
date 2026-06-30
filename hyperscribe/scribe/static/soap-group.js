@@ -847,10 +847,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             command=${entry.command}
                             commandIndex=${entry.index}
                             onEdit=${onEditCommand}
-                            onDelete=${onDeleteCommand}
                             readOnly=${diagnoseRowReadOnly || isRejected}
                             suggestions=${suggestions}
-                            onAccept=${handleAcceptDiagnose}
                             onEditingChange=${onEditingChange}
                           />
                         </div>
