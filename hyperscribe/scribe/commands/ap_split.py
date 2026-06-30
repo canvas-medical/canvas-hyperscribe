@@ -9,6 +9,14 @@ from logger import log
 if TYPE_CHECKING:
     from canvas_sdk.v1.data.note import Note
 
+    # Annotation-only imports (``from __future__ import annotations`` keeps these
+    # as strings at runtime, so there is no import cycle even though
+    # ``diagnosis_candidates`` imports text helpers from this module).
+    from hyperscribe.scribe.commands.diagnosis_candidates import (
+        PatientConditionSnapshot,
+        ScienceSearch,
+    )
+
 
 _STOP_WORDS = frozenset(
     {
@@ -244,24 +252,38 @@ def split_plan_into_diagnoses(
     commands: list[dict[str, Any]],
     section_conditions: dict[str, list[dict[str, Any]]],
     note: Note | None = None,
+    *,
+    chart_conditions: list[PatientConditionSnapshot] | None = None,
+    science_search: ScienceSearch | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Replace the plan/assessment_and_plan command with per-condition diagnose commands.
 
     Returns ``(updated_commands, unmatched_conditions)`` where *unmatched_conditions*
-    are conditions from normalized data that did not match any A&P block header.
+    are conditions from normalized data that no A&P block claimed.
 
-    KOALA_5635_STAMP_CONDITION_ID — when ``note`` is supplied, each produced
-    diagnose proposal whose ``icd10_code`` matches an active condition on the
-    note's patient gets ``data["condition_id"]`` stamped with the SDK
-    ``condition.id``. That makes the proposal eligible for the per-(patient,
-    condition) background carry-forward (the frontend later flips
-    ``command_type`` from ``diagnose`` → ``assess`` at insert time when the
-    same ICD-match holds; see ``handleInsert`` in summary.js).
+    Code selection is delegated to the grounded ranker in ``diagnosis_candidates``:
+    for each block, ALL codings of the associated Nabla condition(s) — plus the
+    patient's chart codes (``chart_conditions``) and, as a last resort, a grounded
+    science search (``science_search``) — enter a clinically-ranked candidate set.
+    A single confident match is auto-applied; otherwise the block is left UNCODED
+    and ``data["candidate_suggestions"]`` carries the ranked options for the
+    provider to pick. This replaces the old first-match-wins ``next(...)`` pick,
+    which let an incidental symptom code (e.g. R45.851) win over the real
+    diagnosis (e.g. F33.1) and orphaned the rest.
 
-    Why ``note`` is optional: ``split_plan_into_diagnoses`` was pure (no DB
-    access) prior to KOALA-5635 and existing callers in tests still rely on
-    that contract. Callers that have a ``note`` opt-in to the stamping by
-    passing it; callers that don't get the original behavior.
+    Each proposal is stamped with a stable ``data["block_id"]`` (``apblock-{i}``),
+    the association key used downstream instead of the mutable condition header.
+
+    KOALA_5635_STAMP_CONDITION_ID — a proposal whose chosen code matches an ACTIVE
+    condition on the patient gets ``data["condition_id"]`` stamped (from the
+    ``note``-derived active index and/or the chosen chart candidate), keeping it
+    eligible for the diagnose→assess flip. Resolved/inactive matches never carry a
+    condition_id (the SDK has no reactivation command).
+
+    Why the keyword args are optional: the pure (no DB / no network) contract is
+    preserved for existing callers — when ``chart_conditions``/``science_search``
+    are omitted, ranking runs on the Nabla codings alone (which already fixes the
+    symptom-over-diagnosis defect).
     """
     ap_idx = -1
     for i, c in enumerate(commands):
@@ -278,14 +300,26 @@ def split_plan_into_diagnoses(
     if not blocks:
         return commands, []
 
+    # Lazy import to avoid an import cycle: ``diagnosis_candidates`` imports the
+    # text helpers (``word_overlap`` / ``significant_words``) from this module at
+    # load time, so this module must not import it at module scope.
+    from hyperscribe.scribe.commands.diagnosis_candidates import (
+        build_block_candidates,
+        expand_unspecified,
+        is_unspecified_code,
+        serialize_candidate,
+    )
+
     diagnose_commands: list[dict[str, Any]] = []
-    matched_set: set[int] = set()
+    claimed: set[int] = set()
     # KOALA_5635_STAMP_CONDITION_ID — build the active-condition ICD-10 index
     # once per call (not per block) so we don't N+1 patient_conditions per
     # diagnose proposal. ``{}`` when ``note`` is None or the lookup fails.
     active_icd10_index = _build_active_condition_icd10_index(note) if note is not None else {}
+    chart = chart_conditions or []
 
-    for block in blocks:
+    for i, block in enumerate(blocks):
+        block_id = f"apblock-{i}"
         # Strip a trailing colon from the header. split_by_problem templates emit
         # problem headers as "Diagnosis:" (followed by bulleted plan), and the
         # colon breaks the exact match against Nabla's colon-less
@@ -295,48 +329,57 @@ def split_plan_into_diagnoses(
         header = block.header.strip()
         if header.endswith(":"):
             header = header[:-1].strip()
-        # Prefer exact match via Nabla's corresponding_note_problem field.
-        matched = next(
-            (
-                c
-                for c in codes
-                if c.get("corresponding_note_problem")
-                and c["corresponding_note_problem"].strip().lower() == header.lower()
-            ),
-            None,
-        )
-        if not matched:
-            matched = match_condition(header, codes)
-        icd: dict[str, Any] | None = None
-        if matched:
-            icd = next((cd for cd in (matched.get("coding") or []) if cd.get("code")), None)
-            matched_set.add(id(matched))
-        if icd and matched:
-            display = icd.get("display") or matched.get("display") or header
-            icd10_code: str | None = icd["code"]
-            icd10_display = icd.get("display") or matched.get("display") or ""
-        else:
-            display = header
-            icd10_code = None
-            icd10_display = ""
-        # KOALA_5635_STAMP_CONDITION_ID — when this proposal's icd10_code
-        # matches an active condition on the note's patient, stamp the SDK
-        # condition_id so the dict-shaped carry-forward prefill at the call
-        # site can scope the background lookup to (patient, condition).
-        # Additive only: we do NOT flip command_type to "assess" here — the
-        # frontend handleInsert flip (KOALA-5634 territory) still owns the
-        # diagnose→assess decision at insert time.
+
+        # Associate Nabla condition(s) with this block. Exact
+        # ``corresponding_note_problem`` matches first — note there may be SEVERAL
+        # (Nabla attaches the same note problem to a definitive code AND incidental
+        # symptom codes), and we keep ALL of them so the ranker, not list order,
+        # decides. Falls back to a single fuzzy header match.
+        nabla_for_block = [
+            c
+            for c in codes
+            if c.get("corresponding_note_problem") and c["corresponding_note_problem"].strip().lower() == header.lower()
+        ]
+        if not nabla_for_block:
+            fuzzy = match_condition(header, codes)
+            if fuzzy is not None:
+                nabla_for_block = [fuzzy]
+        for condition in nabla_for_block:
+            claimed.add(id(condition))
+
+        block_candidates = build_block_candidates(block_id, header, nabla_for_block, chart, science_search)
+        chosen = block_candidates.chosen
+
         data: dict[str, Any] = {
-            "icd10_code": icd10_code,
-            "icd10_display": icd10_display,
+            "icd10_code": chosen.raw_code if chosen else None,
+            "icd10_display": chosen.display if chosen else "",
             "condition_header": header,
             "today_assessment": "\n".join(block.body),
             "accepted": False,
+            "block_id": block_id,
         }
-        if icd10_code and active_icd10_index:
-            stamped_id = active_icd10_index.get(_normalize_icd10(icd10_code))
+        display = (chosen.display if chosen else "") or header
+
+        if chosen is not None:
+            # condition_id: the ``note``-derived active index (existing path) OR the
+            # chosen chart candidate's id. Both are ACTIVE-only — a resolved/inactive
+            # match never carries a condition_id, so the diagnose→assess flip can't
+            # attach an assessment to a resolved record (no SDK reactivation).
+            stamped_id = active_icd10_index.get(_normalize_icd10(chosen.raw_code)) or chosen.condition_id
             if stamped_id:
                 data["condition_id"] = stamped_id
+            # Unspecified nudge: the working code stays applied, but surface grounded
+            # more-specific siblings (from the science service) for one-click refine.
+            if is_unspecified_code(chosen.code, chosen.display):
+                children = expand_unspecified(chosen, science_search)
+                if children:
+                    data["unspecified"] = True
+                    data["candidate_suggestions"] = [serialize_candidate(child) for child in children]
+        elif block_candidates.ambiguous:
+            # Leave the card UNCODED and surface the ranked options (with provenance)
+            # for the provider to choose. Never auto-stamp an ambiguous code.
+            data["candidate_suggestions"] = [serialize_candidate(c) for c in block_candidates.candidates[:5]]
+
         diagnose_commands.append(
             _serialize_proposal(
                 command_type="diagnose",
@@ -346,6 +389,6 @@ def split_plan_into_diagnoses(
             )
         )
 
-    unmatched = [c for c in codes if id(c) not in matched_set]
+    unmatched = [c for c in codes if id(c) not in claimed]
     updated = [*commands[:ap_idx], *diagnose_commands, *commands[ap_idx + 1 :]]
     return updated, unmatched

@@ -174,6 +174,10 @@ class NablaBackend(ScribeBackend):
             "include_corresponding_note_problems": True,
         }
         raw = self._rest_client.generate_normalized_data(payload)
+        # Stash the raw normalized-data response (mirrors _last_raw_note_response)
+        # so /generate-summary can persist it for analysis/regression of the
+        # ICD-10 ranking pipeline.
+        self._last_raw_normalized_response = raw
         return self._parse_normalized_data(raw)
 
     # Remap section titles from Nabla to user-facing labels.

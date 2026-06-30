@@ -93,6 +93,7 @@ const _commandValidationReason = (c) => {
   if (c.command_type === 'imaging_order') return 'imaging_incomplete';
   if (c.command_type === 'lab_order') return 'lab_incomplete';
   if (c.command_type === 'perform') return 'perform_incomplete';
+  if (c.command_type === 'diagnose' && !(c.data && c.data.icd10_code)) return 'diagnose_uncoded';
   return 'validation';
 };
 const _validationErrorMessage = (c, reason, context = 'approving') => {
@@ -102,6 +103,7 @@ const _validationErrorMessage = (c, reason, context = 'approving') => {
   if (reason === 'imaging_incomplete') return `This imaging order is missing required fields (image code, service provider, ordering provider, or diagnosis codes). ${suffix}`;
   if (reason === 'lab_incomplete') return `This lab order is missing required fields (lab partner or tests). ${suffix}`;
   if (reason === 'perform_incomplete') return `This perform command is missing a CPT code. ${suffix}`;
+  if (reason === 'diagnose_uncoded') return `This diagnosis needs an ICD-10 code. Pick one (or reject it) before ${context}.`;
   return `This command has invalid values. ${suffix}`;
 };
 
@@ -2305,6 +2307,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.command_type === 'lab_order' && (!c.data.lab_partner || !c.data.tests_order_codes || c.data.tests_order_codes.length === 0)) return false;
       if (c.command_type === 'refer' && (!c.data.service_provider || !c.data.clinical_question || !c.data.notes_to_specialist || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
+      // Hard block: a surfaced diagnosis must carry an ICD-10 code before the note
+      // can be approved. The provider either codes it (via the picker) or rejects
+      // it. A coded diagnose that matched an active problem has already flipped to
+      // `assess` upstream (which is exempt — it carries condition_id, not a code).
+      if (c.command_type === 'diagnose' && !(c.data && c.data.icd10_code) && !(c.data && c.data.rejected)) return false;
       return true;
     });
     // Pre-existing finalized notes (signed before the explicit

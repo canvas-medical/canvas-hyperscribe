@@ -55,6 +55,7 @@ from hyperscribe.scribe.backend import (
     get_backend_from_secrets,
 )
 from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
+from hyperscribe.scribe.commands.diagnosis_candidates import PatientConditionSnapshot
 from hyperscribe.scribe.commands.builder import (
     DIRECT_EDIT_SECTIONS,
     EDITABLE_AMEND_SECTIONS,
@@ -416,6 +417,54 @@ def _load_active_patient_conditions(patient_id: str) -> list[ActivePatientCondit
     return results
 
 
+def _load_patient_condition_history(patient_id: str) -> list[PatientConditionSnapshot]:
+    """Return the patient's committed conditions — active AND inactive (resolved,
+    remission, relapse, investigative) — narrowed to what the ICD-10 ranker needs.
+
+    Distinct from :func:`_load_active_patient_conditions` (which is ``.active()``
+    only and feeds the legacy rewrite/belt): the ranker uses prior conditions as a
+    selection signal and to show provenance ("Resolved 2021"), so this drops the
+    ``.active()`` filter and carries ``clinical_status`` / ``onset_date`` /
+    ``resolution_date``.
+
+    Best-effort: any ORM error returns ``[]`` so ``/generate-summary`` never dies
+    on a condition lookup (mirrors the contract documented in
+    ``ap_split._build_active_condition_icd10_index``). PHI: log only counts —
+    never codes, displays, or patient identifiers.
+    """
+    if not patient_id:
+        return []
+    try:
+        conditions = (
+            ConditionModel.objects.committed()
+            .for_patient(patient_id)
+            .prefetch_related("codings")
+            .order_by("-onset_date")
+        )
+        results: list[PatientConditionSnapshot] = []
+        for condition in conditions:
+            codings = list(condition.codings.all())
+            if not codings:
+                continue
+            icd10 = next((coding for coding in codings if "icd" in (coding.system or "").lower()), None)
+            chosen = icd10 or codings[0]
+            results.append(
+                PatientConditionSnapshot(
+                    condition_id=str(condition.id),
+                    code=chosen.code or "",
+                    display=chosen.display or "",
+                    system=chosen.system or "",
+                    clinical_status=condition.clinical_status or "",
+                    onset_date=condition.onset_date.isoformat() if condition.onset_date else "",
+                    resolution_date=condition.resolution_date.isoformat() if condition.resolution_date else "",
+                )
+            )
+        return results
+    except Exception:
+        log.exception("patient condition history lookup failed for note generation")
+        return []
+
+
 def _match_conditions_to_sections(
     note: ClinicalNote,
     conditions: list[Condition],
@@ -485,6 +534,8 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
         defaults["mode"] = payload["mode"] or ""
     if "raw_response" in payload:
         defaults["raw_response"] = payload["raw_response"]
+    if "raw_normalized_response" in payload:
+        defaults["raw_normalized_response"] = payload["raw_normalized_response"]
     ScribeSummary.objects.update_or_create(note_id=note_dbid, defaults=defaults)
 
 
@@ -859,6 +910,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 "selected_template_name",
                 "mode",
                 "raw_response",
+                "raw_normalized_response",
                 "updated_at",
             )
             .first()
@@ -1237,8 +1289,17 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     note_for_split = Note.objects.select_related("patient").get(id=note_uuid)
                 except Note.DoesNotExist:
                     note_for_split = None
+        # Feed the grounded ranker the patient's full condition history (active +
+        # inactive) for selection/provenance, and the science service for the
+        # fallback/unspecified-refinement lookups. ``note`` still drives the
+        # active-only condition_id stamping (diagnose→assess flip eligibility).
+        chart_conditions = _load_patient_condition_history(str(data.get("patient_id", "")))
         commands_list, unmatched_conditions = split_plan_into_diagnoses(
-            commands_list, section_conditions, note=note_for_split
+            commands_list,
+            section_conditions,
+            note=note_for_split,
+            chart_conditions=chart_conditions,
+            science_search=CanvasScience.search_conditions,
         )
         prefill_diagnose_backgrounds(commands_list, note_uuid)
 
@@ -1292,20 +1353,20 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             except Exception:
                 log.exception("interaction check failed (non-critical)")
 
-        # ── Step 4: Suggest diagnoses for unmatched blocks ──
+        # ── Step 4: Collect grounded suggestions for uncoded blocks ──
+        # The A&P belt already stamped ranked, science/chart-grounded
+        # ``candidate_suggestions`` on each uncoded diagnose proposal (no LLM, no
+        # invented codes). Surface them as a ``block_id -> options`` map — the
+        # stable association key, replacing the old mutable-header keying.
         _save_progress(note_id, 4, total, SUMMARY_STEPS[4])
-        diagnosis_suggestions: dict[str, Any] = {}
-        unmatched_headers = [
-            c["data"].get("condition_header", "")
+        diagnosis_suggestions: dict[str, Any] = {
+            c["data"]["block_id"]: c["data"]["candidate_suggestions"]
             for c in commands_list
-            if c.get("command_type") == "diagnose" and not c.get("data", {}).get("icd10_code")
-        ]
-        unmatched_headers = [h for h in unmatched_headers if h]
-        if unmatched_headers and api_key:
-            try:
-                diagnosis_suggestions = suggest_diagnoses(unmatched_headers, api_key)
-            except Exception:
-                log.exception("suggest_diagnoses failed (non-critical)")
+            if c.get("command_type") == "diagnose"
+            and not c.get("data", {}).get("icd10_code")
+            and c.get("data", {}).get("block_id")
+            and c.get("data", {}).get("candidate_suggestions")
+        }
 
         # ── Step 4b: Give generic referrals a validated indication ──
         # Match each referral's condition to a code already in the note (diagnose
@@ -1339,6 +1400,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             summary_payload["selected_template_name"] = data["selected_template_name"]
         if raw_response is not None:
             summary_payload["raw_response"] = raw_response
+        raw_normalized_response = getattr(backend, "_last_raw_normalized_response", None)
+        if raw_normalized_response is not None:
+            summary_payload["raw_normalized_response"] = raw_normalized_response
         _save_summary(note_id, summary_payload)
 
         return [
@@ -1548,16 +1612,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         conditions = data.get("conditions", [])
         if not conditions or not isinstance(conditions, list):
             return [JSONResponse({"suggestions": {}}, status_code=HTTPStatus.OK)]
-        api_key = self.secrets.get("AnthropicAPIKey", "")
-        if not api_key:
-            return [
-                JSONResponse(
-                    {"error": "AnthropicAPIKey secret is not configured"},
-                    status_code=HTTPStatus.BAD_REQUEST,
-                )
-            ]
         try:
-            suggestions = suggest_diagnoses(conditions, api_key)
+            # Grounded in the science service only — no LLM, no invented codes.
+            suggestions = suggest_diagnoses(conditions)
         except Exception:
             log.exception("suggest_diagnoses failed")
             return [

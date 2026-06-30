@@ -776,7 +776,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             // If the A&P has been split into per-condition commands, render each diagnose as DiagnoseRow and assess as CommandRow.
             const hasConditionCommands = isPlan && cmds.some(e => e.command.command_type === 'diagnose' || e.command.command_type === 'assess');
             if (hasConditionCommands) {
-              const unmatched = unmatchedConditions || [];
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${s.title}</div>
@@ -833,7 +832,19 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const isRejected = dxData.rejected;
                     const isIncomplete = !hasCode && !isRejected;
                     const header = dxData.condition_header || '';
-                    const suggestions = (!hasCode && !isRejected && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
+                    // Ranked, grounded code options for an uncoded card. The belt
+                    // stamps them directly on the command (data.candidate_suggestions),
+                    // keyed by the stable block_id; fall back to the block_id-keyed
+                    // diagnosisSuggestions map. (Header-string keying was fragile and
+                    // is gone.)
+                    const blockId = dxData.block_id || '';
+                    // Uncoded card: ranked grounded options to pick from. Coded-but-
+                    // unspecified card: the more-specific children for the refine nudge.
+                    const suggestions = (!isRejected && (
+                      (!hasCode && (dxData.candidate_suggestions
+                        || (diagnosisSuggestions && blockId && diagnosisSuggestions[blockId])))
+                      || (hasCode && dxData.unspecified && dxData.candidate_suggestions)
+                    )) || null;
 
                     const handleAcceptDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, accepted: true, rejected: false }, 'diagnose');
                     const handleRejectDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, rejected: true, accepted: false }, 'diagnose');
@@ -865,29 +876,12 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       </div>
                     `;
                   })}
-                  ${!readOnly && unmatched.length > 0 && html`
-                    <div class="diagnose-suggestions" style="margin-top: 12px;">
-                      <div class="history-form-label">Other detected conditions</div>
-                      <div class="diagnose-suggestions-list">
-                        ${unmatched.map(c => {
-                          const codes = (c.coding || []).filter(cd => cd.code);
-                          const code = codes[0];
-                          if (!code) return null;
-                          const stripped = code.code.replace(/\./g, '');
-                          const formatted = stripped.length > 3 ? stripped.slice(0, 3) + '.' + stripped.slice(3) : stripped;
-                          const display = c.display || code.display || formatted;
-                          return html`
-                            <button
-                              key=${code.code}
-                              type="button"
-                              class="diagnose-suggestion-btn"
-                              onClick=${() => onAddCondition && onAddCondition(code.code, display)}
-                            ><strong>${formatted}</strong>${' '}${display}</button>
-                          `;
-                        })}
-                      </div>
-                    </div>
-                  `}
+                  ${/* The "Other detected conditions" section was removed: the
+                      grounded ranker now relocates block-relevant conditions onto
+                      their own cards, so what remained here was incidental detection
+                      that invited accidental one-click coding. The backend
+                      ``unmatched_conditions`` data is still emitted (referral
+                      indication linking + analysis), just not surfaced as a section. */ ''}
                   ${(visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition')).map(re => {
                     const reRowReadOnly = rowLocked(re.command, readOnly, isAmending);
                     return html`

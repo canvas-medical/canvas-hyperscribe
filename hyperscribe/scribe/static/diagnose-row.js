@@ -334,6 +334,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
                 onMouseDown=${(e) => { e.preventDefault(); handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code }); }}
               >
                 <span class="diagnose-picker-name">${s.display}</span>
+                ${s.provenance ? html`<span class="diagnose-picker-prov">${s.provenance}</span>` : ''}
                 <span class="diagnose-picker-code">${s.formatted_code}</span>
               </div>
             `)}
@@ -355,12 +356,22 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
         ${hasCode && !readOnly && html`
           <button type="button" class="diagnose-change-btn" onClick=${handleClearCode} title="Change diagnosis">${ICON_PENCIL} Change</button>
         `}
+        ${/* Unspecified nudge — the working code stays applied; clicking opens the
+            Change picker, pre-loaded with grounded more-specific siblings. */ ''}
+        ${hasCode && !readOnly && data.unspecified && html`
+          <button type="button" class="diagnose-unspecified-nudge" onClick=${handleClearCode} title="This code is unspecified — pick a more specific one">Unspecified — refine</button>
+        `}
       </div>
 
       ${/* "Change diagnosis" picker (already-coded card). */ ''}
       ${hasCode && editingCode && !readOnly && pickerPanel('Search for a different code…', handleCloseChange)}
 
-      ${/* No-diagnosis-code state: the integrated picker is the persistent UI. */ ''}
+      ${/* No-diagnosis-code state: the integrated picker is the persistent UI. When
+          the ranker left this block intentionally uncoded (ambiguous), it sent
+          ranked options — tell the provider it's theirs to choose. */ ''}
+      ${!hasCode && !readOnly && recCodes.length > 0 && html`
+        <div class="diagnose-ambiguity-hint">Multiple possible codes — select one</div>
+      `}
       ${!hasCode && !readOnly && pickerPanel('Search a diagnosis code, or pick a recommendation below…')}
 
       ${!editingText && html`

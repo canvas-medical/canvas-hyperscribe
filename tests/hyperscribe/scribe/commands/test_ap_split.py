@@ -10,6 +10,7 @@ from hyperscribe.scribe.commands.ap_split import (
     split_plan_into_diagnoses,
     word_overlap,
 )
+from hyperscribe.scribe.commands.diagnosis_candidates import PatientConditionSnapshot
 
 
 # --- parse_ap_blocks ---
@@ -753,3 +754,121 @@ def test_split_plan_no_stamp_when_icd_code_absent() -> None:
     assert updated[0]["command_type"] == "diagnose"
     assert updated[0]["data"]["icd10_code"] is None
     assert "condition_id" not in updated[0]["data"]
+
+
+# --- ICD-10 ranker integration (P2) ---
+
+
+def test_split_plan_stamps_stable_block_id() -> None:
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": "Migraine\n- Sumatriptan\n\nHypertension\n- Lisinopril"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {"display": "Migraine", "coding": [{"code": "G43.909", "display": "Migraine, unspecified"}]},
+            {"display": "Hypertension", "coding": [{"code": "I10", "display": "Essential hypertension"}]},
+        ],
+    }
+    updated, _ = split_plan_into_diagnoses(commands, section_conditions)
+    assert updated[0]["data"]["block_id"] == "apblock-0"
+    assert updated[1]["data"]["block_id"] == "apblock-1"
+
+
+def test_split_plan_ranks_definitive_over_incidental_symptom() -> None:
+    """The Jodie Foster regression in the belt's real shape: Nabla returns TWO
+    conditions for one A&P problem (same corresponding_note_problem) — a symptom
+    code listed first and the definitive code second. The ranker must pick the
+    definitive code and orphan nothing."""
+    header = "Major depressive disorder, recurrent, moderate to severe"
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": f"{header}\n- Increase sertraline"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    suicidal = {
+        "display": "Suicidal ideations",
+        "coding": [{"code": "R45.851", "display": "Suicidal ideations"}],
+        "corresponding_note_problem": header,
+    }
+    depression = {
+        "display": "Major depressive disorder, recurrent, moderate",
+        "coding": [{"code": "F33.1", "display": "Major depressive disorder, recurrent, moderate"}],
+        "corresponding_note_problem": header,
+    }
+    section_conditions = {"assessment_and_plan": [suicidal, depression]}
+    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    assert len(updated) == 1
+    assert updated[0]["data"]["icd10_code"] == "F33.1"
+    assert updated[0]["data"]["icd10_display"] == "Major depressive disorder, recurrent, moderate"
+    # No orphaning: both conditions were claimed by the block.
+    assert unmatched == []
+
+
+def test_split_plan_ambiguous_block_left_uncoded_with_suggestions() -> None:
+    header = "Headache"
+    commands = [
+        {"command_type": "plan", "data": {"narrative": f"{header}\n- Imaging"}, "section_key": "assessment_and_plan"},
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "Vascular headache",
+                "coding": [{"code": "G44.1", "display": "Vascular headache, not elsewhere classified"}],
+                "corresponding_note_problem": header,
+            },
+            {
+                "display": "Tension-type headache",
+                "coding": [{"code": "G44.209", "display": "Tension-type headache, unspecified"}],
+                "corresponding_note_problem": header,
+            },
+        ],
+    }
+    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    assert updated[0]["data"]["icd10_code"] is None
+    suggestions = updated[0]["data"]["candidate_suggestions"]
+    codes = {s["code"] for s in suggestions}
+    assert {"G44.1", "G44.209"} <= codes
+    assert all(s["provenance"] == "Detected in note" for s in suggestions)
+    assert unmatched == []
+
+
+def test_split_plan_prefers_charted_specific_over_nabla_unspecified() -> None:
+    """A more-specific code on the patient's chart beats Nabla's unspecified code,
+    and an active match stamps condition_id for the assess flip."""
+    header = "Type 2 diabetes mellitus"
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": f"{header}\n- Continue metformin"},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "Type 2 diabetes mellitus without complications",
+                "coding": [{"code": "E11.9", "display": "Type 2 diabetes mellitus without complications"}],
+                "corresponding_note_problem": header,
+            },
+        ],
+    }
+    chart = [
+        PatientConditionSnapshot(
+            condition_id="cond-dm",
+            code="E11.65",
+            display="Type 2 diabetes mellitus with hyperglycemia",
+            system="ICD-10",
+            clinical_status="active",
+            onset_date="2018-01-01",
+            resolution_date="",
+        )
+    ]
+    updated, _ = split_plan_into_diagnoses(commands, section_conditions, chart_conditions=chart)
+    assert updated[0]["data"]["icd10_code"] == "E11.65"
+    assert updated[0]["data"]["condition_id"] == "cond-dm"
