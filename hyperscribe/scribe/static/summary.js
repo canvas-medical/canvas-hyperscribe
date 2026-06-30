@@ -350,7 +350,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -373,6 +373,8 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddOrder=${isPlan ? onAddOrder : null}
         onAddPlan=${isPlan ? onAddPlan : null}
         onAddVitals=${isObjective ? onAddVitals : null}
+        onAddPhysicalExam=${isObjective ? onAddPhysicalExam : null}
+        onAddMentalStatusExam=${isObjective ? onAddMentalStatusExam : null}
         onAddMedication=${isObjective ? onAddMedication : null}
         onAddAllergy=${isObjective ? onAddAllergy : null}
         onAddStopMedication=${isObjective ? onAddStopMedication : null}
@@ -1676,6 +1678,56 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }]);
   }, [canEdit]);
 
+  // Physical Exam is always surfaced (via ENSURE_KEYS) even when Nabla omits the
+  // section. When no PE command exists yet, the Objective group renders an empty
+  // ExamSectionsRow against a synthetic placeholder; its first Save lands here and
+  // promotes that draft into a real, index-addressable command so subsequent edits
+  // flow through the normal handleEdit path. Keyed on `physical_exam` (not an
+  // _objective_ad_hoc bucket) so it renders in the PE card and participates in the
+  // amend routing. An empty exam is dropped by the `insertable` filter, so this
+  // never writes a blank Physical Exam to the chart.
+  const handleAddPhysicalExam = useCallback((newData) => {
+    if (!canEdit) return;
+    const sections = (newData && newData.sections) || [];
+    logEvent('ADD_PHYSICAL_EXAM', { systemCount: sections.length });
+    setCommands(prev => {
+      // Defensive: if a PE command already exists (e.g. a template was applied
+      // between render and save), don't append a second one — the existing
+      // card owns the section.
+      if (prev.some(c => c.command_type === 'physical_exam')) return prev;
+      return [...prev, {
+        command_type: 'physical_exam',
+        display: sections.map(s => s.title).join(' | '),
+        data: { sections },
+        selected: true,
+        section_key: 'physical_exam',
+        already_documented: false,
+      }];
+    });
+  }, [canEdit]);
+
+  // Mental Status Exam mirrors handleAddPhysicalExam, but only fires on
+  // psychiatry visits (the Objective group gates the empty card on isPsychiatry).
+  // Promotes the first Save of the empty ExamSectionsRow into a real,
+  // index-addressable command. An empty MSE is dropped by the `insertable`
+  // filter, so this never writes a blank Mental Status Exam to the chart.
+  const handleAddMentalStatusExam = useCallback((newData) => {
+    if (!canEdit) return;
+    const sections = (newData && newData.sections) || [];
+    logEvent('ADD_MENTAL_STATUS_EXAM', { systemCount: sections.length });
+    setCommands(prev => {
+      if (prev.some(c => c.command_type === 'mental_status_exam')) return prev;
+      return [...prev, {
+        command_type: 'mental_status_exam',
+        display: sections.map(s => s.title).join(' | '),
+        data: { sections },
+        selected: true,
+        section_key: 'mental_status_exam',
+        already_documented: false,
+      }];
+    });
+  }, [canEdit]);
+
   const handleEditRecommendation = useCallback((index, newData, newType) => {
     if (!canEdit) return;
     logEvent('EDIT_REC', { index, commandType: newType, data: newData });
@@ -2824,13 +2876,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     ['family_history', { key: 'family_history', title: 'Family History', text: '' }],
     ['lab_results', { key: 'lab_results', title: 'Lab Results', text: '' }],
     ['imaging_results', { key: 'imaging_results', title: 'Imaging Results', text: '' }],
-    ['physical_exam', { key: 'physical_exam', title: 'Physical Exam', text: '' }],
   ]);
   // Mental Status Exam is psychiatry-only — only force its (possibly empty)
-  // section when the selected visit template is the psychiatry one.
+  // section when the selected visit template is the psychiatry one. Ensured
+  // before Physical Exam to match SKELETON_SECTIONS order.
   if (isPsychiatry) {
     ENSURE_KEYS.set('mental_status_exam', { key: 'mental_status_exam', title: 'Mental Status Exam', text: '' });
   }
+  // Physical Exam is a standard section on every visit type — always ensured so
+  // the soap-group PE branch is reached and renders the documented card or the
+  // empty "Click to add" editor, even when Nabla omits the section.
+  ENSURE_KEYS.set('physical_exam', { key: 'physical_exam', title: 'Physical Exam', text: '' });
   const effectiveSections = (() => {
     const base = noteData ? noteData.sections : SKELETON_SECTIONS;
     const existing = new Set(base.map(s => s.key.toLowerCase()));
@@ -3067,6 +3123,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddOrder: canEdit ? handleAddOrder : null,
           onAddPlan: canEdit ? handleAddPlan : null,
           onAddVitals: canEdit ? handleAddVitals : null,
+          onAddPhysicalExam: canEdit ? handleAddPhysicalExam : null,
+          onAddMentalStatusExam: canEdit ? handleAddMentalStatusExam : null,
           onAddMedication: canEdit ? handleAddMedication : null,
           onAddAllergy: canEdit ? handleAddAllergy : null,
           onAddStopMedication: canEdit ? handleAddStopMedication : null,
