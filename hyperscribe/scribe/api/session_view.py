@@ -88,6 +88,7 @@ from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
 )
+from hyperscribe.scribe.recommendations.questionnaire_fill import fill_questionnaire_command
 from hyperscribe.scribe.contacts import (
     resolve_zip_codes,
     search_imaging_centers,
@@ -1567,6 +1568,56 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
         return [JSONResponse({"suggestions": suggestions}, status_code=HTTPStatus.OK)]
+
+    @api.post("/fill-questionnaire")
+    def post_fill_questionnaire(self) -> list[Union[Response, Effect]]:
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_uuid = str(data.get("note_uuid", ""))
+        if not note_uuid:
+            return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+        try:
+            questionnaire_dbid = int(data["questionnaire_dbid"])
+        except (KeyError, TypeError, ValueError):
+            return [JSONResponse({"error": "questionnaire_dbid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        api_key = self.secrets.get("AnthropicAPIKey", "")
+        if not api_key:
+            return [
+                JSONResponse(
+                    {"error": "AnthropicAPIKey secret is not configured"},
+                    status_code=HTTPStatus.BAD_REQUEST,
+                )
+            ]
+        try:
+            transcript = _parse_transcript(_load_transcript(note_uuid))
+            proposal, result = fill_questionnaire_command(questionnaire_dbid, transcript, api_key)
+        except Exception:
+            log.exception("fill_questionnaire failed")
+            return [
+                JSONResponse(
+                    {"error": "Questionnaire fill failed"},
+                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+            ]
+        if result is not None:
+            audit_event(
+                note_uuid,
+                "QUESTIONNAIRE_FILLED",
+                {"questionnaire_dbid": questionnaire_dbid, "items": [item.model_dump() for item in result.items]},
+            )
+        command = None
+        if proposal is not None:
+            command = {
+                "command_type": proposal.command_type,
+                "display": proposal.display,
+                "data": proposal.data,
+                "section_key": proposal.section_key,
+            }
+        return [JSONResponse({"command": command}, status_code=HTTPStatus.OK)]
 
     @api.get("/check-interactions")
     def get_check_interactions(self) -> list[Union[Response, Effect]]:
