@@ -648,7 +648,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false }) {
   const isCharges = title === 'CHARGES';
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
@@ -925,19 +925,50 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           // mental_status_exam before physical_exam). Gated on isPsychiatry so a
           // stray command on a non-psych visit never surfaces the card.
           if (key === 'mental_status_exam') {
-            if (!isPsychiatry || !cmds) return null;
-            const entry = cmds[0];
-            const mseRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+            // Psychiatry-only: the section is never surfaced on non-psych
+            // visits. On a psychiatry visit it is always surfaced, even when
+            // Nabla omitted the mental_health_exam section — mirroring the
+            // Physical Exam card. When no MSE command exists, render the empty
+            // "Click to add" editor against a synthetic placeholder; the first
+            // Save routes through onAddMentalStatusExam, which promotes the
+            // draft into a real, index-addressable command. The empty
+            // placeholder never reaches the chart — the `insertable` filter
+            // drops MSE commands with no sections.
+            if (!isPsychiatry) return null;
+            if (cmds) {
+              const entry = cmds[0];
+              const mseRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+              return html`
+                <div class="subsection" key=${s.key}>
+                  <div class="subsection-title">${s.title}</div>
+                  <div class=${`content-block rec-narrative${mseRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
+                    ${mseRowReadOnly && entry.command.already_documented && ICON_LOCK}
+                    <${ExamSectionsRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditCommand}
+                      readOnly=${mseRowReadOnly}
+                      onEditingChange=${onEditingChange}
+                      sectionKind="mental_status_exam"
+                      templates=${examTemplates}
+                      onCarryForward=${onCarryForwardExam}
+                    />
+                  </div>
+                </div>
+              `;
+            }
+            // No MSE command yet. Only offer the empty editor when editable.
+            if (readOnly || !onAddMentalStatusExam) return null;
+            const msePlaceholder = { command_type: 'mental_status_exam', section_key: 'mental_status_exam', display: '', selected: true, already_documented: false, data: { sections: [] } };
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
-                <div class=${`content-block rec-narrative${mseRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
-                  ${mseRowReadOnly && entry.command.already_documented && ICON_LOCK}
+                <div class="content-block rec-narrative">
                   <${ExamSectionsRow}
-                    command=${entry.command}
-                    commandIndex=${entry.index}
-                    onEdit=${onEditCommand}
-                    readOnly=${mseRowReadOnly}
+                    command=${msePlaceholder}
+                    commandIndex="mental_status_exam_placeholder"
+                    onEdit=${(_, data) => onAddMentalStatusExam(data)}
+                    readOnly=${false}
                     onEditingChange=${onEditingChange}
                     sectionKind="mental_status_exam"
                     templates=${examTemplates}
@@ -948,19 +979,50 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             `;
           }
 
-          if (cmds && key === 'physical_exam') {
-            const entry = cmds[0];
-            const peRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+          if (key === 'physical_exam') {
+            // Physical Exam is a standard section on EVERY visit type (psychiatry
+            // included): ENSURE_KEYS forces it in even when Nabla omits it. Render
+            // the documented card when a command exists, otherwise the empty
+            // "Click to add" editor whose first Save routes through
+            // onAddPhysicalExam to create the command. No visit-type branching.
+            if (cmds) {
+              const entry = cmds[0];
+              const peRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+              return html`
+                <div class="subsection" key=${s.key}>
+                  <div class="subsection-title">${s.title}</div>
+                  <div class=${`content-block rec-narrative${peRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
+                    ${peRowReadOnly && entry.command.already_documented && ICON_LOCK}
+                    <${ExamSectionsRow}
+                      command=${entry.command}
+                      commandIndex=${entry.index}
+                      onEdit=${onEditCommand}
+                      readOnly=${peRowReadOnly}
+                      onEditingChange=${onEditingChange}
+                      sectionKind="physical_exam"
+                      templates=${examTemplates}
+                      onCarryForward=${onCarryForwardExam}
+                    />
+                  </div>
+                </div>
+              `;
+            }
+            // No PE command yet: render the always-on empty "Click to add" editor
+            // against a synthetic placeholder; the provider's first Save routes
+            // through onAddPhysicalExam, which promotes the draft into a real,
+            // index-addressable command. The empty placeholder never reaches the
+            // chart — the `insertable` filter drops PE commands with no sections.
+            if (readOnly || !onAddPhysicalExam) return null;
+            const pePlaceholder = { command_type: 'physical_exam', section_key: 'physical_exam', display: '', selected: true, already_documented: false, data: { sections: [] } };
             return html`
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
-                <div class=${`content-block rec-narrative${peRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
-                  ${peRowReadOnly && entry.command.already_documented && ICON_LOCK}
+                <div class="content-block rec-narrative">
                   <${ExamSectionsRow}
-                    command=${entry.command}
-                    commandIndex=${entry.index}
-                    onEdit=${onEditCommand}
-                    readOnly=${peRowReadOnly}
+                    command=${pePlaceholder}
+                    commandIndex="physical_exam_placeholder"
+                    onEdit=${(_, data) => onAddPhysicalExam(data)}
+                    readOnly=${false}
                     onEditingChange=${onEditingChange}
                     sectionKind="physical_exam"
                     templates=${examTemplates}
