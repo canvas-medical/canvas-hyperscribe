@@ -161,16 +161,17 @@ def test_provenance_labels() -> None:
 
 
 def test_is_unspecified_code() -> None:
-    # Text-based (the reliable signal — numeric tail "00" is not distinguishable).
+    # Display text is the reliable signal.
     assert is_unspecified_code("G47.00", "Insomnia, unspecified") is True
-    assert is_unspecified_code("G4700") is False  # no display, numeric shape doesn't flag "00"
-    # Numeric backstop: bare root, root+9, root+9+digit.
+    assert is_unspecified_code("F33.9", "Major depressive disorder, recurrent, unspecified") is True
+    assert is_unspecified_code("G4700") is False  # no display -> numeric "00" not flagged
+    # Bare 3-char rubric (never independently billable).
     assert is_unspecified_code("E03") is True
-    assert is_unspecified_code("F33.9") is True
-    assert is_unspecified_code("E11.90") is True
-    # Specified codes are not unspecified.
+    # ".9"/"without X" default codes are NOT unspecified (display doesn't say so) — the
+    # relaxed rule avoids forcing needless refinement picks on these standard codes.
+    assert is_unspecified_code("E11.9", "Type 2 diabetes mellitus without complications") is False
+    assert is_unspecified_code("K21.9", "Gastro-esophageal reflux disease without esophagitis") is False
     assert is_unspecified_code("F33.1", "Major depressive disorder, recurrent, moderate") is False
-    assert is_unspecified_code("Z99.89", "Other dependence") is False
 
 
 def test_expand_unspecified_offers_specific_siblings() -> None:
@@ -196,6 +197,44 @@ def test_expand_unspecified_offers_specific_siblings() -> None:
     assert {"G4701", "G4709"} == codes  # only the G47.0x insomnia sub-category
     assert "G4733" not in codes and "G4763" not in codes  # apnea/bruxism filtered out
     assert all(child.source == CandidateSource.MORE_SPECIFIC for child in children)
+
+
+def test_expand_unspecified_drops_non_leaf_and_duplicate() -> None:
+    # E78.4 is a non-billable category parent of E78.41/E78.49 (and shares a display
+    # with E78.49) — it must not be offered as a selectable refinement.
+    chosen = DiagnosisCandidate(
+        code="E785", raw_code="E78.5", display="Hyperlipidemia, unspecified", source=CandidateSource.NABLA
+    )
+
+    def fake_search(_expressions: list[str]) -> list[Icd10Condition]:
+        return [
+            Icd10Condition(code="E784", label="Other hyperlipidemia"),
+            Icd10Condition(code="E7849", label="Other hyperlipidemia"),
+            Icd10Condition(code="E782", label="Mixed hyperlipidemia"),
+        ]
+
+    codes = {c.code for c in expand_unspecified(chosen, fake_search)}
+    assert "E784" not in codes  # non-leaf parent dropped
+    assert codes == {"E7849", "E782"}
+
+
+def test_science_fallback_recovers_code_via_body_synonym() -> None:
+    # Nabla emitted nothing for the block; the ICD display ("Impingement syndrome")
+    # doesn't match the header ("tendinitis") but the assessment body says "impingement".
+    header = "Right rotator cuff tendinitis"
+    context = f"{header}\nDiagnosis consistent with rotator cuff tendinitis or impingement."
+
+    def fake_search(expressions: list[str]) -> list[Icd10Condition]:
+        if any("impingement" in expression for expression in expressions):
+            return [Icd10Condition(code="M7541", label="Impingement syndrome of right shoulder")]
+        return []
+
+    result = build_block_candidates(
+        "apblock-0", header, nabla_for_block=[], chart=[], science_search=fake_search, context_text=context
+    )
+    codes = {c.code for c in result.candidates}
+    assert "M7541" in codes  # recovered via the body synonym
+    assert result.candidates[0].code == "M7541"  # ranked first by full-context overlap
 
 
 def test_expand_unspecified_scopes_four_char_code_to_family_root() -> None:
