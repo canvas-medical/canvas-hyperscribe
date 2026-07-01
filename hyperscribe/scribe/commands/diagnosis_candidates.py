@@ -191,6 +191,24 @@ def serialize_candidate(candidate: DiagnosisCandidate) -> dict[str, str]:
     }
 
 
+# Cap on how many options a picker surfaces — enough to choose from, few enough to
+# scan (e.g. E03 hypothyroidism has 8 family members; the provider needs a handful).
+MAX_SURFACED_SUGGESTIONS = 6
+
+
+def surface_candidates(candidates: list[DiagnosisCandidate]) -> list[DiagnosisCandidate]:
+    """Trim a ranked candidate list for display in the picker.
+
+    Drops symptom/context (R/Z) codes when a definitive option exists — so an
+    incidental code Nabla attached to the block (e.g. R45.851 "Suicidal ideations"
+    under a depression problem) is never offered as a diagnosis to pick — and caps
+    the count so the list stays scannable. Order is preserved (already ranked).
+    """
+    has_definitive = any(not _is_symptom_or_context(candidate.code) for candidate in candidates)
+    trimmed = [c for c in candidates if not (has_definitive and _is_symptom_or_context(c.code))]
+    return trimmed[:MAX_SURFACED_SUGGESTIONS]
+
+
 def _overlap_bucket(header: str, display: str) -> int:
     """Coarse word-overlap bucket (avoids float fragility in the sort key)."""
     overlap = word_overlap(header, display)

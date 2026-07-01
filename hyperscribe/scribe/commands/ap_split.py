@@ -308,6 +308,7 @@ def split_plan_into_diagnoses(
         expand_unspecified,
         is_unspecified_code,
         serialize_candidate,
+        surface_candidates,
     )
 
     diagnose_commands: list[dict[str, Any]] = []
@@ -356,11 +357,12 @@ def split_plan_into_diagnoses(
         # keep the unspecified, or refine). When no more-specific option exists there's
         # nothing to choose between, so the unspecified code is applied as-is (avoids a
         # pointless one-option picker).
-        unspecified_options: list[dict[str, str]] = []
+        unspecified_options: list = []
         if chosen is not None and is_unspecified_code(chosen.code, chosen.display):
             children = expand_unspecified(chosen, science_search)
             if children:
-                unspecified_options = [serialize_candidate(chosen), *(serialize_candidate(c) for c in children)]
+                # Offer the unspecified code first, then the more-specific siblings.
+                unspecified_options = [chosen, *children]
                 chosen = None  # defer to a provider pick
 
         data: dict[str, Any] = {
@@ -383,11 +385,15 @@ def split_plan_into_diagnoses(
                 data["condition_id"] = stamped_id
         elif unspecified_options:
             # Uncoded: keep-as-unspecified (first) or refine to a more-specific code.
-            data["candidate_suggestions"] = unspecified_options
+            data["candidate_suggestions"] = [serialize_candidate(c) for c in surface_candidates(unspecified_options)]
         elif block_candidates.ambiguous:
-            # Leave the card UNCODED and surface the ranked options (with provenance)
-            # for the provider to choose. Never auto-stamp an ambiguous code.
-            data["candidate_suggestions"] = [serialize_candidate(c) for c in block_candidates.candidates[:5]]
+            # Leave the card UNCODED and surface the ranked options (with provenance) for
+            # the provider to choose. surface_candidates drops incidental symptom/context
+            # codes (e.g. R45.851 "Suicidal ideations" under a depression problem) when a
+            # definitive option exists, and caps the list. Never auto-stamp.
+            data["candidate_suggestions"] = [
+                serialize_candidate(c) for c in surface_candidates(block_candidates.candidates)
+            ]
 
         diagnose_commands.append(
             _serialize_proposal(
