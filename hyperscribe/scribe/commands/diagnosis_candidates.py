@@ -417,12 +417,15 @@ def build_block_candidates(
 def expand_unspecified(
     chosen: DiagnosisCandidate,
     science_search: ScienceSearch | None,
+    context_text: str = "",
 ) -> list[DiagnosisCandidate]:
     """Return more-specific children of an unspecified ``chosen`` code.
 
-    Used for the "Unspecified — consider refining" nudge: the working code stays
-    applied, but the provider is offered grounded, more-specific siblings from the
-    same ICD-10 family (looked up via the science service). Returns ``[]`` when no
+    The working code stays valid, but the provider is offered grounded, more-specific
+    siblings from the same ICD-10 sub-category (looked up via the science service).
+    When ``context_text`` (the block header + assessment) is given, children are ranked
+    by word-overlap with it, so a specificity the note actually documents (e.g.
+    "moderate" -> ``F32.1``) leads and irrelevant siblings sink. Returns ``[]`` when no
     search is available or nothing more specific is found.
     """
     if science_search is None:
@@ -431,13 +434,12 @@ def expand_unspecified(
     root = _icd10_family_root(norm)
     if not root:
         return []
-    # Scope the refinements to the unspecified code's own sub-category, not the whole
-    # 3-char family. ``G47.00`` ("Insomnia, unspecified") sits under ``G47.0`` (insomnia)
-    # within the broader ``G47`` (all sleep disorders) — so its refinements are
-    # ``G47.0x`` (G47.01/.09), NOT ``G47.33`` sleep apnea or ``G47.63`` bruxism. When the
-    # 4th char is itself the unspecified marker ``9`` (``E03.9``, ``F33.9``, ``E11.9``),
-    # the whole 3-char family IS the sub-category, so the root is the right scope.
-    scope_prefix = norm[:4] if len(norm) >= 4 and norm[3] != "9" else root
+    # Scope the refinements to the unspecified code's own sub-category. A 5+ char code
+    # (``G4700`` "Insomnia, unspecified") sits inside a real 4-char sub-rubric (``G47.0``
+    # insomnia, distinct from ``G47.3`` apnea), so refinements share the 4-char prefix.
+    # A 4-char code (``E785``, ``E039``, ``F329``, ``K219``, ``E119``) is unspecified at
+    # the 3-char rubric, so its refinements are the 3-char-root siblings.
+    scope_prefix = norm[:4] if len(norm) >= 5 else root
     try:
         hits = science_search([root]) or []
     except Exception:
@@ -463,4 +465,6 @@ def expand_unspecified(
                 source=CandidateSource.MORE_SPECIFIC,
             )
         )
+    if context_text:
+        children.sort(key=lambda candidate: word_overlap(context_text, candidate.display), reverse=True)
     return children

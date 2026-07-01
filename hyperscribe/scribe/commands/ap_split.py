@@ -359,10 +359,18 @@ def split_plan_into_diagnoses(
         # pointless one-option picker).
         unspecified_options: list = []
         if chosen is not None and is_unspecified_code(chosen.code, chosen.display):
-            children = expand_unspecified(chosen, science_search)
+            # Rank both the unspecified code and its refinements by how well each matches
+            # the documented note text (header + assessment), so a specificity the note
+            # actually states (e.g. "moderate" -> F32.1) leads and the unspecified only
+            # leads when the note is genuinely vague.
+            context_text = f"{header}\n" + "\n".join(block.body)
+            children = expand_unspecified(chosen, science_search, context_text=context_text)
             if children:
-                # Offer the unspecified code first, then the more-specific siblings.
-                unspecified_options = [chosen, *children]
+                unspecified_options = sorted(
+                    [chosen, *children],
+                    key=lambda candidate: word_overlap(context_text, candidate.display),
+                    reverse=True,
+                )
                 chosen = None  # defer to a provider pick
 
         data: dict[str, Any] = {

@@ -198,6 +198,43 @@ def test_expand_unspecified_offers_specific_siblings() -> None:
     assert all(child.source == CandidateSource.MORE_SPECIFIC for child in children)
 
 
+def test_expand_unspecified_scopes_four_char_code_to_family_root() -> None:
+    # Fix: a 4-char unspecified code (E78.5 "Hyperlipidemia, unspecified") offers its
+    # 3-char-root siblings — previously the "E785" sub-bucket found nothing.
+    chosen = DiagnosisCandidate(
+        code="E785", raw_code="E78.5", display="Hyperlipidemia, unspecified", source=CandidateSource.NABLA
+    )
+
+    def fake_search(expressions: list[str]) -> list[Icd10Condition]:
+        assert expressions == ["E78"]
+        return [
+            Icd10Condition(code="E782", label="Mixed hyperlipidemia"),
+            Icd10Condition(code="E781", label="Pure hyperglyceridemia"),
+        ]
+
+    assert {c.code for c in expand_unspecified(chosen, fake_search)} == {"E782", "E781"}
+
+
+def test_expand_unspecified_ranks_by_note_context() -> None:
+    # The refinement the note documents ("moderate") leads over other siblings.
+    chosen = DiagnosisCandidate(
+        code="F329",
+        raw_code="F32.9",
+        display="Major depressive disorder, single episode, unspecified",
+        source=CandidateSource.NABLA,
+    )
+
+    def fake_search(_expressions: list[str]) -> list[Icd10Condition]:
+        return [
+            Icd10Condition(code="F320", label="Major depressive disorder, single episode, mild"),
+            Icd10Condition(code="F321", label="Major depressive disorder, single episode, moderate"),
+            Icd10Condition(code="F322", label="Major depressive disorder, single episode, severe"),
+        ]
+
+    children = expand_unspecified(chosen, fake_search, context_text="Moderate depression, PHQ-9 12.")
+    assert children[0].code == "F321"
+
+
 def test_science_search_only_is_never_auto_applied() -> None:
     # No chart, no Nabla coding -> science fallback fires but stays ambiguous.
     def fake_search(expressions: list[str]) -> list[Icd10Condition]:

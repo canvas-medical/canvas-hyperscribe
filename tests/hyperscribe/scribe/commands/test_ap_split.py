@@ -960,6 +960,43 @@ def test_split_plan_unspecified_with_refinements_left_uncoded() -> None:
     assert data["candidate_suggestions"][1]["provenance"] == "More specific option"
 
 
+def test_split_plan_unspecified_ranks_documented_specificity_first() -> None:
+    """Option B: when the note documents a specificity (e.g. 'moderate'), the matching
+    specific code leads the picker over the unspecified code Nabla emitted."""
+    header = "Major depressive disorder"
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": f"{header}\n- Moderate depression, PHQ-9 12. Start therapy."},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions = {
+        "assessment_and_plan": [
+            {
+                "display": "Major depressive disorder, single episode, unspecified",
+                "coding": [{"code": "F32.9", "display": "Major depressive disorder, single episode, unspecified"}],
+                "corresponding_note_problem": header,
+            },
+        ],
+    }
+
+    def science(_expressions: list[str]) -> list[Icd10Condition]:
+        return [
+            Icd10Condition(code="F329", label="Major depressive disorder, single episode, unspecified"),
+            Icd10Condition(code="F320", label="Major depressive disorder, single episode, mild"),
+            Icd10Condition(code="F321", label="Major depressive disorder, single episode, moderate"),
+            Icd10Condition(code="F322", label="Major depressive disorder, single episode, severe"),
+        ]
+
+    updated, _ = split_plan_into_diagnoses(commands, section_conditions, science_search=science)
+    data = updated[0]["data"]
+    assert data["icd10_code"] is None
+    formatted = [s["formatted_code"] for s in data["candidate_suggestions"]]
+    assert formatted[0] == "F32.1"  # documented "moderate" leads
+    assert "F32.9" in formatted  # the unspecified is still offered, just not first
+
+
 def test_split_plan_unspecified_without_refinements_is_applied() -> None:
     """When no more-specific option exists, the unspecified code is applied as-is —
     no pointless one-option picker."""
