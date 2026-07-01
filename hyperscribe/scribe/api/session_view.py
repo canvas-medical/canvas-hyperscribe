@@ -138,6 +138,28 @@ def _authorize_edit(note_uuid: str, request: Any) -> JSONResponse | None:
     return None
 
 
+def _authorize_save_summary(note_uuid: str, request: Any) -> JSONResponse | None:
+    """Authorize a Scribe-summary save: note exists and is editable.
+
+    Unlike ``_authorize_edit`` it does NOT gate on staff-is-provider — scribes
+    document on the assigned provider's behalf and chart access is enforced
+    upstream (same model as ``_authorize_read``, KOALA-5689). The provider gate
+    silently dropped non-provider saves while the audit log kept recording, so
+    work looked entered but was never stored (KOALA-5895). Privileged actions
+    (sign, etc.) keep using ``_authorize_edit``.
+    """
+    del request  # chart access enforced upstream; see _authorize_read
+    if not note_uuid:
+        return JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)
+    try:
+        note = Note.objects.values("dbid").get(id=note_uuid)
+    except Note.DoesNotExist:
+        return JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)
+    if not Helper.editable_note(note["dbid"]):
+        return JSONResponse({"error": "Note is not editable"}, status_code=HTTPStatus.FORBIDDEN)
+    return None
+
+
 def _authorize_read(note_uuid: str, request: Any) -> JSONResponse | None:
     """Return a JSONResponse to short-circuit a read of the note's Scribe tab.
 
@@ -1022,7 +1044,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = str(data.get("note_id", ""))
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        if denial := _authorize_edit(note_id, self.request):
+        if denial := _authorize_save_summary(note_id, self.request):
             return [denial]
         payload: dict[str, Any] = {
             "note": data.get("note", {}),
