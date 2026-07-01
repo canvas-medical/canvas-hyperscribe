@@ -894,6 +894,12 @@ def test_split_plan_surfaces_cross_family_chart_note_conflict() -> None:
                 "coding": [{"code": "F33.1", "display": "Major depressive disorder, recurrent, moderate"}],
                 "corresponding_note_problem": header,
             },
+            # Nabla also attached an incidental symptom code to the same problem.
+            {
+                "display": "Suicidal ideations",
+                "coding": [{"code": "R45.851", "display": "Suicidal ideations"}],
+                "corresponding_note_problem": header,
+            },
         ],
     }
     chart = [
@@ -910,6 +916,10 @@ def test_split_plan_surfaces_cross_family_chart_note_conflict() -> None:
     updated, _ = split_plan_into_diagnoses(commands, section_conditions, chart_conditions=chart)
     data = updated[0]["data"]
     assert data["icd10_code"] is None
+    codes = {s["formatted_code"] for s in data["candidate_suggestions"]}
+    assert {"F32.1", "F33.1"} <= codes
+    # The incidental "Suicidal ideations" symptom code is NOT offered as a choice.
+    assert "R45.851" not in codes
     provs = {s["provenance"] for s in data["candidate_suggestions"]}
     assert "Active problem" in provs
     assert "Detected in note" in provs

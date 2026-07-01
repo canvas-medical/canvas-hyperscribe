@@ -14,6 +14,7 @@ callable returning ``Icd10Condition``-shaped objects.
 from __future__ import annotations
 
 from hyperscribe.scribe.commands.diagnosis_candidates import (
+    MAX_SURFACED_SUGGESTIONS,
     CandidateSource,
     DiagnosisCandidate,
     PatientConditionSnapshot,
@@ -24,6 +25,7 @@ from hyperscribe.scribe.commands.diagnosis_candidates import (
     is_unspecified_code,
     provenance_label,
     rank_candidates,
+    surface_candidates,
 )
 from hyperscribe.structures.icd10_condition import Icd10Condition
 
@@ -302,6 +304,28 @@ def test_provenance_labels_full_status_matrix() -> None:
     assert provenance_label(prior("")) == "Past condition"
     # Unknown source -> empty label.
     assert provenance_label(DiagnosisCandidate(code="F331", raw_code="F33.1", display="", source="mystery")) == ""
+
+
+def _cand(code: str, raw: str, display: str, source: str = CandidateSource.NABLA) -> DiagnosisCandidate:
+    return DiagnosisCandidate(code=code, raw_code=raw, display=display, source=source)
+
+
+def test_surface_candidates_drops_symptom_when_definitive_exists() -> None:
+    cands = [
+        _cand("F331", "F33.1", "MDD recurrent moderate"),
+        _cand("R45851", "R45.851", "Suicidal ideations"),
+    ]
+    # The incidental symptom code is not offered as a diagnosis to pick.
+    assert [c.code for c in surface_candidates(cands)] == ["F331"]
+
+
+def test_surface_candidates_keeps_symptom_when_it_is_the_only_option() -> None:
+    assert [c.code for c in surface_candidates([_cand("R197", "R19.7", "Diarrhea, unspecified")])] == ["R197"]
+
+
+def test_surface_candidates_caps_length() -> None:
+    cands = [_cand(f"E03{i}", f"E03.{i}", f"opt {i}", CandidateSource.MORE_SPECIFIC) for i in range(9)]
+    assert len(surface_candidates(cands)) == MAX_SURFACED_SUGGESTIONS
 
 
 def test_overlap_bucket_partial() -> None:
