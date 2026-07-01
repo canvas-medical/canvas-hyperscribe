@@ -22,31 +22,31 @@ def _diagnose(header: str, code: str | None, display: str = "") -> dict[str, Any
 def test_links_code_from_diagnose_command() -> None:
     recs = [_refer("Shoulder muscle spasm")]
     commands = [_diagnose("Shoulder muscle spasm:", "M62.838", "Other muscle spasm")]
-    link_referral_diagnoses(recs, commands, [], {})
+    link_referral_diagnoses(recs, commands, [])
     assert recs[0]["data"]["diagnosis_codes"] == ["M62.838"]
     # the ICD-10 name is attached for display alongside the code
     assert recs[0]["data"]["diagnosis_displays"] == ["Other muscle spasm"]
     assert recs[0]["data"]["diagnosis_formatted"] == ["M62.838"]
 
 
-def test_diagnose_command_takes_priority_over_suggestions() -> None:
-    recs = [_refer("Hypertension")]
-    commands = [_diagnose("Hypertension:", "I10")]
-    suggestions = {"Hypertension:": [{"code": "I150", "formatted_code": "I15.0"}]}
-    link_referral_diagnoses(recs, commands, [], suggestions)
-    assert recs[0]["data"]["diagnosis_codes"] == ["I10"]
-
-
-def test_falls_back_to_suggestions_when_diagnose_uncoded() -> None:
+def test_uncoded_diagnose_does_not_link() -> None:
+    # A diagnose block that is still uncoded (only ranked candidate_suggestions, no
+    # provider-chosen code) must NOT link the referral: pre-stamping the top guess
+    # could stick a code the provider never picks. The frontend live-linker attaches
+    # the provider's FINAL code at reconciliation time instead.
     recs = [_refer("Shoulder muscle spasm")]
-    # diagnose command exists but has no code yet
-    commands = [_diagnose("Shoulder muscle spasm:", None)]
-    suggestions = {
-        "Shoulder muscle spasm:": [{"code": "M6281", "formatted_code": "M62.81", "display": "Muscle weakness"}]
-    }
-    link_referral_diagnoses(recs, commands, [], suggestions)
-    assert recs[0]["data"]["diagnosis_codes"] == ["M62.81"]
-    assert recs[0]["data"]["diagnosis_displays"] == ["Muscle weakness"]
+    commands = [
+        {
+            "command_type": "diagnose",
+            "data": {
+                "condition_header": "Shoulder muscle spasm:",
+                "icd10_code": None,
+                "candidate_suggestions": [{"code": "M6281", "formatted_code": "M62.81", "display": "Muscle weakness"}],
+            },
+        }
+    ]
+    link_referral_diagnoses(recs, commands, [])
+    assert "diagnosis_codes" not in recs[0]["data"]
 
 
 def test_falls_back_to_unmatched_conditions() -> None:
@@ -57,7 +57,7 @@ def test_falls_back_to_unmatched_conditions() -> None:
             "corresponding_note_problem": "Asthma",
         }
     ]
-    link_referral_diagnoses(recs, commands=[], unmatched_conditions=unmatched, diagnosis_suggestions={})
+    link_referral_diagnoses(recs, commands=[], unmatched_conditions=unmatched)
     assert recs[0]["data"]["diagnosis_codes"] == ["J45.909"]
     assert recs[0]["data"]["diagnosis_displays"] == ["Unspecified asthma, uncomplicated"]
 
@@ -66,7 +66,7 @@ def test_containment_match() -> None:
     # indication is a substring of the note's problem header (minor wording drift)
     recs = [_refer("muscle spasm")]
     commands = [_diagnose("Shoulder muscle spasm:", "M62.838")]
-    link_referral_diagnoses(recs, commands, [], {})
+    link_referral_diagnoses(recs, commands, [])
     assert recs[0]["data"]["diagnosis_codes"] == ["M62.838"]
 
 
@@ -75,28 +75,28 @@ def test_partial_word_overlap_does_not_match() -> None:
     # so no code is linked (avoids guessing a wrong indication)
     recs = [_refer("shoulder spasm")]
     commands = [_diagnose("Shoulder muscle spasm:", "M62.838")]
-    link_referral_diagnoses(recs, commands, [], {})
+    link_referral_diagnoses(recs, commands, [])
     assert "diagnosis_codes" not in recs[0]["data"]
 
 
 def test_no_match_leaves_codes_absent() -> None:
     recs = [_refer("Cardiology consult")]
     commands = [_diagnose("Diabetes:", "E11.9")]
-    link_referral_diagnoses(recs, commands, [], {})
+    link_referral_diagnoses(recs, commands, [])
     assert "diagnosis_codes" not in recs[0]["data"]
 
 
 def test_no_indication_is_skipped() -> None:
     recs = [_refer(None)]
     commands = [_diagnose("Hypertension:", "I10")]
-    link_referral_diagnoses(recs, commands, [], {})
+    link_referral_diagnoses(recs, commands, [])
     assert "diagnosis_codes" not in recs[0]["data"]
 
 
 def test_existing_codes_preserved() -> None:
     recs = [_refer("Hypertension", diagnosis_codes=["I11.9"])]
     commands = [_diagnose("Hypertension:", "I10")]
-    link_referral_diagnoses(recs, commands, [], {})
+    link_referral_diagnoses(recs, commands, [])
     # not overwritten
     assert recs[0]["data"]["diagnosis_codes"] == ["I11.9"]
 
@@ -105,5 +105,5 @@ def test_non_refer_proposals_untouched() -> None:
     med = {"command_type": "medication_statement", "data": {"indication": "Hypertension"}}
     recs = [med]
     commands = [_diagnose("Hypertension:", "I10")]
-    link_referral_diagnoses(recs, commands, [], {})
+    link_referral_diagnoses(recs, commands, [])
     assert "diagnosis_codes" not in med["data"]

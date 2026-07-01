@@ -1369,14 +1369,15 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         }
 
         # ── Step 4b: Give generic referrals a validated indication ──
-        # Match each referral's condition to a code already in the note (diagnose
-        # commands → diagnosis suggestions → unmatched conditions) so a generic,
-        # provider-less referral is commit-ready. Never fabricates a code.
+        # Match each referral's condition to a code already in the note — a coded
+        # diagnose command or an active-chart (unmatched) condition — so a generic,
+        # provider-less referral is commit-ready. Never fabricates a code, and never
+        # links from a still-uncoded block's ranked suggestions (that would stamp a
+        # guess the provider may not pick); those are linked to the provider's final
+        # code at reconciliation time by the frontend live-linker.
         if recommendations_list:
             try:
-                link_referral_diagnoses(
-                    recommendations_list, commands_list, unmatched_conditions, diagnosis_suggestions
-                )
+                link_referral_diagnoses(recommendations_list, commands_list, unmatched_conditions)
             except Exception:
                 log.exception("link_referral_diagnoses failed (non-critical)")
 
