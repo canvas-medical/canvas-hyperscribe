@@ -348,7 +348,13 @@ def split_plan_into_diagnoses(
         for condition in nabla_for_block:
             claimed.add(id(condition))
 
-        block_candidates = build_block_candidates(block_id, header, nabla_for_block, chart, science_search)
+        # Full note text for this block (header + assessment). Used to (a) let the
+        # science fallback recover a code via a body synonym the header lacks, and
+        # (b) rank unspecified refinements by documented specificity.
+        context_text = f"{header}\n" + "\n".join(block.body)
+        block_candidates = build_block_candidates(
+            block_id, header, nabla_for_block, chart, science_search, context_text=context_text
+        )
         chosen = block_candidates.chosen
 
         # An unspecified code is NOT auto-applied when grounded more-specific options
@@ -360,10 +366,8 @@ def split_plan_into_diagnoses(
         unspecified_options: list = []
         if chosen is not None and is_unspecified_code(chosen.code, chosen.display):
             # Rank both the unspecified code and its refinements by how well each matches
-            # the documented note text (header + assessment), so a specificity the note
-            # actually states (e.g. "moderate" -> F32.1) leads and the unspecified only
-            # leads when the note is genuinely vague.
-            context_text = f"{header}\n" + "\n".join(block.body)
+            # the documented note text, so a specificity the note actually states (e.g.
+            # "moderate" -> F32.1) leads and the unspecified only leads when it's vague.
             children = expand_unspecified(chosen, science_search, context_text=context_text)
             if children:
                 unspecified_options = sorted(

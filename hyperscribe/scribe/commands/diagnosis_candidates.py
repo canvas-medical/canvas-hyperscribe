@@ -137,23 +137,20 @@ def format_icd10(code: str) -> str:
 def is_unspecified_code(code: str, display: str = "") -> bool:
     """Return True if ``code`` is an unspecified/parent ICD-10 code.
 
-    "Unspecified" is identified primarily from the display text (the reliable
-    signal — e.g. ``G47.00`` "Insomnia, **unspecified**", whose numeric tail
-    ``00`` is not otherwise distinguishable), with a numeric backstop matching the
-    parent shapes used by ``icd10_is_unspecified_parent_of``: a bare 3-char root,
-    a root followed by ``9``, or a root followed by ``9`` + one digit.
+    "Unspecified" is identified from two signals: (a) the display text contains
+    "unspecified" (the reliable one — ``G47.00`` "Insomnia, **unspecified**",
+    ``F32.9`` "…, unspecified", ``E78.5`` "Hyperlipidemia, unspecified"); or (b) a
+    bare 3-char rubric (``G43``), which is never independently billable.
+
+    We deliberately do NOT treat every ``.9`` code as unspecified: ``E11.9``
+    "…without complications" and ``K21.9`` "…without esophagitis" are the standard,
+    billable default codes and their displays don't say "unspecified" — flagging
+    them would force needless refinement picks and nudge toward over-coding.
     """
     if display and "unspecified" in display.lower():
         return True
     norm = icd10_normalize(code)
-    if not norm:
-        return False
-    if len(norm) == 3:
-        return True
-    tail = norm[3:]
-    if tail == "9":
-        return True
-    return len(tail) == 2 and tail[0] == "9" and tail[1].isdigit()
+    return len(norm) == 3
 
 
 def _is_symptom_or_context(code: str) -> bool:
@@ -254,6 +251,7 @@ def assemble_block_candidates(
     nabla_for_block: list[dict[str, Any]],
     chart: list[PatientConditionSnapshot],
     science_search: ScienceSearch | None = None,
+    context_text: str = "",
 ) -> list[DiagnosisCandidate]:
     """Build the (de-duplicated, unranked) candidate set for one A&P block.
 
@@ -264,6 +262,10 @@ def assemble_block_candidates(
     :param chart: the patient's condition snapshots (active and inactive).
     :param science_search: optional grounded lookup, used only as a fallback when
         there is no chart/Nabla support for the block.
+    :param context_text: header + assessment body. When Nabla omits a code, the
+        science fallback also searches the body so a synonym present only there
+        (e.g. "impingement" for a "rotator cuff tendinitis" header) can surface the
+        right code.
     """
     candidates: list[DiagnosisCandidate] = []
 
@@ -321,12 +323,22 @@ def assemble_block_candidates(
         )
         has_chart_match = True
 
-    # (d) Science-search fallback — only when nothing grounded the block yet.
+    # (d) Science-search fallback — only when nothing grounded the block yet. Search
+    # both the header keywords AND the assessment-body keywords, so a code whose ICD
+    # display matches a synonym present only in the body (e.g. "impingement" for a
+    # "rotator cuff tendinitis" header -> M75.4x) can still surface.
     if science_search is not None and not has_nabla and not has_chart_match:
-        expression = " ".join(significant_words(header)) or header.strip()
-        if expression:
+        expressions: list[str] = []
+        header_expr = " ".join(significant_words(header)) or header.strip()
+        if header_expr:
+            expressions.append(header_expr)
+        if context_text:
+            body_expr = " ".join(significant_words(context_text))
+            if body_expr and body_expr != header_expr:
+                expressions.append(body_expr)
+        if expressions:
             try:
-                for hit in science_search([expression]) or []:
+                for hit in science_search(expressions) or []:
                     code = icd10_normalize(getattr(hit, "code", ""))
                     if not code:
                         continue
@@ -407,10 +419,18 @@ def build_block_candidates(
     nabla_for_block: list[dict[str, Any]],
     chart: list[PatientConditionSnapshot],
     science_search: ScienceSearch | None = None,
+    context_text: str = "",
 ) -> BlockCandidates:
     """Assemble → rank → resolve for one block, in one call (the belt's entry point)."""
-    ranked = rank_candidates(header, assemble_block_candidates(header, nabla_for_block, chart, science_search))
-    chosen, ambiguous = resolve_choice(header, ranked)
+    candidates = assemble_block_candidates(header, nabla_for_block, chart, science_search, context_text)
+    # When the block is grounded by Nabla/chart, rank on the header (stable). When it
+    # fell through to a science-only fallback, rank on the full note context so a code
+    # matched via a body synonym (not in the header) can lead. Header-based ranking is
+    # unchanged for the common case (no blast radius).
+    grounded = any(c.source != CandidateSource.SCIENCE_SEARCH for c in candidates)
+    match_text = header if (grounded or not context_text) else context_text
+    ranked = rank_candidates(match_text, candidates)
+    chosen, ambiguous = resolve_choice(match_text, ranked)
     return BlockCandidates(block_id=block_id, header=header, candidates=ranked, chosen=chosen, ambiguous=ambiguous)
 
 
@@ -465,6 +485,17 @@ def expand_unspecified(
                 source=CandidateSource.MORE_SPECIFIC,
             )
         )
+    # Drop non-billable category parents: a code that is a strict prefix of another
+    # returned child (e.g. ``E784`` is a prefix of ``E7841``/``E7849``). The family
+    # search returns the leaves, so the prefix rule reliably removes non-leaf parents.
+    all_codes = {c.code for c in children}
+    children = [c for c in children if not any(other != c.code and other.startswith(c.code) for other in all_codes)]
+    # Dedup identical displays (a parent and a child can share a label).
+    by_display: dict[str, DiagnosisCandidate] = {}
+    for candidate in children:
+        key = " ".join((candidate.display or "").lower().split())
+        by_display.setdefault(key, candidate)
+    children = list(by_display.values())
     if context_text:
         children.sort(key=lambda candidate: word_overlap(context_text, candidate.display), reverse=True)
     return children

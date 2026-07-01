@@ -997,6 +997,31 @@ def test_split_plan_unspecified_ranks_documented_specificity_first() -> None:
     assert "F32.9" in formatted  # the unspecified is still offered, just not first
 
 
+def test_split_plan_science_fallback_uses_body_synonym() -> None:
+    """When Nabla emits no code for a block, the science fallback searches the
+    assessment body too, so a synonym there (impingement) recovers M75.4x that the
+    header ('tendinitis') alone would miss."""
+    header = "Right rotator cuff tendinitis"
+    commands = [
+        {
+            "command_type": "plan",
+            "data": {"narrative": f"{header}\n- Consistent with rotator cuff tendinitis or impingement. Refer ortho."},
+            "section_key": "assessment_and_plan",
+        },
+    ]
+    section_conditions: dict[str, list[dict[str, Any]]] = {"assessment_and_plan": []}
+
+    def science(expressions: list[str]) -> list[Icd10Condition]:
+        if any("impingement" in expression for expression in expressions):
+            return [Icd10Condition(code="M7541", label="Impingement syndrome of right shoulder")]
+        return []
+
+    updated, _ = split_plan_into_diagnoses(commands, section_conditions, science_search=science)
+    data = updated[0]["data"]
+    assert data["icd10_code"] is None
+    assert "M75.41" in [s["formatted_code"] for s in data["candidate_suggestions"]]
+
+
 def test_split_plan_unspecified_without_refinements_is_applied() -> None:
     """When no more-specific option exists, the unspecified code is applied as-is —
     no pointless one-option picker."""
