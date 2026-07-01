@@ -107,6 +107,52 @@ const _validationErrorMessage = (c, reason, context = 'approving') => {
   return `This command has invalid values. ${suffix}`;
 };
 
+// Normalize a condition/indication string for matching (drop trailing colon,
+// casefold) — mirrors _normalize in the backend _referral_diagnosis module.
+const _normalizeCondition = (t) => (t || '').trim().replace(/:+$/, '').trim().toLowerCase();
+
+// Batch B — referral re-linking at insert time. A referral generated while its
+// indication diagnosis was still uncoded comes through with no diagnosis_codes;
+// once the provider codes that diagnosis, copy the chosen ICD-10 code onto the
+// referral so it's commit-ready. Mirrors the backend link_referral_diagnoses, but
+// runs at approve time so it uses the provider's FINAL code. Mutates refer recs in
+// place (consistent with the insert flow); never fabricates — an indication that
+// matches no coded diagnosis is left untouched (and stays a blocked, review item).
+function relinkReferralDiagnoses(commands, recommendations) {
+  const table = new Map(); // normalized condition/display -> { code, display }
+  for (const c of commands || []) {
+    if (c.command_type !== 'diagnose') continue;
+    const d = c.data || {};
+    const code = (d.icd10_code || '').trim();
+    if (!code) continue;
+    const display = (d.icd10_display || '').trim();
+    for (const key of [_normalizeCondition(d.condition_header), _normalizeCondition(d._original_header), _normalizeCondition(display)]) {
+      if (key && !table.has(key)) table.set(key, { code, display });
+    }
+  }
+  if (table.size === 0) return;
+  const matchIndication = (indication) => {
+    const ind = _normalizeCondition(indication);
+    if (!ind) return null;
+    if (table.has(ind)) return table.get(ind);
+    for (const [key, val] of table) {
+      if (key && (ind.includes(key) || key.includes(ind))) return val;
+    }
+    return null;
+  };
+  for (const rec of recommendations || []) {
+    if (rec.command_type !== 'refer') continue;
+    const d = rec.data || {};
+    if (d.diagnosis_codes && d.diagnosis_codes.length > 0) continue; // already linked
+    const match = matchIndication(d.indication);
+    if (!match) continue;
+    d.diagnosis_codes = [match.code];
+    d.diagnosis_displays = [match.display || match.code];
+    d.diagnosis_formatted = [match.code];
+    rec.data = d;
+  }
+}
+
 function formatTime(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -2327,6 +2373,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         reason: !c.display ? 'empty_display' : c.selected === false ? 'deselected' : 'validation',
       })) });
     }
+    // Batch B — re-link referrals to the provider's final diagnosis code before
+    // validation, so a referral whose indication diagnosis was uncoded at generation
+    // time inherits the ICD-10 code once the provider picks it (mirrors the backend
+    // link_referral_diagnoses, but with the chosen code). Without this, an otherwise
+    // valid referral is dropped by the diagnosis_codes gate below and blocks approval.
+    // Referrals surface as either recommendation cards or plan-section commands, so
+    // re-link both target lists against the coded diagnose commands in workingCommands.
+    relinkReferralDiagnoses(workingCommands, recommendations);
+    relinkReferralDiagnoses(workingCommands, workingCommands);
     // The Approve filter for recommendations has to apply the same gates the
     // insertable filter applies for Rx + refer — recommendations bypass the
     // OrderRow editor, so without these checks an LLM payload that the
