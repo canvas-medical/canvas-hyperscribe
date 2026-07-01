@@ -111,40 +111,67 @@ const _validationErrorMessage = (c, reason, context = 'approving') => {
 // casefold) — mirrors _normalize in the backend _referral_diagnosis module.
 const _normalizeCondition = (t) => (t || '').trim().replace(/:+$/, '').trim().toLowerCase();
 
-// Batch B — referral re-linking at insert time. A referral generated while its
-// indication diagnosis was still uncoded comes through with no diagnosis_codes;
-// once the provider codes that diagnosis, copy the chosen ICD-10 code onto the
-// referral so it's commit-ready. Mirrors the backend link_referral_diagnoses, but
-// runs at approve time so it uses the provider's FINAL code. Mutates refer recs in
-// place (consistent with the insert flow); never fabricates — an indication that
-// matches no coded diagnosis is left untouched (and stays a blocked, review item).
-function relinkReferralDiagnoses(commands, recommendations) {
-  const table = new Map(); // normalized condition/display -> { code, display }
-  for (const c of commands || []) {
-    if (c.command_type !== 'diagnose') continue;
-    const d = c.data || {};
-    const code = (d.icd10_code || '').trim();
-    if (!code) continue;
-    const display = (d.icd10_display || '').trim();
-    for (const key of [_normalizeCondition(d.condition_header), _normalizeCondition(d._original_header), _normalizeCondition(display)]) {
-      if (key && !table.has(key)) table.set(key, { code, display });
-    }
+// Resolve a referral's indication to one of the note's coded diagnoses.
+// `noteDiags` is the note's coded-diagnosis set ({ code, display }); each entry
+// comes from a `diagnose` (icd10_code) OR an active-problem match that flipped to
+// `assess` (data.code). Resolution is deliberately conservative so a referral never
+// gets the WRONG code:
+//   - indication text present -> the UNIQUE note diagnosis whose name matches it
+//     (exact, then containment); ambiguous/no match -> null;
+//   - indication blank -> the sole coded diagnosis if there is exactly one, else null.
+// A null result leaves the referral uncoded for the provider to resolve via the
+// referral editor's indication picker. Shared by the live linker and the approve gate.
+function resolveReferralIndication(indication, noteDiags) {
+  const ind = _normalizeCondition(indication);
+  if (ind) {
+    const matches = (noteDiags || []).filter((d) => {
+      const name = _normalizeCondition(d.display);
+      const header = _normalizeCondition(d.condition_header);
+      const orig = _normalizeCondition(d._original_header);
+      return [name, header, orig].some((k) => k && (k === ind || k.includes(ind) || ind.includes(k)));
+    });
+    return matches.length === 1 ? matches[0] : null;
   }
-  if (table.size === 0) return;
-  const matchIndication = (indication) => {
-    const ind = _normalizeCondition(indication);
-    if (!ind) return null;
-    if (table.has(ind)) return table.get(ind);
-    for (const [key, val] of table) {
-      if (key && (ind.includes(key) || key.includes(ind))) return val;
-    }
-    return null;
-  };
-  for (const rec of recommendations || []) {
+  return (noteDiags || []).length === 1 ? noteDiags[0] : null;
+}
+
+// Build the note's coded-diagnosis set from the command list: every `diagnose` with
+// an ICD-10 code and every `assess` carrying a code (an active-problem match that
+// flipped to assess). Mirrors the chargeMatrixDiagnoses / noteDiagnoses source so the
+// approve-time linker sees exactly what the referral editor's picker sees.
+function codedNoteDiagnoses(commands) {
+  const diags = [];
+  for (const c of commands || []) {
+    if (c.command_type !== 'diagnose' && c.command_type !== 'assess') continue;
+    const d = c.data || {};
+    const code = (d.icd10_code || d.code || '').trim();
+    if (!code) continue;
+    diags.push({
+      code,
+      display: (d.icd10_display || d.label || c.display || '').trim(),
+      condition_header: d.condition_header || '',
+      _original_header: d._original_header || '',
+    });
+  }
+  return diags;
+}
+
+// Referral re-linking safety net at approve/insert time. A referral generated while
+// its indication diagnosis was still uncoded comes through with no diagnosis_codes;
+// resolve it against the note's coded diagnoses so it's commit-ready. The live linker
+// (useEffect) normally fills recommendation referrals during reconciliation; this also
+// covers plan-section referrals and any the effect hasn't reached. Mutates refer targets
+// in place (consistent with the insert flow); never fabricates and never overrides a
+// referral the provider has edited (_indicationTouched) or already coded.
+function relinkReferralDiagnoses(commands, targets) {
+  const noteDiags = codedNoteDiagnoses(commands);
+  if (noteDiags.length === 0) return;
+  for (const rec of targets || []) {
     if (rec.command_type !== 'refer') continue;
+    if (rec._indicationTouched) continue;
     const d = rec.data || {};
     if (d.diagnosis_codes && d.diagnosis_codes.length > 0) continue; // already linked
-    const match = matchIndication(d.indication);
+    const match = resolveReferralIndication(d.indication, noteDiags);
     if (!match) continue;
     d.diagnosis_codes = [match.code];
     d.diagnosis_displays = [match.display || match.code];
@@ -623,6 +650,74 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       formatted_code: d.code,
       display: d.label,
     })), [chargeMatrixDiagnoses]);
+
+  // The note's coded diagnoses shaped for referral indication resolution — same
+  // accept filter as chargeMatrixDiagnoses, but carrying the condition headers so a
+  // referral's indication text can match the note's problem name (not just the ICD
+  // label). Includes assess-flipped active problems (they carry data.code, not
+  // data.icd10_code), which the referral linker must see.
+  const linkableNoteDiagnoses = useMemo(() => commands
+    .filter(c => (c.command_type === 'diagnose' || c.command_type === 'assess')
+      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.already_documented || c.command_uuid
+          || (c.command_type === 'assess' ? c.data?.accepted !== false : c.data?.accepted)))
+    .map(c => ({
+      code: c.data?.icd10_code || c.data?.code || '',
+      display: c.data?.icd10_display || c.data?.label || c.display || '',
+      condition_header: c.data?.condition_header || '',
+      _original_header: c.data?._original_header || '',
+    })), [commands]);
+
+  // Live referral re-linking during reconciliation. Referrals frequently arrive with
+  // a blank indication (the extraction LLM leaves it null when the note doesn't restate
+  // the problem near the referral sentence), so they land uncoded and would block
+  // approval. As the provider codes diagnoses — a `diagnose` gets an ICD-10 code, or an
+  // active-problem match flips to `assess` — fill each still-uncoded referral's
+  // diagnosis_codes as soon as it resolves UNAMBIGUOUSLY (unique name match, or the sole
+  // coded diagnosis when the indication is blank). Ambiguous cases are left for the
+  // referral editor's picker.
+  //
+  // Self-correcting: referrals we fill are tagged `_autoIndication` (a rec-level flag,
+  // never inside `data`, so it never reaches the insert payload). On every run we
+  // re-resolve those from scratch and REVERT them to uncoded if they've become ambiguous
+  // — otherwise a blank-indication referral would latch onto whichever diagnosis was
+  // coded first (transiently the "sole" one) and keep a stale/wrong code once more
+  // diagnoses appear. `_indicationTouched` marks referrals the provider has edited, so a
+  // deliberate choice (including a deliberate clear) is never touched. A referral with
+  // codes but neither flag was set some other way and is left alone. Guarded to no-op
+  // when nothing changes, so it can't loop on its own writes.
+  useEffect(() => {
+    setRecommendations(prev => {
+      let changed = false;
+      const next = prev.map(rec => {
+        if (rec.command_type !== 'refer' || rec._indicationTouched) return rec;
+        const d = rec.data || {};
+        const hasCodes = Boolean(d.diagnosis_codes && d.diagnosis_codes.length > 0);
+        const wasAuto = Boolean(rec._autoIndication);
+        if (hasCodes && !wasAuto) return rec; // provider/other-set — leave it
+        const match = resolveReferralIndication(d.indication, linkableNoteDiagnoses);
+        if (match) {
+          if (hasCodes && wasAuto && d.diagnosis_codes[0] === match.code) return rec; // already correct
+          changed = true;
+          return { ...rec, _autoIndication: true, data: { ...d,
+            diagnosis_codes: [match.code],
+            diagnosis_displays: [match.display || match.code],
+            diagnosis_formatted: [match.code],
+          } };
+        }
+        if (hasCodes && wasAuto) { // was auto-filled, now ambiguous → revert to picker
+          changed = true;
+          return { ...rec, _autoIndication: false, data: { ...d,
+            diagnosis_codes: [],
+            diagnosis_displays: [],
+            diagnosis_formatted: [],
+          } };
+        }
+        return rec;
+      });
+      return changed ? next : prev;
+    });
+  }, [linkableNoteDiagnoses, recommendations]);
 
   // Prune stale diagnosis pointers. When a linked diagnosis is rejected or removed
   // it leaves chargeMatrixDiagnoses, but its _localId lingers in charges' _pointers.
@@ -1792,7 +1887,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '', accepted: true };
       }
       if (type === 'refer') {
-        return { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral', accepted: true };
+        // Provider has taken control of this referral (including its indication) —
+        // mark it so the live auto-linker never overrides their choice, even if they
+        // deliberately cleared the indication.
+        return { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral', accepted: true, _indicationTouched: true };
       }
       return { ...cmd, data: newData, accepted: true };
     }));
