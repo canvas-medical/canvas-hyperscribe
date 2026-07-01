@@ -10,9 +10,14 @@ Sources are consulted in priority order:
 
 1. ``diagnose`` commands that already carry a populated ``icd10_code`` — the
    note's own coded assessment, the most authoritative source.
-2. ``diagnosis_suggestions`` — science-service-validated codes suggested for the
-   note's still-uncoded problem headers.
-3. ``unmatched_conditions`` — the patient's active problem list codings.
+2. ``unmatched_conditions`` — the patient's active problem list codings.
+
+We deliberately do NOT link from an uncoded block's ``candidate_suggestions``: a
+suggestion is only a ranked guess until the provider picks, so pre-filling from it
+would stamp a code the provider may not choose (the class of stale-code bug this
+pipeline exists to prevent). Referrals whose indication resolves only to a still-
+uncoded diagnosis are left blank here and linked to the provider's FINAL code at
+reconciliation time by the frontend live-linker (summary.js).
 
 It never fabricates: a referral whose indication matches nothing keeps its
 existing (empty) ``diagnosis_codes`` and remains a non-blocking, provider-review
@@ -60,20 +65,6 @@ def _codes_from_diagnose_commands(commands: list[dict[str, Any]]) -> dict[str, t
     return result
 
 
-def _codes_from_suggestions(diagnosis_suggestions: dict[str, Any]) -> dict[str, tuple[str, str]]:
-    result: dict[str, tuple[str, str]] = {}
-    for header, suggestions in (diagnosis_suggestions or {}).items():
-        if not suggestions:
-            continue
-        first = suggestions[0]
-        code = first.get("formatted_code") or first.get("code")
-        display = (first.get("display") or "").strip()
-        key = _normalize(header)
-        if code and key:
-            result.setdefault(key, (code, display))
-    return result
-
-
 def _codes_from_unmatched_conditions(unmatched_conditions: list[dict[str, Any]]) -> dict[str, tuple[str, str]]:
     result: dict[str, tuple[str, str]] = {}
     for condition in unmatched_conditions or []:
@@ -96,7 +87,6 @@ def link_referral_diagnoses(
     recommendations: list[dict[str, Any]],
     commands: list[dict[str, Any]],
     unmatched_conditions: list[dict[str, Any]],
-    diagnosis_suggestions: dict[str, Any],
 ) -> None:
     """Attach a validated ICD-10 indication to each generic ``refer`` proposal, in place.
 
@@ -107,7 +97,6 @@ def link_referral_diagnoses(
     match is found (no fabrication).
     """
     diagnose_codes = _codes_from_diagnose_commands(commands)
-    suggestion_codes = _codes_from_suggestions(diagnosis_suggestions)
     unmatched_codes = _codes_from_unmatched_conditions(unmatched_conditions)
 
     for proposal in recommendations:
@@ -119,11 +108,7 @@ def link_referral_diagnoses(
         indication = _normalize(data.get("indication"))
         if not indication:
             continue
-        match = (
-            _match(indication, diagnose_codes)
-            or _match(indication, suggestion_codes)
-            or _match(indication, unmatched_codes)
-        )
+        match = _match(indication, diagnose_codes) or _match(indication, unmatched_codes)
         if match:
             code, display = match
             data["diagnosis_codes"] = [code]
