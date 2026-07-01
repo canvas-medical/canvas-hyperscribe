@@ -9,6 +9,7 @@ dependencies = [
     "canvas[test-utils]>=0.58.1",
     "mypy>=1.15.0",
     "ffmpeg-python>=0.2.0",
+    "langdetect>=1.0.9",
 ]
 
 [tool.hatch.build.targets.wheel]

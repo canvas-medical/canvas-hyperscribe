@@ -1,11 +1,16 @@
 import json
 from http import HTTPStatus
 
+from langdetect import detect
+from langdetect.lang_detect_exception import LangDetectException
+from logger import log
 from requests import post as requests_post
 
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.http_response import HttpResponse
 from hyperscribe.structures.token_counts import TokenCounts
+
+EXPECTED_LANGUAGE = "en"
 
 
 class LlmElevenLabs(LlmBase):
@@ -51,8 +56,13 @@ class LlmElevenLabs(LlmBase):
             tokens=TokenCounts(prompt=0, generated=0),
         )
         if result.code == HTTPStatus.OK.value:
+            raw_words = request.json()["words"]
+            words_list, removed_count = self._filter_hallucinated_words(raw_words)
+            if removed_count > 0:
+                self.memory_log.log(f"--- filtered {removed_count} hallucinated word(s) ---")
+
             turns: list[dict] = []
-            for words in request.json()["words"]:
+            for words in words_list:
                 if not turns or words["speaker_id"] != turns[-1]["speaker_id"]:
                     turns.append(
                         {
@@ -67,6 +77,18 @@ class LlmElevenLabs(LlmBase):
                     turns[-1]["text"].append(words["text"])
                 elif words["type"] == "spacing":
                     turns[-1]["text"].append(" ")
+
+            turns, non_english_turns = self._filter_non_english_turns(turns)
+            if non_english_turns:
+                self.memory_log.log(f"--- filtered {len(non_english_turns)} non-English turn(s) ---")
+                for net in non_english_turns:
+                    text = "".join(net["text"])
+                    log.exception(
+                        f"Non-English transcript content detected and filtered: "
+                        f"speaker={net['speaker_id']}, "
+                        f"start={net['start']}, end={net['end']}, "
+                        f"text_length={len(text)}"
+                    )
 
             if not turns:
                 turns = [{"speaker_id": "speaker_0", "text": [], "start": 0.0, "end": 0.0}]
@@ -95,3 +117,71 @@ class LlmElevenLabs(LlmBase):
             )
 
         return result
+
+    @staticmethod
+    def _filter_hallucinated_words(words: list[dict]) -> tuple[list[dict], int]:
+        """Filter out likely hallucinated words based on timestamp anomalies.
+
+        Words with zero duration (start == end) or clusters of 3+ words sharing
+        identical start timestamps are strong signals of ASR hallucination --
+        the model generated text without corresponding audio.
+
+        Returns the filtered word list and count of removed words.
+        """
+        if not words:
+            return words, 0
+
+        # Count how many actual words share each start timestamp
+        start_counts: dict[float, int] = {}
+        for w in words:
+            if w["type"] == "word":
+                start_counts[w["start"]] = start_counts.get(w["start"], 0) + 1
+
+        filtered = []
+        removed = 0
+        for w in words:
+            if w["type"] == "word":
+                is_zero_duration = w["start"] == w["end"]
+                is_timestamp_cluster = start_counts.get(w["start"], 0) >= 3
+
+                if is_zero_duration or is_timestamp_cluster:
+                    removed += 1
+                    continue
+            filtered.append(w)
+
+        return filtered, removed
+
+    @staticmethod
+    def _filter_non_english_turns(turns: list[dict]) -> tuple[list[dict], list[dict]]:
+        """Filter out turns where the detected language is not English.
+
+        Hyperscribe only supports English. Non-English turns are typically ASR
+        hallucinations (e.g., the model producing Polish or other language text
+        from silence or ambient noise) and should not be included in clinical notes.
+
+        Returns a tuple of (kept_turns, filtered_turns).
+        """
+        if not turns:
+            return turns, []
+
+        kept: list[dict] = []
+        filtered: list[dict] = []
+        for turn in turns:
+            text = "".join(turn["text"]).strip()
+            # Skip turns with no meaningful text — keep them as-is (silence markers)
+            if not text or text == "[silence]":
+                kept.append(turn)
+                continue
+            try:
+                detected = detect(text)
+            except LangDetectException:
+                # If detection fails (e.g., too short), keep the turn
+                kept.append(turn)
+                continue
+
+            if detected == EXPECTED_LANGUAGE:
+                kept.append(turn)
+            else:
+                filtered.append(turn)
+
+        return kept, filtered
