@@ -727,6 +727,11 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setLabTestSearched(false);
   };
 
+  // Tolerant ICD-10 code key so the same diagnosis from different sources
+  // (chart conditions, live search, staged note dx) dedups regardless of dot
+  // formatting or case.
+  const normDiagCode = (c) => (c || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+
   const doDiagSearch = useCallback(async (q) => {
     if (!q || q.length < 2) { setDiagResults([]); setDiagSearched(false); return; }
     setDiagSearching(true);
@@ -758,17 +763,37 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setDiagQuery('');
     setDiagResults([]);
     setDiagSearched(false);
-    if (diagInputRef.current) diagInputRef.current.focus({ preventScroll: true });
+    // Close the dropdown after a selection; the provider can click back into
+    // the field to bring the list up again (mirrors the refer field).
+    setDiagFocused(false);
+    if (diagInputRef.current) diagInputRef.current.blur();
   };
 
   const handleDiagRemove = (code) => {
     setSelectedDiagnoses(selectedDiagnoses.filter(d => d.code !== code));
   };
 
+  // Diagnoses staged in this note's A&P, shown first as the most relevant
+  // indications. Excludes anything already selected as a chip.
+  const labNoteDiagSuggestions = (() => {
+    if (diagQuery || !noteDiagnoses || noteDiagnoses.length === 0) return [];
+    const selected = new Set(selectedDiagnoses.map(d => normDiagCode(d.code)));
+    const seen = new Set();
+    return noteDiagnoses.filter(d => {
+      const key = normDiagCode(d.code);
+      if (!key || selected.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
+
   const diagSuggestions = (() => {
     if (!diagQuery && patientConditions.length > 0) {
-      const alreadySelected = new Set(selectedDiagnoses.map(d => d.code));
-      return patientConditions.filter(c => !alreadySelected.has(c.code));
+      const alreadySelected = new Set(selectedDiagnoses.map(d => normDiagCode(d.code)));
+      // Suppress chart conditions already surfaced under "From this note".
+      const noteCodes = new Set(labNoteDiagSuggestions.map(d => normDiagCode(d.code)));
+      return patientConditions.filter(c =>
+        !alreadySelected.has(normDiagCode(c.code)) && !noteCodes.has(normDiagCode(c.code)));
     }
     return [];
   })();
@@ -837,17 +862,37 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setImagingDiagQuery('');
     setImagingDiagResults([]);
     setImagingDiagSearched(false);
-    if (imagingDiagInputRef.current) imagingDiagInputRef.current.focus({ preventScroll: true });
+    // Close the dropdown after a selection; the provider can click back into
+    // the field to bring the list up again (mirrors the refer field).
+    setImagingDiagFocused(false);
+    if (imagingDiagInputRef.current) imagingDiagInputRef.current.blur();
   };
 
   const handleImagingDiagRemove = (code) => {
     setImagingDiagnoses(imagingDiagnoses.filter(d => d.code !== code));
   };
 
+  // Diagnoses staged in this note's A&P, shown first as the most relevant
+  // indications. Excludes anything already selected as a chip.
+  const imagingNoteDiagSuggestions = (() => {
+    if (imagingDiagQuery || !noteDiagnoses || noteDiagnoses.length === 0) return [];
+    const selected = new Set(imagingDiagnoses.map(d => normDiagCode(d.code)));
+    const seen = new Set();
+    return noteDiagnoses.filter(d => {
+      const key = normDiagCode(d.code);
+      if (!key || selected.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
+
   const imagingDiagSuggestions = (() => {
     if (!imagingDiagQuery && patientConditions.length > 0) {
-      const alreadySelected = new Set(imagingDiagnoses.map(d => d.code));
-      return patientConditions.filter(c => !alreadySelected.has(c.code));
+      const alreadySelected = new Set(imagingDiagnoses.map(d => normDiagCode(d.code)));
+      // Suppress chart conditions already surfaced under "From this note".
+      const noteCodes = new Set(imagingNoteDiagSuggestions.map(d => normDiagCode(d.code)));
+      return patientConditions.filter(c =>
+        !alreadySelected.has(normDiagCode(c.code)) && !noteCodes.has(normDiagCode(c.code)));
     }
     return [];
   })();
@@ -985,11 +1030,6 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const handleReferDiagRemove = (code) => {
     setReferDiagnoses(referDiagnoses.filter(d => d.code !== code));
   };
-
-  // Tolerant ICD-10 code key so the same diagnosis from different sources
-  // (chart conditions, live search, staged note dx) dedups regardless of dot
-  // formatting or case.
-  const normDiagCode = (c) => (c || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
 
   // Diagnoses staged in this note's A&P, shown first as the most relevant
   // indications. Excludes anything already selected as a chip.
@@ -1456,16 +1496,28 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                       <div class="history-search-result search-no-results">No diagnoses found</div>
                     </div>
                   `}
-                  ${diagFocused && !diagQuery && diagSuggestions.length > 0 && html`
+                  ${diagFocused && !diagQuery && (labNoteDiagSuggestions.length > 0 || diagSuggestions.length > 0) && html`
                     <div class="history-search-dropdown">
-                      <div class="diag-suggestion-header">Patient conditions</div>
-                      ${diagSuggestions.map(d => html`
-                        <div
-                          key=${d.code}
-                          class="history-search-result"
-                          onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
-                        >${d.formatted_code || d.code} — ${d.display}</div>
-                      `)}
+                      ${labNoteDiagSuggestions.length > 0 && html`
+                        <div class="diag-suggestion-header">From this note</div>
+                        ${labNoteDiagSuggestions.map(d => html`
+                          <div
+                            key=${`note-${d.code}`}
+                            class="history-search-result"
+                            onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
+                          >${d.formatted_code || d.code} — ${d.display}</div>
+                        `)}
+                      `}
+                      ${diagSuggestions.length > 0 && html`
+                        <div class="diag-suggestion-header">Patient conditions</div>
+                        ${diagSuggestions.map(d => html`
+                          <div
+                            key=${`cond-${d.code}`}
+                            class="history-search-result"
+                            onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
+                          >${d.formatted_code || d.code} — ${d.display}</div>
+                        `)}
+                      `}
                     </div>
                   `}
                 </div>
@@ -1547,12 +1599,20 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   ${!imagingDiagSearching && imagingDiagSearched && imagingDiagResults.length === 0 && imagingDiagQuery.length >= 2 && html`
                     <div class="history-search-dropdown"><div class="history-search-result search-no-results">No diagnoses found</div></div>
                   `}
-                  ${imagingDiagFocused && !imagingDiagQuery && imagingDiagSuggestions.length > 0 && html`
+                  ${imagingDiagFocused && !imagingDiagQuery && (imagingNoteDiagSuggestions.length > 0 || imagingDiagSuggestions.length > 0) && html`
                     <div class="history-search-dropdown">
-                      <div class="diag-suggestion-header">Patient conditions</div>
-                      ${imagingDiagSuggestions.map(d => html`
-                        <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
-                      `)}
+                      ${imagingNoteDiagSuggestions.length > 0 && html`
+                        <div class="diag-suggestion-header">From this note</div>
+                        ${imagingNoteDiagSuggestions.map(d => html`
+                          <div key=${`note-${d.code}`} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                        `)}
+                      `}
+                      ${imagingDiagSuggestions.length > 0 && html`
+                        <div class="diag-suggestion-header">Patient conditions</div>
+                        ${imagingDiagSuggestions.map(d => html`
+                          <div key=${`cond-${d.code}`} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                        `)}
+                      `}
                     </div>
                   `}
                 </div>
