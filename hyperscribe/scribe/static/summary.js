@@ -425,7 +425,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -448,6 +448,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddOrder=${isPlan ? onAddOrder : null}
         onAddPlan=${isPlan ? onAddPlan : null}
         onMoveToPlan=${isPlan ? onMoveToPlan : null}
+        onAddAppointment=${isPlan ? onAddAppointment : null}
         onAddVitals=${isObjective ? onAddVitals : null}
         onAddPhysicalExam=${isObjective ? onAddPhysicalExam : null}
         onAddMentalStatusExam=${isObjective ? onAddMentalStatusExam : null}
@@ -1744,13 +1745,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     });
   }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
-  // Reclassify a diagnosis card as a plain plan narrative. Some A&P "problems" are
-  // really management/administrative items (e.g. "Physical therapy access", "Ear
-  // cleaning") that shouldn't carry an ICD-10 code; converting to a `plan` command
-  // preserves the documentation, drops the code requirement, and clears the uncoded-
-  // diagnosis hard block (every gate keys on command_type === 'diagnose'). One-way:
-  // to undo, delete and re-add. The header leads the narrative so the problem name
-  // survives as context.
+  // Reclassify a diagnosis card as a plan narrative in the Appointments component.
+  // Some A&P "problems" are really management/administrative items (e.g. "Physical
+  // therapy access", "Ear cleaning") that shouldn't carry an ICD-10 code; converting
+  // to a `plan` command in the `appointments` section preserves the documentation,
+  // drops the code requirement, and clears the uncoded-diagnosis hard block (every gate
+  // keys on command_type === 'diagnose'). One-way: to undo, delete and re-add. The
+  // header leads the narrative so the problem name survives as context.
   const handleMoveToPlan = useCallback((index) => {
     if (!canEdit) return;
     logEvent('MOVE_DX_TO_PLAN', { index });
@@ -1761,13 +1762,31 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         const header = (d.condition_header || '').trim();
         const body = (d.today_assessment || '').trim();
         const narrative = header ? (body ? `${header}\n${body}` : header) : body;
-        // Replace `data` wholesale so ICD/accepted/suggestion fields don't linger.
-        return { ...c, command_type: 'plan', display: narrative, data: { narrative } };
+        // Replace `data` wholesale so ICD/accepted/suggestion fields don't linger, and
+        // move it into the Appointments component.
+        return { ...c, command_type: 'plan', section_key: 'appointments', display: narrative, data: { narrative } };
       });
       saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return updated;
     });
   }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+
+  // Promote the always-on blank Appointments placeholder into a real plan command when
+  // the provider types into it (mirrors handleAddPhysicalExam). Empty saves are ignored.
+  const handleAddAppointment = useCallback((data) => {
+    if (!canEdit) return;
+    const narrative = ((data && data.narrative) || '').trim();
+    if (!narrative) return;
+    logEvent('ADD_APPOINTMENT');
+    setCommands(prev => [...prev, {
+      command_type: 'plan',
+      display: narrative,
+      data: { narrative },
+      selected: true,
+      section_key: 'appointments',
+      already_documented: false,
+    }]);
+  }, [canEdit]);
 
   const handleAddTask = useCallback(() => {
     logEvent('ADD_TASK');
@@ -3073,6 +3092,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // the soap-group PE branch is reached and renders the documented card or the
   // empty "Click to add" editor, even when Nabla omits the section.
   ENSURE_KEYS.set('physical_exam', { key: 'physical_exam', title: 'Physical Exam', text: '' });
+  // Appointments is always ensured so its component renders even when empty — a
+  // persistent, editable destination for "Move to plan" and for manual appointment
+  // notes (soap-group appointments branch renders the items or the empty placeholder).
+  ENSURE_KEYS.set('appointments', { key: 'appointments', title: 'Appointments', text: '' });
   const effectiveSections = (() => {
     const base = noteData ? noteData.sections : SKELETON_SECTIONS;
     const existing = new Set(base.map(s => s.key.toLowerCase()));
@@ -3309,6 +3332,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddOrder: canEdit ? handleAddOrder : null,
           onAddPlan: canEdit ? handleAddPlan : null,
           onMoveToPlan: canEdit ? handleMoveToPlan : null,
+          onAddAppointment: canEdit ? handleAddAppointment : null,
           onAddVitals: canEdit ? handleAddVitals : null,
           onAddPhysicalExam: canEdit ? handleAddPhysicalExam : null,
           onAddMentalStatusExam: canEdit ? handleAddMentalStatusExam : null,
