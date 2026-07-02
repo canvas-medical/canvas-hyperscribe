@@ -1111,7 +1111,6 @@ select.history-form-input {
    (accented); a second click performs the move. */
 .diagnose-picker-disclose { display: flex; align-items: center; width: 100%; padding: 9px 16px; background: none; border: none; border-top: 1px solid #eef1f5; font-size: 14px; font-weight: 500; color: #1f2733; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
 .diagnose-picker-disclose:hover { background: #f5f8ff; }
-.diagnose-picker-disclose.armed { color: #052B49; font-weight: 600; }
 
 /* Diagnose recommendation: header + actions on one row, everything else full-width below */
 .recommendation-block.rec-diagnose { display: grid; grid-template-columns: 1fr auto; align-items: start; }
