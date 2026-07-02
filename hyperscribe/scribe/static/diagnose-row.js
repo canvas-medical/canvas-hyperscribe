@@ -230,6 +230,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
     setResults([]);
     setSearched(false);
     setSearching(false);
+    setShowMoveOption(false); // reopen the picker collapsed to "Not a diagnosis?"
   };
 
   // Close the "Change" picker on a coded card and revert to showing the code.
@@ -240,6 +241,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
     setResults([]);
     setSearched(false);
     setSearching(false);
+    setShowMoveOption(false); // collapse the "Not a diagnosis?" disclosure on close
   };
 
   const handleAddBackground = () => {
