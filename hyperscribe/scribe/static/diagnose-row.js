@@ -354,7 +354,13 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
           class="diagnose-picker-action"
           title="Not a diagnosis — move this to Wrap Up"
           onMouseDown=${(e) => { e.preventDefault(); onMoveToPlan(commandIndex); }}
-        >${ICON_MOVE} Move to plan</button>
+        >
+          ${ICON_MOVE}
+          <span class="diagnose-picker-action-text">
+            <span class="diagnose-picker-action-title">Move to Wrap Up</span>
+            <span class="diagnose-picker-action-sub">Not a diagnosis</span>
+          </span>
+        </button>
       `}
     </div>
   `;

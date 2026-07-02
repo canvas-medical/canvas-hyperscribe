@@ -1102,11 +1102,17 @@ select.history-form-input {
    "Detected in note", "More specific option"). Trails the code as a quiet, right-aligned
    metadata column (the code pill leads, right after the diagnosis name). */
 .diagnose-picker-prov { margin-left: auto; flex-shrink: 0; font-size: 10.5px; font-weight: 600; color: #6b7785; background: #f1f4f8; border-radius: 5px; padding: 1px 7px; white-space: nowrap; }
-/* "Move to plan" action at the foot of the code picker — a distinct action (not a code
-   option), separated from the list above and styled quieter than a diagnosis row. */
-.diagnose-picker-action { display: flex; align-items: center; gap: 7px; width: 100%; padding: 9px 16px; background: none; border: none; border-top: 1px solid #eef1f5; font-size: 12.5px; font-weight: 600; color: #6b7785; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
-.diagnose-picker-action:hover { background: #f5f8ff; color: #052B49; }
-.diagnose-picker-action svg { width: 13px; height: 13px; }
+/* "Move to Wrap Up" action at the foot of the code picker — a distinct action (not a code
+   option), separated from the list above and styled quieter than a diagnosis row. Two
+   lines: the action (verb + destination) leads, the rationale ("Not a diagnosis") trails
+   as muted supporting text. */
+.diagnose-picker-action { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 16px; background: none; border: none; border-top: 1px solid #eef1f5; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; color: #6b7785; }
+.diagnose-picker-action:hover { background: #f5f8ff; }
+.diagnose-picker-action svg { width: 13px; height: 13px; flex-shrink: 0; }
+.diagnose-picker-action-text { display: flex; flex-direction: column; line-height: 1.25; }
+.diagnose-picker-action-title { font-size: 12.5px; font-weight: 600; color: #4a5563; }
+.diagnose-picker-action:hover .diagnose-picker-action-title { color: #052B49; }
+.diagnose-picker-action-sub { font-size: 11px; font-weight: 500; color: #9aa6b2; }
 
 /* Diagnose recommendation: header + actions on one row, everything else full-width below */
 .recommendation-block.rec-diagnose { display: grid; grid-template-columns: 1fr auto; align-items: start; }
