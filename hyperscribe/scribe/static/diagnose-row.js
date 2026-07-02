@@ -345,6 +345,17 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
         : (searched && query.length >= 2)
         ? html`<div class="diagnose-picker-empty">No diagnoses found</div>`
         : null}
+      ${/* Not a diagnosis? Reclassify the card as a plan narrative in Wrap Up. Lives in
+          the picker so it's available both for an uncoded card and when changing a code.
+          onMouseDown+preventDefault so the search input's blur doesn't eat the click. */ ''}
+      ${onMoveToPlan && html`
+        <button
+          type="button"
+          class="diagnose-picker-action"
+          title="Not a diagnosis — move this to Wrap Up"
+          onMouseDown=${(e) => { e.preventDefault(); onMoveToPlan(commandIndex); }}
+        >${ICON_MOVE} Move to plan</button>
+      `}
     </div>
   `;
 
@@ -355,13 +366,6 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
         ${hasCode && html`<span class="diagnose-icd-code">${formattedCode}</span>`}
         ${hasCode && !readOnly && html`
           <button type="button" class="diagnose-change-btn" onClick=${handleClearCode} title="Change diagnosis">${ICON_PENCIL} Change</button>
-        `}
-        ${/* Reclassify a non-diagnosis A&P item (e.g. "Physical therapy access") as a
-            plan narrative — preserves the content without forcing an ICD-10 code. Only
-            offered while the card is UNCODED; once a diagnosis is assigned it's a real
-            diagnosis, so the affordance is hidden. */ ''}
-        ${!hasCode && !readOnly && onMoveToPlan && html`
-          <button type="button" class="diagnose-change-btn" onClick=${() => onMoveToPlan(commandIndex)} title="Not a diagnosis — move this to the plan">${ICON_MOVE} Move to plan</button>
         `}
       </div>
 
