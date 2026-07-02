@@ -358,8 +358,10 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
           <button type="button" class="diagnose-change-btn" onClick=${handleClearCode} title="Change diagnosis">${ICON_PENCIL} Change</button>
         `}
         ${/* Reclassify a non-diagnosis A&P item (e.g. "Physical therapy access") as a
-            plan narrative — preserves the content without forcing an ICD-10 code. */ ''}
-        ${!readOnly && onMoveToPlan && html`
+            plan narrative — preserves the content without forcing an ICD-10 code. Only
+            offered while the card is UNCODED; once a diagnosis is assigned it's a real
+            diagnosis, so the affordance is hidden. */ ''}
+        ${!hasCode && !readOnly && onMoveToPlan && html`
           <button type="button" class="diagnose-change-btn" onClick=${() => onMoveToPlan(commandIndex)} title="Not a diagnosis — move this to the plan">${ICON_MOVE} Move to plan</button>
         `}
       </div>
