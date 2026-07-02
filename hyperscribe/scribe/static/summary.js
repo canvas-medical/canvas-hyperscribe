@@ -1760,10 +1760,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (i !== index || c.command_type !== 'diagnose') return c;
         const d = c.data || {};
         const header = (d.condition_header || '').trim();
-        const body = (d.today_assessment || '').trim();
-        const narrative = header ? (body ? `${header}\n${body}` : header) : body;
+        // today_assessment already leads with the headline (baked at generation). The
+        // card title should NOT travel to Wrap Up, so drop that leading header line and
+        // carry only the assessment body.
+        let narrative = (d.today_assessment || '').trim();
+        if (header && narrative.startsWith(header)) {
+          narrative = narrative.slice(header.length).replace(/^\n+/, '');
+        }
+        if (!narrative) narrative = header; // never produce an empty card
         // Replace `data` wholesale so ICD/accepted/suggestion fields don't linger, and
-        // move it into the Appointments component.
+        // move it into the Wrap Up (appointments) component.
         return { ...c, command_type: 'plan', section_key: 'appointments', display: narrative, data: { narrative } };
       });
       saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
@@ -3095,7 +3101,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // Appointments is always ensured so its component renders even when empty — a
   // persistent, editable destination for "Move to plan" and for manual appointment
   // notes (soap-group appointments branch renders the items or the empty placeholder).
-  ENSURE_KEYS.set('appointments', { key: 'appointments', title: 'Appointments', text: '' });
+  ENSURE_KEYS.set('appointments', { key: 'appointments', title: 'Wrap Up', text: '' });
   const effectiveSections = (() => {
     const base = noteData ? noteData.sections : SKELETON_SECTIONS;
     const existing = new Set(base.map(s => s.key.toLowerCase()));

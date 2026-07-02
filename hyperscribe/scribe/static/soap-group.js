@@ -783,20 +783,25 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (readOnly && apptCmds.length === 0) return null;
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${s.title}</div>
+                <div class="subsection-title">Wrap Up</div>
                 ${apptCmds.map(entry => {
                   const apptRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                  const showRemove = !readOnly && !entry.command.already_documented && !entry.command._adding;
+                  // recommendation-block flex → content left, remove-X pinned upper-right,
+                  // matching every other card.
                   return html`
-                    <div class=${`content-block rec-narrative${apptRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                    <div class=${`content-block recommendation-block rec-narrative${apptRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                       ${apptRowReadOnly && entry.command.already_documented && ICON_LOCK}
-                      <${CommandRow}
-                        command=${entry.command}
-                        commandIndex=${entry.index}
-                        onEdit=${onEditCommand}
-                        readOnly=${apptRowReadOnly}
-                        onEditingChange=${onEditingChange}
-                      />
-                      ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                      <div class="recommendation-content">
+                        <${CommandRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          readOnly=${apptRowReadOnly}
+                          onEditingChange=${onEditingChange}
+                        />
+                      </div>
+                      ${showRemove && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
                     </div>
                   `;
                 })}
