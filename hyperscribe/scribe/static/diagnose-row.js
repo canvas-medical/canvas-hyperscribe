@@ -25,7 +25,7 @@ function formatIcdCode(raw) {
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
-export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestions, onEditingChange }) {
+export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readOnly, suggestions, onEditingChange }) {
   const data = command.data || {};
   const hasCode = !!data.icd10_code;
   // KOALA_5635_BACKGROUND_ALWAYS_RENDER — Background is available on EVERY
@@ -355,6 +355,11 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
         ${hasCode && html`<span class="diagnose-icd-code">${formattedCode}</span>`}
         ${hasCode && !readOnly && html`
           <button type="button" class="diagnose-change-btn" onClick=${handleClearCode} title="Change diagnosis">${ICON_PENCIL} Change</button>
+        `}
+        ${/* Reclassify a non-diagnosis A&P item (e.g. "Physical therapy access") as a
+            plan narrative — preserves the content without forcing an ICD-10 code. */ ''}
+        ${!readOnly && onMoveToPlan && html`
+          <button type="button" class="diagnose-change-btn" onClick=${() => onMoveToPlan(commandIndex)} title="Not a diagnosis — move this to the plan">Move to plan</button>
         `}
       </div>
 
