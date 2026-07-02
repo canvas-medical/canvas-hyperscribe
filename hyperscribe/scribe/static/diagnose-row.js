@@ -359,9 +359,9 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
           <button
             type="button"
             class="diagnose-picker-action"
-            title="Moves this card's free-text content out of the diagnosis list into the Wrap Up section. Use when the item isn't a codeable diagnosis (e.g. a plan or administrative note)."
+            title="Moves this card's free-text content out of the diagnosis list into the wrap up section. Use when the item isn't a codeable diagnosis (e.g. a plan or administrative note)."
             onMouseDown=${(e) => { e.preventDefault(); onMoveToPlan(commandIndex); }}
-          >${ICON_MOVE} Move free text content to Wrap Up section</button>
+          >${ICON_MOVE} Move free text content to wrap up section</button>
         `
         : html`
           <button
