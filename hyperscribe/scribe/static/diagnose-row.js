@@ -358,7 +358,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
       ${onMoveToPlan && html`
         <button
           type="button"
-          class=${`diagnose-picker-disclose${showMoveOption ? ' armed' : ''}`}
+          class="diagnose-picker-disclose"
           title=${showMoveOption
             ? 'Click again to confirm — moves this content to the wrap up section'
             : "Move this card's free-text content to the wrap up section — use when the item isn't a codeable diagnosis."}
