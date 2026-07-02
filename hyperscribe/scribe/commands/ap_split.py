@@ -377,11 +377,18 @@ def split_plan_into_diagnoses(
                 )
                 chosen = None  # defer to a provider pick
 
+        # Lead the assessment text with the original Nabla A&P headline so it persists
+        # for reference — inside the editable Today's assessment content itself (not a
+        # separate UI element), present from generation, and carried onto the assess
+        # narrative when a diagnosis flips to assess (summary.js seeds narrative from
+        # today_assessment). The provider can edit or remove it like any other text.
+        body_text = "\n".join(block.body)
+        assessment_text = f"{header}\n{body_text}" if header and body_text else (header or body_text)
         data: dict[str, Any] = {
             "icd10_code": chosen.raw_code if chosen else None,
             "icd10_display": chosen.display if chosen else "",
             "condition_header": header,
-            "today_assessment": "\n".join(block.body),
+            "today_assessment": assessment_text,
             "accepted": False,
             "block_id": block_id,
         }
