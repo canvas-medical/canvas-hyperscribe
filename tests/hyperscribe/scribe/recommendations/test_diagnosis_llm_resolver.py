@@ -171,6 +171,32 @@ def test_wrong_family_refinement_expands_to_correct_family() -> None:
     assert out["apblock-3"].chosen == ("D50.9", "Iron deficiency anemia, unspecified")
 
 
+def test_managed_condition_codes_the_underlying_diagnosis() -> None:
+    # "Vitamin D supplementation" with a normal-on-treatment level is an actively managed
+    # deficiency, not "no diagnosis": the LLM expands to the underlying condition and codes
+    # E55.9 rather than leaving the block uncoded.
+    block = BlockContext(
+        block_id="apblock-4",
+        header="Vitamin D supplementation",
+        body="Vitamin D level is within normal range with current prescription regimen. "
+        "Continue weekly prescription-strength vitamin D supplementation.",
+        candidates=[],
+    )
+
+    def science(_terms: list[str]) -> list[Icd10Condition]:
+        return [Icd10Condition(code="E559", label="Vitamin D deficiency, unspecified")]
+
+    client = _FakeClient(
+        [
+            _step(terms=["vitamin D deficiency"]),
+            _step(selected="E55.9", confidence="high", ranked=["E55.9"]),
+        ]
+    )
+    out = resolve_uncoded_blocks([block], _factory(client), science)
+
+    assert out["apblock-4"].chosen == ("E55.9", "Vitamin D deficiency, unspecified")
+
+
 def test_hallucinated_code_is_rejected() -> None:
     # The LLM returns a code that is NOT in the pool and offers no search terms.
     # Nothing survives the gate -> no resolution (belt output preserved).

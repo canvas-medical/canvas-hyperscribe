@@ -53,8 +53,15 @@ _SYSTEM_PROMPT = (
     "leave selected_code null and return `more_search_terms` with the precise clinical term(s) "
     "or differential to look up — e.g. the specific diagnosis, a synonym, or the correct "
     "direction (return 'hypoalbuminemia', never 'hyperalimentation', for a low-albumin note). "
-    "A plan/management header that is not itself a diagnosis, or a symptom with no matching "
-    "candidate, should return low confidence with no selection."
+    "A condition that is being actively managed, treated, or monitored is STILL a current "
+    "diagnosis to code, even when today's labs or vitals are normal BECAUSE of that treatment — "
+    "code the underlying condition being managed, not 'normal'. For example, ongoing "
+    "prescription-strength vitamin D supplementation implies vitamin D deficiency (a normal level "
+    "on supplementation means it is controlled, not absent); a chronic disease that is 'well "
+    "controlled' on medication is still that disease. When the header names a treatment/"
+    "supplement rather than the diagnosis, search for the condition that treatment manages. "
+    "A purely administrative or logistical header with no underlying clinical condition (e.g. an "
+    "access or scheduling problem) should return low confidence with no selection."
 )
 
 
