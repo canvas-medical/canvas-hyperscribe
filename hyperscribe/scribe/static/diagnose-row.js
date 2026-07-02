@@ -74,6 +74,9 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+  // Progressive disclosure for the "not a diagnosis" escape hatch: the picker shows a
+  // quiet "Not a diagnosis?" trigger; clicking it reveals the "Move to Wrap Up" action.
+  const [showMoveOption, setShowMoveOption] = useState(false);
   const [assessment, setAssessment] = useState(data.today_assessment || '');
   // KOALA_5635_BACKGROUND_TEXTAREA — local state mirrors AssessNarrative's
   // pattern (soap-group.js): seed from ``data.background``, sync on
@@ -346,22 +349,25 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
         ? html`<div class="diagnose-picker-empty">No diagnoses found</div>`
         : null}
       ${/* Not a diagnosis? Reclassify the card as a plan narrative in Wrap Up. Lives in
-          the picker so it's available both for an uncoded card and when changing a code.
+          the picker (available both for an uncoded card and when changing a code) behind a
+          quiet "Not a diagnosis?" trigger that reveals the "Move to Wrap Up" action.
           onMouseDown+preventDefault so the search input's blur doesn't eat the click. */ ''}
-      ${onMoveToPlan && html`
-        <button
-          type="button"
-          class="diagnose-picker-action"
-          title="Not a diagnosis — move this to Wrap Up"
-          onMouseDown=${(e) => { e.preventDefault(); onMoveToPlan(commandIndex); }}
-        >
-          ${ICON_MOVE}
-          <span class="diagnose-picker-action-text">
-            <span class="diagnose-picker-action-title">Move to Wrap Up</span>
-            <span class="diagnose-picker-action-sub">Not a diagnosis</span>
-          </span>
-        </button>
-      `}
+      ${onMoveToPlan && (showMoveOption
+        ? html`
+          <button
+            type="button"
+            class="diagnose-picker-action"
+            title="Moves this card's content out of the diagnosis list into the Wrap Up section. Use when the item isn't a codeable diagnosis (e.g. a plan or administrative note)."
+            onMouseDown=${(e) => { e.preventDefault(); onMoveToPlan(commandIndex); }}
+          >${ICON_MOVE} Move to Wrap Up</button>
+        `
+        : html`
+          <button
+            type="button"
+            class="diagnose-picker-disclose"
+            onMouseDown=${(e) => { e.preventDefault(); setShowMoveOption(true); }}
+          >Not a diagnosis?</button>
+        `)}
     </div>
   `;
 
