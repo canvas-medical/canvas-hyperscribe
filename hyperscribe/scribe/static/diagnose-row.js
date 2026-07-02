@@ -350,29 +350,21 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
         ? html`<div class="diagnose-picker-empty">No diagnoses found</div>`
         : null}
       ${/* Move this card's content to the Wrap Up section (for A&P items that aren't a
-          codeable diagnosis). Lives in the picker — available on an uncoded card and when
-          changing a code — as a two-click inline confirm: the "Move to the wrap up section"
-          trigger arms an inline Cancel/Confirm carrying the SAME label. onMouseDown+
-          preventDefault so the search input's blur doesn't eat the click; showMoveOption
-          resets on picker open/close so it always reopens disarmed. */ ''}
-      ${onMoveToPlan && (showMoveOption
-        ? html`
-          <div class="diagnose-move-confirm">
-            <span class="diagnose-move-label">Move to the wrap up section</span>
-            <span class="diagnose-move-actions">
-              <button type="button" class="diagnose-move-cancel" onMouseDown=${(e) => { e.preventDefault(); setShowMoveOption(false); }}>Cancel</button>
-              <button type="button" class="diagnose-move-confirm-btn" onMouseDown=${(e) => { e.preventDefault(); onMoveToPlan(commandIndex); }}>Confirm</button>
-            </span>
-          </div>
-        `
-        : html`
-          <button
-            type="button"
-            class="diagnose-picker-disclose"
-            title="Move this card's free-text content to the wrap up section — use when the item isn't a codeable diagnosis."
-            onMouseDown=${(e) => { e.preventDefault(); setShowMoveOption(true); }}
-          >Move to the wrap up section</button>
-        `)}
+          codeable diagnosis). A single self-arming row that reads like the search results:
+          first click swaps the label to "Confirm", second click performs the move. No
+          separate cancel — showMoveOption resets on picker open/close (and it stays
+          disarmed until clicked). onMouseDown+preventDefault so the search input's blur
+          doesn't eat the click. */ ''}
+      ${onMoveToPlan && html`
+        <button
+          type="button"
+          class=${`diagnose-picker-disclose${showMoveOption ? ' armed' : ''}`}
+          title=${showMoveOption
+            ? 'Click again to confirm — moves this content to the wrap up section'
+            : "Move this card's free-text content to the wrap up section — use when the item isn't a codeable diagnosis."}
+          onMouseDown=${(e) => { e.preventDefault(); showMoveOption ? onMoveToPlan(commandIndex) : setShowMoveOption(true); }}
+        >${showMoveOption ? 'Confirm' : 'Move to the wrap up section'}</button>
+      `}
     </div>
   `;
 
