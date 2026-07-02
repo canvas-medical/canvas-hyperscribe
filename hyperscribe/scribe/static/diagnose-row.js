@@ -8,6 +8,8 @@ const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentCol
 const ICON_SEARCH = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>`;
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_MOVE = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+const ICON_TAG = html`<svg class="nd-lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L3 13V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`;
+const ICON_CHEVRON = html`<svg class="nd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -357,16 +359,16 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
           <button
             type="button"
             class="diagnose-picker-action"
-            title="Moves this card's content out of the diagnosis list into the Wrap Up section. Use when the item isn't a codeable diagnosis (e.g. a plan or administrative note)."
+            title="Moves this card's free-text content out of the diagnosis list into the Wrap Up section. Use when the item isn't a codeable diagnosis (e.g. a plan or administrative note)."
             onMouseDown=${(e) => { e.preventDefault(); onMoveToPlan(commandIndex); }}
-          >${ICON_MOVE} Move to Wrap Up</button>
+          >${ICON_MOVE} Move free text content to Wrap Up section</button>
         `
         : html`
           <button
             type="button"
             class="diagnose-picker-disclose"
             onMouseDown=${(e) => { e.preventDefault(); setShowMoveOption(true); }}
-          >Not a diagnosis?</button>
+          >${ICON_TAG}Not a diagnosis?${ICON_CHEVRON}</button>
         `)}
     </div>
   `;

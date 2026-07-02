@@ -1105,8 +1105,11 @@ select.history-form-input {
 /* "Not a diagnosis?" escape hatch at the foot of the code picker — progressive disclosure:
    a quiet trigger reveals the "Move to Wrap Up" action. Both are separated from the code
    list above and styled quieter than a diagnosis row (they're not code options). */
-.diagnose-picker-disclose { display: flex; align-items: center; width: 100%; padding: 8px 16px; background: none; border: none; border-top: 1px solid #eef1f5; font-size: 12px; font-weight: 500; color: #9aa6b2; cursor: pointer; text-align: left; transition: color 0.12s; }
-.diagnose-picker-disclose:hover { color: #6b7785; }
+.diagnose-picker-disclose { display: flex; align-items: center; gap: 9px; width: 100%; padding: 11px 16px; background: none; border: none; border-top: 1px solid #eef1f5; font-size: 12.5px; font-weight: 600; color: #6b7785; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
+.diagnose-picker-disclose:hover { background: #f5f8ff; color: #052B49; }
+.diagnose-picker-disclose .nd-lead { width: 14px; height: 14px; color: #9aa6b2; flex-shrink: 0; }
+.diagnose-picker-disclose .nd-chev { width: 14px; height: 14px; color: #9aa6b2; flex-shrink: 0; margin-left: auto; transition: transform 0.12s; }
+.diagnose-picker-disclose:hover .nd-chev { transform: translateX(3px); }
 .diagnose-picker-action { display: flex; align-items: center; gap: 7px; width: 100%; padding: 9px 16px; background: none; border: none; border-top: 1px solid #eef1f5; font-size: 12.5px; font-weight: 600; color: #6b7785; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
 .diagnose-picker-action:hover { background: #f5f8ff; color: #052B49; }
 .diagnose-picker-action svg { width: 13px; height: 13px; flex-shrink: 0; }
