@@ -1105,17 +1105,20 @@ select.history-form-input {
 /* "Not a diagnosis?" escape hatch at the foot of the code picker — progressive disclosure:
    a quiet trigger reveals the "Move to Wrap Up" action. Both are separated from the code
    list above and styled quieter than a diagnosis row (they're not code options). */
-/* Icon column matches .diagnose-picker-search exactly (18px lead icon + 12px gap → text
-   at 46px from the edge; 16px trailing icon right-aligned like the close-X) so the tag,
-   label, and chevron line up with the search row's magnifier, placeholder, and X. */
-.diagnose-picker-disclose { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 16px; background: none; border: none; border-top: 1px solid #eef1f5; font-size: 12.5px; font-weight: 600; color: #6b7785; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
+/* "Move to the wrap up section" — the escape hatch for A&P items that aren't a codeable
+   diagnosis. Phase A: a flush-left trigger whose label matches the recommendation rows
+   (14px / 500), quieter color. Clicking arms Phase B: the same label + inline Cancel /
+   Confirm. */
+.diagnose-picker-disclose { display: flex; align-items: center; width: 100%; padding: 9px 16px; background: none; border: none; border-top: 1px solid #eef1f5; font-size: 14px; font-weight: 500; color: #6b7785; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
 .diagnose-picker-disclose:hover { background: #f5f8ff; color: #052B49; }
-.diagnose-picker-disclose .nd-lead { width: 18px; height: 18px; color: #9aa6b2; flex-shrink: 0; }
-.diagnose-picker-disclose .nd-chev { width: 16px; height: 16px; color: #9aa6b2; flex-shrink: 0; margin-left: auto; transition: transform 0.12s; }
-.diagnose-picker-disclose:hover .nd-chev { transform: translateX(3px); }
-.diagnose-picker-action { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 16px; background: none; border: none; border-top: 1px solid #eef1f5; font-size: 12.5px; font-weight: 600; color: #6b7785; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
-.diagnose-picker-action:hover { background: #f5f8ff; color: #052B49; }
-.diagnose-picker-action svg { width: 18px; height: 18px; flex-shrink: 0; }
+.diagnose-move-confirm { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 16px; border-top: 1px solid #eef1f5; background: #fafbfd; }
+.diagnose-move-label { font-size: 14px; font-weight: 500; color: #1f2733; }
+.diagnose-move-actions { margin-left: auto; display: flex; gap: 8px; flex-shrink: 0; }
+.diagnose-move-confirm button { font: inherit; font-size: 12.5px; font-weight: 600; border-radius: 7px; padding: 5px 12px; cursor: pointer; border: 1px solid transparent; transition: background 0.12s, color 0.12s; }
+.diagnose-move-cancel { background: none; border-color: #d3dbe4; color: #6b7785; }
+.diagnose-move-cancel:hover { background: #eef2f6; color: #1f2733; }
+.diagnose-move-confirm-btn { background: #052B49; color: #fff; }
+.diagnose-move-confirm-btn:hover { background: #0a3a60; }
 
 /* Diagnose recommendation: header + actions on one row, everything else full-width below */
 .recommendation-block.rec-diagnose { display: grid; grid-template-columns: 1fr auto; align-items: start; }

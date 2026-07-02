@@ -7,9 +7,6 @@ const html = htm.bind(h);
 const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const ICON_SEARCH = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>`;
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
-const ICON_MOVE = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
-const ICON_TAG = html`<svg class="nd-lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L3 13V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`;
-const ICON_CHEVRON = html`<svg class="nd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -352,25 +349,29 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
         : (searched && query.length >= 2)
         ? html`<div class="diagnose-picker-empty">No diagnoses found</div>`
         : null}
-      ${/* Not a diagnosis? Reclassify the card as a plan narrative in Wrap Up. Lives in
-          the picker (available both for an uncoded card and when changing a code) behind a
-          quiet "Not a diagnosis?" trigger that reveals the "Move to Wrap Up" action.
-          onMouseDown+preventDefault so the search input's blur doesn't eat the click. */ ''}
+      ${/* Move this card's content to the Wrap Up section (for A&P items that aren't a
+          codeable diagnosis). Lives in the picker — available on an uncoded card and when
+          changing a code — as a two-click inline confirm: the "Move to the wrap up section"
+          trigger arms an inline Cancel/Confirm carrying the SAME label. onMouseDown+
+          preventDefault so the search input's blur doesn't eat the click; showMoveOption
+          resets on picker open/close so it always reopens disarmed. */ ''}
       ${onMoveToPlan && (showMoveOption
         ? html`
-          <button
-            type="button"
-            class="diagnose-picker-action"
-            title="Moves this card's free-text content out of the diagnosis list into the wrap up section. Use when the item isn't a codeable diagnosis (e.g. a plan or administrative note)."
-            onMouseDown=${(e) => { e.preventDefault(); onMoveToPlan(commandIndex); }}
-          >${ICON_MOVE} Move content to free text wrap up section below</button>
+          <div class="diagnose-move-confirm">
+            <span class="diagnose-move-label">Move to the wrap up section</span>
+            <span class="diagnose-move-actions">
+              <button type="button" class="diagnose-move-cancel" onMouseDown=${(e) => { e.preventDefault(); setShowMoveOption(false); }}>Cancel</button>
+              <button type="button" class="diagnose-move-confirm-btn" onMouseDown=${(e) => { e.preventDefault(); onMoveToPlan(commandIndex); }}>Confirm</button>
+            </span>
+          </div>
         `
         : html`
           <button
             type="button"
             class="diagnose-picker-disclose"
+            title="Move this card's free-text content to the wrap up section — use when the item isn't a codeable diagnosis."
             onMouseDown=${(e) => { e.preventDefault(); setShowMoveOption(true); }}
-          >${ICON_TAG}Not a diagnosis?${ICON_CHEVRON}</button>
+          >Move to the wrap up section</button>
         `)}
     </div>
   `;
