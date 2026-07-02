@@ -714,7 +714,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false }) {
   const isCharges = title === 'CHARGES';
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
@@ -770,6 +770,50 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const isCoveredHistory = coveredKeys.has(key) && HISTORY_SECTION_KEYS.has(key);
           if (coveredKeys.has(key) && !hasRecsForKey && !DEDICATED_SECTION_KEYS.has(key) && !HISTORY_SECTION_KEYS.has(key)) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
+
+          if (key === 'appointments') {
+            // Appointments component: always present (ENSURE_KEYS). Renders EVERY plan
+            // command here — including cards moved via "Move to plan" — as an editable
+            // narrative with Remove. When empty and editable, a "Tap to enter text"
+            // placeholder promotes into a real command via onAddAppointment (mirrors the
+            // Physical Exam always-on editor). Uncoded diagnoses never live here, so no
+            // ICD gate applies.
+            const apptCmds = (cmds || []).filter(e => e.command.command_type === 'plan');
+            const apptPlaceholder = { command_type: 'plan', section_key: 'appointments', display: '', selected: true, already_documented: false, data: { narrative: '' } };
+            if (readOnly && apptCmds.length === 0) return null;
+            return html`
+              <div class="subsection" key=${s.key}>
+                <div class="subsection-title">${s.title}</div>
+                ${apptCmds.map(entry => {
+                  const apptRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                  return html`
+                    <div class=${`content-block rec-narrative${apptRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${apptRowReadOnly && entry.command.already_documented && ICON_LOCK}
+                      <${CommandRow}
+                        command=${entry.command}
+                        commandIndex=${entry.index}
+                        onEdit=${onEditCommand}
+                        readOnly=${apptRowReadOnly}
+                        onEditingChange=${onEditingChange}
+                      />
+                      ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                    </div>
+                  `;
+                })}
+                ${apptCmds.length === 0 && !readOnly && onAddAppointment && html`
+                  <div class="content-block rec-narrative">
+                    <${CommandRow}
+                      command=${apptPlaceholder}
+                      commandIndex="appointments_placeholder"
+                      onEdit=${(_, data) => onAddAppointment(data)}
+                      readOnly=${false}
+                      onEditingChange=${onEditingChange}
+                    />
+                  </div>
+                `}
+              </div>
+            `;
+          }
 
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
             const isPlan = PLAN_SECTIONS.has(key);

@@ -7,6 +7,7 @@ const html = htm.bind(h);
 const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const ICON_SEARCH = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>`;
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+const ICON_MOVE = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -359,7 +360,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
         ${/* Reclassify a non-diagnosis A&P item (e.g. "Physical therapy access") as a
             plan narrative — preserves the content without forcing an ICD-10 code. */ ''}
         ${!readOnly && onMoveToPlan && html`
-          <button type="button" class="diagnose-change-btn" onClick=${() => onMoveToPlan(commandIndex)} title="Not a diagnosis — move this to the plan">Move to plan</button>
+          <button type="button" class="diagnose-change-btn" onClick=${() => onMoveToPlan(commandIndex)} title="Not a diagnosis — move this to the plan">${ICON_MOVE} Move to plan</button>
         `}
       </div>
 
