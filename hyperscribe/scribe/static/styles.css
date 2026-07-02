@@ -1102,6 +1102,11 @@ select.history-form-input {
    "Detected in note", "More specific option"). Trails the code as a quiet, right-aligned
    metadata column (the code pill leads, right after the diagnosis name). */
 .diagnose-picker-prov { margin-left: auto; flex-shrink: 0; font-size: 10.5px; font-weight: 600; color: #6b7785; background: #f1f4f8; border-radius: 5px; padding: 1px 7px; white-space: nowrap; }
+/* "Move to plan" action at the foot of the code picker — a distinct action (not a code
+   option), separated from the list above and styled quieter than a diagnosis row. */
+.diagnose-picker-action { display: flex; align-items: center; gap: 7px; width: 100%; padding: 9px 16px; background: none; border: none; border-top: 1px solid #eef1f5; font-size: 12.5px; font-weight: 600; color: #6b7785; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
+.diagnose-picker-action:hover { background: #f5f8ff; color: #052B49; }
+.diagnose-picker-action svg { width: 13px; height: 13px; }
 
 /* Diagnose recommendation: header + actions on one row, everything else full-width below */
 .recommendation-block.rec-diagnose { display: grid; grid-template-columns: 1fr auto; align-items: start; }
