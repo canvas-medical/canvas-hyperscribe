@@ -326,7 +326,6 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
         `
         : (query.length < 2 && recCodes.length > 0)
         ? html`
-          <div class="diagnose-picker-label">Recommended</div>
           <div class="diagnose-picker-list">
             ${recCodes.map(s => html`
               <div
