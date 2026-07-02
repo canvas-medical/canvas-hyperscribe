@@ -224,6 +224,10 @@ def test_split_plan_into_diagnoses_basic() -> None:
     assert updated[2]["command_type"] == "diagnose"
     assert updated[2]["data"]["icd10_code"] == "I10"
     assert unmatched == []
+    # today_assessment leads with the original A&P headline (persisted for reference,
+    # inside the editable text), then the block body.
+    assert updated[1]["data"]["today_assessment"] == "Migraine\n- Start sumatriptan"
+    assert updated[2]["data"]["today_assessment"] == "Hypertension\n- Continue lisinopril"
 
 
 def test_split_plan_into_diagnoses_unmatched() -> None:

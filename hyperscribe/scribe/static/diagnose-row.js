@@ -289,14 +289,6 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
   // "Change" affordance, not by clicking the code.
   const titleText = hasCode ? (data.icd10_display || conditionHeader) : conditionHeader;
 
-  // The original Nabla-generated A&P problem name. Once a code is chosen the card
-  // title becomes the diagnosis (and `condition_header` may be rewritten to the ICD
-  // display), so the original headline is preserved in `_original_header`. Surface it
-  // as a quasi-header inside Today's assessment so it persists for reference. Hidden
-  // when it would just duplicate the card title (e.g. an uncoded card).
-  const originalHeader = (data._original_header || data.condition_header || '').trim();
-  const showAssessmentHeader = originalHeader && originalHeader !== titleText;
-
   const recCodes = suggestions || [];
 
   // Integrated picker — search input on top, then live results (while typing)
@@ -396,7 +388,6 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
             `)}
           `}
           <div class="diagnose-body-label">Today's assessment</div>
-          ${showAssessmentHeader && html`<div class="diagnose-assessment-header">${originalHeader}</div>`}
           ${(data.today_assessment || '').length > 0
             ? (data.today_assessment || '').split('\n').map((line, i) => html`
                 <div key=${i} class="diagnose-body-line">${line}</div>
@@ -433,7 +424,6 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
             `}
           <div class="diagnose-field">
             <div class="diagnose-body-label">Today's assessment</div>
-            ${showAssessmentHeader && html`<div class="diagnose-assessment-header">${originalHeader}</div>`}
             <textarea
               ref=${textareaRef}
               class="command-row-textarea"
