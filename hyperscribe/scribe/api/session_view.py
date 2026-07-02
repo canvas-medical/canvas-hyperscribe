@@ -82,8 +82,12 @@ from hyperscribe.scribe.commands.problem_list_match import (
     ActivePatientCondition,
     prefer_patient_specific_codes,
 )
-from hyperscribe.scribe.recommendations import prescription_dispense_enabled, recommend_commands
+from hyperscribe.scribe.recommendations import make_llm_client, prescription_dispense_enabled, recommend_commands
 from hyperscribe.scribe.recommendations._referral_diagnosis import link_referral_diagnoses
+from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
+    BlockContext as DiagnosisBlockContext,
+    resolve_uncoded_blocks,
+)
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
@@ -1359,6 +1363,52 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         # invented codes). Surface them as a ``block_id -> options`` map — the
         # stable association key, replacing the old mutable-header keying.
         _save_progress(note_id, 4, total, SUMMARY_STEPS[4])
+        # Grounded-LLM resolver: for the blocks the deterministic belt could not code,
+        # retrieve real ICD-10 codes and let the LLM select the best (auto-apply on high
+        # confidence) or curate a grounded picker. Best-effort — never invents a code,
+        # never overrides a code the belt already applied, never crashes generation.
+        if api_key:
+            uncoded_blocks = [
+                DiagnosisBlockContext(
+                    block_id=c["data"]["block_id"],
+                    header=c["data"].get("condition_header", ""),
+                    body=c["data"].get("today_assessment", ""),
+                    candidates=c["data"].get("candidate_suggestions") or [],
+                )
+                for c in commands_list
+                if c.get("command_type") == "diagnose"
+                and not c.get("data", {}).get("icd10_code")
+                and c.get("data", {}).get("block_id")
+            ]
+            if uncoded_blocks:
+                try:
+                    resolutions = resolve_uncoded_blocks(
+                        uncoded_blocks,
+                        lambda: make_llm_client(api_key),
+                        CanvasScience.search_conditions,
+                    )
+                    by_block = {
+                        c["data"].get("block_id"): c for c in commands_list if c.get("command_type") == "diagnose"
+                    }
+                    for block_id, resolution in resolutions.items():
+                        command = by_block.get(block_id)
+                        if command is None:
+                            continue
+                        if resolution.chosen is not None:
+                            code, display = resolution.chosen
+                            command["data"]["icd10_code"] = code
+                            command["data"]["icd10_display"] = display
+                            # Auto-applied: no longer uncoded, drop the picker options.
+                            command["data"].pop("candidate_suggestions", None)
+                        elif resolution.suggestions:
+                            command["data"]["candidate_suggestions"] = resolution.suggestions
+                except Exception:
+                    log.exception("diagnosis LLM resolver failed (non-critical)")
+
+        # The belt + resolver have stamped ranked, science/chart-grounded
+        # ``candidate_suggestions`` on each still-uncoded diagnose proposal (no invented
+        # codes). Surface them as a ``block_id -> options`` map — the stable association
+        # key, replacing the old mutable-header keying.
         diagnosis_suggestions: dict[str, Any] = {
             c["data"]["block_id"]: c["data"]["candidate_suggestions"]
             for c in commands_list

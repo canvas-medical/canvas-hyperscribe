@@ -27,6 +27,15 @@ def _make_settings(api_key: str) -> LlmSettingsAnthropic:
     )
 
 
+def make_llm_client(api_key: str) -> LlmAnthropic:
+    """Public factory for an Anthropic client with the recommendations settings.
+
+    Lets callers outside this module (e.g. the diagnosis LLM resolver wired into
+    ``session_view``) build a client without reaching into ``_make_settings``.
+    """
+    return LlmAnthropic(_make_settings(api_key))
+
+
 def prescription_dispense_enabled(allowlist_raw: str | None, provider_id: str | None) -> bool:
     """Whether the prescription dispense-field engine is enabled for this provider.
 
