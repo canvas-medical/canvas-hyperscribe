@@ -425,7 +425,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -447,6 +447,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddTask=${isPlan ? onAddTask : null}
         onAddOrder=${isPlan ? onAddOrder : null}
         onAddPlan=${isPlan ? onAddPlan : null}
+        onMoveToPlan=${isPlan ? onMoveToPlan : null}
         onAddVitals=${isObjective ? onAddVitals : null}
         onAddPhysicalExam=${isObjective ? onAddPhysicalExam : null}
         onAddMentalStatusExam=${isObjective ? onAddMentalStatusExam : null}
@@ -1738,6 +1739,31 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (!canEdit) return;
     setCommands(prev => {
       const updated = prev.filter((_, i) => i !== index);
+      saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
+      return updated;
+    });
+  }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+
+  // Reclassify a diagnosis card as a plain plan narrative. Some A&P "problems" are
+  // really management/administrative items (e.g. "Physical therapy access", "Ear
+  // cleaning") that shouldn't carry an ICD-10 code; converting to a `plan` command
+  // preserves the documentation, drops the code requirement, and clears the uncoded-
+  // diagnosis hard block (every gate keys on command_type === 'diagnose'). One-way:
+  // to undo, delete and re-add. The header leads the narrative so the problem name
+  // survives as context.
+  const handleMoveToPlan = useCallback((index) => {
+    if (!canEdit) return;
+    logEvent('MOVE_DX_TO_PLAN', { index });
+    setCommands(prev => {
+      const updated = prev.map((c, i) => {
+        if (i !== index || c.command_type !== 'diagnose') return c;
+        const d = c.data || {};
+        const header = (d.condition_header || '').trim();
+        const body = (d.today_assessment || '').trim();
+        const narrative = header ? (body ? `${header}\n${body}` : header) : body;
+        // Replace `data` wholesale so ICD/accepted/suggestion fields don't linger.
+        return { ...c, command_type: 'plan', display: narrative, data: { narrative } };
+      });
       saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return updated;
     });
@@ -3282,6 +3308,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddTask: canEdit ? handleAddTask : null,
           onAddOrder: canEdit ? handleAddOrder : null,
           onAddPlan: canEdit ? handleAddPlan : null,
+          onMoveToPlan: canEdit ? handleMoveToPlan : null,
           onAddVitals: canEdit ? handleAddVitals : null,
           onAddPhysicalExam: canEdit ? handleAddPhysicalExam : null,
           onAddMentalStatusExam: canEdit ? handleAddMentalStatusExam : null,

@@ -197,6 +197,30 @@ def test_managed_condition_codes_the_underlying_diagnosis() -> None:
     assert out["apblock-4"].chosen == ("E55.9", "Vitamin D deficiency, unspecified")
 
 
+def test_high_confidence_z_code_is_surfaced_not_applied() -> None:
+    # A contextual Z-code (e.g. Z75.8 for a PT-access problem) must never auto-apply,
+    # even at high confidence — it's surfaced for the provider to confirm instead.
+    block = BlockContext(
+        block_id="apblock-6",
+        header="Physical therapy access",
+        body="Difficulty accessing home health physical therapy due to repeated cancellations.",
+        candidates=[
+            _candidate(
+                "Z758",
+                "Z75.8",
+                "Other problems related to medical facilities and other health care",
+                "ICD-10 search",
+            )
+        ],
+    )
+    client = _FakeClient([_step(selected="Z75.8", confidence="high", ranked=["Z75.8"])])
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science)
+
+    res = out["apblock-6"]
+    assert res.chosen is None  # not auto-applied
+    assert [s["formatted_code"] for s in res.suggestions] == ["Z75.8"]  # but surfaced
+
+
 def test_hallucinated_code_is_rejected() -> None:
     # The LLM returns a code that is NOT in the pool and offers no search terms.
     # Nothing survives the gate -> no resolution (belt output preserved).

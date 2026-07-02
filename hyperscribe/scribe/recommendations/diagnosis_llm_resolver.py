@@ -93,6 +93,11 @@ def _pool_entry(code: str, formatted_code: str, display: str, provenance: str) -
     return {"code": code, "formatted_code": formatted_code, "display": display, "provenance": provenance}
 
 
+def _is_contextual_z(code: str) -> bool:
+    """True for an ICD-10 Chapter 21 ``Z`` code (factors influencing health status)."""
+    return icd10_normalize(code).startswith("Z")
+
+
 def _build_user_prompt(block: BlockContext, pool: dict[str, dict[str, str]]) -> str:
     lines = [
         "Problem (assessment & plan header):",
@@ -199,8 +204,16 @@ def _resolve_one(block: BlockContext, client: Any, science_search: ScienceSearch
         if selected_norm and selected_norm in pool:
             entry = pool[selected_norm]
             suggestions = _suggestions_from(step, pool)
-            # Auto-apply only on high confidence; otherwise surface for the provider.
-            chosen = (entry["formatted_code"], entry["display"]) if step.confidence == "high" else None
+            # Auto-apply only on high confidence AND not a contextual Z-code. A Z-code
+            # (Chapter 21 — factors influencing health status, e.g. Z75.8 "problems
+            # related to access to care") is a coding judgment the provider should make
+            # deliberately, not have silently stamped onto an administrative header —
+            # so a high-confidence Z pick is surfaced for confirmation, not applied.
+            chosen = (
+                (entry["formatted_code"], entry["display"])
+                if step.confidence == "high" and not _is_contextual_z(selected_norm)
+                else None
+            )
             return BlockResolution(chosen=chosen, confidence=step.confidence, suggestions=suggestions)
         # No valid in-pool selection: expand the search and try once more.
         if not _merge_science(step.more_search_terms, pool, science_search):
