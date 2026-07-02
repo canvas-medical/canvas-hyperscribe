@@ -827,7 +827,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (hasConditionCommands) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${s.title}</div>
+                  <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
                   ${cmds.filter(e => e.command.command_type === 'assess').map(entry => {
                     const aData = entry.command.data || {};
                     const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
@@ -985,7 +985,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const narrativeRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${s.title}</div>
+                <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
                 <div class=${`content-block rec-narrative${narrativeRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
                   ${narrativeRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <${CommandRow}
