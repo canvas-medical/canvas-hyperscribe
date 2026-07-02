@@ -1044,6 +1044,8 @@ select.history-form-input {
 .diagnose-body-empty { color: #aaa; font-style: italic; }
 .diagnose-body-label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; }
 .diagnose-body-label:first-child { margin-top: 0; }
+/* Original Nabla A&P headline, kept as a quasi-header inside Today's assessment. */
+.diagnose-assessment-header { font-weight: 600; color: #374151; margin: 2px 0 4px; }
 /* Edit-area vertical rhythm: generous gap BETWEEN field groups; tight WITHIN
    each group (label->box->help) via the .diagnose-field wrapper + label margin.
    Shared by DiagnoseRow and AssessNarrative edit views. */
