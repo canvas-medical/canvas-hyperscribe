@@ -1756,22 +1756,36 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (!canEdit) return;
     logEvent('MOVE_DX_TO_PLAN', { index });
     setCommands(prev => {
-      const updated = prev.map((c, i) => {
-        if (i !== index || c.command_type !== 'diagnose') return c;
-        const d = c.data || {};
-        const header = (d.condition_header || '').trim();
-        // today_assessment already leads with the headline (baked at generation). The
-        // card title should NOT travel to Wrap Up, so drop that leading header line and
-        // carry only the assessment body.
-        let narrative = (d.today_assessment || '').trim();
-        if (header && narrative.startsWith(header)) {
-          narrative = narrative.slice(header.length).replace(/^\n+/, '');
-        }
-        if (!narrative) narrative = header; // never produce an empty card
-        // Replace `data` wholesale so ICD/accepted/suggestion fields don't linger, and
-        // move it into the Wrap Up (appointments) component.
-        return { ...c, command_type: 'plan', section_key: 'appointments', display: narrative, data: { narrative } };
-      });
+      const src = prev[index];
+      if (!src || src.command_type !== 'diagnose') return prev;
+      const d = src.data || {};
+      // Carry today_assessment verbatim — it already leads with the headline + body
+      // (baked at generation), so the header shows once (no strip, no duplicate).
+      const item = (d.today_assessment || '').trim() || (d.condition_header || '').trim();
+      if (!item) return prev;
+      // Consolidate: all moved items live in the SAME Wrap Up text box. Append to the
+      // first editable `appointments` plan command if one exists; otherwise convert the
+      // source in place into it. Either way the source diagnosis card is removed.
+      const targetIdx = prev.findIndex(
+        c => c.command_type === 'plan' && c.section_key === 'appointments' && !c.already_documented && !c.command_uuid
+      );
+      let updated;
+      if (targetIdx >= 0) {
+        updated = prev
+          .map((c, i) => {
+            if (i !== targetIdx) return c;
+            const existing = (c.data?.narrative || '').trim();
+            const merged = existing ? `${existing}\n\n${item}` : item;
+            return { ...c, display: merged, data: { ...c.data, narrative: merged } };
+          })
+          .filter((_, i) => i !== index);
+      } else {
+        updated = prev.map((c, i) =>
+          i === index
+            ? { ...c, command_type: 'plan', section_key: 'appointments', display: item, data: { narrative: item } }
+            : c
+        );
+      }
       saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
       return updated;
     });
