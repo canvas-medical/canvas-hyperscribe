@@ -398,6 +398,7 @@ const DEBOUNCE_MS = 300;
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
 const ICON_LOCK = html`<svg class="command-row-icon-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 
 // Standalone delete-X action button used by most row render branches. Suppressed
 // in readOnly mode and for any command that's already in the chart (e.g. synced
@@ -841,6 +842,19 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             <div class="diagnose-row-header">
                               <span class="diagnose-row-title">${entry.command.display}</span>
                               ${aFormatted ? html`<span class="diagnose-icd-code">${aFormatted}</span>` : ''}
+                              ${/* Change on an assess (existing-condition) card: re-pick the ICD-10
+                                  code. A different code means a different condition, so convert to a
+                                  fresh uncoded diagnose (drops condition_id → no false assess against
+                                  the chart problem) and open the picker. handleEdit's diagnose branch
+                                  replaces data wholesale, so omitting condition_id here removes it. */ ''}
+                              ${!assessRowReadOnly && html`
+                                <button
+                                  type="button"
+                                  class="diagnose-change-btn"
+                                  title="Change diagnosis"
+                                  onClick=${() => onEditCommand(entry.index, { icd10_code: null, icd10_display: '', condition_header: entry.command.display || '', today_assessment: aData.narrative || '', background: aData.background || null }, 'diagnose')}
+                                >${ICON_PENCIL} Change</button>
+                              `}
                             </div>
                             <${AssessNarrative}
                               command=${entry.command}
