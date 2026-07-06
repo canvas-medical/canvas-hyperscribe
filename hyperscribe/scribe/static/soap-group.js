@@ -1397,7 +1397,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const historyEntries = historyType
             ? visibleAdHoc.filter(e => e.command.command_type === historyType)
             : [];
-          const showHistoryText = s.text && !isCoveredHistory;
+          // Never render the raw note A&P text: its content is command-driven (diagnose/
+          // plan commands), so raw `s.text` is always a duplicate — and it becomes a stale,
+          // uneditable duplicate once every card is moved to Wrap Up (which empties
+          // assessment_and_plan of commands and drops rendering into this fallback).
+          const showHistoryText = s.text && !isCoveredHistory && key !== 'assessment_and_plan';
           // social_history has no manual input affordance (not in NARRATIVE_SECTIONS,
           // no SECTION_TO_HISTORY_TYPE entry), so an empty Social History section is a
           // dead, un-fillable header. Hide it whenever it has nothing to show; the AI
@@ -1412,7 +1416,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (!showHistoryText && historyEntries.length === 0 && !onAddHistory && !cmds && !planAddable) return null;
           return html`
             <div class="subsection" key=${s.key}>
-              <div class="subsection-title">${s.title}</div>
+              <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
               ${showHistoryText && html`<p class="section-text">${s.text}</p>`}
               ${historyEntries.map(entry => {
                 const historyRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
