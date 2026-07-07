@@ -72,17 +72,16 @@ def test_resolve_medication_matches_stated_strength(mock_details: MagicMock) -> 
 
 
 @patch("hyperscribe.scribe.recommendations._medication_match.CanvasScience.medication_details")
-def test_resolve_medication_falls_back_to_first_when_no_strength_match(mock_details: MagicMock) -> None:
+def test_resolve_medication_returns_none_when_no_strength_match(mock_details: MagicMock) -> None:
     from hyperscribe.structures.medication_detail import MedicationDetail
 
     mock_details.return_value = [
         MedicationDetail(fdb_code="10", description="Lisinopril 10 mg Tablet", quantities=[]),
         MedicationDetail(fdb_code="40", description="Lisinopril 40 mg Tablet", quantities=[]),
     ]
-    # stated strength (5 mg) is not in the candidate set -> fall back to first
-    result = _resolve_medication("Lisinopril 5 mg", "lisinopril")
-    assert result is not None
-    assert result.fdb_code == "10"
+    # stated strength (5 mg) is not in the candidate set -> None (fail-safe),
+    # so the proposal keeps the medication text without a wrong-strength FDB code
+    assert _resolve_medication("Lisinopril 5 mg", "lisinopril") is None
 
 
 @patch("hyperscribe.scribe.recommendations._medication_match.CanvasScience.medication_details")
