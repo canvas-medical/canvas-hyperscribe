@@ -4641,7 +4641,9 @@ def test_generate_summary_success(
     # Plan should have been split into diagnose commands.
     diagnose_cmds = [c for c in data["commands"] if c["command_type"] == "diagnose"]
     assert len(diagnose_cmds) == 1
-    assert diagnose_cmds[0]["data"]["icd10_code"] == "G43"
+    # Never auto-applied: uncoded, with the code surfaced as a picker suggestion.
+    assert diagnose_cmds[0]["data"]["icd10_code"] is None
+    assert any(s["formatted_code"] == "G43" for s in diagnose_cmds[0]["data"]["candidate_suggestions"])
     assert len(data["recommendations"]) == 1
     assert data["recommendations"][0]["command_type"] == "medication_statement"
     # Summary should be saved to database.
@@ -4736,12 +4738,14 @@ def test_generate_summary_prefers_patient_specific_icd10_over_nabla_parent(
     data = json.loads(result[0].content)
     diagnose_cmds = [c for c in data["commands"] if c["command_type"] == "diagnose"]
     assert len(diagnose_cmds) == 1, "Expected exactly one diagnose command from the A&P split."
-    # The Nabla-emitted E11.9 must have been rewritten to the patient-specific E11.65
-    # so the frontend belt can match against the active condition and convert to assess.
-    assert diagnose_cmds[0]["data"]["icd10_code"] == "E1165", (
-        "Expected the diagnose command to carry the patient-specific E11.65 code, "
-        f"got {diagnose_cmds[0]['data']['icd10_code']!r}. The Nabla E11.9 parent code "
-        "should have been rewritten before the A&P split picked it up."
+    # The Nabla-emitted E11.9 is rewritten to the patient-specific E11.65 so it leads the
+    # picker; never auto-applied — the card is uncoded and the provider picks E11.65 (which
+    # then flips to assess against the active condition at insert).
+    assert diagnose_cmds[0]["data"]["icd10_code"] is None
+    _formatted = [s["formatted_code"] for s in diagnose_cmds[0]["data"]["candidate_suggestions"]]
+    assert _formatted[0] == "E11.65", (
+        f"Expected the patient-specific E11.65 to lead the picker, got {_formatted!r}. "
+        "The Nabla E11.9 parent code should have been rewritten before the A&P split."
     )
 
     # _load_active_patient_conditions must be called with the patient_id from the request,
@@ -4815,7 +4819,9 @@ def test_generate_summary_empty_active_problem_list_leaves_nabla_code_intact(
     data = json.loads(result[0].content)
     diagnose_cmds = [c for c in data["commands"] if c["command_type"] == "diagnose"]
     assert len(diagnose_cmds) == 1
-    assert diagnose_cmds[0]["data"]["icd10_code"] == "R51"
+    # Never auto-applied: uncoded, with the Nabla code intact as a picker suggestion.
+    assert diagnose_cmds[0]["data"]["icd10_code"] is None
+    assert any(s["formatted_code"] == "R51" for s in diagnose_cmds[0]["data"]["candidate_suggestions"])
 
 
 @patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])

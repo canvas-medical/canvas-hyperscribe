@@ -482,24 +482,17 @@ def test_split_plan_stamp_and_prefill_diagnose_background_integration() -> None:
         ],
     }
 
-    # Step 1: split — stamps condition_id on the produced diagnose proposal.
+    # Step 1: split never auto-codes now, so it does NOT stamp condition_id — the code
+    # is surfaced as a picker suggestion and the provider chooses it.
     updated, _ = split_plan_into_diagnoses(commands, section_conditions, note=current_note)
     assert len(updated) == 1
     assert updated[0]["command_type"] == "diagnose"
-    assert updated[0]["data"]["icd10_code"] == "I10"
-    assert updated[0]["data"]["condition_id"] == str(cond_htn.id), (
-        "split_plan_into_diagnoses must stamp the SDK condition_id (= "
-        "str(condition.id)) on the diagnose proposal when its icd10_code "
-        "matches an active condition on the patient. Without the stamp, "
-        "the per-(patient, condition) carry-forward short-circuits."
-    )
+    assert updated[0]["data"]["icd10_code"] is None
+    assert "condition_id" not in updated[0]["data"]
+    assert updated[0]["data"]["candidate_suggestions"][0]["formatted_code"] == "I10"
 
-    # Step 2: prefill — resolves the prior signed Assessment by (patient,
-    # condition_id) and writes its ``background`` onto the proposal.
+    # Step 2: with no condition_id on an uncoded proposal, background carry-forward is a
+    # no-op at generation (see note in the plan: never-auto-apply trades away the
+    # generation-time diagnose background prefill; picking the code clears background anyway).
     prefill_diagnose_backgrounds(updated, str(current_note.id))
-    assert updated[0]["data"]["background"] == "Diagnosed 2020-03-15; controlled on lisinopril 10mg", (
-        "prefill_diagnose_backgrounds must carry forward the prior "
-        "Assessment.background for the same (patient, condition). A typo in "
-        "the filter kwargs or a missing condition_id stamp would fail here "
-        "even though every mock-based unit test passes."
-    )
+    assert not updated[0]["data"].get("background")

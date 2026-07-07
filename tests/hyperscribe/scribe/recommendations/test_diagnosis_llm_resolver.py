@@ -80,7 +80,7 @@ def _no_science(_terms: list[str]) -> list[Icd10Condition]:
     return []
 
 
-def test_selects_from_provided_high_confidence_auto_applies() -> None:
+def test_selection_leads_suggestions_never_auto_applies() -> None:
     block = BlockContext(
         block_id="apblock-1",
         header="Edema in lower extremities",
@@ -90,8 +90,9 @@ def test_selects_from_provided_high_confidence_auto_applies() -> None:
     client = _FakeClient([_step(selected="R60.0", confidence="high", ranked=["R60.0"])])
     out = resolve_uncoded_blocks([block], _factory(client), _no_science)
 
-    assert out["apblock-1"].chosen == ("R60.0", "Localized edema")
-    assert out["apblock-1"].confidence == "high"
+    res = out["apblock-1"]
+    assert res.chosen is None  # never auto-applied — the provider always picks
+    assert res.suggestions[0]["formatted_code"] == "R60.0"  # the model's pick leads the list
 
 
 def test_expands_when_nothing_provided_then_selects() -> None:
@@ -118,7 +119,9 @@ def test_expands_when_nothing_provided_then_selects() -> None:
     out = resolve_uncoded_blocks([block], _factory(client), science)
 
     assert science_calls == [["fluid overload", "pulmonary edema"]]
-    assert out["apblock-0"].chosen == ("E87.70", "Fluid overload, unspecified")
+    res = out["apblock-0"]
+    assert res.chosen is None
+    assert res.suggestions[0]["formatted_code"] == "E87.70"  # grounded code leads the picker
 
 
 def test_rejects_clinically_wrong_provided_and_expands() -> None:
@@ -142,9 +145,11 @@ def test_rejects_clinically_wrong_provided_and_expands() -> None:
     )
     out = resolve_uncoded_blocks([block], _factory(client), science)
 
-    assert out["apblock-2"].chosen == ("E88.09", "Hypoalbuminemia")
-    # The inverted code was never chosen.
-    assert out["apblock-2"].chosen != ("E67.8", "Other specified hyperalimentation")
+    res = out["apblock-2"]
+    assert res.chosen is None
+    codes = [s["formatted_code"] for s in res.suggestions]
+    assert codes[0] == "E88.09"  # the correct code leads
+    assert "E67.8" not in codes  # the inverted lexical hit is not surfaced
 
 
 def test_wrong_family_refinement_expands_to_correct_family() -> None:
@@ -168,7 +173,9 @@ def test_wrong_family_refinement_expands_to_correct_family() -> None:
     )
     out = resolve_uncoded_blocks([block], _factory(client), science)
 
-    assert out["apblock-3"].chosen == ("D50.9", "Iron deficiency anemia, unspecified")
+    res = out["apblock-3"]
+    assert res.chosen is None
+    assert res.suggestions[0]["formatted_code"] == "D50.9"  # iron-deficiency leads over D64
 
 
 def test_managed_condition_codes_the_underlying_diagnosis() -> None:
@@ -194,7 +201,9 @@ def test_managed_condition_codes_the_underlying_diagnosis() -> None:
     )
     out = resolve_uncoded_blocks([block], _factory(client), science)
 
-    assert out["apblock-4"].chosen == ("E55.9", "Vitamin D deficiency, unspecified")
+    res = out["apblock-4"]
+    assert res.chosen is None
+    assert res.suggestions[0]["formatted_code"] == "E55.9"  # underlying deficiency leads
 
 
 def test_high_confidence_z_code_is_surfaced_not_applied() -> None:

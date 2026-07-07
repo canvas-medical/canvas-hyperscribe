@@ -218,11 +218,14 @@ def test_split_plan_into_diagnoses_basic() -> None:
     updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 3  # rfv + 2 diagnose
     assert updated[0]["command_type"] == "rfv"
+    # Never auto-applied: every diagnose is uncoded; the code is surfaced as the top pick.
     assert updated[1]["command_type"] == "diagnose"
-    assert updated[1]["data"]["icd10_code"] == "G43.909"
+    assert updated[1]["data"]["icd10_code"] is None
     assert updated[1]["data"]["accepted"] is False
+    assert updated[1]["data"]["candidate_suggestions"][0]["formatted_code"] == "G43.909"
     assert updated[2]["command_type"] == "diagnose"
-    assert updated[2]["data"]["icd10_code"] == "I10"
+    assert updated[2]["data"]["icd10_code"] is None
+    assert updated[2]["data"]["candidate_suggestions"][0]["formatted_code"] == "I10"
     assert unmatched == []
     # today_assessment leads with the original A&P headline (persisted for reference,
     # inside the editable text), then the block body.
@@ -345,8 +348,9 @@ def test_split_plan_corresponding_note_problem() -> None:
     }
     updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 1
-    assert updated[0]["data"]["icd10_code"] == "J06.9"
+    assert updated[0]["data"]["icd10_code"] is None
     assert updated[0]["data"]["accepted"] is False
+    assert updated[0]["data"]["candidate_suggestions"][0]["formatted_code"] == "J06.9"
 
 
 def test_split_plan_strips_trailing_colon_from_split_by_problem_header() -> None:
@@ -377,7 +381,8 @@ def test_split_plan_strips_trailing_colon_from_split_by_problem_header() -> None
     }
     updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 1
-    assert updated[0]["data"]["icd10_code"] == "M75.41"
+    assert updated[0]["data"]["icd10_code"] is None
+    assert updated[0]["data"]["candidate_suggestions"][0]["formatted_code"] == "M75.41"
     # The stored header is colon-stripped, not "Right rotator cuff tendinitis:".
     assert updated[0]["data"]["condition_header"] == "Right rotator cuff tendinitis"
     assert unmatched == []
@@ -426,10 +431,12 @@ def test_split_plan_corresponding_note_problem_prevents_wrong_match() -> None:
     }
     updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 2
-    # Diarrhea gets R19.7, NOT D86.9
-    assert updated[0]["data"]["icd10_code"] == "R19.7"
-    # Sarcoidosis gets D86.9
-    assert updated[1]["data"]["icd10_code"] == "D86.9"
+    # Diarrhea surfaces R19.7, NOT D86.9
+    assert updated[0]["data"]["icd10_code"] is None
+    assert updated[0]["data"]["candidate_suggestions"][0]["formatted_code"] == "R19.7"
+    # Sarcoidosis surfaces D86.9
+    assert updated[1]["data"]["icd10_code"] is None
+    assert updated[1]["data"]["candidate_suggestions"][0]["formatted_code"] == "D86.9"
 
 
 def test_split_plan_corresponding_note_problem_case_insensitive() -> None:
@@ -452,7 +459,8 @@ def test_split_plan_corresponding_note_problem_case_insensitive() -> None:
     }
     updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 1
-    assert updated[0]["data"]["icd10_code"] == "J06.9"
+    assert updated[0]["data"]["icd10_code"] is None
+    assert updated[0]["data"]["candidate_suggestions"][0]["formatted_code"] == "J06.9"
 
 
 def test_split_plan_corresponding_note_problem_strips_whitespace() -> None:
@@ -475,7 +483,8 @@ def test_split_plan_corresponding_note_problem_strips_whitespace() -> None:
     }
     updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 1
-    assert updated[0]["data"]["icd10_code"] == "R51.9"
+    assert updated[0]["data"]["icd10_code"] is None
+    assert updated[0]["data"]["candidate_suggestions"][0]["formatted_code"] == "R51.9"
 
 
 # --- KOALA-5635: condition_id stamping on diagnose proposals ---
@@ -628,14 +637,11 @@ def test_build_active_condition_icd10_index_swallows_orm_errors() -> None:
     assert index == {}
 
 
-def test_split_plan_stamps_condition_id_when_icd_matches_active_condition() -> None:
-    """KOALA-5635: split_plan_into_diagnoses stamps ``data.condition_id``
-    on diagnose proposals whose ``icd10_code`` matches an active condition
-    on the note's patient.
-
-    This is what makes the per-(patient, condition) background carry-forward
-    eligible for rec-diagnose proposals — without ``condition_id``, the
-    carry_forward_assess_background helper short-circuits.
+def test_split_plan_never_stamps_condition_id() -> None:
+    """Codes are never auto-applied, so the belt never stamps ``condition_id`` — even when
+    the diagnosis matches an active condition on the note's patient. The code is surfaced
+    as the top picker option instead; the diagnose→assess flip now happens at insert time
+    when the provider-picked code matches the active problem list (summary.js).
     """
     commands = [
         {
@@ -657,36 +663,9 @@ def test_split_plan_stamps_condition_id_when_icd_matches_active_condition() -> N
         updated, _ = split_plan_into_diagnoses(commands, section_conditions, note=note)
     assert len(updated) == 1
     assert updated[0]["command_type"] == "diagnose"
-    assert updated[0]["data"]["icd10_code"] == "I10"
-    assert updated[0]["data"]["condition_id"] == "cond-htn"
-
-
-def test_split_plan_stamps_condition_id_normalizes_dots_and_case() -> None:
-    """The active-condition index lookup uses the same normalization as the
-    frontend handleInsert match step (strip dots, uppercase). A proposal
-    with ``icd10_code="e11.9"`` must match an active condition coded
-    ``E119`` and vice-versa.
-    """
-    commands = [
-        {
-            "command_type": "plan",
-            "data": {"narrative": "Type 2 diabetes\n- Continue metformin"},
-            "section_key": "assessment_and_plan",
-        },
-    ]
-    section_conditions = {
-        "assessment_and_plan": [
-            {"display": "Type 2 diabetes", "coding": [{"code": "E11.9", "display": "Type 2 diabetes"}]},
-        ],
-    }
-    note = MagicMock()
-    note.patient.id = "patient-key-1"
-    note.id = "note-uuid-1"
-    # Active condition stored WITHOUT the dot to prove the normalization.
-    rows = [("cond-dm2", "E119", "http://hl7.org/fhir/sid/icd-10-cm")]
-    with _patch_active_conditions_values_list(rows):
-        updated, _ = split_plan_into_diagnoses(commands, section_conditions, note=note)
-    assert updated[0]["data"]["condition_id"] == "cond-dm2"
+    assert updated[0]["data"]["icd10_code"] is None
+    assert "condition_id" not in updated[0]["data"]
+    assert updated[0]["data"]["candidate_suggestions"][0]["formatted_code"] == "I10"
 
 
 def test_split_plan_no_stamp_when_icd_does_not_match_active_condition() -> None:
@@ -809,8 +788,11 @@ def test_split_plan_ranks_definitive_over_incidental_symptom() -> None:
     section_conditions = {"assessment_and_plan": [suicidal, depression]}
     updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 1
-    assert updated[0]["data"]["icd10_code"] == "F33.1"
-    assert updated[0]["data"]["icd10_display"] == "Major depressive disorder, recurrent, moderate"
+    # Never auto-applied: uncoded, definitive F33.1 leads the picker, symptom code dropped.
+    assert updated[0]["data"]["icd10_code"] is None
+    codes = [s["formatted_code"] for s in updated[0]["data"]["candidate_suggestions"]]
+    assert codes[0] == "F33.1"  # definitive leads over the incidental symptom code
+    assert "R45.851" not in codes
     # No orphaning: both conditions were claimed by the block.
     assert unmatched == []
 
@@ -844,8 +826,9 @@ def test_split_plan_ambiguous_block_left_uncoded_with_suggestions() -> None:
 
 
 def test_split_plan_prefers_charted_specific_over_nabla_unspecified() -> None:
-    """A more-specific code on the patient's chart beats Nabla's unspecified code,
-    and an active match stamps condition_id for the assess flip."""
+    """A more-specific code on the patient's chart beats Nabla's unspecified code in the
+    ranked picker (it leads). Never auto-applied — the provider picks; the assess flip
+    happens at insert when the picked code matches the active problem."""
     header = "Type 2 diabetes mellitus"
     commands = [
         {
@@ -875,8 +858,10 @@ def test_split_plan_prefers_charted_specific_over_nabla_unspecified() -> None:
         )
     ]
     updated, _ = split_plan_into_diagnoses(commands, section_conditions, chart_conditions=chart)
-    assert updated[0]["data"]["icd10_code"] == "E11.65"
-    assert updated[0]["data"]["condition_id"] == "cond-dm"
+    assert updated[0]["data"]["icd10_code"] is None
+    assert "condition_id" not in updated[0]["data"]  # never auto-applied → no flip-stamp
+    codes = [s["formatted_code"] for s in updated[0]["data"]["candidate_suggestions"]]
+    assert codes[0] == "E11.65"  # charted specific leads over Nabla's E11.9
 
 
 def test_split_plan_surfaces_cross_family_chart_note_conflict() -> None:
@@ -1026,9 +1011,9 @@ def test_split_plan_science_fallback_uses_body_synonym() -> None:
     assert "M75.41" in [s["formatted_code"] for s in data["candidate_suggestions"]]
 
 
-def test_split_plan_unspecified_without_refinements_is_applied() -> None:
-    """When no more-specific option exists, the unspecified code is applied as-is —
-    no pointless one-option picker."""
+def test_split_plan_unspecified_without_refinements_surfaced() -> None:
+    """When no more-specific option exists, the unspecified code is surfaced as the single
+    picker option (never auto-applied)."""
     commands = [
         {
             "command_type": "plan",
@@ -1047,5 +1032,5 @@ def test_split_plan_unspecified_without_refinements_is_applied() -> None:
     }
     updated, _ = split_plan_into_diagnoses(commands, section_conditions, science_search=lambda _e: [])
     data = updated[0]["data"]
-    assert data["icd10_code"] == "E03.9"
-    assert "candidate_suggestions" not in data
+    assert data["icd10_code"] is None
+    assert data["candidate_suggestions"][0]["formatted_code"] == "E03.9"

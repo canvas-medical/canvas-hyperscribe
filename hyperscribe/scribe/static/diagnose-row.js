@@ -7,6 +7,8 @@ const html = htm.bind(h);
 const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const ICON_SEARCH = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>`;
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+// How many recommendations the picker shows before the "See more" toggle.
+const MAX_VISIBLE_RECS = 4;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -76,6 +78,9 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
   // Progressive disclosure for the "not a diagnosis" escape hatch: the picker shows a
   // quiet "Not a diagnosis?" trigger; clicking it reveals the "Move to Wrap Up" action.
   const [showMoveOption, setShowMoveOption] = useState(false);
+  // The recommendations list shows the top few; "See more" reveals the rest AND the
+  // move-to-wrap-up action. Reset (collapsed) whenever the picker is opened/closed.
+  const [showAllRecs, setShowAllRecs] = useState(false);
   const [assessment, setAssessment] = useState(data.today_assessment || '');
   // KOALA_5635_BACKGROUND_TEXTAREA — local state mirrors AssessNarrative's
   // pattern (soap-group.js): seed from ``data.background``, sync on
@@ -228,6 +233,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
     setSearched(false);
     setSearching(false);
     setShowMoveOption(false); // reopen the picker collapsed to "Not a diagnosis?"
+    setShowAllRecs(false); // reopen showing only the top recommendations
   };
 
   // Close the "Change" picker on a coded card and revert to showing the code.
@@ -239,6 +245,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
     setSearched(false);
     setSearching(false);
     setShowMoveOption(false); // collapse the "Not a diagnosis?" disclosure on close
+    setShowAllRecs(false); // collapse the recommendations back to the top few
   };
 
   const handleAddBackground = () => {
@@ -313,58 +320,66 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
         />
         ${onClose && html`<button type="button" class="diagnose-picker-close" onClick=${onClose} title="Close" aria-label="Close search">${ICON_X}</button>`}
       </div>
-      ${results.length > 0
-        ? html`
-          <div class="diagnose-picker-list">
-            ${results.map((r, i) => html`
-              <div
-                key=${r.code || ('r' + i)}
-                class="diagnose-picker-row"
-                onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
-              >
-                <span class="diagnose-picker-name">${r.display || r.description}</span>
-                <span class="diagnose-picker-code">${formatIcdCode(r.code)}</span>
-              </div>
-            `)}
-          </div>
-        `
-        : (query.length < 2 && recCodes.length > 0)
-        ? html`
-          <div class="diagnose-picker-list">
-            ${recCodes.map(s => html`
-              <div
-                key=${s.code}
-                class="diagnose-picker-row"
-                onMouseDown=${(e) => { e.preventDefault(); handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code }); }}
-              >
-                <span class="diagnose-picker-name">${s.display}</span>
-                <span class="diagnose-picker-code">${s.formatted_code}</span>
-                ${s.provenance ? html`<span class="diagnose-picker-prov">${s.provenance}</span>` : ''}
-              </div>
-            `)}
-          </div>
-        `
-        : searching
-        ? html`<div class="diagnose-picker-empty">Searching…</div>`
-        : (searched && query.length >= 2)
-        ? html`<div class="diagnose-picker-empty">No diagnoses found</div>`
-        : null}
-      ${/* Move this card's content to the Wrap Up section (for A&P items that aren't a
-          codeable diagnosis). A single self-arming row that reads like the search results:
-          first click swaps the label to "Confirm", second click performs the move. No
-          separate cancel — showMoveOption resets on picker open/close (and it stays
-          disarmed until clicked). onMouseDown+preventDefault so the search input's blur
-          doesn't eat the click. */ ''}
-      ${onMoveToPlan && html`
-        <button
-          type="button"
-          class="diagnose-picker-disclose"
-          title=${showMoveOption
-            ? 'Click again to confirm — moves this content to the wrap up section'
-            : "Move this card's free-text content to the wrap up section — use when the item isn't a codeable diagnosis."}
-          onMouseDown=${(e) => { e.preventDefault(); showMoveOption ? onMoveToPlan(commandIndex) : setShowMoveOption(true); }}
-        >${showMoveOption ? 'Confirm' : 'Move to the wrap up section'}</button>
-      `}
+      ${query.length >= 2
+        ? (results.length > 0
+          ? html`
+            <div class="diagnose-picker-list">
+              ${results.map((r, i) => html`
+                <div
+                  key=${r.code || ('r' + i)}
+                  class="diagnose-picker-row"
+                  onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
+                >
+                  <span class="diagnose-picker-name">${r.display || r.description}</span>
+                  <span class="diagnose-picker-code">${formatIcdCode(r.code)}</span>
+                </div>
+              `)}
+            </div>
+          `
+          : searching
+          ? html`<div class="diagnose-picker-empty">Searching…</div>`
+          : searched
+          ? html`<div class="diagnose-picker-empty">No diagnoses found</div>`
+          : null)
+        : html`
+          ${/* Recommendations (empty query): show the top few, best first. "See more"
+              reveals the rest AND the "move to wrap up" action beneath them. */ ''}
+          ${recCodes.length > 0 && html`
+            <div class="diagnose-picker-list">
+              ${(showAllRecs ? recCodes : recCodes.slice(0, MAX_VISIBLE_RECS)).map(s => html`
+                <div
+                  key=${s.code}
+                  class="diagnose-picker-row"
+                  onMouseDown=${(e) => { e.preventDefault(); handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code }); }}
+                >
+                  <span class="diagnose-picker-name">${s.display}</span>
+                  <span class="diagnose-picker-code">${s.formatted_code}</span>
+                  ${s.provenance ? html`<span class="diagnose-picker-prov">${s.provenance}</span>` : ''}
+                </div>
+              `)}
+            </div>
+          `}
+          ${!showAllRecs && (recCodes.length > MAX_VISIBLE_RECS || onMoveToPlan) && html`
+            <button type="button" class="diagnose-picker-more" onMouseDown=${(e) => { e.preventDefault(); setShowAllRecs(true); }}>See more</button>
+          `}
+          ${showAllRecs && recCodes.length > MAX_VISIBLE_RECS && html`
+            <button type="button" class="diagnose-picker-more" onMouseDown=${(e) => { e.preventDefault(); setShowAllRecs(false); }}>See less</button>
+          `}
+          ${/* Move this card's content to the Wrap Up section (for A&P items that aren't a
+              codeable diagnosis) — revealed under "See more". Self-arming: first click swaps
+              the label to "Confirm", second click performs the move. onMouseDown+preventDefault
+              so the search input's blur doesn't eat the click. */ ''}
+          ${showAllRecs && onMoveToPlan && html`
+            <button
+              type="button"
+              class="diagnose-picker-disclose"
+              title=${showMoveOption
+                ? 'Click again to confirm — moves this content to the wrap up section'
+                : "Move this card's free-text content to the wrap up section — use when the item isn't a codeable diagnosis."}
+              onMouseDown=${(e) => { e.preventDefault(); showMoveOption ? onMoveToPlan(commandIndex) : setShowMoveOption(true); }}
+            >${showMoveOption ? 'Confirm' : 'Move to the wrap up section'}</button>
+          `}
+        `}
     </div>
   `;
 
