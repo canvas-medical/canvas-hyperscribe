@@ -1394,13 +1394,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                         command = by_block.get(block_id)
                         if command is None:
                             continue
-                        if resolution.chosen is not None:
-                            code, display = resolution.chosen
-                            command["data"]["icd10_code"] = code
-                            command["data"]["icd10_display"] = display
-                            # Auto-applied: no longer uncoded, drop the picker options.
-                            command["data"].pop("candidate_suggestions", None)
-                        elif resolution.suggestions:
+                        # Never auto-apply — only surface the resolver's grounded suggestions;
+                        # the provider picks the code in the picker.
+                        if resolution.suggestions:
                             command["data"]["candidate_suggestions"] = resolution.suggestions
                 except Exception:
                     log.exception("diagnosis LLM resolver failed (non-critical)")

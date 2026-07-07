@@ -313,10 +313,6 @@ def split_plan_into_diagnoses(
 
     diagnose_commands: list[dict[str, Any]] = []
     claimed: set[int] = set()
-    # KOALA_5635_STAMP_CONDITION_ID — build the active-condition ICD-10 index
-    # once per call (not per block) so we don't N+1 patient_conditions per
-    # diagnose proposal. ``{}`` when ``note`` is None or the lookup fails.
-    active_icd10_index = _build_active_condition_icd10_index(note) if note is not None else {}
     chart = chart_conditions or []
 
     for i, block in enumerate(blocks):
@@ -355,64 +351,42 @@ def split_plan_into_diagnoses(
         block_candidates = build_block_candidates(
             block_id, header, nabla_for_block, chart, science_search, context_text=context_text
         )
-        chosen = block_candidates.chosen
-
-        # An unspecified code is NOT auto-applied when grounded more-specific options
-        # exist: the block is left UNCODED and the picker offers the unspecified code
-        # FIRST, then the more-specific siblings — so the provider picks (one click to
-        # keep the unspecified, or refine). When no more-specific option exists there's
-        # nothing to choose between, so the unspecified code is applied as-is (avoids a
-        # pointless one-option picker).
-        unspecified_options: list = []
-        if chosen is not None and is_unspecified_code(chosen.code, chosen.display):
-            # Rank both the unspecified code and its refinements by how well each matches
-            # the documented note text, so a specificity the note actually states (e.g.
-            # "moderate" -> F32.1) leads and the unspecified only leads when it's vague.
-            children = expand_unspecified(chosen, science_search, context_text=context_text)
+        # Never auto-apply a code: surface the ranked candidates and let the provider pick
+        # every diagnosis. The most-recommended code leads. An active-problem match is just
+        # the top suggestion here — picking it flips to `assess` at insert time (summary.js
+        # matches the chosen code to the active problem list), preserving continuity of care
+        # without silently coding anything.
+        surfaced: list = list(block_candidates.candidates)
+        # If the top candidate is an unspecified/parent code, fold in grounded more-specific
+        # options so the provider can refine, ranked by how well each matches the note text.
+        if surfaced and is_unspecified_code(surfaced[0].code, surfaced[0].display):
+            children = expand_unspecified(surfaced[0], science_search, context_text=context_text)
             if children:
-                unspecified_options = sorted(
-                    [chosen, *children],
+                merged: dict[str, Any] = {}
+                for candidate in [*surfaced, *children]:
+                    merged.setdefault(candidate.code, candidate)
+                surfaced = sorted(
+                    merged.values(),
                     key=lambda candidate: word_overlap(context_text, candidate.display),
                     reverse=True,
                 )
-                chosen = None  # defer to a provider pick
 
-        # Lead the assessment text with the original Nabla A&P headline so it persists
-        # for reference — inside the editable Today's assessment content itself (not a
-        # separate UI element), present from generation, and carried onto the assess
-        # narrative when a diagnosis flips to assess (summary.js seeds narrative from
-        # today_assessment). The provider can edit or remove it like any other text.
+        # Lead the assessment text with the original Nabla A&P headline so it persists for
+        # reference inside the editable Today's assessment content (and carries onto the
+        # assess narrative when a diagnosis flips to assess at insert).
         body_text = "\n".join(block.body)
         assessment_text = f"{header}\n{body_text}" if header and body_text else (header or body_text)
         data: dict[str, Any] = {
-            "icd10_code": chosen.raw_code if chosen else None,
-            "icd10_display": chosen.display if chosen else "",
+            "icd10_code": None,
+            "icd10_display": "",
             "condition_header": header,
             "today_assessment": assessment_text,
             "accepted": False,
             "block_id": block_id,
         }
-        display = (chosen.display if chosen else "") or header
-
-        if chosen is not None:
-            # condition_id: the ``note``-derived active index (existing path) OR the
-            # chosen chart candidate's id. Both are ACTIVE-only — a resolved/inactive
-            # match never carries a condition_id, so the diagnose→assess flip can't
-            # attach an assessment to a resolved record (no SDK reactivation).
-            stamped_id = active_icd10_index.get(_normalize_icd10(chosen.raw_code)) or chosen.condition_id
-            if stamped_id:
-                data["condition_id"] = stamped_id
-        elif unspecified_options:
-            # Uncoded: keep-as-unspecified (first) or refine to a more-specific code.
-            data["candidate_suggestions"] = [serialize_candidate(c) for c in surface_candidates(unspecified_options)]
-        elif block_candidates.ambiguous:
-            # Leave the card UNCODED and surface the ranked options (with provenance) for
-            # the provider to choose. surface_candidates drops incidental symptom/context
-            # codes (e.g. R45.851 "Suicidal ideations" under a depression problem) when a
-            # definitive option exists, and caps the list. Never auto-stamp.
-            data["candidate_suggestions"] = [
-                serialize_candidate(c) for c in surface_candidates(block_candidates.candidates)
-            ]
+        if surfaced:
+            data["candidate_suggestions"] = [serialize_candidate(c) for c in surface_candidates(surfaced)]
+        display = header
 
         diagnose_commands.append(
             _serialize_proposal(
