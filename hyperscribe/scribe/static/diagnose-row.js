@@ -360,10 +360,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
             </div>
           `}
           ${!showAllRecs && (recCodes.length > MAX_VISIBLE_RECS || onMoveToPlan) && html`
-            <button type="button" class="diagnose-picker-more" onMouseDown=${(e) => { e.preventDefault(); setShowAllRecs(true); }}>See more</button>
-          `}
-          ${showAllRecs && recCodes.length > MAX_VISIBLE_RECS && html`
-            <button type="button" class="diagnose-picker-more" onMouseDown=${(e) => { e.preventDefault(); setShowAllRecs(false); }}>See less</button>
+            <button type="button" class="diagnose-picker-more" onMouseDown=${(e) => { e.preventDefault(); setShowAllRecs(true); }}>More options</button>
           `}
           ${/* Move this card's content to the Wrap Up section (for A&P items that aren't a
               codeable diagnosis) — revealed under "See more". Self-arming: first click swaps
