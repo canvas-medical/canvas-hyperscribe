@@ -776,7 +776,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [noteId]);
 
   const noteLocked = !isNoteEditable && !approved;
-  const canEdit = isAuthor && isNoteEditable && !approved;
+  // layout parity for non-authors. Split the old single `canEdit`:
+  //   authorEditable — is the note in an editable state (open + not finalized)?
+  //     Keyed on NOTE STATE, not the viewer, so a non-author renders the SAME
+  //     template/sections/cards/forms the author sees (`readOnly: !authorEditable`).
+  //   canEdit — may THIS viewer actually interact? (isAuthor && authorEditable).
+  // A non-author's view is made non-interactive purely by CSS pointer-events
+  // (see .summary-container--noninteractive) so controls keep their exact
+  // appearance — NOT the `disabled` attribute, which restyles inputs/buttons.
+  // For an author, canEdit === authorEditable, so authors are unaffected.
+  const authorEditable = isNoteEditable && !approved;
+  const canEdit = isAuthor && authorEditable;
   // Lock takes precedence over authorship in the banner messaging.
   const readOnlyReason = noteLocked
     ? 'locked'
@@ -2856,7 +2866,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // AND the note to have been generated — we don't want a half-finished
   // transcript or an in-flight LLM call to be signable.
   const aiFlowComplete = mode === 'ai' && recording.finalized && noteData !== null;
-  const showFooter = canEdit && (mode === 'manual' || aiFlowComplete);
+  const showFooter = authorEditable && (mode === 'manual' || aiFlowComplete);
 
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral', lab_order: 'lab order' };
   // Module-scope `isRxIncomplete` is the single source of truth — see top of file.
@@ -2956,7 +2966,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // once a note has been generated or the transcript was finalized — at that
   // point the transcript is a static record, not a live capture.
   const transcriptHeaderIsLive = isRecording && !noteData && !recording.finalized;
-  const showTopControls = canEdit && !noteData && !isRecording && !recording.finalized && !generating && mode === null;
+  // Visibility keyed on authorEditable (note state) so these render for a
+  // non-author too; the disabled attrs make them non-interactive.
+  const showTopControls = authorEditable && !noteData && !isRecording && !recording.finalized && !generating && mode === null;
 
   // Unified progress display: "Finalizing transcript" is step 0 of a sequence
   // that continues through the server-driven generate pipeline. Showing one
@@ -2976,8 +2988,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const progressPct = Math.max(((progressIndex + 1) / TOTAL_PROGRESS_STEPS) * 100, 5);
 
   return html`
-    <div class=${`summary-container${!canEdit && !approved ? ' summary-container--readonly' : ''}`}>
-      ${isAuthor && isNoteEditable && wasFinalized && html`
+    <div class=${`summary-container${readOnlyReason === 'locked' ? ' summary-container--readonly' : ''}${!isAuthor ? ' summary-container--readonly-viewer' : ''}`}>
+      ${isNoteEditable && wasFinalized && html`
         <div class=${`summary-status-pill summary-status-pill--${approved ? 'finalized' : 'amending'}`} role="status" aria-live="polite">
           <svg class="summary-status-pill-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             ${approved
@@ -2989,7 +3001,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             ${approved ? 'Charting finalized' : 'Editing charting'}
           </span>
           ${approved && html`
-            <button class="summary-status-pill-btn" onClick=${handleMakeChanges}>
+            <button class="summary-status-pill-btn" disabled=${!isAuthor} onClick=${handleMakeChanges}>
               Make changes
             </button>
           `}
@@ -3014,14 +3026,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           <span>Read-only — only the note author can edit the Scribe tab.</span>
         </div>
       `}
-      ${canEdit && html`
+      ${authorEditable && html`
         <div class="unified-top-bar">
           ${templates.length > 0 && html`
             <select
               class="template-select"
               onChange=${handleSelectTemplate}
               value=${selectedTemplate ? selectedTemplate.name : ''}
-              disabled=${approved || generating || noteData !== null || mode !== null}
+              disabled=${!canEdit || approved || generating || noteData !== null || mode !== null}
             >
               <option value="">Select Visit Type</option>
               ${templates.map(t => html`<option key=${t.name} value=${t.name}>${t.name}</option>`)}
@@ -3029,12 +3041,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           `}
           ${showTopControls && html`
             ${!manualModeOnly && html`
-              <button class="start-ai-btn" onClick=${handleStartAI} disabled=${!selectedTemplate}>
+              <button class="start-ai-btn" onClick=${handleStartAI} disabled=${!canEdit || !selectedTemplate}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" /></svg>
                 Start AI Scribe
               </button>
             `}
-            <button class="start-manual-btn" onClick=${handleStartManual} disabled=${!selectedTemplate}>
+            <button class="start-manual-btn" onClick=${handleStartManual} disabled=${!canEdit || !selectedTemplate}>
               Manual
             </button>
           `}
@@ -3063,7 +3075,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </button>
           `}
           ${recommendations.length > 0 && html`
-            <label class="hide-rejected-label hide-rejected-label--top-bar" onClick=${() => setHideRejected(prev => !prev)}>
+            <label class="hide-rejected-label hide-rejected-label--top-bar" onClick=${canEdit ? () => setHideRejected(prev => !prev) : undefined}>
               Hide Rejected Recommendations
               <div class="toggle-switch${hideRejected ? ' on' : ''}">
                 <div class="toggle-knob" />
@@ -3162,14 +3174,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           <span class="generating-label">${progressLabel}...</span>
         </div>
       `}
-      ${canEdit && !noteData && !generating && recording.finalized && mode === 'ai' && html`
+      ${authorEditable && !noteData && !generating && recording.finalized && mode === 'ai' && html`
         <div class="summary-generate-banner">
           <p class="summary-banner-description">Recording complete. Generate a structured summary from your transcript.</p>
-          <button class="generate-btn" onClick=${handleGenerate}>Generate Summary</button>
+          <button class="generate-btn" onClick=${handleGenerate} disabled=${!canEdit}>Generate Summary</button>
         </div>
       `}
       ${error && html`<p class="error" style="padding: 0 16px;">${error}</p>`}
       <div class=${`summary-body${inserting ? ' summary-body--inserting' : ''}`}>
+        ${/* a non-author sees the author's exact layout; the note body
+            is wrapped in a native <fieldset disabled> when the viewer can't edit,
+            so every control inside is inert (disabled). The class only strips the
+            fieldset's own default border/margin so it lays out like a plain div. */''}
+        <fieldset class="scribe-body-fieldset" disabled=${!canEdit}>
         ${renderSoapGroups(effectiveSections, commandBySectionKey, handleEdit, handleDelete, {
           adHocCommands,
           objectiveAdHocCommands,
@@ -3177,26 +3194,33 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           subjectiveAdHocCommands,
           chargeAdHocCommands,
           assignees,
-          onAddTask: canEdit ? handleAddTask : null,
-          onAddOrder: canEdit ? handleAddOrder : null,
-          onAddPlan: canEdit ? handleAddPlan : null,
-          onAddVitals: canEdit ? handleAddVitals : null,
-          onAddPhysicalExam: canEdit ? handleAddPhysicalExam : null,
-          onAddMentalStatusExam: canEdit ? handleAddMentalStatusExam : null,
-          onAddMedication: canEdit ? handleAddMedication : null,
-          onAddAllergy: canEdit ? handleAddAllergy : null,
-          onAddStopMedication: canEdit ? handleAddStopMedication : null,
-          onAddRemoveAllergy: canEdit ? handleAddRemoveAllergy : null,
-          onAddResolveCondition: canEdit ? handleAddResolveCondition : null,
-          onAddHistory: canEdit ? handleAddHistory : null,
-          onAddQuestionnaire: canEdit ? handleAddQuestionnaire : null,
-          onAddCharge: canEdit ? handleAddTemplateCharge : null,
+          // pass handlers for non-authors too (authorEditable) so every
+          // add/action control RENDERS in the working view — layout parity. They're
+          // made non-interactive by CSS pointer-events (appearance preserved); the
+          // handlers also self-guard on canEdit and the server rejects non-author writes.
+          onAddTask: authorEditable ? handleAddTask : null,
+          onAddOrder: authorEditable ? handleAddOrder : null,
+          onAddPlan: authorEditable ? handleAddPlan : null,
+          onAddVitals: authorEditable ? handleAddVitals : null,
+          onAddPhysicalExam: authorEditable ? handleAddPhysicalExam : null,
+          onAddMentalStatusExam: authorEditable ? handleAddMentalStatusExam : null,
+          onAddMedication: authorEditable ? handleAddMedication : null,
+          onAddAllergy: authorEditable ? handleAddAllergy : null,
+          onAddStopMedication: authorEditable ? handleAddStopMedication : null,
+          onAddRemoveAllergy: authorEditable ? handleAddRemoveAllergy : null,
+          onAddResolveCondition: authorEditable ? handleAddResolveCondition : null,
+          onAddHistory: authorEditable ? handleAddHistory : null,
+          onAddQuestionnaire: authorEditable ? handleAddQuestionnaire : null,
+          onAddCharge: authorEditable ? handleAddTemplateCharge : null,
           searchCharges,
           suggestedCharges: selectedTemplate?.charges || [],
-          onAddTemplateCharge: canEdit ? handleAddTemplateCharge : null,
-          onRemoveChargeByCpt: canEdit ? handleRemoveChargeByCpt : null,
+          onAddTemplateCharge: authorEditable ? handleAddTemplateCharge : null,
+          onRemoveChargeByCpt: authorEditable ? handleRemoveChargeByCpt : null,
           templateCharges: selectedTemplate ? (selectedTemplate.charges || []) : [],
-          readOnly: !canEdit,
+          // Template keyed on note state, not the viewer — `!authorEditable` ===
+          // the author's old `!canEdit`, so a non-author renders the SAME working /
+          // finalized template the author does.
+          readOnly: !authorEditable,
           isAmending: wasFinalized && !approved,
           sectionConditions,
           patientId,
@@ -3208,10 +3232,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onDeleteRecommendation: handleDeleteRecommendation,
           onAcceptRecommendation: handleAcceptRecommendation,
           onRejectRecommendation: handleRejectRecommendation,
-          onAddCondition: canEdit ? handleAddCondition : null,
+          onAddCondition: authorEditable ? handleAddCondition : null,
           unmatchedConditions,
           diagnosisSuggestions,
-          onAddNow: (canEdit && !(wasFinalized && !approved)) ? handleAddNow : null,
+          onAddNow: (authorEditable && !(wasFinalized && !approved)) ? handleAddNow : null,
           hideRejected,
           alertFacilityEnabled,
           onEditingChange: handleEditingChange,
@@ -3219,13 +3243,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           chargeMatrixDiagnoses,
           noteDiagnoses,
           chargeMatrixCharges,
-          onToggleChargePointer: canEdit ? onToggleChargePointer : null,
-          onReorderDiagnoses: canEdit ? onReorderDiagnoses : null,
-          onAddChargeModifier: canEdit ? onAddChargeModifier : null,
-          onRemoveChargeModifier: canEdit ? onRemoveChargeModifier : null,
-          onSetChargeComment: canEdit ? onSetChargeComment : null,
-          onClearChargeComment: canEdit ? onClearChargeComment : null,
-          onRemoveChargeByUuid: canEdit ? onRemoveChargeByUuid : null,
+          onToggleChargePointer: authorEditable ? onToggleChargePointer : null,
+          onReorderDiagnoses: authorEditable ? onReorderDiagnoses : null,
+          onAddChargeModifier: authorEditable ? onAddChargeModifier : null,
+          onRemoveChargeModifier: authorEditable ? onRemoveChargeModifier : null,
+          onSetChargeComment: authorEditable ? onSetChargeComment : null,
+          onClearChargeComment: authorEditable ? onClearChargeComment : null,
+          onRemoveChargeByUuid: authorEditable ? onRemoveChargeByUuid : null,
           examTemplates: templates,
           onCarryForwardExam: handleCarryForwardExam,
           isPsychiatry,
@@ -3266,6 +3290,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </div>
           </div>
         `}
+        </fieldset>
       </div>
       ${verificationResult && html`<${VerificationSummary} result=${verificationResult} />`}
       ${validationError && html`
@@ -3292,7 +3317,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
                 </div>
               `}
-              <button class="insert-btn confirm" disabled=${hasUnsavedEdits} onClick=${handleInsert}>${wasFinalized ? (hasRxCommands ? 'Confirm: Save changes and review prescriptions' : 'Confirm: Save changes') : (hasRxCommands ? 'Confirm: Accept and review prescriptions' : 'Confirm: Accept and sign')}</button>
+              <button class="insert-btn confirm" disabled=${hasUnsavedEdits || !canEdit} onClick=${handleInsert}>${wasFinalized ? (hasRxCommands ? 'Confirm: Save changes and review prescriptions' : 'Confirm: Save changes') : (hasRxCommands ? 'Confirm: Accept and review prescriptions' : 'Confirm: Accept and sign')}</button>
               <button class="approve-cancel" onClick=${() => setConfirming(false)}>Cancel</button>
             </div>
           ` : html`
@@ -3318,7 +3343,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               ${(chargeErrors && chargeErrors.length)
                 ? html`<div class="summary-footer-warning cm-sign-error">Some charges could not be saved (${chargeErrors.length}). Please review the charges and try again.</div>`
                 : null}
-              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
+              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits || !canEdit} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
               ${!wasFinalized && html`<div class="approve-warning">This action is permanent and cannot be undone.</div>`}
             </div>
           `}
