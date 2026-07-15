@@ -208,12 +208,12 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
       </div>
       ${alertFacilityEnabled && html`
       <div class="history-form-field" style="margin-top: 8px;">
-        <label class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: !data.alert_facility })}>
+        <button type="button" class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: !data.alert_facility })}>
           <div class="toggle-switch${data.alert_facility ? ' on' : ''}">
             <div class="toggle-knob" />
           </div>
           Alert Facility
-        </label>
+        </button>
       </div>
       `}
     `}
