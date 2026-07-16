@@ -56,6 +56,7 @@ class NablaScribeClient {
     // Each entry: { seqId, base64, streamId, sampleCount, sent }
     this._buffer = [];
     this._lastAckedSeqId = -1;
+    this._ackedSamples = 0;
     this._inflightSamples = 0;
     this._maxInflightSamples = 10 * (config.sample_rate || 16000);
 
@@ -216,7 +217,7 @@ class NablaScribeClient {
           this._connectReject = null;
         }
       } else {
-        this.onReconnect();
+        this.onReconnect(this._connectionStats());
       }
     };
 
@@ -242,7 +243,7 @@ class NablaScribeClient {
       }
 
       // Unexpected disconnect during an active session — reconnect.
-      this.onDisconnect();
+      this.onDisconnect(this._connectionStats());
       this._markSentAsUnsent();
       this._scheduleReconnect();
     };
@@ -295,7 +296,7 @@ class NablaScribeClient {
       ws.onmessage = () => {};
       ws.close();
     }
-    this.onDisconnect();
+    this.onDisconnect(this._connectionStats());
     this._markSentAsUnsent();
     this._scheduleReconnect();
   }
@@ -442,12 +443,28 @@ class NablaScribeClient {
 
     while (this._buffer.length > 0 && this._buffer[0].seqId <= ackId) {
       const chunk = this._buffer.shift();
+      this._ackedSamples += chunk.sampleCount;
       if (chunk.sent) {
         this._inflightSamples -= chunk.sampleCount;
       }
     }
 
     this._flush();
+  }
+
+  /**
+   * @private
+   * Stats reported to onDisconnect/onReconnect. Raw samples + sample rate (not
+   * ms) so the recording hook does all offset math through its tested pure
+   * helpers. ackedSamples is the audio Nabla has confirmed; on reconnect the
+   * fresh session's offset 0 aligns to that audio-time position.
+   */
+  _connectionStats() {
+    return {
+      ackedSamples: this._ackedSamples,
+      sampleRate: this._config.sample_rate || 16000,
+      bufferedChunks: this._buffer.length,
+    };
   }
 
   /** @private */

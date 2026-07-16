@@ -1,5 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'https://esm.sh/preact@10.25.4/hooks';
 import { createScribeClient } from './scribeClient.js';
+import {
+  normalizeEntry,
+  sortEntries,
+  promoteStalePartials,
+  mergeEntry,
+  samplesToMs,
+  reconnectSessionOffset,
+} from './transcript-merge.js';
 import { logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
@@ -40,53 +48,6 @@ const DING_URL = 'data:audio/wav;base64,UklGRmhWAABXQVZFZm10IBAAAAABAAEAIlYAAESs
  * Returns: { status, entries, error, finalized, audioLevel, silenceWarning,
  *            startRecording, pauseRecording, resumeRecording, finishRecording }
  */
-
-// If Nabla emits a partial without a stable id, derive one from its start
-// offset so re-emitted partials of the same utterance dedupe instead of
-// stacking up as separate rows. start_offset_ms is stable across updates of
-// the same partial (only end_offset grows), so it's the right key. No data
-// is dropped.
-function normalizeEntry(item) {
-  if (item && item.item_id) return item;
-  return {
-    ...item,
-    item_id: `__noid_${(item && item.start_offset_ms) || 0}`,
-  };
-}
-
-// Keep transcript entries chronological so out-of-order arrivals (backfilled
-// finals, replay during reconnect) slot into their correct position rather
-// than landing at the bottom.
-function sortEntries(items) {
-  return [...items].sort((a, b) => {
-    const aMs = a.start_offset_ms || 0;
-    const bMs = b.start_offset_ms || 0;
-    if (aMs !== bMs) return aMs - bMs;
-    return (a.item_id || '').localeCompare(b.item_id || '');
-  });
-}
-
-// A partial entry is "stuck" when at least one final entry has a later
-// start_offset_ms — Nabla has moved on past this segment without ever
-// finalizing it, so the row stays partial forever and accumulates text
-// from later speaker turns under a "Listening" label. Promote those to
-// final so they render with whatever speaker they have (or Unspecified)
-// instead of staying in the listening intermediate state.
-function promoteStalePartials(items) {
-  let latestFinalMs = -Infinity;
-  for (const e of items) {
-    if (e.is_final) {
-      const ms = e.start_offset_ms || 0;
-      if (ms > latestFinalMs) latestFinalMs = ms;
-    }
-  }
-  if (latestFinalMs === -Infinity) return items;
-  return items.map(e =>
-    !e.is_final && (e.start_offset_ms || 0) < latestFinalMs
-      ? { ...e, is_final: true }
-      : e,
-  );
-}
 
 export function useRecording(noteId, initialTranscript) {
   const [status, setStatus] = useState(() => {
@@ -147,13 +108,7 @@ export function useRecording(noteId, initialTranscript) {
       end_offset_ms: (item.end_offset_ms || 0) + offset,
     };
     const normalized = normalizeEntry(adjusted);
-    setEntries(prev => {
-      const idx = prev.findIndex(e => e.item_id === normalized.item_id);
-      const next = idx !== -1
-        ? prev.map((e, i) => (i === idx ? normalized : e))
-        : [...prev, normalized];
-      return promoteStalePartials(sortEntries(next));
-    });
+    setEntries(prev => promoteStalePartials(sortEntries(mergeEntry(prev, normalized))));
   }, []);
 
   // Promote any in-flight partial entries to final. Used on pause, finish, and
@@ -259,6 +214,10 @@ export function useRecording(noteId, initialTranscript) {
       sessionOffsetMsRef.current = sessionOffsetHolder.current;
     };
     refreshSessionOffset();
+    // The wall-clock base captured at THIS client's first connect. Internal
+    // reconnects extend it by acked-audio time rather than recomputing
+    // wall-clock, so replayed audio keeps its true timeline position.
+    const sessionStartBaseMs = sessionOffsetHolder.current;
     let config;
     try {
       const res = await fetch(`${API_BASE}/config`, { cache: 'no-store' });
@@ -299,20 +258,31 @@ export function useRecording(noteId, initialTranscript) {
         }
         setError(code ? `${msg} (${code})` : msg);
       };
-      client.onDisconnect = () => setConnectionLost(true);
-      client.onReconnect = () => {
+      client.onDisconnect = ({ ackedSamples = 0, sampleRate = 16000, bufferedChunks = 0 } = {}) => {
+        setConnectionLost(true);
+        logEvent('CONNECTION_LOST', {
+          acked_audio_ms: samplesToMs(ackedSamples, sampleRate),
+          buffered_chunks: bufferedChunks,
+        });
+      };
+      client.onReconnect = ({ ackedSamples = 0, sampleRate = 16000 } = {}) => {
         setConnectionLost(false);
         // Promote non-final (partial) entries to final — they'll never be
         // finalized through the normal flow since the old WebSocket session
         // is gone, and the ACK'd audio that produced them won't be replayed.
         finalizePartials();
-        // Recompute the session offset for the NEW Nabla session. Nabla
-        // restarts start_offset_ms at 0 on every fresh WebSocket, so unless
-        // we bump the offset to the current max end_offset, every item from
-        // this point forward would land back at 0:00 in the displayed
-        // timeline. Runs after finalizePartials so partials' end_offset is
-        // included in the max.
-        refreshSessionOffset();
+        // Anchor the fresh Nabla session to audio-time, NOT wall-clock. Nabla
+        // restarts start_offset_ms at 0 on the new WebSocket; anchoring to
+        // acked-audio time places replayed/continuing items where the audio
+        // actually occurred. (KOALA-5934: wall-clock rebasing here caused the
+        // 248s dead gap and scattered duplicates.)
+        const base = reconnectSessionOffset({ sessionStartBaseMs, ackedSamples, sampleRate });
+        sessionOffsetHolder.current = base;
+        sessionOffsetMsRef.current = base;
+        logEvent('RECONNECTED', {
+          acked_audio_ms: samplesToMs(ackedSamples, sampleRate),
+          offset_base_ms: base,
+        });
       };
       await client.connect();
     } catch (err) {
@@ -325,7 +295,19 @@ export function useRecording(noteId, initialTranscript) {
     try {
       setMicPrompting(true);
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: { sampleRate: TARGET_SAMPLE_RATE, channelCount: 1, echoCancellation: true },
+        audio: {
+          sampleRate: TARGET_SAMPLE_RATE,
+          channelCount: 1,
+          echoCancellation: config.echo_cancellation ?? true,
+          // Only override the browser defaults when the server opts in, so
+          // existing single-speaker setups are unaffected.
+          ...(config.noise_suppression !== undefined
+            ? { noiseSuppression: config.noise_suppression }
+            : {}),
+          ...(config.auto_gain_control !== undefined
+            ? { autoGainControl: config.auto_gain_control }
+            : {}),
+        },
       });
     } catch (err) {
       setMicBlocked(true);
