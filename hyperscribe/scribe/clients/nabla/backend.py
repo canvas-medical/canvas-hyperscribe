@@ -142,6 +142,12 @@ class NablaBackend(ScribeBackend):
             "speech_locales": ["ENGLISH_US"],
             "stream_id": "stream1",
             "split_by_sentence": True,
+            # Capture constraint surfaced to getUserMedia. Default True keeps
+            # current behavior; operators can flip it off for two-person room
+            # capture where echo cancellation suppresses the distant speaker
+            # (KOALA-5934). noise_suppression / auto_gain_control can be added
+            # here too and the client will honor them when present.
+            "echo_cancellation": True,
         }
 
     def get_dictation_config(self, *, user_external_id: str = "") -> dict[str, Any]:
