@@ -2145,8 +2145,25 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except (json.JSONDecodeError, ValueError) as exc:
             return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
         note_uuid = str(data.get("note_uuid", ""))
-        attempted: list[dict[str, Any]] = data.get("attempted", [])
-        if not note_uuid or not attempted:
+        attempted_raw: list[dict[str, Any]] = data.get("attempted", [])
+        if not note_uuid or not attempted_raw:
+            return [JSONResponse({"verified": [], "failed": []}, status_code=HTTPStatus.OK)]
+
+        # KOALA-4800: dedup by command_uuid and drop entries without one before
+        # counting. The verification banner shows len(verified) + len(failed);
+        # a caller that passes the same command twice — or a stale/empty uuid —
+        # would otherwise inflate that total and surface phantom `not_found`
+        # failures for commands that are actually on the note. Defensive
+        # backstop mirroring the frontend's dedup at the attempted-set build.
+        attempted: list[dict[str, Any]] = []
+        seen_uuids: set[str] = set()
+        for a in attempted_raw:
+            command_uuid = a.get("command_uuid")
+            if not command_uuid or command_uuid in seen_uuids:
+                continue
+            seen_uuids.add(command_uuid)
+            attempted.append(a)
+        if not attempted:
             return [JSONResponse({"verified": [], "failed": []}, status_code=HTTPStatus.OK)]
 
         uuids = [a["command_uuid"] for a in attempted]

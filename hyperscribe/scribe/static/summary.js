@@ -157,9 +157,15 @@ function TranscriptEntry({ speaker, start_offset_ms, text, is_final, providerNam
 
 function VerificationSummary({ result }) {
   const [expanded, setExpanded] = useState(false);
+  // KOALA-4800 (D2): `verified` is the trustworthy count — commands confirmed
+  // to exist on the note. Report it directly in the success headline rather than
+  // `verified + failed`, so a stray/phantom `not_found` can never inflate the
+  // displayed "N command(s) inserted" number. In the success case `failed` is
+  // empty so this equals verified+failed; the guard matters only if a phantom
+  // ever slips past the attempted-set construction upstream.
   const total = result.verified.length + result.failed.length;
   const headline = result.ok
-    ? `All ${total} command(s) inserted successfully`
+    ? `All ${result.verified.length} command(s) inserted successfully`
     : `${result.failed.length} of ${total} command(s) failed to insert`;
   return html`
     <div class="verification-banner ${result.ok ? 'verification-ok' : 'verification-error'}">
@@ -209,6 +215,38 @@ function humanizeCommandType(type) {
     .replace(/_/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase())
     .trim();
+}
+
+// KOALA-4800: canonicalize a command_type for EQUALITY MATCHING (not display).
+// Backend parser attrs and local proposals disagree on casing for whole command
+// families — e.g. the parser emits 'medicalHistory' / 'surgicalHistory' /
+// 'familyHistory' while the scribe/LLM proposals use 'medical_history' etc.
+// Stripping separators + lowercasing collapses both forms to one key
+// ('medicalhistory'), so the re-stamp uuidMap can match an attempted command to
+// its local row regardless of casing. Without this the match missed for the
+// history/medication families, leaving them unstamped (stale, never-persisted
+// uuids) which the verification banner then counted as phantom `not_found`s and
+// inflated the "N command(s) inserted" count. Use humanizeCommandType for
+// display; use this only as a match key.
+function canonicalCommandType(type) {
+  return String(type || '').replace(/_/g, '').toLowerCase();
+}
+
+// KOALA-4800: human label for a command in the verification banner. Most
+// commands carry a `display`, but a diagnose flipped to assess (or an
+// empty-narrative assess) can have a blank `display` while still identifying a
+// condition via icd10_display / condition text — otherwise the banner shows a
+// bare "assess" with no context. Falls back through the same fields the
+// syncNoteCommands label mapping uses (see ~line 583 / ~1584).
+function verifyEntryDisplay(c) {
+  return (
+    c.display
+    || c.data?.icd10_display
+    || c.data?.condition_header
+    || c.data?.condition?.text
+    || c.data?.label
+    || ''
+  );
 }
 
 const SOAP_GROUPS = [
@@ -1118,7 +1156,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const attempted = withUuids.map(c => ({
       command_uuid: c.command_uuid,
       command_type: c.command_type,
-      display: (c.display || '').slice(0, 80),
+      display: verifyEntryDisplay(c).slice(0, 80),
     }));
     let cancelled = false;
     async function verify() {
@@ -2442,10 +2480,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (data.attempted && data.attempted.length > 0) {
           const uuidMap = new Map();
           for (const a of (data.attempted || [])) {
-            uuidMap.set(`${a.command_type}:${a.display}`, a.command_uuid);
+            uuidMap.set(`${canonicalCommandType(a.command_type)}:${a.display}`, a.command_uuid);
           }
           updatedCommands = workingCommands.map(cmd => {
-            const key = `${cmd.command_type}:${(cmd.display || '').slice(0, 80)}`;
+            const key = `${canonicalCommandType(cmd.command_type)}:${(cmd.display || '').slice(0, 80)}`;
             const uuid = uuidMap.get(key);
             // Stamp already_documented=true alongside command_uuid so the existing
             // `insertable` filter naturally excludes these commands on re-Approve
@@ -2461,7 +2499,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             // that already has a uuid (defensive — shouldn't happen on a fresh
             // approval, but matters for re-approve flows).
             if (rec.command_uuid || !rec.accepted || rec.already_documented || !rec.display) return rec;
-            const key = `${rec.command_type}:${(rec.display || '').slice(0, 80)}`;
+            const key = `${canonicalCommandType(rec.command_type)}:${(rec.display || '').slice(0, 80)}`;
             const uuid = uuidMap.get(key);
             return uuid ? { ...rec, command_uuid: uuid, already_documented: true } : rec;
           });
@@ -2597,13 +2635,34 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         const hasPrescriptions = workingCommands.some(c => c.display && RX_SET.has(c.command_type))
           || recommendations.some(c => c.display && !c.rejected && RX_SET.has(c.command_type));
         logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length, effectCount: data.inserted, hasPendingMetadata: (data.metadata_pending?.length || 0) > 0, amendEditCount: amendAttempted.length });
-        // Verify commands were actually created (include Add Now items + amend-edit NEW uuids).
-        const amendVerifyEntries = amendAttempted.map(a => ({
-          command_uuid: a.new_command_uuid,
-          command_type: a.command_type,
-          display: a.display || '',
-        }));
-        const allAttempted = [...addNowAttemptedRef.current, ...(data.attempted || []), ...amendVerifyEntries];
+        // KOALA_4800_VERIFY_FROM_RESTAMPED_LOCAL: verify against the re-stamped
+        // local command set — the SAME source of truth the auto-verify-on-load
+        // effect uses (~line 1113) — instead of concatenating
+        // `addNowAttemptedRef.current + data.attempted + amend entries`. The
+        // concat could surface one logical command twice (once under a
+        // stale/never-persisted uuid left behind when the casing-sensitive
+        // re-stamp missed the history/medication families), and the verify
+        // endpoint reported that ghost as a phantom `not_found`, inflating the
+        // banner count (Kibana: 57 shown vs 51 real). `updatedCommands` /
+        // `updatedRecommendations` carry the correct uuids for fresh inserts
+        // (re-stamped above, now casing-robust via canonicalCommandType), Add
+        // Now items (already stamped), and amend edits (re-stamped to their new
+        // uuid at ~2201). Dedup by command_uuid so nothing counts twice.
+        const seenVerifyUuids = new Set();
+        const allAttempted = [
+          ...updatedCommands.filter(c => c.command_uuid),
+          ...updatedRecommendations.filter(c => c.command_uuid),
+        ]
+          .filter(c => {
+            if (seenVerifyUuids.has(c.command_uuid)) return false;
+            seenVerifyUuids.add(c.command_uuid);
+            return true;
+          })
+          .map(c => ({
+            command_uuid: c.command_uuid,
+            command_type: c.command_type,
+            display: verifyEntryDisplay(c).slice(0, 80),
+          }));
         if (allAttempted.length > 0) {
           try {
             const verifyRes = await fetch(`${API_BASE}/verify-commands`, {

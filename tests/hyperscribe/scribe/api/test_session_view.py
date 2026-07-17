@@ -6214,3 +6214,183 @@ def test_post_generate_note_near_miss_audit(
     audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
     near_miss_calls = [payload for event_type, payload in audit_calls if event_type == "PSYCH_TEMPLATE_NEAR_MISS"]
     assert near_miss_calls == [{"visit_template_name": "psychiatry consult"}]
+
+
+# --- KOALA-4800: verification banner count correctness ---
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_verify_commands_dedups_duplicate_command_uuids(mock_command: MagicMock, mock_audit: MagicMock) -> None:
+    """KOALA-4800: the banner count is ``len(verified) + len(failed)``. The
+    pre-fix frontend concatenated ``addNowAttemptedRef.current + data.attempted``
+    (+ amend entries), which could list the same logical command twice — often
+    with the command_type in different casing ('medicalHistory' vs
+    'medical_history') because the re-stamp missed. Passing a uuid more than once
+    must NOT inflate the total: each distinct command_uuid is counted at most
+    once.
+    """
+    mock_command.objects.filter.return_value.values.return_value = [
+        {"id": "u1", "anchor_object_type": "X", "anchor_object_dbid": 42},
+    ]
+
+    view = _helper_instance()
+    attempted = [
+        {"command_uuid": "u1", "command_type": "medicalHistory", "display": "PMH: asthma"},
+        {"command_uuid": "u1", "command_type": "medical_history", "display": "PMH: asthma"},
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-1", "attempted": attempted}))
+    result = view.post_verify_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert len(data["verified"]) == 1, "duplicate command_uuid must be counted once"
+    assert len(data["failed"]) == 0
+    assert len(data["verified"]) + len(data["failed"]) == 1
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_verify_commands_drops_entries_without_command_uuid(mock_command: MagicMock, mock_audit: MagicMock) -> None:
+    """KOALA-4800: attempted entries with an empty or missing ``command_uuid``
+    must be dropped, not counted. A missing key would previously raise KeyError
+    when building the ``uuids`` list; an empty string would resolve to a phantom
+    ``not_found``. Only the entry with a real uuid is counted.
+    """
+    mock_command.objects.filter.return_value.values.return_value = [
+        {"id": "u1", "anchor_object_type": "X", "anchor_object_dbid": 42},
+    ]
+
+    view = _helper_instance()
+    attempted = [
+        {"command_uuid": "u1", "command_type": "hpi", "display": "Back pain"},
+        {"command_uuid": "", "command_type": "plan", "display": "empty uuid"},
+        {"command_type": "ros", "display": "missing uuid key"},
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-1", "attempted": attempted}))
+    result = view.post_verify_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert len(data["verified"]) == 1
+    assert len(data["failed"]) == 0
+    assert len(data["verified"]) + len(data["failed"]) == 1
+
+
+def test_summary_js_canonicalizes_command_type_in_restamp_uuidmap() -> None:
+    """KOALA-4800: the re-stamp ``uuidMap`` that reconciles attempted commands to
+    local rows must key command_type through ``canonicalCommandType()`` on BOTH
+    the build and the lookup side. Backend parser attrs are camelCase for the
+    history families ('medicalHistory' / 'surgicalHistory' / 'familyHistory')
+    while local proposals are snake_case ('medical_history'); a raw-string key
+    never matched, leaving those commands unstamped with stale uuids that the
+    verification banner then counted as phantom ``not_found``. Structural pin
+    (this repo has no JS test framework).
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "function canonicalCommandType(" in src, (
+        "summary.js is missing the canonicalCommandType() normalizer. Without it "
+        "the uuidMap re-stamp keys command_type raw, so camelCase parser attrs "
+        "('medicalHistory') never match snake_case local rows ('medical_history')."
+    )
+    assert "uuidMap.set(`${canonicalCommandType(a.command_type)}:" in src, (
+        "The uuidMap BUILD side must canonicalize command_type "
+        "(uuidMap.set(`${canonicalCommandType(a.command_type)}:...))."
+    )
+    assert "`${canonicalCommandType(cmd.command_type)}:" in src, (
+        "The uuidMap LOOKUP side for commands must canonicalize command_type."
+    )
+    assert "`${canonicalCommandType(rec.command_type)}:" in src, (
+        "The uuidMap LOOKUP side for recommendations must canonicalize command_type."
+    )
+    assert "uuidMap.set(`${a.command_type}:" not in src, (
+        "Found the raw-string uuidMap key (regression). The re-stamp must key "
+        "command_type through canonicalCommandType on both sides."
+    )
+
+
+def test_summary_js_verify_attempted_rebuilt_from_restamped_local_commands() -> None:
+    """KOALA-4800: the post-approve /verify-commands request must be built from
+    the re-stamped local command set (``updatedCommands`` /
+    ``updatedRecommendations``) — the same source of truth the
+    auto-verify-on-load effect uses — and deduped by command_uuid, NOT from the
+    concat of ``addNowAttemptedRef.current + data.attempted + amendVerifyEntries``
+    which could carry a stale/duplicate uuid and inflate the banner count.
+    Structural pin.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "KOALA_4800_VERIFY_FROM_RESTAMPED_LOCAL" in src, (
+        "summary.js is missing the KOALA_4800_VERIFY_FROM_RESTAMPED_LOCAL marker "
+        "on the post-approve verify attempted-set construction."
+    )
+    assert "...updatedCommands.filter(c => c.command_uuid)" in src, (
+        "The verify attempted set must be rebuilt from re-stamped local commands."
+    )
+    assert "...updatedRecommendations.filter(c => c.command_uuid)" in src, (
+        "The verify attempted set must include re-stamped local recommendations."
+    )
+    assert "seenVerifyUuids" in src, (
+        "The rebuilt verify attempted set must dedup by command_uuid (seenVerifyUuids guard)."
+    )
+    assert "[...addNowAttemptedRef.current, ...(data.attempted || []), ...amendVerifyEntries]" not in src, (
+        "Found the old concat-based allAttempted (regression). Rebuild from the "
+        "re-stamped local command set instead so phantom uuids can't inflate the "
+        "verification count."
+    )
+
+
+def test_summary_js_verification_banner_success_count_uses_verified() -> None:
+    """KOALA-4800 (D2): the VerificationSummary success headline must report
+    ``result.verified.length`` — the trustworthy count of commands confirmed on
+    the note — rather than ``verified + failed``, so a stray/phantom
+    ``not_found`` can never inflate the displayed 'N command(s) inserted' number.
+    Structural pin.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "`All ${result.verified.length} command(s) inserted successfully`" in src, (
+        "The success headline must use result.verified.length (the confirmed count), not verified+failed."
+    )
+    assert "`All ${total} command(s) inserted successfully`" not in src, (
+        "Found the old verified+failed success count (regression). Use "
+        "result.verified.length so phantom failures can't inflate the count."
+    )
+
+
+def test_summary_js_verify_entry_display_falls_back_to_condition_name() -> None:
+    """KOALA-4800 (banner label): an assess with an empty ``display`` — a
+    diagnose flipped to assess, or an empty-narrative assess — must still show
+    its condition in the verification banner instead of a bare "assess". Both
+    verify attempted-set builders (the post-approve rebuild AND the
+    auto-verify-on-load effect) must run each command through
+    ``verifyEntryDisplay()``, which falls back to icd10_display / condition text.
+    Structural pin.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "function verifyEntryDisplay(" in src, (
+        "summary.js is missing the verifyEntryDisplay() helper — the verification "
+        "banner would show a bare 'assess' for empty-display commands."
+    )
+    assert src.count("display: verifyEntryDisplay(c).slice(0, 80)") >= 2, (
+        "Both verify attempted builders (post-approve rebuild and "
+        "auto-verify-on-load) must derive the label via verifyEntryDisplay()."
+    )
+    assert "c.data?.icd10_display" in src, "verifyEntryDisplay must fall back to icd10_display for flipped assess rows."
+    assert "c.data?.condition?.text" in src, (
+        "verifyEntryDisplay must fall back to the condition text for synced assess rows."
+    )
