@@ -131,3 +131,20 @@ export function samplesToMs(samples, sampleRate) {
 export function reconnectSessionOffset({ sessionStartBaseMs, ackedSamples, sampleRate }) {
   return (sessionStartBaseMs || 0) + samplesToMs(ackedSamples || 0, sampleRate);
 }
+
+// Decide whether the finish-time drain wait should stop, given the current
+// pending backlog and how long we've been waiting. Pure so the stall/cap
+// timing logic is unit-tested rather than living untested inside the React
+// poll loop.
+//   'drained' — buffer empty, everything reached the service (no data lost)
+//   'stalled' — no progress for stallMs (network died again; tail lost)
+//   'cap'     — total wait exceeded capMs (pathological slow drain; tail lost)
+//   null      — still draining within limits, keep waiting
+// Precedence: drained first (empty buffer is success regardless of clocks),
+// then stalled, then cap.
+export function drainResolution({ pending, msSinceProgress, msSinceStart, stallMs, capMs }) {
+  if ((pending || 0) <= 0) return 'drained';
+  if (msSinceProgress > stallMs) return 'stalled';
+  if (msSinceStart > capMs) return 'cap';
+  return null;
+}

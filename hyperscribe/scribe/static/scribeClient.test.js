@@ -159,6 +159,23 @@ test('a stale connection (no server response) aborts and reconnects', (t) => {
   assert.equal(sockets.length, 2, 'stale connection triggered a reconnect');
 });
 
+test('getPendingAudioMs reports un-acknowledged buffered audio', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { client, sockets } = makeClient();
+
+  sockets[0].fireOpen();
+  client.sendAudio(pcm(1600)); // 100ms
+  client.sendAudio(pcm(1600)); // 100ms
+  client.sendAudio(pcm(1600)); // 100ms
+  assert.equal(client.getPendingAudioMs(), 300, 'all three chunks pending');
+
+  sockets[0].fireMessage({ type: 'AUDIO_CHUNK_ACK', ack_id: 0 });
+  assert.equal(client.getPendingAudioMs(), 200, 'acked audio no longer pending');
+
+  sockets[0].fireMessage({ type: 'AUDIO_CHUNK_ACK', ack_id: 2 });
+  assert.equal(client.getPendingAudioMs(), 0, 'fully drained');
+});
+
 test('transcript items are forwarded to onTranscriptItem', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
   const { client, sockets } = makeClient();

@@ -2972,6 +2972,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const serverStep = Math.max(progress.step, 0);
     progressIndex = serverStep + 1; // +1 because finalize occupies index 0
     progressLabel = PROGRESS_STEPS[serverStep] || PROGRESS_STEPS[0];
+  } else if (isFinalizing && recording.catchUpSeconds > 0) {
+    // A connectivity drop left buffered audio still catching up. Tell the user
+    // why finalizing is taking longer instead of leaving them guessing.
+    progressLabel = `${FINALIZE_LABEL} (catching up — ~${recording.catchUpSeconds}s of audio left)`;
   }
   const progressPct = Math.max(((progressIndex + 1) / TOTAL_PROGRESS_STEPS) * 100, 5);
 
@@ -3153,6 +3157,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
           </svg>
           No audio detected — check your microphone permissions and make sure it is not muted
+        </div>
+      `}
+      ${recording.finishTruncated && html`
+        <div class="silence-warning">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          Connection was lost while finalizing — the end of this recording may be missing from the transcript. Review before charting.
         </div>
       `}
       ${recording.error && html`<p class="error" style="padding: 0 16px;">${recording.error}</p>`}

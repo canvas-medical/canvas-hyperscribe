@@ -11,6 +11,8 @@
  * See: https://docs.nabla.com/guides/best-practices/transcription-network-resilience
  */
 
+import { samplesToMs } from './transcript-merge.js';
+
 /**
  * Convert Int16Array to base64 string.
  * @param {Int16Array} int16Array
@@ -184,6 +186,19 @@ class NablaScribeClient {
       this._ws = null;
     }
     this._resolveEnd();
+  }
+
+  /**
+   * Milliseconds of audio still buffered locally and not yet acknowledged by
+   * the server. After end() this drains toward 0 as the backlog is sent and
+   * ACKed; callers poll it to know when a post-reconnect catch-up has finished
+   * instead of force-closing on a fixed timer.
+   * @returns {number}
+   */
+  getPendingAudioMs() {
+    let samples = 0;
+    for (const chunk of this._buffer) samples += chunk.sampleCount;
+    return samplesToMs(samples, this._config.sample_rate || 16000);
   }
 
   // ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ import {
   mergeEntry,
   samplesToMs,
   reconnectSessionOffset,
+  drainResolution,
 } from './transcript-merge.js';
 
 test('normalizeEntry derives a stable id from start_offset_ms when id is missing', () => {
@@ -76,6 +77,29 @@ test('reconnectSessionOffset anchors to audio-time from the session base', () =>
   assert.equal(reconnectSessionOffset({ sessionStartBaseMs: 0, ackedSamples: 480000, sampleRate: 16000 }), 30000);
   // Session that itself started at 300000ms (post-resume) + 10s acked.
   assert.equal(reconnectSessionOffset({ sessionStartBaseMs: 300000, ackedSamples: 160000, sampleRate: 16000 }), 310000);
+});
+
+test('drainResolution returns drained the moment the buffer empties', () => {
+  assert.equal(drainResolution({ pending: 0, msSinceProgress: 0, msSinceStart: 100, stallMs: 30000, capMs: 300000 }), 'drained');
+  // drained wins even if the stall/cap thresholds are also exceeded.
+  assert.equal(drainResolution({ pending: 0, msSinceProgress: 999999, msSinceStart: 999999, stallMs: 30000, capMs: 300000 }), 'drained');
+});
+
+test('drainResolution keeps waiting while draining within limits', () => {
+  assert.equal(drainResolution({ pending: 5000, msSinceProgress: 1000, msSinceStart: 1000, stallMs: 30000, capMs: 300000 }), null);
+});
+
+test('drainResolution reports stalled when no progress for stallMs', () => {
+  assert.equal(drainResolution({ pending: 5000, msSinceProgress: 30001, msSinceStart: 40000, stallMs: 30000, capMs: 300000 }), 'stalled');
+});
+
+test('drainResolution reports cap when the hard cap is exceeded', () => {
+  // Still making slow progress (under stall) but total time blew the cap.
+  assert.equal(drainResolution({ pending: 5000, msSinceProgress: 1000, msSinceStart: 300001, stallMs: 30000, capMs: 300000 }), 'cap');
+});
+
+test('drainResolution prefers stalled over cap when both trip', () => {
+  assert.equal(drainResolution({ pending: 5000, msSinceProgress: 40000, msSinceStart: 400000, stallMs: 30000, capMs: 300000 }), 'stalled');
 });
 
 // Integration guard for the actual KOALA-5934 fix: an item Nabla emitted but
