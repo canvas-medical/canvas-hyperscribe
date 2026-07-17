@@ -351,7 +351,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -399,6 +399,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onClearChargeComment=${isCharges ? onClearChargeComment : null}
         onRemoveChargeByUuid=${isCharges ? onRemoveChargeByUuid : null}
         readOnly=${readOnly}
+        canEdit=${canEdit}
         isAmending=${isAmending}
         sectionConditions=${sectionConditions}
         patientId=${patientId}
@@ -3221,6 +3222,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           // the author's old `!canEdit`, so a non-author renders the SAME working /
           // finalized template the author does.
           readOnly: !authorEditable,
+          // Viewer-level interactivity, kept SEPARATE from `readOnly`. `readOnly`
+          // governs what's VISIBLE (layout parity: non-authors still see every
+          // card/section); `canEdit` governs whether rows can be EXPANDED/edited.
+          // Brigade's read-only viewers get the collapsed, non-expanding layout
+          // (KOALA-6314 review): cards stay closed and can't open into forms.
+          canEdit,
           isAmending: wasFinalized && !approved,
           sectionConditions,
           patientId,
