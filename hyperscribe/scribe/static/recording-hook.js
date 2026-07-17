@@ -197,12 +197,15 @@ export function useRecording(noteId, initialTranscript) {
   }, []);
 
   // Tell Nabla "no more audio coming" so it drains the buffer, sends END, and
-  // pushes any trailing TRANSCRIPT_ITEM updates with final speaker tags. We
-  // do not await — the outer wait + force-close enforce our own timeout.
+  // pushes any trailing TRANSCRIPT_ITEM updates with final speaker tags.
+  // Returns the end() promise, which resolves when the server closes the
+  // socket after post-processing (bounded by the client's END timeout) — the
+  // finish path awaits it so trailing items aren't clipped.
   const signalEndOfStream = useCallback(() => {
     if (clientRef.current) {
-      clientRef.current.end().catch(() => {});
+      return clientRef.current.end().catch(() => {});
     }
+    return Promise.resolve();
   }, []);
 
   // Wait for the local audio backlog to drain before we close the socket.
@@ -318,11 +321,14 @@ export function useRecording(noteId, initialTranscript) {
         }
         setError(code ? `${msg} (${code})` : msg);
       };
-      client.onDisconnect = ({ ackedSamples = 0, sampleRate = 16000, bufferedChunks = 0 } = {}) => {
+      client.onDisconnect = ({ ackedSamples = 0, sampleRate = 16000, bufferedChunks = 0, trigger, code, reason } = {}) => {
         setConnectionLost(true);
         logEvent('CONNECTION_LOST', {
           acked_audio_ms: samplesToMs(ackedSamples, sampleRate),
           buffered_chunks: bufferedChunks,
+          trigger: trigger || 'unknown',
+          close_code: code,
+          close_reason: reason || '',
         });
       };
       client.onReconnect = ({ ackedSamples = 0, sampleRate = 16000 } = {}) => {
@@ -527,17 +533,29 @@ export function useRecording(noteId, initialTranscript) {
     // finalizePartials() below is the safety net for anything that doesn't
     // resolve within the timeout.
     stopAudioCapture();
-    signalEndOfStream();
+    // end() begins draining + sends END once the buffer empties; its promise
+    // resolves when the server closes the socket after post-processing.
+    const endPromise = signalEndOfStream();
     // Let any post-reconnect backlog finish sending + transcribing before we
-    // close, so the tail of the visit isn't dropped. Then the shorter wait for
-    // trailing speaker attribution.
+    // close, so the tail of the visit isn't dropped.
     const drainResult = await waitForDrain();
-    // Network stayed down through the drain window — the tail never reached the
-    // service. Flag it so the provider is warned instead of silently charting
-    // from a truncated transcript.
-    if (drainResult && drainResult !== 'drained') setFinishTruncated(true);
+    if (drainResult !== 'drained') {
+      // The buffer couldn't fully drain (network stalled through the window).
+      // Send END now so the server finalizes the audio it already received
+      // (recovers the in-flight window) instead of losing it on a force-close,
+      // and warn that some tail audio may still be missing.
+      setFinishTruncated(true);
+      clientRef.current?.finalizeNow();
+    }
+    // END has been sent — via the drain on the happy path, or finalizeNow on
+    // the stall path. Nabla guidance: let the server emit its final transcript
+    // items and close the socket itself rather than force-closing (which clips
+    // trailing items). Bounded by end()'s internal timeout.
+    await endPromise;
+    await disconnectAll({ force: false });
+    // Trailing speaker attribution (fast on the drained path — the finals are
+    // already in — and it emits the SPEAKER_WAIT audit signal either way).
     await waitForSpeakerAttribution(FINISH_WAIT_MS, 'finish');
-    await disconnectAll({ force: true });
     finalizePartials();
     // Save transcript with finalized flag.
     if (noteId && entriesRef.current.length > 0) {

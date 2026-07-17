@@ -38,9 +38,9 @@ class FakeWebSocket {
     if (this.onmessage) this.onmessage({ data: JSON.stringify(obj) });
   }
 
-  fireClose() {
+  fireClose(code, reason) {
     this.readyState = FakeWebSocket.CLOSED;
-    if (this.onclose) this.onclose();
+    if (this.onclose) this.onclose({ code, reason });
   }
 }
 FakeWebSocket.instances = [];
@@ -174,6 +174,115 @@ test('getPendingAudioMs reports un-acknowledged buffered audio', (t) => {
 
   sockets[0].fireMessage({ type: 'AUDIO_CHUNK_ACK', ack_id: 2 });
   assert.equal(client.getPendingAudioMs(), 0, 'fully drained');
+});
+
+test('reconnect backoff grows when drops happen before any ack (no tight storm)', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { sockets } = makeClient();
+
+  sockets[0].fireOpen(); // initial connect
+  sockets[0].fireClose(); // drop before any ack -> schedule reconnect (1s, attempts->1)
+  t.mock.timers.tick(1000);
+  assert.equal(sockets.length, 2, 'first reconnect after 1s');
+
+  sockets[1].fireOpen(); // opens but still no ack
+  sockets[1].fireClose(); // drop again -> backoff must grow to 2s (attempts->2)
+  t.mock.timers.tick(1000);
+  assert.equal(sockets.length, 2, 'second reconnect must NOT fire at 1s — backoff grew');
+  t.mock.timers.tick(1000);
+  assert.equal(sockets.length, 3, 'second reconnect fires at 2s');
+});
+
+test('an ack resets the reconnect backoff (proven-stable connection)', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { client, sockets } = makeClient();
+
+  sockets[0].fireOpen();
+  sockets[0].fireClose(); // attempts->1
+  t.mock.timers.tick(1000);
+  sockets[1].fireOpen();
+  client.sendAudio(pcm(1600));
+  sockets[1].fireMessage({ type: 'AUDIO_CHUNK_ACK', ack_id: 0 }); // connection proven working
+  sockets[1].fireClose(); // backoff should be back to 1s, not 2s
+  t.mock.timers.tick(1000);
+  assert.equal(sockets.length, 3, 'ack reset the backoff, so reconnect fires at 1s again');
+});
+
+test('a server-initiated close after END resolves cleanly without reconnecting', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { client, sockets } = makeClient();
+
+  sockets[0].fireOpen();
+  client.sendAudio(pcm(1600));
+  const ended = client.end();
+  sockets[0].fireMessage({ type: 'AUDIO_CHUNK_ACK', ack_id: 0 }); // buffer empties -> END sent
+  assert.ok(
+    sockets[0].sent.some((raw) => JSON.parse(raw).type === 'END'),
+    'END frame sent once the buffer drained',
+  );
+
+  // Nabla closes the socket itself after post-processing — WITHOUT sending an
+  // END message frame. This must be treated as the graceful finish, not an
+  // unexpected disconnect to reconnect/replay.
+  sockets[0].fireClose();
+  t.mock.timers.tick(5000); // let any (buggy) reconnect backoff fire
+  assert.equal(sockets.length, 1, 'must not reconnect after a graceful END/close');
+
+  await ended; // resolves via the clean close, not the 30s END timeout
+});
+
+test('onDisconnect reports the ws close code and a ws-close trigger', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { client, sockets } = makeClient();
+  let stats = null;
+  client.onDisconnect = (s) => { stats = s; };
+
+  sockets[0].fireOpen();
+  client.sendAudio(pcm(1600));
+  sockets[0].fireClose(1006, 'abnormal closure');
+
+  assert.equal(stats.trigger, 'ws-close');
+  assert.equal(stats.code, 1006);
+  assert.equal(stats.reason, 'abnormal closure');
+});
+
+test('a stale-timeout abort reports the stale trigger', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { client, sockets } = makeClient();
+  let stats = null;
+  client.onDisconnect = (s) => { stats = s; };
+
+  sockets[0].fireOpen();
+  client.sendAudio(pcm(1600)); // in-flight audio, never acked
+  t.mock.timers.tick(6000); // health check trips the stale detector
+
+  assert.equal(stats.trigger, 'stale-timeout');
+});
+
+test('caps in-flight audio at ~3 seconds (backpressure well under Nabla 10s limit)', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { client, sockets } = makeClient(); // sample_rate 16000
+  sockets[0].fireOpen();
+
+  // Push 5s of audio (50 x 100ms chunks) with no acks. Backpressure should let
+  // only ~3s (30 chunks) go in-flight; the rest stays queued.
+  for (let i = 0; i < 50; i++) client.sendAudio(pcm(1600));
+
+  assert.equal(sentSeqIds(sockets[0]).length, 30, '~3s of audio in-flight, remainder queued');
+});
+
+test('finalizeNow sends END even while audio is still buffered', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { client, sockets } = makeClient();
+  sockets[0].fireOpen();
+  for (let i = 0; i < 50; i++) client.sendAudio(pcm(1600)); // more than the window -> some queued, none acked
+
+  client.finalizeNow();
+
+  assert.ok(
+    sockets[0].sent.some((raw) => JSON.parse(raw).type === 'END'),
+    'END sent so the server finalizes the in-flight window instead of losing it',
+  );
 });
 
 test('transcript items are forwarded to onTranscriptItem', (t) => {
