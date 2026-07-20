@@ -10,7 +10,8 @@ import {
   drainResolution,
   finishDrainDecision,
   buildConfigFrame,
-  buildDictationEntry,
+  appendDictatedText,
+  DICTATION_ENTRY_ID,
 } from './transcript-merge.js';
 
 test('buildConfigFrame conversation mode keeps the transcribe shape', () => {
@@ -135,28 +136,39 @@ test('drainResolution prefers stalled over cap when both trip', () => {
   assert.equal(drainResolution({ pending: 5000, msSinceProgress: 40000, msSinceStart: 400000, stallMs: 30000, capMs: 300000 }), 'stalled');
 });
 
-// Regression guard: dictation entries used to all share start_offset_ms: 0,
-// so sortEntries fell back to item_id.localeCompare and "__dict_10" sorted
-// before "__dict_2" on any reload (pause -> reload re-runs sortEntries).
-// buildDictationEntry keys the primary sort field on the append index so
-// order survives sortEntries past 10 entries.
-test('sortEntries preserves append order for 12+ sequential dictation entries', () => {
-  const appended = [];
-  for (let i = 0; i < 12; i++) {
-    appended.push(buildDictationEntry(i, `chunk ${i}`));
+test('appendDictatedText seeds a single dictation entry from the first delta', () => {
+  const out = appendDictatedText([], 'One');
+  assert.equal(out.length, 1);
+  assert.equal(out[0].item_id, DICTATION_ENTRY_ID);
+  assert.equal(out[0].text, 'One');
+  assert.equal(out[0].speaker, 'DOCTOR');
+  assert.equal(out[0].is_final, true);
+});
+
+test('appendDictatedText concatenates every delta into ONE entry, verbatim', () => {
+  // dictate-ws deltas carry their own leading spaces / sub-word splits; Nabla
+  // owns spacing, so plain concatenation must reconstruct the monologue.
+  let out = [];
+  for (const delta of ['One', ' follow', '-', 'up', ' visit']) {
+    out = appendDictatedText(out, delta);
   }
-  const sorted = sortEntries(appended);
-  assert.deepEqual(
-    sorted.map(e => e.item_id),
-    appended.map(e => e.item_id),
-    'dictation entries must stay in append order after sortEntries, even past 10 entries',
-  );
-  // Specifically: __dict_10 and __dict_11 must land after __dict_9, not
-  // lexicographically between __dict_1 and __dict_2 as they would under the
-  // old offset-0-for-everyone shape.
-  const ids = sorted.map(e => e.item_id);
-  assert.ok(ids.indexOf('__dict_9') < ids.indexOf('__dict_10'));
-  assert.ok(ids.indexOf('__dict_10') < ids.indexOf('__dict_11'));
+  assert.equal(out.length, 1, 'a monologue is one row, not a row per word');
+  assert.equal(out[0].text, 'One follow-up visit');
+  assert.equal(out[0].item_id, DICTATION_ENTRY_ID);
+});
+
+test('appendDictatedText past 12 deltas is still a single entry (no ordering ambiguity)', () => {
+  let out = [];
+  for (let i = 0; i < 15; i++) out = appendDictatedText(out, ` w${i}`);
+  assert.equal(out.length, 1);
+  // A single fixed-id entry cannot be reordered by sortEntries on reload.
+  assert.deepEqual(sortEntries(out).map(e => e.item_id), [DICTATION_ENTRY_ID]);
+});
+
+test('appendDictatedText ignores empty deltas is the callers job; here it appends what it is given', () => {
+  // The hook guards empty text before calling; the pure fn appends verbatim.
+  const out = appendDictatedText([{ item_id: DICTATION_ENTRY_ID, text: 'hi', speaker: 'DOCTOR', start_offset_ms: 0, end_offset_ms: 0, is_final: true }], ' there');
+  assert.equal(out[0].text, 'hi there');
 });
 
 // Integration guard for the actual KOALA-5934 fix: an item Nabla emitted but

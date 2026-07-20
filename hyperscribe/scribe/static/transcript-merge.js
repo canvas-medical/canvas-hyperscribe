@@ -26,24 +26,37 @@ export function sortEntries(items) {
   });
 }
 
-// Build a dictation transcript entry. Dictation has no real audio-time (it's
-// a single append-only monologue, no offsets from Nabla), but sortEntries
-// still runs on every rehydration (mount useState initializer, load-on-mount
-// /transcript effect) and sorts by start_offset_ms first, item_id only as a
-// tiebreak. If every dictation entry shared offset 0, ordering would fall to
-// item_id.localeCompare, and "__dict_10" sorts before "__dict_2" — scrambling
-// a paused-and-reloaded session with >=10 chunks. Using the monotonic append
-// index as the offset keeps append order stable through sortEntries at any
-// count, independent of item_id string comparison.
-export function buildDictationEntry(index, text) {
-  return {
-    item_id: `__dict_${index}`,
-    text,
-    speaker: 'DOCTOR',
-    start_offset_ms: index,
-    end_offset_ms: index,
-    is_final: true,
-  };
+// The single transcript entry that holds a dictated monologue. Dictation is
+// one continuous single-speaker block, unlike conversation's multi-speaker
+// utterances — so all dictated text lives under one stable id.
+export const DICTATION_ENTRY_ID = '__dictation';
+
+// Append one DICTATED_TEXT delta to the transcript. dictate-ws streams
+// verbatim, append-only, immutable deltas (often a single word or a lone
+// punctuation mark like "-", not whole utterances), and Nabla owns spacing
+// and punctuation. So we concatenate every delta into ONE running entry
+// rather than rendering a row per word — mirroring how KOALA-6233 field
+// dictation folds the same stream into one text field (summary.js
+// handleDictatedText). This also feeds generate-note one coherent DOCTOR
+// item (backend.py transcript_items) instead of dozens of near-zero-offset
+// fragments. A single fixed-id entry makes any sort-ordering ambiguity
+// structurally impossible. Pure so the accumulation is unit-tested.
+export function appendDictatedText(entries, text) {
+  const last = entries.length ? entries[entries.length - 1] : null;
+  if (last && last.item_id === DICTATION_ENTRY_ID) {
+    return [...entries.slice(0, -1), { ...last, text: last.text + text }];
+  }
+  return [
+    ...entries,
+    {
+      item_id: DICTATION_ENTRY_ID,
+      text,
+      speaker: 'DOCTOR',
+      start_offset_ms: 0,
+      end_offset_ms: 0,
+      is_final: true,
+    },
+  ];
 }
 
 // A partial entry is "stuck" when at least one final entry has a later

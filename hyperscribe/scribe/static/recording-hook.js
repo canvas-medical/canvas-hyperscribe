@@ -9,7 +9,7 @@ import {
   reconnectSessionOffset,
   drainResolution,
   finishDrainDecision,
-  buildDictationEntry,
+  appendDictatedText,
 } from './transcript-merge.js';
 import { logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 
@@ -322,12 +322,15 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
       // conversation onTranscriptItem path above).
       client.onDictatedText = (text) => {
         if (!text) return;
-        // Mirror finalizePartials: write entriesRef.current inline (not React
-        // state alone) so the finish-time save (which reads entriesRef.current)
-        // captures the last dictated unit even when it arrives during the END
-        // flush, without depending on a render landing before finalizePartials.
-        // Computing from the ref also keeps same-tick bursts in order.
-        const next = [...entriesRef.current, buildDictationEntry(entriesRef.current.length, text)];
+        // dictate-ws streams verbatim append-only deltas (often a single word
+        // or lone punctuation), not whole utterances. appendDictatedText folds
+        // them into ONE running entry so the transcript (and the generate-note
+        // payload) reads as one coherent monologue, not a row per word.
+        // Write entriesRef.current inline (not React state alone), mirroring
+        // finalizePartials, so the finish-time save (which reads
+        // entriesRef.current) captures the last delta even when it arrives
+        // during the END flush, without depending on a render landing first.
+        const next = appendDictatedText(entriesRef.current, text);
         entriesRef.current = next;
         setEntries(next);
       };
