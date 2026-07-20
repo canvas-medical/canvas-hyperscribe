@@ -4,6 +4,7 @@ import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
 import { collectQuestionnaireScores } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-score.js';
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
+import { useFieldDictation } from '/plugin-io/api/hyperscribe/scribe/static/dictation-hook.js';
 import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
 import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/finish-button.js';
@@ -350,7 +351,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -421,12 +422,13 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         examTemplates=${(isObjective || isSubjective) ? examTemplates : null}
         onCarryForwardExam=${(isObjective || isSubjective) ? onCarryForwardExam : null}
         isPsychiatry=${isObjective ? isPsychiatry : false}
+        dictation=${dictation}
       />`;
     })
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, manualModeOnly = false, initialData = null }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, manualModeOnly = false, dictationEnabled = false, initialData = null }) {
   const initSummary = initialData?.summary ?? null;
   const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
@@ -1599,6 +1601,62 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       return updated;
     });
   }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+
+  // --- Field dictation (KOALA-6233) ---
+  // Talk into a single field (CC / HPI / Plan) after generation, before approval.
+  // Runs on Nabla's separate dictate-ws endpoint and never touches the ambient
+  // transcript / note-generation pipeline. Text streams into the command's live
+  // value (read view updates as you speak); the field is persisted once on stop.
+  const commandsRef = useRef(commands);
+  commandsRef.current = commands;
+
+  // Append one dictated unit verbatim (Nabla owns spacing/punctuation). No save
+  // here — a single save happens on stop, so a stream of words is not a stream
+  // of POSTs.
+  const handleDictatedText = useCallback((index, chunk) => {
+    if (!chunk) return;
+    setCommands(prev => prev.map((cmd, i) => {
+      if (i !== index) return cmd;
+      const dictField = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
+      const nextText = (cmd.data?.[dictField] || '') + chunk;
+      return { ...cmd, data: { ...cmd.data, [dictField]: nextText }, display: nextText };
+    }));
+  }, []);
+
+  const dictation = useFieldDictation(handleDictatedText);
+
+  const toggleDictation = useCallback(async (index) => {
+    if (dictation.activeField === index) {
+      logEvent('DICTATION_STOP', { index });
+      await dictation.stop();
+      // Persist the final text once. Done inside the updater so it always sees
+      // the last streamed chunk (state may not have re-rendered yet after stop),
+      // and it applies the amend tag when amending — mirroring handleEdit's save.
+      setCommands(prev => {
+        const cmd = prev[index];
+        if (!cmd) return prev;
+        const dictField = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
+        const display = cmd.data?.[dictField] || '';
+        let next = { ...cmd, display };
+        if (isAmendingSectionEditable(cmd, wasFinalized && !approved)) {
+          next = { ...next, _amend_edited: true };
+        }
+        const updated = prev.map((c, i) => (i === index ? next : c));
+        saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
+        return updated;
+      });
+      return;
+    }
+    const cmd = commandsRef.current[index];
+    if (!cmd) return;
+    const dictField = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
+    logEvent('DICTATION_START', { index, commandType: cmd.command_type });
+    dictation.start(index, cmd.data?.[dictField] || '');
+  }, [dictation, wasFinalized, approved, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+
+  useEffect(() => {
+    if (dictation.error) logEvent('DICTATION_ERROR', { error: dictation.error });
+  }, [dictation.error]);
 
   const handleAddTask = useCallback(() => {
     logEvent('ADD_TASK');
@@ -3171,6 +3229,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           examTemplates: templates,
           onCarryForwardExam: handleCarryForwardExam,
           isPsychiatry,
+          dictation: {
+            // Gated behind the ScribeDictationEnabled secret. A single physical
+            // mic: also only offered when editable and NOT while ambient recording
+            // (or paused) owns the mic.
+            available: dictationEnabled && canEdit && !isRecording,
+            activeField: dictation.activeField,
+            status: dictation.status,
+            micBlocked: dictation.micBlocked,
+            silent: dictation.silent,
+            error: dictation.error,
+            onToggle: toggleDictation,
+          },
         })}
         ${fromTheNoteCommands.length > 0 && html`
           <div class="summary-section from-the-note-section">

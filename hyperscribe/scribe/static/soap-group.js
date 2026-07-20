@@ -714,7 +714,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false, dictation }) {
   const isCharges = title === 'CHARGES';
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
@@ -932,6 +932,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onEdit=${onEditCommand}
                     readOnly=${narrativeRowReadOnly}
                     onEditingChange=${onEditingChange}
+                    dictation=${dictation}
                   />
                 </div>
                 ${planResolves.map(re => {
@@ -1553,6 +1554,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onDelete=${onDeleteCommand}
                     readOnly=${planRowReadOnly}
                     onEditingChange=${onEditingChange}
+                    dictation=${dictation}
                   />
                 </div>
                 ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
