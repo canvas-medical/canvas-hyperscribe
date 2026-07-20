@@ -3054,20 +3054,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           ${isRecording && html`
             <div class="recording-controls-inline">
               ${recording.status === 'recording'
-                ? html`<button class="control-btn" onClick=${recording.pauseRecording} title="Pause">
+                ? html`<button class="control-btn" onClick=${recording.pauseRecording} title="Pause" disabled=${!canEdit}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <rect x="6" y="5" width="4" height="14" rx="1" />
                       <rect x="14" y="5" width="4" height="14" rx="1" />
                     </svg>
                     Pause
                   </button>`
-                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume">
+                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume" disabled=${!canEdit}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="6,4 20,12 6,20" />
                     </svg>
                     Resume
                   </button>`}
-              <${FinishRecordingButton} onFinish=${recording.finishRecording} />
+              <${FinishRecordingButton} onFinish=${recording.finishRecording} disabled=${!canEdit} />
             </div>
           `}
           ${false && debugMode && noteData && !approved && !generating && !isRecording && html`
