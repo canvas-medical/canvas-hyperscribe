@@ -599,6 +599,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }
     return cached;
   });
+  // Capture-mode toggle (KOALA-5513 spike): which live-audio transport backs
+  // the recording — 'conversation' (default; existing Nabla transcribe-ws,
+  // multi-speaker) or 'dictation' (Nabla dictate-ws, verbatim single-speaker
+  // monologue). This is intentionally named `captureMode`, NOT `mode` — the
+  // `mode` state above is the unrelated note-generation workflow mode
+  // ('ai'|'manual'|null). Not persisted across reload (spike scope); local
+  // component state only. Locked once the AI Scribe session starts (see
+  // `mode === 'ai'` gate at the top-bar render) since the transport can't
+  // change mid-session.
+  const [captureMode, setCaptureMode] = useState('conversation');
   const [transcriptCollapsed, setTranscriptCollapsed] = useState(false);
   // Auto-scroll the transcript body to the latest entry whenever live capture
   // is producing or refining content. We deliberately don't try to "respect"
@@ -930,8 +940,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [wasFinalized, approved]);
   // --- End charge matrix ---
 
-  // Recording hook.
-  const recording = useRecording(noteId, initialData?.transcript);
+  // Recording hook. captureMode is fixed at whatever it was when AI Scribe
+  // started (see the `mode === 'ai'` lock in the top-bar render below) — the
+  // hook re-reads it on every render, but nothing changes it after that point.
+  const recording = useRecording(noteId, initialData?.transcript, { mode: captureMode });
 
   // Keep the transcript pinned to the latest entry as new ones stream in or
   // get refined (in-place partial updates, speaker-attribution flips, etc.).
@@ -3385,6 +3397,22 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </select>
           `}
           ${showTopControls && html`
+            ${dictationEnabled && !manualModeOnly && html`
+              <div class="refer-priority" style="max-width: 220px;" role="group" aria-label="Capture mode">
+                <button
+                  type="button"
+                  class="refer-pill${captureMode === 'conversation' ? ' active' : ''}"
+                  onClick=${() => setCaptureMode('conversation')}
+                  title="Multi-speaker conversation, transcribed live"
+                >Conversation</button>
+                <button
+                  type="button"
+                  class="refer-pill${captureMode === 'dictation' ? ' active' : ''}"
+                  onClick=${() => setCaptureMode('dictation')}
+                  title="Single-speaker dictated monologue"
+                >Dictation</button>
+              </div>
+            `}
             ${!manualModeOnly && html`
               <button class="start-ai-btn" onClick=${handleStartAI} disabled=${!canEdit || !selectedTemplate}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" /></svg>
@@ -3394,6 +3422,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             <button class="start-manual-btn" onClick=${handleStartManual} disabled=${!canEdit || !selectedTemplate}>
               Manual
             </button>
+          `}
+          ${mode === 'ai' && dictationEnabled && html`
+            <span class="capture-mode-locked" style="font-size: 12px; font-weight: 600; color: #6b7280; white-space: nowrap;" title="Capture transport is locked for this session">
+              Capture: ${captureMode === 'dictation' ? 'Dictation' : 'Conversation'}
+            </span>
           `}
           ${isRecording && html`
             <div class="recording-controls-inline">
