@@ -9,7 +9,25 @@ import {
   reconnectSessionOffset,
   drainResolution,
   finishDrainDecision,
+  buildConfigFrame,
 } from './transcript-merge.js';
+
+test('buildConfigFrame conversation mode keeps the transcribe shape', () => {
+  const f = buildConfigFrame('conversation', { encoding: 'PCM_S16LE', sample_rate: 16000, speech_locales: ['ENGLISH_US'], stream_id: 'stream1' });
+  assert.equal(f.type, 'CONFIG');
+  assert.deepEqual(f.speech_locales, ['ENGLISH_US']);
+  assert.equal(f.streams[0].id, 'stream1');
+  assert.equal(f.enable_audio_chunk_ack, true);
+});
+
+test('buildConfigFrame dictation mode emits the dictate shape', () => {
+  const f = buildConfigFrame('dictation', { encoding: 'PCM_S16LE', sample_rate: 16000, dictation_locale: 'ENGLISH_US', punctuation_mode: 'EXPLICIT', text_field_context: { text: '', selection_start: 0, selection_length: 0 } });
+  assert.equal(f.type, 'CONFIG');
+  assert.equal(f.dictation_locale, 'ENGLISH_US');
+  assert.equal(f.punctuation_mode, 'EXPLICIT');
+  assert.deepEqual(f.text_field_context, { text: '', selection_start: 0, selection_length: 0 });
+  assert.ok(!('streams' in f));
+});
 
 test('finishDrainDecision returns drained the moment the buffer empties', () => {
   assert.equal(finishDrainDecision({ pendingMs: 0, accepted: false }), 'drained');

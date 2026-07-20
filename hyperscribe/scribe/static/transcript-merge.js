@@ -115,6 +115,30 @@ export function mergeEntry(entries, incoming, { offsetWindowMs = 1500 } = {}) {
   return [...entries, incoming];
 }
 
+// Per-mode Nabla CONFIG frame. Conversation = transcribe-ws (speaker streams);
+// dictation = dictate-ws (single locale + punctuation + caret context). Pure so
+// the mode branching is unit-tested rather than buried in the ws client.
+export function buildConfigFrame(mode, config) {
+  if (mode === 'dictation') {
+    return {
+      type: 'CONFIG',
+      encoding: config.encoding,
+      sample_rate: config.sample_rate,
+      dictation_locale: config.dictation_locale,
+      punctuation_mode: config.punctuation_mode,
+      text_field_context: config.text_field_context || { text: '', selection_start: 0, selection_length: 0 },
+    };
+  }
+  return {
+    type: 'CONFIG',
+    encoding: config.encoding,
+    sample_rate: config.sample_rate,
+    speech_locales: config.speech_locales,
+    streams: [{ id: config.stream_id, speaker_type: 'unspecified' }],
+    enable_audio_chunk_ack: true,
+  };
+}
+
 // Convert a PCM sample count to milliseconds of audio. Guards a zero/absent
 // sample rate rather than returning Infinity/NaN.
 export function samplesToMs(samples, sampleRate) {
