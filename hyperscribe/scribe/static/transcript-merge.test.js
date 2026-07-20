@@ -8,7 +8,21 @@ import {
   samplesToMs,
   reconnectSessionOffset,
   drainResolution,
+  finishDrainDecision,
 } from './transcript-merge.js';
+
+test('finishDrainDecision returns drained the moment the buffer empties', () => {
+  assert.equal(finishDrainDecision({ pendingMs: 0, accepted: false }), 'drained');
+  assert.equal(finishDrainDecision({ pendingMs: 0, accepted: true }), 'drained');
+});
+
+test('finishDrainDecision keeps waiting while a backlog remains, even if stalled (never truncates)', () => {
+  assert.equal(finishDrainDecision({ pendingMs: 5000, accepted: false }), 'waiting');
+});
+
+test('finishDrainDecision returns accepted only on explicit provider accept with a backlog', () => {
+  assert.equal(finishDrainDecision({ pendingMs: 5000, accepted: true }), 'accepted');
+});
 
 test('normalizeEntry derives a stable id from start_offset_ms when id is missing', () => {
   assert.equal(normalizeEntry({ start_offset_ms: 1200 }).item_id, '__noid_1200');

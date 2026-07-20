@@ -8,6 +8,7 @@ import {
   samplesToMs,
   reconnectSessionOffset,
   drainResolution,
+  finishDrainDecision,
 } from './transcript-merge.js';
 import { logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 
@@ -82,6 +83,13 @@ export function useRecording(noteId, initialTranscript) {
   // never reached the transcription service. Warn the provider rather than
   // silently generating from a truncated transcript.
   const [finishTruncated, setFinishTruncated] = useState(false);
+  // True while, after Finish, we're still draining the buffered audio to the
+  // transcription service (lossless path). The note does NOT generate until
+  // this clears (drained) or the provider accepts a gap (finalizeWithGap).
+  const [awaitingTranscription, setAwaitingTranscription] = useState(false);
+  // Set by finalizeWithGap(): the provider has chosen to finalize now and
+  // accept that the still-buffered audio won't be transcribed.
+  const acceptedGapRef = useRef(false);
   const lastAudioTimeRef = useRef(null);
   const silenceTimerRef = useRef(null);
   const silenceDingPlayedRef = useRef(false);
@@ -533,26 +541,41 @@ export function useRecording(noteId, initialTranscript) {
     // finalizePartials() below is the safety net for anything that doesn't
     // resolve within the timeout.
     stopAudioCapture();
-    // end() begins draining + sends END once the buffer empties; its promise
-    // resolves when the server closes the socket after post-processing.
-    const endPromise = signalEndOfStream();
-    // Let any post-reconnect backlog finish sending + transcribing before we
-    // close, so the tail of the visit isn't dropped.
-    const drainResult = await waitForDrain();
-    if (drainResult !== 'drained') {
-      // The buffer couldn't fully drain (network stalled through the window).
-      // Send END now so the server finalizes the audio it already received
-      // (recovers the in-flight window) instead of losing it on a force-close,
-      // and warn that some tail audio may still be missing.
-      setFinishTruncated(true);
-      clientRef.current?.finalizeNow();
+    // LOSSLESS drain (KOALA-5934): do NOT call end() yet — end() has a 30s
+    // internal close timeout that would kill a multi-minute drain. The buffer
+    // keeps draining on its own via the ack->flush loop + reconnect/backoff
+    // (scribeClient). Poll until the buffer is fully drained (nothing lost) OR
+    // the provider explicitly accepts a gap. The note never generates while a
+    // backlog remains unless accepted.
+    setAwaitingTranscription(true);
+    acceptedGapRef.current = false;
+    const drainStartedAt = Date.now();
+    let pendingMs = clientRef.current ? clientRef.current.getPendingAudioMs() : 0;
+    let resolution = 'drained';
+    while (true) {
+      pendingMs = clientRef.current ? clientRef.current.getPendingAudioMs() : 0;
+      setCatchUpSeconds(pendingMs > 0 ? Math.ceil(pendingMs / 1000) : 0);
+      resolution = finishDrainDecision({ pendingMs, accepted: acceptedGapRef.current });
+      if (resolution !== 'waiting') break;
+      await new Promise((r) => setTimeout(r, DRAIN_POLL_MS));
     }
-    // END has been sent — via the drain on the happy path, or finalizeNow on
-    // the stall path. Nabla guidance: let the server emit its final transcript
-    // items and close the socket itself rather than force-closing (which clips
-    // trailing items). Bounded by end()'s internal timeout.
-    await endPromise;
-    await disconnectAll({ force: false });
+    setAwaitingTranscription(false);
+    setCatchUpSeconds(0);
+    logEvent('FINISH_DRAIN', {
+      resolution, // 'drained' (nothing lost) | 'accepted' (provider accepted a gap)
+      elapsed_ms: Date.now() - drainStartedAt,
+      unprocessed_ms: resolution === 'accepted' ? pendingMs : 0,
+    });
+    if (resolution === 'accepted') {
+      // Provider accepted the gap — abandon the still-buffered tail and close.
+      setFinishTruncated(true);
+      await disconnectAll({ force: true });
+    } else {
+      // Fully drained — now send END and let the server flush its final
+      // transcript items and close the socket itself (don't clip the tail).
+      await signalEndOfStream();
+      await disconnectAll({ force: false });
+    }
     // Trailing speaker attribution (fast on the drained path — the finals are
     // already in — and it emits the SPEAKER_WAIT audit signal either way).
     await waitForSpeakerAttribution(FINISH_WAIT_MS, 'finish');
@@ -581,9 +604,15 @@ export function useRecording(noteId, initialTranscript) {
     finalizePartials,
     signalEndOfStream,
     stopAudioCapture,
-    waitForDrain,
     waitForSpeakerAttribution,
   ]);
+
+  // Provider accepts that the still-buffered audio won't be transcribed. The
+  // finishRecording drain loop polls this ref and exits as 'accepted', so the
+  // note generates with the gap recorded (FINISH_DRAIN unprocessed_ms).
+  const finalizeWithGap = useCallback(() => {
+    acceptedGapRef.current = true;
+  }, []);
 
   // Load cached transcript on mount — skip if initial data was provided server-side.
   useEffect(() => {
@@ -703,7 +732,7 @@ export function useRecording(noteId, initialTranscript) {
   }, []);
 
   return {
-    status, entries, error, finalized, lastSaved, audioLevel, silenceWarning, micBlocked, micPrompting, connectionLost, catchUpSeconds, finishTruncated,
-    startRecording, pauseRecording, resumeRecording, finishRecording, retryMicPermission,
+    status, entries, error, finalized, lastSaved, audioLevel, silenceWarning, micBlocked, micPrompting, connectionLost, catchUpSeconds, finishTruncated, awaitingTranscription,
+    startRecording, pauseRecording, resumeRecording, finishRecording, retryMicPermission, finalizeWithGap,
   };
 }

@@ -3172,6 +3172,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         <div class="summary-generating-banner">
           <div class="generating-bar" style="width: ${progressPct}%" />
           <span class="generating-label">${progressLabel}...</span>
+          ${recording.awaitingTranscription && recording.catchUpSeconds > 0 && html`
+            <button class="summary-status-pill-btn" onClick=${() => recording.finalizeWithGap()}>
+              Finalize now (skip remaining audio)
+            </button>
+          `}
         </div>
       `}
       ${canEdit && !noteData && !generating && recording.finalized && mode === 'ai' && html`

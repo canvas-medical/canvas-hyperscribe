@@ -148,3 +148,14 @@ export function drainResolution({ pending, msSinceProgress, msSinceStart, stallM
   if (msSinceStart > capMs) return 'cap';
   return null;
 }
+
+// Finish-time drain decision for the LOSSLESS path (KOALA-5934). Unlike
+// drainResolution, a stalled network never truncates: the only non-drained
+// exit is an explicit provider accept. Note generation is gated on this —
+// 'drained' (buffer empty, nothing lost) or 'accepted' (provider chose to
+// finalize with a gap); otherwise 'waiting' and the drain keeps going.
+export function finishDrainDecision({ pendingMs, accepted }) {
+  if ((pendingMs || 0) <= 0) return 'drained';
+  if (accepted) return 'accepted';
+  return 'waiting';
+}
