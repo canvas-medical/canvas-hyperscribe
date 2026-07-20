@@ -249,6 +249,15 @@ function verifyEntryDisplay(c) {
   );
 }
 
+// KOALA-4800: a command added directly on the note (outside the Scribe) syncs in
+// as an ADDITIONAL COMMANDS / "from the note" card. The Scribe did NOT insert it,
+// so it must not count toward the "N command(s) inserted" verification banner —
+// otherwise adding a command on the note inflates the count by one. get_note_commands
+// tags these with _from_note=true and section_key='from_the_note'.
+function isFromNoteCommand(c) {
+  return c._from_note === true || c.section_key === FROM_THE_NOTE_SECTION;
+}
+
 const SOAP_GROUPS = [
   { title: 'SUBJECTIVE', color: 'subjective', keys: new Set(['chief_complaint', 'history_of_present_illness', 'review_of_systems']) },
   { title: 'HISTORY', color: 'history', keys: new Set(['past_medical_history', 'past_surgical_history',
@@ -1149,7 +1158,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   useEffect(() => {
     if (!approved || verificationResult) return;
     const withUuids = [
-      ...commands.filter(c => c.command_uuid),
+      ...commands.filter(c => c.command_uuid && !isFromNoteCommand(c)),
       ...recommendations.filter(c => c.command_uuid),
     ];
     if (withUuids.length === 0) return;
@@ -2650,7 +2659,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // uuid at ~2201). Dedup by command_uuid so nothing counts twice.
         const seenVerifyUuids = new Set();
         const allAttempted = [
-          ...updatedCommands.filter(c => c.command_uuid),
+          ...updatedCommands.filter(c => c.command_uuid && !isFromNoteCommand(c)),
           ...updatedRecommendations.filter(c => c.command_uuid),
         ]
           .filter(c => {

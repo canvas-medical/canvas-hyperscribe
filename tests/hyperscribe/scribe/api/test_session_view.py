@@ -6331,8 +6331,8 @@ def test_summary_js_verify_attempted_rebuilt_from_restamped_local_commands() -> 
         "summary.js is missing the KOALA_4800_VERIFY_FROM_RESTAMPED_LOCAL marker "
         "on the post-approve verify attempted-set construction."
     )
-    assert "...updatedCommands.filter(c => c.command_uuid)" in src, (
-        "The verify attempted set must be rebuilt from re-stamped local commands."
+    assert "...updatedCommands.filter(c => c.command_uuid && !isFromNoteCommand(c))" in src, (
+        "The verify attempted set must be rebuilt from re-stamped local commands (excluding from_the_note commands)."
     )
     assert "...updatedRecommendations.filter(c => c.command_uuid)" in src, (
         "The verify attempted set must include re-stamped local recommendations."
@@ -6393,4 +6393,30 @@ def test_summary_js_verify_entry_display_falls_back_to_condition_name() -> None:
     assert "c.data?.icd10_display" in src, "verifyEntryDisplay must fall back to icd10_display for flipped assess rows."
     assert "c.data?.condition?.text" in src, (
         "verifyEntryDisplay must fall back to the condition text for synced assess rows."
+    )
+
+
+def test_summary_js_verify_count_excludes_from_note_commands() -> None:
+    """KOALA-4800: commands added directly on the note (they sync into the Scribe
+    as ADDITIONAL COMMANDS / from_the_note cards) were NOT inserted by the Scribe
+    and must be excluded from the "N command(s) inserted" verification count —
+    otherwise adding a command on the note inflates the count by one. Both verify
+    attempted builders (post-approve rebuild and auto-verify-on-load) must filter
+    out from_the_note commands via isFromNoteCommand(). Structural pin.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "function isFromNoteCommand(" in src, (
+        "summary.js is missing the isFromNoteCommand() helper — note-added "
+        "(from_the_note) commands would inflate the verification count."
+    )
+    assert src.count("c.command_uuid && !isFromNoteCommand(c)") >= 2, (
+        "Both verify attempted builders (post-approve rebuild and "
+        "auto-verify-on-load) must exclude from_the_note commands from the count."
+    )
+    assert "c.section_key === FROM_THE_NOTE_SECTION" in src, (
+        "isFromNoteCommand must recognize the from_the_note section key."
     )
