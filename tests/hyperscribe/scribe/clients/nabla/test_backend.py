@@ -53,6 +53,30 @@ def test_get_transcription_config_calls_user_tokens() -> None:
     backend._auth.get_user_tokens.assert_called_once_with("staff-key")
 
 
+def test_get_dictation_config() -> None:
+    backend, _ = _make_backend()
+    config = backend.get_dictation_config(user_external_id="staff-key")
+
+    assert config["vendor"] == "nabla"
+    assert config["ws_url"] == "wss://us.api.nabla.com/v1/core/user/dictate-ws?nabla-api-version=2026-06-12"
+    assert config["access_token"] == "user-access-token"
+    assert config["refresh_token"] == "user-refresh-token"
+    assert config["sample_rate"] == 16000
+    assert config["encoding"] == "PCM_S16LE"
+    assert config["dictation_locale"] == "ENGLISH_US"
+    assert config["punctuation_mode"] == "EXPLICIT"
+    # dictate-ws is single-locale and single-stream — the transcribe-only keys are absent.
+    assert "speech_locales" not in config
+    assert "stream_id" not in config
+
+
+def test_get_dictation_config_calls_user_tokens() -> None:
+    backend, _ = _make_backend()
+    backend.get_dictation_config(user_external_id="staff-key")
+
+    backend._auth.get_user_tokens.assert_called_once_with("staff-key")
+
+
 def test_generate_note() -> None:
     backend, mock_rest_client = _make_backend()
     mock_rest_client.generate_note.return_value = {
