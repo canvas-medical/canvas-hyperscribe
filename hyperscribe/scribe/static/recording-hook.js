@@ -59,7 +59,7 @@ const DING_URL = 'data:audio/wav;base64,UklGRmhWAABXQVZFZm10IBAAAAABAAEAIlYAAESs
  *            startRecording, pauseRecording, resumeRecording, finishRecording }
  */
 
-export function useRecording(noteId, initialTranscript) {
+export function useRecording(noteId, initialTranscript, { mode = 'conversation' } = {}) {
   const [status, setStatus] = useState(() => {
     if (initialTranscript?.started && !initialTranscript.finalized) return 'paused';
     return 'idle';
@@ -289,9 +289,10 @@ export function useRecording(noteId, initialTranscript) {
     // reconnects extend it by acked-audio time rather than recomputing
     // wall-clock, so replayed audio keeps its true timeline position.
     const sessionStartBaseMs = sessionOffsetHolder.current;
+    const configPath = mode === 'dictation' ? '/dictation-config' : '/config';
     let config;
     try {
-      const res = await fetch(`${API_BASE}/config`, { cache: 'no-store' });
+      const res = await fetch(`${API_BASE}${configPath}`, { cache: 'no-store' });
       config = await res.json();
       if (config.error) {
         setError(config.error);
@@ -303,18 +304,32 @@ export function useRecording(noteId, initialTranscript) {
     }
 
     const refreshConfig = async () => {
-      const res = await fetch(`${API_BASE}/config`, { cache: 'no-store' });
+      const res = await fetch(`${API_BASE}${configPath}`, { cache: 'no-store' });
       return res.json();
     };
 
     let client;
     try {
-      client = createScribeClient({ ...config, refreshConfig });
+      client = createScribeClient({ ...config, mode, refreshConfig });
       // Bind THIS client's session-offset holder into its handler closure.
       // Reading holder.current at delivery time (not at bind time) means
       // when onReconnect bumps the offset for a fresh Nabla session, the
       // very next item this client processes already uses the new value.
       client.onTranscriptItem = (item) => handleTranscriptItem(item, sessionOffsetHolder.current);
+      // Dictation is a monologue with no offsets/ids and is never revised —
+      // append-only, verbatim, no mergeEntry/offset-rebasing (unlike the
+      // conversation onTranscriptItem path above).
+      client.onDictatedText = (text) => {
+        if (!text) return;
+        setEntries(prev => [...prev, {
+          item_id: `__dict_${prev.length}`,
+          text,
+          speaker: 'DOCTOR',
+          start_offset_ms: 0,
+          end_offset_ms: 0,
+          is_final: true,
+        }]);
+      };
       client.onError = (msg, code) => {
         if (code === 83011) {
           // Stream timeout — Nabla closes the connection if a stream receives
@@ -427,7 +442,7 @@ export function useRecording(noteId, initialTranscript) {
     }
 
     return true;
-  }, [handleTranscriptItem]);
+  }, [handleTranscriptItem, mode]);
 
   const disconnectAll = useCallback(async ({ force = false } = {}) => {
     cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
