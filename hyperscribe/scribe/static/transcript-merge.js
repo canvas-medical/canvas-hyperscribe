@@ -26,6 +26,26 @@ export function sortEntries(items) {
   });
 }
 
+// Build a dictation transcript entry. Dictation has no real audio-time (it's
+// a single append-only monologue, no offsets from Nabla), but sortEntries
+// still runs on every rehydration (mount useState initializer, load-on-mount
+// /transcript effect) and sorts by start_offset_ms first, item_id only as a
+// tiebreak. If every dictation entry shared offset 0, ordering would fall to
+// item_id.localeCompare, and "__dict_10" sorts before "__dict_2" — scrambling
+// a paused-and-reloaded session with >=10 chunks. Using the monotonic append
+// index as the offset keeps append order stable through sortEntries at any
+// count, independent of item_id string comparison.
+export function buildDictationEntry(index, text) {
+  return {
+    item_id: `__dict_${index}`,
+    text,
+    speaker: 'DOCTOR',
+    start_offset_ms: index,
+    end_offset_ms: index,
+    is_final: true,
+  };
+}
+
 // A partial entry is "stuck" when at least one final entry has a later
 // start_offset_ms — Nabla has moved on past this segment without ever
 // finalizing it, so the row stays partial forever and accumulates text

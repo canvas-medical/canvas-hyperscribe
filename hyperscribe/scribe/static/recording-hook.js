@@ -9,6 +9,7 @@ import {
   reconnectSessionOffset,
   drainResolution,
   finishDrainDecision,
+  buildDictationEntry,
 } from './transcript-merge.js';
 import { logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 
@@ -321,14 +322,7 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
       // conversation onTranscriptItem path above).
       client.onDictatedText = (text) => {
         if (!text) return;
-        setEntries(prev => [...prev, {
-          item_id: `__dict_${prev.length}`,
-          text,
-          speaker: 'DOCTOR',
-          start_offset_ms: 0,
-          end_offset_ms: 0,
-          is_final: true,
-        }]);
+        setEntries(prev => [...prev, buildDictationEntry(prev.length, text)]);
       };
       client.onError = (msg, code) => {
         if (code === 83011) {

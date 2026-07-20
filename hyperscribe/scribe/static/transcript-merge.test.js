@@ -10,6 +10,7 @@ import {
   drainResolution,
   finishDrainDecision,
   buildConfigFrame,
+  buildDictationEntry,
 } from './transcript-merge.js';
 
 test('buildConfigFrame conversation mode keeps the transcribe shape', () => {
@@ -132,6 +133,30 @@ test('drainResolution reports cap when the hard cap is exceeded', () => {
 
 test('drainResolution prefers stalled over cap when both trip', () => {
   assert.equal(drainResolution({ pending: 5000, msSinceProgress: 40000, msSinceStart: 400000, stallMs: 30000, capMs: 300000 }), 'stalled');
+});
+
+// Regression guard: dictation entries used to all share start_offset_ms: 0,
+// so sortEntries fell back to item_id.localeCompare and "__dict_10" sorted
+// before "__dict_2" on any reload (pause -> reload re-runs sortEntries).
+// buildDictationEntry keys the primary sort field on the append index so
+// order survives sortEntries past 10 entries.
+test('sortEntries preserves append order for 12+ sequential dictation entries', () => {
+  const appended = [];
+  for (let i = 0; i < 12; i++) {
+    appended.push(buildDictationEntry(i, `chunk ${i}`));
+  }
+  const sorted = sortEntries(appended);
+  assert.deepEqual(
+    sorted.map(e => e.item_id),
+    appended.map(e => e.item_id),
+    'dictation entries must stay in append order after sortEntries, even past 10 entries',
+  );
+  // Specifically: __dict_10 and __dict_11 must land after __dict_9, not
+  // lexicographically between __dict_1 and __dict_2 as they would under the
+  // old offset-0-for-everyone shape.
+  const ids = sorted.map(e => e.item_id);
+  assert.ok(ids.indexOf('__dict_9') < ids.indexOf('__dict_10'));
+  assert.ok(ids.indexOf('__dict_10') < ids.indexOf('__dict_11'));
 });
 
 // Integration guard for the actual KOALA-5934 fix: an item Nabla emitted but
