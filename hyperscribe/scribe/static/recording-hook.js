@@ -322,7 +322,14 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
       // conversation onTranscriptItem path above).
       client.onDictatedText = (text) => {
         if (!text) return;
-        setEntries(prev => [...prev, buildDictationEntry(prev.length, text)]);
+        // Mirror finalizePartials: write entriesRef.current inline (not React
+        // state alone) so the finish-time save (which reads entriesRef.current)
+        // captures the last dictated unit even when it arrives during the END
+        // flush, without depending on a render landing before finalizePartials.
+        // Computing from the ref also keeps same-tick bursts in order.
+        const next = [...entriesRef.current, buildDictationEntry(entriesRef.current.length, text)];
+        entriesRef.current = next;
+        setEntries(next);
       };
       client.onError = (msg, code) => {
         if (code === 83011) {
