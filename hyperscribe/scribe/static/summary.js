@@ -818,6 +818,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const cleanup = connectScribeWS(noteId, (msg) => {
       if (msg.type === 'NOTE_STATE_CHANGED') {
         setNoteEditable(msg.editable);
+        // KOALA-6315: note becoming editable = the "Amend" click → enter edit
+        // mode directly. applyMakeChanges no-ops unless finalized + author.
+        if (msg.editable) applyMakeChangesRef.current();
       }
     });
     return cleanup;
@@ -878,8 +881,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (isNoteEditable) saveBlockedRef.current = false;
   }, [isNoteEditable, noteId]);
 
-  const handleMakeChanges = useCallback(() => {
-    if (!isAuthor || !isNoteEditable || !approved) return;
+  // Core amend transition: drop un-inserted AI recs and flip back to editable.
+  // No `isNoteEditable` guard on purpose — it runs off the NOTE_STATE_CHANGED
+  // event, where `editable` is the proof and that state hasn't committed yet.
+  // The "Make changes" button gates on `isNoteEditable` via handleMakeChanges.
+  const applyMakeChanges = useCallback(() => {
+    if (!isAuthor || !approved) return;
     // Either `already_documented` OR `command_uuid` means "already on the note"
     // — same predicate as the `insertable` filter (see 8ea1df36 back-compat
     // fix). Pre-existing finalized notes (signed before the explicit
@@ -920,7 +927,23 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // already, but ensure the React state matches without waiting for the
     // /summary refetch.
     setWasFinalized(true);
-  }, [isAuthor, isNoteEditable, approved, commands, recommendations]);
+  }, [isAuthor, approved, commands, recommendations]);
+
+  // "Make changes" button: editable-note guard, then the shared transition.
+  const handleMakeChanges = useCallback(() => {
+    if (!isNoteEditable) return;
+    applyMakeChanges();
+  }, [isNoteEditable, applyMakeChanges]);
+
+  // Latest applyMakeChanges for the WS callback (bound once per noteId, so it
+  // would otherwise capture stale state). Reacting to the note-state EVENT
+  // rather than a derived-state effect is deliberate: a "Save changes"
+  // re-approve emits no note-state event, so it can't bounce us back into edit
+  // mode — the note just re-locks.
+  const applyMakeChangesRef = useRef(applyMakeChanges);
+  useEffect(() => {
+    applyMakeChangesRef.current = applyMakeChanges;
+  }, [applyMakeChanges]);
 
   // Keep the recommendations ref in lockstep with state so syncNoteCommands
   // (a stable callback that intentionally avoids `recommendations` in its deps)
