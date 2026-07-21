@@ -398,6 +398,7 @@ const DEBOUNCE_MS = 300;
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
 const ICON_LOCK = html`<svg class="command-row-icon-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 
 // Standalone delete-X action button used by most row render branches. Suppressed
 // in readOnly mode and for any command that's already in the chart (e.g. synced
@@ -714,7 +715,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, canEdit = true, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false, dictation }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, canEdit = true, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false, dictation }) {
   const isCharges = title === 'CHARGES';
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
@@ -778,15 +779,70 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (coveredKeys.has(key) && !hasRecsForKey && !DEDICATED_SECTION_KEYS.has(key) && !HISTORY_SECTION_KEYS.has(key)) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
 
+          if (key === 'appointments') {
+            // Appointments component: always present (ENSURE_KEYS). Renders EVERY plan
+            // command here — including cards moved via "Move to plan" — as an editable
+            // narrative with Remove. When empty and editable, a "Tap to enter text"
+            // placeholder promotes into a real command via onAddAppointment (mirrors the
+            // Physical Exam always-on editor). Uncoded diagnoses never live here, so no
+            // ICD gate applies.
+            const apptCmds = (cmds || []).filter(e => e.command.command_type === 'plan');
+            const apptPlaceholder = { command_type: 'plan', section_key: 'appointments', display: '', selected: true, already_documented: false, data: { narrative: '' } };
+            if (readOnly && apptCmds.length === 0) return null;
+            return html`
+              <div class="subsection" key=${s.key}>
+                <div class="subsection-title">Wrap Up</div>
+                ${apptCmds.map(entry => {
+                  const apptRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                  const showRemove = !readOnly && !entry.command.already_documented && !entry.command._adding;
+                  // recommendation-block flex → content left, remove-X pinned upper-right,
+                  // matching every other card.
+                  return html`
+                    <div class=${`content-block recommendation-block rec-narrative${apptRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      ${apptRowReadOnly && entry.command.already_documented && ICON_LOCK}
+                      <div class="recommendation-content">
+                        <${CommandRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          readOnly=${apptRowReadOnly}
+                          onEditingChange=${onEditingChange}
+                        />
+                      </div>
+                      ${showRemove && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                    </div>
+                  `;
+                })}
+                ${apptCmds.length === 0 && !readOnly && onAddAppointment && html`
+                  <div class="content-block rec-narrative">
+                    <${CommandRow}
+                      command=${apptPlaceholder}
+                      commandIndex="appointments_placeholder"
+                      onEdit=${(_, data) => onAddAppointment(data)}
+                      readOnly=${false}
+                      onEditingChange=${onEditingChange}
+                    />
+                  </div>
+                `}
+              </div>
+            `;
+          }
+
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
             const isPlan = PLAN_SECTIONS.has(key);
             // If the A&P has been split into per-condition commands, render each diagnose as DiagnoseRow and assess as CommandRow.
             const hasConditionCommands = isPlan && cmds.some(e => e.command.command_type === 'diagnose' || e.command.command_type === 'assess');
             if (hasConditionCommands) {
-              const unmatched = unmatchedConditions || [];
               return html`
-                <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${s.title}</div>
+                ${/* Distinct key per structural variant: the empty A&P (fallback branch
+                     below) and the narrative-only branch render the SAME section under
+                     key=s.key. Sharing the key made Preact reconcile these very different
+                     subtrees IN PLACE on the empty→first-condition transition, leaving
+                     stale card handlers (card looked present but was uneditable) and the
+                     "+ Add Condition" button matched against a card vnode (button vanished).
+                     A variant-specific key forces a clean remount instead. */ ''}
+                <div class="subsection" key=${s.key + '-conditions'}>
+                  <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
                   ${cmds.filter(e => e.command.command_type === 'assess').map(entry => {
                     const aData = entry.command.data || {};
                     const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
@@ -800,6 +856,19 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             <div class="diagnose-row-header">
                               <span class="diagnose-row-title">${entry.command.display}</span>
                               ${aFormatted ? html`<span class="diagnose-icd-code">${aFormatted}</span>` : ''}
+                              ${/* Change on an assess (existing-condition) card: re-pick the ICD-10
+                                  code. A different code means a different condition, so convert to a
+                                  fresh uncoded diagnose (drops condition_id → no false assess against
+                                  the chart problem) and open the picker. handleEdit's diagnose branch
+                                  replaces data wholesale, so omitting condition_id here removes it. */ ''}
+                              ${!assessRowReadOnly && html`
+                                <button
+                                  type="button"
+                                  class="diagnose-change-btn"
+                                  title="Change diagnosis"
+                                  onClick=${() => onEditCommand(entry.index, { icd10_code: null, icd10_display: '', condition_header: entry.command.display || '', today_assessment: aData.narrative || '', background: aData.background || null }, 'diagnose')}
+                                >${ICON_PENCIL} Change</button>
+                              `}
                             </div>
                             <${AssessNarrative}
                               command=${entry.command}
@@ -840,7 +909,18 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const isRejected = dxData.rejected;
                     const isIncomplete = !hasCode && !isRejected;
                     const header = dxData.condition_header || '';
-                    const suggestions = (!hasCode && !isRejected && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
+                    // Ranked, grounded code options for an uncoded card. The belt
+                    // stamps them directly on the command (data.candidate_suggestions),
+                    // keyed by the stable block_id; fall back to the block_id-keyed
+                    // diagnosisSuggestions map. (Header-string keying was fragile and
+                    // is gone.)
+                    const blockId = dxData.block_id || '';
+                    // Uncoded card: ranked grounded options to pick from. The belt stamps
+                    // them on the command (data.candidate_suggestions), keyed by block_id;
+                    // fall back to the block_id-keyed diagnosisSuggestions map.
+                    const suggestions = (!hasCode && !isRejected
+                      && (dxData.candidate_suggestions
+                        || (diagnosisSuggestions && blockId && diagnosisSuggestions[blockId]))) || null;
 
                     const handleAcceptDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, accepted: true, rejected: false }, 'diagnose');
                     const handleRejectDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, rejected: true, accepted: false }, 'diagnose');
@@ -854,6 +934,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             command=${entry.command}
                             commandIndex=${entry.index}
                             onEdit=${onEditCommand}
+                            onMoveToPlan=${diagnoseRowReadOnly || isRejected ? null : onMoveToPlan}
                             readOnly=${diagnoseRowReadOnly || isRejected}
                             suggestions=${suggestions}
                             onEditingChange=${onEditingChange}
@@ -867,34 +948,40 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                         <div class="recommendation-actions">
                           ${(dxData.background || '').length > 2048 && html`<span class="rec-warning-pill">Background too long</span>`}
                           ${(dxData.today_assessment || '').length > 2048 && html`<span class="rec-warning-pill">Assessment too long</span>`}
-                          ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: isIncomplete, missingLabel: 'Diagnosis Code', acceptDisabled: false, readOnly, onAccept: handleAcceptDiagnose, onReject: handleRejectDiagnose, onAddNow: null })}
+                          ${/* incomplete:false → the "Missing: Diagnosis Code" pill is
+                            rendered in the DiagnoseRow header (next to the title) instead
+                            of here in the action column. acceptDisabled still keys off
+                            isIncomplete so Accept stays disabled until a code is picked. */ ''}
+                        ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: false, missingLabel: 'Diagnosis Code', acceptDisabled: isIncomplete, readOnly, onAccept: handleAcceptDiagnose, onReject: handleRejectDiagnose, onAddNow: null })}
                         </div>
                       </div>
                     `;
                   })}
-                  ${!readOnly && unmatched.length > 0 && html`
-                    <div class="diagnose-suggestions" style="margin-top: 12px;">
-                      <div class="history-form-label">Other detected conditions</div>
-                      <div class="diagnose-suggestions-list">
-                        ${unmatched.map(c => {
-                          const codes = (c.coding || []).filter(cd => cd.code);
-                          const code = codes[0];
-                          if (!code) return null;
-                          const stripped = code.code.replace(/\./g, '');
-                          const formatted = stripped.length > 3 ? stripped.slice(0, 3) + '.' + stripped.slice(3) : stripped;
-                          const display = c.display || code.display || formatted;
-                          return html`
-                            <button
-                              key=${code.code}
-                              type="button"
-                              class="diagnose-suggestion-btn"
-                              onClick=${() => onAddCondition && onAddCondition(code.code, display)}
-                            ><strong>${formatted}</strong>${' '}${display}</button>
-                          `;
-                        })}
+                  ${/* Plan narratives living in the A&P split view — including diagnosis
+                      cards the provider reclassified via "Move to plan". Rendered as a
+                      plain narrative (no ICD-10 code), with a Remove action. */ ''}
+                  ${cmds.filter(e => e.command.command_type === 'plan' && (!readOnly || wasInserted(e.command))).map(entry => {
+                    const planRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    return html`
+                      <div class=${`content-block rec-narrative${planRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                        ${planRowReadOnly && entry.command.already_documented && ICON_LOCK}
+                        <${CommandRow}
+                          command=${entry.command}
+                          commandIndex=${entry.index}
+                          onEdit=${onEditCommand}
+                          readOnly=${planRowReadOnly}
+                          onEditingChange=${onEditingChange}
+                        />
+                        ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
                       </div>
-                    </div>
-                  `}
+                    `;
+                  })}
+                  ${/* The "Other detected conditions" section was removed: the
+                      grounded ranker now relocates block-relevant conditions onto
+                      their own cards, so what remained here was incidental detection
+                      that invited accidental one-click coding. The backend
+                      ``unmatched_conditions`` data is still emitted (referral
+                      indication linking + analysis), just not surfaced as a section. */ ''}
                   ${(visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition')).map(re => {
                     const reRowReadOnly = rowLocked(re.command, viewerReadOnly, isAmending);
                     return html`
@@ -929,8 +1016,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const planResolves = isPlan ? visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition') : [];
             const narrativeRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
             return html`
-              <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${s.title}</div>
+              <div class="subsection" key=${isPlan ? s.key + '-narrative' : s.key}>
+                <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
                 <div class=${`content-block rec-narrative${narrativeRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
                   ${narrativeRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <${CommandRow}
@@ -1343,7 +1430,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const historyEntries = historyType
             ? visibleAdHoc.filter(e => e.command.command_type === historyType)
             : [];
-          const showHistoryText = s.text && !isCoveredHistory;
+          // Never render the raw note A&P text: its content is command-driven (diagnose/
+          // plan commands), so raw `s.text` is always a duplicate — and it becomes a stale,
+          // uneditable duplicate once every card is moved to Wrap Up (which empties
+          // assessment_and_plan of commands and drops rendering into this fallback).
+          const showHistoryText = s.text && !isCoveredHistory && key !== 'assessment_and_plan';
           // social_history has no manual input affordance (not in NARRATIVE_SECTIONS,
           // no SECTION_TO_HISTORY_TYPE entry), so an empty Social History section is a
           // dead, un-fillable header. Hide it whenever it has nothing to show; the AI
@@ -1357,8 +1448,8 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const planAddable = PLAN_SECTIONS.has(key) && (onAddCondition || onAddResolveCondition);
           if (!showHistoryText && historyEntries.length === 0 && !onAddHistory && !cmds && !planAddable) return null;
           return html`
-            <div class="subsection" key=${s.key}>
-              <div class="subsection-title">${s.title}</div>
+            <div class="subsection" key=${PLAN_SECTIONS.has(key) ? s.key + '-empty' : s.key}>
+              <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
               ${showHistoryText && html`<p class="section-text">${s.text}</p>`}
               ${historyEntries.map(entry => {
                 const historyRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
