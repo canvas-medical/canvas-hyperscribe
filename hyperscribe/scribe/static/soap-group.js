@@ -948,7 +948,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                         <div class="recommendation-actions">
                           ${(dxData.background || '').length > 2048 && html`<span class="rec-warning-pill">Background too long</span>`}
                           ${(dxData.today_assessment || '').length > 2048 && html`<span class="rec-warning-pill">Assessment too long</span>`}
-                          ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: isIncomplete, missingLabel: 'Diagnosis Code', acceptDisabled: isIncomplete, readOnly, onAccept: handleAcceptDiagnose, onReject: handleRejectDiagnose, onAddNow: null })}
+                          ${/* incomplete:false → the "Missing: Diagnosis Code" pill is
+                            rendered in the DiagnoseRow header (next to the title) instead
+                            of here in the action column. acceptDisabled still keys off
+                            isIncomplete so Accept stays disabled until a code is picked. */ ''}
+                        ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: false, missingLabel: 'Diagnosis Code', acceptDisabled: isIncomplete, readOnly, onAccept: handleAcceptDiagnose, onReject: handleRejectDiagnose, onAddNow: null })}
                         </div>
                       </div>
                     `;

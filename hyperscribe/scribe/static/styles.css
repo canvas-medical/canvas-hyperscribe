@@ -1119,8 +1119,12 @@ select.history-form-input {
    results listed below. Shared by the no-code state and the "Change" flow.
    Name leads (dark, semibold); the code is a quiet fixed-width identifier so
    codes align in a column. Rows are single-line (ellipsis) for uniform height. */
-.diagnose-picker { margin: 16px 0 18px; border: 1px solid #e4e7ec; border-radius: 12px; overflow: hidden; background: #fff; }
+/* overflow:visible so the search-bar ⋮ menu can drop out over the list below; the
+   inner .diagnose-picker-body re-clips the rounded bottom corners the picker's own
+   overflow:hidden used to provide (row/More-options hover backgrounds). */
+.diagnose-picker { margin: 16px 0 18px; border: 1px solid #e4e7ec; border-radius: 12px; overflow: visible; background: #fff; }
 .diagnose-picker:focus-within { border-color: #052B49; }
+.diagnose-picker-body { border-radius: 0 0 12px 12px; overflow: hidden; }
 .diagnose-picker-search { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid #eef1f4; }
 .diagnose-picker-search svg { width: 18px; height: 18px; color: #9aa6b2; flex-shrink: 0; }
 .diagnose-picker-search input { border: none; outline: none; font-size: 14.5px; flex: 1; min-width: 0; font-family: inherit; color: #1f2733; background: none; }
@@ -1141,19 +1145,25 @@ select.history-form-input {
    "Detected in note", "More specific option"). Trails the code as a quiet, right-aligned
    metadata column (the code pill leads, right after the diagnosis name). */
 .diagnose-picker-prov { margin-left: auto; flex-shrink: 0; font-size: 10.5px; font-weight: 600; color: #6b7785; background: #f1f4f8; border-radius: 5px; padding: 1px 7px; white-space: nowrap; }
-/* "Not a diagnosis?" escape hatch at the foot of the code picker — progressive disclosure:
-   a quiet trigger reveals the "Move to Wrap Up" action. Both are separated from the code
-   list above and styled quieter than a diagnosis row (they're not code options). */
-/* "Move to the wrap up section" — the escape hatch for A&P items that aren't a codeable
-   diagnosis. A single self-arming row whose label matches the search-result names exactly
-   (14px / 500 / #1f2733, hover = bg only). First click swaps the label to "Confirm"
-   (accented); a second click performs the move. */
-/* "See more" / "See less" toggle beneath the recommendations — reveals the rest of the
-   ranked codes and the move-to-wrap-up action. Quiet, full-width, inherits the app font. */
+/* "More options" toggle beneath the recommendations — reveals the rest of the ranked
+   codes. Quiet, full-width, inherits the app font. */
 .diagnose-picker-more { display: flex; align-items: center; width: 100%; padding: 8px 16px; background: none; border: none; border-top: 1px solid #eef1f5; font-family: inherit; font-size: 13px; font-weight: 600; color: #6b7785; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
 .diagnose-picker-more:hover { background: #f5f8ff; color: #052B49; }
-.diagnose-picker-disclose { display: flex; align-items: center; width: 100%; padding: 9px 16px; background: none; border: none; border-top: 1px solid #eef1f5; font-family: inherit; line-height: inherit; font-size: 14px; font-weight: 500; color: #1f2733; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
-.diagnose-picker-disclose:hover { background: #f5f8ff; }
+
+/* ⋮ overflow menu at the right of the search bar — the escape hatch for A&P items that
+   aren't a codeable diagnosis ("Move to Wrap Up"). Faint by default so it stays quiet
+   next to the search field; the dropdown drops down over the code list. */
+.diagnose-picker-menu { position: relative; display: inline-flex; align-items: center; flex-shrink: 0; }
+.diagnose-picker-menu-btn { background: none; border: none; padding: 5px; margin: -2px -6px -2px 0; color: #b6bfc9; cursor: pointer; border-radius: 7px; line-height: 0; display: inline-flex; align-items: center; justify-content: center; transition: color 0.12s, background 0.12s; }
+.diagnose-picker-menu-btn:hover { color: #52606d; background: #f1f3f5; }
+.diagnose-picker-menu-btn svg { width: 18px; height: 18px; color: inherit; }
+.diagnose-picker-menu-pop { position: absolute; top: calc(100% + 10px); right: -6px; width: 264px; background: #fff; border: 1px solid #e4e7ec; border-radius: 11px; box-shadow: 0 12px 30px rgba(16,24,40,0.16); padding: 6px; z-index: 40; }
+.diagnose-picker-menu-pop::before { content: ""; position: absolute; bottom: 100%; right: 14px; border: 6px solid transparent; border-bottom-color: #fff; filter: drop-shadow(0 -1px 0 #e4e7ec); }
+.diagnose-picker-menu-item { display: flex; align-items: flex-start; gap: 10px; width: 100%; background: none; border: none; font-family: inherit; padding: 9px 10px; border-radius: 8px; cursor: pointer; text-align: left; }
+.diagnose-picker-menu-item:hover { background: #f5f8ff; }
+.diagnose-picker-menu-item svg { width: 16px; height: 16px; color: #52606d; flex-shrink: 0; margin-top: 1px; }
+.dpm-title { display: block; font-size: 13.5px; font-weight: 600; color: #1f2733; }
+.dpm-help { display: block; font-size: 11.5px; color: #9aa6b2; line-height: 1.45; margin-top: 2px; }
 
 /* Diagnose recommendation: header + actions on one row, everything else full-width below */
 .recommendation-block.rec-diagnose { display: grid; grid-template-columns: 1fr auto; align-items: start; }
