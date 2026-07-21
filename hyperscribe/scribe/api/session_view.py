@@ -1011,6 +1011,26 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
         return [JSONResponse(config, status_code=HTTPStatus.OK)]
 
+    @api.get("/dictation-config")
+    def get_dictation_config(self) -> list[Union[Response, Effect]]:
+        """Return the Nabla dictate-ws config for talking into a single field post-generation.
+
+        Mirrors ``/config`` but for the separate dictation endpoint. Provides the
+        same per-user Nabla WS credentials; a backend that does not support
+        dictation raises ScribeError (→ 500). The field text/caret is supplied
+        client-side, so no note_id is needed here.
+        """
+        try:
+            backend = get_backend_from_secrets(self.secrets)
+        except ScribeError as exc:
+            return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.BAD_REQUEST)]
+        try:
+            staff_id = self.request.headers.get("canvas-logged-in-user-id")
+            config = backend.get_dictation_config(user_external_id=staff_id)
+        except ScribeError as exc:
+            return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
+        return [JSONResponse(config, status_code=HTTPStatus.OK)]
+
     @api.get("/transcript")
     def get_transcript(self) -> list[Union[Response, Effect]]:
         note_id = self.request.query_params.get("note_id", "")

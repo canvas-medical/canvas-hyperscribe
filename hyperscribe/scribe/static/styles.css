@@ -762,6 +762,20 @@ h2 { margin-bottom: 4px; }
 .vitals-bp-slash { font-weight: 600; color: #888; }
 .command-row-placeholder { font-size: 14px; color: #aaa; font-style: italic; }
 .vitals-placeholder { font-size: 14px; color: #aaa; font-style: italic; }
+
+/* Field dictation mic (KOALA-6233) — sits on the right of CC / HPI / Plan rows. */
+.command-row-mic { flex: 0 0 auto; margin-left: auto; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: none; border-radius: 50%; background: transparent; color: #667085; cursor: pointer; transition: background 0.15s, color 0.15s; }
+.command-row-mic svg { width: 17px; height: 17px; }
+.command-row-mic:hover { background: #eef1f4; color: #052B49; }
+.command-row-mic.recording { background: #fde8e8; color: #d92d20; animation: command-row-mic-pulse 1.3s ease-in-out infinite; }
+/* No audio detected: amber, no pulse (pulsing implies live capture). */
+.command-row-mic.recording.silent { background: #fef3c7; color: #b45309; animation: none; }
+.command-row-mic.error { color: #d92d20; }
+.command-row.dictating { outline: 2px solid rgba(217, 45, 32, 0.35); outline-offset: 1px; }
+@keyframes command-row-mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(217, 45, 32, 0.35); } 50% { box-shadow: 0 0 0 6px rgba(217, 45, 32, 0); } }
+/* Dictation status line under the field (visible even when the field has text). */
+.command-row-dictation-status { font-size: 12px; line-height: 1.4; color: #d92d20; padding: 3px 4px 0; }
+.command-row-dictation-status.warning { font-weight: 600; }
 .vitals-input-error { border-color: #dc2626; }
 .vitals-input-error:focus { border-color: #dc2626; }
 .vitals-error { font-size: 11px; color: #dc2626; font-weight: 600; white-space: nowrap; }

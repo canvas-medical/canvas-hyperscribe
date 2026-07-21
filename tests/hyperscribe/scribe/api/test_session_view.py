@@ -125,6 +125,70 @@ def test_get_config_auth_error(get_backend: MagicMock) -> None:
     assert result == expected
 
 
+# --- /dictation-config ---
+
+
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_get_dictation_config_success(get_backend: MagicMock) -> None:
+    mock_backend = MagicMock()
+    mock_backend.get_dictation_config.return_value = {
+        "vendor": "nabla",
+        "ws_url": "wss://example.com/dictate-ws",
+        "access_token": "tok",
+        "dictation_locale": "ENGLISH_US",
+        "punctuation_mode": "EXPLICIT",
+    }
+    get_backend.return_value = mock_backend
+
+    view = _helper_instance(staff_id="staff-key-abc")
+    result = view.get_dictation_config()
+
+    expected = [
+        JSONResponse(
+            {
+                "vendor": "nabla",
+                "ws_url": "wss://example.com/dictate-ws",
+                "access_token": "tok",
+                "dictation_locale": "ENGLISH_US",
+                "punctuation_mode": "EXPLICIT",
+            },
+            status_code=HTTPStatus.OK,
+        )
+    ]
+    assert result == expected
+    mock_backend.get_dictation_config.assert_called_once_with(user_external_id="staff-key-abc")
+
+
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_get_dictation_config_unknown_vendor(get_backend: MagicMock) -> None:
+    get_backend.side_effect = ScribeError("Unknown scribe vendor: 'bad'")
+
+    view = _helper_instance()
+    result = view.get_dictation_config()
+
+    expected = [JSONResponse({"error": "Unknown scribe vendor: 'bad'"}, status_code=HTTPStatus.BAD_REQUEST)]
+    assert result == expected
+
+
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_get_dictation_config_unsupported(get_backend: MagicMock) -> None:
+    """A backend that does not support dictation surfaces the ScribeError as a 500."""
+    mock_backend = MagicMock()
+    mock_backend.get_dictation_config.side_effect = ScribeError("This scribe backend does not support dictation")
+    get_backend.return_value = mock_backend
+
+    view = _helper_instance()
+    result = view.get_dictation_config()
+
+    expected = [
+        JSONResponse(
+            {"error": "This scribe backend does not support dictation"},
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
+    ]
+    assert result == expected
+
+
 # --- /transcript ---
 
 

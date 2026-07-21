@@ -22,6 +22,10 @@ from hyperscribe.scribe.clients.nabla.client import NablaClient
 
 _NABLA_API_VERSION = "2026-06-12"
 _NOTE_LOCALE = "ENGLISH_US"
+# Dictation (dictate-ws) takes a single locale, not the transcribe-ws speech_locales
+# array, and EXPLICIT punctuation means the provider dictates punctuation out loud.
+_DICTATION_LOCALE = "ENGLISH_US"
+_DICTATION_PUNCTUATION_MODE = "EXPLICIT"
 _NOTE_TEMPLATE = "GENERIC_MULTIPLE_SECTIONS_AP_MERGED"
 _PSYCHIATRY_NOTE_TEMPLATE = "PSYCHIATRY_MULTIPLE_SECTIONS_AP_MERGED"
 
@@ -138,6 +142,31 @@ class NablaBackend(ScribeBackend):
             "speech_locales": ["ENGLISH_US"],
             "stream_id": "stream1",
             "split_by_sentence": True,
+        }
+
+    def get_dictation_config(self, *, user_external_id: str = "") -> dict[str, Any]:
+        """Return config for the JS dictation client (Nabla ``dictate-ws``).
+
+        Post-generation field dictation (talk into one field) uses a *separate*
+        Nabla endpoint from ambient transcription. It differs from
+        ``get_transcription_config``: a single ``dictation_locale`` (not the
+        ``speech_locales`` array), ``punctuation_mode`` EXPLICIT (the provider
+        dictates punctuation out loud), and no ``stream_id``. The JS client adds
+        the per-field ``text_field_context`` (current text + caret) when it sends
+        CONFIG, so dictated words are inserted at the caret. Reuses the same
+        per-user Nabla token as transcription.
+        """
+        access_token, refresh_token = self._auth.get_user_tokens(user_external_id)
+        hostname = self._auth.base_url.split("://", 1)[-1].split("/", 1)[0]
+        return {
+            "vendor": "nabla",
+            "ws_url": f"wss://{hostname}/v1/core/user/dictate-ws?nabla-api-version={_NABLA_API_VERSION}",
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "sample_rate": 16000,
+            "encoding": "PCM_S16LE",
+            "dictation_locale": _DICTATION_LOCALE,
+            "punctuation_mode": _DICTATION_PUNCTUATION_MODE,
         }
 
     def generate_note(
