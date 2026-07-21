@@ -208,12 +208,12 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
       </div>
       ${alertFacilityEnabled && html`
       <div class="history-form-field" style="margin-top: 8px;">
-        <label class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: !data.alert_facility })}>
+        <button type="button" class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: !data.alert_facility })}>
           <div class="toggle-switch${data.alert_facility ? ' on' : ''}">
             <div class="toggle-knob" />
           </div>
           Alert Facility
-        </label>
+        </button>
       </div>
       `}
     `}
@@ -398,7 +398,6 @@ const DEBOUNCE_MS = 300;
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
 const ICON_CHECK = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>`;
 const ICON_LOCK = html`<svg class="command-row-icon-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
-const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 
 // Standalone delete-X action button used by most row render branches. Suppressed
 // in readOnly mode and for any command that's already in the chart (e.g. synced
@@ -715,9 +714,16 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false, dictation }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, canEdit = true, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false, dictation }) {
   const isCharges = title === 'CHARGES';
   const coveredKeys = getCoveredKeys(commandBySectionKey);
+
+  // Row-level lock for expansion/editing. `readOnly` alone keeps layout parity
+  // (non-authors still SEE every card), but a non-author viewer (`!canEdit`)
+  // must not be able to expand a card into its edit form — so fold the viewer
+  // capability into the value fed to `rowLocked`. Visibility (the recommendation
+  // filter below) intentionally stays on the raw `readOnly`.
+  const viewerReadOnly = readOnly || !canEdit;
 
   // In approved (readOnly) mode, only show items that actually made it into the note.
   // When hideRejected is on, also filter out rejected recommendations before approval.
@@ -746,7 +752,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const filteredSections = (entry.command.data.sections || []).filter(s => !STRUCTURED_KEYS.has(s.key));
           if (filteredSections.length === 0) return null;
           const filteredCommand = { ...entry.command, data: { ...entry.command.data, sections: filteredSections } };
-          const rowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+          const rowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
           return html`
             <div class=${`content-block rec-narrative${rowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
               ${rowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -772,75 +778,20 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (coveredKeys.has(key) && !hasRecsForKey && !DEDICATED_SECTION_KEYS.has(key) && !HISTORY_SECTION_KEYS.has(key)) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
 
-          if (key === 'appointments') {
-            // Appointments component: always present (ENSURE_KEYS). Renders EVERY plan
-            // command here — including cards moved via "Move to plan" — as an editable
-            // narrative with Remove. When empty and editable, a "Tap to enter text"
-            // placeholder promotes into a real command via onAddAppointment (mirrors the
-            // Physical Exam always-on editor). Uncoded diagnoses never live here, so no
-            // ICD gate applies.
-            const apptCmds = (cmds || []).filter(e => e.command.command_type === 'plan');
-            const apptPlaceholder = { command_type: 'plan', section_key: 'appointments', display: '', selected: true, already_documented: false, data: { narrative: '' } };
-            if (readOnly && apptCmds.length === 0) return null;
-            return html`
-              <div class="subsection" key=${s.key}>
-                <div class="subsection-title">Wrap Up</div>
-                ${apptCmds.map(entry => {
-                  const apptRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
-                  const showRemove = !readOnly && !entry.command.already_documented && !entry.command._adding;
-                  // recommendation-block flex → content left, remove-X pinned upper-right,
-                  // matching every other card.
-                  return html`
-                    <div class=${`content-block recommendation-block rec-narrative${apptRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
-                      ${apptRowReadOnly && entry.command.already_documented && ICON_LOCK}
-                      <div class="recommendation-content">
-                        <${CommandRow}
-                          command=${entry.command}
-                          commandIndex=${entry.index}
-                          onEdit=${onEditCommand}
-                          readOnly=${apptRowReadOnly}
-                          onEditingChange=${onEditingChange}
-                        />
-                      </div>
-                      ${showRemove && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
-                    </div>
-                  `;
-                })}
-                ${apptCmds.length === 0 && !readOnly && onAddAppointment && html`
-                  <div class="content-block rec-narrative">
-                    <${CommandRow}
-                      command=${apptPlaceholder}
-                      commandIndex="appointments_placeholder"
-                      onEdit=${(_, data) => onAddAppointment(data)}
-                      readOnly=${false}
-                      onEditingChange=${onEditingChange}
-                    />
-                  </div>
-                `}
-              </div>
-            `;
-          }
-
           if (cmds && NARRATIVE_SECTIONS.has(key)) {
             const isPlan = PLAN_SECTIONS.has(key);
             // If the A&P has been split into per-condition commands, render each diagnose as DiagnoseRow and assess as CommandRow.
             const hasConditionCommands = isPlan && cmds.some(e => e.command.command_type === 'diagnose' || e.command.command_type === 'assess');
             if (hasConditionCommands) {
+              const unmatched = unmatchedConditions || [];
               return html`
-                ${/* Distinct key per structural variant: the empty A&P (fallback branch
-                     below) and the narrative-only branch render the SAME section under
-                     key=s.key. Sharing the key made Preact reconcile these very different
-                     subtrees IN PLACE on the empty→first-condition transition, leaving
-                     stale card handlers (card looked present but was uneditable) and the
-                     "+ Add Condition" button matched against a card vnode (button vanished).
-                     A variant-specific key forces a clean remount instead. */ ''}
-                <div class="subsection" key=${s.key + '-conditions'}>
-                  <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
+                <div class="subsection" key=${s.key}>
+                  <div class="subsection-title">${s.title}</div>
                   ${cmds.filter(e => e.command.command_type === 'assess').map(entry => {
                     const aData = entry.command.data || {};
                     const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
                     const aFormatted = aCode.length > 3 ? aCode.slice(0, 3) + '.' + aCode.slice(3) : aCode;
-                    const assessRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    const assessRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
                       <div class=${`content-block recommendation-block rec-assess${assessRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                         ${assessRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -849,19 +800,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             <div class="diagnose-row-header">
                               <span class="diagnose-row-title">${entry.command.display}</span>
                               ${aFormatted ? html`<span class="diagnose-icd-code">${aFormatted}</span>` : ''}
-                              ${/* Change on an assess (existing-condition) card: re-pick the ICD-10
-                                  code. A different code means a different condition, so convert to a
-                                  fresh uncoded diagnose (drops condition_id → no false assess against
-                                  the chart problem) and open the picker. handleEdit's diagnose branch
-                                  replaces data wholesale, so omitting condition_id here removes it. */ ''}
-                              ${!assessRowReadOnly && html`
-                                <button
-                                  type="button"
-                                  class="diagnose-change-btn"
-                                  title="Change diagnosis"
-                                  onClick=${() => onEditCommand(entry.index, { icd10_code: null, icd10_display: '', condition_header: entry.command.display || '', today_assessment: aData.narrative || '', background: aData.background || null }, 'diagnose')}
-                                >${ICON_PENCIL} Change</button>
-                              `}
                             </div>
                             <${AssessNarrative}
                               command=${entry.command}
@@ -902,23 +840,12 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const isRejected = dxData.rejected;
                     const isIncomplete = !hasCode && !isRejected;
                     const header = dxData.condition_header || '';
-                    // Ranked, grounded code options for an uncoded card. The belt
-                    // stamps them directly on the command (data.candidate_suggestions),
-                    // keyed by the stable block_id; fall back to the block_id-keyed
-                    // diagnosisSuggestions map. (Header-string keying was fragile and
-                    // is gone.)
-                    const blockId = dxData.block_id || '';
-                    // Uncoded card: ranked grounded options to pick from. The belt stamps
-                    // them on the command (data.candidate_suggestions), keyed by block_id;
-                    // fall back to the block_id-keyed diagnosisSuggestions map.
-                    const suggestions = (!hasCode && !isRejected
-                      && (dxData.candidate_suggestions
-                        || (diagnosisSuggestions && blockId && diagnosisSuggestions[blockId]))) || null;
+                    const suggestions = (!hasCode && !isRejected && diagnosisSuggestions && diagnosisSuggestions[header]) || null;
 
                     const handleAcceptDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, accepted: true, rejected: false }, 'diagnose');
                     const handleRejectDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, rejected: true, accepted: false }, 'diagnose');
 
-                    const diagnoseRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    const diagnoseRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
                       <div class=${`content-block recommendation-block rec-diagnose${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && diagnoseRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                         ${(readOnly || isAmending) && diagnoseRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -927,7 +854,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                             command=${entry.command}
                             commandIndex=${entry.index}
                             onEdit=${onEditCommand}
-                            onMoveToPlan=${diagnoseRowReadOnly || isRejected ? null : onMoveToPlan}
                             readOnly=${diagnoseRowReadOnly || isRejected}
                             suggestions=${suggestions}
                             onEditingChange=${onEditingChange}
@@ -941,38 +867,36 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                         <div class="recommendation-actions">
                           ${(dxData.background || '').length > 2048 && html`<span class="rec-warning-pill">Background too long</span>`}
                           ${(dxData.today_assessment || '').length > 2048 && html`<span class="rec-warning-pill">Assessment too long</span>`}
-                          ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: isIncomplete, missingLabel: 'Diagnosis Code', acceptDisabled: isIncomplete, readOnly, onAccept: handleAcceptDiagnose, onReject: handleRejectDiagnose, onAddNow: null })}
+                          ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: isIncomplete, missingLabel: 'Diagnosis Code', acceptDisabled: false, readOnly, onAccept: handleAcceptDiagnose, onReject: handleRejectDiagnose, onAddNow: null })}
                         </div>
                       </div>
                     `;
                   })}
-                  ${/* Plan narratives living in the A&P split view — including diagnosis
-                      cards the provider reclassified via "Move to plan". Rendered as a
-                      plain narrative (no ICD-10 code), with a Remove action. */ ''}
-                  ${cmds.filter(e => e.command.command_type === 'plan' && (!readOnly || wasInserted(e.command))).map(entry => {
-                    const planRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
-                    return html`
-                      <div class=${`content-block rec-narrative${planRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
-                        ${planRowReadOnly && entry.command.already_documented && ICON_LOCK}
-                        <${CommandRow}
-                          command=${entry.command}
-                          commandIndex=${entry.index}
-                          onEdit=${onEditCommand}
-                          readOnly=${planRowReadOnly}
-                          onEditingChange=${onEditingChange}
-                        />
-                        ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
+                  ${!readOnly && unmatched.length > 0 && html`
+                    <div class="diagnose-suggestions" style="margin-top: 12px;">
+                      <div class="history-form-label">Other detected conditions</div>
+                      <div class="diagnose-suggestions-list">
+                        ${unmatched.map(c => {
+                          const codes = (c.coding || []).filter(cd => cd.code);
+                          const code = codes[0];
+                          if (!code) return null;
+                          const stripped = code.code.replace(/\./g, '');
+                          const formatted = stripped.length > 3 ? stripped.slice(0, 3) + '.' + stripped.slice(3) : stripped;
+                          const display = c.display || code.display || formatted;
+                          return html`
+                            <button
+                              key=${code.code}
+                              type="button"
+                              class="diagnose-suggestion-btn"
+                              onClick=${() => onAddCondition && onAddCondition(code.code, display)}
+                            ><strong>${formatted}</strong>${' '}${display}</button>
+                          `;
+                        })}
                       </div>
-                    `;
-                  })}
-                  ${/* The "Other detected conditions" section was removed: the
-                      grounded ranker now relocates block-relevant conditions onto
-                      their own cards, so what remained here was incidental detection
-                      that invited accidental one-click coding. The backend
-                      ``unmatched_conditions`` data is still emitted (referral
-                      indication linking + analysis), just not surfaced as a section. */ ''}
+                    </div>
+                  `}
                   ${(visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition')).map(re => {
-                    const reRowReadOnly = rowLocked(re.command, readOnly, isAmending);
+                    const reRowReadOnly = rowLocked(re.command, viewerReadOnly, isAmending);
                     return html`
                     <div class=${`content-block recommendation-block rec-removal${reRowReadOnly && re.command.already_documented ? ' command-locked' : ''}`} key=${re.index}>
                       ${reRowReadOnly && re.command.already_documented && ICON_LOCK}
@@ -1003,10 +927,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (readOnly && !entry.command.display) return null;
             const showConditionBtns = isPlan && (onAddCondition || onAddResolveCondition) && !readOnly;
             const planResolves = isPlan ? visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition') : [];
-            const narrativeRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+            const narrativeRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
             return html`
-              <div class="subsection" key=${isPlan ? s.key + '-narrative' : s.key}>
-                <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
+              <div class="subsection" key=${s.key}>
+                <div class="subsection-title">${s.title}</div>
                 <div class=${`content-block rec-narrative${narrativeRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
                   ${narrativeRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <${CommandRow}
@@ -1019,7 +943,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   />
                 </div>
                 ${planResolves.map(re => {
-                  const reRowReadOnly = rowLocked(re.command, readOnly, isAmending);
+                  const reRowReadOnly = rowLocked(re.command, viewerReadOnly, isAmending);
                   return html`
                   <div class=${`content-block recommendation-block rec-removal${reRowReadOnly && re.command.already_documented ? ' command-locked' : ''}`} key=${re.index}>
                     ${reRowReadOnly && re.command.already_documented && ICON_LOCK}
@@ -1056,7 +980,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               <div class="subsection" key=${s.key}>
                 <div class="subsection-title">${s.title}</div>
                 ${allVitals.map((entry, idx) => {
-                  const vitalsRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                  const vitalsRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                   return html`
                   <div class=${`content-block rec-vitals${vitalsRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                     ${vitalsRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1096,7 +1020,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (!isPsychiatry) return null;
             if (cmds) {
               const entry = cmds[0];
-              const mseRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+              const mseRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${s.title}</div>
@@ -1146,7 +1070,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             // onAddPhysicalExam to create the command. No visit-type branching.
             if (cmds) {
               const entry = cmds[0];
-              const peRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+              const peRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
               return html`
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">${s.title}</div>
@@ -1203,7 +1127,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">Med List Updates</div>
                   ${(cmds || []).map(entry => {
-                    const medRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    const medRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
                     <div class=${`content-block recommendation-block rec-medication${medRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                       ${medRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1230,7 +1154,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                   `;})}
                   ${adHocMeds.map(entry => {
-                    const adHocMedRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    const adHocMedRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
                     <div class=${`content-block recommendation-block rec-medication${adHocMedRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                       ${adHocMedRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1260,7 +1184,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     const isAccepted = entry.command.accepted && !entry.command.rejected;
                     const isRejected = entry.command.rejected;
                     const isUnreviewed = !isAccepted && !isRejected;
-                    const medRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    const medRecRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
                     <div class=${`content-block recommendation-block rec-medication${isRejected ? ' rec-rejected' : ''}${isUnreviewed && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && medRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-med-' + entry.index}>
                       ${(readOnly || isAmending) && medRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1280,7 +1204,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     `;
                   })}
                   ${adHocStopMeds.map(entry => {
-                    const stopMedRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    const stopMedRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
                     <div class=${`content-block recommendation-block rec-removal${stopMedRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                       ${stopMedRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1326,7 +1250,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 <div class="subsection" key=${s.key}>
                   <div class="subsection-title">Allergy List Updates</div>
                   ${(cmds || []).map(entry => {
-                    const allergyRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    const allergyRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
                     <div class=${`content-block recommendation-block rec-allergy${allergyRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                       ${allergyRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1344,7 +1268,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     </div>
                   `;})}
                   ${adHocAllergies.map(entry => {
-                    const adHocAllergyRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    const adHocAllergyRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
                     <div class=${`content-block recommendation-block rec-allergy${adHocAllergyRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                       ${adHocAllergyRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1364,7 +1288,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   ${allergyRecs.map(entry => {
                     const isAccepted = entry.command.accepted && !entry.command.rejected;
                     const isRejected = entry.command.rejected;
-                    const allergyRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    const allergyRecRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
                     <div class=${`content-block recommendation-block rec-allergy${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && allergyRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-allergy-' + entry.index}>
                       ${(readOnly || isAmending) && allergyRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1383,7 +1307,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     `;
                   })}
                   ${adHocRemoveAllergies.map(entry => {
-                    const removeAllergyRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    const removeAllergyRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
                     <div class=${`content-block recommendation-block rec-removal${removeAllergyRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                       ${removeAllergyRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1419,11 +1343,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const historyEntries = historyType
             ? visibleAdHoc.filter(e => e.command.command_type === historyType)
             : [];
-          // Never render the raw note A&P text: its content is command-driven (diagnose/
-          // plan commands), so raw `s.text` is always a duplicate — and it becomes a stale,
-          // uneditable duplicate once every card is moved to Wrap Up (which empties
-          // assessment_and_plan of commands and drops rendering into this fallback).
-          const showHistoryText = s.text && !isCoveredHistory && key !== 'assessment_and_plan';
+          const showHistoryText = s.text && !isCoveredHistory;
           // social_history has no manual input affordance (not in NARRATIVE_SECTIONS,
           // no SECTION_TO_HISTORY_TYPE entry), so an empty Social History section is a
           // dead, un-fillable header. Hide it whenever it has nothing to show; the AI
@@ -1437,11 +1357,11 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const planAddable = PLAN_SECTIONS.has(key) && (onAddCondition || onAddResolveCondition);
           if (!showHistoryText && historyEntries.length === 0 && !onAddHistory && !cmds && !planAddable) return null;
           return html`
-            <div class="subsection" key=${PLAN_SECTIONS.has(key) ? s.key + '-empty' : s.key}>
-              <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
+            <div class="subsection" key=${s.key}>
+              <div class="subsection-title">${s.title}</div>
               ${showHistoryText && html`<p class="section-text">${s.text}</p>`}
               ${historyEntries.map(entry => {
-                const historyRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                const historyRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                 return html`
                 <div class=${`content-block recommendation-block rec-history${historyRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                   ${historyRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1467,7 +1387,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const adHocResolves = visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition');
                 return html`
                   ${adHocResolves.map(entry => {
-                    const resolveRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                    const resolveRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
                     <div class=${`content-block recommendation-block rec-removal${resolveRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                       ${resolveRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1502,7 +1422,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const cmds = commandBySectionKey && commandBySectionKey[review.sectionKey];
           if (!cmds || cmds.length === 0) return null;
           const entry = cmds[0];
-          const rosRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+          const rosRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
           return html`
             <div class="subsection-title">Review of Systems</div>
             <div class=${`content-block rec-narrative${rosRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
@@ -1528,7 +1448,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (type === 'remove_allergy') return null;
           if (type === 'resolve_condition') return null;
           if (type === 'task') {
-            const taskRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+            const taskRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
             return html`
               <div class=${`content-block recommendation-block rec-task${taskRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                 ${taskRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1580,7 +1500,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               if (!d.diagnosis_codes || d.diagnosis_codes.length === 0) orderMissing.push('Indications');
             }
             const orderIncomplete = orderMissing.length > 0;
-            const orderRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+            const orderRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
             return html`
               <div class=${`content-block recommendation-block rec-order${orderRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                 ${orderRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1629,7 +1549,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (HISTORY_TYPES.has(type)) return null;
           if (type === 'questionnaire') return null;
           if (type === 'plan') {
-            const planRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+            const planRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
             return html`
               <div class=${`content-block recommendation-block rec-plan${planRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                 ${planRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1650,7 +1570,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           }
           if (type === 'perform') return null;
           if (REMOVAL_TYPES.has(type)) {
-            const removalRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+            const removalRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
             return html`
               <div class=${`content-block recommendation-block rec-removal${removalRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                 ${removalRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1678,7 +1598,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             <div class="subsection">
               <div class="subsection-title">Questionnaires</div>
               ${questionnaireCommands.map(entry => {
-                const questionnaireRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                const questionnaireRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                 return html`
                 <div class=${`content-block recommendation-block rec-questionnaire${questionnaireRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
                   ${questionnaireRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1740,7 +1660,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const isIncomplete = missingFields.length > 0;
                 const isAccepted = entry.command.accepted && !entry.command.rejected;
                 const isRejected = entry.command.rejected;
-                const rxRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                const rxRecRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
 
                 return html`
                 <div class=${`content-block recommendation-block rec-prescribe${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && rxRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-rx-' + entry.index}>
@@ -1787,7 +1707,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const isIncomplete = missingFields.length > 0;
                 const isAccepted = entry.command.accepted && !entry.command.rejected;
                 const isRejected = entry.command.rejected;
-                const referRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                const referRecRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
 
                 return html`
                 <div class=${`content-block recommendation-block rec-refer${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && referRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-refer-' + entry.index}>
@@ -1827,7 +1747,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               ${taskRecs.map(entry => {
                 const isAccepted = entry.command.accepted && !entry.command.rejected;
                 const isRejected = entry.command.rejected;
-                const taskRecRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
+                const taskRecRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                 return html`
                 <div class=${`content-block recommendation-block rec-task${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && taskRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-task-' + entry.index}>
                   ${(readOnly || isAmending) && taskRecRowReadOnly && entry.command.already_documented && ICON_LOCK}

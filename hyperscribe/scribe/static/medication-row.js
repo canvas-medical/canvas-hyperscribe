@@ -200,12 +200,12 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
           </div>
           ${alertFacilityEnabled && html`
           <div class="history-form-field">
-            <label class="alert-facility-toggle" onClick=${() => setAlertFacility(prev => !prev)}>
+            <button type="button" class="alert-facility-toggle" onClick=${() => setAlertFacility(prev => !prev)}>
               <div class="toggle-switch${alertFacility ? ' on' : ''}">
                 <div class="toggle-knob" />
               </div>
               Alert Facility
-            </label>
+            </button>
           </div>
           `}
           <div class="questionnaire-form-actions">
