@@ -1800,6 +1800,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             const label = siteLabels[newData.blood_pressure_position_and_site];
             if (label) vParts.push(`Site: ${label}`);
           }
+          if (newData.supplemental_oxygen != null) {
+            const supplementalOxygenLabels = {
+              'LA28684-1': 'Continuously depending on high oxygen flow',
+              'LA28685-8': 'Continuously depending on low oxygen flow',
+              'LA28686-6': 'Intermittent oxygen consumption',
+            };
+            const label = supplementalOxygenLabels[newData.supplemental_oxygen];
+            if (label) vParts.push(`Supplemental O2: ${label}`);
+          }
           if (newData.note) vParts.push(`Note: ${newData.note}`);
           next = { ...cmd, data: newData, display: vParts.join(', ') || 'Vitals' };
         } else if (type === 'medication_statement') {

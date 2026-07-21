@@ -633,6 +633,18 @@ class VitalsParser(CommandParser):
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         bp_site_raw = data.get("blood_pressure_position_and_site")
         bp_site = VitalsCommand.BloodPressureSite(bp_site_raw) if bp_site_raw is not None else None
+        # supplemental_oxygen comes only from the controlled review-UI <select>, so an
+        # unrecognized value (e.g. a stale cached asset posting an old index against the
+        # current code-valued enum) is dropped rather than failing the whole command.
+        supplemental_oxygen_raw = data.get("supplemental_oxygen")
+        try:
+            supplemental_oxygen = (
+                VitalsCommand.SupplementalOxygen(supplemental_oxygen_raw)
+                if supplemental_oxygen_raw is not None
+                else None
+            )
+        except ValueError:
+            supplemental_oxygen = None
         return VitalsCommand(
             height=data.get("height"),
             weight_lbs=data.get("weight_lbs"),
@@ -643,6 +655,7 @@ class VitalsParser(CommandParser):
             respiration_rate=data.get("respiration_rate"),
             oxygen_saturation=data.get("oxygen_saturation"),
             blood_pressure_position_and_site=bp_site,
+            supplemental_oxygen=supplemental_oxygen,
             note=data.get("note"),
             note_uuid=note_uuid,
             command_uuid=command_uuid,
