@@ -827,7 +827,14 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const hasConditionCommands = isPlan && cmds.some(e => e.command.command_type === 'diagnose' || e.command.command_type === 'assess');
             if (hasConditionCommands) {
               return html`
-                <div class="subsection" key=${s.key}>
+                ${/* Distinct key per structural variant: the empty A&P (fallback branch
+                     below) and the narrative-only branch render the SAME section under
+                     key=s.key. Sharing the key made Preact reconcile these very different
+                     subtrees IN PLACE on the empty→first-condition transition, leaving
+                     stale card handlers (card looked present but was uneditable) and the
+                     "+ Add Condition" button matched against a card vnode (button vanished).
+                     A variant-specific key forces a clean remount instead. */ ''}
+                <div class="subsection" key=${s.key + '-conditions'}>
                   <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
                   ${cmds.filter(e => e.command.command_type === 'assess').map(entry => {
                     const aData = entry.command.data || {};
@@ -998,7 +1005,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const planResolves = isPlan ? visibleAdHoc.filter(e => e.command.command_type === 'resolve_condition') : [];
             const narrativeRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
             return html`
-              <div class="subsection" key=${s.key}>
+              <div class="subsection" key=${isPlan ? s.key + '-narrative' : s.key}>
                 <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
                 <div class=${`content-block rec-narrative${narrativeRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
                   ${narrativeRowReadOnly && entry.command.already_documented && ICON_LOCK}
@@ -1430,7 +1437,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const planAddable = PLAN_SECTIONS.has(key) && (onAddCondition || onAddResolveCondition);
           if (!showHistoryText && historyEntries.length === 0 && !onAddHistory && !cmds && !planAddable) return null;
           return html`
-            <div class="subsection" key=${s.key}>
+            <div class="subsection" key=${PLAN_SECTIONS.has(key) ? s.key + '-empty' : s.key}>
               <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
               ${showHistoryText && html`<p class="section-text">${s.text}</p>`}
               ${historyEntries.map(entry => {
