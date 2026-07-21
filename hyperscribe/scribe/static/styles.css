@@ -401,6 +401,31 @@ h2 { margin-bottom: 4px; }
   transition: opacity 120ms ease-out;
 }
 
+/* the note body is wrapped in a <fieldset> so a non-author's view can
+   be natively disabled (<fieldset disabled>) — every control inside becomes
+   :disabled, keyboard-safe and screen-reader-correct. This rule only strips the
+   fieldset element's OWN default chrome (border/margin/min-width) so it lays out
+   like a plain block; it does NOT affect the controls' styling. */
+.scribe-body-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/* in a non-author's read-only view every control is inert (via
+   <fieldset disabled> + disabled attrs), but many custom-styled buttons
+   (.ad-hoc-btn, .rec-reject-btn, .rec-remove-x, .summary-status-pill-btn,
+   form buttons, …) override the browser's default disabled appearance, so
+   without this they'd look active. Give any disabled control here the standard
+   greyed look. Scoped to the non-author container so an author's situational
+   disabled states keep their own per-button styling. */
+.summary-container--readonly-viewer button:disabled,
+.summary-container--readonly-viewer select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .readonly-banner {
   display: flex;
   align-items: center;
@@ -484,7 +509,7 @@ h2 { margin-bottom: 4px; }
 .toggle-switch.on { background: #16a34a; }
 .toggle-knob { width: 16px; height: 16px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
 .toggle-switch.on .toggle-knob { left: 18px; }
-.alert-facility-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #6b7280; cursor: pointer; user-select: none; }
+.alert-facility-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #6b7280; cursor: pointer; user-select: none; background: none; border: none; padding: 0; margin: 0; font-family: inherit; text-align: left; }
 
 .summary-section {
   margin-bottom: 24px;
