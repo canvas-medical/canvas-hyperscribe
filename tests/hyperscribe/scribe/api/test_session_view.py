@@ -3458,6 +3458,82 @@ def test_note_commands_returns_full_shape(mock_command: MagicMock) -> None:
     ]
 
 
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_appends_alert_facility_from_metadata(mock_command: MagicMock, mock_metadata: MagicMock) -> None:
+    """Flag on: the Alert Facility flag (stored as command metadata, not in
+    Command.data) is read back and appended as a detail so it stays visible on
+    the flat ADDITIONAL COMMANDS card after commit."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "uuid-rx", "schema_key": "prescribe", "data": {"sig": "1 tab daily"}},
+    ]
+    mock_metadata.objects.filter.return_value.values.return_value = [
+        {"command__id": "uuid-rx", "value": "No"},
+    ]
+    view = _helper_instance()
+    view.secrets["AlertFacilityEnabled"] = "true"
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    details = json.loads(result[0].content)["commands"][0]["details"]
+    assert {"label": "Alert Facility", "value": "No"} in details
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_alert_facility_defaults_yes_without_metadata(
+    mock_command: MagicMock, mock_metadata: MagicMock
+) -> None:
+    """Flag on + no stored metadata (pre-feature command): defaults to Yes,
+    matching the Scribe-side display default."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "uuid-med", "schema_key": "medicationStatement", "data": {"medication": "Lisinopril"}},
+    ]
+    mock_metadata.objects.filter.return_value.values.return_value = []
+    view = _helper_instance()
+    view.secrets["AlertFacilityEnabled"] = "true"
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    details = json.loads(result[0].content)["commands"][0]["details"]
+    assert {"label": "Alert Facility", "value": "Yes"} in details
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_no_alert_facility_when_flag_off(mock_command: MagicMock, mock_metadata: MagicMock) -> None:
+    """Flag off: no Alert Facility detail is appended and metadata is not queried."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "uuid-rx", "schema_key": "prescribe", "data": {"sig": "1 tab daily"}},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    details = json.loads(result[0].content)["commands"][0]["details"]
+    assert all(d["label"] != "Alert Facility" for d in details)
+    mock_metadata.objects.filter.assert_not_called()
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_no_alert_facility_for_unrelated_schema_key(
+    mock_command: MagicMock, mock_metadata: MagicMock
+) -> None:
+    """Flag on but a non-medication command: no Alert Facility detail."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "uuid-hpi", "schema_key": "hpi", "data": {"narrative": "Pain"}},
+    ]
+    mock_metadata.objects.filter.return_value.values.return_value = []
+    view = _helper_instance()
+    view.secrets["AlertFacilityEnabled"] = "true"
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    details = json.loads(result[0].content)["commands"][0]["details"]
+    assert all(d["label"] != "Alert Facility" for d in details)
+
+
 @patch("canvas_sdk.v1.data.command.Command")
 def test_note_commands_includes_data_for_diagnose(mock_command: MagicMock) -> None:
     """KOALA-5759: every synced command must carry its raw ``data`` payload.

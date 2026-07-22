@@ -39,7 +39,8 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   );
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.medication_text || '');
   const [sig, setSig] = useState(command.data.sig || '');
-  const [alertFacility, setAlertFacility] = useState(!!command.data.alert_facility);
+  // Defaults to Yes (on); only an explicit stored `false` keeps it off.
+  const [alertFacility, setAlertFacility] = useState(command.data.alert_facility !== false);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -124,7 +125,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     setSelectedFdb(isFdbStructured(command.data.fdb_code) ? command.data.fdb_code : null);
     setSelectedDisplay(command.data.medication_text || '');
     setSig(command.data.sig || '');
-    setAlertFacility(!!command.data.alert_facility);
+    setAlertFacility(command.data.alert_facility !== false);
     setResults([]);
     setEditing(false);
   };
@@ -146,6 +147,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
         <div class="order-view">
           <div class="order-view-name">${command.display}</div>
           ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
+          ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility !== false ? 'Yes' : 'No'}</div>`}
         </div>
       </div>
     `;
@@ -224,7 +226,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
       <div class="order-view">
         <div class="order-view-name">${command.display}</div>
         ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
-        ${alertFacilityEnabled && command.data.alert_facility && html`<span class="badge badge-alert">Alert Facility</span>`}
+        ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility !== false ? 'Yes' : 'No'}</div>`}
       </div>
     </div>
   `;

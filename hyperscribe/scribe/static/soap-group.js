@@ -150,6 +150,16 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
     return () => { cancelled = true; };
   }, [hasItem, patientId, type]);
 
+  // Alert Facility defaults to Yes. This row is controlled (no Save button), so
+  // seed the value once when it's unset — otherwise an untouched default would
+  // display "on" but silently record "No" at commit. An explicit `false` is left alone.
+  useEffect(() => {
+    if (type !== 'stop_medication' || readOnly || !alertFacilityEnabled) return;
+    if (data.alert_facility === undefined) {
+      onEdit(commandIndex, { ...data, alert_facility: true });
+    }
+  }, [type, readOnly, alertFacilityEnabled, commandIndex]);
+
   const handleSelectChange = (e) => {
     const selectedId = e.target.value;
     if (!selectedId) return;
@@ -188,13 +198,13 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
     <div class="removal-row${readOnly ? ' read-only' : ''}">
       <span class="removal-action-label">${config.actionLabel}</span>
       <span class="removal-item-name">${itemName}</span>
-      ${type === 'stop_medication' && readOnly && (data.rationale || data.alert_facility) && html`
-        <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">
-          ${data.rationale || ''}
-          ${alertFacilityEnabled && data.alert_facility && html`<span class="badge badge-alert" style="margin-left: 6px;">Alert Facility</span>`}
-        </div>
-      `}
     </div>
+    ${type === 'stop_medication' && readOnly && (data.rationale || alertFacilityEnabled) && html`
+      <div style="margin-top: 2px;">
+        ${data.rationale && html`<div style="font-size: 13px; color: #6b7280;">${data.rationale}</div>`}
+        ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${data.alert_facility !== false ? 'Yes' : 'No'}</div>`}
+      </div>
+    `}
     ${type === 'stop_medication' && hasItem && !readOnly && html`
       <div class="history-form-field" style="margin-top: 8px;">
         <label class="history-form-label">Rationale</label>
@@ -208,8 +218,8 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
       </div>
       ${alertFacilityEnabled && html`
       <div class="history-form-field" style="margin-top: 8px;">
-        <button type="button" class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: !data.alert_facility })}>
-          <div class="toggle-switch${data.alert_facility ? ' on' : ''}">
+        <button type="button" class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: data.alert_facility === false })}>
+          <div class="toggle-switch${data.alert_facility !== false ? ' on' : ''}">
             <div class="toggle-knob" />
           </div>
           Alert Facility
@@ -1602,6 +1612,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
                     readOnly=${orderRowReadOnly}
+                    alertFacilityEnabled=${alertFacilityEnabled}
                     patientId=${patientId}
                     noteId=${noteId}
                     staffId=${staffId}
@@ -1762,6 +1773,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
                       readOnly=${rxRecRowReadOnly || isRejected}
+                      alertFacilityEnabled=${alertFacilityEnabled}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}
@@ -1809,6 +1821,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
                       readOnly=${referRecRowReadOnly || isRejected}
+                      alertFacilityEnabled=${alertFacilityEnabled}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}

@@ -244,6 +244,13 @@ _AMEND_AUDIT_ENTRY_KEYS = (
 # read-only card — no per-type routing into the existing SOAP groups.
 FROM_THE_NOTE_SECTION = "from_the_note"
 
+# Committed-command schema keys that carry the Alert Facility flag (stored as
+# command metadata, not in Command.data). Used to surface the flag on the flat
+# ADDITIONAL COMMANDS cards so it stays visible after a command hits the chart.
+ALERT_FACILITY_SCHEMA_KEYS = frozenset(
+    {"prescribe", "adjustPrescription", "refill", "medicationStatement", "stopMedication"}
+)
+
 _CAMEL_BOUNDARY_RE = re.compile(r"([a-z0-9])([A-Z])")
 
 # Canonical labels for schema_keys whose humanized form would look wrong
@@ -2372,10 +2379,33 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             .exclude(state="entered_in_error")
             .values("id", "schema_key", "data")
         )
+
+        # Alert Facility lives in command metadata (not Command.data), so read it
+        # back in one batched query and surface it as a detail row — keeping the
+        # flag visible on the flat cards, consistent with the pre-commit view.
+        # Absent metadata defaults to "Yes", matching the Scribe-side default.
+        alert_facility_enabled = bool(self.secrets.get("AlertFacilityEnabled"))
+        alert_facility_by_command: dict[str, str] = {}
+        if alert_facility_enabled:
+            from canvas_sdk.v1.data.command import CommandMetadata
+
+            alert_command_ids = [
+                row["id"] for row in rows if (row.get("schema_key") or "") in ALERT_FACILITY_SCHEMA_KEYS
+            ]
+            if alert_command_ids:
+                for meta in CommandMetadata.objects.filter(
+                    command__id__in=alert_command_ids, key="alert_facility"
+                ).values("command__id", "value"):
+                    alert_facility_by_command[str(meta["command__id"])] = meta["value"]
+
         commands: list[dict[str, Any]] = []
         for row in rows:
             schema_key = row.get("schema_key") or ""
             data = row.get("data") or {}
+            details = _details_for_command(data)
+            if alert_facility_enabled and schema_key in ALERT_FACILITY_SCHEMA_KEYS:
+                value = alert_facility_by_command.get(str(row["id"]), "Yes")
+                details.append({"label": "Alert Facility", "value": value})
             commands.append(
                 {
                     "command_uuid": str(row["id"]),
@@ -2383,7 +2413,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     "section_key": FROM_THE_NOTE_SECTION,
                     "label": _humanize_schema_key(schema_key),
                     "data": data,
-                    "details": _details_for_command(data),
+                    "details": details,
                     "already_documented": True,
                     "_from_note": True,
                 }

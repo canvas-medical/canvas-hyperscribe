@@ -345,11 +345,11 @@ def test_build_effects_medication_with_alert_facility_emits_yes_inline() -> None
 
 
 def test_build_effects_medication_alert_facility_false_writes_no_inline() -> None:
-    """Flag on + alert_facility falsy: still emits inline metadata, value="No"."""
+    """Flag on + alert_facility explicitly False: emits inline metadata, value="No"."""
     proposals: list[dict[str, Any]] = [
         {
             "command_type": "medication_statement",
-            "data": {"medication_text": "Lisinopril 10mg"},
+            "data": {"medication_text": "Lisinopril 10mg", "alert_facility": False},
         },
     ]
     with patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med:

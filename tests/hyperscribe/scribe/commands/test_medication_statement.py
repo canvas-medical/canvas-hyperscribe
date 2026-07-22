@@ -269,13 +269,22 @@ def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
     }
 
 
-def test_pending_metadata_flag_on_alert_falsy_defaults_to_no() -> None:
+def test_pending_metadata_flag_on_explicit_false_returns_no() -> None:
+    cmd = _make_med_command()
+    result = MedicationParser().pending_metadata(
+        cmd, {"data": {"alert_facility": False}}, feature_flags={"AlertFacilityEnabled": True}
+    )
+    assert result is not None
+    assert result["metadata"] == {"alert_facility": "No"}
+
+
+def test_pending_metadata_flag_on_defaults_to_yes_when_unset() -> None:
     cmd = _make_med_command()
     for proposal in (
-        {"data": {"alert_facility": False}},
+        {"data": {"alert_facility": True}},
         {"data": {}},
         None,
     ):
         result = MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
         assert result is not None
-        assert result["metadata"] == {"alert_facility": "No"}
+        assert result["metadata"] == {"alert_facility": "Yes"}
