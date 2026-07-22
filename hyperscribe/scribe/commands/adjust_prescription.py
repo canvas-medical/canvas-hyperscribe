@@ -125,6 +125,23 @@ class AdjustPrescriptionParser(CommandParser):
             command_uuid=command_uuid,
         )
 
+    def pending_metadata(
+        self,
+        command: _BaseCommand,
+        proposal: dict[str, Any] | None = None,
+        feature_flags: dict[str, bool] | None = None,
+    ) -> dict[str, Any] | None:
+        if not (feature_flags or {}).get("AlertFacilityEnabled"):
+            return None
+        # Alert Facility defaults to Yes; only an explicit stored ``False`` records No.
+        truthy = ((proposal or {}).get("data") or {}).get("alert_facility", True) is not False
+        return {
+            "command_uuid": command.command_uuid,
+            "command_type": self.command_type,
+            "note_uuid": command.note_uuid,
+            "metadata": {"alert_facility": "Yes" if truthy else "No"},
+        }
+
     def to_effects(self, command: _BaseCommand, note_uuid: str | None = None) -> list[Effect]:
         """Adjust prescriptions require originate + review (same as prescriptions)."""
         return [command.originate(), command.review()]
