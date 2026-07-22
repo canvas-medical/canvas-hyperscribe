@@ -170,13 +170,42 @@ class TaskRecommendationList(BaseModelLlmJson):
     )
 
 
-class DiagnosisSuggestion(BaseModelLlmJson):
-    condition_text: str = Field(description="The original condition text")
-    icd10_codes: list[str] = Field(description="2-3 ICD-10 codes (e.g. R519, G43009)")
+class DiagnosisResolutionStep(BaseModelLlmJson):
+    """One grounded-selection step for an uncoded diagnosis block.
 
+    The model is an oracle over a retrieved set of REAL ICD-10 codes — it may only
+    select codes present in the candidate list it was shown, never invent one. When
+    nothing in the shown list fits the documented clinical picture, it returns
+    ``more_search_terms`` so the caller can retrieve better candidates and ask again.
+    """
 
-class DiagnosisSuggestionList(BaseModelLlmJson):
-    suggestions: list[DiagnosisSuggestion] = Field(
+    selected_code: str | None = Field(
+        default=None,
+        description=(
+            "The single best ICD-10 code for this block, copied VERBATIM from the provided "
+            "candidate list. Null if none of the provided candidates fit the documented picture."
+        ),
+    )
+    confidence: str = Field(
+        default="low",
+        description=(
+            "'high' only when one provided candidate clearly and specifically matches the "
+            "documented diagnosis; 'medium' when a candidate is plausible but not certain; "
+            "'low' when no provided candidate is a good fit."
+        ),
+    )
+    ranked_codes: list[str] = Field(
         default_factory=list,
-        description="List of diagnosis suggestions per condition",
+        description=(
+            "Up to 6 ICD-10 codes from the provided candidate list, best-first, to offer the "
+            "provider. Every entry MUST be copied verbatim from the provided list."
+        ),
+    )
+    more_search_terms: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Clinical search terms (synonyms, the specific diagnosis, or differential) to look "
+            "up when no provided candidate fits — e.g. 'hypoalbuminemia', 'pulmonary edema', "
+            "'iron deficiency anemia'. Leave empty when a provided candidate is selected."
+        ),
     )

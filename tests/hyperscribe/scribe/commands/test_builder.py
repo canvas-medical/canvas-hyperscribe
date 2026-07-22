@@ -451,7 +451,11 @@ _GOOD_RX_DATA = {
 
 def test_validate_proposals_all_valid() -> None:
     proposals: list[dict[str, Any]] = [
-        {"command_type": "diagnose", "data": {"today_assessment": "Short text"}, "display": "Migraine"},
+        {
+            "command_type": "diagnose",
+            "data": {"icd10_code": "G43.909", "today_assessment": "Short text"},
+            "display": "Migraine",
+        },
         {"command_type": "assess", "data": {"narrative": "Brief"}, "display": "HTN"},
         # Prescribe / Refill / Adjust Prescription all share canvas-core's
         # Prescribe schema and need every required field populated to pass.
@@ -462,13 +466,27 @@ def test_validate_proposals_all_valid() -> None:
 
 def test_validate_proposals_diagnose_over_limit() -> None:
     proposals: list[dict[str, Any]] = [
-        {"command_type": "diagnose", "data": {"today_assessment": "x" * 2049}, "display": "Migraine"},
+        {
+            "command_type": "diagnose",
+            "data": {"icd10_code": "G43.909", "today_assessment": "x" * 2049},
+            "display": "Migraine",
+        },
     ]
     errors = validate_proposals(proposals)
     assert len(errors) == 1
     assert errors[0]["command_type"] == "diagnose"
     assert errors[0]["display"] == "Migraine"
     assert "2048" in errors[0]["errors"][0]
+
+
+def test_validate_proposals_diagnose_requires_code() -> None:
+    """Hard block on the insert path: an uncoded diagnose proposal is rejected."""
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "diagnose", "data": {"today_assessment": "Short text"}, "display": "Migraine"},
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 1
+    assert "ICD-10 code" in errors[0]["errors"][0]
 
 
 def test_validate_proposals_assess_over_limit() -> None:

@@ -94,6 +94,7 @@ const _commandValidationReason = (c) => {
   if (c.command_type === 'imaging_order') return 'imaging_incomplete';
   if (c.command_type === 'lab_order') return 'lab_incomplete';
   if (c.command_type === 'perform') return 'perform_incomplete';
+  if (c.command_type === 'diagnose' && !(c.data && c.data.icd10_code)) return 'diagnose_uncoded';
   return 'validation';
 };
 const _validationErrorMessage = (c, reason, context = 'approving') => {
@@ -103,8 +104,82 @@ const _validationErrorMessage = (c, reason, context = 'approving') => {
   if (reason === 'imaging_incomplete') return `This imaging order is missing required fields (image code, service provider, ordering provider, or diagnosis codes). ${suffix}`;
   if (reason === 'lab_incomplete') return `This lab order is missing required fields (lab partner or tests). ${suffix}`;
   if (reason === 'perform_incomplete') return `This perform command is missing a CPT code. ${suffix}`;
+  if (reason === 'diagnose_uncoded') return `This diagnosis needs an ICD-10 code. Pick one (or reject it) before ${context}.`;
   return `This command has invalid values. ${suffix}`;
 };
+
+// Normalize a condition/indication string for matching (drop trailing colon,
+// casefold) — mirrors _normalize in the backend _referral_diagnosis module.
+const _normalizeCondition = (t) => (t || '').trim().replace(/:+$/, '').trim().toLowerCase();
+
+// Resolve a referral's indication to one of the note's coded diagnoses.
+// `noteDiags` is the note's coded-diagnosis set ({ code, display }); each entry
+// comes from a `diagnose` (icd10_code) OR an active-problem match that flipped to
+// `assess` (data.code). Resolution is deliberately conservative so a referral never
+// gets the WRONG code:
+//   - indication text present -> the UNIQUE note diagnosis whose name matches it
+//     (exact, then containment); ambiguous/no match -> null;
+//   - indication blank -> the sole coded diagnosis if there is exactly one, else null.
+// A null result leaves the referral uncoded for the provider to resolve via the
+// referral editor's indication picker. Shared by the live linker and the approve gate.
+function resolveReferralIndication(indication, noteDiags) {
+  const ind = _normalizeCondition(indication);
+  if (ind) {
+    const matches = (noteDiags || []).filter((d) => {
+      const name = _normalizeCondition(d.display);
+      const header = _normalizeCondition(d.condition_header);
+      const orig = _normalizeCondition(d._original_header);
+      return [name, header, orig].some((k) => k && (k === ind || k.includes(ind) || ind.includes(k)));
+    });
+    return matches.length === 1 ? matches[0] : null;
+  }
+  return (noteDiags || []).length === 1 ? noteDiags[0] : null;
+}
+
+// Build the note's coded-diagnosis set from the command list: every `diagnose` with
+// an ICD-10 code and every `assess` carrying a code (an active-problem match that
+// flipped to assess). Mirrors the chargeMatrixDiagnoses / noteDiagnoses source so the
+// approve-time linker sees exactly what the referral editor's picker sees.
+function codedNoteDiagnoses(commands) {
+  const diags = [];
+  for (const c of commands || []) {
+    if (c.command_type !== 'diagnose' && c.command_type !== 'assess') continue;
+    const d = c.data || {};
+    const code = (d.icd10_code || d.code || '').trim();
+    if (!code) continue;
+    diags.push({
+      code,
+      display: (d.icd10_display || d.label || c.display || '').trim(),
+      condition_header: d.condition_header || '',
+      _original_header: d._original_header || '',
+    });
+  }
+  return diags;
+}
+
+// Referral re-linking safety net at approve/insert time. A referral generated while
+// its indication diagnosis was still uncoded comes through with no diagnosis_codes;
+// resolve it against the note's coded diagnoses so it's commit-ready. The live linker
+// (useEffect) normally fills recommendation referrals during reconciliation; this also
+// covers plan-section referrals and any the effect hasn't reached. Mutates refer targets
+// in place (consistent with the insert flow); never fabricates and never overrides a
+// referral the provider has edited (_indicationTouched) or already coded.
+function relinkReferralDiagnoses(commands, targets) {
+  const noteDiags = codedNoteDiagnoses(commands);
+  if (noteDiags.length === 0) return;
+  for (const rec of targets || []) {
+    if (rec.command_type !== 'refer') continue;
+    if (rec._indicationTouched) continue;
+    const d = rec.data || {};
+    if (d.diagnosis_codes && d.diagnosis_codes.length > 0) continue; // already linked
+    const match = resolveReferralIndication(d.indication, noteDiags);
+    if (!match) continue;
+    d.diagnosis_codes = [match.code];
+    d.diagnosis_displays = [match.display || match.code];
+    d.diagnosis_formatted = [match.code];
+    rec.data = d;
+  }
+}
 
 function formatTime(ms) {
   const totalSeconds = Math.floor(ms / 1000);
@@ -398,7 +473,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -420,6 +495,8 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddTask=${isPlan ? onAddTask : null}
         onAddOrder=${isPlan ? onAddOrder : null}
         onAddPlan=${isPlan ? onAddPlan : null}
+        onMoveToPlan=${isPlan ? onMoveToPlan : null}
+        onAddAppointment=${isPlan ? onAddAppointment : null}
         onAddVitals=${isObjective ? onAddVitals : null}
         onAddPhysicalExam=${isObjective ? onAddPhysicalExam : null}
         onAddMentalStatusExam=${isObjective ? onAddMentalStatusExam : null}
@@ -625,6 +702,74 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       formatted_code: d.code,
       display: d.label,
     })), [chargeMatrixDiagnoses]);
+
+  // The note's coded diagnoses shaped for referral indication resolution — same
+  // accept filter as chargeMatrixDiagnoses, but carrying the condition headers so a
+  // referral's indication text can match the note's problem name (not just the ICD
+  // label). Includes assess-flipped active problems (they carry data.code, not
+  // data.icd10_code), which the referral linker must see.
+  const linkableNoteDiagnoses = useMemo(() => commands
+    .filter(c => (c.command_type === 'diagnose' || c.command_type === 'assess')
+      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.already_documented || c.command_uuid
+          || (c.command_type === 'assess' ? c.data?.accepted !== false : c.data?.accepted)))
+    .map(c => ({
+      code: c.data?.icd10_code || c.data?.code || '',
+      display: c.data?.icd10_display || c.data?.label || c.display || '',
+      condition_header: c.data?.condition_header || '',
+      _original_header: c.data?._original_header || '',
+    })), [commands]);
+
+  // Live referral re-linking during reconciliation. Referrals frequently arrive with
+  // a blank indication (the extraction LLM leaves it null when the note doesn't restate
+  // the problem near the referral sentence), so they land uncoded and would block
+  // approval. As the provider codes diagnoses — a `diagnose` gets an ICD-10 code, or an
+  // active-problem match flips to `assess` — fill each still-uncoded referral's
+  // diagnosis_codes as soon as it resolves UNAMBIGUOUSLY (unique name match, or the sole
+  // coded diagnosis when the indication is blank). Ambiguous cases are left for the
+  // referral editor's picker.
+  //
+  // Self-correcting: referrals we fill are tagged `_autoIndication` (a rec-level flag,
+  // never inside `data`, so it never reaches the insert payload). On every run we
+  // re-resolve those from scratch and REVERT them to uncoded if they've become ambiguous
+  // — otherwise a blank-indication referral would latch onto whichever diagnosis was
+  // coded first (transiently the "sole" one) and keep a stale/wrong code once more
+  // diagnoses appear. `_indicationTouched` marks referrals the provider has edited, so a
+  // deliberate choice (including a deliberate clear) is never touched. A referral with
+  // codes but neither flag was set some other way and is left alone. Guarded to no-op
+  // when nothing changes, so it can't loop on its own writes.
+  useEffect(() => {
+    setRecommendations(prev => {
+      let changed = false;
+      const next = prev.map(rec => {
+        if (rec.command_type !== 'refer' || rec._indicationTouched) return rec;
+        const d = rec.data || {};
+        const hasCodes = Boolean(d.diagnosis_codes && d.diagnosis_codes.length > 0);
+        const wasAuto = Boolean(rec._autoIndication);
+        if (hasCodes && !wasAuto) return rec; // provider/other-set — leave it
+        const match = resolveReferralIndication(d.indication, linkableNoteDiagnoses);
+        if (match) {
+          if (hasCodes && wasAuto && d.diagnosis_codes[0] === match.code) return rec; // already correct
+          changed = true;
+          return { ...rec, _autoIndication: true, data: { ...d,
+            diagnosis_codes: [match.code],
+            diagnosis_displays: [match.display || match.code],
+            diagnosis_formatted: [match.code],
+          } };
+        }
+        if (hasCodes && wasAuto) { // was auto-filled, now ambiguous → revert to picker
+          changed = true;
+          return { ...rec, _autoIndication: false, data: { ...d,
+            diagnosis_codes: [],
+            diagnosis_displays: [],
+            diagnosis_formatted: [],
+          } };
+        }
+        return rec;
+      });
+      return changed ? next : prev;
+    });
+  }, [linkableNoteDiagnoses, recommendations]);
 
   // Prune stale diagnosis pointers. When a linked diagnosis is rejected or removed
   // it leaves chargeMatrixDiagnoses, but its _localId lingers in charges' _pointers.
@@ -1683,6 +1828,69 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     });
   }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
 
+  // Reclassify a diagnosis card as a plan narrative in the Appointments component.
+  // Some A&P "problems" are really management/administrative items (e.g. "Physical
+  // therapy access", "Ear cleaning") that shouldn't carry an ICD-10 code; converting
+  // to a `plan` command in the `appointments` section preserves the documentation,
+  // drops the code requirement, and clears the uncoded-diagnosis hard block (every gate
+  // keys on command_type === 'diagnose'). One-way: to undo, delete and re-add. The
+  // header leads the narrative so the problem name survives as context.
+  const handleMoveToPlan = useCallback((index) => {
+    if (!canEdit) return;
+    logEvent('MOVE_DX_TO_PLAN', { index });
+    setCommands(prev => {
+      const src = prev[index];
+      if (!src || src.command_type !== 'diagnose') return prev;
+      const d = src.data || {};
+      // Carry today_assessment verbatim — it already leads with the headline + body
+      // (baked at generation), so the header shows once (no strip, no duplicate).
+      const item = (d.today_assessment || '').trim() || (d.condition_header || '').trim();
+      if (!item) return prev;
+      // Consolidate: all moved items live in the SAME Wrap Up text box. Append to the
+      // first editable `appointments` plan command if one exists; otherwise convert the
+      // source in place into it. Either way the source diagnosis card is removed.
+      const targetIdx = prev.findIndex(
+        c => c.command_type === 'plan' && c.section_key === 'appointments' && !c.already_documented && !c.command_uuid
+      );
+      let updated;
+      if (targetIdx >= 0) {
+        updated = prev
+          .map((c, i) => {
+            if (i !== targetIdx) return c;
+            const existing = (c.data?.narrative || '').trim();
+            const merged = existing ? `${existing}\n\n${item}` : item;
+            return { ...c, display: merged, data: { ...c.data, narrative: merged } };
+          })
+          .filter((_, i) => i !== index);
+      } else {
+        updated = prev.map((c, i) =>
+          i === index
+            ? { ...c, command_type: 'plan', section_key: 'appointments', display: item, data: { narrative: item } }
+            : c
+        );
+      }
+      saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
+      return updated;
+    });
+  }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+
+  // Promote the always-on blank Appointments placeholder into a real plan command when
+  // the provider types into it (mirrors handleAddPhysicalExam). Empty saves are ignored.
+  const handleAddAppointment = useCallback((data) => {
+    if (!canEdit) return;
+    const narrative = ((data && data.narrative) || '').trim();
+    if (!narrative) return;
+    logEvent('ADD_APPOINTMENT');
+    setCommands(prev => [...prev, {
+      command_type: 'plan',
+      display: narrative,
+      data: { narrative },
+      selected: true,
+      section_key: 'appointments',
+      already_documented: false,
+    }]);
+  }, [canEdit]);
+
   // --- Field dictation (KOALA-6233) ---
   // Talk into a single field (CC / HPI / Plan) after generation, before approval.
   // Runs on Nabla's separate dictate-ws endpoint and never touches the ambient
@@ -1883,7 +2091,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '', accepted: true };
       }
       if (type === 'refer') {
-        return { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral', accepted: true };
+        // Provider has taken control of this referral (including its indication) —
+        // mark it so the live auto-linker never overrides their choice, even if they
+        // deliberately cleared the indication.
+        return { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral', accepted: true, _indicationTouched: true };
       }
       return { ...cmd, data: newData, accepted: true };
     }));
@@ -2444,6 +2655,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.command_type === 'lab_order' && (!c.data.lab_partner || !c.data.tests_order_codes || c.data.tests_order_codes.length === 0)) return false;
       if (c.command_type === 'refer' && (!c.data.service_provider || !c.data.clinical_question || !c.data.notes_to_specialist || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
+      // Hard block: a surfaced diagnosis must carry an ICD-10 code before the note
+      // can be approved. The provider either codes it (via the picker) or rejects
+      // it. A coded diagnose that matched an active problem has already flipped to
+      // `assess` upstream (which is exempt — it carries condition_id, not a code).
+      if (c.command_type === 'diagnose' && !(c.data && c.data.icd10_code) && !(c.data && c.data.rejected)) return false;
       return true;
     });
     // Pre-existing finalized notes (signed before the explicit
@@ -2459,6 +2675,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         reason: !c.display ? 'empty_display' : c.selected === false ? 'deselected' : 'validation',
       })) });
     }
+    // Batch B — re-link referrals to the provider's final diagnosis code before
+    // validation, so a referral whose indication diagnosis was uncoded at generation
+    // time inherits the ICD-10 code once the provider picks it (mirrors the backend
+    // link_referral_diagnoses, but with the chosen code). Without this, an otherwise
+    // valid referral is dropped by the diagnosis_codes gate below and blocks approval.
+    // Referrals surface as either recommendation cards or plan-section commands, so
+    // re-link both target lists against the coded diagnose commands in workingCommands.
+    relinkReferralDiagnoses(workingCommands, recommendations);
+    relinkReferralDiagnoses(workingCommands, workingCommands);
     // The Approve filter for recommendations has to apply the same gates the
     // insertable filter applies for Rx + refer — recommendations bypass the
     // OrderRow editor, so without these checks an LLM payload that the
@@ -3047,6 +3272,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // the soap-group PE branch is reached and renders the documented card or the
   // empty "Click to add" editor, even when Nabla omits the section.
   ENSURE_KEYS.set('physical_exam', { key: 'physical_exam', title: 'Physical Exam', text: '' });
+  // Appointments is always ensured so its component renders even when empty — a
+  // persistent, editable destination for "Move to plan" and for manual appointment
+  // notes (soap-group appointments branch renders the items or the empty placeholder).
+  ENSURE_KEYS.set('appointments', { key: 'appointments', title: 'Wrap Up', text: '' });
   const effectiveSections = (() => {
     const base = noteData ? noteData.sections : SKELETON_SECTIONS;
     const existing = new Set(base.map(s => s.key.toLowerCase()));
@@ -3293,6 +3522,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onAddTask: authorEditable ? handleAddTask : null,
           onAddOrder: authorEditable ? handleAddOrder : null,
           onAddPlan: authorEditable ? handleAddPlan : null,
+          onMoveToPlan: authorEditable ? handleMoveToPlan : null,
+          onAddAppointment: authorEditable ? handleAddAppointment : null,
           onAddVitals: authorEditable ? handleAddVitals : null,
           onAddPhysicalExam: authorEditable ? handleAddPhysicalExam : null,
           onAddMentalStatusExam: authorEditable ? handleAddMentalStatusExam : null,

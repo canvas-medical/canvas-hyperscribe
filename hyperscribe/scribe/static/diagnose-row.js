@@ -7,6 +7,11 @@ const html = htm.bind(h);
 const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const ICON_SEARCH = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>`;
 const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+// Vertical ⋮ for the search-bar overflow menu, and a "move to a list/section" glyph for its item.
+const ICON_DOTS = html`<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>`;
+const ICON_MOVE = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11"/><path d="M4 12h11"/><path d="M4 17h7"/><path d="M15 15l4 2-4 2"/></svg>`;
+// How many recommendations the picker shows before the "See more" toggle.
+const MAX_VISIBLE_RECS = 4;
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 const DEBOUNCE_MS = 300;
@@ -25,7 +30,7 @@ function formatIcdCode(raw) {
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
-export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestions, onEditingChange }) {
+export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readOnly, suggestions, onEditingChange }) {
   const data = command.data || {};
   const hasCode = !!data.icd10_code;
   // KOALA_5635_BACKGROUND_ALWAYS_RENDER — Background is available on EVERY
@@ -73,6 +78,13 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+  // "Move to Wrap Up" lives in a small ⋮ menu pinned to the right of the picker's
+  // search bar (for A&P items that aren't a codeable diagnosis). Open/close state;
+  // reset whenever the picker is opened/closed.
+  const [showMenu, setShowMenu] = useState(false);
+  // The recommendations list shows the top few; "More options" reveals the rest.
+  // Reset (collapsed) whenever the picker is opened/closed.
+  const [showAllRecs, setShowAllRecs] = useState(false);
   const [assessment, setAssessment] = useState(data.today_assessment || '');
   // KOALA_5635_BACKGROUND_TEXTAREA — local state mirrors AssessNarrative's
   // pattern (soap-group.js): seed from ``data.background``, sync on
@@ -83,6 +95,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
   // preexisting background; the "+ Add background" pill flips it on otherwise.
   const [showBackground, setShowBackground] = useState((data.background || '').length > 0);
   const inputRef = useRef(null);
+  const menuRef = useRef(null);
   const containerRef = useRef(null);
   const textareaRef = useRef(null);
   const backgroundRef = useRef(null);
@@ -140,6 +153,16 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [editingCode, hasCode]);
+
+  // Close the ⋮ "Move to Wrap Up" menu on any click outside it.
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMenu]);
 
   const doSearch = useCallback(async (q) => {
     if (!q || q.length < 2) {
@@ -224,6 +247,8 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
     setResults([]);
     setSearched(false);
     setSearching(false);
+    setShowMenu(false); // reopen with the ⋮ menu closed
+    setShowAllRecs(false); // reopen showing only the top recommendations
   };
 
   // Close the "Change" picker on a coded card and revert to showing the code.
@@ -234,6 +259,8 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
     setResults([]);
     setSearched(false);
     setSearching(false);
+    setShowMenu(false); // close the ⋮ menu on close
+    setShowAllRecs(false); // collapse the recommendations back to the top few
   };
 
   const handleAddBackground = () => {
@@ -305,45 +332,87 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
           onInput=${handleInput}
           onKeyDown=${handleKeyDown}
           placeholder=${placeholder}
+          aria-label="Search diagnosis codes"
         />
+        ${/* ⋮ menu — the escape hatch for A&P items that aren't a codeable diagnosis.
+            Pinned to the right of the search bar so it stays out of the code list and
+            the Reject/Accept buttons. Only offered when the card can be moved. */ ''}
+        ${onMoveToPlan && html`
+          <div class="diagnose-picker-menu" ref=${menuRef}>
+            <button
+              type="button"
+              class="diagnose-picker-menu-btn"
+              title="More actions"
+              aria-label="More actions"
+              aria-haspopup="true"
+              aria-expanded=${showMenu ? 'true' : 'false'}
+              onClick=${(e) => { e.stopPropagation(); setShowMenu(v => !v); }}
+            >${ICON_DOTS}</button>
+            ${showMenu && html`
+              <div class="diagnose-picker-menu-pop" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="diagnose-picker-menu-item"
+                  onMouseDown=${(e) => { e.preventDefault(); setShowMenu(false); onMoveToPlan(commandIndex); }}
+                >
+                  ${ICON_MOVE}
+                  <span>
+                    <span class="dpm-title">Move to Wrap Up</span>
+                    <span class="dpm-help">Not a codeable diagnosis — moves this card's free-text content to the Wrap Up section.</span>
+                  </span>
+                </button>
+              </div>
+            `}
+          </div>
+        `}
         ${onClose && html`<button type="button" class="diagnose-picker-close" onClick=${onClose} title="Close" aria-label="Close search">${ICON_X}</button>`}
       </div>
-      ${results.length > 0
-        ? html`
-          <div class="diagnose-picker-list">
-            ${results.map((r, i) => html`
-              <div
-                key=${r.code || ('r' + i)}
-                class="diagnose-picker-row"
-                onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
-              >
-                <span class="diagnose-picker-name">${r.display || r.description}</span>
-                <span class="diagnose-picker-code">${formatIcdCode(r.code)}</span>
-              </div>
-            `)}
-          </div>
-        `
-        : (query.length < 2 && recCodes.length > 0)
-        ? html`
-          <div class="diagnose-picker-label">Recommended</div>
-          <div class="diagnose-picker-list">
-            ${recCodes.map(s => html`
-              <div
-                key=${s.code}
-                class="diagnose-picker-row"
-                onMouseDown=${(e) => { e.preventDefault(); handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code }); }}
-              >
-                <span class="diagnose-picker-name">${s.display}</span>
-                <span class="diagnose-picker-code">${s.formatted_code}</span>
-              </div>
-            `)}
-          </div>
-        `
-        : searching
-        ? html`<div class="diagnose-picker-empty">Searching…</div>`
-        : (searched && query.length >= 2)
-        ? html`<div class="diagnose-picker-empty">No diagnoses found</div>`
-        : null}
+      <div class="diagnose-picker-body">
+      ${query.length >= 2
+        ? (results.length > 0
+          ? html`
+            <div class="diagnose-picker-list">
+              ${results.map((r, i) => html`
+                <div
+                  key=${r.code || ('r' + i)}
+                  class="diagnose-picker-row"
+                  onMouseDown=${(e) => { e.preventDefault(); handleSelect(r); }}
+                >
+                  <span class="diagnose-picker-name">${r.display || r.description}</span>
+                  <span class="diagnose-picker-code">${formatIcdCode(r.code)}</span>
+                </div>
+              `)}
+            </div>
+          `
+          : searching
+          ? html`<div class="diagnose-picker-empty">Searching…</div>`
+          : searched
+          ? html`<div class="diagnose-picker-empty">No diagnoses found</div>`
+          : null)
+        : html`
+          ${/* Recommendations (empty query): show the top few, best first. "More options"
+              reveals the rest. The move-to-wrap-up action lives in the ⋮ menu above. */ ''}
+          ${recCodes.length > 0 && html`
+            <div class="diagnose-picker-list">
+              ${(showAllRecs ? recCodes : recCodes.slice(0, MAX_VISIBLE_RECS)).map(s => html`
+                <div
+                  key=${s.code}
+                  class="diagnose-picker-row"
+                  onMouseDown=${(e) => { e.preventDefault(); handleSelect({ code: s.code, display: s.display, formatted_code: s.formatted_code }); }}
+                >
+                  <span class="diagnose-picker-name">${s.display}</span>
+                  <span class="diagnose-picker-code">${s.formatted_code}</span>
+                  ${s.provenance ? html`<span class="diagnose-picker-prov">${s.provenance}</span>` : ''}
+                </div>
+              `)}
+            </div>
+          `}
+          ${!showAllRecs && recCodes.length > MAX_VISIBLE_RECS && html`
+            <button type="button" class="diagnose-picker-more" onMouseDown=${(e) => { e.preventDefault(); setShowAllRecs(true); }}>More options</button>
+          `}
+        `}
+      </div>
     </div>
   `;
 
@@ -352,16 +421,24 @@ export function DiagnoseRow({ command, commandIndex, onEdit, readOnly, suggestio
       <div class="diagnose-row-header">
         <span class="diagnose-row-title">${titleText}</span>
         ${hasCode && html`<span class="diagnose-icd-code">${formattedCode}</span>`}
+        ${/* Uncoded card: the amber "needs-a-pick" badge lives next to the title
+            (not down in the Reject/Accept action column), so the missing-code
+            signal reads right where the diagnosis name is. */ ''}
+        ${!hasCode && !readOnly && html`<span class="rec-warning-pill">Missing: Diagnosis Code</span>`}
         ${hasCode && !readOnly && html`
           <button type="button" class="diagnose-change-btn" onClick=${handleClearCode} title="Change diagnosis">${ICON_PENCIL} Change</button>
         `}
       </div>
 
       ${/* "Change diagnosis" picker (already-coded card). */ ''}
-      ${hasCode && editingCode && !readOnly && pickerPanel('Search for a different code…', handleCloseChange)}
+      ${hasCode && editingCode && !readOnly && pickerPanel('Search diagnosis codes', handleCloseChange)}
 
-      ${/* No-diagnosis-code state: the integrated picker is the persistent UI. */ ''}
-      ${!hasCode && !readOnly && pickerPanel('Search a diagnosis code, or pick a recommendation below…')}
+      ${/* No-diagnosis-code state: the integrated picker is the persistent UI. The
+          ranker leaves a block uncoded when codes conflict or an unspecified code
+          has more-specific options; the picker's ranked recommendations (with
+          provenance) are the provider's pick list. The "Missing: Diagnosis Code"
+          action pill is the sole needs-a-pick signal — no separate hint. */ ''}
+      ${!hasCode && !readOnly && pickerPanel('Search diagnosis codes')}
 
       ${!editingText && html`
         <div
