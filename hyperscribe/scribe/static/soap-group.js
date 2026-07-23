@@ -150,17 +150,6 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
     return () => { cancelled = true; };
   }, [hasItem, patientId, type]);
 
-  // Stop medication defaults to No. This row is controlled (no Save button), so
-  // seed the value once when it's unset — otherwise the toggle would show "off"
-  // while the command silently records the backend default at commit. Seeding
-  // keeps the toggle and the stored value in agreement. An explicit value is left alone.
-  useEffect(() => {
-    if (type !== 'stop_medication' || readOnly || !alertFacilityEnabled) return;
-    if (data.alert_facility === undefined) {
-      onEdit(commandIndex, { ...data, alert_facility: false });
-    }
-  }, [type, readOnly, alertFacilityEnabled, commandIndex]);
-
   const handleSelectChange = (e) => {
     const selectedId = e.target.value;
     if (!selectedId) return;
@@ -200,10 +189,10 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
       <span class="removal-action-label">${config.actionLabel}</span>
       <span class="removal-item-name">${itemName}</span>
     </div>
-    ${type === 'stop_medication' && readOnly && (data.rationale || alertFacilityEnabled) && html`
+    ${type === 'stop_medication' && readOnly && (data.rationale || (alertFacilityEnabled && (data.alert_facility === true || data.alert_facility === false))) && html`
       <div style="margin-top: 2px;">
         ${data.rationale && html`<div style="font-size: 13px; color: #6b7280;">${data.rationale}</div>`}
-        ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${data.alert_facility === true ? 'Yes' : 'No'}</div>`}
+        ${alertFacilityEnabled && (data.alert_facility === true || data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${data.alert_facility ? 'Yes' : 'No'}</div>`}
       </div>
     `}
     ${type === 'stop_medication' && hasItem && !readOnly && html`

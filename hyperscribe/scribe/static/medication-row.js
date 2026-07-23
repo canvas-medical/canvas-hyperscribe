@@ -41,6 +41,9 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   const [sig, setSig] = useState(command.data.sig || '');
   // Medication statement defaults to No (off); only an explicit stored `true` turns it on.
   const [alertFacility, setAlertFacility] = useState(command.data.alert_facility === true);
+  // Only persist the flag when the user actually engaged it (or the command already
+  // carries one, or it's brand new) — never fabricate a value on an unrelated edit.
+  const [alertFacilityTouched, setAlertFacilityTouched] = useState(false);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -106,7 +109,12 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   };
 
   const handleSave = () => {
-    const newData = { ...command.data, medication_text: selectedDisplay, sig, alert_facility: alertFacility };
+    const newData = { ...command.data, medication_text: selectedDisplay, sig };
+    // Materialize the flag for a brand-new card or when the user set it; otherwise the
+    // `...command.data` spread preserves any existing value and an absent one stays absent.
+    if (!command.display || alertFacilityTouched) {
+      newData.alert_facility = alertFacility;
+    }
     if (selectedFdb) {
       newData.fdb_code = selectedFdb;
     } else {
@@ -126,6 +134,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     setSelectedDisplay(command.data.medication_text || '');
     setSig(command.data.sig || '');
     setAlertFacility(command.data.alert_facility === true);
+    setAlertFacilityTouched(false);
     setResults([]);
     setEditing(false);
   };
@@ -147,7 +156,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
         <div class="order-view">
           <div class="order-view-name">${command.display}</div>
           ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
-          ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility === true ? 'Yes' : 'No'}</div>`}
+          ${alertFacilityEnabled && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
         </div>
       </div>
     `;
@@ -202,7 +211,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
           </div>
           ${alertFacilityEnabled && html`
           <div class="history-form-field">
-            <button type="button" class="alert-facility-toggle" onClick=${() => setAlertFacility(prev => !prev)}>
+            <button type="button" class="alert-facility-toggle" onClick=${() => { setAlertFacility(prev => !prev); setAlertFacilityTouched(true); }}>
               <div class="toggle-switch${alertFacility ? ' on' : ''}">
                 <div class="toggle-knob" />
               </div>
@@ -226,7 +235,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
       <div class="order-view">
         <div class="order-view-name">${command.display}</div>
         ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
-        ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility === true ? 'Yes' : 'No'}</div>`}
+        ${alertFacilityEnabled && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
       </div>
     </div>
   `;
