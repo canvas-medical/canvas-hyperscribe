@@ -22,9 +22,14 @@ const REFILLS_MIN = 0;
 const REFILLS_MAX = 99;
 const RX_TAB_KEYS = new Set(['prescribe', 'refill', 'adjust_prescription']);
 
-// Per-command-type default position for the Alert Facility toggle (edit-mode
-// starting position only). Prescribe and adjust prescription default on; refill off.
+// Per-command-type default for Alert Facility. Prescribe and adjust prescription
+// default on; refill off. Applied everywhere (toggle, recorded value, display) so
+// a card gets its default without having to be opened.
 const ALERT_FACILITY_DEFAULT_ON = { prescribe: true, adjust_prescription: true, refill: false };
+
+// Effective on/off state: an explicit stored value wins, otherwise the type default.
+const alertFacilityOn = (commandType, raw) =>
+  raw === true ? true : raw === false ? false : !!ALERT_FACILITY_DEFAULT_ON[commandType];
 
 // Full NCPDP clinical quantity descriptions
 const CLINICAL_QUANTITY_DESCRIPTIONS = [
@@ -338,11 +343,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
   // an explicit stored value always wins. Mirrored into the per-tab Rx snapshots below
   // so switching tabs follows the target tab's default until the user changes it.
   const [alertFacility, setAlertFacility] = useState(
-    command.data.alert_facility === true
-      ? true
-      : command.data.alert_facility === false
-        ? false
-        : !!ALERT_FACILITY_DEFAULT_ON[command.command_type || 'prescribe'],
+    alertFacilityOn(command.command_type || 'prescribe', command.data.alert_facility),
   );
 
   // "Change to" medication (adjust_prescription only).
@@ -1921,7 +1922,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
             <div class="order-view-name">${command.display}</div>
             ${d.sig && html`<div class="order-view-sig">Sig: ${d.sig}</div>`}
             ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
-            ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${d.alert_facility !== false ? 'Yes' : 'No'}</div>`}
+            ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${alertFacilityOn(command.command_type, d.alert_facility) ? 'Yes' : 'No'}</div>`}
           </div>
         </div>
         ${interactionWarning && html`<${InteractionWarningInline} warning=${interactionWarning} />`}
@@ -1975,7 +1976,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
       <div class="order-view">
         <span class="command-type-label">${badgeLabel}</span>
         <div class="order-view-name">${command.display}</div>
-        ${alertFacilityEnabled && RX_TAB_KEYS.has(command.command_type) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility !== false ? 'Yes' : 'No'}</div>`}
+        ${alertFacilityEnabled && RX_TAB_KEYS.has(command.command_type) && html`<div class="order-view-alert-facility">Alert Facility: ${alertFacilityOn(command.command_type, command.data.alert_facility) ? 'Yes' : 'No'}</div>`}
       </div>
     </div>
   `;

@@ -251,6 +251,17 @@ ALERT_FACILITY_SCHEMA_KEYS = frozenset(
     {"prescribe", "adjustPrescription", "refill", "medicationStatement", "stopMedication"}
 )
 
+# Per-command-type default shown when a command carries no stored alert_facility
+# metadata, so the flag reflects the type's default even on cards never opened.
+# Prescribe and adjust prescription default Yes; the rest default No.
+ALERT_FACILITY_DEFAULT_BY_SCHEMA_KEY = {
+    "prescribe": "Yes",
+    "adjustPrescription": "Yes",
+    "refill": "No",
+    "medicationStatement": "No",
+    "stopMedication": "No",
+}
+
 _CAMEL_BOUNDARY_RE = re.compile(r"([a-z0-9])([A-Z])")
 
 # Canonical labels for schema_keys whose humanized form would look wrong
@@ -2404,7 +2415,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             data = row.get("data") or {}
             details = _details_for_command(data)
             if alert_facility_enabled and schema_key in ALERT_FACILITY_SCHEMA_KEYS:
-                value = alert_facility_by_command.get(str(row["id"]), "Yes")
+                value = alert_facility_by_command.get(str(row["id"]), ALERT_FACILITY_DEFAULT_BY_SCHEMA_KEY[schema_key])
                 details.append({"label": "Alert Facility", "value": value})
             commands.append(
                 {

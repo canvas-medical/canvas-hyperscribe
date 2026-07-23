@@ -278,13 +278,15 @@ def test_pending_metadata_flag_on_explicit_false_returns_no() -> None:
     assert result["metadata"] == {"alert_facility": "No"}
 
 
-def test_pending_metadata_flag_on_defaults_to_yes_when_unset() -> None:
+def test_pending_metadata_flag_on_defaults_to_no_when_unset() -> None:
     cmd = _make_med_command()
-    for proposal in (
-        {"data": {"alert_facility": True}},
-        {"data": {}},
-        None,
-    ):
-        result = MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
+    flags = {"AlertFacilityEnabled": True}
+    # Explicit True still records Yes.
+    assert MedicationParser().pending_metadata(cmd, {"data": {"alert_facility": True}}, flags)["metadata"] == {
+        "alert_facility": "Yes"
+    }
+    # Medication statement defaults to No when the value is unset.
+    for proposal in ({"data": {}}, None):
+        result = MedicationParser().pending_metadata(cmd, proposal, flags)
         assert result is not None
-        assert result["metadata"] == {"alert_facility": "Yes"}
+        assert result["metadata"] == {"alert_facility": "No"}

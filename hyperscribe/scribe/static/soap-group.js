@@ -203,7 +203,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
     ${type === 'stop_medication' && readOnly && (data.rationale || alertFacilityEnabled) && html`
       <div style="margin-top: 2px;">
         ${data.rationale && html`<div style="font-size: 13px; color: #6b7280;">${data.rationale}</div>`}
-        ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${data.alert_facility !== false ? 'Yes' : 'No'}</div>`}
+        ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${data.alert_facility === true ? 'Yes' : 'No'}</div>`}
       </div>
     `}
     ${type === 'stop_medication' && hasItem && !readOnly && html`

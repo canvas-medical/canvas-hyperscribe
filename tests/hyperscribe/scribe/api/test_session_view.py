@@ -3481,13 +3481,18 @@ def test_note_commands_appends_alert_facility_from_metadata(mock_command: MagicM
 
 @patch("canvas_sdk.v1.data.command.CommandMetadata")
 @patch("canvas_sdk.v1.data.command.Command")
-def test_note_commands_alert_facility_defaults_yes_without_metadata(
+def test_note_commands_alert_facility_defaults_per_type_without_metadata(
     mock_command: MagicMock, mock_metadata: MagicMock
 ) -> None:
-    """Flag on + no stored metadata (pre-feature command): defaults to Yes,
-    matching the Scribe-side display default."""
+    """Flag on + no stored metadata: the flat card shows the per-command-type
+    default — prescribe/adjust Yes, medication statement / stop medication /
+    refill No — so a card gets its default without being opened."""
     mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
-        {"id": "uuid-med", "schema_key": "medicationStatement", "data": {"medication": "Lisinopril"}},
+        {"id": "uuid-rx", "schema_key": "prescribe", "data": {}},
+        {"id": "uuid-adj", "schema_key": "adjustPrescription", "data": {}},
+        {"id": "uuid-ref", "schema_key": "refill", "data": {}},
+        {"id": "uuid-med", "schema_key": "medicationStatement", "data": {}},
+        {"id": "uuid-stop", "schema_key": "stopMedication", "data": {}},
     ]
     mock_metadata.objects.filter.return_value.values.return_value = []
     view = _helper_instance()
@@ -3495,8 +3500,12 @@ def test_note_commands_alert_facility_defaults_yes_without_metadata(
     view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
     result = view.get_note_commands()
 
-    details = json.loads(result[0].content)["commands"][0]["details"]
-    assert {"label": "Alert Facility", "value": "Yes"} in details
+    details_by_id = {c["command_uuid"]: c["details"] for c in json.loads(result[0].content)["commands"]}
+    assert {"label": "Alert Facility", "value": "Yes"} in details_by_id["uuid-rx"]
+    assert {"label": "Alert Facility", "value": "Yes"} in details_by_id["uuid-adj"]
+    assert {"label": "Alert Facility", "value": "No"} in details_by_id["uuid-ref"]
+    assert {"label": "Alert Facility", "value": "No"} in details_by_id["uuid-med"]
+    assert {"label": "Alert Facility", "value": "No"} in details_by_id["uuid-stop"]
 
 
 @patch("canvas_sdk.v1.data.command.CommandMetadata")
@@ -3534,13 +3543,13 @@ def test_note_commands_no_alert_facility_for_unrelated_schema_key(
     assert all(d["label"] != "Alert Facility" for d in details)
 
 
-# ---- Alert Facility per-command-type toggle default (frontend source pins) ----
+# ---- Alert Facility per-command-type default (frontend source pins) ----
 #
 # Structural pins, not runtime behavioral pins — they do NOT execute the React
-# code. They guard the edit-mode toggle default position for each command type:
-# medication statement + stop medication default OFF, prescribe + adjust
-# prescription default ON, refill default OFF. A JS test harness (to assert
-# runtime behavior) is out of scope.
+# code. They guard the per-command-type default (toggle AND view-mode display):
+# medication statement + stop medication + refill default OFF; prescribe +
+# adjust prescription default ON. A JS test harness (to assert runtime
+# behavior) is out of scope.
 
 
 def _static_source(filename: str) -> str:
@@ -3571,26 +3580,35 @@ def test_order_row_alert_facility_default_map_is_per_type() -> None:
     assert "setAlertFacility(snap.alertFacility)" in src, (
         "restoreRxSnapshot must restore alertFacility, otherwise a manual toggle is lost on tab switch."
     )
+    # Toggle seed AND view-mode display must both resolve the default through the
+    # type-aware helper, so an unopened card shows its per-type default.
+    assert "const alertFacilityOn = " in src, "order-row.js must define the alertFacilityOn resolver."
+    assert src.count("alertFacilityOn(command.command_type") >= 2, (
+        "The view-mode display lines must resolve Alert Facility via "
+        "alertFacilityOn(command.command_type, ...) so refill shows No and prescribe/adjust show Yes "
+        "without the card being opened."
+    )
 
 
 def test_medication_row_alert_facility_defaults_off() -> None:
-    """Medication statement toggle defaults OFF: the toggle state is seeded from
-    `alert_facility === true`. (The read-only display line keeps `!== false` by
-    design — this change is toggle-position-only.)"""
+    """Medication statement defaults OFF for both the toggle and the display; no `!== false` remains."""
     src = _static_source("medication-row.js")
     assert "useState(command.data.alert_facility === true)" in src, (
         "medication-row.js must seed the Alert Facility toggle from `alert_facility === true` "
         "(default OFF). A `!== false` seed would default it ON."
     )
-    # Both toggle bindings (initial seed + cancel reset) must use the OFF-default form.
-    assert src.count("command.data.alert_facility === true") >= 2, (
-        "Both the initial seed and the cancel-reset of alertFacility must use "
-        "`command.data.alert_facility === true` so the toggle consistently defaults OFF."
+    # Seed, cancel-reset, and both display lines must use the OFF-default form; no ON-default left.
+    assert "alert_facility !== false" not in src, (
+        "medication-row.js still contains a `!== false` Alert Facility default, which defaults ON "
+        "instead of OFF for medication statement."
+    )
+    assert "command.data.alert_facility === true ? 'Yes' : 'No'" in src, (
+        "The medication statement view-mode line must default OFF (`=== true ? 'Yes' : 'No'`)."
     )
 
 
 def test_stop_medication_alert_facility_defaults_off() -> None:
-    """Stop medication (controlled RemovalRow) defaults OFF: seeds `false`, toggle reads `=== true`."""
+    """Stop medication (controlled RemovalRow) defaults OFF: seeds `false`, toggle + line read `=== true`."""
     src = _static_source("soap-group.js")
     assert "alert_facility: false" in src, (
         "soap-group.js RemovalRow must seed stop_medication's Alert Facility to `false` "
@@ -3598,6 +3616,9 @@ def test_stop_medication_alert_facility_defaults_off() -> None:
     )
     assert "data.alert_facility === true ? ' on'" in src, (
         "The stop_medication toggle must render ON only when `alert_facility === true` (default OFF)."
+    )
+    assert "data.alert_facility === true ? 'Yes' : 'No'" in src, (
+        "The stop_medication read-only line must default OFF (`=== true ? 'Yes' : 'No'`)."
     )
 
 
