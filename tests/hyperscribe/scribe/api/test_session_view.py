@@ -3481,12 +3481,12 @@ def test_note_commands_appends_alert_facility_from_metadata(mock_command: MagicM
 
 @patch("canvas_sdk.v1.data.command.CommandMetadata")
 @patch("canvas_sdk.v1.data.command.Command")
-def test_note_commands_alert_facility_defaults_per_type_without_metadata(
+def test_note_commands_alert_facility_defaults_yes_without_metadata(
     mock_command: MagicMock, mock_metadata: MagicMock
 ) -> None:
-    """Flag on + no stored metadata: the flat card shows the per-command-type
-    default — prescribe/adjust Yes, medication statement / stop medication /
-    refill No — so a card gets its default without being opened."""
+    """No stored metadata means a pre-feature (or non-Scribe) command — post-feature
+    commands always carry an explicit alert_facility metadata row. Such historical
+    cards default to Yes for every type, so history is shown unaltered."""
     mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
         {"id": "uuid-rx", "schema_key": "prescribe", "data": {}},
         {"id": "uuid-adj", "schema_key": "adjustPrescription", "data": {}},
@@ -3501,11 +3501,8 @@ def test_note_commands_alert_facility_defaults_per_type_without_metadata(
     result = view.get_note_commands()
 
     details_by_id = {c["command_uuid"]: c["details"] for c in json.loads(result[0].content)["commands"]}
-    assert {"label": "Alert Facility", "value": "Yes"} in details_by_id["uuid-rx"]
-    assert {"label": "Alert Facility", "value": "Yes"} in details_by_id["uuid-adj"]
-    assert {"label": "Alert Facility", "value": "No"} in details_by_id["uuid-ref"]
-    assert {"label": "Alert Facility", "value": "No"} in details_by_id["uuid-med"]
-    assert {"label": "Alert Facility", "value": "No"} in details_by_id["uuid-stop"]
+    for cmd_id in ("uuid-rx", "uuid-adj", "uuid-ref", "uuid-med", "uuid-stop"):
+        assert {"label": "Alert Facility", "value": "Yes"} in details_by_id[cmd_id], cmd_id
 
 
 @patch("canvas_sdk.v1.data.command.CommandMetadata")
