@@ -3481,12 +3481,10 @@ def test_note_commands_appends_alert_facility_from_metadata(mock_command: MagicM
 
 @patch("canvas_sdk.v1.data.command.CommandMetadata")
 @patch("canvas_sdk.v1.data.command.Command")
-def test_note_commands_alert_facility_defaults_yes_without_metadata(
-    mock_command: MagicMock, mock_metadata: MagicMock
-) -> None:
+def test_note_commands_omits_alert_facility_without_metadata(mock_command: MagicMock, mock_metadata: MagicMock) -> None:
     """No stored metadata means a pre-feature (or non-Scribe) command — post-feature
     commands always carry an explicit alert_facility metadata row. Such historical
-    cards default to Yes for every type, so history is shown unaltered."""
+    cards show NO Alert Facility line, so history is left unaltered."""
     mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
         {"id": "uuid-rx", "schema_key": "prescribe", "data": {}},
         {"id": "uuid-adj", "schema_key": "adjustPrescription", "data": {}},
@@ -3502,7 +3500,7 @@ def test_note_commands_alert_facility_defaults_yes_without_metadata(
 
     details_by_id = {c["command_uuid"]: c["details"] for c in json.loads(result[0].content)["commands"]}
     for cmd_id in ("uuid-rx", "uuid-adj", "uuid-ref", "uuid-med", "uuid-stop"):
-        assert {"label": "Alert Facility", "value": "Yes"} in details_by_id[cmd_id], cmd_id
+        assert all(d["label"] != "Alert Facility" for d in details_by_id[cmd_id]), cmd_id
 
 
 @patch("canvas_sdk.v1.data.command.CommandMetadata")
@@ -3540,6 +3538,62 @@ def test_note_commands_no_alert_facility_for_unrelated_schema_key(
     assert all(d["label"] != "Alert Facility" for d in details)
 
 
+# ---- _inject_alert_facility_defaults: stamp per-type defaults on fresh cards ----
+
+
+def test_inject_alert_facility_defaults_flag_off_is_noop() -> None:
+    from hyperscribe.scribe.api.session_view import _inject_alert_facility_defaults
+
+    proposals = [{"command_type": "prescribe", "data": {}}]
+    _inject_alert_facility_defaults(proposals, enabled=False)
+    assert proposals[0]["data"] == {}
+
+
+def test_inject_alert_facility_defaults_sets_per_type_default() -> None:
+    from hyperscribe.scribe.api.session_view import _inject_alert_facility_defaults
+
+    proposals = [
+        {"command_type": "prescribe", "data": {}},
+        {"command_type": "adjust_prescription", "data": {}},
+        {"command_type": "refill", "data": {}},
+        {"command_type": "medication_statement", "data": {}},
+        {"command_type": "stop_medication", "data": {}},
+    ]
+    _inject_alert_facility_defaults(proposals, enabled=True)
+    assert proposals[0]["data"]["alert_facility"] is True
+    assert proposals[1]["data"]["alert_facility"] is True
+    assert proposals[2]["data"]["alert_facility"] is False
+    assert proposals[3]["data"]["alert_facility"] is False
+    assert proposals[4]["data"]["alert_facility"] is False
+
+
+def test_inject_alert_facility_defaults_preserves_explicit_value() -> None:
+    from hyperscribe.scribe.api.session_view import _inject_alert_facility_defaults
+
+    # setdefault semantics: an already-chosen value always wins over the type default.
+    proposals = [
+        {"command_type": "prescribe", "data": {"alert_facility": False}},
+        {"command_type": "refill", "data": {"alert_facility": True}},
+    ]
+    _inject_alert_facility_defaults(proposals, enabled=True)
+    assert proposals[0]["data"]["alert_facility"] is False
+    assert proposals[1]["data"]["alert_facility"] is True
+
+
+def test_inject_alert_facility_defaults_ignores_unrelated_and_malformed() -> None:
+    from hyperscribe.scribe.api.session_view import _inject_alert_facility_defaults
+
+    proposals = [
+        {"command_type": "diagnose", "data": {}},  # not an alert-facility type
+        {"command_type": "prescribe", "data": None},  # malformed data
+        {"command_type": "prescribe"},  # no data key
+    ]
+    _inject_alert_facility_defaults(proposals, enabled=True)
+    assert "alert_facility" not in proposals[0]["data"]
+    assert proposals[1]["data"] is None
+    assert "data" not in proposals[2]
+
+
 # ---- Alert Facility per-command-type default (frontend source pins) ----
 #
 # Structural pins, not runtime behavioral pins — they do NOT execute the React
@@ -3556,67 +3610,69 @@ def _static_source(filename: str) -> str:
     return path.read_text()
 
 
-def test_order_row_alert_facility_default_map_is_per_type() -> None:
-    """OrderRow (prescribe/adjust/refill) defaults: prescribe & adjust ON, refill OFF."""
+def test_order_row_alert_facility_toggle_default_and_explicit_display() -> None:
+    """OrderRow: toggle seed uses the per-type default (prescribe/adjust ON, refill OFF)
+    via the alertFacilityOn resolver; the view-mode display shows a value ONLY when one is
+    explicitly stored (no fabricated default); handleSave never fabricates a value."""
     src = _static_source("order-row.js")
-    assert "const ALERT_FACILITY_DEFAULT_ON = { prescribe: true, adjust_prescription: true, refill: false };" in src, (
-        "order-row.js is missing the per-type Alert Facility default map "
-        "`ALERT_FACILITY_DEFAULT_ON = { prescribe: true, adjust_prescription: true, refill: false }`. "
-        "Refill must default OFF while prescribe/adjust default ON."
-    )
-    # The default must be mirrored through the per-tab snapshot machinery so the
-    # toggle follows the active tab (initRxState seeds it; snapshot/restore carry it).
-    assert "alertFacility: !!ALERT_FACILITY_DEFAULT_ON[tabKey]" in src, (
-        "initRxState must seed alertFacility from ALERT_FACILITY_DEFAULT_ON[tabKey] so a "
-        "freshly-opened tab follows its own default."
-    )
-    assert "restoreRxSnapshot(initRxState(tab.key))" in src, (
-        "The tab-switch handler must pass the target tab key to initRxState so switching "
-        "tabs applies that tab's default."
-    )
-    assert "setAlertFacility(snap.alertFacility)" in src, (
-        "restoreRxSnapshot must restore alertFacility, otherwise a manual toggle is lost on tab switch."
-    )
-    # Toggle seed AND view-mode display must both resolve the default through the
-    # type-aware helper, so an unopened card shows its per-type default.
+    # Per-type default map + resolver, used for the toggle seed / per-tab snapshot machinery.
+    assert "const ALERT_FACILITY_DEFAULT_ON = { prescribe: true, adjust_prescription: true, refill: false };" in src
     assert "const alertFacilityOn = " in src, "order-row.js must define the alertFacilityOn resolver."
-    assert src.count("alertFacilityOn(command.command_type") >= 2, (
-        "The view-mode display lines must resolve Alert Facility via "
-        "alertFacilityOn(command.command_type, ...) so refill shows No and prescribe/adjust show Yes "
-        "without the card being opened."
+    assert "alertFacilityOn(command.command_type || 'prescribe', command.data.alert_facility)" in src, (
+        "The toggle seed must resolve the per-type default via alertFacilityOn."
+    )
+    assert "alertFacility: !!ALERT_FACILITY_DEFAULT_ON[tabKey]" in src
+    assert "restoreRxSnapshot(initRxState(tab.key))" in src
+    assert "setAlertFacility(snap.alertFacility)" in src
+    # Display must NOT fabricate a default — it gates on an explicit boolean and shows the raw value.
+    # (The seed uses `alertFacilityOn(command.command_type || 'prescribe', ...)`; the old display
+    # calls were `alertFacilityOn(command.command_type, ...)` — that comma form must be gone.)
+    assert "alertFacilityOn(command.command_type," not in src, (
+        "The view-mode display must not resolve a fabricated per-type default via alertFacilityOn — "
+        "it should show a value only when one is explicitly stored."
+    )
+    assert "d.alert_facility === true || d.alert_facility === false" in src
+    assert "command.data.alert_facility === true || command.data.alert_facility === false" in src
+    # handleSave persists the flag only when new / touched / already-present.
+    assert "alertFacilityTouched" in src, "order-row.js must track whether the toggle was touched."
+    assert "if (isNew || alertFacilityTouched) {" in src, (
+        "handleSave must only materialize alert_facility for a new card or a touched toggle."
     )
 
 
-def test_medication_row_alert_facility_defaults_off() -> None:
-    """Medication statement defaults OFF for both the toggle and the display; no `!== false` remains."""
+def test_medication_row_alert_facility_off_default_and_explicit_display() -> None:
+    """Medication statement: toggle seeds OFF; display shows a value only when explicitly stored;
+    handleSave does not fabricate a value; no ON-default (`!== false`) remains."""
     src = _static_source("medication-row.js")
     assert "useState(command.data.alert_facility === true)" in src, (
-        "medication-row.js must seed the Alert Facility toggle from `alert_facility === true` "
-        "(default OFF). A `!== false` seed would default it ON."
+        "medication-row.js must seed the toggle from `alert_facility === true` (default OFF)."
     )
-    # Seed, cancel-reset, and both display lines must use the OFF-default form; no ON-default left.
     assert "alert_facility !== false" not in src, (
-        "medication-row.js still contains a `!== false` Alert Facility default, which defaults ON "
-        "instead of OFF for medication statement."
+        "medication-row.js still contains a `!== false` Alert Facility default (defaults ON)."
     )
-    assert "command.data.alert_facility === true ? 'Yes' : 'No'" in src, (
-        "The medication statement view-mode line must default OFF (`=== true ? 'Yes' : 'No'`)."
+    # Display gates on an explicit boolean; no fabricated default.
+    assert "command.data.alert_facility === true || command.data.alert_facility === false" in src
+    assert "alertFacilityTouched" in src, "medication-row.js must track whether the toggle was touched."
+    assert "if (!command.display || alertFacilityTouched) {" in src, (
+        "handleSave must only materialize alert_facility for a new card or a touched toggle."
     )
 
 
-def test_stop_medication_alert_facility_defaults_off() -> None:
-    """Stop medication (controlled RemovalRow) defaults OFF: seeds `false`, toggle + line read `=== true`."""
+def test_stop_medication_alert_facility_no_seed_and_explicit_display() -> None:
+    """Stop medication (controlled RemovalRow): toggle reads `=== true` (OFF default), the
+    read-only line shows a value only when explicitly stored, and there is NO mount seed
+    fabricating a value."""
     src = _static_source("soap-group.js")
-    assert "alert_facility: false" in src, (
-        "soap-group.js RemovalRow must seed stop_medication's Alert Facility to `false` "
-        "(default OFF) so the controlled toggle and the stored value agree."
-    )
     assert "data.alert_facility === true ? ' on'" in src, (
         "The stop_medication toggle must render ON only when `alert_facility === true` (default OFF)."
     )
-    assert "data.alert_facility === true ? 'Yes' : 'No'" in src, (
-        "The stop_medication read-only line must default OFF (`=== true ? 'Yes' : 'No'`)."
+    # The old mount seed that fabricated a value must be gone.
+    assert "alert_facility: false" not in src, (
+        "The stop_medication mount seed (writing `alert_facility: false`) must be removed so a "
+        "value-less card is never fabricated."
     )
+    # Read-only line gates on an explicit boolean.
+    assert "data.alert_facility === true || data.alert_facility === false" in src
 
 
 @patch("canvas_sdk.v1.data.command.Command")

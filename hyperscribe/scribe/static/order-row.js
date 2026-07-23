@@ -345,6 +345,9 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
   const [alertFacility, setAlertFacility] = useState(
     alertFacilityOn(command.command_type || 'prescribe', command.data.alert_facility),
   );
+  // Only persist the flag when the user actually engaged it (or it's a brand-new
+  // card, or a value already exists) — never fabricate one on an unrelated edit.
+  const [alertFacilityTouched, setAlertFacilityTouched] = useState(false);
 
   // "Change to" medication (adjust_prescription only).
   const [changeToQuery, setChangeToQuery] = useState(command.data.new_medication_text || '');
@@ -1171,8 +1174,15 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
         pharmacy: selectedPharmacy || null,
         pharmacy_name: selectedPharmacy ? pharmacyQuery : null,
         quantities: medQuantities.map(q => ({ representative_ndc: q.representative_ndc, ncpdp_quantity_qualifier_code: q.ncpdp_quantity_qualifier_code, clinical_quantity_description: q.label, quantity: 1 })),
-        alert_facility: alertFacility,
       };
+      // Alert Facility: materialize for a brand-new card or when the user set it;
+      // otherwise preserve any existing value (and leave a value-less card blank).
+      // handleSave rebuilds `data` from scratch, so existing values must be carried over.
+      if (isNew || alertFacilityTouched) {
+        data.alert_facility = alertFacility;
+      } else if (command.data.alert_facility !== undefined) {
+        data.alert_facility = command.data.alert_facility;
+      }
       // Include "change to" medication for adjust_prescription.
       if (activeTab === 'adjust_prescription' && changeToFdb) {
         data.new_fdb_code = changeToFdb;
@@ -1842,7 +1852,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
             `}
             ${alertFacilityEnabled && RX_TAB_KEYS.has(activeTab) && html`
               <div class="history-form-field">
-                <button type="button" class="alert-facility-toggle" onClick=${() => setAlertFacility(prev => !prev)}>
+                <button type="button" class="alert-facility-toggle" onClick=${() => { setAlertFacility(prev => !prev); setAlertFacilityTouched(true); }}>
                   <div class="toggle-switch${alertFacility ? ' on' : ''}">
                     <div class="toggle-knob" />
                   </div>
@@ -1922,7 +1932,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
             <div class="order-view-name">${command.display}</div>
             ${d.sig && html`<div class="order-view-sig">Sig: ${d.sig}</div>`}
             ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
-            ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${alertFacilityOn(command.command_type, d.alert_facility) ? 'Yes' : 'No'}</div>`}
+            ${alertFacilityEnabled && (d.alert_facility === true || d.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${d.alert_facility ? 'Yes' : 'No'}</div>`}
           </div>
         </div>
         ${interactionWarning && html`<${InteractionWarningInline} warning=${interactionWarning} />`}
@@ -1976,7 +1986,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
       <div class="order-view">
         <span class="command-type-label">${badgeLabel}</span>
         <div class="order-view-name">${command.display}</div>
-        ${alertFacilityEnabled && RX_TAB_KEYS.has(command.command_type) && html`<div class="order-view-alert-facility">Alert Facility: ${alertFacilityOn(command.command_type, command.data.alert_facility) ? 'Yes' : 'No'}</div>`}
+        ${alertFacilityEnabled && RX_TAB_KEYS.has(command.command_type) && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
       </div>
     </div>
   `;
