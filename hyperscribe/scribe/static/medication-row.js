@@ -147,7 +147,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
         <div class="order-view">
           <div class="order-view-name">${command.display}</div>
           ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
-          ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility !== false ? 'Yes' : 'No'}</div>`}
+          ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility === true ? 'Yes' : 'No'}</div>`}
         </div>
       </div>
     `;
@@ -226,7 +226,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
       <div class="order-view">
         <div class="order-view-name">${command.display}</div>
         ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
-        ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility !== false ? 'Yes' : 'No'}</div>`}
+        ${alertFacilityEnabled && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility === true ? 'Yes' : 'No'}</div>`}
       </div>
     </div>
   `;
