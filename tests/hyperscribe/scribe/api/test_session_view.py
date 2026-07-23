@@ -3534,6 +3534,73 @@ def test_note_commands_no_alert_facility_for_unrelated_schema_key(
     assert all(d["label"] != "Alert Facility" for d in details)
 
 
+# ---- Alert Facility per-command-type toggle default (frontend source pins) ----
+#
+# Structural pins, not runtime behavioral pins — they do NOT execute the React
+# code. They guard the edit-mode toggle default position for each command type:
+# medication statement + stop medication default OFF, prescribe + adjust
+# prescription default ON, refill default OFF. A JS test harness (to assert
+# runtime behavior) is out of scope.
+
+
+def _static_source(filename: str) -> str:
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / filename
+    return path.read_text()
+
+
+def test_order_row_alert_facility_default_map_is_per_type() -> None:
+    """OrderRow (prescribe/adjust/refill) defaults: prescribe & adjust ON, refill OFF."""
+    src = _static_source("order-row.js")
+    assert "const ALERT_FACILITY_DEFAULT_ON = { prescribe: true, adjust_prescription: true, refill: false };" in src, (
+        "order-row.js is missing the per-type Alert Facility default map "
+        "`ALERT_FACILITY_DEFAULT_ON = { prescribe: true, adjust_prescription: true, refill: false }`. "
+        "Refill must default OFF while prescribe/adjust default ON."
+    )
+    # The default must be mirrored through the per-tab snapshot machinery so the
+    # toggle follows the active tab (initRxState seeds it; snapshot/restore carry it).
+    assert "alertFacility: !!ALERT_FACILITY_DEFAULT_ON[tabKey]" in src, (
+        "initRxState must seed alertFacility from ALERT_FACILITY_DEFAULT_ON[tabKey] so a "
+        "freshly-opened tab follows its own default."
+    )
+    assert "restoreRxSnapshot(initRxState(tab.key))" in src, (
+        "The tab-switch handler must pass the target tab key to initRxState so switching "
+        "tabs applies that tab's default."
+    )
+    assert "setAlertFacility(snap.alertFacility)" in src, (
+        "restoreRxSnapshot must restore alertFacility, otherwise a manual toggle is lost on tab switch."
+    )
+
+
+def test_medication_row_alert_facility_defaults_off() -> None:
+    """Medication statement toggle defaults OFF: the toggle state is seeded from
+    `alert_facility === true`. (The read-only display line keeps `!== false` by
+    design — this change is toggle-position-only.)"""
+    src = _static_source("medication-row.js")
+    assert "useState(command.data.alert_facility === true)" in src, (
+        "medication-row.js must seed the Alert Facility toggle from `alert_facility === true` "
+        "(default OFF). A `!== false` seed would default it ON."
+    )
+    # Both toggle bindings (initial seed + cancel reset) must use the OFF-default form.
+    assert src.count("command.data.alert_facility === true") >= 2, (
+        "Both the initial seed and the cancel-reset of alertFacility must use "
+        "`command.data.alert_facility === true` so the toggle consistently defaults OFF."
+    )
+
+
+def test_stop_medication_alert_facility_defaults_off() -> None:
+    """Stop medication (controlled RemovalRow) defaults OFF: seeds `false`, toggle reads `=== true`."""
+    src = _static_source("soap-group.js")
+    assert "alert_facility: false" in src, (
+        "soap-group.js RemovalRow must seed stop_medication's Alert Facility to `false` "
+        "(default OFF) so the controlled toggle and the stored value agree."
+    )
+    assert "data.alert_facility === true ? ' on'" in src, (
+        "The stop_medication toggle must render ON only when `alert_facility === true` (default OFF)."
+    )
+
+
 @patch("canvas_sdk.v1.data.command.Command")
 def test_note_commands_includes_data_for_diagnose(mock_command: MagicMock) -> None:
     """KOALA-5759: every synced command must carry its raw ``data`` payload.

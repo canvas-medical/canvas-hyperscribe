@@ -22,6 +22,10 @@ const REFILLS_MIN = 0;
 const REFILLS_MAX = 99;
 const RX_TAB_KEYS = new Set(['prescribe', 'refill', 'adjust_prescription']);
 
+// Per-command-type default position for the Alert Facility toggle (edit-mode
+// starting position only). Prescribe and adjust prescription default on; refill off.
+const ALERT_FACILITY_DEFAULT_ON = { prescribe: true, adjust_prescription: true, refill: false };
+
 // Full NCPDP clinical quantity descriptions
 const CLINICAL_QUANTITY_DESCRIPTIONS = [
   { code: 'C48473', label: 'Ampule' },
@@ -300,10 +304,11 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
   // Per-tab Rx state snapshots (saved when switching away, restored when switching back).
   const rxSnapshots = useRef({});
 
-  const initRxState = () => ({
+  const initRxState = (tabKey) => ({
     medQuery: '', selectedFdb: null, selectedMedDisplay: '', medQuantities: buildTypeToDispenseOptions([]),
     sig: '', daysSupply: '', quantity: '', typeToDispense: '', refills: '',
     substitutions: true, noteToPharmacist: '', interactionWarning: null, selectedPharmacy: '', pharmacyQuery: '',
+    alertFacility: !!ALERT_FACILITY_DEFAULT_ON[tabKey],
   });
 
   // Rx state
@@ -329,10 +334,16 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
   const [interactionWarning, setInteractionWarning] = useState(null);
   const [checkingInteractions, setCheckingInteractions] = useState(false);
 
-  // Alert Facility flag is per-command (not per-tab), so it lives outside the
-  // Rx snapshot machinery and persists across prescribe/refill/adjust tab switches.
-  // Defaults to Yes (on); only an explicit stored `false` keeps it off.
-  const [alertFacility, setAlertFacility] = useState(command.data.alert_facility !== false);
+  // Alert Facility toggle default is per command type (edit-mode starting position);
+  // an explicit stored value always wins. Mirrored into the per-tab Rx snapshots below
+  // so switching tabs follows the target tab's default until the user changes it.
+  const [alertFacility, setAlertFacility] = useState(
+    command.data.alert_facility === true
+      ? true
+      : command.data.alert_facility === false
+        ? false
+        : !!ALERT_FACILITY_DEFAULT_ON[command.command_type || 'prescribe'],
+  );
 
   // "Change to" medication (adjust_prescription only).
   const [changeToQuery, setChangeToQuery] = useState(command.data.new_medication_text || '');
@@ -373,6 +384,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
     medQuery, selectedFdb, selectedMedDisplay, medQuantities,
     sig, daysSupply, quantity, typeToDispense, refills,
     substitutions, noteToPharmacist, interactionWarning, selectedPharmacy, pharmacyQuery,
+    alertFacility,
   });
 
   const restoreRxSnapshot = (snap) => {
@@ -390,6 +402,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
     setSelectedPharmacy(snap.selectedPharmacy);
     setPharmacyQuery(snap.pharmacyQuery);
     setInteractionWarning(snap.interactionWarning);
+    setAlertFacility(snap.alertFacility);
     setMedResults([]);
     setMedSearched(false);
   };
@@ -1241,7 +1254,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
                     if (RX_TABS.has(tab.key) && rxSnapshots.current[tab.key]) {
                       restoreRxSnapshot(rxSnapshots.current[tab.key]);
                     } else if (RX_TABS.has(tab.key)) {
-                      restoreRxSnapshot(initRxState());
+                      restoreRxSnapshot(initRxState(tab.key));
                     }
                     setActiveTab(tab.key);
                   }}

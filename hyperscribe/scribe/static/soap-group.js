@@ -150,13 +150,14 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
     return () => { cancelled = true; };
   }, [hasItem, patientId, type]);
 
-  // Alert Facility defaults to Yes. This row is controlled (no Save button), so
-  // seed the value once when it's unset — otherwise an untouched default would
-  // display "on" but silently record "No" at commit. An explicit `false` is left alone.
+  // Stop medication defaults to No. This row is controlled (no Save button), so
+  // seed the value once when it's unset — otherwise the toggle would show "off"
+  // while the command silently records the backend default at commit. Seeding
+  // keeps the toggle and the stored value in agreement. An explicit value is left alone.
   useEffect(() => {
     if (type !== 'stop_medication' || readOnly || !alertFacilityEnabled) return;
     if (data.alert_facility === undefined) {
-      onEdit(commandIndex, { ...data, alert_facility: true });
+      onEdit(commandIndex, { ...data, alert_facility: false });
     }
   }, [type, readOnly, alertFacilityEnabled, commandIndex]);
 
@@ -218,8 +219,8 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
       </div>
       ${alertFacilityEnabled && html`
       <div class="history-form-field" style="margin-top: 8px;">
-        <button type="button" class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: data.alert_facility === false })}>
-          <div class="toggle-switch${data.alert_facility !== false ? ' on' : ''}">
+        <button type="button" class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: !data.alert_facility })}>
+          <div class="toggle-switch${data.alert_facility === true ? ' on' : ''}">
             <div class="toggle-knob" />
           </div>
           Alert Facility
