@@ -39,8 +39,8 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   );
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.medication_text || '');
   const [sig, setSig] = useState(command.data.sig || '');
-  // Defaults to Yes (on); only an explicit stored `false` keeps it off.
-  const [alertFacility, setAlertFacility] = useState(command.data.alert_facility !== false);
+  // Medication statement defaults to No (off); only an explicit stored `true` turns it on.
+  const [alertFacility, setAlertFacility] = useState(command.data.alert_facility === true);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -125,7 +125,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     setSelectedFdb(isFdbStructured(command.data.fdb_code) ? command.data.fdb_code : null);
     setSelectedDisplay(command.data.medication_text || '');
     setSig(command.data.sig || '');
-    setAlertFacility(command.data.alert_facility !== false);
+    setAlertFacility(command.data.alert_facility === true);
     setResults([]);
     setEditing(false);
   };
