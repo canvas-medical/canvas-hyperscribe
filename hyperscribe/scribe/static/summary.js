@@ -3305,6 +3305,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const serverStep = Math.max(progress.step, 0);
     progressIndex = serverStep + 1; // +1 because finalize occupies index 0
     progressLabel = PROGRESS_STEPS[serverStep] || PROGRESS_STEPS[0];
+  } else if (isFinalizing && recording.catchUpSeconds > 0) {
+    // A connectivity drop left buffered audio still catching up. Tell the user
+    // why finalizing is taking longer instead of leaving them guessing.
+    progressLabel = `${FINALIZE_LABEL} (catching up — ~${recording.catchUpSeconds}s of audio left)`;
   }
   const progressPct = Math.max(((progressIndex + 1) / TOTAL_PROGRESS_STEPS) * 100, 5);
 
@@ -3471,7 +3475,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           </div>
         </div>
       `}
-      ${recording.connectionLost && recording.status === 'recording' && html`
+      ${recording.connectionLost && ['recording', 'paused', 'finishing'].includes(recording.status) && html`
         <div class="connection-lost-warning">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
             <path d="M24 8.98C20.93 5.9 16.69 4 12 4S3.07 5.9 0 8.98L12 21 24 8.98zM2.92 9.07C5.51 7.08 8.67 6 12 6s6.49 1.08 9.08 3.07l-1.43 1.43C17.5 8.94 14.86 8 12 8s-5.5.94-7.65 2.51L2.92 9.07zM12 18l-6.22-6.22C7.84 10.14 9.82 9.25 12 9.25s4.16.89 6.22 2.53L12 18z"/>
@@ -3488,11 +3492,24 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           No audio detected — check your microphone permissions and make sure it is not muted
         </div>
       `}
+      ${recording.finishTruncated && html`
+        <div class="silence-warning">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          Connection was lost while finalizing — the end of this recording may be missing from the transcript. Review before charting.
+        </div>
+      `}
       ${recording.error && html`<p class="error" style="padding: 0 16px;">${recording.error}</p>`}
       ${showProgressBanner && html`
         <div class="summary-generating-banner">
           <div class="generating-bar" style="width: ${progressPct}%" />
           <span class="generating-label">${progressLabel}...</span>
+          ${recording.awaitingTranscription && recording.catchUpSeconds > 0 && html`
+            <button class="summary-status-pill-btn" onClick=${() => recording.finalizeWithGap()}>
+              Finalize now (skip remaining audio)
+            </button>
+          `}
         </div>
       `}
       ${authorEditable && !noteData && !generating && recording.finalized && mode === 'ai' && html`
