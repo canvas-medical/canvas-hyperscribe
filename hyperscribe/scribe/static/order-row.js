@@ -297,7 +297,7 @@ function InteractionWarningInline({ warning }) {
   `;
 }
 
-export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityEnabled, patientId, noteId, staffId, staffName, noteDiagnoses = [], isRecommendation, onEditingChange }) {
+export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityCommands, patientId, noteId, staffId, staffName, noteDiagnoses = [], isRecommendation, onEditingChange }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   useEffect(() => {
@@ -1175,10 +1175,11 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
         pharmacy_name: selectedPharmacy ? pharmacyQuery : null,
         quantities: medQuantities.map(q => ({ representative_ndc: q.representative_ndc, ncpdp_quantity_qualifier_code: q.ncpdp_quantity_qualifier_code, clinical_quantity_description: q.label, quantity: 1 })),
       };
-      // Alert Facility: materialize for a brand-new card or when the user set it;
-      // otherwise preserve any existing value (and leave a value-less card blank).
-      // handleSave rebuilds `data` from scratch, so existing values must be carried over.
-      if (isNew || alertFacilityTouched) {
+      // Alert Facility: materialize only when this command type is enabled AND it's a
+      // brand-new card or the user set it; otherwise preserve any existing value (and leave
+      // a value-less card blank). handleSave rebuilds `data` from scratch, so an existing
+      // value must be carried over — preserved regardless of the enable gate.
+      if (alertFacilityCommands.has(activeTab) && (isNew || alertFacilityTouched)) {
         data.alert_facility = alertFacility;
       } else if (command.data.alert_facility !== undefined) {
         data.alert_facility = command.data.alert_facility;
@@ -1850,7 +1851,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
                 `}
               </div>
             `}
-            ${alertFacilityEnabled && RX_TAB_KEYS.has(activeTab) && html`
+            ${alertFacilityCommands.has(activeTab) && html`
               <div class="history-form-field">
                 <button type="button" class="alert-facility-toggle" onClick=${() => { setAlertFacility(prev => !prev); setAlertFacilityTouched(true); }}>
                   <div class="toggle-switch${alertFacility ? ' on' : ''}">
@@ -1932,7 +1933,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
             <div class="order-view-name">${command.display}</div>
             ${d.sig && html`<div class="order-view-sig">Sig: ${d.sig}</div>`}
             ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
-            ${alertFacilityEnabled && (d.alert_facility === true || d.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${d.alert_facility ? 'Yes' : 'No'}</div>`}
+            ${alertFacilityCommands.has(command.command_type) && (d.alert_facility === true || d.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${d.alert_facility ? 'Yes' : 'No'}</div>`}
           </div>
         </div>
         ${interactionWarning && html`<${InteractionWarningInline} warning=${interactionWarning} />`}
@@ -1986,7 +1987,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
       <div class="order-view">
         <span class="command-type-label">${badgeLabel}</span>
         <div class="order-view-name">${command.display}</div>
-        ${alertFacilityEnabled && RX_TAB_KEYS.has(command.command_type) && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
+        ${alertFacilityCommands.has(command.command_type) && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
       </div>
     </div>
   `;

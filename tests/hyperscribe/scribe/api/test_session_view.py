@@ -2383,7 +2383,7 @@ def test_insert_commands_success(mock_build: MagicMock) -> None:
     assert len(result) == 3  # JSONResponse + 2 effects
     assert result[1] is mock_effect_1
     assert result[2] is mock_effect_2
-    mock_build.assert_called_once_with(commands, "note-uuid-123", {"AlertFacilityEnabled": False})
+    mock_build.assert_called_once_with(commands, "note-uuid-123", {"AlertFacilityCommands": set()})
 
 
 @patch("hyperscribe.scribe.api.session_view.build_effects")
@@ -3471,12 +3471,35 @@ def test_note_commands_appends_alert_facility_from_metadata(mock_command: MagicM
         {"command__id": "uuid-rx", "value": "No"},
     ]
     view = _helper_instance()
-    view.secrets["AlertFacilityEnabled"] = "true"
+    view.secrets["AlertFacilityCommands"] = "prescribe,adjust_prescription,refill,medication_statement,stop_medication"
     view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
     result = view.get_note_commands()
 
     details = json.loads(result[0].content)["commands"][0]["details"]
     assert {"label": "Alert Facility", "value": "No"} in details
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_respects_command_allowlist(mock_command: MagicMock, mock_metadata: MagicMock) -> None:
+    """Only command types in AlertFacilityCommands show the flag — even a disallowed
+    command that has recorded metadata is left without an Alert Facility line."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "uuid-rx", "schema_key": "prescribe", "data": {}},
+        {"id": "uuid-ref", "schema_key": "refill", "data": {}},
+    ]
+    mock_metadata.objects.filter.return_value.values.return_value = [
+        {"command__id": "uuid-rx", "value": "Yes"},
+        {"command__id": "uuid-ref", "value": "No"},
+    ]
+    view = _helper_instance()
+    view.secrets["AlertFacilityCommands"] = "prescribe"  # refill NOT allowed
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    details_by_id = {c["command_uuid"]: c["details"] for c in json.loads(result[0].content)["commands"]}
+    assert {"label": "Alert Facility", "value": "Yes"} in details_by_id["uuid-rx"]
+    assert all(d["label"] != "Alert Facility" for d in details_by_id["uuid-ref"])
 
 
 @patch("canvas_sdk.v1.data.command.CommandMetadata")
@@ -3494,7 +3517,7 @@ def test_note_commands_omits_alert_facility_without_metadata(mock_command: Magic
     ]
     mock_metadata.objects.filter.return_value.values.return_value = []
     view = _helper_instance()
-    view.secrets["AlertFacilityEnabled"] = "true"
+    view.secrets["AlertFacilityCommands"] = "prescribe,adjust_prescription,refill,medication_statement,stop_medication"
     view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
     result = view.get_note_commands()
 
@@ -3530,7 +3553,7 @@ def test_note_commands_no_alert_facility_for_unrelated_schema_key(
     ]
     mock_metadata.objects.filter.return_value.values.return_value = []
     view = _helper_instance()
-    view.secrets["AlertFacilityEnabled"] = "true"
+    view.secrets["AlertFacilityCommands"] = "prescribe,adjust_prescription,refill,medication_statement,stop_medication"
     view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
     result = view.get_note_commands()
 
@@ -3541,11 +3564,14 @@ def test_note_commands_no_alert_facility_for_unrelated_schema_key(
 # ---- _inject_alert_facility_defaults: stamp per-type defaults on fresh cards ----
 
 
-def test_inject_alert_facility_defaults_flag_off_is_noop() -> None:
+_ALL_ALERT_COMMANDS = {"prescribe", "adjust_prescription", "refill", "medication_statement", "stop_medication"}
+
+
+def test_inject_alert_facility_defaults_empty_allowset_is_noop() -> None:
     from hyperscribe.scribe.api.session_view import _inject_alert_facility_defaults
 
     proposals = [{"command_type": "prescribe", "data": {}}]
-    _inject_alert_facility_defaults(proposals, enabled=False)
+    _inject_alert_facility_defaults(proposals, set())
     assert proposals[0]["data"] == {}
 
 
@@ -3559,12 +3585,24 @@ def test_inject_alert_facility_defaults_sets_per_type_default() -> None:
         {"command_type": "medication_statement", "data": {}},
         {"command_type": "stop_medication", "data": {}},
     ]
-    _inject_alert_facility_defaults(proposals, enabled=True)
+    _inject_alert_facility_defaults(proposals, _ALL_ALERT_COMMANDS)
     assert proposals[0]["data"]["alert_facility"] is True
     assert proposals[1]["data"]["alert_facility"] is True
     assert proposals[2]["data"]["alert_facility"] is False
     assert proposals[3]["data"]["alert_facility"] is False
     assert proposals[4]["data"]["alert_facility"] is False
+
+
+def test_inject_alert_facility_defaults_skips_command_not_in_allowset() -> None:
+    from hyperscribe.scribe.api.session_view import _inject_alert_facility_defaults
+
+    proposals = [
+        {"command_type": "prescribe", "data": {}},
+        {"command_type": "refill", "data": {}},
+    ]
+    _inject_alert_facility_defaults(proposals, {"prescribe"})
+    assert proposals[0]["data"]["alert_facility"] is True  # in the allow-set
+    assert "alert_facility" not in proposals[1]["data"]  # refill not allowed → untouched
 
 
 def test_inject_alert_facility_defaults_preserves_explicit_value() -> None:
@@ -3575,7 +3613,7 @@ def test_inject_alert_facility_defaults_preserves_explicit_value() -> None:
         {"command_type": "prescribe", "data": {"alert_facility": False}},
         {"command_type": "refill", "data": {"alert_facility": True}},
     ]
-    _inject_alert_facility_defaults(proposals, enabled=True)
+    _inject_alert_facility_defaults(proposals, _ALL_ALERT_COMMANDS)
     assert proposals[0]["data"]["alert_facility"] is False
     assert proposals[1]["data"]["alert_facility"] is True
 
@@ -3588,7 +3626,7 @@ def test_inject_alert_facility_defaults_ignores_unrelated_and_malformed() -> Non
         {"command_type": "prescribe", "data": None},  # malformed data
         {"command_type": "prescribe"},  # no data key
     ]
-    _inject_alert_facility_defaults(proposals, enabled=True)
+    _inject_alert_facility_defaults(proposals, _ALL_ALERT_COMMANDS)
     assert "alert_facility" not in proposals[0]["data"]
     assert proposals[1]["data"] is None
     assert "data" not in proposals[2]
@@ -3633,10 +3671,13 @@ def test_order_row_alert_facility_toggle_default_and_explicit_display() -> None:
     )
     assert "d.alert_facility === true || d.alert_facility === false" in src
     assert "command.data.alert_facility === true || command.data.alert_facility === false" in src
-    # handleSave persists the flag only when new / touched / already-present.
+    # Per-command gating: toggle + display + save all gate on the allow-set membership.
+    assert "alertFacilityCommands.has(activeTab)" in src, "OrderRow toggle must gate on the active tab's membership."
+    assert "alertFacilityCommands.has(command.command_type)" in src, "OrderRow display must gate on command membership."
+    # handleSave persists the flag only when enabled AND (new or touched).
     assert "alertFacilityTouched" in src, "order-row.js must track whether the toggle was touched."
-    assert "if (isNew || alertFacilityTouched) {" in src, (
-        "handleSave must only materialize alert_facility for a new card or a touched toggle."
+    assert "if (alertFacilityCommands.has(activeTab) && (isNew || alertFacilityTouched)) {" in src, (
+        "handleSave must only materialize alert_facility for an enabled command that is new or touched."
     )
 
 
@@ -3650,12 +3691,13 @@ def test_medication_row_alert_facility_off_default_and_explicit_display() -> Non
     assert "alert_facility !== false" not in src, (
         "medication-row.js still contains a `!== false` Alert Facility default (defaults ON)."
     )
-    # Display gates on an explicit boolean; no fabricated default.
+    # Display gates on an explicit boolean AND command membership; no fabricated default.
     assert "command.data.alert_facility === true || command.data.alert_facility === false" in src
+    assert "alertFacilityCommands.has(command.command_type)" in src, "MedicationRow must gate on command membership."
     assert "alertFacilityTouched" in src, "medication-row.js must track whether the toggle was touched."
-    assert "if (!command.display || alertFacilityTouched) {" in src, (
-        "handleSave must only materialize alert_facility for a new card or a touched toggle."
-    )
+    assert (
+        "if (alertFacilityCommands.has(command.command_type) && (!command.display || alertFacilityTouched)) {" in src
+    ), "handleSave must only materialize alert_facility for an enabled command that is new or touched."
 
 
 def test_stop_medication_alert_facility_no_seed_and_explicit_display() -> None:

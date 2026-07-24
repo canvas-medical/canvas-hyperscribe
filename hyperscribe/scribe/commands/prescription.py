@@ -87,9 +87,9 @@ class PrescriptionParser(CommandParser):
         self,
         command: _BaseCommand,
         proposal: dict[str, Any] | None = None,
-        feature_flags: dict[str, bool] | None = None,
+        feature_flags: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
-        if not (feature_flags or {}).get("AlertFacilityEnabled"):
+        if self.command_type not in (feature_flags or {}).get("AlertFacilityCommands", set()):
             return None
         # Alert Facility defaults to Yes; only an explicit stored ``False`` records No.
         truthy = ((proposal or {}).get("data") or {}).get("alert_facility", True) is not False

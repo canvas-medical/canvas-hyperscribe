@@ -118,7 +118,7 @@ const CHARGE_SEARCH_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
 const REMOVAL_TYPES = new Set(['stop_medication', 'remove_allergy', 'resolve_condition']);
 
-function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, alertFacilityEnabled }) {
+function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, alertFacilityCommands }) {
   const data = command.data || {};
   const type = command.command_type;
   const hasItem = !!(data.medication_id || data.allergy_id || data.condition_id);
@@ -189,10 +189,10 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
       <span class="removal-action-label">${config.actionLabel}</span>
       <span class="removal-item-name">${itemName}</span>
     </div>
-    ${type === 'stop_medication' && readOnly && (data.rationale || (alertFacilityEnabled && (data.alert_facility === true || data.alert_facility === false))) && html`
+    ${type === 'stop_medication' && readOnly && (data.rationale || (alertFacilityCommands.has(command.command_type) && (data.alert_facility === true || data.alert_facility === false))) && html`
       <div style="margin-top: 2px;">
         ${data.rationale && html`<div style="font-size: 13px; color: #6b7280;">${data.rationale}</div>`}
-        ${alertFacilityEnabled && (data.alert_facility === true || data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${data.alert_facility ? 'Yes' : 'No'}</div>`}
+        ${alertFacilityCommands.has(command.command_type) && (data.alert_facility === true || data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${data.alert_facility ? 'Yes' : 'No'}</div>`}
       </div>
     `}
     ${type === 'stop_medication' && hasItem && !readOnly && html`
@@ -206,7 +206,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
           placeholder="Reason for stopping..."
         />
       </div>
-      ${alertFacilityEnabled && html`
+      ${alertFacilityCommands.has(command.command_type) && html`
       <div class="history-form-field" style="margin-top: 8px;">
         <button type="button" class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: !data.alert_facility })}>
           <div class="toggle-switch${data.alert_facility === true ? ' on' : ''}">
@@ -715,7 +715,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, canEdit = true, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false, dictation }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, canEdit = true, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false, dictation }) {
   const isCharges = title === 'CHARGES';
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
@@ -995,7 +995,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${reRowReadOnly}
                           patientId=${patientId}
-                          alertFacilityEnabled=${alertFacilityEnabled}
+                          alertFacilityCommands=${alertFacilityCommands}
                         />
                       </div>
                       ${!readOnly && !re.command.already_documented && !re.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(re.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1224,7 +1224,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          alertFacilityEnabled=${alertFacilityEnabled}
+                          alertFacilityCommands=${alertFacilityCommands}
                           readOnly=${medRowReadOnly}
                           onEditingChange=${onEditingChange}
                         />
@@ -1251,7 +1251,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          alertFacilityEnabled=${alertFacilityEnabled}
+                          alertFacilityCommands=${alertFacilityCommands}
                           readOnly=${adHocMedRowReadOnly}
                           onEditingChange=${onEditingChange}
                         />
@@ -1280,7 +1280,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditRecommendation}
-                          alertFacilityEnabled=${alertFacilityEnabled}
+                          alertFacilityCommands=${alertFacilityCommands}
                           readOnly=${medRecRowReadOnly || isRejected}
                           onEditingChange=${onEditingChange}                        />
                       </div>
@@ -1303,7 +1303,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${stopMedRowReadOnly}
                           patientId=${patientId}
-                          alertFacilityEnabled=${alertFacilityEnabled}
+                          alertFacilityCommands=${alertFacilityCommands}
                         />
                       </div>
                       ${!readOnly && html`<div class="recommendation-actions">
@@ -1406,7 +1406,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${removeAllergyRowReadOnly}
                           patientId=${patientId}
-                          alertFacilityEnabled=${alertFacilityEnabled}
+                          alertFacilityCommands=${alertFacilityCommands}
                         />
                       </div>
                       ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1490,7 +1490,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${resolveRowReadOnly}
                           patientId=${patientId}
-                          alertFacilityEnabled=${alertFacilityEnabled}
+                          alertFacilityCommands=${alertFacilityCommands}
                         />
                       </div>
                       ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1602,7 +1602,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
                     readOnly=${orderRowReadOnly}
-                    alertFacilityEnabled=${alertFacilityEnabled}
+                    alertFacilityCommands=${alertFacilityCommands}
                     patientId=${patientId}
                     noteId=${noteId}
                     staffId=${staffId}
@@ -1763,7 +1763,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
                       readOnly=${rxRecRowReadOnly || isRejected}
-                      alertFacilityEnabled=${alertFacilityEnabled}
+                      alertFacilityCommands=${alertFacilityCommands}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}
@@ -1811,7 +1811,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
                       readOnly=${referRecRowReadOnly || isRejected}
-                      alertFacilityEnabled=${alertFacilityEnabled}
+                      alertFacilityCommands=${alertFacilityCommands}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}

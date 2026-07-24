@@ -12,6 +12,7 @@ from canvas_sdk.v1.data.staff import Staff
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.models.scribe import ScribeTranscript
 from hyperscribe.scribe.api.session_view import _load_initial_data
+from hyperscribe.scribe.commands._alert_facility import parse_alert_facility_commands
 
 
 def _safe_json(data: Any) -> str:
@@ -91,7 +92,9 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
                 "debug_mode": "true" if self.secrets.get("ScribeDebugStaffers") else "",
                 "note_editable": "true" if note_editable else "",
                 "is_author": "true" if is_author else "",
-                "alert_facility_enabled": "true" if self.secrets.get("AlertFacilityEnabled") else "",
+                "alert_facility_commands": ",".join(
+                    sorted(parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands")))
+                ),
                 "manual_mode_only": "true" if self.secrets.get("ScribeManualModeOnly") else "",
                 "dictation_enabled": "true" if dictation_enabled else "",
                 "initial_data": _safe_json(initial_data),

@@ -260,7 +260,7 @@
     "views": []
   },
   "secrets": [
-    "AlertFacilityEnabled",
+    "AlertFacilityCommands",
     "AnthropicAPIKey",
     "APISigningKey",
     "AudioHost",

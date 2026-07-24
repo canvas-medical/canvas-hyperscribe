@@ -372,7 +372,7 @@ _BUILD_ERROR_LABELS: dict[str, str] = {
 def build_effects(
     proposals: list[dict[str, Any]],
     note_uuid: str,
-    feature_flags: dict[str, bool] | None = None,
+    feature_flags: dict[str, Any] | None = None,
 ) -> tuple[list[Effect], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Convert selected command proposals into Canvas SDK Effects.
 

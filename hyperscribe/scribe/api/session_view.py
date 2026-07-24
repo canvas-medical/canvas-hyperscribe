@@ -54,6 +54,11 @@ from hyperscribe.scribe.backend import (
     TranscriptItem,
     get_backend_from_secrets,
 )
+from hyperscribe.scribe.commands._alert_facility import (
+    COMMAND_TYPE_BY_SCHEMA_KEY,
+    DEFAULT_ON_BY_COMMAND_TYPE,
+    parse_alert_facility_commands,
+)
 from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
 from hyperscribe.scribe.commands.diagnosis_candidates import PatientConditionSnapshot
 from hyperscribe.scribe.commands.builder import (
@@ -244,40 +249,20 @@ _AMEND_AUDIT_ENTRY_KEYS = (
 # read-only card — no per-type routing into the existing SOAP groups.
 FROM_THE_NOTE_SECTION = "from_the_note"
 
-# Committed-command schema keys that carry the Alert Facility flag (stored as
-# command metadata, not in Command.data). Used to surface the flag on the flat
-# ADDITIONAL COMMANDS cards so it stays visible after a command hits the chart.
-ALERT_FACILITY_SCHEMA_KEYS = frozenset(
-    {"prescribe", "adjustPrescription", "refill", "medicationStatement", "stopMedication"}
-)
 
-# Per-command-type default for the Alert Facility flag, keyed by the frontend
-# command_type (snake_case). Prescribe and adjust prescription default on; the
-# rest default off. Applied only to freshly generated cards (see
-# _inject_alert_facility_defaults) so a new card shows its default without being
-# opened, while historical commands are left untouched.
-ALERT_FACILITY_DEFAULT_BY_COMMAND_TYPE = {
-    "prescribe": True,
-    "adjust_prescription": True,
-    "refill": False,
-    "medication_statement": False,
-    "stop_medication": False,
-}
-
-
-def _inject_alert_facility_defaults(proposals: list[dict[str, Any]], enabled: bool) -> None:
+def _inject_alert_facility_defaults(proposals: list[dict[str, Any]], allowed_commands: set[str]) -> None:
     """Materialize the per-type Alert Facility default onto freshly generated
     command/recommendation proposals so a new card displays its default without
-    being opened. ``setdefault`` means an explicit, already-chosen value always
-    wins. No-op when the feature flag is off. Only ever called on the current
-    generation's proposals — never on historical/committed commands."""
-    if not enabled:
+    being opened. Applies only to command types in ``allowed_commands``.
+    ``setdefault`` means an explicit, already-chosen value always wins. Only ever
+    called on the current generation's proposals — never on historical commands."""
+    if not allowed_commands:
         return
     for proposal in proposals:
         command_type = proposal.get("command_type")
-        if not isinstance(command_type, str):
+        if not isinstance(command_type, str) or command_type not in allowed_commands:
             continue
-        default_on = ALERT_FACILITY_DEFAULT_BY_COMMAND_TYPE.get(command_type)
+        default_on = DEFAULT_ON_BY_COMMAND_TYPE.get(command_type)
         data = proposal.get("data")
         if default_on is not None and isinstance(data, dict):
             data.setdefault("alert_facility", default_on)
@@ -1488,11 +1473,12 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
         # ── Alert Facility: stamp per-type defaults onto freshly generated cards ──
         # So a new command/recommendation shows its default without being opened.
-        # Runs only on fresh generation (never on cache reload or /note-commands),
-        # and setdefault leaves any explicit value untouched.
-        alert_facility_enabled = bool(self.secrets.get("AlertFacilityEnabled"))
-        _inject_alert_facility_defaults(commands_list, alert_facility_enabled)
-        _inject_alert_facility_defaults(recommendations_list, alert_facility_enabled)
+        # Only for command types the AlertFacilityCommands secret allows; runs only on
+        # fresh generation (never on cache reload or /note-commands), and setdefault
+        # leaves any explicit value untouched.
+        alert_facility_commands = parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+        _inject_alert_facility_defaults(commands_list, alert_facility_commands)
+        _inject_alert_facility_defaults(recommendations_list, alert_facility_commands)
 
         # ── Save to database ──
         # `mode` and `selected_template_name` are owned by the session lifecycle
@@ -1791,7 +1777,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     status_code=HTTPStatus.BAD_REQUEST,
                 )
             ]
-        feature_flags = {"AlertFacilityEnabled": bool(self.secrets.get("AlertFacilityEnabled"))}
+        feature_flags = {
+            "AlertFacilityCommands": parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+        }
         # Carry-forward assess backgrounds from prior signed notes BEFORE building
         # effects, so the SDK command constructor sees the prefilled value. This
         # mirrors the symmetric placement of ``annotate_duplicates`` (called by
@@ -2423,15 +2411,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         # Alert Facility lives in command metadata (not Command.data), so read it
         # back in one batched query and surface it as a detail row — keeping the
         # flag visible on the flat cards, consistent with the pre-commit view.
-        # Absent metadata defaults to "Yes", matching the Scribe-side default.
-        alert_facility_enabled = bool(self.secrets.get("AlertFacilityEnabled"))
+        # Only for command types the AlertFacilityCommands secret allows.
+        allowed_commands = parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+        allowed_schema_keys = {sk for sk, ct in COMMAND_TYPE_BY_SCHEMA_KEY.items() if ct in allowed_commands}
         alert_facility_by_command: dict[str, str] = {}
-        if alert_facility_enabled:
+        if allowed_schema_keys:
             from canvas_sdk.v1.data.command import CommandMetadata
 
-            alert_command_ids = [
-                row["id"] for row in rows if (row.get("schema_key") or "") in ALERT_FACILITY_SCHEMA_KEYS
-            ]
+            alert_command_ids = [row["id"] for row in rows if (row.get("schema_key") or "") in allowed_schema_keys]
             if alert_command_ids:
                 for meta in CommandMetadata.objects.filter(
                     command__id__in=alert_command_ids, key="alert_facility"
@@ -2443,7 +2430,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             schema_key = row.get("schema_key") or ""
             data = row.get("data") or {}
             details = _details_for_command(data)
-            if alert_facility_enabled and schema_key in ALERT_FACILITY_SCHEMA_KEYS:
+            if schema_key in allowed_schema_keys:
                 # Show the flag only when the command actually recorded one. Post-feature
                 # commands always carry an explicit alert_facility metadata row (build_effects
                 # writes one via pending_metadata); a missing row means a pre-feature (or

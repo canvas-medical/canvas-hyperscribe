@@ -254,13 +254,18 @@ def test_pending_metadata_flag_off_returns_none() -> None:
     proposal = {"data": {"alert_facility": True}}
     assert MedicationParser().pending_metadata(cmd, proposal, feature_flags={}) is None
     assert MedicationParser().pending_metadata(cmd, proposal, feature_flags=None) is None
-    assert MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": False}) is None
+    assert (
+        MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityCommands": {"prescribe"}})
+        is None
+    )
 
 
 def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
     cmd = _make_med_command()
     proposal = {"data": {"alert_facility": True}}
-    result = MedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
+    result = MedicationParser().pending_metadata(
+        cmd, proposal, feature_flags={"AlertFacilityCommands": {"medication_statement"}}
+    )
     assert result == {
         "command_uuid": cmd.command_uuid,
         "command_type": "medication_statement",
@@ -272,7 +277,7 @@ def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
 def test_pending_metadata_flag_on_explicit_false_returns_no() -> None:
     cmd = _make_med_command()
     result = MedicationParser().pending_metadata(
-        cmd, {"data": {"alert_facility": False}}, feature_flags={"AlertFacilityEnabled": True}
+        cmd, {"data": {"alert_facility": False}}, feature_flags={"AlertFacilityCommands": {"medication_statement"}}
     )
     assert result is not None
     assert result["metadata"] == {"alert_facility": "No"}
@@ -280,7 +285,7 @@ def test_pending_metadata_flag_on_explicit_false_returns_no() -> None:
 
 def test_pending_metadata_flag_on_defaults_to_no_when_unset() -> None:
     cmd = _make_med_command()
-    flags = {"AlertFacilityEnabled": True}
+    flags = {"AlertFacilityCommands": {"medication_statement"}}
     # Explicit True still records Yes.
     assert MedicationParser().pending_metadata(cmd, {"data": {"alert_facility": True}}, flags)["metadata"] == {
         "alert_facility": "Yes"

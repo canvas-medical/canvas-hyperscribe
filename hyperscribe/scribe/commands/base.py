@@ -83,7 +83,7 @@ class CommandParser(ABC):
         self,
         command: _BaseCommand,
         proposal: dict[str, Any] | None = None,
-        feature_flags: dict[str, bool] | None = None,
+        feature_flags: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """Return metadata to upsert, or None. Override per command type."""
         return None

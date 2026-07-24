@@ -323,7 +323,7 @@ def test_build_effects_medication_with_alert_facility_emits_yes_inline() -> None
         effects, metadata_pending, attempted, build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
-            feature_flags={"AlertFacilityEnabled": True},
+            feature_flags={"AlertFacilityCommands": {"medication_statement"}},
         )
 
     assert len(effects) == 3
@@ -364,7 +364,7 @@ def test_build_effects_medication_alert_facility_false_writes_no_inline() -> Non
         effects, metadata_pending, attempted, build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
-            feature_flags={"AlertFacilityEnabled": True},
+            feature_flags={"AlertFacilityCommands": {"medication_statement"}},
         )
 
     assert len(effects) == 3
@@ -391,7 +391,7 @@ def test_build_effects_medication_alert_facility_flag_off_no_metadata() -> None:
         effects, metadata_pending, attempted, build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
-            feature_flags={"AlertFacilityEnabled": False},
+            feature_flags={"AlertFacilityCommands": set()},
         )
 
     assert len(effects) == 2
