@@ -35,9 +35,9 @@ class StopMedicationParser(CommandParser):
         self,
         command: _BaseCommand,
         proposal: dict[str, Any] | None = None,
-        feature_flags: dict[str, bool] | None = None,
+        feature_flags: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
-        if not (feature_flags or {}).get("AlertFacilityEnabled"):
+        if self.command_type not in (feature_flags or {}).get("AlertFacilityCommands", set()):
             return None
         # Stop medication defaults to No; only an explicit stored ``True`` records Yes.
         truthy = ((proposal or {}).get("data") or {}).get("alert_facility", False) is not False

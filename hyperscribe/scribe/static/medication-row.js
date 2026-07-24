@@ -24,7 +24,7 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityEnabled, onEditingChange }) {
+export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityCommands, onEditingChange }) {
   const [editing, setEditing] = useState(!command.display);
   useEffect(() => {
     onEditingChange?.(commandIndex, editing);
@@ -110,9 +110,10 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
 
   const handleSave = () => {
     const newData = { ...command.data, medication_text: selectedDisplay, sig };
-    // Materialize the flag for a brand-new card or when the user set it; otherwise the
-    // `...command.data` spread preserves any existing value and an absent one stays absent.
-    if (!command.display || alertFacilityTouched) {
+    // Materialize the flag only when this command type is enabled AND it's a brand-new card
+    // or the user set it; otherwise the `...command.data` spread preserves any existing value
+    // and an absent one stays absent.
+    if (alertFacilityCommands.has(command.command_type) && (!command.display || alertFacilityTouched)) {
       newData.alert_facility = alertFacility;
     }
     if (selectedFdb) {
@@ -156,7 +157,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
         <div class="order-view">
           <div class="order-view-name">${command.display}</div>
           ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
-          ${alertFacilityEnabled && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
+          ${alertFacilityCommands.has(command.command_type) && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
         </div>
       </div>
     `;
@@ -209,7 +210,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
               placeholder="e.g. Take 1 tablet daily"
             />
           </div>
-          ${alertFacilityEnabled && html`
+          ${alertFacilityCommands.has(command.command_type) && html`
           <div class="history-form-field">
             <button type="button" class="alert-facility-toggle" onClick=${() => { setAlertFacility(prev => !prev); setAlertFacilityTouched(true); }}>
               <div class="toggle-switch${alertFacility ? ' on' : ''}">
@@ -235,7 +236,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
       <div class="order-view">
         <div class="order-view-name">${command.display}</div>
         ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
-        ${alertFacilityEnabled && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
+        ${alertFacilityCommands.has(command.command_type) && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
       </div>
     </div>
   `;

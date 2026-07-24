@@ -111,13 +111,15 @@ def test_pending_metadata_flag_off_returns_none() -> None:
     proposal = {"data": {"alert_facility": True}}
     assert RefillParser().pending_metadata(cmd, proposal, feature_flags={}) is None
     assert RefillParser().pending_metadata(cmd, proposal, feature_flags=None) is None
-    assert RefillParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": False}) is None
+    assert (
+        RefillParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityCommands": {"prescribe"}}) is None
+    )
 
 
 def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
     cmd = _make_rx_command()
     proposal = {"data": {"alert_facility": True}}
-    result = RefillParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
+    result = RefillParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityCommands": {"refill"}})
     assert result == {
         "command_uuid": cmd.command_uuid,
         "command_type": "refill",
@@ -129,7 +131,7 @@ def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
 def test_pending_metadata_flag_on_explicit_false_returns_no() -> None:
     cmd = _make_rx_command()
     result = RefillParser().pending_metadata(
-        cmd, {"data": {"alert_facility": False}}, feature_flags={"AlertFacilityEnabled": True}
+        cmd, {"data": {"alert_facility": False}}, feature_flags={"AlertFacilityCommands": {"refill"}}
     )
     assert result is not None
     assert result["metadata"] == {"alert_facility": "No"}
@@ -137,7 +139,7 @@ def test_pending_metadata_flag_on_explicit_false_returns_no() -> None:
 
 def test_pending_metadata_flag_on_defaults_to_no_when_unset() -> None:
     cmd = _make_rx_command()
-    flags = {"AlertFacilityEnabled": True}
+    flags = {"AlertFacilityCommands": {"refill"}}
     # Explicit True still records Yes.
     assert RefillParser().pending_metadata(cmd, {"data": {"alert_facility": True}}, flags)["metadata"] == {
         "alert_facility": "Yes"

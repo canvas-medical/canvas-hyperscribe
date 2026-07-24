@@ -207,7 +207,9 @@ def test_pending_metadata_flag_off_returns_none() -> None:
     assert AdjustPrescriptionParser().pending_metadata(cmd, proposal, feature_flags={}) is None
     assert AdjustPrescriptionParser().pending_metadata(cmd, proposal, feature_flags=None) is None
     assert (
-        AdjustPrescriptionParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": False})
+        AdjustPrescriptionParser().pending_metadata(
+            cmd, proposal, feature_flags={"AlertFacilityCommands": {"prescribe"}}
+        )
         is None
     )
 
@@ -215,7 +217,9 @@ def test_pending_metadata_flag_off_returns_none() -> None:
 def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
     cmd = _make_rx_command()
     proposal = {"data": {"alert_facility": True}}
-    result = AdjustPrescriptionParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
+    result = AdjustPrescriptionParser().pending_metadata(
+        cmd, proposal, feature_flags={"AlertFacilityCommands": {"adjust_prescription"}}
+    )
     assert result == {
         "command_uuid": cmd.command_uuid,
         "command_type": "adjust_prescription",
@@ -227,7 +231,7 @@ def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
 def test_pending_metadata_flag_on_explicit_false_returns_no() -> None:
     cmd = _make_rx_command()
     result = AdjustPrescriptionParser().pending_metadata(
-        cmd, {"data": {"alert_facility": False}}, feature_flags={"AlertFacilityEnabled": True}
+        cmd, {"data": {"alert_facility": False}}, feature_flags={"AlertFacilityCommands": {"adjust_prescription"}}
     )
     assert result is not None
     assert result["metadata"] == {"alert_facility": "No"}
@@ -241,7 +245,7 @@ def test_pending_metadata_flag_on_defaults_to_yes_when_unset() -> None:
         None,
     ):
         result = AdjustPrescriptionParser().pending_metadata(
-            cmd, proposal, feature_flags={"AlertFacilityEnabled": True}
+            cmd, proposal, feature_flags={"AlertFacilityCommands": {"adjust_prescription"}}
         )
         assert result is not None
         assert result["metadata"] == {"alert_facility": "Yes"}
