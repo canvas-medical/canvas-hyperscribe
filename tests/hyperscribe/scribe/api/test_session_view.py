@@ -3632,6 +3632,96 @@ def test_inject_alert_facility_defaults_ignores_unrelated_and_malformed() -> Non
     assert "data" not in proposals[2]
 
 
+# ---- _reconcile_committed_alert_facility: committed record is truth for locked cards ----
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_reconcile_committed_alert_facility_sets_strips_and_preserves(
+    mock_command: MagicMock, mock_metadata: MagicMock
+) -> None:
+    from hyperscribe.scribe.api.session_view import _reconcile_committed_alert_facility
+
+    commands = [
+        {"command_type": "prescribe", "command_uuid": "u-yes", "data": {"alert_facility": False}},
+        {"command_type": "refill", "command_uuid": "u-no", "data": {"alert_facility": True}},
+        {"command_type": "medication_statement", "command_uuid": "u-strip", "data": {"alert_facility": True}},
+        {"command_type": "prescribe", "command_uuid": "u-draft", "data": {"alert_facility": True}},
+        {"command_type": "prescribe", "command_uuid": "u-add", "data": {}},
+    ]
+    # u-draft is NOT in the committed set (an in-progress draft).
+    mock_command.objects.filter.return_value.exclude.return_value.values_list.return_value = [
+        "u-yes",
+        "u-no",
+        "u-strip",
+        "u-add",
+    ]
+    mock_metadata.objects.filter.return_value.values.return_value = [
+        {"command__id": "u-yes", "value": "Yes"},
+        {"command__id": "u-no", "value": "No"},
+        {"command__id": "u-add", "value": "Yes"},
+    ]
+    _reconcile_committed_alert_facility(commands, "note-uuid", _ALL_ALERT_COMMANDS)
+
+    assert commands[0]["data"]["alert_facility"] is True  # committed + "Yes" → True (committed wins over stale cache)
+    assert commands[1]["data"]["alert_facility"] is False  # committed + "No" → False
+    assert "alert_facility" not in commands[2]["data"]  # committed + no metadata → stripped (pre-feature)
+    assert commands[3]["data"]["alert_facility"] is True  # uncommitted draft → untouched
+    assert commands[4]["data"]["alert_facility"] is True  # committed + "Yes" → key added even though cache lacked it
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+def test_reconcile_committed_alert_facility_empty_allowset_is_noop(mock_command: MagicMock) -> None:
+    from hyperscribe.scribe.api.session_view import _reconcile_committed_alert_facility
+
+    commands = [{"command_type": "prescribe", "command_uuid": "u1", "data": {"alert_facility": True}}]
+    _reconcile_committed_alert_facility(commands, "note-uuid", set())
+    assert commands[0]["data"]["alert_facility"] is True
+    mock_command.objects.filter.assert_not_called()
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+def test_reconcile_committed_alert_facility_skips_disallowed_type(mock_command: MagicMock) -> None:
+    from hyperscribe.scribe.api.session_view import _reconcile_committed_alert_facility
+
+    commands = [{"command_type": "prescribe", "command_uuid": "u1", "data": {"alert_facility": True}}]
+    _reconcile_committed_alert_facility(commands, "note-uuid", {"refill"})  # prescribe not allowed
+    assert commands[0]["data"]["alert_facility"] is True  # untouched; no query issued
+    mock_command.objects.filter.assert_not_called()
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_load_summary_strips_alert_facility_when_not_in_committed_record(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_command: MagicMock, mock_metadata: MagicMock
+) -> None:
+    """A locked/committed command whose cache carries a fabricated alert_facility but has no
+    committed metadata row is served with the flag stripped."""
+    from hyperscribe.scribe.api.session_view import _load_summary
+
+    mock_note.objects.values_list.return_value.get.return_value = 7
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
+        "note_data": None,
+        "commands": [{"command_type": "prescribe", "command_uuid": "u1", "data": {"alert_facility": True}}],
+        "approved": True,
+        "was_finalized": True,
+        "recommendations": [],
+        "unmatched_conditions": [],
+        "diagnosis_suggestions": {},
+        "selected_template_name": "",
+        "mode": "ai",
+    }
+    mock_command.objects.filter.return_value.exclude.return_value.values_list.return_value = ["u1"]  # committed
+    mock_metadata.objects.filter.return_value.values.return_value = []  # but no metadata row
+
+    data = _load_summary("note-uuid", {"prescribe"})
+
+    assert data is not None
+    assert "alert_facility" not in data["commands"][0]["data"]
+
+
 # ---- Alert Facility per-command-type default (frontend source pins) ----
 #
 # Structural pins, not runtime behavioral pins — they do NOT execute the React

@@ -593,7 +593,60 @@ def _infer_mode_for_heal(note_dbid: int) -> str:
     return ""
 
 
-def _load_summary(note_id: str) -> dict[str, Any] | None:
+def _reconcile_committed_alert_facility(
+    commands: list[dict[str, Any]], note_id: str, allowed_commands: set[str]
+) -> None:
+    """Make the Alert Facility value shown for COMMITTED commands match the committed record.
+
+    The Scribe cache can hold a fabricated/default ``alert_facility`` that was never written to
+    the chart (e.g. stamped by a post-launch re-generation, or carried forward on an edit-save).
+    For a committed command the committed ``CommandMetadata`` is the source of truth: show its
+    value when present, and show nothing when absent (a pre-feature command). Uncommitted (draft)
+    commands are left alone so their working value keeps showing. Mutates ``commands`` in place —
+    display-only; the persisted cache row is not rewritten.
+    """
+    if not allowed_commands:
+        return
+    applicable_uuids = [
+        str(c["command_uuid"])
+        for c in commands
+        if isinstance(c, dict) and c.get("command_type") in allowed_commands and c.get("command_uuid")
+    ]
+    if not applicable_uuids:
+        return
+
+    from canvas_sdk.v1.data.command import Command, CommandMetadata
+
+    committed_uuids = {
+        str(cid)
+        for cid in Command.objects.filter(note__id=note_id, id__in=applicable_uuids)
+        .exclude(state="entered_in_error")
+        .values_list("id", flat=True)
+    }
+    if not committed_uuids:
+        return
+    value_by_uuid = {
+        str(meta["command__id"]): meta["value"]
+        for meta in CommandMetadata.objects.filter(command__id__in=committed_uuids, key="alert_facility").values(
+            "command__id", "value"
+        )
+    }
+    for command in commands:
+        if not isinstance(command, dict) or command.get("command_type") not in allowed_commands:
+            continue
+        uuid = str(command.get("command_uuid") or "")
+        if uuid not in committed_uuids:
+            continue  # uncommitted draft — keep its working value
+        data = command.get("data")
+        if not isinstance(data, dict):
+            continue
+        if uuid in value_by_uuid:
+            data["alert_facility"] = value_by_uuid[uuid] == "Yes"
+        else:
+            data.pop("alert_facility", None)
+
+
+def _load_summary(note_id: str, alert_facility_commands: set[str]) -> dict[str, Any] | None:
     note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
     row = (
         ScribeSummary.objects.filter(note_id=note_dbid)
@@ -619,9 +672,11 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
             updated = ScribeSummary.objects.filter(note_id=note_dbid, mode="").update(mode=inferred)
             if updated:
                 mode = inferred
+    commands = row["commands"] or []
+    _reconcile_committed_alert_facility(commands, note_id, alert_facility_commands)
     return {
         "note": row["note_data"] or None,
-        "commands": row["commands"] or [],
+        "commands": commands,
         "approved": row["approved"],
         "was_finalized": row["was_finalized"],
         "recommendations": row["recommendations"] or [],
@@ -831,7 +886,7 @@ def _load_initial_data(note_id: str, secrets: dict[str, str]) -> dict[str, Any]:
     """Compile all data needed for the Scribe UI initial render."""
     return {
         "transcript": _load_transcript(note_id),
-        "summary": _load_summary(note_id),
+        "summary": _load_summary(note_id, parse_alert_facility_commands(secrets.get("AlertFacilityCommands"))),
         "assignees": _load_assignees(),
         "templates": _load_templates(secrets),
     }
@@ -1085,7 +1140,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "")
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        data = _load_summary(note_id)
+        data = _load_summary(note_id, parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands")))
         if data is None:
             return [
                 JSONResponse(
