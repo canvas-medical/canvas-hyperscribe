@@ -673,13 +673,20 @@ def _load_summary(note_id: str, alert_facility_commands: set[str]) -> dict[str, 
             if updated:
                 mode = inferred
     commands = row["commands"] or []
+    recommendations = row["recommendations"] or []
+    # Reconcile BOTH surfaces against the committed record. _inject stamps a
+    # per-type default onto commands and recommendations alike, so both can
+    # carry a fabricated value that must be re-derived once a card is committed.
+    # (An unaccepted recommendation has no committed command_uuid and is left
+    # untouched, so it keeps its in-flight default.)
     _reconcile_committed_alert_facility(commands, note_id, alert_facility_commands)
+    _reconcile_committed_alert_facility(recommendations, note_id, alert_facility_commands)
     return {
         "note": row["note_data"] or None,
         "commands": commands,
         "approved": row["approved"],
         "was_finalized": row["was_finalized"],
-        "recommendations": row["recommendations"] or [],
+        "recommendations": recommendations,
         "unmatched_conditions": row["unmatched_conditions"] or [],
         "diagnosis_suggestions": row["diagnosis_suggestions"] or {},
         "selected_template_name": row["selected_template_name"] or None,

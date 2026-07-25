@@ -3722,6 +3722,49 @@ def test_load_summary_strips_alert_facility_when_not_in_committed_record(
     assert "alert_facility" not in data["commands"][0]["data"]
 
 
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_load_summary_reconciles_recommendations_like_commands(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_command: MagicMock, mock_metadata: MagicMock
+) -> None:
+    """_inject stamps a per-type default onto recommendations as well as commands,
+    so _load_summary must reconcile BOTH against the committed record — not just
+    commands. A committed recommendation with a fabricated flag but no metadata row
+    is stripped; one with a metadata row shows the true value; an unaccepted
+    recommendation (no committed command) keeps its in-flight default untouched."""
+    from hyperscribe.scribe.api.session_view import _load_summary
+
+    mock_note.objects.values_list.return_value.get.return_value = 7
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
+        "note_data": None,
+        "commands": [],
+        "approved": True,
+        "was_finalized": True,
+        "recommendations": [
+            {"command_type": "prescribe", "command_uuid": "r-strip", "data": {"alert_facility": True}},
+            {"command_type": "medication_statement", "command_uuid": "r-yes", "data": {"alert_facility": False}},
+            {"command_type": "prescribe", "command_uuid": "r-draft", "data": {"alert_facility": True}},
+        ],
+        "unmatched_conditions": [],
+        "diagnosis_suggestions": {},
+        "selected_template_name": "",
+        "mode": "ai",
+    }
+    # r-strip and r-yes are committed; r-draft is an unaccepted recommendation (no committed command).
+    mock_command.objects.filter.return_value.exclude.return_value.values_list.return_value = ["r-strip", "r-yes"]
+    mock_metadata.objects.filter.return_value.values.return_value = [{"command__id": "r-yes", "value": "Yes"}]
+
+    data = _load_summary("note-uuid", {"prescribe", "medication_statement"})
+
+    assert data is not None
+    recs = data["recommendations"]
+    assert "alert_facility" not in recs[0]["data"]  # committed + no metadata → stripped (was fabricated)
+    assert recs[1]["data"]["alert_facility"] is True  # committed + "Yes" → true committed value
+    assert recs[2]["data"]["alert_facility"] is True  # unaccepted rec (uncommitted) → keeps in-flight default
+
+
 # ---- Alert Facility per-command-type default (frontend source pins) ----
 #
 # Structural pins, not runtime behavioral pins — they do NOT execute the React
