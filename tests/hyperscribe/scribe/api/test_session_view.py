@@ -2609,7 +2609,7 @@ def test_edit_existing_commands_rfv_direct_edit(
     assert "rejected" not in data
     assert len(result) == 2  # JSONResponse + 1 effect
     assert result[1] is mock_effect
-    mock_build.assert_called_once_with(commands, "note-uuid-123")
+    mock_build.assert_called_once_with(commands, "note-uuid-123", {"AlertFacilityCommands": set()})
     mock_audit.assert_called_once()
     audit_call = mock_audit.call_args
     assert audit_call.args[0] == "note-uuid-123"
@@ -3039,7 +3039,7 @@ def test_edit_existing_commands_state_lookup_handles_uuid_type_from_postgres(
     )
     body = json.loads(result[0].content)
     assert "conflicts" not in body
-    mock_build.assert_called_once_with(commands, "note-uuid-123")
+    mock_build.assert_called_once_with(commands, "note-uuid-123", {"AlertFacilityCommands": set()})
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
@@ -3154,7 +3154,7 @@ def test_edit_existing_commands_reads_state_before_emitting_effects(
     # And NOT through the no-longer-supported select_for_update() path.
     mock_command.objects.select_for_update.assert_not_called()
     # Happy path: build_amend_edit_effects was invoked (no conflict surfaced).
-    mock_build.assert_called_once_with(commands, "note-uuid-123")
+    mock_build.assert_called_once_with(commands, "note-uuid-123", {"AlertFacilityCommands": set()})
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")

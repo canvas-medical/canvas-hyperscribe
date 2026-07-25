@@ -2111,7 +2111,13 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             # silently dropped by build_amend_edit_effects and logged at WARN
             # there. We don't surface them in the response - they signal a
             # stale or buggy frontend, not a user-facing condition.
-            effects, attempted = build_amend_edit_effects(commands, note_uuid)
+            # feature_flags is threaded through so a void+recreate re-emits
+            # per-command metadata (e.g. Alert Facility) for the recreated
+            # command — otherwise an amended command reads back as pre-feature.
+            feature_flags = {
+                "AlertFacilityCommands": parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+            }
+            effects, attempted = build_amend_edit_effects(commands, note_uuid, feature_flags)
 
         # Audit fires after the state read + effect-emission step. ``audit_event``
         # catches broad Exception via log.exception, so an audit-write failure

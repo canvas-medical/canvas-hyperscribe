@@ -1199,6 +1199,103 @@ def test_build_amend_edit_effects_hpi_void_and_recreate() -> None:
     assert attempted[0]["new_command_uuid"] == minted_uuid
 
 
+def test_build_amend_edit_effects_medication_statement_reemits_alert_facility_metadata() -> None:
+    """Amending a medication_statement (void+recreate) re-emits the Alert Facility
+    metadata for the recreated command, ordered originate -> metadata -> commit.
+
+    Regression guard: without threading ``feature_flags`` into ``pending_metadata``,
+    the recreated command committed with NO alert_facility metadata row, so every
+    read path (reconcile + /note-commands) treated it as pre-feature and silently
+    dropped a value that was genuinely recorded on the original.
+    """
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "medication_statement",
+            "command_uuid": "old-med-uuid-aaaa-bbbb-cccccccccccc",
+            "section_key": "current_medications",
+            "data": {"medication_text": "Lisinopril 10mg", "alert_facility": True},
+            "display": "Lisinopril 10mg",
+        },
+    ]
+    minted_uuid = "fresh-med-uuid-1111-2222-3333-444444444444"
+    with (
+        patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med,
+        patch("hyperscribe.scribe.commands.builder.uuid.uuid4", return_value=minted_uuid),
+    ):
+        old_inst = MagicMock()
+        old_inst.enter_in_error.return_value = "med_enter_in_error"
+        old_inst.command_uuid = "old-med-uuid-aaaa-bbbb-cccccccccccc"
+        new_inst = MagicMock()
+        new_inst.originate.return_value = "med_originate"
+        new_inst.commit.return_value = "med_commit"
+        new_inst.command_uuid = minted_uuid
+        new_inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+        new_inst.Meta.key = "medicationStatement"
+        mock_med.side_effect = [old_inst, new_inst]
+
+        effects, attempted = build_amend_edit_effects(
+            proposals,
+            "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            feature_flags={"AlertFacilityCommands": {"medication_statement"}},
+        )
+
+    # EIE(old) -> Originate(new) -> metadata(new) -> Commit(new): metadata lands
+    # after originate (row exists) and before commit (attaches while STAGED).
+    assert len(effects) == 4
+    assert effects[0] == "med_enter_in_error"
+    assert effects[1] == "med_originate"
+    assert effects[3] == "med_commit"
+    meta_effect = effects[2]
+    assert EffectType.Name(meta_effect.type) == "UPSERT_COMMAND_METADATA"
+    assert json.loads(meta_effect.payload) == {
+        "data": {
+            "schema_key": "medicationStatement",
+            "command_id": minted_uuid,  # the RECREATED command carries the metadata
+            "key": "alert_facility",
+            "value": "Yes",
+        },
+    }
+    assert attempted[0]["mode"] == "void_recreate"
+    assert attempted[0]["new_command_uuid"] == minted_uuid
+
+
+@pytest.mark.parametrize("feature_flags", [{"AlertFacilityCommands": set()}, None])
+def test_build_amend_edit_effects_no_alert_facility_metadata_when_gated_off(
+    feature_flags: dict[str, Any] | None,
+) -> None:
+    """The amend re-emit is gated by AlertFacilityCommands (and by feature_flags
+    being threaded at all): with an empty allow-set — or no feature_flags — a
+    void+recreate emits NO metadata effect, only EIE + originate + commit."""
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "medication_statement",
+            "command_uuid": "old-med-uuid-aaaa-bbbb-cccccccccccc",
+            "section_key": "current_medications",
+            "data": {"medication_text": "Lisinopril 10mg", "alert_facility": True},
+            "display": "Lisinopril 10mg",
+        },
+    ]
+    with (
+        patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med,
+        patch("hyperscribe.scribe.commands.builder.uuid.uuid4", return_value="fresh-med-uuid"),
+    ):
+        old_inst = MagicMock()
+        old_inst.enter_in_error.return_value = "med_enter_in_error"
+        new_inst = MagicMock()
+        new_inst.originate.return_value = "med_originate"
+        new_inst.commit.return_value = "med_commit"
+        mock_med.side_effect = [old_inst, new_inst]
+
+        effects, attempted = build_amend_edit_effects(
+            proposals,
+            "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            feature_flags=feature_flags,
+        )
+
+    assert effects == ["med_enter_in_error", "med_originate", "med_commit"]
+    assert attempted[0]["mode"] == "void_recreate"
+
+
 def test_build_amend_edit_effects_covers_all_void_recreate_sections() -> None:
     """All non-RFV editable sections route through EnterInError(old) +
     Originate(new), with an optional Commit(new) for dedicated-SDK-class
