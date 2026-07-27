@@ -6,7 +6,10 @@ const html = htm.bind(h);
 
 const ICON_PENCIL = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const ICON_SEARCH = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>`;
-const ICON_X = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>`;
+// Revert arrow for the picker menu's "Keep current diagnosis" item. (The picker's own ✕
+// close button is gone — that menu item replaces it, so there is exactly one ✕ on a card
+// and it unambiguously means "dismiss this condition".)
+const ICON_REVERT = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>`;
 // Vertical ⋮ for the search-bar overflow menu, and a "move to a list/section" glyph for its item.
 const ICON_DOTS = html`<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>`;
 const ICON_MOVE = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11"/><path d="M4 12h11"/><path d="M4 17h7"/><path d="M15 15l4 2-4 2"/></svg>`;
@@ -30,7 +33,7 @@ function formatIcdCode(raw) {
   return code.length > 3 ? code.slice(0, 3) + '.' + code.slice(3) : code;
 }
 
-export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readOnly, suggestions, onEditingChange }) {
+export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readOnly, suggestions, onEditingChange, dismissed = false, dismissedRestorable = false }) {
   const data = command.data || {};
   const hasCode = !!data.icd10_code;
   // KOALA_5635_BACKGROUND_ALWAYS_RENDER — Background is available on EVERY
@@ -334,10 +337,17 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
           placeholder=${placeholder}
           aria-label="Search diagnosis codes"
         />
-        ${/* ⋮ menu — the escape hatch for A&P items that aren't a codeable diagnosis.
-            Pinned to the right of the search bar so it stays out of the code list and
-            the Reject/Accept buttons. Only offered when the card can be moved. */ ''}
-        ${onMoveToPlan && html`
+        ${/* ⋮ menu — holds the two ways OUT of the picker that aren't "pick a code":
+              * "Move to Wrap Up" for an A&P item that isn't a codeable diagnosis;
+              * "Keep current diagnosis" to abandon a re-code and keep the existing one.
+            The latter is offered only when ``onClose`` is passed, i.e. only in the
+            "Change" flow on an already-coded card — an uncoded card has no code to keep,
+            and its picker is the card's persistent UI rather than a temporary search.
+            This item replaces the picker's old ✕: with both present a card offered three
+            exits (card ✕, picker ✕, menu item), two of them identical, and the two ✕
+            glyphs meant different things ~40px apart. Now the only ✕ on a condition card
+            dismisses the condition. Escape still cancels (handleKeyDown). */ ''}
+        ${(onMoveToPlan || onClose) && html`
           <div class="diagnose-picker-menu" ref=${menuRef}>
             <button
               type="button"
@@ -350,23 +360,39 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
             >${ICON_DOTS}</button>
             ${showMenu && html`
               <div class="diagnose-picker-menu-pop" role="menu">
-                <button
-                  type="button"
-                  role="menuitem"
-                  class="diagnose-picker-menu-item"
-                  onMouseDown=${(e) => { e.preventDefault(); setShowMenu(false); onMoveToPlan(commandIndex); }}
-                >
-                  ${ICON_MOVE}
-                  <span>
-                    <span class="dpm-title">Move to Wrap Up</span>
-                    <span class="dpm-help">Not a codeable diagnosis — moves this card's free-text content to the Wrap Up section.</span>
-                  </span>
-                </button>
+                ${onMoveToPlan && html`
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="diagnose-picker-menu-item"
+                    onMouseDown=${(e) => { e.preventDefault(); setShowMenu(false); onMoveToPlan(commandIndex); }}
+                  >
+                    ${ICON_MOVE}
+                    <span>
+                      <span class="dpm-title">Move to Wrap Up</span>
+                      <span class="dpm-help">Not a codeable diagnosis — moves this card's free-text content to the Wrap Up section.</span>
+                    </span>
+                  </button>
+                `}
+                ${onMoveToPlan && onClose && html`<div class="diagnose-picker-menu-sep"></div>`}
+                ${onClose && html`
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="diagnose-picker-menu-item"
+                    onMouseDown=${(e) => { e.preventDefault(); setShowMenu(false); onClose(); }}
+                  >
+                    ${ICON_REVERT}
+                    <span>
+                      <span class="dpm-title">Keep current diagnosis</span>
+                      <span class="dpm-help">Closes the search without changing ${formattedCode}.</span>
+                    </span>
+                  </button>
+                `}
               </div>
             `}
           </div>
         `}
-        ${onClose && html`<button type="button" class="diagnose-picker-close" onClick=${onClose} title="Close" aria-label="Close search">${ICON_X}</button>`}
       </div>
       <div class="diagnose-picker-body">
       ${query.length >= 2
@@ -421,10 +447,17 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
       <div class="diagnose-row-header">
         <span class="diagnose-row-title">${titleText}</span>
         ${hasCode && html`<span class="diagnose-icd-code">${formattedCode}</span>`}
-        ${/* Uncoded card: the amber "needs-a-pick" badge lives next to the title
-            (not down in the Reject/Accept action column), so the missing-code
-            signal reads right where the diagnosis name is. */ ''}
-        ${!hasCode && !readOnly && html`<span class="rec-warning-pill">Missing: Diagnosis Code</span>`}
+        ${/* Dismissed card: a neutral gray badge states the state, and (when it can be
+            restored) says how. Gray rather than the red rejected badge — dismissing an AI
+            suggestion is routine, not an error. The code chip above is kept when present so
+            it stays visible WHAT was dismissed. */ ''}
+        ${dismissed && html`<span class="rec-dismissed-badge">Dismissed${dismissedRestorable ? ' · click to restore' : ''}</span>`}
+        ${/* Uncoded card: the amber needs-a-pick chip sits next to the title, in the
+            same slot the green ICD code chip occupies on a coded card, and with the
+            same silhouette — so coded vs uncoded reads straight down the column.
+            (.diagnose-needs-code, NOT .rec-warning-pill: that class keeps its louder
+            bordered-pill treatment for real problems like "Assessment too long".) */ ''}
+        ${!hasCode && !readOnly && html`<span class="diagnose-needs-code">Needs Diagnosis Code</span>`}
         ${hasCode && !readOnly && html`
           <button type="button" class="diagnose-change-btn" onClick=${handleClearCode} title="Change diagnosis">${ICON_PENCIL} Change</button>
         `}
@@ -433,11 +466,14 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
       ${/* "Change diagnosis" picker (already-coded card). */ ''}
       ${hasCode && editingCode && !readOnly && pickerPanel('Search diagnosis codes', handleCloseChange)}
 
-      ${/* No-diagnosis-code state: the integrated picker is the persistent UI. The
+      ${/* No-diagnosis-code state: the integrated picker is the persistent UI, and
+          selecting one of its rows IS the accept (there is no Accept button). The
           ranker leaves a block uncoded when codes conflict or an unspecified code
           has more-specific options; the picker's ranked recommendations (with
-          provenance) are the provider's pick list. The "Missing: Diagnosis Code"
-          action pill is the sole needs-a-pick signal — no separate hint. */ ''}
+          provenance) are the provider's pick list. The header's "Needs Diagnosis
+          Code" chip is the sole needs-a-pick signal — no separate hint. Note this
+          picker gets no `onClose`, so no "Keep current diagnosis" item: there is no
+          existing code to keep. */ ''}
       ${!hasCode && !readOnly && pickerPanel('Search diagnosis codes')}
 
       ${!editingText && html`

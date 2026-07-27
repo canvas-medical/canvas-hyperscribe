@@ -451,6 +451,50 @@ function renderRecActions({ command, index, isAccepted, isRejected, incomplete, 
   `;
 }
 
+// Action column for a CONDITION card (diagnose + assess). Deliberately NOT renderRecActions:
+// condition cards have no Accept/Reject at all any more — picking a code from the picker IS the
+// accept, and the ✕ here IS the reject. The other recommendation families keep renderRecActions
+// unchanged.
+//   - already in chart -> quiet "Added" / "Already in chart" settled status, no ✕
+//   - dismissed        -> NOTHING; the whole card is the restore target (see rec-dismissed)
+//   - read-only        -> over-limit pills only
+//   - otherwise        -> a single ✕ that dismisses
+// `overLimit` is a list of warning labels; they surface even on read-only/locked rows so an
+// over-2048 background/assessment is never silently hidden.
+function renderConditionActions({ command, isDismissed, readOnly, onDismiss, overLimit = [] }) {
+  const pills = overLimit.map((label, i) => html`<span key=${'ol' + i} class="rec-warning-pill">${label}</span>`);
+  if (command.already_documented) {
+    const label = command._added_now ? 'Added' : 'Already in chart';
+    return html`
+      <div class="recommendation-actions">
+        ${pills}
+        <span class="rec-settled"><span class="rec-settled-label">${label}</span><span class="rec-settled-check">${ICON_CHECK}</span></span>
+      </div>
+    `;
+  }
+  // A dismissed card is read-only and carries no controls; pills would be noise on it.
+  if (isDismissed) return null;
+  if (readOnly) return pills.length ? html`<div class="recommendation-actions">${pills}</div>` : null;
+  return html`
+    <div class="recommendation-actions">
+      ${pills}
+      <button type="button" class="rec-remove-x" onClick=${onDismiss} title="Dismiss">${ICON_X}</button>
+    </div>
+  `;
+}
+
+// Keyboard activation for a dismissed condition card. The card IS the restore control, so it
+// has to behave like one: Tab-reachable (tabindex="0"), Enter/Space activate. Without this the
+// only way back from an accidental dismiss would be mouse-only.
+function dismissedKeyDown(onRestore) {
+  return (e) => {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault();
+      onRestore();
+    }
+  };
+}
+
 function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingChange }) {
   const data = command.data || {};
   const [editing, setEditing] = useState(false);
@@ -843,19 +887,37 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                      A variant-specific key forces a clean remount instead. */ ''}
                 <div class="subsection" key=${s.key + '-conditions'}>
                   <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
-                  ${cmds.filter(e => e.command.command_type === 'assess').map(entry => {
+                  ${cmds.filter(e => e.command.command_type === 'assess' && (!shouldHideRejected || !(e.command.data && e.command.data.rejected))).map(entry => {
                     const aData = entry.command.data || {};
                     const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
                     const aFormatted = aCode.length > 3 ? aCode.slice(0, 3) + '.' + aCode.slice(3) : aCode;
-                    const assessRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
+                    // Dismissal now matches the diagnose card: the ✕ marks `data.rejected` (hidden
+                    // by the top-bar toggle, restorable by clicking the card) instead of deleting
+                    // the row outright. The two condition-card types show an identical ✕ in an
+                    // identical place, so they must not differ in permanence — an assess card
+                    // carries AI-written assessment text that a mis-click should not destroy.
+                    const aDismissed = !!aData.rejected;
+                    const assessRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending) || aDismissed;
+                    const dismissAssess = () => onEditCommand(entry.index, { ...aData, rejected: true }, 'assess');
+                    const restoreAssess = () => onEditCommand(entry.index, { ...aData, rejected: false }, 'assess');
+                    const aRestorable = aDismissed && !readOnly;
                     return html`
-                      <div class=${`content-block recommendation-block rec-assess${assessRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      <div
+                        class=${`content-block recommendation-block rec-assess${aDismissed ? ' rec-dismissed' : ''}${assessRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}
+                        key=${entry.index}
+                        role=${aRestorable ? 'button' : null}
+                        tabIndex=${aRestorable ? 0 : null}
+                        title=${aRestorable ? 'Restore this condition' : null}
+                        onClick=${aRestorable ? restoreAssess : null}
+                        onKeyDown=${aRestorable ? dismissedKeyDown(restoreAssess) : null}
+                      >
                         ${assessRowReadOnly && entry.command.already_documented && ICON_LOCK}
                         <div class="recommendation-content">
                           <div class="diagnose-row">
                             <div class="diagnose-row-header">
                               <span class="diagnose-row-title">${entry.command.display}</span>
                               ${aFormatted ? html`<span class="diagnose-icd-code">${aFormatted}</span>` : ''}
+                              ${aDismissed && html`<span class="rec-dismissed-badge">Dismissed${!readOnly ? ' · click to restore' : ''}</span>`}
                               ${/* Change on an assess (existing-condition) card: re-pick the ICD-10
                                   code. A different code means a different condition, so convert to a
                                   fresh uncoded diagnose (drops condition_id → no false assess against
@@ -880,21 +942,16 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           </div>
                         </div>
                         ${(() => {
-                          // Over-limit pills surface even on read-only/locked rows (the
-                          // inline counter was removed from the read view), so an
-                          // over-2048 background/assessment is never silently hidden.
-                          // Remove button keeps the target's rec-remove-x styling.
-                          const showRemove = !readOnly && !entry.command.already_documented && !entry.command._adding;
-                          const bgOver = (aData.background || '').length > 2048;
-                          const asmtOver = (aData.narrative || '').length > 2048;
-                          if (!showRemove && !bgOver && !asmtOver) return null;
-                          return html`
-                            <div class="recommendation-actions">
-                              ${bgOver && html`<span class="rec-warning-pill">Background too long</span>`}
-                              ${asmtOver && html`<span class="rec-warning-pill">Assessment too long</span>`}
-                              ${showRemove && html`<button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button>`}
-                            </div>
-                          `;
+                          const overLimit = [];
+                          if ((aData.background || '').length > 2048) overLimit.push('Background too long');
+                          if ((aData.narrative || '').length > 2048) overLimit.push('Assessment too long');
+                          return renderConditionActions({
+                            command: entry.command,
+                            isDismissed: aDismissed,
+                            readOnly: readOnly || entry.command._adding,
+                            onDismiss: dismissAssess,
+                            overLimit,
+                          });
                         })()}
                       </div>
                     `;
@@ -905,9 +962,10 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     // lands in this group (see wasInserted note).
                     const dxData = entry.command.data || {};
                     const hasCode = !!dxData.icd10_code;
-                    const isAccepted = hasCode && dxData.accepted;
-                    const isRejected = dxData.rejected;
-                    const isIncomplete = !hasCode && !isRejected;
+                    // `accepted` is now purely derived from "has a code" (summary.js handleEdit),
+                    // so a coded card IS an accepted card. There is no separate accept step and
+                    // no Accept button — picking a code from the picker is the accept.
+                    const isDismissed = !!dxData.rejected;
                     const header = dxData.condition_header || '';
                     // Ranked, grounded code options for an uncoded card. The belt
                     // stamps them directly on the command (data.candidate_suggestions),
@@ -918,42 +976,59 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     // Uncoded card: ranked grounded options to pick from. The belt stamps
                     // them on the command (data.candidate_suggestions), keyed by block_id;
                     // fall back to the block_id-keyed diagnosisSuggestions map.
-                    const suggestions = (!hasCode && !isRejected
+                    const suggestions = (!hasCode && !isDismissed
                       && (dxData.candidate_suggestions
                         || (diagnosisSuggestions && blockId && diagnosisSuggestions[blockId]))) || null;
 
-                    const handleAcceptDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, accepted: true, rejected: false }, 'diagnose');
-                    const handleRejectDiagnose = () => onEditCommand(entry.index, { ...entry.command.data, rejected: true, accepted: false }, 'diagnose');
+                    const dismissDiagnose = () => onEditCommand(entry.index, { ...dxData, rejected: true }, 'diagnose');
+                    const restoreDiagnose = () => onEditCommand(entry.index, { ...dxData, rejected: false }, 'diagnose');
+                    // A dismissed card becomes the restore control itself, so it needs to be a
+                    // real button: Tab-reachable and Enter/Space activated. It carries no other
+                    // control at all.
+                    const dxRestorable = isDismissed && !readOnly;
 
                     const diagnoseRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
-                      <div class=${`content-block recommendation-block rec-diagnose${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && diagnoseRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${entry.index}>
+                      <div
+                        class=${`content-block recommendation-block rec-diagnose${isDismissed ? ' rec-dismissed' : ''}${!hasCode && !isDismissed && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && diagnoseRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}
+                        key=${entry.index}
+                        role=${dxRestorable ? 'button' : null}
+                        tabIndex=${dxRestorable ? 0 : null}
+                        title=${dxRestorable ? 'Restore this condition' : null}
+                        onClick=${dxRestorable ? restoreDiagnose : null}
+                        onKeyDown=${dxRestorable ? dismissedKeyDown(restoreDiagnose) : null}
+                      >
                         ${(readOnly || isAmending) && diagnoseRowReadOnly && entry.command.already_documented && ICON_LOCK}
                         <div class="recommendation-content">
                           <${DiagnoseRow}
                             command=${entry.command}
                             commandIndex=${entry.index}
                             onEdit=${onEditCommand}
-                            onMoveToPlan=${diagnoseRowReadOnly || isRejected ? null : onMoveToPlan}
-                            readOnly=${diagnoseRowReadOnly || isRejected}
+                            onMoveToPlan=${diagnoseRowReadOnly || isDismissed ? null : onMoveToPlan}
+                            readOnly=${diagnoseRowReadOnly || isDismissed}
+                            dismissed=${isDismissed}
+                            dismissedRestorable=${dxRestorable}
                             suggestions=${suggestions}
                             onEditingChange=${onEditingChange}
                           />
                         </div>
-                        ${/* Target's accept/reject redesign (renderRecActions) is kept;
-                            the over-limit warning pills are layered in front of it so an
-                            over-2048 background/assessment is never silently hidden, on
-                            editable and read-only rows alike. renderRecActions owns the
-                            "Missing Diagnosis Code" pill, accept/reject, and badges. */ ''}
-                        <div class="recommendation-actions">
-                          ${(dxData.background || '').length > 2048 && html`<span class="rec-warning-pill">Background too long</span>`}
-                          ${(dxData.today_assessment || '').length > 2048 && html`<span class="rec-warning-pill">Assessment too long</span>`}
-                          ${/* incomplete:false → the "Missing: Diagnosis Code" pill is
-                            rendered in the DiagnoseRow header (next to the title) instead
-                            of here in the action column. acceptDisabled still keys off
-                            isIncomplete so Accept stays disabled until a code is picked. */ ''}
-                        ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: false, missingLabel: 'Diagnosis Code', acceptDisabled: isIncomplete, readOnly, onAccept: handleAcceptDiagnose, onReject: handleRejectDiagnose, onAddNow: null })}
-                        </div>
+                        ${/* No Accept/Reject: picking a code from the picker is the accept, and the
+                            single ✕ here is the reject. Over-limit pills are layered in so an
+                            over-2048 background/assessment is never silently hidden, on editable
+                            and read-only rows alike. A dismissed card gets no action column —
+                            the card itself restores. */ ''}
+                        ${(() => {
+                          const overLimit = [];
+                          if ((dxData.background || '').length > 2048) overLimit.push('Background too long');
+                          if ((dxData.today_assessment || '').length > 2048) overLimit.push('Assessment too long');
+                          return renderConditionActions({
+                            command: entry.command,
+                            isDismissed,
+                            readOnly,
+                            onDismiss: dismissDiagnose,
+                            overLimit,
+                          });
+                        })()}
                       </div>
                     `;
                   })}
