@@ -559,7 +559,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, manualModeOnly = false, dictationEnabled = false, initialData = null }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, manualModeOnly = false, dictationEnabled = false, captureDictationEnabled = false, initialData = null }) {
   const initSummary = initialData?.summary ?? null;
   const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
@@ -3397,7 +3397,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </select>
           `}
           ${showTopControls && html`
-            ${dictationEnabled && !manualModeOnly && html`
+            ${captureDictationEnabled && !manualModeOnly && html`
               <div class="refer-priority" style="max-width: 220px;" role="group" aria-label="Capture mode">
                 <button
                   type="button"
@@ -3423,7 +3423,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               Manual
             </button>
           `}
-          ${mode === 'ai' && dictationEnabled && html`
+          ${mode === 'ai' && captureDictationEnabled && html`
             <span class="capture-mode-locked" style="font-size: 12px; font-weight: 600; color: #6b7280; white-space: nowrap;" title="Capture transport is locked for this session">
               Capture: ${captureMode === 'dictation' ? 'Dictation' : 'Conversation'}
             </span>
