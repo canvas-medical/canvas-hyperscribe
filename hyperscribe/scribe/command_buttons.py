@@ -67,9 +67,11 @@ a collapse to nothing never reaches ``onNoteExpanded``, ``NoteExpanded``'s
 ``previous_note_id is not None``. home-app's own test covers just the
 previous_note_id-provided case. The fix belongs there, not here.
 
-Requires a Canvas runtime >= 0.163.0 — the version that introduced both the
+Requires a Canvas runtime >= 0.164.0 — the version that introduced both the
 ``ConfigureCommandButtons`` effect and the NOTE_CLOSED event. The feature cannot
-function (and the plugin will not install) on older runtimes.
+function (and the plugin will not install) on older runtimes. Kept in sync with
+``sdk_version`` in CANVAS_MANIFEST.json and the ``canvas`` pin in pyproject.toml;
+all three must agree.
 """
 
 from canvas_sdk.effects import Effect

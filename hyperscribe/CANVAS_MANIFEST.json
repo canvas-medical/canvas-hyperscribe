@@ -1,5 +1,5 @@
 {
-  "sdk_version": "0.163.0",
+  "sdk_version": "0.164.0",
   "plugin_version": "2026-07-27 v0.4.41 (koala-5808)",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
