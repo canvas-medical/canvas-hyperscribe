@@ -5,7 +5,10 @@ from canvas_sdk.clients.llms.structures import BaseModelLlmJson
 
 class MedicationRecommendation(BaseModelLlmJson):
     medication_name: str = Field(description="Full medication name including strength")
-    sig: str = Field(description="Directions/sig for the medication")
+    sig: str | None = Field(
+        default=None,
+        description="Directions/sig exactly as stated in the note; leave null if no directions are stated",
+    )
     keywords: str = Field(description="Comma-separated synonyms for searching (max 5)")
 
 
@@ -32,8 +35,18 @@ class AllergyRecommendationList(BaseModelLlmJson):
 
 class PrescriptionRecommendation(BaseModelLlmJson):
     medication_name: str = Field(description="Full medication name including strength/form")
-    sig: str = Field(description="Directions/sig for the prescription")
-    days_supply: int | None = Field(default=None, description="Number of days supply")
+    sig: str | None = Field(
+        default=None,
+        description="Directions/sig exactly as stated in the note; leave null if no directions are stated",
+    )
+    days_supply: int | None = Field(
+        default=None,
+        description=(
+            "Number of days the prescription should cover, when the note states a duration — including "
+            "spelled-out ('ninety-day supply' = 90) or course forms ('for 10 days' = 10, "
+            "'five-day course' = 5). Do not infer from quantity/frequency; null if no duration is stated."
+        ),
+    )
     quantity_to_dispense: str | None = Field(default=None, description="Quantity to dispense")
     refills: int | None = Field(default=None, description="Number of refills")
     keywords: str = Field(description="Comma-separated synonyms for searching (max 5)")
@@ -46,8 +59,56 @@ class PrescriptionRecommendationList(BaseModelLlmJson):
     )
 
 
+class DosageDerivation(BaseModelLlmJson):
+    """LLM output for computing how much of a medication to dispense.
+
+    The model's ONLY job is to interpret the prescriber's directions into a
+    dosing frequency (``units_per_dose`` x ``doses_per_day``). The dispense
+    quantity is then recomputed arithmetically from those numbers in
+    ``_dosage.py`` — the model never gets to be the sole source of a clinical
+    number. ``derivable`` is the refusal switch: when the directions don't
+    state a clear frequency, the model must set it false and we leave the
+    quantity blank rather than guessing.
+    """
+
+    derivable: bool = Field(
+        description=(
+            "True ONLY if the directions clearly state both how much to take per dose and how "
+            "often. False if the frequency or amount is vague, missing, or 'as directed'."
+        ),
+    )
+    units_per_dose: float | None = Field(
+        default=None,
+        description="Dosage-form units taken per administration (e.g. 1 tablet, 2 puffs); null if not derivable",
+    )
+    doses_per_day: float | None = Field(
+        default=None,
+        description="Number of administrations per day implied by the directions; null if not derivable",
+    )
+    quantity_to_dispense: float | None = Field(
+        default=None,
+        description=(
+            "The model's own estimate of units_per_dose x doses_per_day x days supply; "
+            "used only as an internal consistency check; null if not derivable"
+        ),
+    )
+    discrete: bool = Field(
+        default=True,
+        description=(
+            "True for countable forms (tablets, capsules, patches), false for measured forms (mL, grams, ounces)"
+        ),
+    )
+
+
 class ReferRecommendation(BaseModelLlmJson):
     specialty: str = Field(description="Medical specialty for the referral (e.g. Cardiology, ENT, Dermatology)")
+    indication: str | None = Field(
+        default=None,
+        description=(
+            "The condition or problem this referral addresses, copied verbatim from the note's "
+            "problem/assessment name (e.g. 'Shoulder muscle spasm'); null if the note does not state one"
+        ),
+    )
     clinical_question: str | None = Field(
         default=None,
         description=(
@@ -57,7 +118,6 @@ class ReferRecommendation(BaseModelLlmJson):
             "'Diagnostic Uncertainty'"
         ),
     )
-    priority: str = Field(default="Routine", description="'Routine' or 'Urgent'")
     reason: str | None = Field(default=None, description="Brief reason or notes for the referral")
 
 
@@ -110,13 +170,42 @@ class TaskRecommendationList(BaseModelLlmJson):
     )
 
 
-class DiagnosisSuggestion(BaseModelLlmJson):
-    condition_text: str = Field(description="The original condition text")
-    icd10_codes: list[str] = Field(description="2-3 ICD-10 codes (e.g. R519, G43009)")
+class DiagnosisResolutionStep(BaseModelLlmJson):
+    """One grounded-selection step for an uncoded diagnosis block.
 
+    The model is an oracle over a retrieved set of REAL ICD-10 codes — it may only
+    select codes present in the candidate list it was shown, never invent one. When
+    nothing in the shown list fits the documented clinical picture, it returns
+    ``more_search_terms`` so the caller can retrieve better candidates and ask again.
+    """
 
-class DiagnosisSuggestionList(BaseModelLlmJson):
-    suggestions: list[DiagnosisSuggestion] = Field(
+    selected_code: str | None = Field(
+        default=None,
+        description=(
+            "The single best ICD-10 code for this block, copied VERBATIM from the provided "
+            "candidate list. Null if none of the provided candidates fit the documented picture."
+        ),
+    )
+    confidence: str = Field(
+        default="low",
+        description=(
+            "'high' only when one provided candidate clearly and specifically matches the "
+            "documented diagnosis; 'medium' when a candidate is plausible but not certain; "
+            "'low' when no provided candidate is a good fit."
+        ),
+    )
+    ranked_codes: list[str] = Field(
         default_factory=list,
-        description="List of diagnosis suggestions per condition",
+        description=(
+            "Up to 6 ICD-10 codes from the provided candidate list, best-first, to offer the "
+            "provider. Every entry MUST be copied verbatim from the provided list."
+        ),
+    )
+    more_search_terms: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Clinical search terms (synonyms, the specific diagnosis, or differential) to look "
+            "up when no provided candidate fits — e.g. 'hypoalbuminemia', 'pulmonary edema', "
+            "'iron deficiency anemia'. Leave empty when a provided candidate is selected."
+        ),
     )

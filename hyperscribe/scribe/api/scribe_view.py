@@ -70,6 +70,10 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
             provider_photo_url = ""
 
         initial_data = _load_initial_data(note_id, self.secrets)
+        # Field dictation is gated behind a true/false secret (KOALA-6233). Strict
+        # "true" match so setting the secret to "false" disables it (unlike the
+        # truthy-if-present secrets, where any value would enable).
+        dictation_enabled = str(self.secrets.get("ScribeDictationEnabled", "")).strip().lower() == "true"
 
         html = render_to_string(
             "scribe/static/index.html",
@@ -88,6 +92,8 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
                 "note_editable": "true" if note_editable else "",
                 "is_author": "true" if is_author else "",
                 "alert_facility_enabled": "true" if self.secrets.get("AlertFacilityEnabled") else "",
+                "manual_mode_only": "true" if self.secrets.get("ScribeManualModeOnly") else "",
+                "dictation_enabled": "true" if dictation_enabled else "",
                 "initial_data": _safe_json(initial_data),
             },
         )

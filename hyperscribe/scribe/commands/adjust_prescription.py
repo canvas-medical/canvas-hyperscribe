@@ -90,9 +90,17 @@ class AdjustPrescriptionParser(CommandParser):
         raw_type = data.get("type_to_dispense")
         if raw_type:
             representative_ndc = data.get("representative_ndc") or ""
+            qualifier_code = raw_type
+            # Decode the order-row's encoded "ndc|erx_qty|qualifier_code" form if it
+            # arrives un-decoded (see PrescriptionParser.build for the full rationale).
+            parts = raw_type.split("|")
+            if len(parts) == 3:
+                decoded_ndc, _erx_quantity, qualifier_code = parts
+                if not representative_ndc:
+                    representative_ndc = decoded_ndc
             type_to_dispense = ClinicalQuantity(
                 representative_ndc=representative_ndc,
-                ncpdp_quantity_qualifier_code=raw_type,
+                ncpdp_quantity_qualifier_code=qualifier_code,
                 **({"description": label} if (label := data.get("type_to_dispense_label")) else {}),
             )
 

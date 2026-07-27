@@ -20,7 +20,15 @@ class ReferParser(CommandParser):
         return None
 
     def validate(self, data: dict[str, Any]) -> list[str]:
+        # A refer command is auto-signed on insert (see post_originate_effects), and
+        # Canvas core requires a recipient, a clinical question, notes, and at least
+        # one indication to sign it. Validate all four here so an incomplete referral
+        # fails loudly at /insert-commands instead of silently rolling back at sign.
         errors: list[str] = []
+        if not data.get("service_provider"):
+            errors.append("Referral recipient is required")
+        if not data.get("clinical_question"):
+            errors.append("Clinical question is required")
         if not data.get("notes_to_specialist"):
             errors.append("Notes to specialist is required")
         if not data.get("diagnosis_codes"):

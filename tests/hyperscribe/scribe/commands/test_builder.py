@@ -451,7 +451,11 @@ _GOOD_RX_DATA = {
 
 def test_validate_proposals_all_valid() -> None:
     proposals: list[dict[str, Any]] = [
-        {"command_type": "diagnose", "data": {"today_assessment": "Short text"}, "display": "Migraine"},
+        {
+            "command_type": "diagnose",
+            "data": {"icd10_code": "G43.909", "today_assessment": "Short text"},
+            "display": "Migraine",
+        },
         {"command_type": "assess", "data": {"narrative": "Brief"}, "display": "HTN"},
         # Prescribe / Refill / Adjust Prescription all share canvas-core's
         # Prescribe schema and need every required field populated to pass.
@@ -462,13 +466,27 @@ def test_validate_proposals_all_valid() -> None:
 
 def test_validate_proposals_diagnose_over_limit() -> None:
     proposals: list[dict[str, Any]] = [
-        {"command_type": "diagnose", "data": {"today_assessment": "x" * 2049}, "display": "Migraine"},
+        {
+            "command_type": "diagnose",
+            "data": {"icd10_code": "G43.909", "today_assessment": "x" * 2049},
+            "display": "Migraine",
+        },
     ]
     errors = validate_proposals(proposals)
     assert len(errors) == 1
     assert errors[0]["command_type"] == "diagnose"
     assert errors[0]["display"] == "Migraine"
     assert "2048" in errors[0]["errors"][0]
+
+
+def test_validate_proposals_diagnose_requires_code() -> None:
+    """Hard block on the insert path: an uncoded diagnose proposal is rejected."""
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "diagnose", "data": {"today_assessment": "Short text"}, "display": "Migraine"},
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 1
+    assert "ICD-10 code" in errors[0]["errors"][0]
 
 
 def test_validate_proposals_assess_over_limit() -> None:
@@ -536,9 +554,9 @@ def test_validate_proposals_multiple_failures() -> None:
     # Imaging has 4 errors (ordering provider + indications + details + comment)
     img_errors = next(e for e in errors if e["command_type"] == "imaging_order")
     assert len(img_errors["errors"]) == 4
-    # Refer has 2 errors (notes_to_specialist + indications)
+    # Refer has 4 errors (recipient + clinical_question + notes_to_specialist + indications)
     refer_errors = next(e for e in errors if e["command_type"] == "refer")
-    assert len(refer_errors["errors"]) == 2
+    assert len(refer_errors["errors"]) == 4
 
 
 def test_validate_proposals_unknown_type_skipped() -> None:
@@ -572,8 +590,16 @@ def test_validate_imaging_order_with_required_fields() -> None:
 
 
 def test_validate_refer_missing_notes_and_indications() -> None:
+    # recipient + clinical_question present; only notes and indication are missing
     proposals: list[dict[str, Any]] = [
-        {"command_type": "refer", "data": {"service_provider": {"first_name": "Dr"}}, "display": "Cardiology"},
+        {
+            "command_type": "refer",
+            "data": {
+                "service_provider": {"first_name": "Dr"},
+                "clinical_question": "Assistance with Ongoing Management",
+            },
+            "display": "Cardiology",
+        },
     ]
     errors = validate_proposals(proposals)
     assert len(errors) == 1
@@ -583,11 +609,32 @@ def test_validate_refer_missing_notes_and_indications() -> None:
     assert "indication" in error_text.lower()
 
 
-def test_validate_refer_with_required_fields() -> None:
+def test_validate_refer_missing_recipient_and_clinical_question() -> None:
+    # notes + indication present; recipient and clinical question are missing
     proposals: list[dict[str, Any]] = [
         {
             "command_type": "refer",
             "data": {"notes_to_specialist": "Evaluate murmur", "diagnosis_codes": ["I10"]},
+            "display": "Cardiology",
+        },
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 1
+    error_text = " ".join(errors[0]["errors"])
+    assert "Referral recipient is required" in error_text
+    assert "Clinical question is required" in error_text
+
+
+def test_validate_refer_with_required_fields() -> None:
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "refer",
+            "data": {
+                "service_provider": {"last_name": "(TBD)", "specialty": "Cardiology"},
+                "clinical_question": "Assistance with Ongoing Management",
+                "notes_to_specialist": "Evaluate murmur",
+                "diagnosis_codes": ["I10"],
+            },
             "display": "Cardiology",
         },
     ]
@@ -1686,6 +1733,7 @@ def test_editable_amend_sections_contains_expected_keys() -> None:
             "_ros",
             "_history_review",
             "_chart_review",
+            "mental_status_exam",
             "physical_exam",
             "lab_results",
             "imaging_results",
@@ -1730,6 +1778,7 @@ def test_every_builders_command_type_is_either_editable_or_explicitly_excluded()
         "rfv",
         "hpi",
         "ros",
+        "mental_status_exam",
         "physical_exam",
         "history_review",
         "chart_review",
@@ -1823,6 +1872,7 @@ def test_custom_command_routed_sections_literal_pin() -> None:
             "_ros",
             "_history_review",
             "_chart_review",
+            "mental_status_exam",
             "physical_exam",
             "lab_results",
             "imaging_results",

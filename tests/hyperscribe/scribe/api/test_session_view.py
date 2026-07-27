@@ -16,6 +16,7 @@ from hyperscribe.scribe.api.session_view import (
     ScribeSessionView,
     _PROGRESS_CACHE_KEY_PREFIX,
     _match_conditions_to_sections,
+    _note_provider_id,
 )
 from hyperscribe.scribe.backend import ScribeError
 from hyperscribe.scribe.backend.models import (
@@ -124,6 +125,70 @@ def test_get_config_auth_error(get_backend: MagicMock) -> None:
     assert result == expected
 
 
+# --- /dictation-config ---
+
+
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_get_dictation_config_success(get_backend: MagicMock) -> None:
+    mock_backend = MagicMock()
+    mock_backend.get_dictation_config.return_value = {
+        "vendor": "nabla",
+        "ws_url": "wss://example.com/dictate-ws",
+        "access_token": "tok",
+        "dictation_locale": "ENGLISH_US",
+        "punctuation_mode": "EXPLICIT",
+    }
+    get_backend.return_value = mock_backend
+
+    view = _helper_instance(staff_id="staff-key-abc")
+    result = view.get_dictation_config()
+
+    expected = [
+        JSONResponse(
+            {
+                "vendor": "nabla",
+                "ws_url": "wss://example.com/dictate-ws",
+                "access_token": "tok",
+                "dictation_locale": "ENGLISH_US",
+                "punctuation_mode": "EXPLICIT",
+            },
+            status_code=HTTPStatus.OK,
+        )
+    ]
+    assert result == expected
+    mock_backend.get_dictation_config.assert_called_once_with(user_external_id="staff-key-abc")
+
+
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_get_dictation_config_unknown_vendor(get_backend: MagicMock) -> None:
+    get_backend.side_effect = ScribeError("Unknown scribe vendor: 'bad'")
+
+    view = _helper_instance()
+    result = view.get_dictation_config()
+
+    expected = [JSONResponse({"error": "Unknown scribe vendor: 'bad'"}, status_code=HTTPStatus.BAD_REQUEST)]
+    assert result == expected
+
+
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_get_dictation_config_unsupported(get_backend: MagicMock) -> None:
+    """A backend that does not support dictation surfaces the ScribeError as a 500."""
+    mock_backend = MagicMock()
+    mock_backend.get_dictation_config.side_effect = ScribeError("This scribe backend does not support dictation")
+    get_backend.return_value = mock_backend
+
+    view = _helper_instance()
+    result = view.get_dictation_config()
+
+    expected = [
+        JSONResponse(
+            {"error": "This scribe backend does not support dictation"},
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
+    ]
+    assert result == expected
+
+
 # --- /transcript ---
 
 
@@ -136,6 +201,47 @@ def _mock_cache() -> MagicMock:
     cache.delete = lambda key: store.pop(key, None)
     cache._store = store
     return cache
+
+
+def test_note_provider_id_blank_note_uuid() -> None:
+    # No note id -> no lookup, no provider.
+    assert _note_provider_id(None) is None
+    assert _note_provider_id("") is None
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_note_provider_id_found(mock_note: MagicMock) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 42
+    assert _note_provider_id("note-uuid") == "42"
+    mock_note.objects.values_list.assert_called_once_with("provider__id", flat=True)
+    mock_note.objects.values_list.return_value.get.assert_called_once_with(id="note-uuid")
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_note_provider_id_null_provider(mock_note: MagicMock) -> None:
+    # Note exists but has no provider -> None, not the string "None".
+    mock_note.objects.values_list.return_value.get.return_value = None
+    assert _note_provider_id("note-uuid") is None
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_note_provider_id_note_missing(mock_note: MagicMock) -> None:
+    # Missing note is the normal not-found path: return None silently (no log).
+    mock_note.DoesNotExist = type("DoesNotExist", (Exception,), {})
+    mock_note.objects.values_list.return_value.get.side_effect = mock_note.DoesNotExist()
+    with patch("hyperscribe.scribe.api.session_view.log") as mock_log:
+        assert _note_provider_id("note-uuid") is None
+    mock_log.exception.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_note_provider_id_query_error_logs_to_sentry(mock_note: MagicMock) -> None:
+    # Unexpected query failure -> degrade to None but surface to Sentry via log.exception.
+    mock_note.DoesNotExist = type("DoesNotExist", (Exception,), {})
+    mock_note.objects.values_list.return_value.get.side_effect = RuntimeError("db down")
+    with patch("hyperscribe.scribe.api.session_view.log") as mock_log:
+        assert _note_provider_id("note-uuid") is None
+    mock_log.exception.assert_called_once()
 
 
 @patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
@@ -2210,20 +2316,23 @@ def test_summary_js_make_changes_preserves_on_note_recommendations() -> None:
     prescribe) live in the `recommendations` array with command_uuid +
     already_documented and carry NO section_key — syncNoteCommands keeps them
     out of the from_the_note bucket only via `recommendationUuids` (built from
-    recommendationsRef). A blanket `setRecommendations([])` in handleMakeChanges
-    emptied that guard, so the next sync re-appended these still-on-chart
-    commands as ADDITIONAL COMMANDS. handleMakeChanges must instead keep the
+    recommendationsRef). A blanket `setRecommendations([])` in the amend
+    transition emptied that guard, so the next sync re-appended these still-on
+    -chart commands as ADDITIONAL COMMANDS. The transition must instead keep the
     on-note recommendations (filter by the same `onNote` predicate it uses for
     commands) and prime the ref so the guard survives the amend.
+
+    The transition lives in `applyMakeChanges` (KOALA-6315); `handleMakeChanges`
+    (the button) and the NOTE_STATE_CHANGED handler both delegate to it.
     """
     from pathlib import Path
 
     summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
     src = summary_js.read_text()
 
-    decl = "const handleMakeChanges = useCallback("
+    decl = "const applyMakeChanges = useCallback("
     start = src.find(decl)
-    assert start != -1, "Expected `const handleMakeChanges = useCallback(` in summary.js."
+    assert start != -1, "Expected `const applyMakeChanges = useCallback(` in summary.js."
     open_brace_pos = src.find("{", start)
     depth = 0
     end = -1
@@ -2235,22 +2344,22 @@ def test_summary_js_make_changes_preserves_on_note_recommendations() -> None:
             if depth == 0:
                 end = i
                 break
-    assert end != -1, "Could not find handleMakeChanges body."
+    assert end != -1, "Could not find applyMakeChanges body."
     body = src[start:end]
 
     assert "setRecommendations([])" not in body, (
-        "handleMakeChanges must NOT blanket-clear recommendations — that drops "
+        "applyMakeChanges must NOT blanket-clear recommendations — that drops "
         "accepted/inserted recs from the array, emptying the recommendationUuids "
         "guard so the next sync reshuffles them into ADDITIONAL COMMANDS "
         "(KOALA-5687)."
     )
     assert "recommendations.filter(onNote)" in body, (
-        "handleMakeChanges must keep on-note recommendations via "
+        "applyMakeChanges must keep on-note recommendations via "
         "`recommendations.filter(onNote)` (same predicate as commands), so "
         "accepted recs stay in their SOAP section through the amend (KOALA-5687)."
     )
     assert "commitRecommendations(keptRecommendations)" in body, (
-        "handleMakeChanges must commit the kept recommendations via "
+        "applyMakeChanges must commit the kept recommendations via "
         "`commitRecommendations(...)` so recommendationsRef is primed "
         "synchronously for the next syncNoteCommands (KOALA_5634_RECOMMENDATIONS_REF)."
     )
@@ -4147,67 +4256,63 @@ def test_diagnose_row_handle_clear_code_preserves_code_to_protect_charge_links()
     )
 
 
-def test_diagnose_row_has_background_help_text() -> None:
-    """KOALA-5635 (ROUND 3): the Background field must render the helper
-    text ``Optional. You write this. Carries forward to every note.``
-    directly under the BACKGROUND label, per Kevin's v2 mock. This pins
-    the user-facing string so a future refactor can't quietly drop it.
-    """
-    src = _read_diagnose_row_js()
-    expected = "Optional. You write this. Carries forward to every note."
-    assert expected in src, (
-        f"diagnose-row.js must contain the Background helper text exactly: "
-        f"{expected!r}. Per Kevin's UAT mock the line sits under the "
-        "BACKGROUND label and explains that the field is user-written and "
-        "carries forward to subsequent notes."
-    )
-
-
-def test_diagnose_row_background_has_visible_char_counter() -> None:
-    """KOALA-5635 (ROUND 3): the Background field must render a visible
-    ``<count> / 2048`` character counter at all times, not only when the
-    user exceeds the limit. Round-2 only emitted the counter on
-    over-limit; round-3 makes it always visible to match the mock and
-    the Today's-assessment counter behavior.
+def test_diagnose_row_background_help_text_is_concise() -> None:
+    """Condition-card UI polish (supersedes KOALA-5635 round-3 wording):
+    the Background field shows a single concise help line
+    ``Carries forward to future notes`` under the textarea in EDIT mode.
+    The earlier verbose hint (``Optional. You write this. Carries forward
+    to every note.``) was dropped per Kevin's UI polish, and no help text
+    is shown in the collapsed read view (it stays clean).
 
     Pins:
-      1. Edit-mode counter exists (``${background.length} / 2048``).
-      2. Read-only counter is rendered with a CONDITIONAL class template
-         (``char-counter${...near-limit/over-limit...}``) sitting on
-         ``data.background.length``. The HEAD shape was a hard-coded
-         ``class="char-counter over-limit"`` rendered only on the
-         over-limit branch — this pin rejects that shape.
+      1. The concise help string is present.
+      2. The old verbose hint string is gone.
     """
     src = _read_diagnose_row_js()
-    # The edit-mode counter is rendered as ``${background.length} / 2048``
-    # inside an unconditional ``<div class="char-counter...">``. Match the
-    # template-literal expression (allow flexible whitespace).
-    edit_counter_pattern = re.compile(r"\$\{background\.length\}\s*/\s*2048")
-    matches = edit_counter_pattern.findall(src)
-    assert matches, (
-        "diagnose-row.js must render a visible ``${background.length} / 2048`` "
-        "character counter on the Background textarea. Per Kevin's UAT mock "
-        "the counter must be visible at all character counts, not only when "
-        "the user exceeds 2048. Mirror the Today's-assessment counter shape."
+    assert "Carries forward to future notes" in src, (
+        "diagnose-row.js must contain the concise Background help line "
+        "'Carries forward to future notes', shown under the Background box "
+        "in edit mode."
     )
-    # The read-only counter must be ALWAYS-VISIBLE — i.e. the surrounding
-    # ``class="char-counter..."`` attribute is a template literal that
-    # toggles ``near-limit``/``over-limit`` based on the length, not a
-    # hard-coded ``over-limit``-only branch (the round-2 shape).
-    #
-    # Pin the read-only template literal anchored on
-    # ``(data.background || '').length`` so a future refactor that switches
-    # back to "only render when over-limit" trips this assertion.
-    always_visible_pattern = re.compile(r'class="char-counter\$\{\(data\.background \|\| \'\'\)\.length\s*>')
-    assert always_visible_pattern.search(src), (
-        "diagnose-row.js must render the read-only Background ``<count> / "
-        "2048`` counter with a CONDITIONAL class template "
-        "(``char-counter${(data.background || '').length > ...``) so the "
-        "counter shows at every length and only the visual treatment "
-        "changes near/over the limit. The round-2 shape "
-        '(``class="char-counter over-limit"`` inside an over-limit-only '
-        "branch) is rejected — Kevin's UAT mock requires the counter at "
-        "all character counts."
+    assert "Optional. You write this. Carries forward to every note." not in src, (
+        "The old verbose Background hint was removed in the condition-card UI "
+        "polish; the concise 'Carries forward to future notes' line replaces "
+        "it, and the collapsed read view shows no help text."
+    )
+
+
+def test_diagnose_row_background_counter_is_edit_only() -> None:
+    """Condition-card UI polish (supersedes KOALA-5635 round-3 wording):
+    the Background character counter renders ONLY in edit mode, with the
+    numerator wrapped in ``.cc-num`` (bold-red over limit, gray denominator).
+    The collapsed read view shows NO counter — an over-limit background is
+    surfaced as a ``Background too long`` warning pill in the actions column
+    (soap-group.js) instead.
+
+    Pins:
+      1. Edit-mode counter exists as ``<span class="cc-num">${background.length}
+         </span> / 2048``.
+      2. The collapsed read view does NOT render a Background counter anchored
+         on ``(data.background || '').length`` (the old always-visible shape).
+    """
+    src = _read_diagnose_row_js()
+    # Edit-mode counter: numerator in .cc-num, denominator " / 2048".
+    edit_counter_pattern = re.compile(r'cc-num">\$\{background\.length\}</span>\s*/\s*2048')
+    assert edit_counter_pattern.search(src), (
+        "diagnose-row.js must render the edit-mode Background counter as "
+        '``<span class="cc-num">${background.length}</span> / 2048`` so the '
+        "numerator can be highlighted near/over the limit while the "
+        "denominator stays neutral."
+    )
+    # The collapsed read view must NOT render a Background char counter
+    # anchored on ``data.background.length`` — the counter is edit-only now
+    # and the over-limit signal lives in the actions column (warning pill).
+    read_counter_pattern = re.compile(r"char-counter\$\{\(data\.background \|\| ''\)\.length\s*>")
+    assert not read_counter_pattern.search(src), (
+        "The collapsed read view must NOT render a Background char counter. "
+        "Per the condition-card UI polish the counter shows only in edit mode; "
+        "an over-limit background is surfaced as a 'Background too long' "
+        "warning pill in soap-group.js."
     )
 
 
@@ -4731,7 +4836,10 @@ def test_generate_summary_success(
     view = _helper_instance()
     view.secrets["AnthropicAPIKey"] = "test-key"
     view.request = SimpleNamespace(body=json.dumps({"note_id": "55", "note_uuid": "55"}))
-    result = view.post_generate_summary()
+    # No more-specific options available -> the (3-char/unspecified) Nabla code is
+    # applied as-is rather than surfaced for a pick (decision: no one-option picker).
+    with patch("hyperscribe.scribe.api.session_view.CanvasScience.search_conditions", return_value=[]):
+        result = view.post_generate_summary()
 
     assert result[0].status_code == HTTPStatus.OK
     data = json.loads(result[0].content)
@@ -4740,7 +4848,9 @@ def test_generate_summary_success(
     # Plan should have been split into diagnose commands.
     diagnose_cmds = [c for c in data["commands"] if c["command_type"] == "diagnose"]
     assert len(diagnose_cmds) == 1
-    assert diagnose_cmds[0]["data"]["icd10_code"] == "G43"
+    # Never auto-applied: uncoded, with the code surfaced as a picker suggestion.
+    assert diagnose_cmds[0]["data"]["icd10_code"] is None
+    assert any(s["formatted_code"] == "G43" for s in diagnose_cmds[0]["data"]["candidate_suggestions"])
     assert len(data["recommendations"]) == 1
     assert data["recommendations"][0]["command_type"] == "medication_statement"
     # Summary should be saved to database.
@@ -4835,12 +4945,14 @@ def test_generate_summary_prefers_patient_specific_icd10_over_nabla_parent(
     data = json.loads(result[0].content)
     diagnose_cmds = [c for c in data["commands"] if c["command_type"] == "diagnose"]
     assert len(diagnose_cmds) == 1, "Expected exactly one diagnose command from the A&P split."
-    # The Nabla-emitted E11.9 must have been rewritten to the patient-specific E11.65
-    # so the frontend belt can match against the active condition and convert to assess.
-    assert diagnose_cmds[0]["data"]["icd10_code"] == "E1165", (
-        "Expected the diagnose command to carry the patient-specific E11.65 code, "
-        f"got {diagnose_cmds[0]['data']['icd10_code']!r}. The Nabla E11.9 parent code "
-        "should have been rewritten before the A&P split picked it up."
+    # The Nabla-emitted E11.9 is rewritten to the patient-specific E11.65 so it leads the
+    # picker; never auto-applied — the card is uncoded and the provider picks E11.65 (which
+    # then flips to assess against the active condition at insert).
+    assert diagnose_cmds[0]["data"]["icd10_code"] is None
+    _formatted = [s["formatted_code"] for s in diagnose_cmds[0]["data"]["candidate_suggestions"]]
+    assert _formatted[0] == "E11.65", (
+        f"Expected the patient-specific E11.65 to lead the picker, got {_formatted!r}. "
+        "The Nabla E11.9 parent code should have been rewritten before the A&P split."
     )
 
     # _load_active_patient_conditions must be called with the patient_id from the request,
@@ -4905,13 +5017,18 @@ def test_generate_summary_empty_active_problem_list_leaves_nabla_code_intact(
     view = _helper_instance()
     view.secrets["AnthropicAPIKey"] = "test-key"
     view.request = SimpleNamespace(body=json.dumps({"note_id": "55", "note_uuid": "55", "patient_id": "patient-key-1"}))
-    result = view.post_generate_summary()
+    # Mock the science search empty so the unspecified/3-char Nabla code is applied
+    # as-is (no more-specific options to surface) — isolates the active-problem-list path.
+    with patch("hyperscribe.scribe.api.session_view.CanvasScience.search_conditions", return_value=[]):
+        result = view.post_generate_summary()
 
     assert result[0].status_code == HTTPStatus.OK
     data = json.loads(result[0].content)
     diagnose_cmds = [c for c in data["commands"] if c["command_type"] == "diagnose"]
     assert len(diagnose_cmds) == 1
-    assert diagnose_cmds[0]["data"]["icd10_code"] == "R51"
+    # Never auto-applied: uncoded, with the Nabla code intact as a picker suggestion.
+    assert diagnose_cmds[0]["data"]["icd10_code"] is None
+    assert any(s["formatted_code"] == "R51" for s in diagnose_cmds[0]["data"]["candidate_suggestions"])
 
 
 @patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
@@ -5994,3 +6111,531 @@ def test_search_imaging_url_encodes_query(mock_science_http: MagicMock) -> None:
 
     called_url = mock_science_http.get_json.call_args[0][0]
     assert "query=MRI+%26+CT" in called_url or "query=MRI%20%26%20CT" in called_url
+
+
+# --- NABLA_TEMPLATE_PATH + PSYCH_TEMPLATE_NEAR_MISS audit telemetry ----------
+# Brigade observability: emit on every generate_note call so we can track
+# how often the psychiatry path fires vs. operator templates that LOOK like
+# psychiatry but don't exact-match the gating set (and would silently route
+# to the generic Nabla template).
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_nabla_template_path_audit_emitted_on_every_generate(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """Every post_generate_summary call emits exactly one NABLA_TEMPLATE_PATH audit event."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 100
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "100", "note_uuid": "100", "selected_template_name": "Psychiatry"}),
+    )
+    view.post_generate_summary()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    path_calls = [payload for event_type, payload in audit_calls if event_type == "NABLA_TEMPLATE_PATH"]
+    assert len(path_calls) == 1, f"expected exactly one NABLA_TEMPLATE_PATH, got: {audit_calls}"
+    assert path_calls[0] == {"is_psychiatry": True, "template": "Psychiatry"}
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_nabla_template_path_audit_records_generic_branch(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """A non-psych template name records is_psychiatry=False on NABLA_TEMPLATE_PATH."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 101
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "101", "note_uuid": "101", "selected_template_name": "Subsequent Visit"}),
+    )
+    view.post_generate_summary()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    path_calls = [payload for event_type, payload in audit_calls if event_type == "NABLA_TEMPLATE_PATH"]
+    assert path_calls == [{"is_psychiatry": False, "template": "Subsequent Visit"}]
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_near_miss_audit_fires_on_psych_lookalike_templates(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """A psych-lookalike template name ("Psychiatry Follow-up") triggers the NEAR_MISS audit event."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 102
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "102", "note_uuid": "102", "selected_template_name": "Psychiatry Follow-up"}),
+    )
+    view.post_generate_summary()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    near_miss_calls = [payload for event_type, payload in audit_calls if event_type == "PSYCH_TEMPLATE_NEAR_MISS"]
+    assert near_miss_calls == [{"visit_template_name": "Psychiatry Follow-up"}]
+    # NABLA_TEMPLATE_PATH still records is_psychiatry=False because the exact gate failed.
+    path_calls = [payload for event_type, payload in audit_calls if event_type == "NABLA_TEMPLATE_PATH"]
+    assert path_calls == [{"is_psychiatry": False, "template": "Psychiatry Follow-up"}]
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_near_miss_audit_silent_on_clean_match(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """Exact-match 'Psychiatry' does NOT trigger NEAR_MISS — the gate itself fires instead."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 103
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "103", "note_uuid": "103", "selected_template_name": "Psychiatry"}),
+    )
+    view.post_generate_summary()
+
+    audit_event_types = [c.args[1] for c in mock_audit.call_args_list]
+    assert "PSYCH_TEMPLATE_NEAR_MISS" not in audit_event_types
+
+
+@patch("hyperscribe.scribe.contacts.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_near_miss_audit_silent_on_non_psych(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    """A non-psych template name (no 'psych' substring) does NOT trigger NEAR_MISS."""
+    cache = _mock_cache()
+    mock_get_cache.return_value = cache
+    mock_note.objects.values_list.return_value.get.return_value = 104
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    mock_backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    get_backend.return_value = mock_backend
+    mock_recommend.return_value = []
+    mock_suggest.return_value = {}
+
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "104", "note_uuid": "104", "selected_template_name": "Subsequent Visit"}),
+    )
+    view.post_generate_summary()
+
+    audit_event_types = [c.args[1] for c in mock_audit.call_args_list]
+    assert "PSYCH_TEMPLATE_NEAR_MISS" not in audit_event_types
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_post_generate_note_emits_nabla_template_path(
+    get_backend: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    """The raw /generate-note endpoint also emits NABLA_TEMPLATE_PATH on every call.
+
+    Symmetric with post_generate_summary so Brigade observability covers
+    both code paths that hit Nabla. Without this, removing or inlining the
+    audit call in post_generate_note would silently lose telemetry on the
+    raw endpoint path.
+    """
+    mock_note.objects.values_list.return_value.get.return_value = 105
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    get_backend.return_value = mock_backend
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "105", "note_uuid": "105", "selected_template_name": "Psychiatry"}),
+    )
+    view.post_generate_note()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    path_calls = [payload for event_type, payload in audit_calls if event_type == "NABLA_TEMPLATE_PATH"]
+    assert path_calls == [{"is_psychiatry": True, "template": "Psychiatry"}]
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_post_generate_note_near_miss_audit(
+    get_backend: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    """The raw /generate-note endpoint also fires PSYCH_TEMPLATE_NEAR_MISS for lookalike templates."""
+    mock_note.objects.values_list.return_value.get.return_value = 106
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": "hi", "speaker": "patient"}],
+        "finalized": True,
+    }
+    mock_backend = MagicMock()
+    mock_backend.generate_note.return_value = ClinicalNote(title="Note", sections=[])
+    get_backend.return_value = mock_backend
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        body=json.dumps({"note_id": "106", "note_uuid": "106", "selected_template_name": "psychiatry consult"}),
+    )
+    view.post_generate_note()
+
+    audit_calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    near_miss_calls = [payload for event_type, payload in audit_calls if event_type == "PSYCH_TEMPLATE_NEAR_MISS"]
+    assert near_miss_calls == [{"visit_template_name": "psychiatry consult"}]
+
+
+# --- KOALA-4800: verification banner count correctness ---
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_verify_commands_dedups_duplicate_command_uuids(mock_command: MagicMock, mock_audit: MagicMock) -> None:
+    """KOALA-4800: the banner count is ``len(verified) + len(failed)``. The
+    pre-fix frontend concatenated ``addNowAttemptedRef.current + data.attempted``
+    (+ amend entries), which could list the same logical command twice — often
+    with the command_type in different casing ('medicalHistory' vs
+    'medical_history') because the re-stamp missed. Passing a uuid more than once
+    must NOT inflate the total: each distinct command_uuid is counted at most
+    once.
+    """
+    mock_command.objects.filter.return_value.values.return_value = [
+        {"id": "u1", "anchor_object_type": "X", "anchor_object_dbid": 42},
+    ]
+
+    view = _helper_instance()
+    attempted = [
+        {"command_uuid": "u1", "command_type": "medicalHistory", "display": "PMH: asthma"},
+        {"command_uuid": "u1", "command_type": "medical_history", "display": "PMH: asthma"},
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-1", "attempted": attempted}))
+    result = view.post_verify_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert len(data["verified"]) == 1, "duplicate command_uuid must be counted once"
+    assert len(data["failed"]) == 0
+    assert len(data["verified"]) + len(data["failed"]) == 1
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.Command")
+def test_verify_commands_drops_entries_without_command_uuid(mock_command: MagicMock, mock_audit: MagicMock) -> None:
+    """KOALA-4800: attempted entries with an empty or missing ``command_uuid``
+    must be dropped, not counted. A missing key would previously raise KeyError
+    when building the ``uuids`` list; an empty string would resolve to a phantom
+    ``not_found``. Only the entry with a real uuid is counted.
+    """
+    mock_command.objects.filter.return_value.values.return_value = [
+        {"id": "u1", "anchor_object_type": "X", "anchor_object_dbid": 42},
+    ]
+
+    view = _helper_instance()
+    attempted = [
+        {"command_uuid": "u1", "command_type": "hpi", "display": "Back pain"},
+        {"command_uuid": "", "command_type": "plan", "display": "empty uuid"},
+        {"command_type": "ros", "display": "missing uuid key"},
+    ]
+    view.request = SimpleNamespace(body=json.dumps({"note_uuid": "note-1", "attempted": attempted}))
+    result = view.post_verify_commands()
+
+    assert result[0].status_code == HTTPStatus.OK
+    data = json.loads(result[0].content)
+    assert len(data["verified"]) == 1
+    assert len(data["failed"]) == 0
+    assert len(data["verified"]) + len(data["failed"]) == 1
+
+
+def test_summary_js_canonicalizes_command_type_in_restamp_uuidmap() -> None:
+    """KOALA-4800: the re-stamp ``uuidMap`` that reconciles attempted commands to
+    local rows must key command_type through ``canonicalCommandType()`` on BOTH
+    the build and the lookup side. Backend parser attrs are camelCase for the
+    history families ('medicalHistory' / 'surgicalHistory' / 'familyHistory')
+    while local proposals are snake_case ('medical_history'); a raw-string key
+    never matched, leaving those commands unstamped with stale uuids that the
+    verification banner then counted as phantom ``not_found``. Structural pin
+    (this repo has no JS test framework).
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "function canonicalCommandType(" in src, (
+        "summary.js is missing the canonicalCommandType() normalizer. Without it "
+        "the uuidMap re-stamp keys command_type raw, so camelCase parser attrs "
+        "('medicalHistory') never match snake_case local rows ('medical_history')."
+    )
+    assert "uuidMap.set(`${canonicalCommandType(a.command_type)}:" in src, (
+        "The uuidMap BUILD side must canonicalize command_type "
+        "(uuidMap.set(`${canonicalCommandType(a.command_type)}:...))."
+    )
+    assert "`${canonicalCommandType(cmd.command_type)}:" in src, (
+        "The uuidMap LOOKUP side for commands must canonicalize command_type."
+    )
+    assert "`${canonicalCommandType(rec.command_type)}:" in src, (
+        "The uuidMap LOOKUP side for recommendations must canonicalize command_type."
+    )
+    assert "uuidMap.set(`${a.command_type}:" not in src, (
+        "Found the raw-string uuidMap key (regression). The re-stamp must key "
+        "command_type through canonicalCommandType on both sides."
+    )
+
+
+def test_summary_js_verify_attempted_rebuilt_from_restamped_local_commands() -> None:
+    """KOALA-4800: the post-approve /verify-commands request must be built from
+    the re-stamped local command set (``updatedCommands`` /
+    ``updatedRecommendations``) — the same source of truth the
+    auto-verify-on-load effect uses — and deduped by command_uuid, NOT from the
+    concat of ``addNowAttemptedRef.current + data.attempted + amendVerifyEntries``
+    which could carry a stale/duplicate uuid and inflate the banner count.
+    Structural pin.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "KOALA_4800_VERIFY_FROM_RESTAMPED_LOCAL" in src, (
+        "summary.js is missing the KOALA_4800_VERIFY_FROM_RESTAMPED_LOCAL marker "
+        "on the post-approve verify attempted-set construction."
+    )
+    assert "...updatedCommands.filter(c => c.command_uuid && !isFromNoteCommand(c))" in src, (
+        "The verify attempted set must be rebuilt from re-stamped local commands (excluding from_the_note commands)."
+    )
+    assert "...updatedRecommendations.filter(c => c.command_uuid)" in src, (
+        "The verify attempted set must include re-stamped local recommendations."
+    )
+    assert "seenVerifyUuids" in src, (
+        "The rebuilt verify attempted set must dedup by command_uuid (seenVerifyUuids guard)."
+    )
+    assert "[...addNowAttemptedRef.current, ...(data.attempted || []), ...amendVerifyEntries]" not in src, (
+        "Found the old concat-based allAttempted (regression). Rebuild from the "
+        "re-stamped local command set instead so phantom uuids can't inflate the "
+        "verification count."
+    )
+
+
+def test_summary_js_verification_banner_success_count_uses_verified() -> None:
+    """KOALA-4800 (D2): the VerificationSummary success headline must report
+    ``result.verified.length`` — the trustworthy count of commands confirmed on
+    the note — rather than ``verified + failed``, so a stray/phantom
+    ``not_found`` can never inflate the displayed 'N command(s) inserted' number.
+    Structural pin.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "`All ${result.verified.length} command(s) inserted successfully`" in src, (
+        "The success headline must use result.verified.length (the confirmed count), not verified+failed."
+    )
+    assert "`All ${total} command(s) inserted successfully`" not in src, (
+        "Found the old verified+failed success count (regression). Use "
+        "result.verified.length so phantom failures can't inflate the count."
+    )
+
+
+def test_summary_js_verify_entry_display_falls_back_to_condition_name() -> None:
+    """KOALA-4800 (banner label): an assess with an empty ``display`` — a
+    diagnose flipped to assess, or an empty-narrative assess — must still show
+    its condition in the verification banner instead of a bare "assess". Both
+    verify attempted-set builders (the post-approve rebuild AND the
+    auto-verify-on-load effect) must run each command through
+    ``verifyEntryDisplay()``, which falls back to icd10_display / condition text.
+    Structural pin.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "function verifyEntryDisplay(" in src, (
+        "summary.js is missing the verifyEntryDisplay() helper — the verification "
+        "banner would show a bare 'assess' for empty-display commands."
+    )
+    assert src.count("display: verifyEntryDisplay(c).slice(0, 80)") >= 2, (
+        "Both verify attempted builders (post-approve rebuild and "
+        "auto-verify-on-load) must derive the label via verifyEntryDisplay()."
+    )
+    assert "c.data?.icd10_display" in src, "verifyEntryDisplay must fall back to icd10_display for flipped assess rows."
+    assert "c.data?.condition?.text" in src, (
+        "verifyEntryDisplay must fall back to the condition text for synced assess rows."
+    )
+
+
+def test_summary_js_verify_count_excludes_from_note_commands() -> None:
+    """KOALA-4800: commands added directly on the note (they sync into the Scribe
+    as ADDITIONAL COMMANDS / from_the_note cards) were NOT inserted by the Scribe
+    and must be excluded from the "N command(s) inserted" verification count —
+    otherwise adding a command on the note inflates the count by one. Both verify
+    attempted builders (post-approve rebuild and auto-verify-on-load) must filter
+    out from_the_note commands via isFromNoteCommand(). Structural pin.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    assert "function isFromNoteCommand(" in src, (
+        "summary.js is missing the isFromNoteCommand() helper — note-added "
+        "(from_the_note) commands would inflate the verification count."
+    )
+    assert src.count("c.command_uuid && !isFromNoteCommand(c)") >= 2, (
+        "Both verify attempted builders (post-approve rebuild and "
+        "auto-verify-on-load) must exclude from_the_note commands from the count."
+    )
+    assert "c.section_key === FROM_THE_NOTE_SECTION" in src, (
+        "isFromNoteCommand must recognize the from_the_note section key."
+    )

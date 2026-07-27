@@ -11,6 +11,8 @@
  * See: https://docs.nabla.com/guides/best-practices/transcription-network-resilience
  */
 
+import { samplesToMs } from './transcript-merge.js';
+
 /**
  * Convert Int16Array to base64 string.
  * @param {Int16Array} int16Array
@@ -32,6 +34,12 @@ const END_TIMEOUT_MS = 30000;
 // detection are unreliable on macOS — this catches it at the application level.
 const STALE_CONNECTION_MS = 5000;
 const HEALTH_CHECK_INTERVAL_MS = 2000;
+// Max seconds of sent-but-unacknowledged (in-flight) audio. Nabla's hard limit
+// is 10s (exceeding it is a buffer-overflow error); we stay well under it. A
+// smaller window also shrinks the always-unacked tail that gets stranded on a
+// finish/reconnect, and steady-state acks (~1/100ms) outrun production
+// (~1/chunk) so this headroom is only ever touched during latency spikes.
+const MAX_INFLIGHT_SECONDS = 3;
 
 class NablaScribeClient {
   /**
@@ -56,8 +64,9 @@ class NablaScribeClient {
     // Each entry: { seqId, base64, streamId, sampleCount, sent }
     this._buffer = [];
     this._lastAckedSeqId = -1;
+    this._ackedSamples = 0;
     this._inflightSamples = 0;
-    this._maxInflightSamples = 10 * (config.sample_rate || 16000);
+    this._maxInflightSamples = MAX_INFLIGHT_SECONDS * (config.sample_rate || 16000);
 
     // Connection lifecycle.
     this._initialConnect = true;
@@ -185,6 +194,34 @@ class NablaScribeClient {
     this._resolveEnd();
   }
 
+  /**
+   * Send the END frame immediately, even if audio is still buffered/in-flight,
+   * so the server finalizes what it has already received rather than losing it.
+   * Used when a finish-time drain stalls: recovering the in-flight window beats
+   * force-closing. The end() promise (if any) resolves when the server then
+   * closes the socket. Does not itself close the socket.
+   */
+  finalizeNow() {
+    this._ending = true;
+    if (this._ws && this._ws.readyState === WebSocket.OPEN && !this._endSent) {
+      this._endSent = true;
+      this._ws.send(JSON.stringify({ type: 'END' }));
+    }
+  }
+
+  /**
+   * Milliseconds of audio still buffered locally and not yet acknowledged by
+   * the server. After end() this drains toward 0 as the backlog is sent and
+   * ACKed; callers poll it to know when a post-reconnect catch-up has finished
+   * instead of force-closing on a fixed timer.
+   * @returns {number}
+   */
+  getPendingAudioMs() {
+    let samples = 0;
+    for (const chunk of this._buffer) samples += chunk.sampleCount;
+    return samplesToMs(samples, this._config.sample_rate || 16000);
+  }
+
   // ---------------------------------------------------------------------------
   // Internal
   // ---------------------------------------------------------------------------
@@ -202,7 +239,12 @@ class NablaScribeClient {
 
     ws.onopen = () => {
       this._ws = ws;
-      this._reconnectAttempts = 0;
+      // NOTE: do NOT reset _reconnectAttempts here. A socket that opens and
+      // immediately drops (server rejecting a replay flood, flapping network)
+      // would otherwise reset the backoff on every transient open — defeating
+      // both exponential backoff and the MAX_RECONNECT_ATTEMPTS circuit
+      // breaker, producing a tight reconnect storm. Attempts reset only once
+      // the connection is proven working (an ACK arrives; see _handleAck).
       this._lastServerMessageTime = Date.now();
       this._startHealthCheck();
       this._sendConfig();
@@ -216,7 +258,7 @@ class NablaScribeClient {
           this._connectReject = null;
         }
       } else {
-        this.onReconnect();
+        this.onReconnect(this._connectionStats());
       }
     };
 
@@ -226,11 +268,20 @@ class NablaScribeClient {
 
     ws.onmessage = (event) => this._handleMessage(event.data);
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       this._stopHealthCheck();
       if (this._ws === ws) this._ws = null;
 
       if (this._intentionalClose) {
+        this._resolveEnd();
+        return;
+      }
+
+      // Server closed the socket itself after we sent END — the documented
+      // graceful-finish path (Nabla post-processes, emits final transcript
+      // items, then closes). Treat as a clean end, not a disconnect to
+      // reconnect/replay.
+      if (this._endSent) {
         this._resolveEnd();
         return;
       }
@@ -242,7 +293,12 @@ class NablaScribeClient {
       }
 
       // Unexpected disconnect during an active session — reconnect.
-      this.onDisconnect();
+      this.onDisconnect({
+        ...this._connectionStats(),
+        trigger: 'ws-close',
+        code: event && event.code,
+        reason: (event && event.reason) || '',
+      });
       this._markSentAsUnsent();
       this._scheduleReconnect();
     };
@@ -266,7 +322,7 @@ class NablaScribeClient {
       if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
       if (this._inflightSamples === 0) return;
       if (Date.now() - this._lastServerMessageTime > STALE_CONNECTION_MS) {
-        this._abortConnection();
+        this._abortConnection('stale-timeout');
       }
     }, HEALTH_CHECK_INTERVAL_MS);
   }
@@ -285,7 +341,7 @@ class NablaScribeClient {
    * close handshake (which can take 30+ seconds on a dead connection).
    * Fires onDisconnect and begins reconnection right away.
    */
-  _abortConnection() {
+  _abortConnection(trigger) {
     this._stopHealthCheck();
     if (this._ws) {
       const ws = this._ws;
@@ -295,7 +351,7 @@ class NablaScribeClient {
       ws.onmessage = () => {};
       ws.close();
     }
-    this.onDisconnect();
+    this.onDisconnect({ ...this._connectionStats(), trigger: trigger || 'abort' });
     this._markSentAsUnsent();
     this._scheduleReconnect();
   }
@@ -311,7 +367,7 @@ class NablaScribeClient {
   /** @private — Browser went offline; proactively close the WebSocket. */
   _handleOffline() {
     if (this._initialConnect || this._intentionalClose) return;
-    if (this._ws) this._abortConnection();
+    if (this._ws) this._abortConnection('offline-event');
   }
 
   /** @private — Browser came back online; reconnect immediately. */
@@ -436,18 +492,37 @@ class NablaScribeClient {
    * and flush more data now that backpressure headroom has opened up.
    */
   _handleAck(msg) {
+    // A received ACK proves this connection is actually working (audio is
+    // flowing and being acknowledged), so the reconnect backoff can reset.
+    this._reconnectAttempts = 0;
     const ackId = msg.ack_id;
     if (ackId <= this._lastAckedSeqId) return;
     this._lastAckedSeqId = ackId;
 
     while (this._buffer.length > 0 && this._buffer[0].seqId <= ackId) {
       const chunk = this._buffer.shift();
+      this._ackedSamples += chunk.sampleCount;
       if (chunk.sent) {
         this._inflightSamples -= chunk.sampleCount;
       }
     }
 
     this._flush();
+  }
+
+  /**
+   * @private
+   * Stats reported to onDisconnect/onReconnect. Raw samples + sample rate (not
+   * ms) so the recording hook does all offset math through its tested pure
+   * helpers. ackedSamples is the audio Nabla has confirmed; on reconnect the
+   * fresh session's offset 0 aligns to that audio-time position.
+   */
+  _connectionStats() {
+    return {
+      ackedSamples: this._ackedSamples,
+      sampleRate: this._config.sample_rate || 16000,
+      bufferedChunks: this._buffer.length,
+    };
   }
 
   /** @private */

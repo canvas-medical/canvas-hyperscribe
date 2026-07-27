@@ -43,6 +43,7 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.scribe.command_buttons import configure_command_buttons_effect
 
 import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
+from hyperscribe.scribe.clients.nabla.backend import NablaBackend
 from hyperscribe.scribe.backend import (
     ClinicalNote,
     CodingEntry,
@@ -56,6 +57,7 @@ from hyperscribe.scribe.backend import (
     get_backend_from_secrets,
 )
 from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
+from hyperscribe.scribe.commands.diagnosis_candidates import PatientConditionSnapshot
 from hyperscribe.scribe.commands.builder import (
     DIRECT_EDIT_SECTIONS,
     EDITABLE_AMEND_SECTIONS,
@@ -82,7 +84,12 @@ from hyperscribe.scribe.commands.problem_list_match import (
     ActivePatientCondition,
     prefer_patient_specific_codes,
 )
-from hyperscribe.scribe.recommendations import recommend_commands
+from hyperscribe.scribe.recommendations import make_llm_client, prescription_dispense_enabled, recommend_commands
+from hyperscribe.scribe.recommendations._referral_diagnosis import link_referral_diagnoses
+from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
+    BlockContext as DiagnosisBlockContext,
+    resolve_uncoded_blocks,
+)
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
@@ -184,6 +191,32 @@ def audit_event(note_uuid: str, event_type: str, details: dict[str, Any] | None 
         obj.save()
     except Exception:
         log.exception(f"Failed to write audit event: {event_type}")
+
+
+def _emit_template_audit(note_uuid: str, visit_template_name: str) -> None:
+    """Emit NABLA_TEMPLATE_PATH + (conditionally) PSYCH_TEMPLATE_NEAR_MISS audit events.
+
+    NABLA_TEMPLATE_PATH fires on every generate_note call so Brigade can track
+    which template path each session took. NEAR_MISS only fires when the
+    operator-set name *looks* like psychiatry but doesn't exact-match the
+    gating set — this surfaces customer admins who added e.g. "Psychiatry
+    Follow-up" so the gating set can grow if needed. Both payloads carry
+    only operator-set names, no PHI.
+    """
+    if not note_uuid:
+        return
+    is_psychiatry = NablaBackend.is_psychiatry_template(visit_template_name)
+    audit_event(
+        note_uuid,
+        "NABLA_TEMPLATE_PATH",
+        {"is_psychiatry": is_psychiatry, "template": visit_template_name},
+    )
+    if NablaBackend.is_psychiatry_template_near_miss(visit_template_name):
+        audit_event(
+            note_uuid,
+            "PSYCH_TEMPLATE_NEAR_MISS",
+            {"visit_template_name": visit_template_name},
+        )
 
 
 _PROGRESS_CACHE_KEY_PREFIX = "scribe_progress:"
@@ -390,6 +423,54 @@ def _load_active_patient_conditions(patient_id: str) -> list[ActivePatientCondit
     return results
 
 
+def _load_patient_condition_history(patient_id: str) -> list[PatientConditionSnapshot]:
+    """Return the patient's committed conditions — active AND inactive (resolved,
+    remission, relapse, investigative) — narrowed to what the ICD-10 ranker needs.
+
+    Distinct from :func:`_load_active_patient_conditions` (which is ``.active()``
+    only and feeds the legacy rewrite/belt): the ranker uses prior conditions as a
+    selection signal and to show provenance ("Resolved 2021"), so this drops the
+    ``.active()`` filter and carries ``clinical_status`` / ``onset_date`` /
+    ``resolution_date``.
+
+    Best-effort: any ORM error returns ``[]`` so ``/generate-summary`` never dies
+    on a condition lookup (mirrors the contract documented in
+    ``ap_split._build_active_condition_icd10_index``). PHI: log only counts —
+    never codes, displays, or patient identifiers.
+    """
+    if not patient_id:
+        return []
+    try:
+        conditions = (
+            ConditionModel.objects.committed()
+            .for_patient(patient_id)
+            .prefetch_related("codings")
+            .order_by("-onset_date")
+        )
+        results: list[PatientConditionSnapshot] = []
+        for condition in conditions:
+            codings = list(condition.codings.all())
+            if not codings:
+                continue
+            icd10 = next((coding for coding in codings if "icd" in (coding.system or "").lower()), None)
+            chosen = icd10 or codings[0]
+            results.append(
+                PatientConditionSnapshot(
+                    condition_id=str(condition.id),
+                    code=chosen.code or "",
+                    display=chosen.display or "",
+                    system=chosen.system or "",
+                    clinical_status=condition.clinical_status or "",
+                    onset_date=condition.onset_date.isoformat() if condition.onset_date else "",
+                    resolution_date=condition.resolution_date.isoformat() if condition.resolution_date else "",
+                )
+            )
+        return results
+    except Exception:
+        log.exception("patient condition history lookup failed for note generation")
+        return []
+
+
 def _match_conditions_to_sections(
     note: ClinicalNote,
     conditions: list[Condition],
@@ -459,6 +540,8 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
         defaults["mode"] = payload["mode"] or ""
     if "raw_response" in payload:
         defaults["raw_response"] = payload["raw_response"]
+    if "raw_normalized_response" in payload:
+        defaults["raw_normalized_response"] = payload["raw_normalized_response"]
     ScribeSummary.objects.update_or_create(note_id=note_dbid, defaults=defaults)
 
 
@@ -531,7 +614,11 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
 # command_type. NOTE: these are the plugin's own command_types, NOT the official
 # Canvas command schema_keys ("exam" / "ros") — we deliberately read ScribeSummary
 # (Scribe-created commands only) so the official commands can never be surfaced.
-_EXAM_KIND_TO_COMMAND_TYPE = {"physical_exam": "physical_exam", "ros": "ros"}
+_EXAM_KIND_TO_COMMAND_TYPE = {
+    "physical_exam": "physical_exam",
+    "ros": "ros",
+    "mental_status_exam": "mental_status_exam",
+}
 
 
 def _last_exam_sections(note_uuid: str, staff_id: str, kind: str) -> list[dict[str, str]]:
@@ -691,6 +778,9 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
         pe_sections: list[dict[str, str]] | None = None
         if raw_pe := tmpl.get("pe_template"):
             pe_sections = parse_ros_subsections(raw_pe)
+        mse_sections: list[dict[str, str]] | None = None
+        if raw_mse := tmpl.get("mse_template"):
+            mse_sections = parse_ros_subsections(raw_mse)
         resolved_charges: list[dict[str, str]] = []
         for code in tmpl.get("charges", []):
             code = str(code).strip()
@@ -699,12 +789,15 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
                 log.warning("visit-templates: charge CPT code %r not found", code)
                 continue
             resolved_charges.append({"cpt_code": record.cpt_code, "description": record.short_name or record.name})
+        template_name = tmpl.get("name", "")
         result_templates.append(
             {
-                "name": tmpl.get("name", ""),
+                "name": template_name,
                 "questionnaires": resolved,
                 "ros_sections": ros_sections,
                 "pe_sections": pe_sections,
+                "mse_sections": mse_sections,
+                "is_psychiatry": NablaBackend.is_psychiatry_template(template_name),
                 "charges": resolved_charges,
             }
         )
@@ -770,6 +863,23 @@ def _parse_note(data: dict[str, Any]) -> ClinicalNote:
     return ClinicalNote(title=str(data.get("title", "")), sections=sections)
 
 
+def _note_provider_id(note_uuid: str | None) -> str | None:
+    """The note's provider (prescriber) staff id, or None. Used to gate the
+    prescription dispense-field engine against the allowlist secret."""
+    if not note_uuid:
+        return None
+    try:
+        provider_id = Note.objects.values_list("provider__id", flat=True).get(id=note_uuid)
+    except Note.DoesNotExist:
+        return None
+    except Exception:
+        # Unexpected query failure (DB/ORM): degrade gracefully to the gated-off
+        # path, but surface it to Sentry so we can tell *why* the engine is off.
+        log.exception("dispense-gate: provider lookup failed for note %s", note_uuid)
+        return None
+    return str(provider_id) if provider_id is not None else None
+
+
 class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     """Scribe session management API."""
 
@@ -806,6 +916,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 "selected_template_name",
                 "mode",
                 "raw_response",
+                "raw_normalized_response",
                 "updated_at",
             )
             .first()
@@ -898,6 +1009,26 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         try:
             staff_id = self.request.headers.get("canvas-logged-in-user-id")
             config = backend.get_transcription_config(user_external_id=staff_id)
+        except ScribeError as exc:
+            return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
+        return [JSONResponse(config, status_code=HTTPStatus.OK)]
+
+    @api.get("/dictation-config")
+    def get_dictation_config(self) -> list[Union[Response, Effect]]:
+        """Return the Nabla dictate-ws config for talking into a single field post-generation.
+
+        Mirrors ``/config`` but for the separate dictation endpoint. Provides the
+        same per-user Nabla WS credentials; a backend that does not support
+        dictation raises ScribeError (→ 500). The field text/caret is supplied
+        client-side, so no note_id is needed here.
+        """
+        try:
+            backend = get_backend_from_secrets(self.secrets)
+        except ScribeError as exc:
+            return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.BAD_REQUEST)]
+        try:
+            staff_id = self.request.headers.get("canvas-logged-in-user-id")
+            config = backend.get_dictation_config(user_external_id=staff_id)
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
         return [JSONResponse(config, status_code=HTTPStatus.OK)]
@@ -1085,8 +1216,15 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
         transcript = _parse_transcript(transcript_data)
         patient_context = _parse_patient_context(data)
+        visit_template_name = str(data.get("selected_template_name", "") or "")
+        note_uuid = str(data.get("note_uuid", ""))
+        _emit_template_audit(note_uuid, visit_template_name)
         try:
-            note = backend.generate_note(transcript, patient_context=patient_context)
+            note = backend.generate_note(
+                transcript,
+                patient_context=patient_context,
+                visit_template_name=visit_template_name,
+            )
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
 
@@ -1095,12 +1233,12 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             "title": note.title,
             "sections": [{"key": s.key, "title": s.title, "text": s.text} for s in note.sections],
         }
+        is_psychiatry_visit = NablaBackend.is_psychiatry_template(visit_template_name)
 
         # ── Step 1: Generate normalized data ──
         _save_progress(note_id, 1, total, SUMMARY_STEPS[1])
         section_conditions: dict[str, list[dict[str, Any]]] = {}
         normalized_observations: list[Observation] = []
-        note_uuid = str(data.get("note_uuid", ""))
         try:
             normalized = backend.generate_normalized_data(note)
             # KOALA-5603: prefer the patient's specific active-problem-list code
@@ -1154,7 +1292,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                         "reasons": [r.reason for r in vitals_telemetry.refusals],
                     },
                 )
-        proposals = extract_commands(note, observations=normalized_observations)
+        proposals = extract_commands(
+            note,
+            observations=normalized_observations,
+            is_psychiatry=is_psychiatry_visit,
+        )
         annotate_duplicates(proposals, note_uuid)
         prefill_assess_backgrounds_for_proposals(proposals, note_uuid)
         commands_list: list[dict[str, Any]] = [
@@ -1204,8 +1346,17 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     note_for_split = Note.objects.select_related("patient").get(id=note_uuid)
                 except Note.DoesNotExist:
                     note_for_split = None
+        # Feed the grounded ranker the patient's full condition history (active +
+        # inactive) for selection/provenance, and the science service for the
+        # fallback/unspecified-refinement lookups. ``note`` still drives the
+        # active-only condition_id stamping (diagnose→assess flip eligibility).
+        chart_conditions = _load_patient_condition_history(str(data.get("patient_id", "")))
         commands_list, unmatched_conditions = split_plan_into_diagnoses(
-            commands_list, section_conditions, note=note_for_split
+            commands_list,
+            section_conditions,
+            note=note_for_split,
+            chart_conditions=chart_conditions,
+            science_search=CanvasScience.search_conditions,
         )
         prefill_diagnose_backgrounds(commands_list, note_uuid)
 
@@ -1221,7 +1372,20 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             try:
                 patient_id = str(data.get("patient_id", ""))
                 zip_codes = resolve_zip_codes(patient_id, note_id) or None
-                rec_proposals = recommend_commands(note, api_key, zip_codes=zip_codes, transcript=transcript)
+                allowlist = self.secrets.get(Constants.SECRET_SCRIBE_PRESCRIPTION_STAFFERS, "")
+                provider_id = _note_provider_id(note_uuid)
+                dispense_engine_enabled = prescription_dispense_enabled(allowlist, provider_id)
+                log.info(
+                    f"Prescription dispense engine: {'ON' if dispense_engine_enabled else 'OFF'} "
+                    f"(allowlist_set={bool((allowlist or '').strip())})"
+                )
+                rec_proposals = recommend_commands(
+                    note,
+                    api_key,
+                    zip_codes=zip_codes,
+                    transcript=transcript,
+                    dispense_engine_enabled=dispense_engine_enabled,
+                )
                 annotate_duplicates(rec_proposals, note_uuid)
                 prefill_assess_backgrounds_for_proposals(rec_proposals, note_uuid)
                 recommendations_list = [
@@ -1246,20 +1410,75 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             except Exception:
                 log.exception("interaction check failed (non-critical)")
 
-        # ── Step 4: Suggest diagnoses for unmatched blocks ──
+        # ── Step 4: Collect grounded suggestions for uncoded blocks ──
+        # The A&P belt already stamped ranked, science/chart-grounded
+        # ``candidate_suggestions`` on each uncoded diagnose proposal (no LLM, no
+        # invented codes). Surface them as a ``block_id -> options`` map — the
+        # stable association key, replacing the old mutable-header keying.
         _save_progress(note_id, 4, total, SUMMARY_STEPS[4])
-        diagnosis_suggestions: dict[str, Any] = {}
-        unmatched_headers = [
-            c["data"].get("condition_header", "")
+        # Grounded-LLM resolver: for the blocks the deterministic belt could not code,
+        # retrieve real ICD-10 codes and let the LLM select the best (auto-apply on high
+        # confidence) or curate a grounded picker. Best-effort — never invents a code,
+        # never overrides a code the belt already applied, never crashes generation.
+        if api_key:
+            uncoded_blocks = [
+                DiagnosisBlockContext(
+                    block_id=c["data"]["block_id"],
+                    header=c["data"].get("condition_header", ""),
+                    body=c["data"].get("today_assessment", ""),
+                    candidates=c["data"].get("candidate_suggestions") or [],
+                )
+                for c in commands_list
+                if c.get("command_type") == "diagnose"
+                and not c.get("data", {}).get("icd10_code")
+                and c.get("data", {}).get("block_id")
+            ]
+            if uncoded_blocks:
+                try:
+                    resolutions = resolve_uncoded_blocks(
+                        uncoded_blocks,
+                        lambda: make_llm_client(api_key),
+                        CanvasScience.search_conditions,
+                    )
+                    by_block = {
+                        c["data"].get("block_id"): c for c in commands_list if c.get("command_type") == "diagnose"
+                    }
+                    for block_id, resolution in resolutions.items():
+                        command = by_block.get(block_id)
+                        if command is None:
+                            continue
+                        # Never auto-apply — only surface the resolver's grounded suggestions;
+                        # the provider picks the code in the picker.
+                        if resolution.suggestions:
+                            command["data"]["candidate_suggestions"] = resolution.suggestions
+                except Exception:
+                    log.exception("diagnosis LLM resolver failed (non-critical)")
+
+        # The belt + resolver have stamped ranked, science/chart-grounded
+        # ``candidate_suggestions`` on each still-uncoded diagnose proposal (no invented
+        # codes). Surface them as a ``block_id -> options`` map — the stable association
+        # key, replacing the old mutable-header keying.
+        diagnosis_suggestions: dict[str, Any] = {
+            c["data"]["block_id"]: c["data"]["candidate_suggestions"]
             for c in commands_list
-            if c.get("command_type") == "diagnose" and not c.get("data", {}).get("icd10_code")
-        ]
-        unmatched_headers = [h for h in unmatched_headers if h]
-        if unmatched_headers and api_key:
+            if c.get("command_type") == "diagnose"
+            and not c.get("data", {}).get("icd10_code")
+            and c.get("data", {}).get("block_id")
+            and c.get("data", {}).get("candidate_suggestions")
+        }
+
+        # ── Step 4b: Give generic referrals a validated indication ──
+        # Match each referral's condition to a code already in the note — a coded
+        # diagnose command or an active-chart (unmatched) condition — so a generic,
+        # provider-less referral is commit-ready. Never fabricates a code, and never
+        # links from a still-uncoded block's ranked suggestions (that would stamp a
+        # guess the provider may not pick); those are linked to the provider's final
+        # code at reconciliation time by the frontend live-linker.
+        if recommendations_list:
             try:
-                diagnosis_suggestions = suggest_diagnoses(unmatched_headers, api_key)
+                link_referral_diagnoses(recommendations_list, commands_list, unmatched_conditions)
             except Exception:
-                log.exception("suggest_diagnoses failed (non-critical)")
+                log.exception("link_referral_diagnoses failed (non-critical)")
 
         # ── Save to database ──
         # `mode` and `selected_template_name` are owned by the session lifecycle
@@ -1281,6 +1500,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             summary_payload["selected_template_name"] = data["selected_template_name"]
         if raw_response is not None:
             summary_payload["raw_response"] = raw_response
+        raw_normalized_response = getattr(backend, "_last_raw_normalized_response", None)
+        if raw_normalized_response is not None:
+            summary_payload["raw_normalized_response"] = raw_normalized_response
         _save_summary(note_id, summary_payload)
 
         return [
@@ -1336,8 +1558,19 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
         transcript = _parse_transcript(transcript_data)
         patient_context = _parse_patient_context(data)
+        visit_template_name = str(data.get("selected_template_name", "") or "")
+        # NABLA_TEMPLATE_PATH + NEAR_MISS observability fires on every
+        # generate_note call (both the summary pipeline and this raw endpoint),
+        # so Brigade can compare template path adoption against psych-named
+        # templates that don't exact-match the gating set.
+        note_uuid = str(data.get("note_uuid", "") or data.get("note_id", ""))
+        _emit_template_audit(note_uuid, visit_template_name)
         try:
-            note = backend.generate_note(transcript, patient_context=patient_context)
+            note = backend.generate_note(
+                transcript,
+                patient_context=patient_context,
+                visit_template_name=visit_template_name,
+            )
         except ScribeError as exc:
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
         return [
@@ -1391,7 +1624,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except (json.JSONDecodeError, ValueError) as exc:
             return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
         note = _parse_note(data.get("note", {}))
-        proposals = extract_commands(note)
+        visit_template_name = str(data.get("selected_template_name", "") or "")
+        is_psychiatry = NablaBackend.is_psychiatry_template(visit_template_name)
+        proposals = extract_commands(note, is_psychiatry=is_psychiatry)
         note_uuid = str(data.get("note_uuid", ""))
         annotate_duplicates(proposals, note_uuid)
         prefill_assess_backgrounds_for_proposals(proposals, note_uuid)
@@ -1432,8 +1667,12 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         patient_id = str(data.get("patient_id", ""))
         rec_note_id = str(data.get("note_id", ""))
         zip_codes = resolve_zip_codes(patient_id, rec_note_id) or None
+        allowlist = self.secrets.get(Constants.SECRET_SCRIBE_PRESCRIPTION_STAFFERS, "")
+        dispense_engine_enabled = prescription_dispense_enabled(allowlist, _note_provider_id(rec_note_id))
         try:
-            proposals = recommend_commands(note, api_key, zip_codes=zip_codes)
+            proposals = recommend_commands(
+                note, api_key, zip_codes=zip_codes, dispense_engine_enabled=dispense_engine_enabled
+            )
         except Exception:
             log.exception("recommend_commands failed")
             return [
@@ -1473,16 +1712,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         conditions = data.get("conditions", [])
         if not conditions or not isinstance(conditions, list):
             return [JSONResponse({"suggestions": {}}, status_code=HTTPStatus.OK)]
-        api_key = self.secrets.get("AnthropicAPIKey", "")
-        if not api_key:
-            return [
-                JSONResponse(
-                    {"error": "AnthropicAPIKey secret is not configured"},
-                    status_code=HTTPStatus.BAD_REQUEST,
-                )
-            ]
         try:
-            suggestions = suggest_diagnoses(conditions, api_key)
+            # Grounded in the science service only — no LLM, no invented codes.
+            suggestions = suggest_diagnoses(conditions)
         except Exception:
             log.exception("suggest_diagnoses failed")
             return [
@@ -2070,8 +2302,25 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except (json.JSONDecodeError, ValueError) as exc:
             return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
         note_uuid = str(data.get("note_uuid", ""))
-        attempted: list[dict[str, Any]] = data.get("attempted", [])
-        if not note_uuid or not attempted:
+        attempted_raw: list[dict[str, Any]] = data.get("attempted", [])
+        if not note_uuid or not attempted_raw:
+            return [JSONResponse({"verified": [], "failed": []}, status_code=HTTPStatus.OK)]
+
+        # KOALA-4800: dedup by command_uuid and drop entries without one before
+        # counting. The verification banner shows len(verified) + len(failed);
+        # a caller that passes the same command twice — or a stale/empty uuid —
+        # would otherwise inflate that total and surface phantom `not_found`
+        # failures for commands that are actually on the note. Defensive
+        # backstop mirroring the frontend's dedup at the attempted-set build.
+        attempted: list[dict[str, Any]] = []
+        seen_uuids: set[str] = set()
+        for a in attempted_raw:
+            command_uuid = a.get("command_uuid")
+            if not command_uuid or command_uuid in seen_uuids:
+                continue
+            seen_uuids.add(command_uuid)
+            attempted.append(a)
+        if not attempted:
             return [JSONResponse({"verified": [], "failed": []}, status_code=HTTPStatus.OK)]
 
         uuids = [a["command_uuid"] for a in attempted]

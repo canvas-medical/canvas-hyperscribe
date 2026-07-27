@@ -4,6 +4,7 @@ import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
 import { collectQuestionnaireScores } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-score.js';
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
+import { useFieldDictation } from '/plugin-io/api/hyperscribe/scribe/static/dictation-hook.js';
 import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
 import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/finish-button.js';
@@ -93,6 +94,7 @@ const _commandValidationReason = (c) => {
   if (c.command_type === 'imaging_order') return 'imaging_incomplete';
   if (c.command_type === 'lab_order') return 'lab_incomplete';
   if (c.command_type === 'perform') return 'perform_incomplete';
+  if (c.command_type === 'diagnose' && !(c.data && c.data.icd10_code)) return 'diagnose_uncoded';
   return 'validation';
 };
 const _validationErrorMessage = (c, reason, context = 'approving') => {
@@ -102,8 +104,82 @@ const _validationErrorMessage = (c, reason, context = 'approving') => {
   if (reason === 'imaging_incomplete') return `This imaging order is missing required fields (image code, service provider, ordering provider, or diagnosis codes). ${suffix}`;
   if (reason === 'lab_incomplete') return `This lab order is missing required fields (lab partner or tests). ${suffix}`;
   if (reason === 'perform_incomplete') return `This perform command is missing a CPT code. ${suffix}`;
+  if (reason === 'diagnose_uncoded') return `This diagnosis needs an ICD-10 code. Pick one (or reject it) before ${context}.`;
   return `This command has invalid values. ${suffix}`;
 };
+
+// Normalize a condition/indication string for matching (drop trailing colon,
+// casefold) — mirrors _normalize in the backend _referral_diagnosis module.
+const _normalizeCondition = (t) => (t || '').trim().replace(/:+$/, '').trim().toLowerCase();
+
+// Resolve a referral's indication to one of the note's coded diagnoses.
+// `noteDiags` is the note's coded-diagnosis set ({ code, display }); each entry
+// comes from a `diagnose` (icd10_code) OR an active-problem match that flipped to
+// `assess` (data.code). Resolution is deliberately conservative so a referral never
+// gets the WRONG code:
+//   - indication text present -> the UNIQUE note diagnosis whose name matches it
+//     (exact, then containment); ambiguous/no match -> null;
+//   - indication blank -> the sole coded diagnosis if there is exactly one, else null.
+// A null result leaves the referral uncoded for the provider to resolve via the
+// referral editor's indication picker. Shared by the live linker and the approve gate.
+function resolveReferralIndication(indication, noteDiags) {
+  const ind = _normalizeCondition(indication);
+  if (ind) {
+    const matches = (noteDiags || []).filter((d) => {
+      const name = _normalizeCondition(d.display);
+      const header = _normalizeCondition(d.condition_header);
+      const orig = _normalizeCondition(d._original_header);
+      return [name, header, orig].some((k) => k && (k === ind || k.includes(ind) || ind.includes(k)));
+    });
+    return matches.length === 1 ? matches[0] : null;
+  }
+  return (noteDiags || []).length === 1 ? noteDiags[0] : null;
+}
+
+// Build the note's coded-diagnosis set from the command list: every `diagnose` with
+// an ICD-10 code and every `assess` carrying a code (an active-problem match that
+// flipped to assess). Mirrors the chargeMatrixDiagnoses / noteDiagnoses source so the
+// approve-time linker sees exactly what the referral editor's picker sees.
+function codedNoteDiagnoses(commands) {
+  const diags = [];
+  for (const c of commands || []) {
+    if (c.command_type !== 'diagnose' && c.command_type !== 'assess') continue;
+    const d = c.data || {};
+    const code = (d.icd10_code || d.code || '').trim();
+    if (!code) continue;
+    diags.push({
+      code,
+      display: (d.icd10_display || d.label || c.display || '').trim(),
+      condition_header: d.condition_header || '',
+      _original_header: d._original_header || '',
+    });
+  }
+  return diags;
+}
+
+// Referral re-linking safety net at approve/insert time. A referral generated while
+// its indication diagnosis was still uncoded comes through with no diagnosis_codes;
+// resolve it against the note's coded diagnoses so it's commit-ready. The live linker
+// (useEffect) normally fills recommendation referrals during reconciliation; this also
+// covers plan-section referrals and any the effect hasn't reached. Mutates refer targets
+// in place (consistent with the insert flow); never fabricates and never overrides a
+// referral the provider has edited (_indicationTouched) or already coded.
+function relinkReferralDiagnoses(commands, targets) {
+  const noteDiags = codedNoteDiagnoses(commands);
+  if (noteDiags.length === 0) return;
+  for (const rec of targets || []) {
+    if (rec.command_type !== 'refer') continue;
+    if (rec._indicationTouched) continue;
+    const d = rec.data || {};
+    if (d.diagnosis_codes && d.diagnosis_codes.length > 0) continue; // already linked
+    const match = resolveReferralIndication(d.indication, noteDiags);
+    if (!match) continue;
+    d.diagnosis_codes = [match.code];
+    d.diagnosis_displays = [match.display || match.code];
+    d.diagnosis_formatted = [match.code];
+    rec.data = d;
+  }
+}
 
 function formatTime(ms) {
   const totalSeconds = Math.floor(ms / 1000);
@@ -157,9 +233,15 @@ function TranscriptEntry({ speaker, start_offset_ms, text, is_final, providerNam
 
 function VerificationSummary({ result }) {
   const [expanded, setExpanded] = useState(false);
+  // KOALA-4800 (D2): `verified` is the trustworthy count — commands confirmed
+  // to exist on the note. Report it directly in the success headline rather than
+  // `verified + failed`, so a stray/phantom `not_found` can never inflate the
+  // displayed "N command(s) inserted" number. In the success case `failed` is
+  // empty so this equals verified+failed; the guard matters only if a phantom
+  // ever slips past the attempted-set construction upstream.
   const total = result.verified.length + result.failed.length;
   const headline = result.ok
-    ? `All ${total} command(s) inserted successfully`
+    ? `All ${result.verified.length} command(s) inserted successfully`
     : `${result.failed.length} of ${total} command(s) failed to insert`;
   return html`
     <div class="verification-banner ${result.ok ? 'verification-ok' : 'verification-error'}">
@@ -217,11 +299,52 @@ function humanizeCommandType(type) {
     .trim();
 }
 
+// KOALA-4800: canonicalize a command_type for EQUALITY MATCHING (not display).
+// Backend parser attrs and local proposals disagree on casing for whole command
+// families — e.g. the parser emits 'medicalHistory' / 'surgicalHistory' /
+// 'familyHistory' while the scribe/LLM proposals use 'medical_history' etc.
+// Stripping separators + lowercasing collapses both forms to one key
+// ('medicalhistory'), so the re-stamp uuidMap can match an attempted command to
+// its local row regardless of casing. Without this the match missed for the
+// history/medication families, leaving them unstamped (stale, never-persisted
+// uuids) which the verification banner then counted as phantom `not_found`s and
+// inflated the "N command(s) inserted" count. Use humanizeCommandType for
+// display; use this only as a match key.
+function canonicalCommandType(type) {
+  return String(type || '').replace(/_/g, '').toLowerCase();
+}
+
+// KOALA-4800: human label for a command in the verification banner. Most
+// commands carry a `display`, but a diagnose flipped to assess (or an
+// empty-narrative assess) can have a blank `display` while still identifying a
+// condition via icd10_display / condition text — otherwise the banner shows a
+// bare "assess" with no context. Falls back through the same fields the
+// syncNoteCommands label mapping uses (see ~line 583 / ~1584).
+function verifyEntryDisplay(c) {
+  return (
+    c.display
+    || c.data?.icd10_display
+    || c.data?.condition_header
+    || c.data?.condition?.text
+    || c.data?.label
+    || ''
+  );
+}
+
+// KOALA-4800: a command added directly on the note (outside the Scribe) syncs in
+// as an ADDITIONAL COMMANDS / "from the note" card. The Scribe did NOT insert it,
+// so it must not count toward the "N command(s) inserted" verification banner —
+// otherwise adding a command on the note inflates the count by one. get_note_commands
+// tags these with _from_note=true and section_key='from_the_note'.
+function isFromNoteCommand(c) {
+  return c._from_note === true || c.section_key === FROM_THE_NOTE_SECTION;
+}
+
 const SOAP_GROUPS = [
   { title: 'SUBJECTIVE', color: 'subjective', keys: new Set(['chief_complaint', 'history_of_present_illness', 'review_of_systems']) },
   { title: 'HISTORY', color: 'history', keys: new Set(['past_medical_history', 'past_surgical_history',
     'past_obstetric_history', 'family_history', 'social_history']) },
-  { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'physical_exam', 'lab_results', 'imaging_results',
+  { title: 'OBJECTIVE', color: 'objective', keys: new Set(['vitals', 'mental_status_exam', 'physical_exam', 'lab_results', 'imaging_results',
     'current_medications', 'allergies', 'immunizations']) },
   { title: 'ASSESSMENT & PLAN', color: 'plan', keys: new Set(['plan', 'assessment_and_plan', 'prescription', 'appointments']) },
   { title: 'CHARGES', color: 'charges', keys: new Set(['charges']) },
@@ -249,6 +372,7 @@ const EDITABLE_AMEND_SECTIONS = new Set([
   '_ros',
   '_history_review',
   '_chart_review',
+  'mental_status_exam',
   'physical_exam',
   'lab_results',
   'imaging_results',
@@ -323,6 +447,7 @@ const SKELETON_SECTIONS = [
   { key: 'family_history', title: 'Family History', text: '' },
   { key: 'social_history', title: 'Social History', text: '' },
   { key: 'vitals', title: 'Vitals', text: '' },
+  { key: 'mental_status_exam', title: 'Mental Status Exam', text: '' },
   { key: 'physical_exam', title: 'Physical Exam', text: '' },
   { key: 'current_medications', title: 'Meds Discussed', text: '' },
   { key: 'allergies', title: 'Allergies Discussed', text: '' },
@@ -354,7 +479,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -376,7 +501,11 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddTask=${isPlan ? onAddTask : null}
         onAddOrder=${isPlan ? onAddOrder : null}
         onAddPlan=${isPlan ? onAddPlan : null}
+        onMoveToPlan=${isPlan ? onMoveToPlan : null}
+        onAddAppointment=${isPlan ? onAddAppointment : null}
         onAddVitals=${isObjective ? onAddVitals : null}
+        onAddPhysicalExam=${isObjective ? onAddPhysicalExam : null}
+        onAddMentalStatusExam=${isObjective ? onAddMentalStatusExam : null}
         onAddMedication=${isObjective ? onAddMedication : null}
         onAddAllergy=${isObjective ? onAddAllergy : null}
         onAddStopMedication=${isObjective ? onAddStopMedication : null}
@@ -400,6 +529,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onClearChargeComment=${isCharges ? onClearChargeComment : null}
         onRemoveChargeByUuid=${isCharges ? onRemoveChargeByUuid : null}
         readOnly=${readOnly}
+        canEdit=${canEdit}
         isAmending=${isAmending}
         sectionConditions=${sectionConditions}
         patientId=${patientId}
@@ -414,6 +544,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onAddCondition=${isPlan ? onAddCondition : null}
         unmatchedConditions=${isPlan ? unmatchedConditions : null}
         diagnosisSuggestions=${isPlan ? diagnosisSuggestions : null}
+        noteDiagnoses=${noteDiagnoses}
         onAddNow=${(isPlan || isObjective) ? onAddNow : null}
         hideRejected=${hideRejected}
         alertFacilityEnabled=${alertFacilityEnabled}
@@ -421,12 +552,14 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         questionnaireScores=${isObjective ? questionnaireScores : null}
         examTemplates=${(isObjective || isSubjective) ? examTemplates : null}
         onCarryForwardExam=${(isObjective || isSubjective) ? onCarryForwardExam : null}
+        isPsychiatry=${isObjective ? isPsychiatry : false}
+        dictation=${dictation}
       />`;
     })
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, initialData = null }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, manualModeOnly = false, dictationEnabled = false, initialData = null }) {
   const initSummary = initialData?.summary ?? null;
   const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
@@ -562,6 +695,87 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       label: c.data?.icd10_display || c.data?.label || c.display || '',
       locked: Boolean(c.already_documented || c.command_uuid),
     })), [commands]);
+
+  // Accepted A&P diagnoses staged in this note, shaped for the referral
+  // Indications dropdown ({code, formatted_code, display}). Reuses the same
+  // accept filter as chargeMatrixDiagnoses so unreviewed AI suggestions stay
+  // hidden. `code` is normalized (no dot, upper) to dedup against chart
+  // conditions and already-selected chips; formatted_code keeps the dotted form.
+  const noteDiagnoses = useMemo(() => chargeMatrixDiagnoses
+    .filter(d => d.code)
+    .map(d => ({
+      code: d.code.replace(/\./g, '').toUpperCase(),
+      formatted_code: d.code,
+      display: d.label,
+    })), [chargeMatrixDiagnoses]);
+
+  // The note's coded diagnoses shaped for referral indication resolution — same
+  // accept filter as chargeMatrixDiagnoses, but carrying the condition headers so a
+  // referral's indication text can match the note's problem name (not just the ICD
+  // label). Includes assess-flipped active problems (they carry data.code, not
+  // data.icd10_code), which the referral linker must see.
+  const linkableNoteDiagnoses = useMemo(() => commands
+    .filter(c => (c.command_type === 'diagnose' || c.command_type === 'assess')
+      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.already_documented || c.command_uuid
+          || (c.command_type === 'assess' ? c.data?.accepted !== false : c.data?.accepted)))
+    .map(c => ({
+      code: c.data?.icd10_code || c.data?.code || '',
+      display: c.data?.icd10_display || c.data?.label || c.display || '',
+      condition_header: c.data?.condition_header || '',
+      _original_header: c.data?._original_header || '',
+    })), [commands]);
+
+  // Live referral re-linking during reconciliation. Referrals frequently arrive with
+  // a blank indication (the extraction LLM leaves it null when the note doesn't restate
+  // the problem near the referral sentence), so they land uncoded and would block
+  // approval. As the provider codes diagnoses — a `diagnose` gets an ICD-10 code, or an
+  // active-problem match flips to `assess` — fill each still-uncoded referral's
+  // diagnosis_codes as soon as it resolves UNAMBIGUOUSLY (unique name match, or the sole
+  // coded diagnosis when the indication is blank). Ambiguous cases are left for the
+  // referral editor's picker.
+  //
+  // Self-correcting: referrals we fill are tagged `_autoIndication` (a rec-level flag,
+  // never inside `data`, so it never reaches the insert payload). On every run we
+  // re-resolve those from scratch and REVERT them to uncoded if they've become ambiguous
+  // — otherwise a blank-indication referral would latch onto whichever diagnosis was
+  // coded first (transiently the "sole" one) and keep a stale/wrong code once more
+  // diagnoses appear. `_indicationTouched` marks referrals the provider has edited, so a
+  // deliberate choice (including a deliberate clear) is never touched. A referral with
+  // codes but neither flag was set some other way and is left alone. Guarded to no-op
+  // when nothing changes, so it can't loop on its own writes.
+  useEffect(() => {
+    setRecommendations(prev => {
+      let changed = false;
+      const next = prev.map(rec => {
+        if (rec.command_type !== 'refer' || rec._indicationTouched) return rec;
+        const d = rec.data || {};
+        const hasCodes = Boolean(d.diagnosis_codes && d.diagnosis_codes.length > 0);
+        const wasAuto = Boolean(rec._autoIndication);
+        if (hasCodes && !wasAuto) return rec; // provider/other-set — leave it
+        const match = resolveReferralIndication(d.indication, linkableNoteDiagnoses);
+        if (match) {
+          if (hasCodes && wasAuto && d.diagnosis_codes[0] === match.code) return rec; // already correct
+          changed = true;
+          return { ...rec, _autoIndication: true, data: { ...d,
+            diagnosis_codes: [match.code],
+            diagnosis_displays: [match.display || match.code],
+            diagnosis_formatted: [match.code],
+          } };
+        }
+        if (hasCodes && wasAuto) { // was auto-filled, now ambiguous → revert to picker
+          changed = true;
+          return { ...rec, _autoIndication: false, data: { ...d,
+            diagnosis_codes: [],
+            diagnosis_displays: [],
+            diagnosis_formatted: [],
+          } };
+        }
+        return rec;
+      });
+      return changed ? next : prev;
+    });
+  }, [linkableNoteDiagnoses, recommendations]);
 
   // Prune stale diagnosis pointers. When a linked diagnosis is rejected or removed
   // it leaves chargeMatrixDiagnoses, but its _localId lingers in charges' _pointers.
@@ -755,13 +969,26 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const cleanup = connectScribeWS(noteId, (msg) => {
       if (msg.type === 'NOTE_STATE_CHANGED') {
         setNoteEditable(msg.editable);
+        // KOALA-6315: note becoming editable = the "Amend" click → enter edit
+        // mode directly. applyMakeChanges no-ops unless finalized + author.
+        if (msg.editable) applyMakeChangesRef.current();
       }
     });
     return cleanup;
   }, [noteId]);
 
   const noteLocked = !isNoteEditable && !approved;
-  const canEdit = isAuthor && isNoteEditable && !approved;
+  // layout parity for non-authors. Split the old single `canEdit`:
+  //   authorEditable — is the note in an editable state (open + not finalized)?
+  //     Keyed on NOTE STATE, not the viewer, so a non-author renders the SAME
+  //     template/sections/cards/forms the author sees (`readOnly: !authorEditable`).
+  //   canEdit — may THIS viewer actually interact? (isAuthor && authorEditable).
+  // A non-author's view is made non-interactive purely by CSS pointer-events
+  // (see .summary-container--noninteractive) so controls keep their exact
+  // appearance — NOT the `disabled` attribute, which restyles inputs/buttons.
+  // For an author, canEdit === authorEditable, so authors are unaffected.
+  const authorEditable = isNoteEditable && !approved;
+  const canEdit = isAuthor && authorEditable;
   // Lock takes precedence over authorship in the banner messaging.
   const readOnlyReason = noteLocked
     ? 'locked'
@@ -805,8 +1032,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (isNoteEditable) saveBlockedRef.current = false;
   }, [isNoteEditable, noteId]);
 
-  const handleMakeChanges = useCallback(() => {
-    if (!isAuthor || !isNoteEditable || !approved) return;
+  // Core amend transition: drop un-inserted AI recs and flip back to editable.
+  // No `isNoteEditable` guard on purpose — it runs off the NOTE_STATE_CHANGED
+  // event, where `editable` is the proof and that state hasn't committed yet.
+  // The "Make changes" button gates on `isNoteEditable` via handleMakeChanges.
+  const applyMakeChanges = useCallback(() => {
+    if (!isAuthor || !approved) return;
     // Either `already_documented` OR `command_uuid` means "already on the note"
     // — same predicate as the `insertable` filter (see 8ea1df36 back-compat
     // fix). Pre-existing finalized notes (signed before the explicit
@@ -847,7 +1078,23 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // already, but ensure the React state matches without waiting for the
     // /summary refetch.
     setWasFinalized(true);
-  }, [isAuthor, isNoteEditable, approved, commands, recommendations]);
+  }, [isAuthor, approved, commands, recommendations]);
+
+  // "Make changes" button: editable-note guard, then the shared transition.
+  const handleMakeChanges = useCallback(() => {
+    if (!isNoteEditable) return;
+    applyMakeChanges();
+  }, [isNoteEditable, applyMakeChanges]);
+
+  // Latest applyMakeChanges for the WS callback (bound once per noteId, so it
+  // would otherwise capture stale state). Reacting to the note-state EVENT
+  // rather than a derived-state effect is deliberate: a "Save changes"
+  // re-approve emits no note-state event, so it can't bounce us back into edit
+  // mode — the note just re-locks.
+  const applyMakeChangesRef = useRef(applyMakeChanges);
+  useEffect(() => {
+    applyMakeChangesRef.current = applyMakeChanges;
+  }, [applyMakeChanges]);
 
   // Keep the recommendations ref in lockstep with state so syncNoteCommands
   // (a stable callback that intentionally avoids `recommendations` in its deps)
@@ -1112,14 +1359,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   useEffect(() => {
     if (!approved || verificationResult) return;
     const withUuids = [
-      ...commands.filter(c => c.command_uuid),
+      ...commands.filter(c => c.command_uuid && !isFromNoteCommand(c)),
       ...recommendations.filter(c => c.command_uuid),
     ];
     if (withUuids.length === 0) return;
     const attempted = withUuids.map(c => ({
       command_uuid: c.command_uuid,
       command_type: c.command_type,
-      display: (c.display || '').slice(0, 80),
+      display: verifyEntryDisplay(c).slice(0, 80),
     }));
     let cancelled = false;
     async function verify() {
@@ -1155,6 +1402,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           note_id: noteId,
           note_uuid: noteId,
           patient_id: patientId,
+          selected_template_name: selectedTemplate?.name || null,
+          template_ros_sections: selectedTemplate?.ros_sections || null,
+          template_pe_sections: selectedTemplate?.pe_sections || null,
           patient_context: {
             name: patientName || '',
             birth_date: patientBirthDate || '',
@@ -1336,6 +1586,18 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       });
     }
 
+    if (tmpl.mse_sections && tmpl.mse_sections.length > 0) {
+      templateCommands.push({
+        command_type: 'mental_status_exam',
+        display: tmpl.mse_sections.map(s => s.title).join(' | '),
+        data: { sections: tmpl.mse_sections },
+        selected: true,
+        section_key: 'mental_status_exam',
+        already_documented: false,
+        _template_inserted: true,
+      });
+    }
+
     if (tmpl.pe_sections && tmpl.pe_sections.length > 0) {
       templateCommands.push({
         command_type: 'physical_exam',
@@ -1381,8 +1643,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       { command_type: 'hpi', display: '', data: { narrative: '' }, selected: true, section_key: 'history_of_present_illness', already_documented: false },
       // Vitals is intentionally NOT pre-populated: an empty vitals card auto-opens its editor and blocks
       // commit until saved/cancelled (KOALA-5802). It's added on demand via the "+ Vitals" button instead.
-      { command_type: 'plan', display: '', data: { narrative: '' }, selected: true, section_key: 'assessment_and_plan', already_documented: false },
+      // Plan is intentionally NOT pre-populated either: providers add it on demand via the "+ Plan" button
+      // so Assessment & Plan starts empty rather than showing a blank Plan card.
     ];
+    // Add MSE from template if available (psychiatry only).
+    if (selectedTemplate?.mse_sections?.length > 0) {
+      const mseSections = selectedTemplate.mse_sections.map(s => ({ key: s.key, title: s.title, text: s.text, updated: false, template_text: s.text }));
+      const mseDisplay = mseSections.map(s => s.title).join(' | ');
+      manualCommands.push({ command_type: 'mental_status_exam', display: mseDisplay, data: { sections: mseSections }, selected: true, section_key: 'mental_status_exam', already_documented: false });
+    }
     // Add PE from template if available.
     if (selectedTemplate?.pe_sections?.length > 0) {
       const peSections = selectedTemplate.pe_sections.map(s => ({ key: s.key, title: s.title, text: s.text, updated: false, template_text: s.text }));
@@ -1390,10 +1659,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       manualCommands.push({ command_type: 'physical_exam', display: peDisplay, data: { sections: peSections }, selected: true, section_key: 'physical_exam', already_documented: false });
     }
     setCommands(prev => {
-      // Keep any existing ad-hoc commands and template-inserted commands (ROS, PE, questionnaires).
+      // Keep any existing ad-hoc commands and template-inserted commands (ROS, MSE, PE, questionnaires).
       const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
       const existing = prev.filter(c => {
-        if (c._template_inserted && c.command_type === 'physical_exam') return false;
+        if (c._template_inserted && (c.command_type === 'physical_exam' || c.command_type === 'mental_status_exam')) return false;
         return adHocKeys.has(c.section_key) || c._template_inserted;
       });
       return [...manualCommands, ...existing];
@@ -1461,7 +1730,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (i !== index) return cmd;
         const type = newType || cmd.command_type;
         let next;
-        if (type === 'history_review' || type === 'chart_review' || type === 'ros' || type === 'physical_exam') {
+        if (type === 'history_review' || type === 'chart_review' || type === 'ros' || type === 'physical_exam' || type === 'mental_status_exam') {
           const display = (newData.sections || []).map(s => s.title).join(' | ');
           next = { ...cmd, data: newData, display };
         } else if (type === 'vitals') {
@@ -1510,8 +1779,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           const parts = [newData.image_display, newData.additional_details, newData.comment, newData.priority].filter(Boolean);
           next = { ...cmd, command_type: type, data: newData, display: parts.join(' | ') };
         } else if (type === 'refer') {
-          const parts = [newData.refer_to_display, newData.clinical_question, newData.priority].filter(Boolean);
-          next = { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral' };
+          // Headline is the specialty only (refer_to_display); clinical_question /
+          // priority show on the detail line, not the collapsed headline.
+          next = { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral' };
         } else if (type === 'familyHistory') {
           const parts = [newData.condition_display, newData.relative, newData.note].filter(Boolean);
           next = { ...cmd, command_type: type, data: newData, display: parts.join(' — ') || '' };
@@ -1577,6 +1847,125 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       return updated;
     });
   }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+
+  // Reclassify a diagnosis card as a plan narrative in the Appointments component.
+  // Some A&P "problems" are really management/administrative items (e.g. "Physical
+  // therapy access", "Ear cleaning") that shouldn't carry an ICD-10 code; converting
+  // to a `plan` command in the `appointments` section preserves the documentation,
+  // drops the code requirement, and clears the uncoded-diagnosis hard block (every gate
+  // keys on command_type === 'diagnose'). One-way: to undo, delete and re-add. The
+  // header leads the narrative so the problem name survives as context.
+  const handleMoveToPlan = useCallback((index) => {
+    if (!canEdit) return;
+    logEvent('MOVE_DX_TO_PLAN', { index });
+    setCommands(prev => {
+      const src = prev[index];
+      if (!src || src.command_type !== 'diagnose') return prev;
+      const d = src.data || {};
+      // Carry today_assessment verbatim — it already leads with the headline + body
+      // (baked at generation), so the header shows once (no strip, no duplicate).
+      const item = (d.today_assessment || '').trim() || (d.condition_header || '').trim();
+      if (!item) return prev;
+      // Consolidate: all moved items live in the SAME Wrap Up text box. Append to the
+      // first editable `appointments` plan command if one exists; otherwise convert the
+      // source in place into it. Either way the source diagnosis card is removed.
+      const targetIdx = prev.findIndex(
+        c => c.command_type === 'plan' && c.section_key === 'appointments' && !c.already_documented && !c.command_uuid
+      );
+      let updated;
+      if (targetIdx >= 0) {
+        updated = prev
+          .map((c, i) => {
+            if (i !== targetIdx) return c;
+            const existing = (c.data?.narrative || '').trim();
+            const merged = existing ? `${existing}\n\n${item}` : item;
+            return { ...c, display: merged, data: { ...c.data, narrative: merged } };
+          })
+          .filter((_, i) => i !== index);
+      } else {
+        updated = prev.map((c, i) =>
+          i === index
+            ? { ...c, command_type: 'plan', section_key: 'appointments', display: item, data: { narrative: item } }
+            : c
+        );
+      }
+      saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
+      return updated;
+    });
+  }, [canEdit, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+
+  // Promote the always-on blank Appointments placeholder into a real plan command when
+  // the provider types into it (mirrors handleAddPhysicalExam). Empty saves are ignored.
+  const handleAddAppointment = useCallback((data) => {
+    if (!canEdit) return;
+    const narrative = ((data && data.narrative) || '').trim();
+    if (!narrative) return;
+    logEvent('ADD_APPOINTMENT');
+    setCommands(prev => [...prev, {
+      command_type: 'plan',
+      display: narrative,
+      data: { narrative },
+      selected: true,
+      section_key: 'appointments',
+      already_documented: false,
+    }]);
+  }, [canEdit]);
+
+  // --- Field dictation (KOALA-6233) ---
+  // Talk into a single field (CC / HPI / Plan) after generation, before approval.
+  // Runs on Nabla's separate dictate-ws endpoint and never touches the ambient
+  // transcript / note-generation pipeline. Text streams into the command's live
+  // value (read view updates as you speak); the field is persisted once on stop.
+  const commandsRef = useRef(commands);
+  commandsRef.current = commands;
+
+  // Append one dictated unit verbatim (Nabla owns spacing/punctuation). No save
+  // here — a single save happens on stop, so a stream of words is not a stream
+  // of POSTs.
+  const handleDictatedText = useCallback((index, chunk) => {
+    if (!chunk) return;
+    setCommands(prev => prev.map((cmd, i) => {
+      if (i !== index) return cmd;
+      const dictField = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
+      const nextText = (cmd.data?.[dictField] || '') + chunk;
+      return { ...cmd, data: { ...cmd.data, [dictField]: nextText }, display: nextText };
+    }));
+  }, []);
+
+  const dictation = useFieldDictation(handleDictatedText);
+
+  const toggleDictation = useCallback(async (index) => {
+    if (dictation.activeField === index) {
+      logEvent('DICTATION_STOP', { index });
+      await dictation.stop();
+      // Persist the final text once. Done inside the updater so it always sees
+      // the last streamed chunk (state may not have re-rendered yet after stop),
+      // and it applies the amend tag when amending — mirroring handleEdit's save.
+      setCommands(prev => {
+        const cmd = prev[index];
+        if (!cmd) return prev;
+        const dictField = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
+        const display = cmd.data?.[dictField] || '';
+        let next = { ...cmd, display };
+        if (isAmendingSectionEditable(cmd, wasFinalized && !approved)) {
+          next = { ...next, _amend_edited: true };
+        }
+        const updated = prev.map((c, i) => (i === index ? next : c));
+        saveSummaryToCache(noteData, updated, false, { recommendations, unmatched_conditions: unmatchedConditions, diagnosis_suggestions: diagnosisSuggestions });
+        return updated;
+      });
+      return;
+    }
+    const cmd = commandsRef.current[index];
+    if (!cmd) return;
+    const dictField = cmd.command_type === 'rfv' ? 'comment' : 'narrative';
+    logEvent('DICTATION_START', { index, commandType: cmd.command_type });
+    dictation.start(index, cmd.data?.[dictField] || '');
+  }, [dictation, wasFinalized, approved, noteData, saveSummaryToCache, recommendations, unmatchedConditions, diagnosisSuggestions]);
+
+  useEffect(() => {
+    if (dictation.error) logEvent('DICTATION_ERROR', { error: dictation.error });
+  }, [dictation.error]);
 
   const handleAddTask = useCallback(() => {
     logEvent('ADD_TASK');
@@ -1656,6 +2045,56 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }]);
   }, [canEdit]);
 
+  // Physical Exam is always surfaced (via ENSURE_KEYS) even when Nabla omits the
+  // section. When no PE command exists yet, the Objective group renders an empty
+  // ExamSectionsRow against a synthetic placeholder; its first Save lands here and
+  // promotes that draft into a real, index-addressable command so subsequent edits
+  // flow through the normal handleEdit path. Keyed on `physical_exam` (not an
+  // _objective_ad_hoc bucket) so it renders in the PE card and participates in the
+  // amend routing. An empty exam is dropped by the `insertable` filter, so this
+  // never writes a blank Physical Exam to the chart.
+  const handleAddPhysicalExam = useCallback((newData) => {
+    if (!canEdit) return;
+    const sections = (newData && newData.sections) || [];
+    logEvent('ADD_PHYSICAL_EXAM', { systemCount: sections.length });
+    setCommands(prev => {
+      // Defensive: if a PE command already exists (e.g. a template was applied
+      // between render and save), don't append a second one — the existing
+      // card owns the section.
+      if (prev.some(c => c.command_type === 'physical_exam')) return prev;
+      return [...prev, {
+        command_type: 'physical_exam',
+        display: sections.map(s => s.title).join(' | '),
+        data: { sections },
+        selected: true,
+        section_key: 'physical_exam',
+        already_documented: false,
+      }];
+    });
+  }, [canEdit]);
+
+  // Mental Status Exam mirrors handleAddPhysicalExam, but only fires on
+  // psychiatry visits (the Objective group gates the empty card on isPsychiatry).
+  // Promotes the first Save of the empty ExamSectionsRow into a real,
+  // index-addressable command. An empty MSE is dropped by the `insertable`
+  // filter, so this never writes a blank Mental Status Exam to the chart.
+  const handleAddMentalStatusExam = useCallback((newData) => {
+    if (!canEdit) return;
+    const sections = (newData && newData.sections) || [];
+    logEvent('ADD_MENTAL_STATUS_EXAM', { systemCount: sections.length });
+    setCommands(prev => {
+      if (prev.some(c => c.command_type === 'mental_status_exam')) return prev;
+      return [...prev, {
+        command_type: 'mental_status_exam',
+        display: sections.map(s => s.title).join(' | '),
+        data: { sections },
+        selected: true,
+        section_key: 'mental_status_exam',
+        already_documented: false,
+      }];
+    });
+  }, [canEdit]);
+
   const handleEditRecommendation = useCallback((index, newData, newType) => {
     if (!canEdit) return;
     logEvent('EDIT_REC', { index, commandType: newType, data: newData });
@@ -1672,8 +2111,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         return { ...cmd, command_type: type, data: newData, display: newData.medication_text || '', accepted: true };
       }
       if (type === 'refer') {
-        const parts = [newData.refer_to_display, newData.clinical_question, newData.priority].filter(Boolean);
-        return { ...cmd, command_type: type, data: newData, display: parts.join(' | ') || 'Referral', accepted: true };
+        // Provider has taken control of this referral (including its indication) —
+        // mark it so the live auto-linker never overrides their choice, even if they
+        // deliberately cleared the indication.
+        return { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral', accepted: true, _indicationTouched: true };
       }
       return { ...cmd, data: newData, accepted: true };
     }));
@@ -1806,6 +2247,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const handleAddTemplateCharge = useCallback((cptCode, description) => {
     logEvent('ADD_TEMPLATE_CHARGE', { cptCode, description });
     if (!canEdit) return;
+    // Auto-associate a freshly added charge with the first MAX_POINTERS (4)
+    // diagnoses currently listed in the matrix, in rank order. command_uuid here
+    // is the diagnosis command's _localId — the same identity stored in _pointers
+    // and toggled by onToggleChargePointer. One-time seed at selection time:
+    // diagnoses added later are NOT retroactively linked, and re-selecting an
+    // existing charge (below) preserves its prior pointers.
+    const defaultPointers = chargeMatrixDiagnoses.slice(0, MAX_POINTERS).map(d => d.command_uuid);
     setCommands(prev => {
       // Re-select if already exists but deselected. KOALA-5485: if this was
       // an amend-mode delete that the user just toggled back on, also clear
@@ -1828,14 +2276,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       return [...prev, {
         command_type: 'perform',
         display: `${cptCode} — ${description}`,
-        data: { cpt_code: cptCode, description, notes: '', _modifiers: [], _pointers: [] },
+        data: { cpt_code: cptCode, description, notes: '', _modifiers: [], _pointers: defaultPointers },
         selected: true,
         section_key: '_charges_ad_hoc',
         already_documented: false,
         _localId: crypto.randomUUID(),
       }];
     });
-  }, [canEdit]);
+  }, [canEdit, chargeMatrixDiagnoses]);
 
   const handleRemoveChargeByCpt = useCallback((cptCode) => {
     logEvent('REMOVE_CHARGE', { cptCode });
@@ -2207,7 +2655,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       console.error('Failed to fetch patient conditions for assess check:', err);
     }
 
-    const SECTION_TYPES = new Set(['physical_exam', 'ros', 'chart_review', 'history_review']);
+    const SECTION_TYPES = new Set(['physical_exam', 'mental_status_exam', 'ros', 'chart_review', 'history_review']);
     const insertable = workingCommands.filter(c => {
       // Either flag means "already on the note." command_uuid is the
       // authoritative signal (set whenever a command is inserted, whether
@@ -2227,6 +2675,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       if (c.command_type === 'lab_order' && (!c.data.lab_partner || !c.data.tests_order_codes || c.data.tests_order_codes.length === 0)) return false;
       if (c.command_type === 'refer' && (!c.data.service_provider || !c.data.clinical_question || !c.data.notes_to_specialist || !c.data.diagnosis_codes || c.data.diagnosis_codes.length === 0)) return false;
       if (c.command_type === 'perform' && (!c.data.cpt_code || c.selected === false)) return false;
+      // Hard block: a surfaced diagnosis must carry an ICD-10 code before the note
+      // can be approved. The provider either codes it (via the picker) or rejects
+      // it. A coded diagnose that matched an active problem has already flipped to
+      // `assess` upstream (which is exempt — it carries condition_id, not a code).
+      if (c.command_type === 'diagnose' && !(c.data && c.data.icd10_code) && !(c.data && c.data.rejected)) return false;
       return true;
     });
     // Pre-existing finalized notes (signed before the explicit
@@ -2242,6 +2695,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         reason: !c.display ? 'empty_display' : c.selected === false ? 'deselected' : 'validation',
       })) });
     }
+    // Batch B — re-link referrals to the provider's final diagnosis code before
+    // validation, so a referral whose indication diagnosis was uncoded at generation
+    // time inherits the ICD-10 code once the provider picks it (mirrors the backend
+    // link_referral_diagnoses, but with the chosen code). Without this, an otherwise
+    // valid referral is dropped by the diagnosis_codes gate below and blocks approval.
+    // Referrals surface as either recommendation cards or plan-section commands, so
+    // re-link both target lists against the coded diagnose commands in workingCommands.
+    relinkReferralDiagnoses(workingCommands, recommendations);
+    relinkReferralDiagnoses(workingCommands, workingCommands);
     // The Approve filter for recommendations has to apply the same gates the
     // insertable filter applies for Rx + refer — recommendations bypass the
     // OrderRow editor, so without these checks an LLM payload that the
@@ -2364,10 +2826,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         if (data.attempted && data.attempted.length > 0) {
           const uuidMap = new Map();
           for (const a of (data.attempted || [])) {
-            uuidMap.set(`${a.command_type}:${a.display}`, a.command_uuid);
+            uuidMap.set(`${canonicalCommandType(a.command_type)}:${a.display}`, a.command_uuid);
           }
           updatedCommands = workingCommands.map(cmd => {
-            const key = `${cmd.command_type}:${(cmd.display || '').slice(0, 80)}`;
+            const key = `${canonicalCommandType(cmd.command_type)}:${(cmd.display || '').slice(0, 80)}`;
             const uuid = uuidMap.get(key);
             // Stamp already_documented=true alongside command_uuid so the existing
             // `insertable` filter naturally excludes these commands on re-Approve
@@ -2383,7 +2845,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             // that already has a uuid (defensive — shouldn't happen on a fresh
             // approval, but matters for re-approve flows).
             if (rec.command_uuid || !rec.accepted || rec.already_documented || !rec.display) return rec;
-            const key = `${rec.command_type}:${(rec.display || '').slice(0, 80)}`;
+            const key = `${canonicalCommandType(rec.command_type)}:${(rec.display || '').slice(0, 80)}`;
             const uuid = uuidMap.get(key);
             return uuid ? { ...rec, command_uuid: uuid, already_documented: true } : rec;
           });
@@ -2519,13 +2981,34 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         const hasPrescriptions = workingCommands.some(c => c.display && RX_SET.has(c.command_type))
           || recommendations.some(c => c.display && !c.rejected && RX_SET.has(c.command_type));
         logEvent('APPROVE_COMPLETE', { insertedCount: allInsertable.length, effectCount: data.inserted, hasPendingMetadata: (data.metadata_pending?.length || 0) > 0, amendEditCount: amendAttempted.length });
-        // Verify commands were actually created (include Add Now items + amend-edit NEW uuids).
-        const amendVerifyEntries = amendAttempted.map(a => ({
-          command_uuid: a.new_command_uuid,
-          command_type: a.command_type,
-          display: a.display || '',
-        }));
-        const allAttempted = [...addNowAttemptedRef.current, ...(data.attempted || []), ...amendVerifyEntries];
+        // KOALA_4800_VERIFY_FROM_RESTAMPED_LOCAL: verify against the re-stamped
+        // local command set — the SAME source of truth the auto-verify-on-load
+        // effect uses (~line 1113) — instead of concatenating
+        // `addNowAttemptedRef.current + data.attempted + amend entries`. The
+        // concat could surface one logical command twice (once under a
+        // stale/never-persisted uuid left behind when the casing-sensitive
+        // re-stamp missed the history/medication families), and the verify
+        // endpoint reported that ghost as a phantom `not_found`, inflating the
+        // banner count (Kibana: 57 shown vs 51 real). `updatedCommands` /
+        // `updatedRecommendations` carry the correct uuids for fresh inserts
+        // (re-stamped above, now casing-robust via canonicalCommandType), Add
+        // Now items (already stamped), and amend edits (re-stamped to their new
+        // uuid at ~2201). Dedup by command_uuid so nothing counts twice.
+        const seenVerifyUuids = new Set();
+        const allAttempted = [
+          ...updatedCommands.filter(c => c.command_uuid && !isFromNoteCommand(c)),
+          ...updatedRecommendations.filter(c => c.command_uuid),
+        ]
+          .filter(c => {
+            if (seenVerifyUuids.has(c.command_uuid)) return false;
+            seenVerifyUuids.add(c.command_uuid);
+            return true;
+          })
+          .map(c => ({
+            command_uuid: c.command_uuid,
+            command_type: c.command_type,
+            display: verifyEntryDisplay(c).slice(0, 80),
+          }));
         if (allAttempted.length > 0) {
           try {
             const verifyRes = await fetch(`${API_BASE}/verify-commands`, {
@@ -2720,7 +3203,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // AND the note to have been generated — we don't want a half-finished
   // transcript or an in-flight LLM call to be signable.
   const aiFlowComplete = mode === 'ai' && recording.finalized && noteData !== null;
-  const showFooter = canEdit && (mode === 'manual' || aiFlowComplete);
+  const showFooter = authorEditable && (mode === 'manual' || aiFlowComplete);
 
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral', lab_order: 'lab order' };
   // Module-scope `isRxIncomplete` is the single source of truth — see top of file.
@@ -2785,6 +3268,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   ).length;
   const hasUnsavedEdits = editingFields.size > 0;
 
+  // Psychiatry visits surface the Mental Status Exam card (gated server-side by
+  // NablaBackend.is_psychiatry_template, surfaced per-template on /visit-templates).
+  const isPsychiatry = !!selectedTemplate?.is_psychiatry;
   // Ensure sections with ad-hoc buttons are always present even if Nabla omits them.
   const ENSURE_KEYS = new Map([
     ['vitals', { key: 'vitals', title: 'Vitals', text: '' }],
@@ -2795,8 +3281,21 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     ['family_history', { key: 'family_history', title: 'Family History', text: '' }],
     ['lab_results', { key: 'lab_results', title: 'Lab Results', text: '' }],
     ['imaging_results', { key: 'imaging_results', title: 'Imaging Results', text: '' }],
-    ['physical_exam', { key: 'physical_exam', title: 'Physical Exam', text: '' }],
   ]);
+  // Mental Status Exam is psychiatry-only — only force its (possibly empty)
+  // section when the selected visit template is the psychiatry one. Ensured
+  // before Physical Exam to match SKELETON_SECTIONS order.
+  if (isPsychiatry) {
+    ENSURE_KEYS.set('mental_status_exam', { key: 'mental_status_exam', title: 'Mental Status Exam', text: '' });
+  }
+  // Physical Exam is a standard section on every visit type — always ensured so
+  // the soap-group PE branch is reached and renders the documented card or the
+  // empty "Click to add" editor, even when Nabla omits the section.
+  ENSURE_KEYS.set('physical_exam', { key: 'physical_exam', title: 'Physical Exam', text: '' });
+  // Appointments is always ensured so its component renders even when empty — a
+  // persistent, editable destination for "Move to plan" and for manual appointment
+  // notes (soap-group appointments branch renders the items or the empty placeholder).
+  ENSURE_KEYS.set('appointments', { key: 'appointments', title: 'Wrap Up', text: '' });
   const effectiveSections = (() => {
     const base = noteData ? noteData.sections : SKELETON_SECTIONS;
     const existing = new Set(base.map(s => s.key.toLowerCase()));
@@ -2808,7 +3307,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // once a note has been generated or the transcript was finalized — at that
   // point the transcript is a static record, not a live capture.
   const transcriptHeaderIsLive = isRecording && !noteData && !recording.finalized;
-  const showTopControls = canEdit && !noteData && !isRecording && !recording.finalized && !generating && mode === null;
+  // Visibility keyed on authorEditable (note state) so these render for a
+  // non-author too; the disabled attrs make them non-interactive.
+  const showTopControls = authorEditable && !noteData && !isRecording && !recording.finalized && !generating && mode === null;
 
   // Unified progress display: "Finalizing transcript" is step 0 of a sequence
   // that continues through the server-driven generate pipeline. Showing one
@@ -2824,12 +3325,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const serverStep = Math.max(progress.step, 0);
     progressIndex = serverStep + 1; // +1 because finalize occupies index 0
     progressLabel = PROGRESS_STEPS[serverStep] || PROGRESS_STEPS[0];
+  } else if (isFinalizing && recording.catchUpSeconds > 0) {
+    // A connectivity drop left buffered audio still catching up. Tell the user
+    // why finalizing is taking longer instead of leaving them guessing.
+    progressLabel = `${FINALIZE_LABEL} (catching up — ~${recording.catchUpSeconds}s of audio left)`;
   }
   const progressPct = Math.max(((progressIndex + 1) / TOTAL_PROGRESS_STEPS) * 100, 5);
 
   return html`
-    <div class=${`summary-container${!canEdit && !approved ? ' summary-container--readonly' : ''}`}>
-      ${isAuthor && isNoteEditable && wasFinalized && html`
+    <div class=${`summary-container${readOnlyReason === 'locked' ? ' summary-container--readonly' : ''}${!isAuthor ? ' summary-container--readonly-viewer' : ''}`}>
+      ${isNoteEditable && wasFinalized && html`
         <div class=${`summary-status-pill summary-status-pill--${approved ? 'finalized' : 'amending'}`} role="status" aria-live="polite">
           <svg class="summary-status-pill-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             ${approved
@@ -2841,7 +3346,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             ${approved ? 'Charting finalized' : 'Editing charting'}
           </span>
           ${approved && html`
-            <button class="summary-status-pill-btn" onClick=${handleMakeChanges}>
+            <button class="summary-status-pill-btn" disabled=${!isAuthor} onClick=${handleMakeChanges}>
               Make changes
             </button>
           `}
@@ -2866,45 +3371,47 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           <span>Read-only — only the note author can edit the Scribe tab.</span>
         </div>
       `}
-      ${canEdit && html`
+      ${authorEditable && html`
         <div class="unified-top-bar">
           ${templates.length > 0 && html`
             <select
               class="template-select"
               onChange=${handleSelectTemplate}
               value=${selectedTemplate ? selectedTemplate.name : ''}
-              disabled=${approved || generating || noteData !== null || mode !== null}
+              disabled=${!canEdit || approved || generating || noteData !== null || mode !== null}
             >
               <option value="">Select Visit Type</option>
               ${templates.map(t => html`<option key=${t.name} value=${t.name}>${t.name}</option>`)}
             </select>
           `}
           ${showTopControls && html`
-            <button class="start-ai-btn" onClick=${handleStartAI} disabled=${!selectedTemplate}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" /></svg>
-              Start AI Scribe
-            </button>
-            <button class="start-manual-btn" onClick=${handleStartManual} disabled=${!selectedTemplate}>
+            ${!manualModeOnly && html`
+              <button class="start-ai-btn" onClick=${handleStartAI} disabled=${!canEdit || !selectedTemplate}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" /></svg>
+                Start AI Scribe
+              </button>
+            `}
+            <button class="start-manual-btn" onClick=${handleStartManual} disabled=${!canEdit || !selectedTemplate}>
               Manual
             </button>
           `}
           ${isRecording && html`
             <div class="recording-controls-inline">
               ${recording.status === 'recording'
-                ? html`<button class="control-btn" onClick=${recording.pauseRecording} title="Pause">
+                ? html`<button class="control-btn" onClick=${recording.pauseRecording} title="Pause" disabled=${!canEdit}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <rect x="6" y="5" width="4" height="14" rx="1" />
                       <rect x="14" y="5" width="4" height="14" rx="1" />
                     </svg>
                     Pause
                   </button>`
-                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume">
+                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume" disabled=${!canEdit}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="6,4 20,12 6,20" />
                     </svg>
                     Resume
                   </button>`}
-              <${FinishRecordingButton} onFinish=${recording.finishRecording} />
+              <${FinishRecordingButton} onFinish=${recording.finishRecording} disabled=${!canEdit} />
             </div>
           `}
           ${false && debugMode && noteData && !approved && !generating && !isRecording && html`
@@ -2913,7 +3420,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </button>
           `}
           ${recommendations.length > 0 && html`
-            <label class="hide-rejected-label hide-rejected-label--top-bar" onClick=${() => setHideRejected(prev => !prev)}>
+            <label class="hide-rejected-label hide-rejected-label--top-bar" onClick=${canEdit ? () => setHideRejected(prev => !prev) : undefined}>
               Hide Rejected Recommendations
               <div class="toggle-switch${hideRejected ? ' on' : ''}">
                 <div class="toggle-knob" />
@@ -2988,7 +3495,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           </div>
         </div>
       `}
-      ${recording.connectionLost && recording.status === 'recording' && html`
+      ${recording.connectionLost && ['recording', 'paused', 'finishing'].includes(recording.status) && html`
         <div class="connection-lost-warning">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
             <path d="M24 8.98C20.93 5.9 16.69 4 12 4S3.07 5.9 0 8.98L12 21 24 8.98zM2.92 9.07C5.51 7.08 8.67 6 12 6s6.49 1.08 9.08 3.07l-1.43 1.43C17.5 8.94 14.86 8 12 8s-5.5.94-7.65 2.51L2.92 9.07zM12 18l-6.22-6.22C7.84 10.14 9.82 9.25 12 9.25s4.16.89 6.22 2.53L12 18z"/>
@@ -3005,21 +3512,39 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           No audio detected — check your microphone permissions and make sure it is not muted
         </div>
       `}
+      ${recording.finishTruncated && html`
+        <div class="silence-warning">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          Connection was lost while finalizing — the end of this recording may be missing from the transcript. Review before charting.
+        </div>
+      `}
       ${recording.error && html`<p class="error" style="padding: 0 16px;">${recording.error}</p>`}
       ${showProgressBanner && html`
         <div class="summary-generating-banner">
           <div class="generating-bar" style="width: ${progressPct}%" />
           <span class="generating-label">${progressLabel}...</span>
+          ${recording.awaitingTranscription && recording.catchUpSeconds > 0 && html`
+            <button class="summary-status-pill-btn" onClick=${() => recording.finalizeWithGap()}>
+              Finalize now (skip remaining audio)
+            </button>
+          `}
         </div>
       `}
-      ${canEdit && !noteData && !generating && recording.finalized && mode === 'ai' && html`
+      ${authorEditable && !noteData && !generating && recording.finalized && mode === 'ai' && html`
         <div class="summary-generate-banner">
           <p class="summary-banner-description">Recording complete. Generate a structured summary from your transcript.</p>
-          <button class="generate-btn" onClick=${handleGenerate}>Generate Summary</button>
+          <button class="generate-btn" onClick=${handleGenerate} disabled=${!canEdit}>Generate Summary</button>
         </div>
       `}
       ${error && html`<p class="error" style="padding: 0 16px;">${error}</p>`}
       <div class=${`summary-body${inserting ? ' summary-body--inserting' : ''}`}>
+        ${/* a non-author sees the author's exact layout; the note body
+            is wrapped in a native <fieldset disabled> when the viewer can't edit,
+            so every control inside is inert (disabled). The class only strips the
+            fieldset's own default border/margin so it lays out like a plain div. */''}
+        <fieldset class="scribe-body-fieldset" disabled=${!canEdit}>
         ${renderSoapGroups(effectiveSections, commandBySectionKey, handleEdit, handleDelete, {
           adHocCommands,
           objectiveAdHocCommands,
@@ -3027,24 +3552,41 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           subjectiveAdHocCommands,
           chargeAdHocCommands,
           assignees,
-          onAddTask: canEdit ? handleAddTask : null,
-          onAddOrder: canEdit ? handleAddOrder : null,
-          onAddPlan: canEdit ? handleAddPlan : null,
-          onAddVitals: canEdit ? handleAddVitals : null,
-          onAddMedication: canEdit ? handleAddMedication : null,
-          onAddAllergy: canEdit ? handleAddAllergy : null,
-          onAddStopMedication: canEdit ? handleAddStopMedication : null,
-          onAddRemoveAllergy: canEdit ? handleAddRemoveAllergy : null,
-          onAddResolveCondition: canEdit ? handleAddResolveCondition : null,
-          onAddHistory: canEdit ? handleAddHistory : null,
-          onAddQuestionnaire: canEdit ? handleAddQuestionnaire : null,
-          onAddCharge: canEdit ? handleAddTemplateCharge : null,
+          // pass handlers for non-authors too (authorEditable) so every
+          // add/action control RENDERS in the working view — layout parity. They're
+          // made non-interactive by CSS pointer-events (appearance preserved); the
+          // handlers also self-guard on canEdit and the server rejects non-author writes.
+          onAddTask: authorEditable ? handleAddTask : null,
+          onAddOrder: authorEditable ? handleAddOrder : null,
+          onAddPlan: authorEditable ? handleAddPlan : null,
+          onMoveToPlan: authorEditable ? handleMoveToPlan : null,
+          onAddAppointment: authorEditable ? handleAddAppointment : null,
+          onAddVitals: authorEditable ? handleAddVitals : null,
+          onAddPhysicalExam: authorEditable ? handleAddPhysicalExam : null,
+          onAddMentalStatusExam: authorEditable ? handleAddMentalStatusExam : null,
+          onAddMedication: authorEditable ? handleAddMedication : null,
+          onAddAllergy: authorEditable ? handleAddAllergy : null,
+          onAddStopMedication: authorEditable ? handleAddStopMedication : null,
+          onAddRemoveAllergy: authorEditable ? handleAddRemoveAllergy : null,
+          onAddResolveCondition: authorEditable ? handleAddResolveCondition : null,
+          onAddHistory: authorEditable ? handleAddHistory : null,
+          onAddQuestionnaire: authorEditable ? handleAddQuestionnaire : null,
+          onAddCharge: authorEditable ? handleAddTemplateCharge : null,
           searchCharges,
           suggestedCharges: selectedTemplate?.charges || [],
-          onAddTemplateCharge: canEdit ? handleAddTemplateCharge : null,
-          onRemoveChargeByCpt: canEdit ? handleRemoveChargeByCpt : null,
+          onAddTemplateCharge: authorEditable ? handleAddTemplateCharge : null,
+          onRemoveChargeByCpt: authorEditable ? handleRemoveChargeByCpt : null,
           templateCharges: selectedTemplate ? (selectedTemplate.charges || []) : [],
-          readOnly: !canEdit,
+          // Template keyed on note state, not the viewer — `!authorEditable` ===
+          // the author's old `!canEdit`, so a non-author renders the SAME working /
+          // finalized template the author does.
+          readOnly: !authorEditable,
+          // Viewer-level interactivity, kept SEPARATE from `readOnly`. `readOnly`
+          // governs what's VISIBLE (layout parity: non-authors still see every
+          // card/section); `canEdit` governs whether rows can be EXPANDED/edited.
+          // Brigade's read-only viewers get the collapsed, non-expanding layout
+          // (KOALA-6314 review): cards stay closed and can't open into forms.
+          canEdit,
           isAmending: wasFinalized && !approved,
           sectionConditions,
           patientId,
@@ -3056,25 +3598,39 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onDeleteRecommendation: handleDeleteRecommendation,
           onAcceptRecommendation: handleAcceptRecommendation,
           onRejectRecommendation: handleRejectRecommendation,
-          onAddCondition: canEdit ? handleAddCondition : null,
+          onAddCondition: authorEditable ? handleAddCondition : null,
           unmatchedConditions,
           diagnosisSuggestions,
-          onAddNow: (canEdit && !(wasFinalized && !approved)) ? handleAddNow : null,
+          onAddNow: (authorEditable && !(wasFinalized && !approved)) ? handleAddNow : null,
           hideRejected,
           alertFacilityEnabled,
           onEditingChange: handleEditingChange,
           questionnaireScores: collectQuestionnaireScores(commands),
           chargeMatrixDiagnoses,
+          noteDiagnoses,
           chargeMatrixCharges,
-          onToggleChargePointer: canEdit ? onToggleChargePointer : null,
-          onReorderDiagnoses: canEdit ? onReorderDiagnoses : null,
-          onAddChargeModifier: canEdit ? onAddChargeModifier : null,
-          onRemoveChargeModifier: canEdit ? onRemoveChargeModifier : null,
-          onSetChargeComment: canEdit ? onSetChargeComment : null,
-          onClearChargeComment: canEdit ? onClearChargeComment : null,
-          onRemoveChargeByUuid: canEdit ? onRemoveChargeByUuid : null,
+          onToggleChargePointer: authorEditable ? onToggleChargePointer : null,
+          onReorderDiagnoses: authorEditable ? onReorderDiagnoses : null,
+          onAddChargeModifier: authorEditable ? onAddChargeModifier : null,
+          onRemoveChargeModifier: authorEditable ? onRemoveChargeModifier : null,
+          onSetChargeComment: authorEditable ? onSetChargeComment : null,
+          onClearChargeComment: authorEditable ? onClearChargeComment : null,
+          onRemoveChargeByUuid: authorEditable ? onRemoveChargeByUuid : null,
           examTemplates: templates,
           onCarryForwardExam: handleCarryForwardExam,
+          isPsychiatry,
+          dictation: {
+            // Gated behind the ScribeDictationEnabled secret. A single physical
+            // mic: also only offered when editable and NOT while ambient recording
+            // (or paused) owns the mic.
+            available: dictationEnabled && canEdit && !isRecording,
+            activeField: dictation.activeField,
+            status: dictation.status,
+            micBlocked: dictation.micBlocked,
+            silent: dictation.silent,
+            error: dictation.error,
+            onToggle: toggleDictation,
+          },
         })}
         ${fromTheNoteCommands.length > 0 && html`
           <div class="summary-section from-the-note-section">
@@ -3100,6 +3656,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </div>
           </div>
         `}
+        </fieldset>
       </div>
       ${verificationResult && html`<${VerificationSummary} result=${verificationResult} />`}
       ${validationError && html`
@@ -3126,7 +3683,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
                 </div>
               `}
-              <button class="insert-btn confirm" disabled=${hasUnsavedEdits} onClick=${handleInsert}>${wasFinalized ? (hasRxCommands ? 'Confirm: Save changes and review prescriptions' : 'Confirm: Save changes') : (hasRxCommands ? 'Confirm: Accept and review prescriptions' : 'Confirm: Accept and sign')}</button>
+              <button class="insert-btn confirm" disabled=${hasUnsavedEdits || !canEdit} onClick=${handleInsert}>${wasFinalized ? (hasRxCommands ? 'Confirm: Save changes and review prescriptions' : 'Confirm: Save changes') : (hasRxCommands ? 'Confirm: Accept and review prescriptions' : 'Confirm: Accept and sign')}</button>
               <button class="approve-cancel" onClick=${() => setConfirming(false)}>Cancel</button>
             </div>
           ` : html`
@@ -3152,7 +3709,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               ${(chargeErrors && chargeErrors.length)
                 ? html`<div class="summary-footer-warning cm-sign-error">Some charges could not be saved (${chargeErrors.length}). Please review the charges and try again.</div>`
                 : null}
-              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
+              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits || !canEdit} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
               ${!wasFinalized && html`<div class="approve-warning">This action is permanent and cannot be undone.</div>`}
             </div>
           `}

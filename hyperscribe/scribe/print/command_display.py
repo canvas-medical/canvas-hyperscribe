@@ -22,6 +22,7 @@ SCHEMA_KEY_LABELS: dict[str, str] = {
     "perform": "Perform",
     "vitals": "Vitals",
     "physicalExam": "Physical Exam",
+    "mentalStatusExam": "Mental Status Exam",
     "reviewOfSystems": "Review of Systems",
     "questionnaire": "Questionnaire",
     "labOrder": "Lab Order",
@@ -74,6 +75,7 @@ SOAP_SECTIONS: dict[str, str] = {
     "historyReview": "HISTORY",
     "vitals": "OBJECTIVE",
     "physicalExam": "OBJECTIVE",
+    "mentalStatusExam": "OBJECTIVE",
     "exam": "OBJECTIVE",
     "questionnaire": "OBJECTIVE",
     "pocLabTest": "OBJECTIVE",
@@ -657,6 +659,7 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
     elif schema_key in (
         "reviewOfSystems",
         "physicalExam",
+        "mentalStatusExam",
         "historyReview",
         "chartReview",
         "chartSectionReview",

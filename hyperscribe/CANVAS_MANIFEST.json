@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.163.0",
-  "plugin_version": "2026-07-27 v0.3.12 (koala-5808)",
+  "plugin_version": "2026-07-27 v0.4.41 (koala-5808)",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -243,6 +243,12 @@
         "section": "objective"
       },
       {
+        "name": "MentalStatusExam",
+        "label": "Mental Status Exam",
+        "schema_key": "mentalStatusExam",
+        "section": "objective"
+      },
+      {
         "name": "PhysicalExam",
         "label": "Physical Exam",
         "schema_key": "physicalExam",
@@ -300,8 +306,11 @@
     "NotionFeedbackDatabaseId",
     "ScribeBackend",
     "ScribeDebugStaffers",
+    "ScribeDictationEnabled",
+    "ScribeManualModeOnly",
     "ScribeNoteTypes",
     "ScribePilotStaffers",
+    "ScribePrescriptionStaffers",
     "ScribeTabName",
     "StaffersList",
     "StaffersPolicy",
@@ -314,7 +323,7 @@
   "tags": {
     "version_date": "2026-07-27",
     "version_branch": "koala-5808",
-    "version_semantic": "0.3.12"
+    "version_semantic": "0.4.41"
   },
   "custom_data": {
     "namespace": "canvas_medical__scribe",

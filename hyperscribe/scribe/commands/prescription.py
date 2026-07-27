@@ -43,9 +43,23 @@ class PrescriptionParser(CommandParser):
         raw_type = data.get("type_to_dispense")
         if raw_type:
             representative_ndc = data.get("representative_ndc") or ""
+            qualifier_code = raw_type
+            # Recommendations carry type_to_dispense in the order-row's encoded
+            # "representative_ndc|erx_quantity|qualifier_code" form so the dropdown
+            # can pre-select the right option. The UI decodes it (decodeClinicalQuantity
+            # in order-row.js) when the row is opened and saved, but a recommendation
+            # accepted WITHOUT opening the row arrives here still encoded. Decode it the
+            # same way so the ClinicalQuantity is well-formed (bare qualifier code +
+            # representative_ndc) instead of stuffing the whole pipe-string into the
+            # qualifier-code field, which silently drops type_to_dispense on the command.
+            parts = raw_type.split("|")
+            if len(parts) == 3:
+                decoded_ndc, _erx_quantity, qualifier_code = parts
+                if not representative_ndc:
+                    representative_ndc = decoded_ndc
             type_to_dispense = ClinicalQuantity(
                 representative_ndc=representative_ndc,
-                ncpdp_quantity_qualifier_code=raw_type,
+                ncpdp_quantity_qualifier_code=qualifier_code,
                 **({"description": label} if (label := data.get("type_to_dispense_label")) else {}),
             )
 
