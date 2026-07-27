@@ -5,13 +5,26 @@ the patient-chart sections (Conditions, Medications, Allergies, Vitals, ...) so
 they document through the Scribe summary instead of the legacy chart rail. The
 buttons return once they leave the Scribe tab.
 
-The one fact that shapes all of this: ``ConfigureCommandButtons`` is *sticky* and
-scoped to the **patient**, not the tab. Telling Canvas "hide" keeps the buttons
-hidden on that patient's chart until we explicitly say "show" again — it does NOT
-reset on tab switch or when the note closes. So every hide must be paired with a
-deliberate restore, or the buttons stay gone even on an unrelated note.
+The one fact that shapes all of this: ``ConfigureCommandButtons`` is a **live
+broadcast, not persisted state**, and it is scoped to the **patient**, not the
+tab or the note. home-app's interpreter does nothing but push the hidden/disabled
+location lists to the ``patient.<key>.command_button_visibility`` GraphQL
+subscription; the only place the state lives is the ``hiddenLocations`` array in
+each subscribed browser's ``CommandButtonVisibilityProvider``, mounted at the
+patient-page level.
 
-We therefore act at three moments:
+Two consequences that drive the design:
+
+* It behaves as sticky *within a session*. The last broadcast wins and is never
+  reset by a tab switch, a note collapse, or a sign — only by that provider
+  remounting (full page reload, or navigating to a different patient). So every
+  hide must be paired with a deliberate restore, or the buttons stay gone on the
+  next, unrelated note.
+* It is not per-user. The broadcast reaches every browser watching that patient,
+  so a hide also blanks the chart rail for a colleague viewing the same patient
+  concurrently. Not addressed here — tracked separately.
+
+We therefore act at four moments:
 
 1. Scribe tab opens -> HIDE. ``ScribeApp.handle()`` fires the hide effect when the
    tab opens (including default-open on note load, where no tab-change event is
@@ -22,17 +35,37 @@ We therefore act at three moments:
    ``/configure-command-buttons`` endpoint with hidden=true when the Scribe tab is
    active, hidden=false for any other tab.
 
-3. Note closes / provider leaves -> RESTORE (the safety net). When the provider
-   closes the note or jumps to a different one, the Scribe iframe is destroyed and
-   can no longer send a restore. ``NoteCommandButtonsRestoreHandler`` listens for
-   the NOTE_CLOSED event and restores buttons for the patient unconditionally
-   (restoring is harmless since buttons are visible by default). Without this the
-   buttons would stay hidden on the next, unrelated note.
+3. Provider opens a different note on the same patient -> RESTORE.
+   ``NoteCommandButtonsRestoreHandler`` listens for NOTE_CLOSED and restores
+   unconditionally (restoring is harmless since buttons are visible by default).
+   Note the narrow scope: home-app emits NOTE_CLOSED only as the
+   ``previous_note_id`` side-channel of expanding another note, NOT when a note is
+   simply collapsed.
 
-So HIDE has two triggers (tab open + switch-to-Scribe) and RESTORE has two
-(switch-away + note close), with the backend triggers covering the cases the
-iframe can't. Centralizing effect construction here keeps the hide and restore
-sides covering the same set of locations so they can't drift apart.
+4. Note is signed / otherwise leaves an editable state -> RESTORE.
+   ``NoteSignedCommandButtonsRestoreHandler`` listens for
+   NOTE_STATE_CHANGE_EVENT_CREATED. Signing auto-collapses the note, which
+   destroys the Scribe iframe without a tab change AND without a NOTE_CLOSED, so
+   neither (2) nor (3) fires — see that handler's docstring for the exact chain.
+
+So HIDE has two triggers (tab open + switch-to-Scribe) and RESTORE has three
+(switch-away, other-note-opened, left-editable-state), with the backend triggers
+covering the cases the iframe can't. Centralizing effect construction here keeps
+the hide and restore sides covering the same set of locations so they can't drift
+apart.
+
+KNOWN GAP: collapsing a note by hand (without signing it and without opening
+another) still emits no event a plugin can see, so the buttons stay hidden until
+the provider reloads or opens another note.
+
+Do not "correct" this based on the SDK docs. The public NOTE_CLOSED docs say it
+"fires when a provider collapses a note that was previously open," but as of
+home-app develop that holds only when the collapse happens *by expanding another
+note*: ``Notes.componentDidUpdate`` gates the call on ``if (expandedNoteId)`` so
+a collapse to nothing never reaches ``onNoteExpanded``, ``NoteExpanded``'s
+``currentNoteId`` is non-nullable, and the mutation emits NOTE_CLOSED only when
+``previous_note_id is not None``. home-app's own test covers just the
+previous_note_id-provided case. The fix belongs there, not here.
 
 Requires a Canvas runtime >= 0.163.0 — the version that introduced both the
 ``ConfigureCommandButtons`` effect and the NOTE_CLOSED event. The feature cannot
