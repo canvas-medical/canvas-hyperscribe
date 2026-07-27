@@ -590,11 +590,31 @@ h2 { margin-bottom: 4px; }
 .field-missing { color: #c2410c; }
 .input-missing { border-color: #f59e0b; background: #fffbeb; }
 
-/* Rejected state */
+/* Rejected state (medication / allergy / Rx / referral / task cards, which keep Reject) */
 .recommendation-block.rec-rejected { opacity: 0.5; }
 .rec-rejected-badge {
   padding: 3px 10px; font-size: 11px; font-weight: 600;
   color: #991b1b; background: #fef2f2; border-radius: 12px;
+  white-space: nowrap;
+}
+
+/* Dismissed CONDITION card. The whole card is the restore target, so it carries no controls
+   at all. Opacity is 0.62 rather than rec-rejected's 0.5 because the assessment text has to
+   stay readable enough to judge before restoring, now that no button draws the eye.
+   Neutral gray badge, not the red rec-rejected-badge: dismissing an AI suggestion is routine,
+   and red reads as an error.
+   The card must be rendered as a real focusable control (role="button" tabindex="0" plus an
+   Enter/Space handler) — it is the ONLY way to restore, so a bare div with an onClick would
+   make restoring unreachable by keyboard. The focus ring below is part of that contract.
+   No conflict with click-to-edit: a dismissed card is already read-only, so
+   .diagnose-row-body never receives .editable. */
+.recommendation-block.rec-dismissed { opacity: 0.62; cursor: pointer; }
+.recommendation-block.rec-dismissed .diagnose-row-title { font-weight: 600; }
+.recommendation-block.rec-dismissed:hover { opacity: 0.9; background: #f8fafc; border-color: #cbd5e1; }
+.recommendation-block.rec-dismissed:focus-visible { outline: 2px solid #5b7aa6; outline-offset: 2px; opacity: 0.9; }
+.rec-dismissed-badge {
+  padding: 3px 10px; font-size: 11px; font-weight: 600;
+  color: #6b7280; background: #f3f4f6; border-radius: 12px;
   white-space: nowrap;
 }
 
@@ -1045,9 +1065,37 @@ select.history-form-input {
 }
 
 /* Diagnose row (per-condition A&P block) */
-.diagnose-row { padding: 4px 0; }
-.diagnose-row-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.diagnose-row-title { font-size: 15px; font-weight: 700; color: #333; flex: 0 1 auto; line-height: 1.4; }
+/* padding:0 — the previous `4px 0` only ever reached the ASSESS card, because
+   .rec-diagnose dissolves this element with `display: contents`. That started assess
+   headers 4px below diagnose headers. */
+.diagnose-row { padding: 0; }
+
+/* CONDITION CARD HEADER — one optical line.
+   Every chip in the header (ICD code, needs-code, Change) AND the ✕ in the action column
+   share a single 24px line box pinned to the FIRST line of the title, so the row stays
+   level whether the title runs to one line or three.
+   Previously: title line-height 1.4 x 15px = 21px -> first-line centre 10.5px, while the
+   action column's `padding-top: 4px` on a 28px button put the ✕ centre at 18px — the ✕ sat
+   7.5px below the title. And `align-items: center` dragged the chips to the centre of a
+   wrapped title's block while the ✕ stayed near the top. */
+.diagnose-row-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; min-height: 24px; }
+.diagnose-row-title { font-size: 15px; font-weight: 700; color: #333; flex: 0 1 auto; line-height: 24px; }
+.diagnose-row-header > .diagnose-icd-code,
+.diagnose-row-header > .diagnose-needs-code,
+.diagnose-row-header > .rec-dismissed-badge,
+.diagnose-row-header > .rec-warning-pill,
+.diagnose-row-header > .diagnose-change-btn { height: 24px; display: inline-flex; align-items: center; flex-shrink: 0; }
+
+/* The action column for BOTH condition-card families — the single source of truth for its
+   padding/margin. `margin-top: -2px` centres the 28px ✕ on the 24px line box ((28-24)/2).
+   `margin-right: -6px` is optical: the 28px hit target wraps a 15px glyph, so ~6.5px is
+   transparent padding; on top of the card's 16px padding that put the GLYPH — the only part
+   the eye sees — 23.5px from the right border but 17.5px from the top. Pulling 6px right
+   makes both insets 17.5px (the glyph sits on the corner diagonal) and lands it flush with
+   the right edge of the picker/body column below. The hit target still stops 11px from the
+   border, so nothing is clipped. */
+.recommendation-block.rec-diagnose > .recommendation-actions,
+.recommendation-block.rec-assess > .recommendation-actions { padding-top: 0; margin-top: -2px; margin-right: -6px; }
 .diagnose-search-btn { padding: 2px 10px; font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; border: 1px dashed #059669; border-radius: 10px; cursor: pointer; }
 .diagnose-search-btn:hover { background: #d1fae5; border-style: solid; }
 .diagnose-delete-btn { width: 20px; height: 20px; border: none; background: none; color: #999; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0; }
@@ -1065,6 +1113,16 @@ select.history-form-input {
 /* Trailing ICD code: a small filled light-green pill after the diagnosis name
    (a flex sibling of the title so it stays cleanly centered). */
 .diagnose-icd-code { display: inline-flex; align-items: center; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #059669; background: #ecfdf3; border-radius: 6px; padding: 2px 8px; letter-spacing: 0.2px; white-space: nowrap; }
+/* Needs-a-code chip — a deliberate mirror of .diagnose-icd-code above (same type, same 6px
+   radius, same padding, same letter-spacing, NO border) with the amber pair swapped in, so a
+   card shows either a green code chip or this one in the SAME slot at the SAME size and
+   coded/uncoded reads straight down the column. Amber reused from .rec-warning-pill, so no
+   new colour enters the system.
+   This is a NEW class rather than a restyle of .rec-warning-pill on purpose: that class has 7
+   other live uses ("Background too long", "Assessment too long", "Missing: X" on the
+   medication / allergy / Rx / order cards) which keep the louder bordered pill, because those
+   are genuine problems rather than a routine "not picked yet". */
+.diagnose-needs-code { display: inline-flex; align-items: center; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #c2410c; background: #fff7ed; border-radius: 6px; padding: 2px 8px; letter-spacing: 0.2px; white-space: nowrap; }
 .diagnose-suggestions { margin-top: 10px; }
 .diagnose-suggestions-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .diagnose-suggestion-btn {
@@ -1122,25 +1180,36 @@ select.history-form-input {
 /* overflow:visible so the search-bar ⋮ menu can drop out over the list below; the
    inner .diagnose-picker-body re-clips the rounded bottom corners the picker's own
    overflow:hidden used to provide (row/More-options hover backgrounds). */
-.diagnose-picker { margin: 16px 0 18px; border: 1px solid #e4e7ec; border-radius: 12px; overflow: visible; background: #fff; }
+/* margin-top 4px (was 16px): with the header's 8px margin-bottom the title→picker gap was
+   24px, which floated the picker in the middle of the card. Now 12px, matching the card's own
+   padding. The 18px BELOW is deliberately kept — the asymmetry groups the picker upward with
+   the title it belongs to and separates it from the assessment text. */
+.diagnose-picker { margin: 4px 0 18px; border: 1px solid #e4e7ec; border-radius: 12px; overflow: visible; background: #fff; }
 .diagnose-picker:focus-within { border-color: #052B49; }
 .diagnose-picker-body { border-radius: 0 0 12px 12px; overflow: hidden; }
-.diagnose-picker-search { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid #eef1f4; }
+/* The search row deliberately has NO border-bottom. The separator lives on the body's
+   content instead (.diagnose-picker-list / -empty below), so it only exists when there is
+   something below the search box to separate.
+   Why: this picker is `overflow: visible` (so the ⋮ menu can drop out over the list), which
+   means a full-width border-bottom here is NOT clipped by the picker's own border-radius. On a
+   card whose body is empty — a condition with no surfaced candidate codes and no query — the
+   search row becomes the last element, so that border landed exactly on the picker's bottom
+   edge and poked out past the rounded corners as a stray gray line crossing the border. */
+.diagnose-picker-search { display: flex; align-items: center; gap: 12px; padding: 11px 16px; }
 .diagnose-picker-search svg { width: 18px; height: 18px; color: #9aa6b2; flex-shrink: 0; }
 .diagnose-picker-search input { border: none; outline: none; font-size: 14.5px; flex: 1; min-width: 0; font-family: inherit; color: #1f2733; background: none; }
 .diagnose-picker-search input::placeholder { color: #9aa6b2; }
-.diagnose-picker-close { background: none; border: none; padding: 4px; margin: -2px -4px -2px 4px; color: #9aa6b2; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; flex-shrink: 0; line-height: 0; }
-.diagnose-picker-close:hover { color: #374151; background: #f1f3f5; }
-.diagnose-picker-close svg { width: 16px; height: 16px; }
 .diagnose-picker-label { padding: 9px 16px 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #9aa6b2; }
-.diagnose-picker-list { padding: 0 0 3px; }
+/* Separator under the search box — carried by the content, so an empty body has none.
+   Safely clipped by .diagnose-picker-body's overflow:hidden + bottom radius. */
+.diagnose-picker-list { padding: 0 0 3px; border-top: 1px solid #eef1f4; }
 .diagnose-picker-row { display: flex; align-items: center; gap: 0; padding: 9px 16px; cursor: pointer; transition: background 0.12s; }
 .diagnose-picker-row:hover { background: #f5f8ff; }
 .diagnose-picker-row + .diagnose-picker-row { box-shadow: inset 0 1px 0 #f4f6f9; }
 /* Name leads (shrinks + ellipsizes); code trails it as a small green pill. */
 .diagnose-picker-name { font-size: 14px; font-weight: 500; color: #1f2733; flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .diagnose-picker-code { display: inline-flex; align-items: center; flex-shrink: 0; font-size: 11.5px; font-weight: 700; color: #059669; background: #ecfdf3; border-radius: 6px; padding: 2px 8px; margin-left: 8px; letter-spacing: 0.2px; white-space: nowrap; }
-.diagnose-picker-empty { padding: 12px 16px; font-size: 13px; color: #9aa6b2; }
+.diagnose-picker-empty { padding: 12px 16px; font-size: 13px; color: #9aa6b2; border-top: 1px solid #eef1f4; }
 /* Provenance tag on a recommended/candidate code ("Active problem", "Past condition",
    "Detected in note", "More specific option"). Trails the code as a quiet, right-aligned
    metadata column (the code pill leads, right after the diagnosis name). */
@@ -1161,6 +1230,8 @@ select.history-form-input {
 .diagnose-picker-menu-pop::before { content: ""; position: absolute; bottom: 100%; right: 14px; border: 6px solid transparent; border-bottom-color: #fff; filter: drop-shadow(0 -1px 0 #e4e7ec); }
 .diagnose-picker-menu-item { display: flex; align-items: flex-start; gap: 10px; width: 100%; background: none; border: none; font-family: inherit; padding: 9px 10px; border-radius: 8px; cursor: pointer; text-align: left; }
 .diagnose-picker-menu-item:hover { background: #f5f8ff; }
+/* Separates "Move to Wrap Up" from "Keep current diagnosis" — two unrelated exits. */
+.diagnose-picker-menu-sep { height: 1px; background: #eef1f5; margin: 5px 8px; }
 .diagnose-picker-menu-item svg { width: 16px; height: 16px; color: #52606d; flex-shrink: 0; margin-top: 1px; }
 .dpm-title { display: block; font-size: 13.5px; font-weight: 600; color: #1f2733; }
 .dpm-help { display: block; font-size: 11.5px; color: #9aa6b2; line-height: 1.45; margin-top: 2px; }
@@ -1706,8 +1777,13 @@ select.history-form-input {
 .charge-view-desc { font-size: 15px; color: #333; flex: 1; }
 .recommendation-block:has(.charge-view) { align-items: center; }
 .recommendation-block:has(.charge-view) .recommendation-actions { padding-top: 0; }
-.recommendation-block.rec-assess:not(:has(.editing)) { align-items: center; }
-.recommendation-block.rec-assess:not(:has(.editing)) .recommendation-actions { padding-top: 0; }
+/* Assess cards align their ✕ to the TOP, level with the diagnosis name, matching the
+   diagnose card. (Was `center`, which floated the ✕ to the middle of the right edge on a
+   tall card — the same glyph in a different place on the two condition-card types.)
+   NOTE: the action column's padding/margin is owned by ONE rule, in the condition-card
+   header block below. Do not re-declare padding-top for .recommendation-actions here —
+   a more specific rule silently wins and reintroduces a 4px vertical offset. */
+.recommendation-block.rec-assess:not(:has(.editing)) { align-items: flex-start; }
 .charge-result-code { font-weight: 700; color: #052B49; white-space: nowrap; }
 .charge-result-name { color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

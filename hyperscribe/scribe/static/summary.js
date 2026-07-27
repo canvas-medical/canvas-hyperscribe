@@ -104,7 +104,7 @@ const _validationErrorMessage = (c, reason, context = 'approving') => {
   if (reason === 'imaging_incomplete') return `This imaging order is missing required fields (image code, service provider, ordering provider, or diagnosis codes). ${suffix}`;
   if (reason === 'lab_incomplete') return `This lab order is missing required fields (lab partner or tests). ${suffix}`;
   if (reason === 'perform_incomplete') return `This perform command is missing a CPT code. ${suffix}`;
-  if (reason === 'diagnose_uncoded') return `This diagnosis needs an ICD-10 code. Pick one (or reject it) before ${context}.`;
+  if (reason === 'diagnose_uncoded') return `This diagnosis needs an ICD-10 code. Pick one from the list (or dismiss the card with the ✕) before ${context}.`;
   return `This command has invalid values. ${suffix}`;
 };
 
@@ -676,9 +676,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [commands]);
 
   // --- Charge matrix view-models (derived from commands) ---
+  // `!c.data?.rejected` guards BOTH condition families explicitly. For diagnose the
+  // `accepted` test below already covers it (accepted is derived as coded && !rejected), but
+  // for assess the test is `accepted !== false` and assess data usually has no `accepted`
+  // field at all — so without this clause a dismissed existing-condition card would stay
+  // linkable to charges. This predicate is duplicated in linkableNoteDiagnoses and in
+  // onReorderDiagnoses' `isDx`; all three must stay identical or the size guard there bails.
   const chargeMatrixDiagnoses = useMemo(() => commands
     .filter(c => (c.command_type === 'diagnose' || c.command_type === 'assess')
-      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.data?.icd10_code || c.data?.code) && c._localId && !c.data?.rejected
       && (c.already_documented || c.command_uuid
           // diagnose: must be explicitly accepted (absent = unreviewed AI rec → hide)
           // assess:   absent accepted = manually added via old code → show; only hide on false
@@ -710,7 +716,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // data.icd10_code), which the referral linker must see.
   const linkableNoteDiagnoses = useMemo(() => commands
     .filter(c => (c.command_type === 'diagnose' || c.command_type === 'assess')
-      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.data?.icd10_code || c.data?.code) && c._localId && !c.data?.rejected
       && (c.already_documented || c.command_uuid
           || (c.command_type === 'assess' ? c.data?.accepted !== false : c.data?.accepted)))
     .map(c => ({
@@ -897,7 +903,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // nextUuids.length — otherwise the size guard always bails.
     const idOf = c => c._localId;
     const isDx = c => (c.command_type === 'diagnose' || c.command_type === 'assess')
-      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.data?.icd10_code || c.data?.code) && c._localId && !c.data?.rejected
       && (c.already_documented || c.command_uuid
           || (c.command_type === 'assess' ? c.data?.accepted !== false : c.data?.accepted));
     const dxBy = new Map(prev.filter(isDx).map(c => [idOf(c), c]));
@@ -1789,8 +1795,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           next = { ...cmd, command_type: type, data: newData, display: newData.condition_name || '' };
         } else if (type === 'diagnose') {
           const display = newData.icd10_display || newData.condition_header || cmd.display;
-          const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
           const rejected = newData.rejected || false;
+          // `accepted` is now fully DERIVED: a coded, non-dismissed condition is accepted.
+          // There is no separate accept gesture — picking a code from the picker is the accept
+          // (which is all the old Accept button could ever have meant: it was permanently
+          // disabled while uncoded, so it was never clickable). The field is still written
+          // because the pre-insert filter, the diagnose→assess flip and the print filter all
+          // read it.
+          const accepted = !!newData.icd10_code && !rejected;
           next = { ...cmd, command_type: type, data: { ...newData, accepted, rejected }, display };
         } else if (type === 'assess') {
           next = { ...cmd, data: newData };
@@ -2660,6 +2672,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       // it. A coded diagnose that matched an active problem has already flipped to
       // `assess` upstream (which is exempt — it carries condition_id, not a code).
       if (c.command_type === 'diagnose' && !(c.data && c.data.icd10_code) && !(c.data && c.data.rejected)) return false;
+      // A dismissed existing-condition card must not reach the chart either. The assess ✕ now
+      // marks `data.rejected` (recoverable) instead of deleting the row, so unlike before there
+      // can be dismissed assess commands still present in `commands` at insert time.
+      if (c.command_type === 'assess' && c.data && c.data.rejected) return false;
       return true;
     });
     // Pre-existing finalized notes (signed before the explicit
@@ -3229,22 +3245,26 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       (c.command_type === 'refer' && _isReferIncomplete(c.data))
     )
   ).length;
-  const UNDECIDED_LABELS = { diagnose: 'diagnosis', medication_statement: 'medication', allergy: 'allergy', prescribe: 'prescription', refill: 'prescription', adjust_prescription: 'prescription', refer: 'referral' };
+  const UNDECIDED_LABELS = { medication_statement: 'medication', allergy: 'allergy', prescribe: 'prescription', refill: 'prescription', adjust_prescription: 'prescription', refer: 'referral' };
+  // "Undecided" now covers only the recommendation families that still have Accept/Reject.
+  // Condition cards have no accept/reject to be undecided about — their equivalent gate is
+  // "has a code been picked?", counted separately as uncodedConditionCount below.
   const undecidedTypes = [];
-  for (const c of commands) {
-    if (!c.already_documented && c.display && c.command_type === 'diagnose' && !c.data.accepted && !c.data.rejected) {
-      if (!undecidedTypes.includes(c.command_type)) undecidedTypes.push(c.command_type);
-    }
-  }
   for (const c of recommendations) {
     if (!c.already_documented && c.display && !c.accepted && !c.rejected) {
       if (!undecidedTypes.includes(c.command_type)) undecidedTypes.push(c.command_type);
     }
   }
-  const undecidedRecommendationCount = commands.filter(c =>
-    !c.already_documented && c.display && c.command_type === 'diagnose' && !c.data.accepted && !c.data.rejected
-  ).length + recommendations.filter(c =>
+  const undecidedRecommendationCount = recommendations.filter(c =>
     !c.already_documented && c.display && !c.accepted && !c.rejected
+  ).length;
+  // Condition gate: a surfaced condition must either carry an ICD-10 code or be dismissed
+  // before the note can be signed. This REPLACES the old "not accepted nor rejected" count for
+  // diagnose cards — it must not simply be dropped, because the uncoded filter in handleInsert
+  // only removes such a card from `insertable`, which without a gate would be silent data loss.
+  const uncodedConditionCount = commands.filter(c =>
+    !c.already_documented && c.display && c.command_type === 'diagnose'
+    && !(c.data && c.data.icd10_code) && !(c.data && c.data.rejected)
   ).length;
   const hasUnsavedEdits = editingFields.size > 0;
 
@@ -3399,9 +3419,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               Regenerate${!selectedTemplate ? ' (select visit type)' : ''}
             </button>
           `}
-          ${recommendations.length > 0 && html`
+          ${/* This toggle is the ONLY way back to a dismissed condition card, so its render
+               gate has to account for condition cards too. It used to be
+               `recommendations.length > 0`, and that array holds only the
+               medication/allergy/Rx/referral/task families — condition cards live in
+               `commands`. With hideRejected defaulting to true, a note whose only
+               recommendations were conditions showed no toggle at all, so a dismissed
+               condition was invisible with no route back. That was survivable while the card
+               carried its own Accept button to restore it; it no longer does. */ ''}
+          ${(recommendations.length > 0 || commands.some(c => (c.command_type === 'diagnose' || c.command_type === 'assess') && c.data && c.data.rejected)) && html`
             <label class="hide-rejected-label hide-rejected-label--top-bar" onClick=${canEdit ? () => setHideRejected(prev => !prev) : undefined}>
-              Hide Rejected Recommendations
+              Hide Dismissed Recommendations
               <div class="toggle-switch${hideRejected ? ' on' : ''}">
                 <div class="toggle-knob" />
               </div>
@@ -3678,6 +3706,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${undecidedRecommendationCount} ${undecidedRecommendationCount === 1 ? 'recommendation needs' : 'recommendations need'} a decision, ${undecidedRecommendationCount === 1 ? 'it has' : 'they have'} not been accepted nor rejected: ${undecidedTypes.map(t => UNDECIDED_LABELS[t] || t).join(', ')}
                 </div>
               `}
+              ${uncodedConditionCount > 0 && html`
+                <div class="summary-footer-warning">
+                  ${uncodedConditionCount} ${uncodedConditionCount === 1 ? 'condition still needs' : 'conditions still need'} a diagnosis code — pick one from the list, or dismiss the card with the ✕.
+                </div>
+              `}
               ${hasUnsavedEdits && html`
                 <div class="summary-footer-warning">
                   ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
@@ -3689,7 +3722,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               ${(chargeErrors && chargeErrors.length)
                 ? html`<div class="summary-footer-warning cm-sign-error">Some charges could not be saved (${chargeErrors.length}). Please review the charges and try again.</div>`
                 : null}
-              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits || !canEdit} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
+              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || uncodedConditionCount > 0 || hasUnsavedEdits || !canEdit} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
               ${!wasFinalized && html`<div class="approve-warning">This action is permanent and cannot be undone.</div>`}
             </div>
           `}
