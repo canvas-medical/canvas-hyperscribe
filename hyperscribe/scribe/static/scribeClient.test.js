@@ -306,3 +306,80 @@ test('transcript items are forwarded to onTranscriptItem', (t) => {
   assert.equal(items[0].text, 'hello');
   assert.equal(items[0].speaker, 'PATIENT');
 });
+
+// --- Dictation mode ---------------------------------------------------------
+
+test('dictation mode opens with the dictate-protocol subprotocol', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { sockets } = makeClient({ mode: 'dictation' });
+
+  assert.ok(
+    sockets[0].protocols.includes('dictate-protocol'),
+    'dictation mode must open with dictate-protocol, not transcribe-protocol',
+  );
+  assert.ok(!sockets[0].protocols.includes('transcribe-protocol'));
+});
+
+test('dictation mode sends the dictation CONFIG frame (no streams)', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { sockets } = makeClient({
+    mode: 'dictation',
+    dictation_locale: 'ENGLISH_US',
+    punctuation_mode: 'EXPLICIT',
+    text_field_context: { text: '', selection_start: 0, selection_length: 0 },
+  });
+
+  sockets[0].fireOpen();
+  const config = sockets[0].sent.map((raw) => JSON.parse(raw)).find((m) => m.type === 'CONFIG');
+  assert.equal(config.dictation_locale, 'ENGLISH_US');
+  assert.equal(config.punctuation_mode, 'EXPLICIT');
+  assert.ok(!('streams' in config), 'dictation CONFIG must not include streams');
+  assert.ok(!('speech_locales' in config), 'dictation CONFIG must not include speech_locales');
+});
+
+test('dictation mode sends AUDIO_CHUNK without stream_id', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { client, sockets } = makeClient({ mode: 'dictation' });
+
+  sockets[0].fireOpen();
+  client.sendAudio(pcm(1600));
+  const chunk = sockets[0].sent.map((raw) => JSON.parse(raw)).find((m) => m.type === 'AUDIO_CHUNK');
+  assert.equal(chunk.seq_id, 0);
+  assert.ok(!('stream_id' in chunk), 'dictation AUDIO_CHUNK must not include stream_id');
+});
+
+test('dictation mode routes DICTATED_TEXT to onDictatedText', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { client, sockets } = makeClient({ mode: 'dictation' });
+  const texts = [];
+  client.onDictatedText = (text) => texts.push(text);
+
+  sockets[0].fireOpen();
+  sockets[0].fireMessage({ type: 'DICTATED_TEXT', text: 'hello world' });
+
+  assert.deepEqual(texts, ['hello world']);
+});
+
+test('dictation mode still reconnects and replays un-acked audio', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { client, sockets } = makeClient({ mode: 'dictation' });
+
+  sockets[0].fireOpen();
+  client.sendAudio(pcm(1600)); // seq 0
+  client.sendAudio(pcm(1600)); // seq 1
+  client.sendAudio(pcm(1600)); // seq 2
+  assert.deepEqual(sentSeqIds(sockets[0]), [0, 1, 2], 'all chunks sent on first connection');
+
+  sockets[0].fireMessage({ type: 'AUDIO_CHUNK_ACK', ack_id: 1 });
+
+  sockets[0].fireClose(); // network drop
+  t.mock.timers.tick(1000); // backoff timer -> reconnect
+  assert.equal(sockets.length, 2, 'reconnect opened a fresh socket');
+
+  sockets[1].fireOpen();
+  assert.deepEqual(
+    sentSeqIds(sockets[1]),
+    [2],
+    'only the un-acked chunk is replayed — acked audio must NOT be re-transcribed',
+  );
+});

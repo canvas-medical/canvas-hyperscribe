@@ -11,7 +11,7 @@
  * See: https://docs.nabla.com/guides/best-practices/transcription-network-resilience
  */
 
-import { samplesToMs } from './transcript-merge.js';
+import { samplesToMs, buildConfigFrame } from './transcript-merge.js';
 
 /**
  * Convert Int16Array to base64 string.
@@ -50,6 +50,9 @@ class NablaScribeClient {
    * @param {string} config.encoding
    * @param {string[]} config.speech_locales
    * @param {string} config.stream_id
+   * @param {string} [config.mode] — 'conversation' (default, transcribe-ws) or
+   *   'dictation' (dictate-ws). Switches the subprotocol, CONFIG frame,
+   *   AUDIO_CHUNK shape, and routes DICTATED_TEXT to onDictatedText.
    * @param {function(): Promise<object>} [config.refreshConfig] — async callback
    *   that returns a fresh config object (with a new access_token) when the
    *   current token has expired. Called before each reconnect attempt.
@@ -96,6 +99,8 @@ class NablaScribeClient {
     this.onDisconnect = () => {};
     /** @type {function(): void} */
     this.onReconnect = () => {};
+    /** @type {function(string): void} */
+    this.onDictatedText = () => {};
   }
 
   /**
@@ -231,7 +236,7 @@ class NablaScribeClient {
     const { ws_url, access_token } = this._config;
     let ws;
     try {
-      ws = new WebSocket(ws_url, ['transcribe-protocol', `jwt-${access_token}`]);
+      ws = new WebSocket(ws_url, [this._config.mode === 'dictation' ? 'dictate-protocol' : 'transcribe-protocol', `jwt-${access_token}`]);
     } catch {
       this._handleConnectFailure();
       return;
@@ -436,8 +441,8 @@ class NablaScribeClient {
       this._ws.send(JSON.stringify({
         type: 'AUDIO_CHUNK',
         payload: chunk.base64,
-        stream_id: chunk.streamId,
         seq_id: chunk.seqId,
+        ...(this._config.mode !== 'dictation' ? { stream_id: chunk.streamId } : {}),
       }));
       chunk.sent = true;
       this._inflightSamples += chunk.sampleCount;
@@ -474,6 +479,9 @@ class NablaScribeClient {
         break;
       case 'AUDIO_CHUNK_ACK':
         this._handleAck(msg);
+        break;
+      case 'DICTATED_TEXT':
+        this.onDictatedText(msg.text || '');
         break;
       case 'END':
         this._intentionalClose = true;
@@ -528,15 +536,7 @@ class NablaScribeClient {
   /** @private */
   _sendConfig() {
     if (!this._ws) return;
-    const config = {
-      type: 'CONFIG',
-      encoding: this._config.encoding,
-      sample_rate: this._config.sample_rate,
-      speech_locales: this._config.speech_locales,
-      streams: [{ id: this._config.stream_id, speaker_type: 'unspecified' }],
-      enable_audio_chunk_ack: true,
-    };
-    this._ws.send(JSON.stringify(config));
+    this._ws.send(JSON.stringify(buildConfigFrame(this._config.mode || 'conversation', this._config)));
   }
 
   /** @private */
