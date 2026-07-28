@@ -275,6 +275,12 @@ function VerificationSummary({ result }) {
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
+// Note-application identifier of the Scribe tab (matches ScribeApp.IDENTIFIER).
+// NOTE_TAB_CHANGE messages carry the newly-active tab in `tab`; we hide the
+// chart-section command buttons while that tab is Scribe and restore them on a
+// switch to any other tab.
+const SCRIBE_TAB_IDENTIFIER = 'hyperscribe__scribe';
+
 // Section_key for commands the backend can't map to a Scribe section.
 // They render in the "FROM THE NOTE" catch-all block at the bottom of the
 // tab.
@@ -553,7 +559,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, manualModeOnly = false, dictationEnabled = false, initialData = null }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, manualModeOnly = false, dictationEnabled = false, captureDictationEnabled = false, initialData = null }) {
   const initSummary = initialData?.summary ?? null;
   const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
@@ -593,6 +599,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }
     return cached;
   });
+  // Capture-mode toggle (KOALA-5513 spike): which live-audio transport backs
+  // the recording — 'conversation' (default; existing Nabla transcribe-ws,
+  // multi-speaker) or 'dictation' (Nabla dictate-ws, verbatim single-speaker
+  // monologue). This is intentionally named `captureMode`, NOT `mode` — the
+  // `mode` state above is the unrelated note-generation workflow mode
+  // ('ai'|'manual'|null). Not persisted across reload (spike scope); local
+  // component state only. Locked once the AI Scribe session starts (see
+  // `mode === 'ai'` gate at the top-bar render) since the transport can't
+  // change mid-session.
+  const [captureMode, setCaptureMode] = useState('conversation');
   const [transcriptCollapsed, setTranscriptCollapsed] = useState(false);
   // Auto-scroll the transcript body to the latest entry whenever live capture
   // is producing or refining content. We deliberately don't try to "respect"
@@ -930,8 +946,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [wasFinalized, approved]);
   // --- End charge matrix ---
 
-  // Recording hook.
-  const recording = useRecording(noteId, initialData?.transcript);
+  // Recording hook. captureMode is fixed at whatever it was when AI Scribe
+  // started (see the `mode === 'ai'` lock in the top-bar render below) — the
+  // hook re-reads it on every render, but nothing changes it after that point.
+  const recording = useRecording(noteId, initialData?.transcript, { mode: captureMode });
 
   // Keep the transcript pinned to the latest entry as new ones stream in or
   // get refined (in-place partial updates, speaker-attribution flips, etc.).
@@ -1217,11 +1235,25 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const onCanvasMessage = (event) => {
       if (event.detail?.type === 'NOTE_TAB_CHANGE') {
         syncNoteCommands();
+        // Hide all chart-section command buttons while the Scribe tab is active;
+        // restore them when the user switches to the note body or any other tab.
+        // ScribeApp.handle() already hides on the initial tab open (including
+        // default-open, which emits no NOTE_TAB_CHANGE); this covers subsequent
+        // switches once every tab's iframe is mounted. Fire-and-forget: the
+        // effect is re-asserted on the next switch if it's missed.
+        if (noteId) {
+          const hidden = event.detail.tab === SCRIBE_TAB_IDENTIFIER;
+          fetch(`${API_BASE}/configure-command-buttons`, {
+            method: 'POST',
+            credentials: 'include',
+            body: JSON.stringify({ note_id: noteId, hidden }),
+          }).catch(() => {});
+        }
       }
     };
     window.addEventListener('canvas-message', onCanvasMessage);
     return () => window.removeEventListener('canvas-message', onCanvasMessage);
-  }, [syncNoteCommands]);
+  }, [syncNoteCommands, noteId]);
 
   // Pull the note's command rail once on mount so ADDITIONAL COMMANDS
   // populates without waiting for a tab switch. The cache-load effect below
@@ -3041,6 +3073,33 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         //     console.error('Failed to sign note:', signErr);
         //   }
         // }
+        // RESTORE_BUTTONS_BEFORE_CLOSE_MODAL
+        // Restore the chart-section command buttons BEFORE closing the modal.
+        // CLOSE_MODAL does switch the note back to its body tab, which fires a
+        // NOTE_TAB_CHANGE with tab='note' — but we never receive it. home-app
+        // clears the app's frameData and switches the tab in the same commit
+        // (NoteApplicationIframe.onCloseMessage -> NoteTabsContext
+        // .onCloseApplication), and the iframe's ref cleanup nulls the
+        // MessageChannel port during the mutation phase, before the passive
+        // effect that broadcasts the tab change. sendMessage is a silent no-op
+        // by then, so the restore in the NOTE_TAB_CHANGE handler above never
+        // runs and the buttons stay hidden after "Confirm & Add to note" —
+        // recoverable only by a Scribe/Note tab round-trip or a reload.
+        // Awaited, not fire-and-forget: once CLOSE_MODAL lands this component
+        // is unmounted and an in-flight fetch would be cancelled.
+        if (noteId) {
+          try {
+            await fetch(`${API_BASE}/configure-command-buttons`, {
+              method: 'POST',
+              credentials: 'include',
+              body: JSON.stringify({ note_id: noteId, hidden: false }),
+            });
+          } catch (restoreErr) {
+            // Never block the close on this; the sign and tab-switch paths
+            // both re-assert visibility.
+            console.error('Failed to restore command buttons:', restoreErr);
+          }
+        }
         const port = window.__canvasPort && window.__canvasPort();
         if (port) port.postMessage({ type: 'CLOSE_MODAL' });
       }
@@ -3385,6 +3444,22 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </select>
           `}
           ${showTopControls && html`
+            ${captureDictationEnabled && !manualModeOnly && html`
+              <div class="refer-priority" style="max-width: 220px;" role="group" aria-label="Capture mode">
+                <button
+                  type="button"
+                  class="refer-pill${captureMode === 'conversation' ? ' active' : ''}"
+                  onClick=${() => setCaptureMode('conversation')}
+                  title="Multi-speaker conversation, transcribed live"
+                >Conversation</button>
+                <button
+                  type="button"
+                  class="refer-pill${captureMode === 'dictation' ? ' active' : ''}"
+                  onClick=${() => setCaptureMode('dictation')}
+                  title="Single-speaker dictated monologue"
+                >Dictation</button>
+              </div>
+            `}
             ${!manualModeOnly && html`
               <button class="start-ai-btn" onClick=${handleStartAI} disabled=${!canEdit || !selectedTemplate}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" /></svg>
@@ -3394,6 +3469,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             <button class="start-manual-btn" onClick=${handleStartManual} disabled=${!canEdit || !selectedTemplate}>
               Manual
             </button>
+          `}
+          ${mode === 'ai' && captureDictationEnabled && html`
+            <span class="capture-mode-locked" style="font-size: 12px; font-weight: 600; color: #6b7280; white-space: nowrap;" title="Capture transport is locked for this session">
+              Capture: ${captureMode === 'dictation' ? 'Dictation' : 'Conversation'}
+            </span>
           `}
           ${isRecording && html`
             <div class="recording-controls-inline">

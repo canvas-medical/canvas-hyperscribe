@@ -9,7 +9,27 @@ import {
   reconnectSessionOffset,
   drainResolution,
   finishDrainDecision,
+  buildConfigFrame,
+  appendDictatedText,
+  DICTATION_ENTRY_ID,
 } from './transcript-merge.js';
+
+test('buildConfigFrame conversation mode keeps the transcribe shape', () => {
+  const f = buildConfigFrame('conversation', { encoding: 'PCM_S16LE', sample_rate: 16000, speech_locales: ['ENGLISH_US'], stream_id: 'stream1' });
+  assert.equal(f.type, 'CONFIG');
+  assert.deepEqual(f.speech_locales, ['ENGLISH_US']);
+  assert.equal(f.streams[0].id, 'stream1');
+  assert.equal(f.enable_audio_chunk_ack, true);
+});
+
+test('buildConfigFrame dictation mode emits the dictate shape', () => {
+  const f = buildConfigFrame('dictation', { encoding: 'PCM_S16LE', sample_rate: 16000, dictation_locale: 'ENGLISH_US', punctuation_mode: 'EXPLICIT', text_field_context: { text: '', selection_start: 0, selection_length: 0 } });
+  assert.equal(f.type, 'CONFIG');
+  assert.equal(f.dictation_locale, 'ENGLISH_US');
+  assert.equal(f.punctuation_mode, 'EXPLICIT');
+  assert.deepEqual(f.text_field_context, { text: '', selection_start: 0, selection_length: 0 });
+  assert.ok(!('streams' in f));
+});
 
 test('finishDrainDecision returns drained the moment the buffer empties', () => {
   assert.equal(finishDrainDecision({ pendingMs: 0, accepted: false }), 'drained');
@@ -114,6 +134,41 @@ test('drainResolution reports cap when the hard cap is exceeded', () => {
 
 test('drainResolution prefers stalled over cap when both trip', () => {
   assert.equal(drainResolution({ pending: 5000, msSinceProgress: 40000, msSinceStart: 400000, stallMs: 30000, capMs: 300000 }), 'stalled');
+});
+
+test('appendDictatedText seeds a single dictation entry from the first delta', () => {
+  const out = appendDictatedText([], 'One');
+  assert.equal(out.length, 1);
+  assert.equal(out[0].item_id, DICTATION_ENTRY_ID);
+  assert.equal(out[0].text, 'One');
+  assert.equal(out[0].speaker, 'DOCTOR');
+  assert.equal(out[0].is_final, true);
+});
+
+test('appendDictatedText concatenates every delta into ONE entry, verbatim', () => {
+  // dictate-ws deltas carry their own leading spaces / sub-word splits; Nabla
+  // owns spacing, so plain concatenation must reconstruct the monologue.
+  let out = [];
+  for (const delta of ['One', ' follow', '-', 'up', ' visit']) {
+    out = appendDictatedText(out, delta);
+  }
+  assert.equal(out.length, 1, 'a monologue is one row, not a row per word');
+  assert.equal(out[0].text, 'One follow-up visit');
+  assert.equal(out[0].item_id, DICTATION_ENTRY_ID);
+});
+
+test('appendDictatedText past 12 deltas is still a single entry (no ordering ambiguity)', () => {
+  let out = [];
+  for (let i = 0; i < 15; i++) out = appendDictatedText(out, ` w${i}`);
+  assert.equal(out.length, 1);
+  // A single fixed-id entry cannot be reordered by sortEntries on reload.
+  assert.deepEqual(sortEntries(out).map(e => e.item_id), [DICTATION_ENTRY_ID]);
+});
+
+test('appendDictatedText ignores empty deltas is the callers job; here it appends what it is given', () => {
+  // The hook guards empty text before calling; the pure fn appends verbatim.
+  const out = appendDictatedText([{ item_id: DICTATION_ENTRY_ID, text: 'hi', speaker: 'DOCTOR', start_offset_ms: 0, end_offset_ms: 0, is_final: true }], ' there');
+  assert.equal(out[0].text, 'hi there');
 });
 
 // Integration guard for the actual KOALA-5934 fix: an item Nabla emitted but

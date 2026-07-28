@@ -864,6 +864,146 @@ def test_save_summary_does_not_set_was_finalized_when_unapproved(mock_summary: M
     assert "was_finalized" not in kwargs["defaults"]
 
 
+# --- /configure-command-buttons ---
+
+
+def _configure_buttons_locations(result: Any) -> list[dict[str, str]]:
+    """Pull the locations list off the ConfigureCommandButtons effect in a result."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    effect = result[1]
+    payload = json.loads(effect.payload)
+    assert effect.type == ConfigureCommandButtons.Meta.effect_type
+    return payload["data"]["locations"]
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_hidden(mock_note: MagicMock) -> None:
+    """hidden=True hides every command-button location for the note's patient."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-1"
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "note-uuid-1", "hidden": True}),
+    )
+    result = view.post_configure_command_buttons()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"status": "ok"}
+    mock_note.objects.values_list.assert_called_once_with("patient__id", flat=True)
+    mock_note.objects.values_list.return_value.get.assert_called_once_with(id="note-uuid-1")
+
+    locations = _configure_buttons_locations(result)
+    # One config per Location, all hidden, no duplicates.
+    assert len(locations) == len(list(ConfigureCommandButtons.Location))
+    assert {loc["location"] for loc in locations} == {loc.value for loc in ConfigureCommandButtons.Location}
+    assert all(loc["visibility"] == ConfigureCommandButtons.Visibility.HIDDEN for loc in locations)
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_restore(mock_note: MagicMock) -> None:
+    """hidden=False (and the default) restores every location to visible."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-2"
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "note-uuid-2", "hidden": False}),
+    )
+    result = view.post_configure_command_buttons()
+
+    assert result[0].status_code == HTTPStatus.OK
+    locations = _configure_buttons_locations(result)
+    assert all(loc["visibility"] == ConfigureCommandButtons.Visibility.VISIBLE for loc in locations)
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_defaults_to_visible(mock_note: MagicMock) -> None:
+    """Omitting `hidden` is treated as a restore (visible)."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-3"
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "note-uuid-3"}),
+    )
+    result = view.post_configure_command_buttons()
+
+    locations = _configure_buttons_locations(result)
+    assert all(loc["visibility"] == ConfigureCommandButtons.Visibility.VISIBLE for loc in locations)
+
+
+def test_configure_command_buttons_missing_note_id() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(headers={}, body=json.dumps({"hidden": True}))
+    result = view.post_configure_command_buttons()
+
+    assert len(result) == 1
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_id" in json.loads(result[0].content)["error"]
+
+
+def test_configure_command_buttons_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(headers={}, body="not-json")
+    result = view.post_configure_command_buttons()
+
+    assert len(result) == 1
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_note_not_found(mock_note: MagicMock) -> None:
+    from canvas_sdk.v1.data.note import Note as RealNote
+
+    mock_note.objects.values_list.return_value.get.side_effect = RealNote.DoesNotExist
+    mock_note.DoesNotExist = RealNote.DoesNotExist
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "missing", "hidden": True}),
+    )
+    result = view.post_configure_command_buttons()
+
+    assert len(result) == 1
+    assert result[0].status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.no_authorize_bypass
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_uses_authorize_read(mock_note: MagicMock) -> None:
+    """A denial from _authorize_read short-circuits before applying any effect,
+    and the endpoint uses read-level (not edit-level) auth so non-author staff
+    viewing the chart can still toggle their own button visibility."""
+    from hyperscribe.scribe.api import session_view
+
+    denial = JSONResponse({"error": "denied"}, status_code=HTTPStatus.FORBIDDEN)
+    with (
+        patch.object(session_view, "_authorize_read", return_value=denial) as read_auth,
+        patch.object(session_view, "_authorize_edit") as edit_auth,
+    ):
+        view = _helper_instance()
+        view.request = SimpleNamespace(
+            headers={"canvas-logged-in-user-id": "staff-1"},
+            body=json.dumps({"note_id": "note-uuid", "hidden": True}),
+        )
+        result = view.post_configure_command_buttons()
+
+    assert result == [denial]
+    read_auth.assert_called_once()
+    edit_auth.assert_not_called()
+    mock_note.objects.values_list.assert_not_called()
+
+
 # --- /generate-note ---
 
 
@@ -1498,6 +1638,65 @@ def test_summary_js_cache_flip_to_approved_true_is_unconditional_on_success() ->
         "handleInsert's success branch. Currently it appears to be missing or "
         "still nested inside the gate - which leaves amend-mode-zero-edits at "
         "cache.approved=false."
+    )
+
+
+def test_summary_js_restores_command_buttons_before_close_modal() -> None:
+    """KOALA-5808: the approve path must restore the chart-section command
+    buttons BEFORE it posts CLOSE_MODAL, because the CLOSE_MODAL tab change
+    never reaches this iframe.
+
+    Why the NOTE_TAB_CHANGE handler doesn't cover it: CLOSE_MODAL does switch
+    the note back to its body tab (NoteTabsContext.onCloseApplication ->
+    setActiveIndex(applications.length)), which fires a NOTE_TAB_CHANGE with
+    tab='note'. But home-app clears the app's frameData in the same commit
+    (NoteApplicationIframe.onCloseMessage), and the iframe ref cleanup nulls
+    the MessageChannel port (useMessageChannelBroker) during the mutation
+    phase - before the passive effect that broadcasts the tab change. The
+    broadcast is a silent no-op, so without an explicit restore here the
+    buttons stay hidden after "Confirm & Add to note", recoverable only by a
+    Scribe/Note tab round-trip or a page reload.
+
+    Structural-static pin, matching the other summary.js pins in this module
+    (no JS test framework for this file). Two assertions:
+      1. The RESTORE_BUTTONS_BEFORE_CLOSE_MODAL marker is present.
+      2. A POST to /configure-command-buttons carrying ``hidden: false``
+         appears BEFORE the ``CLOSE_MODAL`` postMessage. Ordering is the whole
+         point - after the close, this component is unmounted.
+
+    Caveat: structural, not behavioral. It does not execute the React code and
+    cannot prove the fetch is awaited or that the response is honoured.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) Marker comment - intent / trace breadcrumb.
+    assert "RESTORE_BUTTONS_BEFORE_CLOSE_MODAL" in src, (
+        "summary.js is missing the RESTORE_BUTTONS_BEFORE_CLOSE_MODAL marker. "
+        "Without an explicit restore before CLOSE_MODAL, the chart-section "
+        "command buttons stay hidden after the provider approves the summary - "
+        "the CLOSE_MODAL tab change cannot reach this iframe because its "
+        "MessageChannel port is already closed. Re-add the "
+        "POST /configure-command-buttons {hidden: false} ahead of the "
+        "CLOSE_MODAL postMessage and mark it with this comment."
+    )
+
+    # (2) Structural: the restore POST must precede the CLOSE_MODAL postMessage.
+    close_modal_idx = src.find("type: 'CLOSE_MODAL'")
+    assert close_modal_idx != -1, (
+        "Expected a `type: 'CLOSE_MODAL'` postMessage in summary.js. If the "
+        "approve flow no longer closes the modal, this pin needs updating."
+    )
+
+    restore_pattern = re.compile(r"configure-command-buttons(?:.|\n){0,400}?hidden:\s*false")
+    restore_match = restore_pattern.search(src[:close_modal_idx])
+    assert restore_match, (
+        "No `POST /configure-command-buttons` with `hidden: false` found BEFORE "
+        "the CLOSE_MODAL postMessage in summary.js. Ordering matters: once "
+        "CLOSE_MODAL lands, home-app unmounts this iframe and closes its port, "
+        "so a restore issued after it is dropped and the buttons stay hidden."
     )
 
 
