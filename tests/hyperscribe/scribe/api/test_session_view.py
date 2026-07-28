@@ -1641,6 +1641,65 @@ def test_summary_js_cache_flip_to_approved_true_is_unconditional_on_success() ->
     )
 
 
+def test_summary_js_restores_command_buttons_before_close_modal() -> None:
+    """KOALA-5808: the approve path must restore the chart-section command
+    buttons BEFORE it posts CLOSE_MODAL, because the CLOSE_MODAL tab change
+    never reaches this iframe.
+
+    Why the NOTE_TAB_CHANGE handler doesn't cover it: CLOSE_MODAL does switch
+    the note back to its body tab (NoteTabsContext.onCloseApplication ->
+    setActiveIndex(applications.length)), which fires a NOTE_TAB_CHANGE with
+    tab='note'. But home-app clears the app's frameData in the same commit
+    (NoteApplicationIframe.onCloseMessage), and the iframe ref cleanup nulls
+    the MessageChannel port (useMessageChannelBroker) during the mutation
+    phase - before the passive effect that broadcasts the tab change. The
+    broadcast is a silent no-op, so without an explicit restore here the
+    buttons stay hidden after "Confirm & Add to note", recoverable only by a
+    Scribe/Note tab round-trip or a page reload.
+
+    Structural-static pin, matching the other summary.js pins in this module
+    (no JS test framework for this file). Two assertions:
+      1. The RESTORE_BUTTONS_BEFORE_CLOSE_MODAL marker is present.
+      2. A POST to /configure-command-buttons carrying ``hidden: false``
+         appears BEFORE the ``CLOSE_MODAL`` postMessage. Ordering is the whole
+         point - after the close, this component is unmounted.
+
+    Caveat: structural, not behavioral. It does not execute the React code and
+    cannot prove the fetch is awaited or that the response is honoured.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) Marker comment - intent / trace breadcrumb.
+    assert "RESTORE_BUTTONS_BEFORE_CLOSE_MODAL" in src, (
+        "summary.js is missing the RESTORE_BUTTONS_BEFORE_CLOSE_MODAL marker. "
+        "Without an explicit restore before CLOSE_MODAL, the chart-section "
+        "command buttons stay hidden after the provider approves the summary - "
+        "the CLOSE_MODAL tab change cannot reach this iframe because its "
+        "MessageChannel port is already closed. Re-add the "
+        "POST /configure-command-buttons {hidden: false} ahead of the "
+        "CLOSE_MODAL postMessage and mark it with this comment."
+    )
+
+    # (2) Structural: the restore POST must precede the CLOSE_MODAL postMessage.
+    close_modal_idx = src.find("type: 'CLOSE_MODAL'")
+    assert close_modal_idx != -1, (
+        "Expected a `type: 'CLOSE_MODAL'` postMessage in summary.js. If the "
+        "approve flow no longer closes the modal, this pin needs updating."
+    )
+
+    restore_pattern = re.compile(r"configure-command-buttons(?:.|\n){0,400}?hidden:\s*false")
+    restore_match = restore_pattern.search(src[:close_modal_idx])
+    assert restore_match, (
+        "No `POST /configure-command-buttons` with `hidden: false` found BEFORE "
+        "the CLOSE_MODAL postMessage in summary.js. Ordering matters: once "
+        "CLOSE_MODAL lands, home-app unmounts this iframe and closes its port, "
+        "so a restore issued after it is dropped and the buttons stay hidden."
+    )
+
+
 def test_summary_js_stamps_accepted_recommendations_after_insert_commands() -> None:
     """KOALA-5634 ADDITIONAL COMMANDS duplicate regression (recommendations leg).
 
