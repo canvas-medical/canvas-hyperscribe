@@ -507,22 +507,26 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
     // Drain the buffer losslessly before closing (KOALA-5934), exactly like
     // finish: do NOT call end()/signalEndOfStream() before the drain — end()'s
     // 30s internal close timeout would kill a multi-minute drain and block
-    // reconnect. Resume is disabled while this runs (awaitingTranscription).
+    // reconnect. Resume is blocked (pauseDrainingRef) for the WHOLE operation,
+    // including the teardown tail, so it can't swap clientRef mid-close.
     stopAudioCapture();
     pauseDrainingRef.current = true;
-    const resolution = await drainBeforeClose('pause');
-    pauseDrainingRef.current = false;
-    // Resume during the drain shouldn't happen (Resume is disabled), but if
-    // status changed, resumeRecording already opened a new session — bail.
-    if (statusRef.current !== 'paused') return;
-    if (resolution === 'accepted') {
-      await disconnectAll({ force: true });
-    } else {
-      await signalEndOfStream();
-      await disconnectAll({ force: false });
+    try {
+      const resolution = await drainBeforeClose('pause');
+      // Resume during the operation is blocked by pauseDrainingRef, but if
+      // status otherwise changed, bail rather than tear down a new session.
+      if (statusRef.current !== 'paused') return;
+      if (resolution === 'accepted') {
+        await disconnectAll({ force: true });
+      } else {
+        await signalEndOfStream();
+        await disconnectAll({ force: false });
+      }
+      finalizePartials();
+      await saveTranscriptToCache();
+    } finally {
+      pauseDrainingRef.current = false;
     }
-    finalizePartials();
-    await saveTranscriptToCache();
   }, [disconnectAll, drainBeforeClose, finalizePartials, saveTranscriptToCache, signalEndOfStream, stopAudioCapture]);
 
   const resumeRecording = useCallback(async () => {
