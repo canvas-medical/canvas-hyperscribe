@@ -260,8 +260,7 @@ def test_command_parameters_schemas():
                     },
                     "priority": {
                         "type": "string",
-                        # canvas 0.164.0+ adds "STAT" to the referral priority enum.
-                        "enum": ["Routine", "Urgent", "STAT"],
+                        "enum": ["Routine", "Urgent"],
                     },
                     "notesToSpecialist": {
                         "type": "string",

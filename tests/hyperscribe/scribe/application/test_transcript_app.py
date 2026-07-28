@@ -4,7 +4,6 @@ from django.db.models import QuerySet
 
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
-from canvas_sdk.effects.configure_command_buttons import ConfigureCommandButtons
 from canvas_sdk.events import Event
 from canvas_sdk.handlers.application import NoteApplication
 
@@ -181,30 +180,23 @@ def test_visible_note_type_note_not_found(
     assert tested.visible() is False
 
 
-@patch("hyperscribe.scribe.application.transcript_app.configure_command_buttons_effect")
 @patch("hyperscribe.scribe.application.transcript_app.Note")
 @patch("hyperscribe.scribe.application.transcript_app.LaunchModalEffect")
-def test_handle(launch_modal_effect: object, mock_note: MagicMock, mock_hide: MagicMock) -> None:
+def test_handle(launch_modal_effect: object, mock_note: MagicMock) -> None:
     launch_modal_effect.return_value.apply.side_effect = [  # type: ignore[union-attr]
         Effect(type="LOG", payload="SomePayload")
     ]
     launch_modal_effect.TargetType.NOTE = "note"  # type: ignore[union-attr]
-    mock_hide.return_value = Effect(type="LOG", payload="HideButtons")
-
     mock_qs = MagicMock(spec=QuerySet)
-    mock_qs.get.return_value = {"id": "uuid-5481", "patient__id": "patient-7"}
-    mock_note.objects.values.return_value = mock_qs
+    mock_qs.get.return_value = "uuid-5481"
+    mock_note.objects.values_list.return_value = mock_qs
 
     event = Event(EventRequest(context='{"note_id":5481}'))
     tested = ScribeApp(event, {})
     result = tested.handle()
 
-    assert result == [
-        Effect(type="LOG", payload="SomePayload"),
-        Effect(type="LOG", payload="HideButtons"),
-    ]
+    assert result == [Effect(type="LOG", payload="SomePayload")]
     mock_qs.get.assert_called_once_with(dbid=5481)
-    mock_note.objects.values.assert_called_once_with("id", "patient__id")
     assert launch_modal_effect.mock_calls == [  # type: ignore[union-attr]
         call(
             url="/plugin-io/api/hyperscribe/scribe/app?note_id=uuid-5481&view=scribe",
@@ -213,8 +205,6 @@ def test_handle(launch_modal_effect: object, mock_note: MagicMock, mock_hide: Ma
         ),
         call().apply(),
     ]
-    # The note's patient has every command button hidden while the tab is open.
-    mock_hide.assert_called_once_with("patient-7", ConfigureCommandButtons.Visibility.HIDDEN)
 
 
 # --- _scribe_tab_has_content ---
