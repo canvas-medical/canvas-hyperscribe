@@ -217,44 +217,30 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
     return Promise.resolve();
   }, []);
 
-  // Wait for the local audio backlog to drain before we close the socket.
-  // After a connectivity drop the buffer can hold minutes of audio that is
-  // still replaying/transcribing; closing on a fixed timer would discard the
-  // tail of the transcript (KOALA-5934). Poll the client's pending gauge and
-  // keep waiting while it shrinks, updating catchUpSeconds for the UI. Bail
-  // only on a stall (no progress — network died again) or the hard cap, so a
-  // finish can never hang forever.
-  const waitForDrain = useCallback(async () => {
-    const client = clientRef.current;
-    if (!client || typeof client.getPendingAudioMs !== 'function') return 'drained';
-    const startedAt = Date.now();
-    let lastPending = client.getPendingAudioMs();
-    let lastProgressAt = Date.now();
-    let resolution = null;
-    while (resolution === null) {
-      const pending = client.getPendingAudioMs();
-      setCatchUpSeconds(pending > 0 ? Math.ceil(pending / 1000) : 0);
-      if (pending < lastPending) {
-        lastPending = pending;
-        lastProgressAt = Date.now();
-      }
-      const now = Date.now();
-      resolution = drainResolution({
-        pending,
-        msSinceProgress: now - lastProgressAt,
-        msSinceStart: now - startedAt,
-        stallMs: DRAIN_STALL_MS,
-        capMs: DRAIN_HARD_CAP_MS,
-      });
-      if (resolution === null) {
-        await new Promise((r) => setTimeout(r, DRAIN_POLL_MS));
-      }
+  // Shared lossless drain (KOALA-5934). Poll the client's pending-audio gauge,
+  // updating the catch-up UI, until the buffer is fully drained (nothing lost)
+  // OR the provider explicitly accepts a gap (finalizeWithGap -> acceptedGapRef).
+  // Never truncates on a stall — the only non-drained exit is an explicit accept.
+  // Used by both finish and pause so they behave identically.
+  const drainBeforeClose = useCallback(async (reason) => {
+    setAwaitingTranscription(true);
+    acceptedGapRef.current = false;
+    const drainStartedAt = Date.now();
+    let pendingMs = clientRef.current ? clientRef.current.getPendingAudioMs() : 0;
+    let resolution = 'drained';
+    while (true) {
+      pendingMs = clientRef.current ? clientRef.current.getPendingAudioMs() : 0;
+      setCatchUpSeconds(pendingMs > 0 ? Math.ceil(pendingMs / 1000) : 0);
+      resolution = finishDrainDecision({ pendingMs, accepted: acceptedGapRef.current });
+      if (resolution !== 'waiting') break;
+      await new Promise((r) => setTimeout(r, DRAIN_POLL_MS));
     }
+    setAwaitingTranscription(false);
     setCatchUpSeconds(0);
-    logEvent('FINISH_DRAIN', {
+    logEvent(reason === 'pause' ? 'PAUSE_DRAIN' : 'FINISH_DRAIN', {
       resolution,
-      elapsed_ms: Date.now() - startedAt,
-      pending_ms_remaining: client.getPendingAudioMs(),
+      elapsed_ms: Date.now() - drainStartedAt,
+      unprocessed_ms: resolution === 'accepted' ? pendingMs : 0,
     });
     return resolution;
   }, []);
@@ -515,25 +501,27 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
 
   const pauseRecording = useCallback(async () => {
     setStatus('paused');
-    // Stop sending audio + tell Nabla we're done so it flushes any trailing
-    // speaker-attribution updates over the still-open WebSocket. Then poll
-    // the entries until everything resolves or PAUSE_WAIT_MS elapses. If
-    // the user hits Resume during the wait, abort — resumeRecording has
-    // already kicked off a new connection and we must not tear it down.
+    // Stop sending audio, then drain the buffer losslessly before closing —
+    // exactly like finish. Force-closing here (the old behavior) silently
+    // discarded everything Nabla had not yet processed (KOALA-5934). The
+    // provider can pause immediately via finalizeWithGap() ("Pause now"),
+    // which makes the discard explicit.
     stopAudioCapture();
     signalEndOfStream();
-    await waitForSpeakerAttribution(PAUSE_WAIT_MS, 'pause');
+    const resolution = await drainBeforeClose('pause');
+    // Resume during the drain? resumeRecording already opened a new session —
+    // abort so we don't tear it down.
     if (statusRef.current !== 'paused') return;
-    await disconnectAll({ force: true });
+    await disconnectAll({ force: resolution === 'accepted' });
     finalizePartials();
     await saveTranscriptToCache();
   }, [
     disconnectAll,
+    drainBeforeClose,
     finalizePartials,
     saveTranscriptToCache,
     signalEndOfStream,
     stopAudioCapture,
-    waitForSpeakerAttribution,
   ]);
 
   const resumeRecording = useCallback(async () => {
@@ -566,25 +554,7 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
     // (scribeClient). Poll until the buffer is fully drained (nothing lost) OR
     // the provider explicitly accepts a gap. The note never generates while a
     // backlog remains unless accepted.
-    setAwaitingTranscription(true);
-    acceptedGapRef.current = false;
-    const drainStartedAt = Date.now();
-    let pendingMs = clientRef.current ? clientRef.current.getPendingAudioMs() : 0;
-    let resolution = 'drained';
-    while (true) {
-      pendingMs = clientRef.current ? clientRef.current.getPendingAudioMs() : 0;
-      setCatchUpSeconds(pendingMs > 0 ? Math.ceil(pendingMs / 1000) : 0);
-      resolution = finishDrainDecision({ pendingMs, accepted: acceptedGapRef.current });
-      if (resolution !== 'waiting') break;
-      await new Promise((r) => setTimeout(r, DRAIN_POLL_MS));
-    }
-    setAwaitingTranscription(false);
-    setCatchUpSeconds(0);
-    logEvent('FINISH_DRAIN', {
-      resolution, // 'drained' (nothing lost) | 'accepted' (provider accepted a gap)
-      elapsed_ms: Date.now() - drainStartedAt,
-      unprocessed_ms: resolution === 'accepted' ? pendingMs : 0,
-    });
+    const resolution = await drainBeforeClose('finish');
     if (resolution === 'accepted') {
       // Provider accepted the gap — abandon the still-buffered tail and close.
       setFinishTruncated(true);
@@ -620,6 +590,7 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
   }, [
     noteId,
     disconnectAll,
+    drainBeforeClose,
     finalizePartials,
     signalEndOfStream,
     stopAudioCapture,

@@ -3620,6 +3620,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           `}
         </div>
       `}
+      ${recording.status === 'paused' && recording.awaitingTranscription && recording.catchUpSeconds > 0 && html`
+        <div class="summary-generating-banner">
+          <span class="generating-label">Still processing ~${recording.catchUpSeconds}s of audio before pausing…</span>
+          <button class="summary-status-pill-btn" onClick=${() => recording.finalizeWithGap()}>
+            Pause now (discard ~${recording.catchUpSeconds}s)
+          </button>
+        </div>
+      `}
       ${authorEditable && !noteData && !generating && recording.finalized && mode === 'ai' && html`
         <div class="summary-generate-banner">
           <p class="summary-banner-description">Recording complete. Generate a structured summary from your transcript.</p>
