@@ -3628,6 +3628,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           </button>
         </div>
       `}
+      ${recording.status === 'recording' && recording.showLiveCatchUp && html`
+        <div class="readonly-banner" role="status" aria-live="polite">
+          <span>Still processing ~${recording.catchUpSeconds}s of audio — don't pause or stop yet.</span>
+        </div>
+      `}
       ${authorEditable && !noteData && !generating && recording.finalized && mode === 'ai' && html`
         <div class="summary-generate-banner">
           <p class="summary-banner-description">Recording complete. Generate a structured summary from your transcript.</p>
