@@ -3485,7 +3485,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                     </svg>
                     Pause
                   </button>`
-                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume" disabled=${!canEdit}>
+                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume" disabled=${!canEdit || recording.awaitingTranscription}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="6,4 20,12 6,20" />
                     </svg>
