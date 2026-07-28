@@ -551,6 +551,11 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
   }, [connectAndRecord]);
 
   const finishRecording = useCallback(async () => {
+    // A pause drain may still be in flight — its teardown tail (up to ~30s of
+    // signalEndOfStream/end()) re-enables the Finish button before
+    // pauseDrainingRef clears in pause's finally. Block finish so it can't spawn
+    // a second concurrent drain on the shared client. Mirrors resumeRecording.
+    if (pauseDrainingRef.current) return;
     setStatus('finishing');
     // Stop sending audio + tell Nabla we're done so it flushes trailing
     // speaker-attribution updates. Hold the WebSocket open through the wait
