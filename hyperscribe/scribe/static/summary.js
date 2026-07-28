@@ -3491,7 +3491,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                     </svg>
                     Resume
                   </button>`}
-              <${FinishRecordingButton} onFinish=${recording.finishRecording} disabled=${!canEdit} />
+              <${FinishRecordingButton} onFinish=${recording.finishRecording} disabled=${!canEdit || recording.awaitingTranscription} />
             </div>
           `}
           ${false && debugMode && noteData && !approved && !generating && !isRecording && html`
