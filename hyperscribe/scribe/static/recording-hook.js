@@ -9,6 +9,7 @@ import {
   reconnectSessionOffset,
   finishDrainDecision,
   appendDictatedText,
+  shouldShowLiveCatchUp,
 } from './transcript-merge.js';
 import { logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
 
@@ -75,6 +76,10 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
   // Surfaced in the "Finalizing transcript…" UI so a post-outage wait isn't
   // mysterious.
   const [catchUpSeconds, setCatchUpSeconds] = useState(0);
+  // True while recording and a real audio backlog (e.g. after a reconnect
+  // replays minutes of buffered audio) is still catching up, so the provider
+  // knows it's unsafe to pause/stop yet.
+  const [showLiveCatchUp, setShowLiveCatchUp] = useState(false);
   // True when Finish had to close before the backlog fully drained (network
   // stayed down through the stall/hard-cap window), so the tail of the audio
   // never reached the transcription service. Warn the provider rather than
@@ -646,6 +651,21 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
     return () => clearInterval(interval);
   }, [status, saveTranscriptToCache]);
 
+  // While recording, surface a real audio backlog (e.g. after a reconnect
+  // replays minutes of buffered audio) so the provider knows it's unsafe to
+  // pause/stop yet. 1s cadence for a live countdown. Gated above normal
+  // in-flight lag by shouldShowLiveCatchUp so it doesn't nag in steady state.
+  useEffect(() => {
+    if (status !== 'recording') { setShowLiveCatchUp(false); return; }
+    const interval = setInterval(() => {
+      const client = clientRef.current;
+      const pending = client && typeof client.getPendingAudioMs === 'function' ? client.getPendingAudioMs() : 0;
+      setShowLiveCatchUp(shouldShowLiveCatchUp(pending));
+      setCatchUpSeconds(pending > 0 ? Math.ceil(pending / 1000) : 0);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [status]);
+
   // Check for prolonged silence while recording.
   useEffect(() => {
     if (status !== 'recording') return;
@@ -728,7 +748,7 @@ export function useRecording(noteId, initialTranscript, { mode = 'conversation' 
   }, []);
 
   return {
-    status, entries, error, finalized, lastSaved, audioLevel, silenceWarning, micBlocked, micPrompting, connectionLost, catchUpSeconds, finishTruncated, awaitingTranscription,
+    status, entries, error, finalized, lastSaved, audioLevel, silenceWarning, micBlocked, micPrompting, connectionLost, catchUpSeconds, finishTruncated, awaitingTranscription, showLiveCatchUp,
     startRecording, pauseRecording, resumeRecording, finishRecording, retryMicPermission, finalizeWithGap,
   };
 }
