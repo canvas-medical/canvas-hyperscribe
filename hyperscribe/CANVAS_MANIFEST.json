@@ -307,6 +307,7 @@
     "ScribeBackend",
     "ScribeDebugStaffers",
     "ScribeDictationEnabled",
+    "ScribeCaptureDictationEnabled",
     "ScribeManualModeOnly",
     "ScribeNoteTypes",
     "ScribePilotStaffers",

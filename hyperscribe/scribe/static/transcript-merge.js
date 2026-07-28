@@ -26,6 +26,39 @@ export function sortEntries(items) {
   });
 }
 
+// The single transcript entry that holds a dictated monologue. Dictation is
+// one continuous single-speaker block, unlike conversation's multi-speaker
+// utterances — so all dictated text lives under one stable id.
+export const DICTATION_ENTRY_ID = '__dictation';
+
+// Append one DICTATED_TEXT delta to the transcript. dictate-ws streams
+// verbatim, append-only, immutable deltas (often a single word or a lone
+// punctuation mark like "-", not whole utterances), and Nabla owns spacing
+// and punctuation. So we concatenate every delta into ONE running entry
+// rather than rendering a row per word — mirroring how KOALA-6233 field
+// dictation folds the same stream into one text field (summary.js
+// handleDictatedText). This also feeds generate-note one coherent DOCTOR
+// item (backend.py transcript_items) instead of dozens of near-zero-offset
+// fragments. A single fixed-id entry makes any sort-ordering ambiguity
+// structurally impossible. Pure so the accumulation is unit-tested.
+export function appendDictatedText(entries, text) {
+  const last = entries.length ? entries[entries.length - 1] : null;
+  if (last && last.item_id === DICTATION_ENTRY_ID) {
+    return [...entries.slice(0, -1), { ...last, text: last.text + text }];
+  }
+  return [
+    ...entries,
+    {
+      item_id: DICTATION_ENTRY_ID,
+      text,
+      speaker: 'DOCTOR',
+      start_offset_ms: 0,
+      end_offset_ms: 0,
+      is_final: true,
+    },
+  ];
+}
+
 // A partial entry is "stuck" when at least one final entry has a later
 // start_offset_ms — Nabla has moved on past this segment without ever
 // finalizing it, so the row stays partial forever and accumulates text
@@ -113,6 +146,30 @@ export function mergeEntry(entries, incoming, { offsetWindowMs = 1500 } = {}) {
   }
 
   return [...entries, incoming];
+}
+
+// Per-mode Nabla CONFIG frame. Conversation = transcribe-ws (speaker streams);
+// dictation = dictate-ws (single locale + punctuation + caret context). Pure so
+// the mode branching is unit-tested rather than buried in the ws client.
+export function buildConfigFrame(mode, config) {
+  if (mode === 'dictation') {
+    return {
+      type: 'CONFIG',
+      encoding: config.encoding,
+      sample_rate: config.sample_rate,
+      dictation_locale: config.dictation_locale,
+      punctuation_mode: config.punctuation_mode,
+      text_field_context: config.text_field_context || { text: '', selection_start: 0, selection_length: 0 },
+    };
+  }
+  return {
+    type: 'CONFIG',
+    encoding: config.encoding,
+    sample_rate: config.sample_rate,
+    speech_locales: config.speech_locales,
+    streams: [{ id: config.stream_id, speaker_type: 'unspecified' }],
+    enable_audio_chunk_ack: true,
+  };
 }
 
 // Convert a PCM sample count to milliseconds of audio. Guards a zero/absent

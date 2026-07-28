@@ -74,6 +74,11 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
         # "true" match so setting the secret to "false" disables it (unlike the
         # truthy-if-present secrets, where any value would enable).
         dictation_enabled = str(self.secrets.get("ScribeDictationEnabled", "")).strip().lower() == "true"
+        # Whole-visit dictation capture mode (the Conversation | Dictation toggle,
+        # KOALA-5513) is gated independently from field dictation so it can be
+        # enabled/disabled on its own while the broader note-gen fix is worked out.
+        # Same strict "true" match so setting it to "false" disables it.
+        capture_dictation_enabled = str(self.secrets.get("ScribeCaptureDictationEnabled", "")).strip().lower() == "true"
 
         html = render_to_string(
             "scribe/static/index.html",
@@ -94,6 +99,7 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
                 "alert_facility_enabled": "true" if self.secrets.get("AlertFacilityEnabled") else "",
                 "manual_mode_only": "true" if self.secrets.get("ScribeManualModeOnly") else "",
                 "dictation_enabled": "true" if dictation_enabled else "",
+                "capture_dictation_enabled": "true" if capture_dictation_enabled else "",
                 "initial_data": _safe_json(initial_data),
             },
         )
