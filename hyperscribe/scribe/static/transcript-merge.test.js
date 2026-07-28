@@ -12,6 +12,8 @@ import {
   buildConfigFrame,
   appendDictatedText,
   DICTATION_ENTRY_ID,
+  shouldShowLiveCatchUp,
+  LIVE_CATCHUP_FLOOR_MS,
 } from './transcript-merge.js';
 
 test('buildConfigFrame conversation mode keeps the transcribe shape', () => {
@@ -191,4 +193,14 @@ test('replayed item after audio-time reconnect collapses onto its original', () 
   });
   assert.equal(entries.length, 1, 'replay must not duplicate');
   assert.equal(entries[0].speaker, 'PATIENT', 'keeps the attributed replay');
+});
+
+test('shouldShowLiveCatchUp is false for normal in-flight lag, true only for a real backlog', () => {
+  assert.equal(LIVE_CATCHUP_FLOOR_MS, 5000);
+  assert.equal(shouldShowLiveCatchUp(0), false);
+  assert.equal(shouldShowLiveCatchUp(3000), false);      // ~normal MAX_INFLIGHT (3s)
+  assert.equal(shouldShowLiveCatchUp(5000), false);      // at floor, not over
+  assert.equal(shouldShowLiveCatchUp(5001), true);       // real post-reconnect backlog
+  assert.equal(shouldShowLiveCatchUp(60000), true);
+  assert.equal(shouldShowLiveCatchUp(undefined), false); // guard
 });
