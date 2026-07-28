@@ -3057,6 +3057,33 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         //     console.error('Failed to sign note:', signErr);
         //   }
         // }
+        // RESTORE_BUTTONS_BEFORE_CLOSE_MODAL
+        // Restore the chart-section command buttons BEFORE closing the modal.
+        // CLOSE_MODAL does switch the note back to its body tab, which fires a
+        // NOTE_TAB_CHANGE with tab='note' — but we never receive it. home-app
+        // clears the app's frameData and switches the tab in the same commit
+        // (NoteApplicationIframe.onCloseMessage -> NoteTabsContext
+        // .onCloseApplication), and the iframe's ref cleanup nulls the
+        // MessageChannel port during the mutation phase, before the passive
+        // effect that broadcasts the tab change. sendMessage is a silent no-op
+        // by then, so the restore in the NOTE_TAB_CHANGE handler above never
+        // runs and the buttons stay hidden after "Confirm & Add to note" —
+        // recoverable only by a Scribe/Note tab round-trip or a reload.
+        // Awaited, not fire-and-forget: once CLOSE_MODAL lands this component
+        // is unmounted and an in-flight fetch would be cancelled.
+        if (noteId) {
+          try {
+            await fetch(`${API_BASE}/configure-command-buttons`, {
+              method: 'POST',
+              credentials: 'include',
+              body: JSON.stringify({ note_id: noteId, hidden: false }),
+            });
+          } catch (restoreErr) {
+            // Never block the close on this; the sign and tab-switch paths
+            // both re-assert visibility.
+            console.error('Failed to restore command buttons:', restoreErr);
+          }
+        }
         const port = window.__canvasPort && window.__canvasPort();
         if (port) port.postMessage({ type: 'CLOSE_MODAL' });
       }
