@@ -2073,6 +2073,82 @@ def test_summary_js_diagnose_to_assess_upstream_flip() -> None:
     )
 
 
+def test_summary_js_dismissed_condition_is_not_a_validation_failure() -> None:
+    """KOALA-6555: dismissing a duplicate condition card made the note permanently
+    unsignable.
+
+    ``fd595251`` gave condition cards a ✕ that marks ``data.rejected`` instead of
+    deleting the row, and added a matching gate to the ``insertable`` filter so a
+    dismissed card never reaches the chart. Correct so far. But that created a THIRD
+    kind of intentional drop, and the two consumers that interpret ``dropped`` were
+    not taught about it:
+
+      * the ``COMMANDS_FILTERED`` audit reason, and
+      * ``droppedForValidation``, which halts Approve.
+
+    So a dismissed assess classified as a silent validation failure. Approve hard-
+    blocked with the generic "This command has invalid values", naming a card the
+    provider could not see (``hideRejected`` defaults to true) — and because
+    ``NoteLockGuard`` gates the ``LKD`` transition on ``ScribeSummary.approved``, the
+    note could never be signed. 11 notes across 5 providers on brigade.
+
+    The durable fix is that both consumers now read one shared pure classifier,
+    ``dropReason`` in ``command-drop.js``, so a new drop reason cannot be added to one
+    site without the other. The behavioral cases live in
+    ``tests/static/command-drop.test.mjs`` (real unit tests — ``command-drop.js`` has
+    zero imports and is node-importable, which ``summary.js`` is not).
+
+    This is the structural half, matching the other summary.js pins in this module.
+    Three assertions:
+      1. ``summary.js`` imports the shared classifier.
+      2. ``droppedForValidation`` delegates to it rather than hand-rolling the
+         predicate — the hand-rolled copy IS the bug.
+      3. The ``COMMANDS_FILTERED`` reason delegates to it too, so the audit signal
+         and the halt decision cannot disagree again. (The old inline ternary
+         reporting ``'validation'`` for a dismissed card is what made this P0 hard
+         to triage in the first place.)
+
+    Caveat: structural, not behavioral. It does not execute the React code.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) The shared classifier must be imported.
+    assert "command-drop.js" in src, (
+        "summary.js no longer imports command-drop.js. The drop classification must "
+        "stay in one shared module: KOALA-6555 happened because the 'is this drop "
+        "intentional?' rule was hand-written in two places that drifted apart when "
+        "the condition-card ✕ started marking data.rejected."
+    )
+
+    # (2) droppedForValidation must delegate, not re-implement.
+    dfv_pattern = re.compile(r"droppedForValidation\s*=\s*dropped\.filter\(\s*c\s*=>\s*!isIntentionalDrop\(c\)\s*\)")
+    assert dfv_pattern.search(src) is not None, (
+        "`droppedForValidation` is not delegating to `isIntentionalDrop` from "
+        "command-drop.js. Re-implementing the predicate inline is exactly what "
+        "caused KOALA-6555: the inline version tested only `c.display && "
+        "c.selected !== false`, so a dismissed condition card (display set, "
+        "`selected` true-or-absent, `data.rejected` true) counted as a silent "
+        "validation failure and permanently blocked Approve."
+    )
+
+    # (3) The audit reason must come from the same classifier.
+    assert "reason: dropReason(c)" in src, (
+        "The COMMANDS_FILTERED audit no longer reports `dropReason(c)`. Keep the "
+        "audit reason and the Approve-halt decision on the same classifier — a "
+        "dismissed condition logged as reason 'validation' is the misleading signal "
+        "that made KOALA-6555 hard to triage (106 bogus assess/validation events "
+        "across 11 notes)."
+    )
+    assert "'deselected' : 'validation'" not in src, (
+        "Found the pre-KOALA-6555 inline drop-reason ternary in summary.js. It "
+        "predates the `dismissed` reason and mislabels every dismissed condition "
+        "card as a validation failure; use `dropReason(c)` from command-drop.js."
+    )
+
+
 def test_summary_js_commit_recommendations_helper_centralizes_prime() -> None:
     """KOALA-5634 single-helper invariant for ref-prime ordering.
 
