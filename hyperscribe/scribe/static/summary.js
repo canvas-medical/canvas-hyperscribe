@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'https://esm.s
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
 import { collectQuestionnaireScores } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-score.js';
+import { dropReason, isIntentionalDrop, isDismissedCondition } from '/plugin-io/api/hyperscribe/scribe/static/command-drop.js';
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
 import { useFieldDictation } from '/plugin-io/api/hyperscribe/scribe/static/dictation-hook.js';
 import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
@@ -144,6 +145,12 @@ function codedNoteDiagnoses(commands) {
   const diags = [];
   for (const c of commands || []) {
     if (c.command_type !== 'diagnose' && c.command_type !== 'assess') continue;
+    // KOALA-6555: a dismissed condition card keeps its ICD-10 code in `data`, but it is
+    // NOT going on the chart. Letting it into this set lets the approve-time linker cite
+    // a diagnosis that never gets inserted — and, via the uniqueness test in
+    // resolveReferralIndication, a dismissed near-duplicate can also make a genuine
+    // match look ambiguous and suppress a link that should have been made.
+    if (isDismissedCondition(c)) continue;
     const d = c.data || {};
     const code = (d.icd10_code || d.code || '').trim();
     if (!code) continue;
@@ -2720,7 +2727,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (dropped.length > 0) {
       logEvent('COMMANDS_FILTERED', { dropped: dropped.map(c => ({
         type: c.command_type, display: (c.display || '').slice(0, 80), sectionKey: c.section_key,
-        reason: !c.display ? 'empty_display' : c.selected === false ? 'deselected' : 'validation',
+        reason: dropReason(c),
       })) });
     }
     // Batch B — re-link referrals to the provider's final diagnosis code before
@@ -2745,9 +2752,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // a saved command with smart punctuation in sig (OrderRow Save has no
     // ASCII screen) is dropped from `insertable` and the rest of the batch
     // POSTs successfully — modal closes, user has no idea the Rx was lost.
-    // Filter dropped commands to `validation` reasons (empty_display and
-    // deselected are intentional user choices, not silent failures).
-    const droppedForValidation = dropped.filter(c => c.display && c.selected !== false);
+    // Filter dropped commands to `validation` reasons. empty_display, deselected and
+    // dismissed are intentional user choices, not silent failures — see dropReason in
+    // command-drop.js, which the COMMANDS_FILTERED reason above shares so the two
+    // classifications cannot drift. KOALA-6555: they did drift. The assess ✕ started
+    // marking `data.rejected` (excluded from `insertable` at the gate above), which made
+    // a dismissed condition card look like a silent validation failure here and hard-
+    // blocked Approve forever — with a generic "invalid values" error naming a card the
+    // provider could not even see, since hideRejected defaults to true.
+    const droppedForValidation = dropped.filter(c => !isIntentionalDrop(c));
     const allValidationFailures = [
       ...droppedForValidation.map(c => ({ command: c, reason: _commandValidationReason(c) })),
       ...droppedRecs.map(c => ({ command: c, reason: getAcceptedRecFailureReason(c) })),
@@ -3244,6 +3257,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     .filter(entry => entry.command.section_key === FROM_THE_NOTE_SECTION);
 
   const insertableCount = commands.filter(c => {
+    // KOALA-6555: a dismissed condition card is not inserted, so it must not be counted
+    // in the "Inserting N commands into note..." label. The diagnose arm already covers
+    // this implicitly (`accepted` is derived as coded && !rejected); assess needs it said.
+    if (isDismissedCondition(c)) return false;
     if (c.command_type === 'diagnose') return c.data?.icd10_code && c.data?.accepted && c.display;
     return !c.already_documented && c.display;
   }).length
