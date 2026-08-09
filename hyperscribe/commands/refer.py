@@ -76,7 +76,7 @@ class Refer(Base):
             else ""
         )
 
-        zip_codes = self.cache.practice_setting("serviceAreaZipCodes")
+        zip_codes = self.cache.patient_home_postal_codes() or self.cache.practice_setting("serviceAreaZipCodes")
         information = instruction.parameters["referredServiceProvider"]["specialty"]
         if names := instruction.parameters["referredServiceProvider"]["names"]:
             information = (

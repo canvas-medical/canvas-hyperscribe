@@ -124,11 +124,14 @@ def test_staged_command_extract():
             assert result == expected
 
 
+@patch.object(LimitedCache, "patient_home_postal_codes")
 @patch.object(LimitedCache, "practice_setting")
 @patch.object(SelectorChat, "contact_from")
 @patch.object(SelectorChat, "condition_from")
 @patch.object(Refer, "add_code2description")
-def test_command_from_json(add_code2description, condition_from, contact_from, practice_setting):
+def test_command_from_json(
+    add_code2description, condition_from, contact_from, practice_setting, patient_home_postal_codes
+):
     chatter = MagicMock()
 
     def reset_mocks():
@@ -136,6 +139,7 @@ def test_command_from_json(add_code2description, condition_from, contact_from, p
         condition_from.reset_mock()
         contact_from.reset_mock()
         practice_setting.reset_mock()
+        patient_home_postal_codes.reset_mock()
         chatter.reset_mock()
 
     service_provider = ServiceProvider(
@@ -186,7 +190,7 @@ def test_command_from_json(add_code2description, condition_from, contact_from, p
             CodedItem(uuid="uuid4", label="condition4", code="icd3"),
         ]
         contact_from.side_effect = [service_provider]
-        practice_setting.side_effect = ["thePreferredLab"]
+        patient_home_postal_codes.side_effect = [["95476"]]
 
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)
@@ -204,10 +208,10 @@ def test_command_from_json(add_code2description, condition_from, contact_from, p
             call(instruction, chatter, ["condition4"], ["icd4"], "theComment"),
         ]
         assert condition_from.mock_calls == calls
-        calls = [call(instruction, chatter, exp_contact_call, "thePreferredLab")]
+        calls = [call(instruction, chatter, exp_contact_call, ["95476"])]
         assert contact_from.mock_calls == calls
-        calls = [call("serviceAreaZipCodes")]
-        assert practice_setting.mock_calls == calls
+        assert patient_home_postal_codes.mock_calls == [call()]
+        assert practice_setting.mock_calls == []
         assert chatter.mock_calls == []
         reset_mocks()
 

@@ -30,7 +30,7 @@ from canvas_sdk.v1.data.goal import GoalLifecycleStatus
 from canvas_sdk.v1.data.lab import LabPartner
 from canvas_sdk.v1.data.lab import LabPartnerTest
 from canvas_sdk.v1.data.medication import Status
-from canvas_sdk.v1.data.patient import SexAtBirth
+from canvas_sdk.v1.data.patient import AddressUse, SexAtBirth
 from django.db.models import Q
 from django.db.models.expressions import When, Value, Case
 
@@ -440,6 +440,18 @@ class LimitedCache:
                 self._demographic = f"{self._demographic} and weight {int(weight.value) * ratio:1.2f} pounds"
 
         return self._demographic
+
+    def patient_home_postal_codes(self) -> list[str]:
+        """Return the postal codes from the patient's home addresses."""
+        try:
+            return list(
+                Patient.objects.get(id=self.patient_uuid)
+                .addresses.filter(use=AddressUse.HOME)
+                .exclude(postal_code="")
+                .values_list("postal_code", flat=True)
+            )
+        except (Patient.DoesNotExist, Exception):
+            return []
 
     def practice_setting(self, setting: str) -> Any:
         if setting not in self._settings:
