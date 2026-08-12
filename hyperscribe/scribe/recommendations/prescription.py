@@ -10,11 +10,36 @@ from canvas_sdk.clients.llms.libraries import LlmAnthropic
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript
 from hyperscribe.scribe.recommendations._dosage import derive_dispense_fields
 from hyperscribe.scribe.recommendations._medication_match import resolve_medication_detail, sanitize_sig
+from hyperscribe.scribe.recommendations._transcript_windows import (
+    PRN_PATTERN,
+    build_user_prompt,
+    collect_windows,
+)
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import PrescriptionRecommendationList
 from hyperscribe.structures.medication_detail import MedicationDetail
 
 _RELEVANT_KEYS = {"assessment_and_plan", "plan", "history_of_present_illness", "prescription"}
+
+# Appended to whichever base prompt is in play — including the baseline one used when the
+# dispense engine is gated off — so no provider is left on the un-fixed path (KOALA-6644).
+# Only appended when PRN transcript excerpts are actually supplied.
+_PRN_RECOVERY_PROMPT = (
+    " COMPLETENESS: prioritize capturing every prescription discussed. Omitting one compromises "
+    "patient care, so prefer including a prescription you are unsure about over leaving it out. "
+    "AS-NEEDED (PRN) ORDERS: the transcript excerpts below are the parts of the visit recording "
+    "where as-needed language was heard. The clinical note is a summary and sometimes omits PRN "
+    "medications entirely. Extract any newly prescribed medication that appears in the transcript "
+    "excerpts even when it is absent from the note sections, and set from_transcript=true for "
+    "exactly those entries (false for anything present in the note). Set is_prn=true for "
+    "as-needed orders. "
+    "SAME DRUG, TWO ORDERS: the same medication may be ordered BOTH on a fixed schedule AND as "
+    "needed — for example a scheduled nightly dose plus '0.5 mg every four hours as needed for "
+    "agitation'. Those are two distinct entries and you must emit both; never merge them, and "
+    "never let a scheduled order stand in for an as-needed one. "
+    "Do NOT extract a medication from an excerpt where the as-needed phrase does not refer to a "
+    "drug at all (e.g. 'follow up as needed', 'call us if needed')."
+)
 
 _SYSTEM_PROMPT = (
     "You are a clinical data extraction assistant. "
@@ -58,11 +83,8 @@ _SYSTEM_PROMPT_BASELINE = (
 )
 
 
-def _build_user_prompt(sections: list[NoteSection]) -> str:
-    parts: list[str] = []
-    for section in sections:
-        parts.append(f"## {section.title}\n{section.text}")
-    return "\n\n".join(parts)
+def _build_user_prompt(sections: list[NoteSection], windows_text: str = "") -> str:
+    return build_user_prompt(sections, windows_text)
 
 
 def _resolve_prescription(
@@ -90,13 +112,17 @@ class PrescriptionRecommender(BaseRecommender):
         all_keys = [s.key for s in note.sections]
         log.info(f"PrescriptionRecommender: note section keys={all_keys}, filtering by {_RELEVANT_KEYS}")
         sections = [s for s in note.sections if s.key.lower() in _RELEVANT_KEYS and s.text.strip()]
-        if not sections:
-            log.info("PrescriptionRecommender: no matching sections, skipping")
+        # The note is a Nabla summary and drops PRN medications as the list grows, so pull the
+        # as-needed moments straight from the transcript as a recall backstop (KOALA-6644).
+        windows_text = collect_windows(transcript, PRN_PATTERN)
+        if not sections and not windows_text:
+            log.info("PrescriptionRecommender: no matching sections and no PRN transcript windows, skipping")
             return []
 
+        base_prompt = _SYSTEM_PROMPT if self.dispense_engine_enabled else _SYSTEM_PROMPT_BASELINE
         client.reset_prompts()
-        client.set_system_prompt([_SYSTEM_PROMPT if self.dispense_engine_enabled else _SYSTEM_PROMPT_BASELINE])
-        client.set_user_prompt([_build_user_prompt(sections)])
+        client.set_system_prompt([base_prompt + (_PRN_RECOVERY_PROMPT if windows_text else "")])
+        client.set_user_prompt([_build_user_prompt(sections, windows_text)])
         client.set_schema(PrescriptionRecommendationList)
 
         try:
@@ -178,6 +204,10 @@ class PrescriptionRecommender(BaseRecommender):
                     display=display,
                     data=data,
                     section_key="_recommended",
+                    # A transcript-recovered prescription was never shown to the provider in the
+                    # generated note, so it must not be selected on their behalf.
+                    selected=not med.from_transcript,
+                    from_transcript=med.from_transcript,
                 )
             )
         return proposals

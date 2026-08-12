@@ -19,6 +19,24 @@ from hyperscribe.scribe.backend.models import NoteSection, Transcript, Transcrip
 # that a medication named a while before its directions still lands in the same window.
 WINDOW_MS = 120_000
 
+# As-needed / PRN phrasing, used to locate the parts of a transcript where a PRN order may
+# have been dictated.
+#
+# Deliberately tuned for recall, not precision. This pattern only decides which transcript
+# excerpts get shown to the LLM; the LLM still decides whether an excerpt actually contains
+# a medication. So a false positive costs a few tokens, while a false negative reproduces
+# the very bug this exists to fix. Non-medication phrases like "follow up as needed" do
+# match here on purpose — they are filtered by the extraction prompt, not by this regex.
+_PRN_PHRASES = [
+    r"\bas[\s-]+needed\b",
+    r"\bp\.?\s?r\.?\s?n\.?\b",
+    r"\bwhen[\s-]+needed\b",
+    r"\bif[\s-]+needed\b",
+    r"\bas[\s-]+necessary\b",
+    r"\bas[\s-]+required\b",
+]
+PRN_PATTERN = re.compile("|".join(_PRN_PHRASES), re.IGNORECASE)
+
 
 def find_keyword_matches(transcript: Transcript, pattern: re.Pattern[str]) -> list[int]:
     """Return midpoint timestamps (ms) of transcript items matching ``pattern``."""
@@ -88,3 +106,20 @@ def collect_windows(transcript: Transcript | None, pattern: re.Pattern[str]) -> 
 def format_note_sections(sections: list[NoteSection]) -> str:
     """Format note sections as markdown headings for the LLM prompt."""
     return "\n\n".join(f"## {section.title}\n{section.text}" for section in sections)
+
+
+def build_user_prompt(sections: list[NoteSection], windows_text: str = "") -> str:
+    """Compose note sections plus, when supplied, the matching transcript excerpts.
+
+    With no windows the result is exactly the note-sections-only prompt these recommenders
+    sent before transcript recovery existed, so a visit with no keyword hits is unaffected.
+    """
+    note_text = format_note_sections(sections)
+    if not windows_text:
+        return note_text
+    return (
+        "## Clinical Note Sections\n\n"
+        f"{note_text}\n\n"
+        "## Transcript Excerpts (as-needed medication language detected)\n\n"
+        f"{windows_text}"
+    )

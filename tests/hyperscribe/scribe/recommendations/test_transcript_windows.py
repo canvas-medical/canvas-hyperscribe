@@ -4,7 +4,9 @@ import re
 
 from hyperscribe.scribe.backend.models import NoteSection, Transcript, TranscriptItem
 from hyperscribe.scribe.recommendations._transcript_windows import (
+    PRN_PATTERN,
     WINDOW_MS,
+    build_user_prompt,
     collect_windows,
     extract_window_items,
     find_keyword_matches,
@@ -207,3 +209,88 @@ def test_format_note_sections_renders_headings() -> None:
 def test_format_note_sections_empty() -> None:
     """No sections yields an empty string."""
     assert format_note_sections([]) == ""
+
+
+# ── PRN_PATTERN ──────────────────────────────────────────────────────────
+
+
+def test_prn_pattern_matches_as_needed_spellings() -> None:
+    """The common as-needed spellings and abbreviations are all recognised."""
+    for phrase in (
+        "0.5 mg every four hours as needed for anxiety",
+        "one tablet as-needed",
+        "ibuprofen PRN",
+        "lorazepam prn agitation",
+        "take p.r.n.",
+        "tylenol when needed",
+        "use if needed",
+        "another dose as necessary",
+        "oxygen as required",
+    ):
+        assert PRN_PATTERN.search(phrase), phrase
+
+
+def test_prn_pattern_is_case_insensitive() -> None:
+    """Casing does not affect matching."""
+    assert PRN_PATTERN.search("AS NEEDED")
+    assert PRN_PATTERN.search("As Needed")
+
+
+def test_prn_pattern_tolerates_extra_whitespace() -> None:
+    """Transcription artifacts like doubled spaces still match."""
+    assert PRN_PATTERN.search("take it as  needed")
+
+
+def test_prn_pattern_ignores_unrelated_words() -> None:
+    """Words merely containing the letters p, r, n do not match the PRN abbreviation."""
+    for phrase in ("print the summary", "the person is stable", "prone position", "pruning"):
+        assert not PRN_PATTERN.search(phrase), phrase
+
+
+def test_prn_pattern_matches_non_medication_phrases_by_design() -> None:
+    """Non-medication as-needed phrasing matches on purpose.
+
+    The pattern only decides which transcript excerpts reach the LLM; the extraction prompt
+    is what rejects them. Tuning for recall here is deliberate — a false negative
+    reproduces the PRN loss this exists to prevent, a false positive costs a few tokens.
+    """
+    assert PRN_PATTERN.search("follow up as needed")
+    assert PRN_PATTERN.search("call us if needed")
+
+
+# ── build_user_prompt ────────────────────────────────────────────────────
+
+
+def _sections() -> list[NoteSection]:
+    """Two note sections for prompt assembly."""
+    return [
+        NoteSection(key="current_medications", title="Current Medications", text="- Lisinopril 10 mg daily"),
+        NoteSection(key="plan", title="Plan", text="Continue current regimen."),
+    ]
+
+
+def test_build_user_prompt_without_windows_is_note_only() -> None:
+    """With no transcript excerpts the prompt is exactly the note-sections rendering.
+
+    This is the no-regression guarantee for visits with no as-needed language: the prompt
+    must be byte-identical to what shipped before transcript recovery existed.
+    """
+    sections = _sections()
+    assert build_user_prompt(sections, "") == format_note_sections(sections)
+    assert build_user_prompt(sections) == format_note_sections(sections)
+
+
+def test_build_user_prompt_with_windows_includes_both_sources() -> None:
+    """With excerpts the prompt carries both, under distinguishing headings."""
+    result = build_user_prompt(_sections(), "[Window 1: 0:10 - 0:20]\nDoctor: lorazepam as needed")
+    assert "## Clinical Note Sections" in result
+    assert "Lisinopril 10 mg daily" in result
+    assert "## Transcript Excerpts (as-needed medication language detected)" in result
+    assert "Doctor: lorazepam as needed" in result
+
+
+def test_build_user_prompt_windows_only() -> None:
+    """Excerpts still reach the model when no note section matched."""
+    result = build_user_prompt([], "[Window 1: 0:00 - 0:05]\nDoctor: morphine as needed")
+    assert "Doctor: morphine as needed" in result
+    assert "## Transcript Excerpts (as-needed medication language detected)" in result
