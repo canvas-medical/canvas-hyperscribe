@@ -1308,6 +1308,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 "selected": p.selected,
                 "section_key": p.section_key,
                 "already_documented": p.already_documented,
+                "from_transcript": p.from_transcript,
             }
             for p in proposals
         ]
@@ -1397,6 +1398,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                         "selected": p.selected,
                         "section_key": p.section_key,
                         "already_documented": p.already_documented,
+                        "from_transcript": p.from_transcript,
                     }
                     for p in rec_proposals
                 ]
@@ -1642,6 +1644,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                             "selected": p.selected,
                             "section_key": p.section_key,
                             "already_documented": p.already_documented,
+                            "from_transcript": p.from_transcript,
                         }
                         for p in proposals
                     ],
@@ -1670,9 +1673,26 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         zip_codes = resolve_zip_codes(patient_id, rec_note_id) or None
         allowlist = self.secrets.get(Constants.SECRET_SCRIBE_PRESCRIPTION_STAFFERS, "")
         dispense_engine_enabled = prescription_dispense_enabled(allowlist, _note_provider_id(rec_note_id))
+        # The medication recommenders fall back to the transcript when the generated note has
+        # dropped a PRN, so this endpoint must supply it too — otherwise re-running
+        # recommendations standalone silently reintroduces KOALA-6644.
+        transcript_data = data.get("transcript", {})
+        if not transcript_data.get("items") and rec_note_id:
+            try:
+                transcript_data = _load_transcript(rec_note_id)
+            except Exception:
+                # Recovering PRNs is an enhancement over the note-only path; never let a
+                # missing or unreadable transcript fail the whole endpoint.
+                log.exception("Could not load transcript for recommendations; falling back to note only")
+                transcript_data = {}
+        transcript = _parse_transcript(transcript_data) if transcript_data.get("items") else None
         try:
             proposals = recommend_commands(
-                note, api_key, zip_codes=zip_codes, dispense_engine_enabled=dispense_engine_enabled
+                note,
+                api_key,
+                zip_codes=zip_codes,
+                transcript=transcript,
+                dispense_engine_enabled=dispense_engine_enabled,
             )
         except Exception:
             log.exception("recommend_commands failed")
@@ -1696,6 +1716,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                             "selected": p.selected,
                             "section_key": p.section_key,
                             "already_documented": p.already_documented,
+                            "from_transcript": p.from_transcript,
                         }
                         for p in proposals
                     ],
