@@ -216,3 +216,12 @@ export function finishDrainDecision({ pendingMs, accepted }) {
   if (accepted) return 'accepted';
   return 'waiting';
 }
+
+// The live "still catching up" banner should fire only on a real backlog
+// (e.g. after a reconnect replays minutes of audio), not on the ~3s of normal
+// in-flight lag (MAX_INFLIGHT_SECONDS). Floor sits just above that.
+export const LIVE_CATCHUP_FLOOR_MS = 5000;
+
+export function shouldShowLiveCatchUp(pendingMs) {
+  return (pendingMs || 0) > LIVE_CATCHUP_FLOOR_MS;
+}
