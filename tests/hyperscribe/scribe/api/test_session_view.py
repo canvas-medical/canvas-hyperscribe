@@ -6774,3 +6774,172 @@ def test_summary_js_verify_count_excludes_from_note_commands() -> None:
     assert "c.section_key === FROM_THE_NOTE_SECTION" in src, (
         "isFromNoteCommand must recognize the from_the_note section key."
     )
+
+
+# --- /generate-summary MEDS_PRN_TRANSCRIPT telemetry (KOALA-6644) -------------------
+#
+# The PRN drop was completely invisible: no error, no log line, no audit row. These pin
+# the counter that makes it observable, and keep it silent on the happy path.
+
+
+def _prn_summary_view(mock_note: MagicMock, mock_transcript: MagicMock, mock_get_cache: MagicMock, text: str) -> Any:
+    """Wire /generate-summary with a one-item transcript containing ``text``."""
+    mock_get_cache.return_value = _mock_cache()
+    mock_note.objects.values_list.return_value.get.return_value = 91
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": text, "speaker": "doctor", "start_offset_ms": 0, "end_offset_ms": 5000}],
+        "finalized": True,
+    }
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "91", "note_uuid": "91"}))
+    return view
+
+
+def _plain_backend() -> MagicMock:
+    """A backend returning a note with no vitals and no normalized data."""
+    backend = MagicMock()
+    backend.generate_note.return_value = ClinicalNote(
+        title="Note", sections=[NoteSection(key="plan", title="Plan", text="continue")]
+    )
+    backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    return backend
+
+
+def _prn_audit_payloads(mock_audit: MagicMock) -> list[dict[str, Any]]:
+    """Extract MEDS_PRN_TRANSCRIPT payloads from the audit_event mock."""
+    calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    return [payload for event_type, payload in calls if event_type == "MEDS_PRN_TRANSCRIPT"]
+
+
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="")
+@patch("hyperscribe.scribe.api.session_view.prefill_assess_backgrounds_for_proposals")
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_records_recovered_prn_count(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+    _mock_prefill: MagicMock,
+    _mock_provider: MagicMock,
+) -> None:
+    """An as-needed mention plus a transcript-recovered proposal is counted."""
+    get_backend.return_value = _plain_backend()
+    mock_suggest.return_value = {}
+    mock_recommend.return_value = [
+        CommandProposal(
+            command_type="medication_statement",
+            display="Lorazepam 0.5 mg",
+            data={"medication_text": "Lorazepam 0.5 mg", "sig": "as needed"},
+            from_transcript=True,
+        ),
+        CommandProposal(
+            command_type="medication_statement",
+            display="Lisinopril 10 mg",
+            data={"medication_text": "Lisinopril 10 mg", "sig": "daily"},
+        ),
+    ]
+
+    view = _prn_summary_view(
+        mock_note, mock_transcript, mock_get_cache, "lorazepam 0.5 mg every four hours as needed for anxiety"
+    )
+    view.post_generate_summary()
+
+    payloads = _prn_audit_payloads(mock_audit)
+    assert len(payloads) == 1, f"expected one MEDS_PRN_TRANSCRIPT event, got {mock_audit.call_args_list}"
+    assert payloads[0] == {"prn_mentions": 1, "recovered_from_transcript": 1}
+
+
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="")
+@patch("hyperscribe.scribe.api.session_view.prefill_assess_backgrounds_for_proposals")
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_records_prn_mention_with_no_recovery(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+    _mock_prefill: MagicMock,
+    _mock_provider: MagicMock,
+) -> None:
+    """Mentions with zero recoveries still emit — this is the remaining-silent-drop signal.
+
+    It is the case a later remediation sweep needs to select on, so it must be recorded
+    rather than inferred from absence.
+    """
+    get_backend.return_value = _plain_backend()
+    mock_suggest.return_value = {}
+    mock_recommend.return_value = []
+
+    view = _prn_summary_view(mock_note, mock_transcript, mock_get_cache, "take ibuprofen as needed for pain")
+    view.post_generate_summary()
+
+    payloads = _prn_audit_payloads(mock_audit)
+    assert len(payloads) == 1
+    assert payloads[0] == {"prn_mentions": 1, "recovered_from_transcript": 0}
+
+
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="")
+@patch("hyperscribe.scribe.api.session_view.prefill_assess_backgrounds_for_proposals")
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_silent_when_no_prn_language(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+    _mock_prefill: MagicMock,
+    _mock_provider: MagicMock,
+) -> None:
+    """No as-needed phrasing means no event, keeping the audit log signal-dense."""
+    get_backend.return_value = _plain_backend()
+    mock_suggest.return_value = {}
+    mock_recommend.return_value = []
+
+    view = _prn_summary_view(mock_note, mock_transcript, mock_get_cache, "blood pressure is stable today")
+    view.post_generate_summary()
+
+    assert _prn_audit_payloads(mock_audit) == []

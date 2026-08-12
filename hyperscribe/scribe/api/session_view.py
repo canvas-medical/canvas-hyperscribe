@@ -47,6 +47,7 @@ from hyperscribe.scribe.clients.nabla.backend import NablaBackend
 from hyperscribe.scribe.backend import (
     ClinicalNote,
     CodingEntry,
+    CommandProposal,
     Condition,
     NoteSection,
     Observation,
@@ -86,6 +87,7 @@ from hyperscribe.scribe.commands.problem_list_match import (
 )
 from hyperscribe.scribe.recommendations import make_llm_client, prescription_dispense_enabled, recommend_commands
 from hyperscribe.scribe.recommendations._referral_diagnosis import link_referral_diagnoses
+from hyperscribe.scribe.recommendations._transcript_windows import PRN_PATTERN, find_keyword_matches
 from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
     BlockContext as DiagnosisBlockContext,
     resolve_uncoded_blocks,
@@ -1368,6 +1370,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         # ── Step 3: Recommend commands ──
         _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
         recommendations_list: list[dict[str, Any]] = []
+        rec_proposals: list[CommandProposal] = []
         api_key = self.secrets.get("AnthropicAPIKey", "")
         if api_key:
             try:
@@ -1403,6 +1406,29 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 ]
             except Exception:
                 log.exception("recommend_commands failed (non-critical)")
+
+        # KOALA-6644: the defect was invisible — a dropped PRN produced no error, no log
+        # line and no audit row, so the only signal was absence. Record how many as-needed
+        # mentions the transcript carried against how many medications were actually
+        # recovered from it. Mentions with zero recoveries is the remaining-silent-drop
+        # case, and is what a later remediation sweep can select on.
+        #
+        # Deliberately outside the try above: that block swallows the entire recommendation
+        # stage as "non-critical", so emitting inside it would lose the telemetry in exactly
+        # the runs where a medication went missing. Emitted only when the transcript
+        # mentioned as-needed dosing at all, so the audit log stays signal-dense (mirrors
+        # VITALS_FIELD_REFUSED). Counts only — no drug names, no sigs, no transcript text.
+        if note_uuid and transcript:
+            prn_mentions = len(find_keyword_matches(transcript, PRN_PATTERN))
+            if prn_mentions:
+                audit_event(
+                    note_uuid,
+                    "MEDS_PRN_TRANSCRIPT",
+                    {
+                        "prn_mentions": prn_mentions,
+                        "recovered_from_transcript": sum(1 for p in rec_proposals if p.from_transcript),
+                    },
+                )
 
         # ── Step 3b: Check medication interactions ──
         interaction_warnings: list[dict[str, Any]] = []
