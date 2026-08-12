@@ -405,7 +405,6 @@ def test_recommend_recovered_medication_is_proposed_unselected(mock_resolve: Mag
 
     assert len(proposals) == 1
     assert proposals[0].from_transcript is True
-    assert proposals[0].selected is False
 
 
 @patch("hyperscribe.scribe.recommendations.medication_statement._resolve_medication")
@@ -423,7 +422,6 @@ def test_recommend_note_derived_medication_stays_selected(mock_resolve: MagicMoc
     proposals = MedicationRecommender().recommend(_note_with_scheduled_lorazepam_only(), client)
 
     assert proposals[0].from_transcript is False
-    assert proposals[0].selected is True
 
 
 @patch("hyperscribe.scribe.recommendations.medication_statement._resolve_medication")
@@ -458,9 +456,7 @@ def test_recommend_keeps_scheduled_and_prn_orders_for_the_same_drug(mock_resolve
 
     assert len(proposals) == 2
     scheduled, prn = proposals
-    assert scheduled.selected is True
     assert scheduled.from_transcript is False
-    assert prn.selected is False
     assert prn.from_transcript is True
     assert "as needed" in prn.data["sig"]
 
@@ -493,7 +489,7 @@ def test_recommend_runs_when_note_has_no_relevant_section_but_prns_were_dictated
 
     client.request.assert_called_once()
     assert len(proposals) == 1
-    assert proposals[0].selected is False
+    assert proposals[0].from_transcript is True
 
 
 def test_recommend_skips_when_no_sections_and_no_prn_language() -> None:

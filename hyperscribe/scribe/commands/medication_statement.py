@@ -11,6 +11,7 @@ from canvas_sdk.v1.data.note import Note
 
 from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.base import CommandParser
+from hyperscribe.scribe.recommendations._transcript_windows import PRN_PATTERN
 
 _BULLET_RE = re.compile(r"^(?:\d+[.)]\s*|[-*]\s+)")
 
@@ -69,21 +70,30 @@ class MedicationParser(CommandParser):
         patient = note.patient
         if patient is None:
             return
-        active_labels = set(
-            MedicationCoding.objects.filter(
-                medication__patient=patient,
-                medication__status="active",
-            ).values_list("display", flat=True)
-        )
-        active_labels_lower = {label.lower() for label in active_labels if label}
+        # Pull the drug label together with the sig of any statement documenting it, in one
+        # query, so an as-needed proposal can be told apart from a scheduled chart order.
+        chart_rows = MedicationCoding.objects.filter(
+            medication__patient=patient,
+            medication__status="active",
+        ).values_list("display", "medication__medication_statements__sig_original_input")
+        chart_orders = [(label.lower(), (sig or "").lower()) for label, sig in chart_rows if label]
         for proposal in med_proposals:
             med_text = proposal.data.get("medication_text", "").lower()
             if not med_text:
                 continue
-            for label in active_labels_lower:
-                if med_text in label or label in med_text:
-                    proposal.already_documented = True
-                    break
+            matches = [sig for label, sig in chart_orders if med_text in label or label in med_text]
+            if not matches:
+                continue
+            if PRN_PATTERN.search(proposal.data.get("sig") or ""):
+                # KOALA-6644: a drug-name match cannot establish that an as-needed order is
+                # already charted — the chart entry is often the *scheduled* order for the
+                # same drug, which is exactly how dictated PRNs were being lost. Suppress
+                # only on positive evidence that the chart already carries a PRN order.
+                # Re-offering a PRN the chart already has is a visible, dismissible
+                # annoyance; hiding a dictated one is a silent charting miss.
+                if not any(PRN_PATTERN.search(sig) for sig in matches):
+                    continue
+            proposal.already_documented = True
 
     def build(self, data: dict[str, Any], note_uuid: str, command_uuid: str) -> _BaseCommand:
         medication_text = str(data.get("medication_text", ""))

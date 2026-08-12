@@ -225,6 +225,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
         <div class="order-view-name">${command.display}</div>
         ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
         ${alertFacilityEnabled && command.data.alert_facility && html`<span class="badge badge-alert">Alert Facility</span>`}
+        ${command.from_transcript && html`<span class="badge badge-transcript" title="Heard in the recording but missing from the generated note — review before accepting">From transcript</span>`}
       </div>
     </div>
   `;

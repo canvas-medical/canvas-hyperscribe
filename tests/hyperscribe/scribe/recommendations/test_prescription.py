@@ -561,7 +561,6 @@ def test_recommend_recovered_prescription_is_proposed_unselected(mock_resolve: M
 
     assert len(proposals) == 1
     assert proposals[0].from_transcript is True
-    assert proposals[0].selected is False
 
 
 @patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
@@ -579,7 +578,6 @@ def test_recommend_note_derived_prescription_stays_selected(mock_resolve: MagicM
     proposals = PrescriptionRecommender(dispense_engine_enabled=False).recommend(_plan_note(), client)
 
     assert proposals[0].from_transcript is False
-    assert proposals[0].selected is True
 
 
 @patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")

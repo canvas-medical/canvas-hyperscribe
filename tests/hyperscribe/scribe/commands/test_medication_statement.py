@@ -192,7 +192,7 @@ def test_annotate_duplicates_match(
 
     # Use spec=QuerySet so calling nonexistent methods (e.g. .committed()) raises AttributeError.
     mock_qs = MagicMock(spec=QuerySet)
-    mock_qs.values_list.return_value = ["Lisinopril 10mg Tablet"]
+    mock_qs.values_list.return_value = [("Lisinopril 10mg Tablet", "take 1 tablet daily")]
     mock_coding_cls.objects.filter.return_value = mock_qs
 
     proposals = [
@@ -214,7 +214,123 @@ def test_annotate_duplicates_match(
         medication__patient=mock_patient,
         medication__status="active",
     )
-    mock_qs.values_list.assert_called_once_with("display", flat=True)
+    mock_qs.values_list.assert_called_once_with("display", "medication__medication_statements__sig_original_input")
+
+
+# --- annotate_duplicates: KOALA-6644 PRN vs scheduled ---
+
+
+def _prn_dedup_setup(mock_coding_cls: MagicMock, chart_rows: list[tuple[str, str | None]]) -> MagicMock:
+    """Wire a mocked chart medication list and return the note."""
+    mock_patient = MagicMock()
+    mock_note = MagicMock()
+    mock_note.patient = mock_patient
+    mock_qs = MagicMock(spec=QuerySet)
+    mock_qs.values_list.return_value = chart_rows
+    mock_coding_cls.objects.filter.return_value = mock_qs
+    return mock_note
+
+
+def _lorazepam_prn_proposal() -> CommandProposal:
+    """The dictated as-needed lorazepam order from the ticket's confirmed case."""
+    return CommandProposal(
+        command_type="medication_statement",
+        display="Lorazepam 0.5 mg",
+        data={
+            "medication_text": "Lorazepam 0.5 mg",
+            "sig": "0.5 mg every four hours as needed for anxiety or agitation",
+        },
+        from_transcript=True,
+    )
+
+
+@patch("hyperscribe.scribe.commands.medication_statement.MedicationCoding")
+def test_annotate_duplicates_keeps_prn_when_chart_order_is_scheduled(mock_coding_cls: MagicMock) -> None:
+    """A PRN order is not "already documented" just because the drug name is on the chart.
+
+    Note dbid 119673: lorazepam was on the chart as a scheduled pre-shower dose. Marking the
+    dictated PRN as already_documented hides it in the review UI, which is how the order was
+    lost. This is the guard that makes PRN recovery actually reach the provider.
+    """
+    mock_note = _prn_dedup_setup(
+        mock_coding_cls,
+        [("Lorazepam 0.5 MG Tablet", "one tablet daily, one hour before showers on Mondays and Wednesdays")],
+    )
+    proposals = [_lorazepam_prn_proposal()]
+
+    MedicationParser().annotate_duplicates(proposals, mock_note)
+
+    assert proposals[0].already_documented is False
+
+
+@patch("hyperscribe.scribe.commands.medication_statement.MedicationCoding")
+def test_annotate_duplicates_marks_prn_when_chart_already_has_a_prn_order(mock_coding_cls: MagicMock) -> None:
+    """When the chart already carries an as-needed order, the duplicate is still suppressed."""
+    mock_note = _prn_dedup_setup(
+        mock_coding_cls,
+        [("Lorazepam 0.5 MG Tablet", "0.5 mg q4h as needed for anxiety")],
+    )
+    proposals = [_lorazepam_prn_proposal()]
+
+    MedicationParser().annotate_duplicates(proposals, mock_note)
+
+    assert proposals[0].already_documented is True
+
+
+@patch("hyperscribe.scribe.commands.medication_statement.MedicationCoding")
+def test_annotate_duplicates_keeps_prn_when_chart_sig_is_unknown(mock_coding_cls: MagicMock) -> None:
+    """With no sig recorded there is no evidence the PRN is charted, so keep it visible."""
+    mock_note = _prn_dedup_setup(mock_coding_cls, [("Lorazepam 0.5 MG Tablet", None)])
+    proposals = [_lorazepam_prn_proposal()]
+
+    MedicationParser().annotate_duplicates(proposals, mock_note)
+
+    assert proposals[0].already_documented is False
+
+
+@patch("hyperscribe.scribe.commands.medication_statement.MedicationCoding")
+def test_annotate_duplicates_marks_prn_when_any_matching_order_is_prn(mock_coding_cls: MagicMock) -> None:
+    """A drug carrying both a scheduled and an as-needed chart order suppresses the duplicate."""
+    mock_note = _prn_dedup_setup(
+        mock_coding_cls,
+        [
+            ("Lorazepam 0.5 MG Tablet", "one tablet nightly"),
+            ("Lorazepam 0.5 MG Tablet", "0.5 mg as needed for agitation"),
+        ],
+    )
+    proposals = [_lorazepam_prn_proposal()]
+
+    MedicationParser().annotate_duplicates(proposals, mock_note)
+
+    assert proposals[0].already_documented is True
+
+
+@patch("hyperscribe.scribe.commands.medication_statement.MedicationCoding")
+def test_annotate_duplicates_scheduled_proposal_behavior_is_unchanged(mock_coding_cls: MagicMock) -> None:
+    """A non-PRN proposal still dedupes on drug name alone, as it always has."""
+    mock_note = _prn_dedup_setup(mock_coding_cls, [("Lisinopril 10 MG Tablet", "0.5 mg as needed")])
+    proposals = [
+        CommandProposal(
+            command_type="medication_statement",
+            display="Lisinopril 10 mg",
+            data={"medication_text": "Lisinopril 10 mg", "sig": "one tablet daily"},
+        )
+    ]
+
+    MedicationParser().annotate_duplicates(proposals, mock_note)
+
+    assert proposals[0].already_documented is True
+
+
+@patch("hyperscribe.scribe.commands.medication_statement.MedicationCoding")
+def test_annotate_duplicates_prn_not_on_chart_at_all(mock_coding_cls: MagicMock) -> None:
+    """A PRN for a drug absent from the chart is untouched."""
+    mock_note = _prn_dedup_setup(mock_coding_cls, [("Metformin 500 MG Tablet", "twice daily")])
+    proposals = [_lorazepam_prn_proposal()]
+
+    MedicationParser().annotate_duplicates(proposals, mock_note)
+
+    assert proposals[0].already_documented is False
 
 
 def test_annotate_duplicates_no_medications() -> None:
