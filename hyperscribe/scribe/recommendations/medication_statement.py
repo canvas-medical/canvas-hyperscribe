@@ -134,9 +134,11 @@ class MedicationRecommender(BaseRecommender):
                         "sig": sanitize_sig(med.sig),
                     },
                     section_key="_recommended",
-                    # A transcript-recovered medication was never shown to the provider in the
-                    # generated note, so it must not be selected on their behalf.
-                    selected=not med.from_transcript,
+                    # No `selected` gating: every recommendation already requires an explicit
+                    # provider Accept before insertion (handleInsert filters `accepted`), so a
+                    # transcript-recovered medication is never charted on their behalf.
+                    # `from_transcript` drives the review-UI badge telling them it came from
+                    # what was said rather than from the generated note.
                     from_transcript=med.from_transcript,
                 )
             )

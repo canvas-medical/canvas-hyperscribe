@@ -1900,6 +1900,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
             <div class="order-view-name">${command.display}</div>
             ${d.sig && html`<div class="order-view-sig">Sig: ${d.sig}</div>`}
             ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
+            ${command.from_transcript && html`<span class="badge badge-transcript" title="Heard in the recording but missing from the generated note — review before accepting">From transcript</span>`}
           </div>
         </div>
         ${interactionWarning && html`<${InteractionWarningInline} warning=${interactionWarning} />`}
