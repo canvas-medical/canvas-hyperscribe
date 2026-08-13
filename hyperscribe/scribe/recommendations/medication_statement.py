@@ -14,6 +14,7 @@ from hyperscribe.scribe.recommendations._transcript_windows import (
     PRN_PATTERN,
     build_user_prompt,
     collect_windows,
+    note_documents_as_needed,
 )
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import MedicationRecommendationList
@@ -140,11 +141,21 @@ class MedicationRecommender(BaseRecommender):
                     # `from_transcript` drives the review-UI badge telling them it came from
                     # what was said rather than from the generated note.
                     #
-                    # Gated on windows_text because the model will set the flag even when no
-                    # excerpts were supplied at all, which would badge a medication as
-                    # transcript-recovered on a note where no transcript was ever read.
-                    # Provenance has to be a fact we establish, not one the LLM asserts.
-                    from_transcript=med.from_transcript and bool(windows_text),
+                    # Provenance has to be a fact we establish, not one the LLM asserts. Two
+                    # deterministic corrections, both measured on real notes:
+                    #  * windows_text — the model sets the flag even when no excerpts were
+                    #    supplied, which would badge a medication as recovered on a note where
+                    #    no transcript was ever read.
+                    #  * note_documents_as_needed — on partial loss (Nabla drops the PRN from
+                    #    CURRENT_MEDICATIONS but keeps it in ASSESSMENT_AND_PLAN) the model
+                    #    reports recovery even though the note still carries the order. Roughly
+                    #    half the affected notes in the ticket are partial, so this is the
+                    #    common case, not an edge.
+                    from_transcript=(
+                        med.from_transcript
+                        and bool(windows_text)
+                        and not note_documents_as_needed(sections, med.medication_name)
+                    ),
                 )
             )
         return proposals
