@@ -554,3 +554,87 @@ def test_recommend_ignores_from_transcript_when_transcript_has_no_prn_language(
     proposals = MedicationRecommender().recommend(_note_with_scheduled_lorazepam_only(), client, transcript=transcript)
 
     assert proposals[0].from_transcript is False
+
+
+def test_recommend_clears_provenance_when_the_note_still_documents_the_prn() -> None:
+    """Partial loss: Nabla drops the PRN from the med list but keeps it in the A&P.
+
+    Measured on a real note — all six PRNs vanished from CURRENT_MEDICATIONS but survived in
+    ASSESSMENT_AND_PLAN, and the model reported all six as transcript-recovered. The provider
+    would have seen six "From transcript" pills on medications the note actually contained, and
+    the audit counter overstated recoveries. Roughly half the affected notes in the ticket are
+    partial, so this is the common case.
+    """
+    note = _make_note(
+        [
+            NoteSection(
+                key="current_medications",
+                title="Meds Discussed",
+                text="- lorazepam, one tablet daily, one hour before showers on Mondays and Wednesdays",
+            ),
+            NoteSection(
+                key="assessment_and_plan",
+                title="Assessment & Plan",
+                text=(
+                    "Anxiety/agitation\n"
+                    "- Add lorazepam 0.5 mg every four hours as needed for anxiety or agitation.\n"
+                    "Insomnia\n"
+                    "- Melatonin 3 mg as needed at bedtime."
+                ),
+            ),
+        ]
+    )
+    client = _make_client(
+        {
+            "medications": [
+                {
+                    "medicationName": "Lorazepam 0.5 mg",
+                    "sig": "every four hours as needed for anxiety",
+                    "keywords": "lorazepam",
+                    "isPrn": True,
+                    "fromTranscript": True,
+                },
+                {
+                    "medicationName": "Melatonin 3 mg",
+                    "sig": "as needed at bedtime",
+                    "keywords": "melatonin",
+                    "isPrn": True,
+                    "fromTranscript": True,
+                },
+            ]
+        }
+    )
+
+    with patch("hyperscribe.scribe.recommendations.medication_statement._resolve_medication", return_value=None):
+        proposals = MedicationRecommender().recommend(note, client, transcript=_prn_transcript())
+
+    # both are in the A&P, so neither was recovered from anywhere
+    assert [p.from_transcript for p in proposals] == [False, False]
+
+
+def test_recommend_keeps_provenance_when_the_note_only_has_the_scheduled_order() -> None:
+    """A genuine recovery must survive the guard.
+
+    The note carries lorazepam only as a scheduled pre-shower dose, so the as-needed order really
+    did come from the transcript and must stay flagged.
+    """
+    client = _make_client(
+        {
+            "medications": [
+                {
+                    "medicationName": "Lorazepam 0.5 mg",
+                    "sig": "0.5 mg every four hours as needed for anxiety or agitation",
+                    "keywords": "lorazepam",
+                    "isPrn": True,
+                    "fromTranscript": True,
+                },
+            ]
+        }
+    )
+
+    with patch("hyperscribe.scribe.recommendations.medication_statement._resolve_medication", return_value=None):
+        proposals = MedicationRecommender().recommend(
+            _note_with_scheduled_lorazepam_only(), client, transcript=_prn_transcript()
+        )
+
+    assert proposals[0].from_transcript is True

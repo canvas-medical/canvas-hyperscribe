@@ -108,6 +108,34 @@ def format_note_sections(sections: list[NoteSection]) -> str:
     return "\n\n".join(f"## {section.title}\n{section.text}" for section in sections)
 
 
+def _drug_token(medication_name: str) -> str:
+    """The drug word of a stated medication name, lowercased — "Lorazepam 0.5 mg" -> "lorazepam"."""
+    words: list[str] = re.findall(r"[A-Za-z]{4,}", medication_name)
+    return words[0].lower() if words else ""
+
+
+def note_documents_as_needed(sections: list[NoteSection], medication_name: str) -> bool:
+    """True when a note section already documents this drug WITH as-needed dosing.
+
+    Used to correct the model's ``from_transcript`` claim. Asking the LLM whether an entry was
+    absent from the note proved unreliable in the partial-loss case: when Nabla drops a PRN from
+    CURRENT_MEDICATIONS but keeps it in ASSESSMENT_AND_PLAN, the model reports it as
+    transcript-recovered even though the note still carries it.
+
+    The test is name AND as-needed, never name alone. A drug frequently appears in the note under
+    a *scheduled* order while its as-needed order is the one that went missing — the reported
+    lorazepam case — and a name-only test would clear the flag on a genuine recovery.
+    """
+    token = _drug_token(medication_name)
+    if not token:
+        return False
+    for section in sections:
+        for line in section.text.split("\n"):
+            if token in line.lower() and PRN_PATTERN.search(line):
+                return True
+    return False
+
+
 def build_user_prompt(sections: list[NoteSection], windows_text: str = "") -> str:
     """Compose note sections plus, when supplied, the matching transcript excerpts.
 

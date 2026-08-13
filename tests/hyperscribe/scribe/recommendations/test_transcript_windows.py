@@ -13,6 +13,7 @@ from hyperscribe.scribe.recommendations._transcript_windows import (
     format_note_sections,
     format_transcript_windows,
     merge_windows,
+    note_documents_as_needed,
 )
 
 
@@ -294,3 +295,59 @@ def test_build_user_prompt_windows_only() -> None:
     result = build_user_prompt([], "[Window 1: 0:00 - 0:05]\nDoctor: morphine as needed")
     assert "Doctor: morphine as needed" in result
     assert "## Transcript Excerpts (as-needed medication language detected)" in result
+
+
+# ── note_documents_as_needed ─────────────────────────────────────────────
+
+
+def test_note_documents_as_needed_finds_prn_line() -> None:
+    """A note line naming the drug with as-needed dosing counts as documented."""
+    sections = [
+        NoteSection(
+            key="assessment_and_plan",
+            title="A&P",
+            text="Anxiety\n- Add lorazepam 0.5 mg every four hours as needed for agitation.",
+        )
+    ]
+    assert note_documents_as_needed(sections, "Lorazepam 0.5 mg") is True
+
+
+def test_note_documents_as_needed_ignores_scheduled_only_mention() -> None:
+    """A scheduled order for the same drug must NOT count as documenting the PRN.
+
+    This is the reported lorazepam case: the note keeps the scheduled pre-shower dose and loses
+    the as-needed order. A name-only test would clear the flag on a genuine recovery.
+    """
+    sections = [
+        NoteSection(
+            key="current_medications",
+            title="Meds",
+            text="- Lorazepam, one tablet daily, one hour before showers on Mondays and Wednesdays",
+        )
+    ]
+    assert note_documents_as_needed(sections, "Lorazepam 0.5 mg") is False
+
+
+def test_note_documents_as_needed_requires_the_same_drug() -> None:
+    """An as-needed line for a different drug does not count."""
+    sections = [NoteSection(key="plan", title="Plan", text="- Melatonin 3 mg as needed at bedtime.")]
+    assert note_documents_as_needed(sections, "Polyethylene glycol 17 grams") is False
+
+
+def test_note_documents_as_needed_across_sections() -> None:
+    """Any supplied section counts, not just the medication list."""
+    sections = [
+        NoteSection(key="current_medications", title="Meds", text="- lisinopril 10 mg once daily"),
+        NoteSection(key="plan", title="Plan", text="- Albuterol inhaler, two puffs as needed for dyspnea."),
+    ]
+    assert note_documents_as_needed(sections, "Albuterol inhaler") is True
+
+
+def test_note_documents_as_needed_unparseable_name() -> None:
+    """A name with no usable drug word cannot be matched, so it is not documented."""
+    assert note_documents_as_needed([NoteSection(key="plan", title="P", text="x as needed")], "5 mg") is False
+
+
+def test_note_documents_as_needed_empty_sections() -> None:
+    """No sections means nothing is documented."""
+    assert note_documents_as_needed([], "Lorazepam 0.5 mg") is False
