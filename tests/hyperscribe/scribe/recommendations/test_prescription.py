@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 from canvas_sdk.clients.llms.structures import LlmResponse, LlmTokens
 
 from hyperscribe.scribe.backend.models import ClinicalNote, NoteSection, Transcript, TranscriptItem
+from hyperscribe.scribe.recommendations.schemas import PrescriptionRecommendation
 from hyperscribe.scribe.recommendations.prescription import (
     _SYSTEM_PROMPT,
     PrescriptionRecommender,
@@ -469,133 +470,45 @@ def test_recommend_from_prescription_section(mock_resolve: MagicMock) -> None:
     client.request.assert_called_once()
 
 
-# ── KOALA-6644: PRN recovery from the transcript ─────────────────────────
+# ── KOALA-6644: recovery is medication-list only, by design ──────────────
 
 
-def _prn_transcript() -> Transcript:
-    """A transcript dictating an as-needed prescription."""
-    return Transcript(
+def test_recommend_does_not_recover_prns_from_the_transcript() -> None:
+    """The prescription path must NOT pull as-needed medications out of the transcript.
+
+    KOALA-6644 recovers dropped PRNs into the medication list only. Nabla writes continuation
+    as "Continue <drug> as needed ...", so the "Continue" marker sits on the line that gets
+    dropped; a PRN recovered here would arrive with no evidence of whether it is being started
+    or merely reconciled. On real notes this path proposed NEW prescriptions for five
+    medications the patient was already taking. Missing documentation is recoverable, a
+    duplicate prescription is not.
+    """
+    transcript = Transcript(
         items=[
             TranscriptItem(
-                text="I'll send in ondansetron 4 mg, take one as needed for nausea",
+                text="ibuprofen 400 mg as needed for pain",
                 speaker="doctor",
-                start_offset_ms=60_000,
-                end_offset_ms=68_000,
+                start_offset_ms=0,
+                end_offset_ms=5000,
             )
         ]
     )
-
-
-def _plan_note() -> ClinicalNote:
-    """A note whose plan section mentions an unrelated new prescription."""
-    return _make_note([NoteSection(key="plan", title="Plan", text="Start sumatriptan 50 mg.")])
-
-
-@patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
-def test_recommend_sends_prn_transcript_windows_to_the_llm(mock_resolve: MagicMock) -> None:
-    """As-needed transcript excerpts and the PRN instructions reach the model."""
-    mock_resolve.return_value = None
+    note = _make_note([NoteSection(key="plan", title="Plan", text="Start sumatriptan 50 mg.")])
     client = _make_client({"prescriptions": []})
 
-    PrescriptionRecommender().recommend(_plan_note(), client, transcript=_prn_transcript())
+    PrescriptionRecommender().recommend(note, client, transcript=transcript)
 
     user_prompt = client.set_user_prompt.call_args[0][0][0]
-    assert "## Transcript Excerpts (as-needed medication language detected)" in user_prompt
-    assert "as needed for nausea" in user_prompt
-    assert "sumatriptan" in user_prompt
-    assert "SAME DRUG, TWO ORDERS" in client.set_system_prompt.call_args[0][0][0]
+    system_prompt = client.set_system_prompt.call_args[0][0][0]
+    assert "ibuprofen" not in user_prompt
+    assert "Transcript" not in user_prompt
+    # the note-only prompt is what it always was
+    assert user_prompt == "## Plan\nStart sumatriptan 50 mg."
+    assert system_prompt == _SYSTEM_PROMPT
 
 
-@patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
-def test_recommend_prn_instructions_reach_the_baseline_prompt_too(mock_resolve: MagicMock) -> None:
-    """Providers with the dispense engine gated OFF must get the fix as well.
-
-    prescription.py carries two system prompts; appending PRN guidance to only the default
-    one would leave every provider outside ScribePrescriptionStaffers on the buggy path.
-    """
-    mock_resolve.return_value = None
-
-    for dispense_enabled in (True, False):
-        client = _make_client({"prescriptions": []})
-        PrescriptionRecommender(dispense_engine_enabled=dispense_enabled).recommend(
-            _plan_note(), client, transcript=_prn_transcript()
-        )
-        system_prompt = client.set_system_prompt.call_args[0][0][0]
-        assert "SAME DRUG, TWO ORDERS" in system_prompt, dispense_enabled
-        assert "from_transcript=true" in system_prompt, dispense_enabled
-
-
-@patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
-def test_recommend_without_transcript_omits_prn_instructions(mock_resolve: MagicMock) -> None:
-    """No transcript means the prompt is exactly what it was before PRN recovery existed."""
-    mock_resolve.return_value = None
-    client = _make_client({"prescriptions": []})
-
-    PrescriptionRecommender().recommend(_plan_note(), client)
-
-    assert "Transcript Excerpts" not in client.set_user_prompt.call_args[0][0][0]
-    assert "SAME DRUG, TWO ORDERS" not in client.set_system_prompt.call_args[0][0][0]
-
-
-@patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
-def test_recommend_recovered_prescription_is_proposed_unselected(mock_resolve: MagicMock) -> None:
-    """A prescription recovered from the transcript is offered but not pre-selected."""
-    mock_resolve.return_value = None
-    client = _make_client(
-        {
-            "prescriptions": [
-                {
-                    "medicationName": "Ondansetron 4 mg",
-                    "sig": "one tablet as needed for nausea",
-                    "keywords": "ondansetron, zofran",
-                    "isPrn": True,
-                    "fromTranscript": True,
-                },
-            ]
-        }
-    )
-
-    proposals = PrescriptionRecommender(dispense_engine_enabled=False).recommend(
-        _plan_note(), client, transcript=_prn_transcript()
-    )
-
-    assert len(proposals) == 1
-    assert proposals[0].from_transcript is True
-
-
-@patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
-def test_recommend_note_derived_prescription_stays_selected(mock_resolve: MagicMock) -> None:
-    """A prescription present in the note keeps the selected-by-default behavior."""
-    mock_resolve.return_value = None
-    client = _make_client(
-        {
-            "prescriptions": [
-                {"medicationName": "Sumatriptan 50 mg", "sig": "as directed", "keywords": "sumatriptan"},
-            ]
-        }
-    )
-
-    proposals = PrescriptionRecommender(dispense_engine_enabled=False).recommend(_plan_note(), client)
-
-    assert proposals[0].from_transcript is False
-
-
-@patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
-def test_recommend_runs_when_note_has_no_relevant_section_but_prns_were_dictated(
-    mock_resolve: MagicMock,
-) -> None:
-    """A note with no plan section must still extract PRNs heard in the transcript."""
-    mock_resolve.return_value = None
-    client = _make_client({"prescriptions": []})
-
-    PrescriptionRecommender().recommend(_make_note([]), client, transcript=_prn_transcript())
-
-    client.request.assert_called_once()
-
-
-def test_recommend_skips_when_no_sections_and_no_prn_language() -> None:
-    """With neither a relevant section nor as-needed phrasing, the LLM is never called."""
-    client = _make_client({"prescriptions": []})
-
-    assert PrescriptionRecommender().recommend(_make_note([]), client) == []
-    client.request.assert_not_called()
+def test_prescription_schema_has_no_transcript_provenance_fields() -> None:
+    """No dead schema fields: provenance belongs only to the medication-list path."""
+    fields = set(PrescriptionRecommendation.model_fields)
+    assert "from_transcript" not in fields
+    assert "is_prn" not in fields

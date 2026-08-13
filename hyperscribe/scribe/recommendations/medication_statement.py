@@ -139,7 +139,12 @@ class MedicationRecommender(BaseRecommender):
                     # transcript-recovered medication is never charted on their behalf.
                     # `from_transcript` drives the review-UI badge telling them it came from
                     # what was said rather than from the generated note.
-                    from_transcript=med.from_transcript,
+                    #
+                    # Gated on windows_text because the model will set the flag even when no
+                    # excerpts were supplied at all, which would badge a medication as
+                    # transcript-recovered on a note where no transcript was ever read.
+                    # Provenance has to be a fact we establish, not one the LLM asserts.
+                    from_transcript=med.from_transcript and bool(windows_text),
                 )
             )
         return proposals
