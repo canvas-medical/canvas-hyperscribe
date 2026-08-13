@@ -65,21 +65,6 @@ class PrescriptionRecommendation(BaseModelLlmJson):
     quantity_to_dispense: str | None = Field(default=None, description="Quantity to dispense")
     refills: int | None = Field(default=None, description="Number of refills")
     keywords: str = Field(description="Comma-separated synonyms for searching (max 5)")
-    is_prn: bool = Field(
-        default=False,
-        description=(
-            "True when this is an as-needed (PRN) order — taken for a symptom rather than on a fixed "
-            "schedule. A PRN order and a scheduled order for the same drug are two separate entries."
-        ),
-    )
-    from_transcript: bool = Field(
-        default=False,
-        description=(
-            "True when this prescription appears in the transcript excerpts but NOT in the clinical "
-            "note sections. Set this honestly: it tells the provider the entry was recovered from "
-            "what was said rather than from the generated note."
-        ),
-    )
 
 
 class PrescriptionRecommendationList(BaseModelLlmJson):

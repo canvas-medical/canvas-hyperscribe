@@ -500,3 +500,57 @@ def test_recommend_skips_when_no_sections_and_no_prn_language() -> None:
 
     assert proposals == []
     client.request.assert_not_called()
+
+
+@patch("hyperscribe.scribe.recommendations.medication_statement._resolve_medication")
+def test_recommend_ignores_from_transcript_when_no_excerpts_supplied(mock_resolve: MagicMock) -> None:
+    """The model sets from_transcript even with no transcript; provenance must not trust it.
+
+    Observed on real data: with no transcript passed at all, the LLM still returned
+    fromTranscript=true, which would badge a medication as recovered on a note where no
+    transcript was ever read. Provenance is a fact we establish, not one the model asserts.
+    """
+    mock_resolve.return_value = None
+    client = _make_client(
+        {
+            "medications": [
+                {
+                    "medicationName": "Albuterol inhaler",
+                    "sig": "approximately twice a week",
+                    "keywords": "albuterol",
+                    "fromTranscript": True,
+                },
+            ]
+        }
+    )
+
+    proposals = MedicationRecommender().recommend(_note_with_scheduled_lorazepam_only(), client)
+
+    assert proposals[0].from_transcript is False
+
+
+@patch("hyperscribe.scribe.recommendations.medication_statement._resolve_medication")
+def test_recommend_ignores_from_transcript_when_transcript_has_no_prn_language(
+    mock_resolve: MagicMock,
+) -> None:
+    """A transcript with no as-needed phrasing supplies no excerpts, so nothing is recovered."""
+    mock_resolve.return_value = None
+    transcript = Transcript(
+        items=[TranscriptItem(text="blood pressure is stable", speaker="doctor", start_offset_ms=0, end_offset_ms=4000)]
+    )
+    client = _make_client(
+        {
+            "medications": [
+                {
+                    "medicationName": "Lisinopril 10 mg",
+                    "sig": "daily",
+                    "keywords": "lisinopril",
+                    "fromTranscript": True,
+                },
+            ]
+        }
+    )
+
+    proposals = MedicationRecommender().recommend(_note_with_scheduled_lorazepam_only(), client, transcript=transcript)
+
+    assert proposals[0].from_transcript is False
