@@ -87,13 +87,17 @@ export function useFieldDictation(onDictatedText) {
     cleanupAudio(audioCtxRef, streamRef, workletNodeRef);
     const client = clientRef.current;
     clientRef.current = null;
-    client.onDictatedText = () => {};
     client.onError = () => {};
+    // Keep onDictatedText attached through end(): the server flushes the tail of
+    // the transcription AFTER the END frame, and for short dictations that tail is
+    // most or all of the text. Detaching before the drain drops it silently
+    // (KOALA-6823). Routing is still gated on activeFieldRef, cleared by resetState.
     try {
       await client.end();
     } catch {
       // best-effort teardown
     }
+    client.onDictatedText = () => {};
     resetState();
   }, [resetState]);
 
