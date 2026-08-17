@@ -10,6 +10,21 @@ class MedicationRecommendation(BaseModelLlmJson):
         description="Directions/sig exactly as stated in the note; leave null if no directions are stated",
     )
     keywords: str = Field(description="Comma-separated synonyms for searching (max 5)")
+    is_prn: bool = Field(
+        default=False,
+        description=(
+            "True when this is an as-needed (PRN) order — taken for a symptom rather than on a fixed "
+            "schedule. A PRN order and a scheduled order for the same drug are two separate entries."
+        ),
+    )
+    from_transcript: bool = Field(
+        default=False,
+        description=(
+            "True when this medication appears in the transcript excerpts but NOT in the clinical "
+            "note sections. Set this honestly: it tells the provider the entry was recovered from "
+            "what was said rather than from the generated note."
+        ),
+    )
 
 
 class MedicationRecommendationList(BaseModelLlmJson):

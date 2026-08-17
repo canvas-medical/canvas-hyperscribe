@@ -3521,13 +3521,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                     </svg>
                     Pause
                   </button>`
-                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume" disabled=${!canEdit}>
+                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume" disabled=${!canEdit || recording.awaitingTranscription}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="6,4 20,12 6,20" />
                     </svg>
                     Resume
                   </button>`}
-              <${FinishRecordingButton} onFinish=${recording.finishRecording} disabled=${!canEdit} />
+              <${FinishRecordingButton} onFinish=${recording.finishRecording} disabled=${!canEdit || recording.awaitingTranscription} />
             </div>
           `}
           ${false && debugMode && noteData && !approved && !generating && !isRecording && html`
@@ -3654,6 +3654,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               Finalize now (skip remaining audio)
             </button>
           `}
+        </div>
+      `}
+      ${recording.status === 'paused' && recording.awaitingTranscription && recording.catchUpSeconds > 0 && html`
+        <div class="summary-generating-banner">
+          <span class="generating-label">Still processing ~${recording.catchUpSeconds}s of audio before pausing…</span>
+          <button class="summary-status-pill-btn" onClick=${() => recording.finalizeWithGap()}>
+            Pause now (discard ~${recording.catchUpSeconds}s)
+          </button>
+        </div>
+      `}
+      ${recording.status === 'recording' && recording.showLiveCatchUp && html`
+        <div class="readonly-banner" role="status" aria-live="polite">
+          <span>Still processing ~${recording.catchUpSeconds}s of audio — don't pause or stop yet.</span>
         </div>
       `}
       ${authorEditable && !noteData && !generating && recording.finalized && mode === 'ai' && html`

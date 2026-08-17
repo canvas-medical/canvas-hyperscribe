@@ -979,6 +979,16 @@ h2 { margin-bottom: 4px; }
 .order-view-sig { font-size: 13px; color: #555; font-style: italic; }
 .order-view-details { font-size: 12px; color: #888; }
 
+/* KOALA-6644: provenance pill for a medication recovered from the transcript because the
+   generated note omitted it. Informational blue rather than the orange rec-warning-pill —
+   nothing is wrong with the entry, the provider just has not seen it in the note and should
+   read it before accepting. */
+.badge-transcript {
+  font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 12px;
+  background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;
+  white-space: nowrap; align-self: flex-start; cursor: help;
+}
+
 
 .order-checkbox-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #555; cursor: pointer; padding: 4px 0; }
 .order-lab-form { display: flex; flex-direction: column; gap: 6px; }
