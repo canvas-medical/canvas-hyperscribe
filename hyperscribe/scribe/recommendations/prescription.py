@@ -87,6 +87,17 @@ class PrescriptionRecommender(BaseRecommender):
     def recommend(
         self, note: ClinicalNote, client: LlmAnthropic, transcript: Transcript | None = None
     ) -> list[CommandProposal]:
+        # `transcript` is deliberately unused. KOALA-6644 recovers PRN medications that Nabla
+        # dropped from the generated note, but only into the medication list — see
+        # MedicationRecommender. Recovery is NOT done here on purpose:
+        #
+        # Nabla states continuation as "Continue <drug> as needed ...", so the "Continue"
+        # marker lives on the very line that gets dropped. A PRN recovered from the transcript
+        # therefore arrives with no evidence of whether it is being started or merely
+        # reconciled, and measurements on real notes had this path proposing NEW prescriptions
+        # for five medications the patient was already taking. Missing documentation is
+        # recoverable; a duplicate prescription is not, so the risk is asymmetric and the
+        # ticket's own confirmed case was a medication-list loss.
         all_keys = [s.key for s in note.sections]
         log.info(f"PrescriptionRecommender: note section keys={all_keys}, filtering by {_RELEVANT_KEYS}")
         sections = [s for s in note.sections if s.key.lower() in _RELEVANT_KEYS and s.text.strip()]
