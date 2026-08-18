@@ -85,6 +85,10 @@ def _resolve_tests(
     if cache is None:
         cache = {}
     resolved: list[LabPartnerTest] = []
+    # Distinct LLM entries can resolve to the same compendium row (e.g. "CBC" and
+    # "Complete Blood Count"); a duplicated order_code fails the SDK's count check
+    # in LabOrderCommand, so dedupe by dbid while preserving order.
+    seen_dbids: set[int] = set()
     for entry in test_entries:
         candidates: list[str] = [entry.name] + [k for k in entry.keywords.split(",")]
         for raw in candidates:
@@ -100,7 +104,9 @@ def _resolve_tests(
                 )
             match = cache[cache_key]
             if match is not None:
-                resolved.append(match)
+                if match.dbid not in seen_dbids:
+                    seen_dbids.add(match.dbid)
+                    resolved.append(match)
                 break
         else:
             log.info(f"LabRecommender: could not resolve test '{entry.name}' for partner {lab_partner.name}")
@@ -163,13 +169,17 @@ def _run_pass2(
         return {}
 
     if response.code != HTTPStatus.OK:
-        log.info(f"LLM returned {response.code} for lab AOE extraction: {response.response}")
+        # Do not log response.response: it is derived from the transcript and may contain PHI.
+        log.info(
+            f"LLM returned {response.code} for lab AOE extraction (response length: {len(response.response or '')})"
+        )
         return {}
 
     try:
         parsed = AoeAnswerList.model_validate(json.loads(response.response))
     except Exception:
-        log.exception(f"Failed to parse AOE answer response: {response.response}")
+        # Do not log response.response: it is derived from the transcript and may contain PHI.
+        log.exception(f"Failed to parse AOE answer response (response length: {len(response.response or '')})")
         return {}
 
     answers: dict[tuple[str, str], AoeAnswer] = {}
@@ -233,6 +243,8 @@ class LabRecommender(BaseRecommender):
         client: LlmAnthropic,
         transcript: Transcript | None = None,
     ) -> list[CommandProposal]:
+        all_keys = [s.key for s in note.sections]
+        log.info(f"LabRecommender: note section keys={all_keys}, filtering by {_RELEVANT_KEYS}")
         sections = [s for s in note.sections if s.key.lower() in _RELEVANT_KEYS and s.text.strip()]
         if not sections:
             log.info("LabRecommender: no relevant sections, skipping")
@@ -255,13 +267,18 @@ class LabRecommender(BaseRecommender):
             return []
 
         if response.code != HTTPStatus.OK:
-            log.info(f"LLM returned {response.code} for lab order extraction: {response.response}")
+            # Do not log response.response: it is derived from the note and may contain PHI.
+            log.info(
+                f"LLM returned {response.code} for lab order extraction "
+                f"(response length: {len(response.response or '')})"
+            )
             return []
 
         try:
             parsed = LabRecommendationList.model_validate(json.loads(response.response))
         except Exception:
-            log.exception(f"Failed to parse lab order response: {response.response}")
+            # Do not log response.response: it is derived from the note and may contain PHI.
+            log.exception(f"Failed to parse lab order response (response length: {len(response.response or '')})")
             return []
 
         if not parsed.orders:

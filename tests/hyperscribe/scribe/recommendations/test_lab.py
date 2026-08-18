@@ -302,6 +302,34 @@ def test_resolve_tests_partial_match_in_one_order() -> None:
     assert result == [cmp_test]
 
 
+def test_resolve_tests_dedupes_entries_resolving_to_same_test() -> None:
+    """Two LLM entries landing on the same compendium row yield one resolved test.
+
+    A duplicated order_code fails the SDK's count check in LabOrderCommand, so the
+    dedupe is load-bearing, not cosmetic.
+    """
+    partner = _make_partner()
+    cbc = _make_test(dbid=10, order_code="CBC", order_name="Complete Blood Count")
+
+    chained = MagicMock()
+    chained.first.return_value = cbc
+    filter_initial = MagicMock()
+    filter_initial.filter.return_value = chained
+
+    with patch(
+        "hyperscribe.scribe.recommendations.lab.LabPartnerTest.objects",
+        MagicMock(filter=MagicMock(return_value=filter_initial)),
+    ):
+        result = _resolve_tests(
+            partner,
+            [
+                LabTestEntry(name="CBC", keywords="complete blood count"),
+                LabTestEntry(name="Complete Blood Count", keywords="CBC"),
+            ],
+        )
+    assert result == [cbc]
+
+
 # ---------- formatting helpers ----------
 
 
@@ -616,6 +644,7 @@ def test_recommend_happy_path_no_aoe_no_transcript() -> None:
     assert p.data["aoe_answers"] == []
     assert p.data["missing_required_aoes"] == []
     assert p.data["reason"] == "screening"
+    assert p.section_key == "_recommended"
 
 
 def test_recommend_with_aoe_extracted_from_transcript() -> None:
