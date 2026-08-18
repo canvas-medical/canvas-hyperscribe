@@ -160,6 +160,7 @@ def test_recommend_commands_threads_dispense_flag(mock_rx_cls: MagicMock, mock_l
         patch("hyperscribe.scribe.recommendations.MedicationRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.AllergyRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.LabRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.TaskRecommender.recommend", return_value=[]),
     ):
         recommend_commands(_make_note(), "k", dispense_engine_enabled=False)

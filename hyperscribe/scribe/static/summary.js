@@ -81,11 +81,23 @@ const isReferIncompleteForApprove = (d) => {
   if (!d.diagnosis_codes || d.diagnosis_codes.length === 0) return true;
   return false;
 };
+// Same shape for labs: the LLM recommender (recommendations/lab.py) always emits
+// `diagnosis_codes: []`, so an accepted-without-edit lab order would land on the
+// chart with no indication. Unlike refer the server does not reject it, so this
+// client gate is the only thing keeping an indication-less lab out of the note.
+const isLabIncompleteForApprove = (d) => {
+  if (!d) return true;
+  if (!d.lab_partner) return true;
+  if (!d.tests_order_codes || d.tests_order_codes.length === 0) return true;
+  if (!d.diagnosis_codes || d.diagnosis_codes.length === 0) return true;
+  return false;
+};
 // Single source of truth for recommendation-side validation. Returns the
 // failure reason for the COMMANDS_FILTERED audit, or null if insertable.
 const getAcceptedRecFailureReason = (c) => {
   if (isRxCommand(c) && isRxIncomplete(c.data)) return 'rx_incomplete';
   if (c.command_type === 'refer' && isReferIncompleteForApprove(c.data)) return 'refer_incomplete';
+  if (c.command_type === 'lab_order' && isLabIncompleteForApprove(c.data)) return 'lab_incomplete';
   return null;
 };
 // Classify a dropped command for the validation-error surface. Mirrors the
@@ -105,7 +117,7 @@ const _validationErrorMessage = (c, reason, context = 'approving') => {
   if (reason === 'rx_incomplete') return `This prescription is missing required fields or contains invalid values (e.g. non-ASCII characters in sig, refills out of range, trailing-zero quantity). ${suffix}`;
   if (reason === 'refer_incomplete') return `This referral is missing required fields (indications, notes to specialist, clinical question, or service provider). ${suffix}`;
   if (reason === 'imaging_incomplete') return `This imaging order is missing required fields (image code, service provider, ordering provider, or diagnosis codes). ${suffix}`;
-  if (reason === 'lab_incomplete') return `This lab order is missing required fields (lab partner or tests). ${suffix}`;
+  if (reason === 'lab_incomplete') return `This lab order is missing required fields (lab partner, tests, or diagnoses). ${suffix}`;
   if (reason === 'perform_incomplete') return `This perform command is missing a CPT code. ${suffix}`;
   if (reason === 'diagnose_uncoded') return `This diagnosis needs an ICD-10 code. Pick one from the list (or dismiss the card with the ✕) before ${context}.`;
   return `This command has invalid values. ${suffix}`;
@@ -2238,7 +2250,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           && Array.isArray(newData.tests_order_codes) && newData.tests_order_codes.length > 0
           && Array.isArray(newData.diagnosis_codes) && newData.diagnosis_codes.length > 0;
         const tests = (newData.test_names && newData.test_names.length) ? newData.test_names.join(', ') : '';
-        return { ...cmd, command_type: type, data: newData, display: tests || cmd.display, accepted: isComplete };
+        // OrderRow's lab payload rebuilds `data` from scratch, but the AOE answers and
+        // the recommendation reason only exist on the original LLM payload — carry them
+        // forward (scoped to tests that survived the edit) or the required
+        // pick-a-diagnosis edit silently erases the entire AOE pass.
+        const keptCodes = new Set(newData.tests_order_codes || []);
+        const preserved = {
+          aoe_answers: (cmd.data?.aoe_answers || []).filter(a => keptCodes.has(a.test_order_code)),
+          missing_required_aoes: (cmd.data?.missing_required_aoes || []).filter(m => keptCodes.has(m.test_order_code)),
+          reason: cmd.data?.reason,
+        };
+        return { ...cmd, command_type: type, data: { ...preserved, ...newData }, display: tests || cmd.display, accepted: isComplete };
       }
       return { ...cmd, data: newData, accepted: true };
     }));
@@ -3373,7 +3395,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral', lab_order: 'lab order' };
   // Module-scope `isRxIncomplete` is the single source of truth — see top of file.
   const _isRxIncomplete = isRxIncomplete;
-  const _isLabIncomplete = (d) => !d.lab_partner || !d.tests_order_codes || d.tests_order_codes.length === 0 || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
+  // Commands use the lenient rule (mirrors the `insertable` filter: the server accepts
+  // a lab order without diagnoses). Recommendations use the strict module-scope
+  // isLabIncompleteForApprove, matching the Approve gate that will actually drop them.
+  const _isLabIncomplete = (d) => !d.lab_partner || !d.tests_order_codes || d.tests_order_codes.length === 0;
   const _isImagingIncomplete = (d) => !d.image_code || !d.service_provider || !d.ordering_provider_id || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
   const _isReferIncomplete = (d) => !d.service_provider || !d.clinical_question || !d.notes_to_specialist || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
   const incompleteTypes = [];
@@ -3400,7 +3425,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (c.command_type === 'refer' && _isReferIncomplete(c.data)) {
       if (!incompleteTypes.includes('refer')) incompleteTypes.push('refer');
     }
-    if (c.command_type === 'lab_order' && _isLabIncomplete(c.data)) {
+    if (c.command_type === 'lab_order' && isLabIncompleteForApprove(c.data)) {
       if (!incompleteTypes.includes('lab_order')) incompleteTypes.push('lab_order');
     }
   }
@@ -3415,10 +3440,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     !c.already_documented && c.display && !c.rejected && (
       ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && _isRxIncomplete(c.data)) ||
       (c.command_type === 'refer' && _isReferIncomplete(c.data)) ||
-      (c.command_type === 'lab_order' && _isLabIncomplete(c.data))
+      (c.command_type === 'lab_order' && isLabIncompleteForApprove(c.data))
     )
   ).length;
-  const UNDECIDED_LABELS = { medication_statement: 'medication', allergy: 'allergy', prescribe: 'prescription', refill: 'prescription', adjust_prescription: 'prescription', refer: 'referral' };
+  const UNDECIDED_LABELS = { medication_statement: 'medication', allergy: 'allergy', prescribe: 'prescription', refill: 'prescription', adjust_prescription: 'prescription', refer: 'referral', lab_order: 'lab order' };
   // "Undecided" now covers only the recommendation families that still have Accept/Reject.
   // Condition cards have no accept/reject to be undecided about — their equivalent gate is
   // "has a code been picked?", counted separately as uncodedConditionCount below.

@@ -2406,4 +2406,4 @@ select.history-form-input {
 .rec-aoe-line .rec-aoe-confidence-medium {
     color: #b45309; font-style: italic; margin-left: 4px;
 }
-.rec-aoe-summary .rec-warning-pill { margin-top: 4px; }
+.rec-aoe-summary .rec-warning-pill { display: inline-block; margin-top: 4px; }

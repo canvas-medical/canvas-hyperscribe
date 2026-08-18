@@ -1955,18 +1955,21 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 const isIncomplete = missingFields.length > 0;
                 const isAccepted = entry.command.accepted && !entry.command.rejected;
                 const isRejected = entry.command.rejected;
+                const labRecRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                 return html`
-                <div class="content-block recommendation-block rec-lab${isRejected ? ' rec-rejected' : ''}" key=${'rec-lab-' + entry.index}>
+                <div class=${`content-block recommendation-block rec-lab${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && labRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-lab-' + entry.index}>
+                  ${(readOnly || isAmending) && labRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <div class="recommendation-content">
                     <${OrderRow}
                       command=${entry.command}
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
-                      readOnly=${readOnly || entry.command.already_documented || isRejected}
+                      readOnly=${labRecRowReadOnly || isRejected}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}
                       staffName=${staffName}
+                      noteDiagnoses=${noteDiagnoses}
                       isRecommendation=${true}
                       onEditingChange=${onEditingChange}
                     />
@@ -1987,19 +1990,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     ${data.reason && html`<div class="rec-reason">${data.reason}</div>`}
                   </div>
                   <div class="recommendation-actions">
-                    ${entry.command.already_documented
-                      ? html`<span class="rec-documented-badge">${entry.command._added_now ? 'Added' : 'Already in chart'}</span>`
-                      : !readOnly && html`
-                          ${isIncomplete && !isRejected && html`<span class="rec-warning-pill">Missing: ${missingFields.join(', ')}</span>`}
-                          ${isRejected && html`<span class="rec-rejected-badge">Rejected</span>`}
-                          ${isAccepted && !isIncomplete && html`<span class="rec-accepted-badge">Accepted</span>`}
-                          ${onAddNow && isAccepted && !isIncomplete && html`<button type="button" class="rec-btn-add-now" disabled=${entry.command._adding} onClick=${() => !entry.command._adding && onAddNow(entry.command, true, entry.index)}>${entry.command._adding ? 'Adding...' : 'Add Now'}</button>`}
-                          ${!entry.command._adding && html`
-                            <button type="button" class="rec-btn ${isRejected ? 'rec-btn-reject' : 'rec-btn-muted'}" onClick=${() => onRejectRecommendation(entry.index)} title="Reject">${ICON_X}</button>
-                            <button type="button" class="rec-btn ${isAccepted && !isIncomplete ? 'rec-btn-accept' : 'rec-btn-muted'}" onClick=${() => (isRejected || !isIncomplete) && onAcceptRecommendation(entry.index)} title="Accept">${ICON_CHECK}</button>
-                          `}
-                        `
-                    }
+                    ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: isIncomplete, missingLabel: missingFields.join(', '), acceptDisabled: isIncomplete, readOnly, onAccept: () => onAcceptRecommendation(entry.index), onReject: () => onRejectRecommendation(entry.index), onAddNow })}
                   </div>
                 </div>
                 `;
