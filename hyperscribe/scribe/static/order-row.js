@@ -22,6 +22,15 @@ const REFILLS_MIN = 0;
 const REFILLS_MAX = 99;
 const RX_TAB_KEYS = new Set(['prescribe', 'refill', 'adjust_prescription']);
 
+// Per-command-type default for Alert Facility. Prescribe and adjust prescription
+// default on; refill off. Applied everywhere (toggle, recorded value, display) so
+// a card gets its default without having to be opened.
+const ALERT_FACILITY_DEFAULT_ON = { prescribe: true, adjust_prescription: true, refill: false };
+
+// Effective on/off state: an explicit stored value wins, otherwise the type default.
+const alertFacilityOn = (commandType, raw) =>
+  raw === true ? true : raw === false ? false : !!ALERT_FACILITY_DEFAULT_ON[commandType];
+
 // Full NCPDP clinical quantity descriptions
 const CLINICAL_QUANTITY_DESCRIPTIONS = [
   { code: 'C48473', label: 'Ampule' },
@@ -288,7 +297,7 @@ function InteractionWarningInline({ warning }) {
   `;
 }
 
-export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, noteId, staffId, staffName, noteDiagnoses = [], isRecommendation, onEditingChange }) {
+export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityCommands, patientId, noteId, staffId, staffName, noteDiagnoses = [], isRecommendation, onEditingChange }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   useEffect(() => {
@@ -300,10 +309,11 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   // Per-tab Rx state snapshots (saved when switching away, restored when switching back).
   const rxSnapshots = useRef({});
 
-  const initRxState = () => ({
+  const initRxState = (tabKey) => ({
     medQuery: '', selectedFdb: null, selectedMedDisplay: '', medQuantities: buildTypeToDispenseOptions([]),
     sig: '', daysSupply: '', quantity: '', typeToDispense: '', refills: '',
     substitutions: true, noteToPharmacist: '', interactionWarning: null, selectedPharmacy: '', pharmacyQuery: '',
+    alertFacility: !!ALERT_FACILITY_DEFAULT_ON[tabKey],
   });
 
   // Rx state
@@ -328,6 +338,16 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [pharmacySearched, setPharmacySearched] = useState(false);
   const [interactionWarning, setInteractionWarning] = useState(null);
   const [checkingInteractions, setCheckingInteractions] = useState(false);
+
+  // Alert Facility toggle default is per command type (edit-mode starting position);
+  // an explicit stored value always wins. Mirrored into the per-tab Rx snapshots below
+  // so switching tabs follows the target tab's default until the user changes it.
+  const [alertFacility, setAlertFacility] = useState(
+    alertFacilityOn(command.command_type || 'prescribe', command.data.alert_facility),
+  );
+  // Only persist the flag when the user actually engaged it (or it's a brand-new
+  // card, or a value already exists) — never fabricate one on an unrelated edit.
+  const [alertFacilityTouched, setAlertFacilityTouched] = useState(false);
 
   // "Change to" medication (adjust_prescription only).
   const [changeToQuery, setChangeToQuery] = useState(command.data.new_medication_text || '');
@@ -376,6 +396,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     medQuery, selectedFdb, selectedMedDisplay, medQuantities,
     sig, daysSupply, quantity, typeToDispense, refills,
     substitutions, noteToPharmacist, interactionWarning, selectedPharmacy, pharmacyQuery,
+    alertFacility,
   });
 
   const restoreRxSnapshot = (snap) => {
@@ -393,6 +414,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setSelectedPharmacy(snap.selectedPharmacy);
     setPharmacyQuery(snap.pharmacyQuery);
     setInteractionWarning(snap.interactionWarning);
+    setAlertFacility(snap.alertFacility);
     setMedResults([]);
     setMedSearched(false);
   };
@@ -1161,6 +1183,15 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
         pharmacy_name: selectedPharmacy ? pharmacyQuery : null,
         quantities: medQuantities.map(q => ({ representative_ndc: q.representative_ndc, ncpdp_quantity_qualifier_code: q.ncpdp_quantity_qualifier_code, clinical_quantity_description: q.label, quantity: 1 })),
       };
+      // Alert Facility: materialize only when this command type is enabled AND it's a
+      // brand-new card or the user set it; otherwise preserve any existing value (and leave
+      // a value-less card blank). handleSave rebuilds `data` from scratch, so an existing
+      // value must be carried over — preserved regardless of the enable gate.
+      if (alertFacilityCommands.has(activeTab) && (isNew || alertFacilityTouched)) {
+        data.alert_facility = alertFacility;
+      } else if (command.data.alert_facility !== undefined) {
+        data.alert_facility = command.data.alert_facility;
+      }
       // Include "change to" medication for adjust_prescription.
       if (activeTab === 'adjust_prescription' && changeToFdb) {
         data.new_fdb_code = changeToFdb;
@@ -1243,7 +1274,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     if (RX_TABS.has(tab.key) && rxSnapshots.current[tab.key]) {
                       restoreRxSnapshot(rxSnapshots.current[tab.key]);
                     } else if (RX_TABS.has(tab.key)) {
-                      restoreRxSnapshot(initRxState());
+                      restoreRxSnapshot(initRxState(tab.key));
                     }
                     setActiveTab(tab.key);
                   }}
@@ -1828,6 +1859,16 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 `}
               </div>
             `}
+            ${alertFacilityCommands.has(activeTab) && html`
+              <div class="history-form-field">
+                <button type="button" class="alert-facility-toggle" onClick=${() => { setAlertFacility(prev => !prev); setAlertFacilityTouched(true); }}>
+                  <div class="toggle-switch${alertFacility ? ' on' : ''}">
+                    <div class="toggle-knob" />
+                  </div>
+                  Alert Facility
+                </button>
+              </div>
+            `}
             <div class="questionnaire-form-actions">
               <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
               <button
@@ -1900,6 +1941,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
             <div class="order-view-name">${command.display}</div>
             ${d.sig && html`<div class="order-view-sig">Sig: ${d.sig}</div>`}
             ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
+            ${alertFacilityCommands.has(command.command_type) && (d.alert_facility === true || d.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${d.alert_facility ? 'Yes' : 'No'}</div>`}
           </div>
         </div>
         ${interactionWarning && html`<${InteractionWarningInline} warning=${interactionWarning} />`}
@@ -1953,6 +1995,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
       <div class="order-view">
         <span class="command-type-label">${badgeLabel}</span>
         <div class="order-view-name">${command.display}</div>
+        ${alertFacilityCommands.has(command.command_type) && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
       </div>
     </div>
   `;

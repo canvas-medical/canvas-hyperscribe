@@ -6,7 +6,8 @@ from unittest.mock import MagicMock, patch
 
 from canvas_sdk.clients.llms.structures import LlmResponse, LlmTokens
 
-from hyperscribe.scribe.backend.models import ClinicalNote, NoteSection
+from hyperscribe.scribe.backend.models import ClinicalNote, NoteSection, Transcript, TranscriptItem
+from hyperscribe.scribe.recommendations.schemas import PrescriptionRecommendation
 from hyperscribe.scribe.recommendations.prescription import (
     _SYSTEM_PROMPT,
     PrescriptionRecommender,
@@ -467,3 +468,47 @@ def test_recommend_from_prescription_section(mock_resolve: MagicMock) -> None:
     assert proposals[0].display == "Excedrin Extra Strength Tablet"
     assert proposals[0].data["fdb_code"] == "55555"
     client.request.assert_called_once()
+
+
+# ── KOALA-6644: recovery is medication-list only, by design ──────────────
+
+
+def test_recommend_does_not_recover_prns_from_the_transcript() -> None:
+    """The prescription path must NOT pull as-needed medications out of the transcript.
+
+    KOALA-6644 recovers dropped PRNs into the medication list only. Nabla writes continuation
+    as "Continue <drug> as needed ...", so the "Continue" marker sits on the line that gets
+    dropped; a PRN recovered here would arrive with no evidence of whether it is being started
+    or merely reconciled. On real notes this path proposed NEW prescriptions for five
+    medications the patient was already taking. Missing documentation is recoverable, a
+    duplicate prescription is not.
+    """
+    transcript = Transcript(
+        items=[
+            TranscriptItem(
+                text="ibuprofen 400 mg as needed for pain",
+                speaker="doctor",
+                start_offset_ms=0,
+                end_offset_ms=5000,
+            )
+        ]
+    )
+    note = _make_note([NoteSection(key="plan", title="Plan", text="Start sumatriptan 50 mg.")])
+    client = _make_client({"prescriptions": []})
+
+    PrescriptionRecommender().recommend(note, client, transcript=transcript)
+
+    user_prompt = client.set_user_prompt.call_args[0][0][0]
+    system_prompt = client.set_system_prompt.call_args[0][0][0]
+    assert "ibuprofen" not in user_prompt
+    assert "Transcript" not in user_prompt
+    # the note-only prompt is what it always was
+    assert user_prompt == "## Plan\nStart sumatriptan 50 mg."
+    assert system_prompt == _SYSTEM_PROMPT
+
+
+def test_prescription_schema_has_no_transcript_provenance_fields() -> None:
+    """No dead schema fields: provenance belongs only to the medication-list path."""
+    fields = set(PrescriptionRecommendation.model_fields)
+    assert "from_transcript" not in fields
+    assert "is_prn" not in fields

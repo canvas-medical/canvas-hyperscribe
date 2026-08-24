@@ -111,6 +111,23 @@ class RefillParser(CommandParser):
             command_uuid=command_uuid,
         )
 
+    def pending_metadata(
+        self,
+        command: _BaseCommand,
+        proposal: dict[str, Any] | None = None,
+        feature_flags: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        if self.command_type not in (feature_flags or {}).get("AlertFacilityCommands", set()):
+            return None
+        # Refill defaults to No; only an explicit stored ``True`` records Yes.
+        truthy = ((proposal or {}).get("data") or {}).get("alert_facility", False) is not False
+        return {
+            "command_uuid": command.command_uuid,
+            "command_type": self.command_type,
+            "note_uuid": command.note_uuid,
+            "metadata": {"alert_facility": "Yes" if truthy else "No"},
+        }
+
     def to_effects(self, command: _BaseCommand, note_uuid: str | None = None) -> list[Effect]:
         """Refills require originate + review (same as prescriptions)."""
         return [command.originate(), command.review()]

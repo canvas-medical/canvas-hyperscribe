@@ -486,7 +486,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -554,7 +554,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         noteDiagnoses=${noteDiagnoses}
         onAddNow=${(isPlan || isObjective) ? onAddNow : null}
         hideRejected=${hideRejected}
-        alertFacilityEnabled=${alertFacilityEnabled}
+        alertFacilityCommands=${alertFacilityCommands}
         onEditingChange=${onEditingChange}
         questionnaireScores=${isObjective ? questionnaireScores : null}
         examTemplates=${(isObjective || isSubjective) ? examTemplates : null}
@@ -566,7 +566,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, manualModeOnly = false, dictationEnabled = false, captureDictationEnabled = false, initialData = null }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityCommands = new Set(), manualModeOnly = false, dictationEnabled = false, captureDictationEnabled = false, initialData = null }) {
   const initSummary = initialData?.summary ?? null;
   const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
@@ -1780,6 +1780,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             };
             const label = siteLabels[newData.blood_pressure_position_and_site];
             if (label) vParts.push(`Site: ${label}`);
+          }
+          if (newData.supplemental_oxygen != null) {
+            const supplementalOxygenLabels = {
+              'LA28684-1': 'Continuously depending on high oxygen flow',
+              'LA28685-8': 'Continuously depending on low oxygen flow',
+              'LA28686-6': 'Intermittent oxygen consumption',
+            };
+            const label = supplementalOxygenLabels[newData.supplemental_oxygen];
+            if (label) vParts.push(`Supplemental O2: ${label}`);
           }
           if (newData.note) vParts.push(`Note: ${newData.note}`);
           next = { ...cmd, data: newData, display: vParts.join(', ') || 'Vitals' };
@@ -3502,13 +3511,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                     </svg>
                     Pause
                   </button>`
-                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume" disabled=${!canEdit}>
+                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume" disabled=${!canEdit || recording.awaitingTranscription}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="6,4 20,12 6,20" />
                     </svg>
                     Resume
                   </button>`}
-              <${FinishRecordingButton} onFinish=${recording.finishRecording} disabled=${!canEdit} />
+              <${FinishRecordingButton} onFinish=${recording.finishRecording} disabled=${!canEdit || recording.awaitingTranscription} />
             </div>
           `}
           ${false && debugMode && noteData && !approved && !generating && !isRecording && html`
@@ -3637,6 +3646,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           `}
         </div>
       `}
+      ${recording.status === 'paused' && recording.awaitingTranscription && recording.catchUpSeconds > 0 && html`
+        <div class="summary-generating-banner">
+          <span class="generating-label">Still processing ~${recording.catchUpSeconds}s of audio before pausing…</span>
+          <button class="summary-status-pill-btn" onClick=${() => recording.finalizeWithGap()}>
+            Pause now (discard ~${recording.catchUpSeconds}s)
+          </button>
+        </div>
+      `}
+      ${recording.status === 'recording' && recording.showLiveCatchUp && html`
+        <div class="readonly-banner" role="status" aria-live="polite">
+          <span>Still processing ~${recording.catchUpSeconds}s of audio — don't pause or stop yet.</span>
+        </div>
+      `}
       ${authorEditable && !noteData && !generating && recording.finalized && mode === 'ai' && html`
         <div class="summary-generate-banner">
           <p class="summary-banner-description">Recording complete. Generate a structured summary from your transcript.</p>
@@ -3708,7 +3730,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           diagnosisSuggestions,
           onAddNow: (authorEditable && !(wasFinalized && !approved)) ? handleAddNow : null,
           hideRejected,
-          alertFacilityEnabled,
+          alertFacilityCommands,
           onEditingChange: handleEditingChange,
           questionnaireScores: collectQuestionnaireScores(commands),
           chargeMatrixDiagnoses,

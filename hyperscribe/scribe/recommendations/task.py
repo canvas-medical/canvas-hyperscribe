@@ -12,7 +12,12 @@ from hyperscribe.scribe.backend.models import (
     ClinicalNote,
     CommandProposal,
     Transcript,
-    TranscriptItem,
+)
+from hyperscribe.scribe.recommendations._transcript_windows import (
+    extract_window_items,
+    find_keyword_matches,
+    format_transcript_windows,
+    merge_windows,
 )
 from hyperscribe.scribe.recommendations.base import BaseRecommender
 from hyperscribe.scribe.recommendations.schemas import TaskRecommendationList
@@ -21,7 +26,6 @@ _TASK_KEYWORDS = [
     r"\btasks?\b",
 ]
 _KEYWORD_PATTERN = re.compile("|".join(_TASK_KEYWORDS), re.IGNORECASE)
-_WINDOW_MS = 120_000  # 2 minutes
 
 _SYSTEM_PROMPT = (
     "You are a clinical task extraction assistant.\n\n"
@@ -48,53 +52,7 @@ _SYSTEM_PROMPT = (
 
 def find_task_matches(transcript: Transcript) -> list[int]:
     """Return midpoint timestamps (ms) of transcript items containing task keywords."""
-    matches: list[int] = []
-    for item in transcript.items:
-        if _KEYWORD_PATTERN.search(item.text):
-            midpoint = (item.start_offset_ms + item.end_offset_ms) // 2
-            matches.append(midpoint)
-    return matches
-
-
-def merge_windows(timestamps: list[int], window_ms: int = _WINDOW_MS) -> list[tuple[int, int]]:
-    """Merge overlapping [t - window, t + window] intervals."""
-    if not timestamps:
-        return []
-    intervals = sorted((max(0, t - window_ms), t + window_ms) for t in timestamps)
-    merged = [intervals[0]]
-    for start, end in intervals[1:]:
-        if start <= merged[-1][1]:
-            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
-        else:
-            merged.append((start, end))
-    return merged
-
-
-def extract_window_items(transcript: Transcript, windows: list[tuple[int, int]]) -> list[list[TranscriptItem]]:
-    """For each window, collect overlapping transcript items."""
-    result: list[list[TranscriptItem]] = []
-    for w_start, w_end in windows:
-        items = [item for item in transcript.items if item.end_offset_ms >= w_start and item.start_offset_ms <= w_end]
-        result.append(items)
-    return result
-
-
-def format_transcript_windows(window_items: list[list[TranscriptItem]]) -> str:
-    """Format window items into a human-readable string for the LLM prompt."""
-    parts: list[str] = []
-    for i, items in enumerate(window_items, 1):
-        if not items:
-            continue
-        start_ms = items[0].start_offset_ms
-        end_ms = items[-1].end_offset_ms
-        start_fmt = f"{start_ms // 60000}:{(start_ms % 60000) // 1000:02d}"
-        end_fmt = f"{end_ms // 60000}:{(end_ms % 60000) // 1000:02d}"
-        lines: list[str] = []
-        for item in items:
-            speaker = item.speaker.capitalize() if item.speaker else "Unknown"
-            lines.append(f"{speaker}: {item.text}")
-        parts.append(f"[Window {i}: {start_fmt} - {end_fmt}]\n" + "\n".join(lines))
-    return "\n\n".join(parts)
+    return find_keyword_matches(transcript, _KEYWORD_PATTERN)
 
 
 def _build_user_prompt(windows_text: str, note: ClinicalNote) -> str:
