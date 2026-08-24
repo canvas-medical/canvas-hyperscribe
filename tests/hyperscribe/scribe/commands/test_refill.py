@@ -10,7 +10,7 @@ returned 200 but REVIEW raised ``ValidationError``.
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -97,3 +97,55 @@ def test_validate_against_patient_rejects_when_medication_inactive() -> None:
 
 def test_command_type() -> None:
     assert RefillParser().command_type == "refill"
+
+
+def _make_rx_command() -> MagicMock:
+    cmd = MagicMock()
+    cmd.command_uuid = "00000000-0000-0000-0000-0000000000e1"
+    cmd.note_uuid = "00000000-0000-0000-0000-0000000000ee"
+    return cmd
+
+
+def test_pending_metadata_flag_off_returns_none() -> None:
+    cmd = _make_rx_command()
+    proposal = {"data": {"alert_facility": True}}
+    assert RefillParser().pending_metadata(cmd, proposal, feature_flags={}) is None
+    assert RefillParser().pending_metadata(cmd, proposal, feature_flags=None) is None
+    assert (
+        RefillParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityCommands": {"prescribe"}}) is None
+    )
+
+
+def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
+    cmd = _make_rx_command()
+    proposal = {"data": {"alert_facility": True}}
+    result = RefillParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityCommands": {"refill"}})
+    assert result == {
+        "command_uuid": cmd.command_uuid,
+        "command_type": "refill",
+        "note_uuid": cmd.note_uuid,
+        "metadata": {"alert_facility": "Yes"},
+    }
+
+
+def test_pending_metadata_flag_on_explicit_false_returns_no() -> None:
+    cmd = _make_rx_command()
+    result = RefillParser().pending_metadata(
+        cmd, {"data": {"alert_facility": False}}, feature_flags={"AlertFacilityCommands": {"refill"}}
+    )
+    assert result is not None
+    assert result["metadata"] == {"alert_facility": "No"}
+
+
+def test_pending_metadata_flag_on_defaults_to_no_when_unset() -> None:
+    cmd = _make_rx_command()
+    flags = {"AlertFacilityCommands": {"refill"}}
+    # Explicit True still records Yes.
+    assert RefillParser().pending_metadata(cmd, {"data": {"alert_facility": True}}, flags)["metadata"] == {
+        "alert_facility": "Yes"
+    }
+    # Refill defaults to No when the value is unset.
+    for proposal in ({"data": {}}, None):
+        result = RefillParser().pending_metadata(cmd, proposal, flags)
+        assert result is not None
+        assert result["metadata"] == {"alert_facility": "No"}

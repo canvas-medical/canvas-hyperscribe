@@ -68,7 +68,7 @@
       debugMode: '{{ debug_mode }}' === 'true',
       noteEditable: '{{ note_editable }}' === 'true',
       isAuthor: '{{ is_author }}' === 'true',
-      alertFacilityEnabled: '{{ alert_facility_enabled }}' === 'true',
+      alertFacilityCommands: new Set('{{ alert_facility_commands }}'.split(',').map(s => s.trim()).filter(Boolean)),
       manualModeOnly: '{{ manual_mode_only }}' === 'true',
       dictationEnabled: '{{ dictation_enabled }}' === 'true',
       captureDictationEnabled: '{{ capture_dictation_enabled }}' === 'true',

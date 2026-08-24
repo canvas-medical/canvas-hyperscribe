@@ -24,7 +24,7 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityEnabled, onEditingChange }) {
+export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityCommands, onEditingChange }) {
   const [editing, setEditing] = useState(!command.display);
   useEffect(() => {
     onEditingChange?.(commandIndex, editing);
@@ -39,7 +39,11 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   );
   const [selectedDisplay, setSelectedDisplay] = useState(command.data.medication_text || '');
   const [sig, setSig] = useState(command.data.sig || '');
-  const [alertFacility, setAlertFacility] = useState(!!command.data.alert_facility);
+  // Medication statement defaults to No (off); only an explicit stored `true` turns it on.
+  const [alertFacility, setAlertFacility] = useState(command.data.alert_facility === true);
+  // Only persist the flag when the user actually engaged it (or the command already
+  // carries one, or it's brand new) — never fabricate a value on an unrelated edit.
+  const [alertFacilityTouched, setAlertFacilityTouched] = useState(false);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -105,7 +109,13 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   };
 
   const handleSave = () => {
-    const newData = { ...command.data, medication_text: selectedDisplay, sig, alert_facility: alertFacility };
+    const newData = { ...command.data, medication_text: selectedDisplay, sig };
+    // Materialize the flag only when this command type is enabled AND it's a brand-new card
+    // or the user set it; otherwise the `...command.data` spread preserves any existing value
+    // and an absent one stays absent.
+    if (alertFacilityCommands.has(command.command_type) && (!command.display || alertFacilityTouched)) {
+      newData.alert_facility = alertFacility;
+    }
     if (selectedFdb) {
       newData.fdb_code = selectedFdb;
     } else {
@@ -124,7 +134,8 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
     setSelectedFdb(isFdbStructured(command.data.fdb_code) ? command.data.fdb_code : null);
     setSelectedDisplay(command.data.medication_text || '');
     setSig(command.data.sig || '');
-    setAlertFacility(!!command.data.alert_facility);
+    setAlertFacility(command.data.alert_facility === true);
+    setAlertFacilityTouched(false);
     setResults([]);
     setEditing(false);
   };
@@ -146,6 +157,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
         <div class="order-view">
           <div class="order-view-name">${command.display}</div>
           ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
+          ${alertFacilityCommands.has(command.command_type) && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
         </div>
       </div>
     `;
@@ -198,9 +210,9 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
               placeholder="e.g. Take 1 tablet daily"
             />
           </div>
-          ${alertFacilityEnabled && html`
+          ${alertFacilityCommands.has(command.command_type) && html`
           <div class="history-form-field">
-            <button type="button" class="alert-facility-toggle" onClick=${() => setAlertFacility(prev => !prev)}>
+            <button type="button" class="alert-facility-toggle" onClick=${() => { setAlertFacility(prev => !prev); setAlertFacilityTouched(true); }}>
               <div class="toggle-switch${alertFacility ? ' on' : ''}">
                 <div class="toggle-knob" />
               </div>
@@ -224,7 +236,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
       <div class="order-view">
         <div class="order-view-name">${command.display}</div>
         ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
-        ${alertFacilityEnabled && command.data.alert_facility && html`<span class="badge badge-alert">Alert Facility</span>`}
+        ${alertFacilityCommands.has(command.command_type) && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
         ${command.from_transcript && html`<span class="badge badge-transcript" title="Heard in the recording but missing from the generated note — review before accepting">From transcript</span>`}
       </div>
     </div>

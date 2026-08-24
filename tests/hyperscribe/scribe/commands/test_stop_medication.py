@@ -62,13 +62,18 @@ def test_pending_metadata_flag_off_returns_none() -> None:
     proposal = {"data": {"alert_facility": True}}
     assert StopMedicationParser().pending_metadata(cmd, proposal, feature_flags={}) is None
     assert StopMedicationParser().pending_metadata(cmd, proposal, feature_flags=None) is None
-    assert StopMedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": False}) is None
+    assert (
+        StopMedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityCommands": {"prescribe"}})
+        is None
+    )
 
 
 def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
     cmd = _make_stop_command()
     proposal = {"data": {"alert_facility": True}}
-    result = StopMedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
+    result = StopMedicationParser().pending_metadata(
+        cmd, proposal, feature_flags={"AlertFacilityCommands": {"stop_medication"}}
+    )
     assert result == {
         "command_uuid": cmd.command_uuid,
         "command_type": "stop_medication",
@@ -77,13 +82,24 @@ def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
     }
 
 
-def test_pending_metadata_flag_on_alert_falsy_defaults_to_no() -> None:
+def test_pending_metadata_flag_on_explicit_false_returns_no() -> None:
     cmd = _make_stop_command()
-    for proposal in (
-        {"data": {"alert_facility": False}},
-        {"data": {}},
-        None,
-    ):
-        result = StopMedicationParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityEnabled": True})
+    result = StopMedicationParser().pending_metadata(
+        cmd, {"data": {"alert_facility": False}}, feature_flags={"AlertFacilityCommands": {"stop_medication"}}
+    )
+    assert result is not None
+    assert result["metadata"] == {"alert_facility": "No"}
+
+
+def test_pending_metadata_flag_on_defaults_to_no_when_unset() -> None:
+    cmd = _make_stop_command()
+    flags = {"AlertFacilityCommands": {"stop_medication"}}
+    # Explicit True still records Yes.
+    assert StopMedicationParser().pending_metadata(cmd, {"data": {"alert_facility": True}}, flags)["metadata"] == {
+        "alert_facility": "Yes"
+    }
+    # Stop medication defaults to No when the value is unset.
+    for proposal in ({"data": {}}, None):
+        result = StopMedicationParser().pending_metadata(cmd, proposal, flags)
         assert result is not None
         assert result["metadata"] == {"alert_facility": "No"}

@@ -2658,7 +2658,7 @@ def test_insert_commands_success(mock_build: MagicMock) -> None:
     assert len(result) == 3  # JSONResponse + 2 effects
     assert result[1] is mock_effect_1
     assert result[2] is mock_effect_2
-    mock_build.assert_called_once_with(commands, "note-uuid-123", {"AlertFacilityEnabled": False})
+    mock_build.assert_called_once_with(commands, "note-uuid-123", {"AlertFacilityCommands": set()})
 
 
 @patch("hyperscribe.scribe.api.session_view.build_effects")
@@ -2884,7 +2884,7 @@ def test_edit_existing_commands_rfv_direct_edit(
     assert "rejected" not in data
     assert len(result) == 2  # JSONResponse + 1 effect
     assert result[1] is mock_effect
-    mock_build.assert_called_once_with(commands, "note-uuid-123")
+    mock_build.assert_called_once_with(commands, "note-uuid-123", {"AlertFacilityCommands": set()})
     mock_audit.assert_called_once()
     audit_call = mock_audit.call_args
     assert audit_call.args[0] == "note-uuid-123"
@@ -3314,7 +3314,7 @@ def test_edit_existing_commands_state_lookup_handles_uuid_type_from_postgres(
     )
     body = json.loads(result[0].content)
     assert "conflicts" not in body
-    mock_build.assert_called_once_with(commands, "note-uuid-123")
+    mock_build.assert_called_once_with(commands, "note-uuid-123", {"AlertFacilityCommands": set()})
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
@@ -3429,7 +3429,7 @@ def test_edit_existing_commands_reads_state_before_emitting_effects(
     # And NOT through the no-longer-supported select_for_update() path.
     mock_command.objects.select_for_update.assert_not_called()
     # Happy path: build_amend_edit_effects was invoked (no conflict surfaced).
-    mock_build.assert_called_once_with(commands, "note-uuid-123")
+    mock_build.assert_called_once_with(commands, "note-uuid-123", {"AlertFacilityCommands": set()})
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
@@ -3731,6 +3731,398 @@ def test_note_commands_returns_full_shape(mock_command: MagicMock) -> None:
             "_from_note": True,
         }
     ]
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_appends_alert_facility_from_metadata(mock_command: MagicMock, mock_metadata: MagicMock) -> None:
+    """Flag on: the Alert Facility flag (stored as command metadata, not in
+    Command.data) is read back and appended as a detail so it stays visible on
+    the flat ADDITIONAL COMMANDS card after commit."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "uuid-rx", "schema_key": "prescribe", "data": {"sig": "1 tab daily"}},
+    ]
+    mock_metadata.objects.filter.return_value.values.return_value = [
+        {"command__id": "uuid-rx", "value": "No"},
+    ]
+    view = _helper_instance()
+    view.secrets["AlertFacilityCommands"] = "prescribe,adjust_prescription,refill,medication_statement,stop_medication"
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    details = json.loads(result[0].content)["commands"][0]["details"]
+    assert {"label": "Alert Facility", "value": "No"} in details
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_respects_command_allowlist(mock_command: MagicMock, mock_metadata: MagicMock) -> None:
+    """Only command types in AlertFacilityCommands show the flag — even a disallowed
+    command that has recorded metadata is left without an Alert Facility line."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "uuid-rx", "schema_key": "prescribe", "data": {}},
+        {"id": "uuid-ref", "schema_key": "refill", "data": {}},
+    ]
+    mock_metadata.objects.filter.return_value.values.return_value = [
+        {"command__id": "uuid-rx", "value": "Yes"},
+        {"command__id": "uuid-ref", "value": "No"},
+    ]
+    view = _helper_instance()
+    view.secrets["AlertFacilityCommands"] = "prescribe"  # refill NOT allowed
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    details_by_id = {c["command_uuid"]: c["details"] for c in json.loads(result[0].content)["commands"]}
+    assert {"label": "Alert Facility", "value": "Yes"} in details_by_id["uuid-rx"]
+    assert all(d["label"] != "Alert Facility" for d in details_by_id["uuid-ref"])
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_omits_alert_facility_without_metadata(mock_command: MagicMock, mock_metadata: MagicMock) -> None:
+    """No stored metadata means a pre-feature (or non-Scribe) command — post-feature
+    commands always carry an explicit alert_facility metadata row. Such historical
+    cards show NO Alert Facility line, so history is left unaltered."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "uuid-rx", "schema_key": "prescribe", "data": {}},
+        {"id": "uuid-adj", "schema_key": "adjustPrescription", "data": {}},
+        {"id": "uuid-ref", "schema_key": "refill", "data": {}},
+        {"id": "uuid-med", "schema_key": "medicationStatement", "data": {}},
+        {"id": "uuid-stop", "schema_key": "stopMedication", "data": {}},
+    ]
+    mock_metadata.objects.filter.return_value.values.return_value = []
+    view = _helper_instance()
+    view.secrets["AlertFacilityCommands"] = "prescribe,adjust_prescription,refill,medication_statement,stop_medication"
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    details_by_id = {c["command_uuid"]: c["details"] for c in json.loads(result[0].content)["commands"]}
+    for cmd_id in ("uuid-rx", "uuid-adj", "uuid-ref", "uuid-med", "uuid-stop"):
+        assert all(d["label"] != "Alert Facility" for d in details_by_id[cmd_id]), cmd_id
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_no_alert_facility_when_flag_off(mock_command: MagicMock, mock_metadata: MagicMock) -> None:
+    """Flag off: no Alert Facility detail is appended and metadata is not queried."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "uuid-rx", "schema_key": "prescribe", "data": {"sig": "1 tab daily"}},
+    ]
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    details = json.loads(result[0].content)["commands"][0]["details"]
+    assert all(d["label"] != "Alert Facility" for d in details)
+    mock_metadata.objects.filter.assert_not_called()
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_note_commands_no_alert_facility_for_unrelated_schema_key(
+    mock_command: MagicMock, mock_metadata: MagicMock
+) -> None:
+    """Flag on but a non-medication command: no Alert Facility detail."""
+    mock_command.objects.filter.return_value.exclude.return_value.values.return_value = [
+        {"id": "uuid-hpi", "schema_key": "hpi", "data": {"narrative": "Pain"}},
+    ]
+    mock_metadata.objects.filter.return_value.values.return_value = []
+    view = _helper_instance()
+    view.secrets["AlertFacilityCommands"] = "prescribe,adjust_prescription,refill,medication_statement,stop_medication"
+    view.request = SimpleNamespace(query_params={"note_id": "note-uuid"}, headers={})
+    result = view.get_note_commands()
+
+    details = json.loads(result[0].content)["commands"][0]["details"]
+    assert all(d["label"] != "Alert Facility" for d in details)
+
+
+# ---- _inject_alert_facility_defaults: stamp per-type defaults on fresh cards ----
+
+
+_ALL_ALERT_COMMANDS = {"prescribe", "adjust_prescription", "refill", "medication_statement", "stop_medication"}
+
+
+def test_inject_alert_facility_defaults_empty_allowset_is_noop() -> None:
+    from hyperscribe.scribe.api.session_view import _inject_alert_facility_defaults
+
+    proposals = [{"command_type": "prescribe", "data": {}}]
+    _inject_alert_facility_defaults(proposals, set())
+    assert proposals[0]["data"] == {}
+
+
+def test_inject_alert_facility_defaults_sets_per_type_default() -> None:
+    from hyperscribe.scribe.api.session_view import _inject_alert_facility_defaults
+
+    proposals = [
+        {"command_type": "prescribe", "data": {}},
+        {"command_type": "adjust_prescription", "data": {}},
+        {"command_type": "refill", "data": {}},
+        {"command_type": "medication_statement", "data": {}},
+        {"command_type": "stop_medication", "data": {}},
+    ]
+    _inject_alert_facility_defaults(proposals, _ALL_ALERT_COMMANDS)
+    assert proposals[0]["data"]["alert_facility"] is True
+    assert proposals[1]["data"]["alert_facility"] is True
+    assert proposals[2]["data"]["alert_facility"] is False
+    assert proposals[3]["data"]["alert_facility"] is False
+    assert proposals[4]["data"]["alert_facility"] is False
+
+
+def test_inject_alert_facility_defaults_skips_command_not_in_allowset() -> None:
+    from hyperscribe.scribe.api.session_view import _inject_alert_facility_defaults
+
+    proposals = [
+        {"command_type": "prescribe", "data": {}},
+        {"command_type": "refill", "data": {}},
+    ]
+    _inject_alert_facility_defaults(proposals, {"prescribe"})
+    assert proposals[0]["data"]["alert_facility"] is True  # in the allow-set
+    assert "alert_facility" not in proposals[1]["data"]  # refill not allowed → untouched
+
+
+def test_inject_alert_facility_defaults_preserves_explicit_value() -> None:
+    from hyperscribe.scribe.api.session_view import _inject_alert_facility_defaults
+
+    # setdefault semantics: an already-chosen value always wins over the type default.
+    proposals = [
+        {"command_type": "prescribe", "data": {"alert_facility": False}},
+        {"command_type": "refill", "data": {"alert_facility": True}},
+    ]
+    _inject_alert_facility_defaults(proposals, _ALL_ALERT_COMMANDS)
+    assert proposals[0]["data"]["alert_facility"] is False
+    assert proposals[1]["data"]["alert_facility"] is True
+
+
+def test_inject_alert_facility_defaults_ignores_unrelated_and_malformed() -> None:
+    from hyperscribe.scribe.api.session_view import _inject_alert_facility_defaults
+
+    proposals = [
+        {"command_type": "diagnose", "data": {}},  # not an alert-facility type
+        {"command_type": "prescribe", "data": None},  # malformed data
+        {"command_type": "prescribe"},  # no data key
+    ]
+    _inject_alert_facility_defaults(proposals, _ALL_ALERT_COMMANDS)
+    assert "alert_facility" not in proposals[0]["data"]
+    assert proposals[1]["data"] is None
+    assert "data" not in proposals[2]
+
+
+# ---- _reconcile_committed_alert_facility: committed record is truth for locked cards ----
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+def test_reconcile_committed_alert_facility_sets_strips_and_preserves(
+    mock_command: MagicMock, mock_metadata: MagicMock
+) -> None:
+    from hyperscribe.scribe.api.session_view import _reconcile_committed_alert_facility
+
+    commands = [
+        {"command_type": "prescribe", "command_uuid": "u-yes", "data": {"alert_facility": False}},
+        {"command_type": "refill", "command_uuid": "u-no", "data": {"alert_facility": True}},
+        {"command_type": "medication_statement", "command_uuid": "u-strip", "data": {"alert_facility": True}},
+        {"command_type": "prescribe", "command_uuid": "u-draft", "data": {"alert_facility": True}},
+        {"command_type": "prescribe", "command_uuid": "u-add", "data": {}},
+    ]
+    # u-draft is NOT in the committed set (an in-progress draft).
+    mock_command.objects.filter.return_value.exclude.return_value.values_list.return_value = [
+        "u-yes",
+        "u-no",
+        "u-strip",
+        "u-add",
+    ]
+    mock_metadata.objects.filter.return_value.values.return_value = [
+        {"command__id": "u-yes", "value": "Yes"},
+        {"command__id": "u-no", "value": "No"},
+        {"command__id": "u-add", "value": "Yes"},
+    ]
+    _reconcile_committed_alert_facility(commands, "note-uuid", _ALL_ALERT_COMMANDS)
+
+    assert commands[0]["data"]["alert_facility"] is True  # committed + "Yes" → True (committed wins over stale cache)
+    assert commands[1]["data"]["alert_facility"] is False  # committed + "No" → False
+    assert "alert_facility" not in commands[2]["data"]  # committed + no metadata → stripped (pre-feature)
+    assert commands[3]["data"]["alert_facility"] is True  # uncommitted draft → untouched
+    assert commands[4]["data"]["alert_facility"] is True  # committed + "Yes" → key added even though cache lacked it
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+def test_reconcile_committed_alert_facility_empty_allowset_is_noop(mock_command: MagicMock) -> None:
+    from hyperscribe.scribe.api.session_view import _reconcile_committed_alert_facility
+
+    commands = [{"command_type": "prescribe", "command_uuid": "u1", "data": {"alert_facility": True}}]
+    _reconcile_committed_alert_facility(commands, "note-uuid", set())
+    assert commands[0]["data"]["alert_facility"] is True
+    mock_command.objects.filter.assert_not_called()
+
+
+@patch("canvas_sdk.v1.data.command.Command")
+def test_reconcile_committed_alert_facility_skips_disallowed_type(mock_command: MagicMock) -> None:
+    from hyperscribe.scribe.api.session_view import _reconcile_committed_alert_facility
+
+    commands = [{"command_type": "prescribe", "command_uuid": "u1", "data": {"alert_facility": True}}]
+    _reconcile_committed_alert_facility(commands, "note-uuid", {"refill"})  # prescribe not allowed
+    assert commands[0]["data"]["alert_facility"] is True  # untouched; no query issued
+    mock_command.objects.filter.assert_not_called()
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_load_summary_strips_alert_facility_when_not_in_committed_record(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_command: MagicMock, mock_metadata: MagicMock
+) -> None:
+    """A locked/committed command whose cache carries a fabricated alert_facility but has no
+    committed metadata row is served with the flag stripped."""
+    from hyperscribe.scribe.api.session_view import _load_summary
+
+    mock_note.objects.values_list.return_value.get.return_value = 7
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
+        "note_data": None,
+        "commands": [{"command_type": "prescribe", "command_uuid": "u1", "data": {"alert_facility": True}}],
+        "approved": True,
+        "was_finalized": True,
+        "recommendations": [],
+        "unmatched_conditions": [],
+        "diagnosis_suggestions": {},
+        "selected_template_name": "",
+        "mode": "ai",
+    }
+    mock_command.objects.filter.return_value.exclude.return_value.values_list.return_value = ["u1"]  # committed
+    mock_metadata.objects.filter.return_value.values.return_value = []  # but no metadata row
+
+    data = _load_summary("note-uuid", {"prescribe"})
+
+    assert data is not None
+    assert "alert_facility" not in data["commands"][0]["data"]
+
+
+@patch("canvas_sdk.v1.data.command.CommandMetadata")
+@patch("canvas_sdk.v1.data.command.Command")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_load_summary_reconciles_recommendations_like_commands(
+    mock_note: MagicMock, mock_summary: MagicMock, mock_command: MagicMock, mock_metadata: MagicMock
+) -> None:
+    """_inject stamps a per-type default onto recommendations as well as commands,
+    so _load_summary must reconcile BOTH against the committed record — not just
+    commands. A committed recommendation with a fabricated flag but no metadata row
+    is stripped; one with a metadata row shows the true value; an unaccepted
+    recommendation (no committed command) keeps its in-flight default untouched."""
+    from hyperscribe.scribe.api.session_view import _load_summary
+
+    mock_note.objects.values_list.return_value.get.return_value = 7
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
+        "note_data": None,
+        "commands": [],
+        "approved": True,
+        "was_finalized": True,
+        "recommendations": [
+            {"command_type": "prescribe", "command_uuid": "r-strip", "data": {"alert_facility": True}},
+            {"command_type": "medication_statement", "command_uuid": "r-yes", "data": {"alert_facility": False}},
+            {"command_type": "prescribe", "command_uuid": "r-draft", "data": {"alert_facility": True}},
+        ],
+        "unmatched_conditions": [],
+        "diagnosis_suggestions": {},
+        "selected_template_name": "",
+        "mode": "ai",
+    }
+    # r-strip and r-yes are committed; r-draft is an unaccepted recommendation (no committed command).
+    mock_command.objects.filter.return_value.exclude.return_value.values_list.return_value = ["r-strip", "r-yes"]
+    mock_metadata.objects.filter.return_value.values.return_value = [{"command__id": "r-yes", "value": "Yes"}]
+
+    data = _load_summary("note-uuid", {"prescribe", "medication_statement"})
+
+    assert data is not None
+    recs = data["recommendations"]
+    assert "alert_facility" not in recs[0]["data"]  # committed + no metadata → stripped (was fabricated)
+    assert recs[1]["data"]["alert_facility"] is True  # committed + "Yes" → true committed value
+    assert recs[2]["data"]["alert_facility"] is True  # unaccepted rec (uncommitted) → keeps in-flight default
+
+
+# ---- Alert Facility per-command-type default (frontend source pins) ----
+#
+# Structural pins, not runtime behavioral pins — they do NOT execute the React
+# code. They guard the per-command-type default (toggle AND view-mode display):
+# medication statement + stop medication + refill default OFF; prescribe +
+# adjust prescription default ON. A JS test harness (to assert runtime
+# behavior) is out of scope.
+
+
+def _static_source(filename: str) -> str:
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / filename
+    return path.read_text()
+
+
+def test_order_row_alert_facility_toggle_default_and_explicit_display() -> None:
+    """OrderRow: toggle seed uses the per-type default (prescribe/adjust ON, refill OFF)
+    via the alertFacilityOn resolver; the view-mode display shows a value ONLY when one is
+    explicitly stored (no fabricated default); handleSave never fabricates a value."""
+    src = _static_source("order-row.js")
+    # Per-type default map + resolver, used for the toggle seed / per-tab snapshot machinery.
+    assert "const ALERT_FACILITY_DEFAULT_ON = { prescribe: true, adjust_prescription: true, refill: false };" in src
+    assert "const alertFacilityOn = " in src, "order-row.js must define the alertFacilityOn resolver."
+    assert "alertFacilityOn(command.command_type || 'prescribe', command.data.alert_facility)" in src, (
+        "The toggle seed must resolve the per-type default via alertFacilityOn."
+    )
+    assert "alertFacility: !!ALERT_FACILITY_DEFAULT_ON[tabKey]" in src
+    assert "restoreRxSnapshot(initRxState(tab.key))" in src
+    assert "setAlertFacility(snap.alertFacility)" in src
+    # Display must NOT fabricate a default — it gates on an explicit boolean and shows the raw value.
+    # (The seed uses `alertFacilityOn(command.command_type || 'prescribe', ...)`; the old display
+    # calls were `alertFacilityOn(command.command_type, ...)` — that comma form must be gone.)
+    assert "alertFacilityOn(command.command_type," not in src, (
+        "The view-mode display must not resolve a fabricated per-type default via alertFacilityOn — "
+        "it should show a value only when one is explicitly stored."
+    )
+    assert "d.alert_facility === true || d.alert_facility === false" in src
+    assert "command.data.alert_facility === true || command.data.alert_facility === false" in src
+    # Per-command gating: toggle + display + save all gate on the allow-set membership.
+    assert "alertFacilityCommands.has(activeTab)" in src, "OrderRow toggle must gate on the active tab's membership."
+    assert "alertFacilityCommands.has(command.command_type)" in src, "OrderRow display must gate on command membership."
+    # handleSave persists the flag only when enabled AND (new or touched).
+    assert "alertFacilityTouched" in src, "order-row.js must track whether the toggle was touched."
+    assert "if (alertFacilityCommands.has(activeTab) && (isNew || alertFacilityTouched)) {" in src, (
+        "handleSave must only materialize alert_facility for an enabled command that is new or touched."
+    )
+
+
+def test_medication_row_alert_facility_off_default_and_explicit_display() -> None:
+    """Medication statement: toggle seeds OFF; display shows a value only when explicitly stored;
+    handleSave does not fabricate a value; no ON-default (`!== false`) remains."""
+    src = _static_source("medication-row.js")
+    assert "useState(command.data.alert_facility === true)" in src, (
+        "medication-row.js must seed the toggle from `alert_facility === true` (default OFF)."
+    )
+    assert "alert_facility !== false" not in src, (
+        "medication-row.js still contains a `!== false` Alert Facility default (defaults ON)."
+    )
+    # Display gates on an explicit boolean AND command membership; no fabricated default.
+    assert "command.data.alert_facility === true || command.data.alert_facility === false" in src
+    assert "alertFacilityCommands.has(command.command_type)" in src, "MedicationRow must gate on command membership."
+    assert "alertFacilityTouched" in src, "medication-row.js must track whether the toggle was touched."
+    assert (
+        "if (alertFacilityCommands.has(command.command_type) && (!command.display || alertFacilityTouched)) {" in src
+    ), "handleSave must only materialize alert_facility for an enabled command that is new or touched."
+
+
+def test_stop_medication_alert_facility_no_seed_and_explicit_display() -> None:
+    """Stop medication (controlled RemovalRow): toggle reads `=== true` (OFF default), the
+    read-only line shows a value only when explicitly stored, and there is NO mount seed
+    fabricating a value."""
+    src = _static_source("soap-group.js")
+    assert "data.alert_facility === true ? ' on'" in src, (
+        "The stop_medication toggle must render ON only when `alert_facility === true` (default OFF)."
+    )
+    # The old mount seed that fabricated a value must be gone.
+    assert "alert_facility: false" not in src, (
+        "The stop_medication mount seed (writing `alert_facility: false`) must be removed so a "
+        "value-less card is never fabricated."
+    )
+    # Read-only line gates on an explicit boolean.
+    assert "data.alert_facility === true || data.alert_facility === false" in src
 
 
 @patch("canvas_sdk.v1.data.command.Command")
