@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'https://esm.s
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
 import { collectQuestionnaireScores } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-score.js';
+import { dropReason, isIntentionalDrop, isDismissedCondition } from '/plugin-io/api/hyperscribe/scribe/static/command-drop.js';
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
 import { useFieldDictation } from '/plugin-io/api/hyperscribe/scribe/static/dictation-hook.js';
 import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static/audit-log.js';
@@ -104,7 +105,7 @@ const _validationErrorMessage = (c, reason, context = 'approving') => {
   if (reason === 'imaging_incomplete') return `This imaging order is missing required fields (image code, service provider, ordering provider, or diagnosis codes). ${suffix}`;
   if (reason === 'lab_incomplete') return `This lab order is missing required fields (lab partner or tests). ${suffix}`;
   if (reason === 'perform_incomplete') return `This perform command is missing a CPT code. ${suffix}`;
-  if (reason === 'diagnose_uncoded') return `This diagnosis needs an ICD-10 code. Pick one (or reject it) before ${context}.`;
+  if (reason === 'diagnose_uncoded') return `This diagnosis needs an ICD-10 code. Pick one from the list (or dismiss the card with the ✕) before ${context}.`;
   return `This command has invalid values. ${suffix}`;
 };
 
@@ -144,6 +145,12 @@ function codedNoteDiagnoses(commands) {
   const diags = [];
   for (const c of commands || []) {
     if (c.command_type !== 'diagnose' && c.command_type !== 'assess') continue;
+    // KOALA-6555: a dismissed condition card keeps its ICD-10 code in `data`, but it is
+    // NOT going on the chart. Letting it into this set lets the approve-time linker cite
+    // a diagnosis that never gets inserted — and, via the uniqueness test in
+    // resolveReferralIndication, a dismissed near-duplicate can also make a genuine
+    // match look ambiguous and suppress a link that should have been made.
+    if (isDismissedCondition(c)) continue;
     const d = c.data || {};
     const code = (d.icd10_code || d.code || '').trim();
     if (!code) continue;
@@ -274,6 +281,12 @@ function VerificationSummary({ result }) {
 }
 
 const API_BASE = '/plugin-io/api/hyperscribe/scribe-session';
+
+// Note-application identifier of the Scribe tab (matches ScribeApp.IDENTIFIER).
+// NOTE_TAB_CHANGE messages carry the newly-active tab in `tab`; we hide the
+// chart-section command buttons while that tab is Scribe and restore them on a
+// switch to any other tab.
+const SCRIBE_TAB_IDENTIFIER = 'hyperscribe__scribe';
 
 // Section_key for commands the backend can't map to a Scribe section.
 // They render in the "FROM THE NOTE" catch-all block at the bottom of the
@@ -553,7 +566,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityCommands = new Set(), manualModeOnly = false, dictationEnabled = false, initialData = null }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityCommands = new Set(), manualModeOnly = false, dictationEnabled = false, captureDictationEnabled = false, initialData = null }) {
   const initSummary = initialData?.summary ?? null;
   const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
@@ -593,6 +606,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     }
     return cached;
   });
+  // Capture-mode toggle (KOALA-5513 spike): which live-audio transport backs
+  // the recording — 'conversation' (default; existing Nabla transcribe-ws,
+  // multi-speaker) or 'dictation' (Nabla dictate-ws, verbatim single-speaker
+  // monologue). This is intentionally named `captureMode`, NOT `mode` — the
+  // `mode` state above is the unrelated note-generation workflow mode
+  // ('ai'|'manual'|null). Not persisted across reload (spike scope); local
+  // component state only. Locked once the AI Scribe session starts (see
+  // `mode === 'ai'` gate at the top-bar render) since the transport can't
+  // change mid-session.
+  const [captureMode, setCaptureMode] = useState('conversation');
   const [transcriptCollapsed, setTranscriptCollapsed] = useState(false);
   // Auto-scroll the transcript body to the latest entry whenever live capture
   // is producing or refining content. We deliberately don't try to "respect"
@@ -676,9 +699,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [commands]);
 
   // --- Charge matrix view-models (derived from commands) ---
+  // `!c.data?.rejected` guards BOTH condition families explicitly. For diagnose the
+  // `accepted` test below already covers it (accepted is derived as coded && !rejected), but
+  // for assess the test is `accepted !== false` and assess data usually has no `accepted`
+  // field at all — so without this clause a dismissed existing-condition card would stay
+  // linkable to charges. This predicate is duplicated in linkableNoteDiagnoses and in
+  // onReorderDiagnoses' `isDx`; all three must stay identical or the size guard there bails.
   const chargeMatrixDiagnoses = useMemo(() => commands
     .filter(c => (c.command_type === 'diagnose' || c.command_type === 'assess')
-      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.data?.icd10_code || c.data?.code) && c._localId && !c.data?.rejected
       && (c.already_documented || c.command_uuid
           // diagnose: must be explicitly accepted (absent = unreviewed AI rec → hide)
           // assess:   absent accepted = manually added via old code → show; only hide on false
@@ -710,7 +739,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // data.icd10_code), which the referral linker must see.
   const linkableNoteDiagnoses = useMemo(() => commands
     .filter(c => (c.command_type === 'diagnose' || c.command_type === 'assess')
-      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.data?.icd10_code || c.data?.code) && c._localId && !c.data?.rejected
       && (c.already_documented || c.command_uuid
           || (c.command_type === 'assess' ? c.data?.accepted !== false : c.data?.accepted)))
     .map(c => ({
@@ -897,7 +926,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // nextUuids.length — otherwise the size guard always bails.
     const idOf = c => c._localId;
     const isDx = c => (c.command_type === 'diagnose' || c.command_type === 'assess')
-      && (c.data?.icd10_code || c.data?.code) && c._localId
+      && (c.data?.icd10_code || c.data?.code) && c._localId && !c.data?.rejected
       && (c.already_documented || c.command_uuid
           || (c.command_type === 'assess' ? c.data?.accepted !== false : c.data?.accepted));
     const dxBy = new Map(prev.filter(isDx).map(c => [idOf(c), c]));
@@ -924,8 +953,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   }, [wasFinalized, approved]);
   // --- End charge matrix ---
 
-  // Recording hook.
-  const recording = useRecording(noteId, initialData?.transcript);
+  // Recording hook. captureMode is fixed at whatever it was when AI Scribe
+  // started (see the `mode === 'ai'` lock in the top-bar render below) — the
+  // hook re-reads it on every render, but nothing changes it after that point.
+  const recording = useRecording(noteId, initialData?.transcript, { mode: captureMode });
 
   // Keep the transcript pinned to the latest entry as new ones stream in or
   // get refined (in-place partial updates, speaker-attribution flips, etc.).
@@ -1211,11 +1242,25 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const onCanvasMessage = (event) => {
       if (event.detail?.type === 'NOTE_TAB_CHANGE') {
         syncNoteCommands();
+        // Hide all chart-section command buttons while the Scribe tab is active;
+        // restore them when the user switches to the note body or any other tab.
+        // ScribeApp.handle() already hides on the initial tab open (including
+        // default-open, which emits no NOTE_TAB_CHANGE); this covers subsequent
+        // switches once every tab's iframe is mounted. Fire-and-forget: the
+        // effect is re-asserted on the next switch if it's missed.
+        if (noteId) {
+          const hidden = event.detail.tab === SCRIBE_TAB_IDENTIFIER;
+          fetch(`${API_BASE}/configure-command-buttons`, {
+            method: 'POST',
+            credentials: 'include',
+            body: JSON.stringify({ note_id: noteId, hidden }),
+          }).catch(() => {});
+        }
       }
     };
     window.addEventListener('canvas-message', onCanvasMessage);
     return () => window.removeEventListener('canvas-message', onCanvasMessage);
-  }, [syncNoteCommands]);
+  }, [syncNoteCommands, noteId]);
 
   // Pull the note's command rail once on mount so ADDITIONAL COMMANDS
   // populates without waiting for a tab switch. The cache-load effect below
@@ -1736,6 +1781,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             const label = siteLabels[newData.blood_pressure_position_and_site];
             if (label) vParts.push(`Site: ${label}`);
           }
+          if (newData.supplemental_oxygen != null) {
+            const supplementalOxygenLabels = {
+              'LA28684-1': 'Continuously depending on high oxygen flow',
+              'LA28685-8': 'Continuously depending on low oxygen flow',
+              'LA28686-6': 'Intermittent oxygen consumption',
+            };
+            const label = supplementalOxygenLabels[newData.supplemental_oxygen];
+            if (label) vParts.push(`Supplemental O2: ${label}`);
+          }
           if (newData.note) vParts.push(`Note: ${newData.note}`);
           next = { ...cmd, data: newData, display: vParts.join(', ') || 'Vitals' };
         } else if (type === 'medication_statement') {
@@ -1789,8 +1843,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           next = { ...cmd, command_type: type, data: newData, display: newData.condition_name || '' };
         } else if (type === 'diagnose') {
           const display = newData.icd10_display || newData.condition_header || cmd.display;
-          const accepted = newData.icd10_code ? (newData.accepted !== undefined ? newData.accepted : true) : false;
           const rejected = newData.rejected || false;
+          // `accepted` is now fully DERIVED: a coded, non-dismissed condition is accepted.
+          // There is no separate accept gesture — picking a code from the picker is the accept
+          // (which is all the old Accept button could ever have meant: it was permanently
+          // disabled while uncoded, so it was never clickable). The field is still written
+          // because the pre-insert filter, the diagnose→assess flip and the print filter all
+          // read it.
+          const accepted = !!newData.icd10_code && !rejected;
           next = { ...cmd, command_type: type, data: { ...newData, accepted, rejected }, display };
         } else if (type === 'assess') {
           next = { ...cmd, data: newData };
@@ -2660,6 +2720,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       // it. A coded diagnose that matched an active problem has already flipped to
       // `assess` upstream (which is exempt — it carries condition_id, not a code).
       if (c.command_type === 'diagnose' && !(c.data && c.data.icd10_code) && !(c.data && c.data.rejected)) return false;
+      // A dismissed existing-condition card must not reach the chart either. The assess ✕ now
+      // marks `data.rejected` (recoverable) instead of deleting the row, so unlike before there
+      // can be dismissed assess commands still present in `commands` at insert time.
+      if (c.command_type === 'assess' && c.data && c.data.rejected) return false;
       return true;
     });
     // Pre-existing finalized notes (signed before the explicit
@@ -2672,7 +2736,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (dropped.length > 0) {
       logEvent('COMMANDS_FILTERED', { dropped: dropped.map(c => ({
         type: c.command_type, display: (c.display || '').slice(0, 80), sectionKey: c.section_key,
-        reason: !c.display ? 'empty_display' : c.selected === false ? 'deselected' : 'validation',
+        reason: dropReason(c),
       })) });
     }
     // Batch B — re-link referrals to the provider's final diagnosis code before
@@ -2697,9 +2761,15 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // a saved command with smart punctuation in sig (OrderRow Save has no
     // ASCII screen) is dropped from `insertable` and the rest of the batch
     // POSTs successfully — modal closes, user has no idea the Rx was lost.
-    // Filter dropped commands to `validation` reasons (empty_display and
-    // deselected are intentional user choices, not silent failures).
-    const droppedForValidation = dropped.filter(c => c.display && c.selected !== false);
+    // Filter dropped commands to `validation` reasons. empty_display, deselected and
+    // dismissed are intentional user choices, not silent failures — see dropReason in
+    // command-drop.js, which the COMMANDS_FILTERED reason above shares so the two
+    // classifications cannot drift. KOALA-6555: they did drift. The assess ✕ started
+    // marking `data.rejected` (excluded from `insertable` at the gate above), which made
+    // a dismissed condition card look like a silent validation failure here and hard-
+    // blocked Approve forever — with a generic "invalid values" error naming a card the
+    // provider could not even see, since hideRejected defaults to true.
+    const droppedForValidation = dropped.filter(c => !isIntentionalDrop(c));
     const allValidationFailures = [
       ...droppedForValidation.map(c => ({ command: c, reason: _commandValidationReason(c) })),
       ...droppedRecs.map(c => ({ command: c, reason: getAcceptedRecFailureReason(c) })),
@@ -3025,6 +3095,33 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         //     console.error('Failed to sign note:', signErr);
         //   }
         // }
+        // RESTORE_BUTTONS_BEFORE_CLOSE_MODAL
+        // Restore the chart-section command buttons BEFORE closing the modal.
+        // CLOSE_MODAL does switch the note back to its body tab, which fires a
+        // NOTE_TAB_CHANGE with tab='note' — but we never receive it. home-app
+        // clears the app's frameData and switches the tab in the same commit
+        // (NoteApplicationIframe.onCloseMessage -> NoteTabsContext
+        // .onCloseApplication), and the iframe's ref cleanup nulls the
+        // MessageChannel port during the mutation phase, before the passive
+        // effect that broadcasts the tab change. sendMessage is a silent no-op
+        // by then, so the restore in the NOTE_TAB_CHANGE handler above never
+        // runs and the buttons stay hidden after "Confirm & Add to note" —
+        // recoverable only by a Scribe/Note tab round-trip or a reload.
+        // Awaited, not fire-and-forget: once CLOSE_MODAL lands this component
+        // is unmounted and an in-flight fetch would be cancelled.
+        if (noteId) {
+          try {
+            await fetch(`${API_BASE}/configure-command-buttons`, {
+              method: 'POST',
+              credentials: 'include',
+              body: JSON.stringify({ note_id: noteId, hidden: false }),
+            });
+          } catch (restoreErr) {
+            // Never block the close on this; the sign and tab-switch paths
+            // both re-assert visibility.
+            console.error('Failed to restore command buttons:', restoreErr);
+          }
+        }
         const port = window.__canvasPort && window.__canvasPort();
         if (port) port.postMessage({ type: 'CLOSE_MODAL' });
       }
@@ -3169,6 +3266,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     .filter(entry => entry.command.section_key === FROM_THE_NOTE_SECTION);
 
   const insertableCount = commands.filter(c => {
+    // KOALA-6555: a dismissed condition card is not inserted, so it must not be counted
+    // in the "Inserting N commands into note..." label. The diagnose arm already covers
+    // this implicitly (`accepted` is derived as coded && !rejected); assess needs it said.
+    if (isDismissedCondition(c)) return false;
     if (c.command_type === 'diagnose') return c.data?.icd10_code && c.data?.accepted && c.display;
     return !c.already_documented && c.display;
   }).length
@@ -3229,22 +3330,26 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       (c.command_type === 'refer' && _isReferIncomplete(c.data))
     )
   ).length;
-  const UNDECIDED_LABELS = { diagnose: 'diagnosis', medication_statement: 'medication', allergy: 'allergy', prescribe: 'prescription', refill: 'prescription', adjust_prescription: 'prescription', refer: 'referral' };
+  const UNDECIDED_LABELS = { medication_statement: 'medication', allergy: 'allergy', prescribe: 'prescription', refill: 'prescription', adjust_prescription: 'prescription', refer: 'referral' };
+  // "Undecided" now covers only the recommendation families that still have Accept/Reject.
+  // Condition cards have no accept/reject to be undecided about — their equivalent gate is
+  // "has a code been picked?", counted separately as uncodedConditionCount below.
   const undecidedTypes = [];
-  for (const c of commands) {
-    if (!c.already_documented && c.display && c.command_type === 'diagnose' && !c.data.accepted && !c.data.rejected) {
-      if (!undecidedTypes.includes(c.command_type)) undecidedTypes.push(c.command_type);
-    }
-  }
   for (const c of recommendations) {
     if (!c.already_documented && c.display && !c.accepted && !c.rejected) {
       if (!undecidedTypes.includes(c.command_type)) undecidedTypes.push(c.command_type);
     }
   }
-  const undecidedRecommendationCount = commands.filter(c =>
-    !c.already_documented && c.display && c.command_type === 'diagnose' && !c.data.accepted && !c.data.rejected
-  ).length + recommendations.filter(c =>
+  const undecidedRecommendationCount = recommendations.filter(c =>
     !c.already_documented && c.display && !c.accepted && !c.rejected
+  ).length;
+  // Condition gate: a surfaced condition must either carry an ICD-10 code or be dismissed
+  // before the note can be signed. This REPLACES the old "not accepted nor rejected" count for
+  // diagnose cards — it must not simply be dropped, because the uncoded filter in handleInsert
+  // only removes such a card from `insertable`, which without a gate would be silent data loss.
+  const uncodedConditionCount = commands.filter(c =>
+    !c.already_documented && c.display && c.command_type === 'diagnose'
+    && !(c.data && c.data.icd10_code) && !(c.data && c.data.rejected)
   ).length;
   const hasUnsavedEdits = editingFields.size > 0;
 
@@ -3305,6 +3410,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     const serverStep = Math.max(progress.step, 0);
     progressIndex = serverStep + 1; // +1 because finalize occupies index 0
     progressLabel = PROGRESS_STEPS[serverStep] || PROGRESS_STEPS[0];
+  } else if (isFinalizing && recording.catchUpSeconds > 0) {
+    // A connectivity drop left buffered audio still catching up. Tell the user
+    // why finalizing is taking longer instead of leaving them guessing.
+    progressLabel = `${FINALIZE_LABEL} (catching up — ~${recording.catchUpSeconds}s of audio left)`;
   }
   const progressPct = Math.max(((progressIndex + 1) / TOTAL_PROGRESS_STEPS) * 100, 5);
 
@@ -3361,6 +3470,22 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </select>
           `}
           ${showTopControls && html`
+            ${captureDictationEnabled && !manualModeOnly && html`
+              <div class="refer-priority" style="max-width: 220px;" role="group" aria-label="Capture mode">
+                <button
+                  type="button"
+                  class="refer-pill${captureMode === 'conversation' ? ' active' : ''}"
+                  onClick=${() => setCaptureMode('conversation')}
+                  title="Multi-speaker conversation, transcribed live"
+                >Conversation</button>
+                <button
+                  type="button"
+                  class="refer-pill${captureMode === 'dictation' ? ' active' : ''}"
+                  onClick=${() => setCaptureMode('dictation')}
+                  title="Single-speaker dictated monologue"
+                >Dictation</button>
+              </div>
+            `}
             ${!manualModeOnly && html`
               <button class="start-ai-btn" onClick=${handleStartAI} disabled=${!canEdit || !selectedTemplate}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" /></svg>
@@ -3370,6 +3495,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             <button class="start-manual-btn" onClick=${handleStartManual} disabled=${!canEdit || !selectedTemplate}>
               Manual
             </button>
+          `}
+          ${mode === 'ai' && captureDictationEnabled && html`
+            <span class="capture-mode-locked" style="font-size: 12px; font-weight: 600; color: #6b7280; white-space: nowrap;" title="Capture transport is locked for this session">
+              Capture: ${captureMode === 'dictation' ? 'Dictation' : 'Conversation'}
+            </span>
           `}
           ${isRecording && html`
             <div class="recording-controls-inline">
@@ -3381,13 +3511,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                     </svg>
                     Pause
                   </button>`
-                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume" disabled=${!canEdit}>
+                : html`<button class="control-btn" onClick=${recording.resumeRecording} title="Resume" disabled=${!canEdit || recording.awaitingTranscription}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="6,4 20,12 6,20" />
                     </svg>
                     Resume
                   </button>`}
-              <${FinishRecordingButton} onFinish=${recording.finishRecording} disabled=${!canEdit} />
+              <${FinishRecordingButton} onFinish=${recording.finishRecording} disabled=${!canEdit || recording.awaitingTranscription} />
             </div>
           `}
           ${false && debugMode && noteData && !approved && !generating && !isRecording && html`
@@ -3395,9 +3525,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               Regenerate${!selectedTemplate ? ' (select visit type)' : ''}
             </button>
           `}
-          ${recommendations.length > 0 && html`
+          ${/* This toggle is the ONLY way back to a dismissed condition card, so its render
+               gate has to account for condition cards too. It used to be
+               `recommendations.length > 0`, and that array holds only the
+               medication/allergy/Rx/referral/task families — condition cards live in
+               `commands`. With hideRejected defaulting to true, a note whose only
+               recommendations were conditions showed no toggle at all, so a dismissed
+               condition was invisible with no route back. That was survivable while the card
+               carried its own Accept button to restore it; it no longer does. */ ''}
+          ${(recommendations.length > 0 || commands.some(c => (c.command_type === 'diagnose' || c.command_type === 'assess') && c.data && c.data.rejected)) && html`
             <label class="hide-rejected-label hide-rejected-label--top-bar" onClick=${canEdit ? () => setHideRejected(prev => !prev) : undefined}>
-              Hide Rejected Recommendations
+              Hide Dismissed Recommendations
               <div class="toggle-switch${hideRejected ? ' on' : ''}">
                 <div class="toggle-knob" />
               </div>
@@ -3471,7 +3609,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           </div>
         </div>
       `}
-      ${recording.connectionLost && recording.status === 'recording' && html`
+      ${recording.connectionLost && ['recording', 'paused', 'finishing'].includes(recording.status) && html`
         <div class="connection-lost-warning">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
             <path d="M24 8.98C20.93 5.9 16.69 4 12 4S3.07 5.9 0 8.98L12 21 24 8.98zM2.92 9.07C5.51 7.08 8.67 6 12 6s6.49 1.08 9.08 3.07l-1.43 1.43C17.5 8.94 14.86 8 12 8s-5.5.94-7.65 2.51L2.92 9.07zM12 18l-6.22-6.22C7.84 10.14 9.82 9.25 12 9.25s4.16.89 6.22 2.53L12 18z"/>
@@ -3488,11 +3626,37 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           No audio detected — check your microphone permissions and make sure it is not muted
         </div>
       `}
+      ${recording.finishTruncated && html`
+        <div class="silence-warning">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          Connection was lost while finalizing — the end of this recording may be missing from the transcript. Review before charting.
+        </div>
+      `}
       ${recording.error && html`<p class="error" style="padding: 0 16px;">${recording.error}</p>`}
       ${showProgressBanner && html`
         <div class="summary-generating-banner">
           <div class="generating-bar" style="width: ${progressPct}%" />
           <span class="generating-label">${progressLabel}...</span>
+          ${recording.awaitingTranscription && recording.catchUpSeconds > 0 && html`
+            <button class="summary-status-pill-btn" onClick=${() => recording.finalizeWithGap()}>
+              Finalize now (skip remaining audio)
+            </button>
+          `}
+        </div>
+      `}
+      ${recording.status === 'paused' && recording.awaitingTranscription && recording.catchUpSeconds > 0 && html`
+        <div class="summary-generating-banner">
+          <span class="generating-label">Still processing ~${recording.catchUpSeconds}s of audio before pausing…</span>
+          <button class="summary-status-pill-btn" onClick=${() => recording.finalizeWithGap()}>
+            Pause now (discard ~${recording.catchUpSeconds}s)
+          </button>
+        </div>
+      `}
+      ${recording.status === 'recording' && recording.showLiveCatchUp && html`
+        <div class="readonly-banner" role="status" aria-live="polite">
+          <span>Still processing ~${recording.catchUpSeconds}s of audio — don't pause or stop yet.</span>
         </div>
       `}
       ${authorEditable && !noteData && !generating && recording.finalized && mode === 'ai' && html`
@@ -3661,6 +3825,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${undecidedRecommendationCount} ${undecidedRecommendationCount === 1 ? 'recommendation needs' : 'recommendations need'} a decision, ${undecidedRecommendationCount === 1 ? 'it has' : 'they have'} not been accepted nor rejected: ${undecidedTypes.map(t => UNDECIDED_LABELS[t] || t).join(', ')}
                 </div>
               `}
+              ${uncodedConditionCount > 0 && html`
+                <div class="summary-footer-warning">
+                  ${uncodedConditionCount} ${uncodedConditionCount === 1 ? 'condition still needs' : 'conditions still need'} a diagnosis code — pick one from the list, or dismiss the card with the ✕.
+                </div>
+              `}
               ${hasUnsavedEdits && html`
                 <div class="summary-footer-warning">
                   ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
@@ -3672,7 +3841,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               ${(chargeErrors && chargeErrors.length)
                 ? html`<div class="summary-footer-warning cm-sign-error">Some charges could not be saved (${chargeErrors.length}). Please review the charges and try again.</div>`
                 : null}
-              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || hasUnsavedEdits || !canEdit} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
+              <button class="insert-btn" disabled=${undecidedRecommendationCount > 0 || uncodedConditionCount > 0 || hasUnsavedEdits || !canEdit} onClick=${() => setConfirming(true)}>${wasFinalized ? (hasRxCommands ? 'Save changes and review prescriptions' : 'Save changes') : (hasRxCommands ? 'Accept and review prescriptions' : 'Accept and sign')}</button>
               ${!wasFinalized && html`<div class="approve-warning">This action is permanent and cannot be undone.</div>`}
             </div>
           `}

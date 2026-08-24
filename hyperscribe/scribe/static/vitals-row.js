@@ -41,6 +41,21 @@ function bpSiteLabel(value) {
 
 export { bpSiteLabel };
 
+// LOINC LL4908-1 answers for "Use of supplemental oxygen" (88658-0). Values are the LOINC
+// answer codes, matching the canvas_core / canvas_sdk SupplementalOxygen enum values.
+const SUPPLEMENTAL_OXYGEN_OPTIONS = [
+  { value: 'LA28684-1', label: 'Continuously depending on high oxygen flow' },
+  { value: 'LA28685-8', label: 'Continuously depending on low oxygen flow' },
+  { value: 'LA28686-6', label: 'Intermittent oxygen consumption' },
+];
+
+function supplementalOxygenLabel(value) {
+  const opt = SUPPLEMENTAL_OXYGEN_OPTIONS.find(o => o.value === value);
+  return opt ? opt.label : '';
+}
+
+export { supplementalOxygenLabel };
+
 function formatVitalsDisplay(data) {
   const parts = [];
   VITALS_FIELDS.forEach(f => {
@@ -58,6 +73,10 @@ function formatVitalsDisplay(data) {
   if (data.blood_pressure_position_and_site != null) {
     const label = bpSiteLabel(data.blood_pressure_position_and_site);
     if (label) parts.push(`Site: ${label}`);
+  }
+  if (data.supplemental_oxygen != null) {
+    const label = supplementalOxygenLabel(data.supplemental_oxygen);
+    if (label) parts.push(`Supplemental O2: ${label}`);
   }
   if (data.note) parts.push(`Note: ${data.note}`);
   return parts.join(', ');
@@ -89,6 +108,7 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
   const [draft, setDraft] = useState({ ...command.data });
   const [tempRaw, setTempRaw] = useState(command.data.body_temperature != null ? String(command.data.body_temperature) : '');
   const [bpSite, setBpSite] = useState(command.data.blood_pressure_position_and_site != null ? String(command.data.blood_pressure_position_and_site) : '');
+  const [supplementalOxygen, setSupplementalOxygen] = useState(command.data.supplemental_oxygen || '');
   const [note, setNote] = useState(command.data.note || '');
   const [errors, setErrors] = useState({});
 
@@ -138,8 +158,10 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
     }
 
     delete data.blood_pressure_position_and_site;
+    delete data.supplemental_oxygen;
     delete data.note;
     if (bpSite !== '') data.blood_pressure_position_and_site = parseInt(bpSite, 10);
+    if (supplementalOxygen !== '') data.supplemental_oxygen = supplementalOxygen;
     if (note.trim()) data.note = note.trim();
     onEdit(commandIndex, data);
     setEditing(false);
@@ -150,6 +172,7 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
     setErrors({});
     setTempRaw(command.data.body_temperature != null ? String(command.data.body_temperature) : '');
     setBpSite(command.data.blood_pressure_position_and_site != null ? String(command.data.blood_pressure_position_and_site) : '');
+    setSupplementalOxygen(command.data.supplemental_oxygen || '');
     setNote(command.data.note || '');
     setEditing(false);
   };
@@ -240,6 +263,15 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
             </select>
           </div>
           <div class="history-form-field">
+            <label class="history-form-label">Supplemental Oxygen</label>
+            <select class="history-form-input" value=${supplementalOxygen} onChange=${(e) => setSupplementalOxygen(e.target.value)}>
+              <option value="">None</option>
+              ${SUPPLEMENTAL_OXYGEN_OPTIONS.map(o => html`
+                <option key=${o.value} value=${o.value}>${o.label}</option>
+              `)}
+            </select>
+          </div>
+          <div class="history-form-field">
             <label class="history-form-label">Comment</label>
             <input
               type="text"
@@ -287,6 +319,10 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
   if (command.data.blood_pressure_position_and_site != null) {
     const label = bpSiteLabel(command.data.blood_pressure_position_and_site);
     if (label) items.push(html`<span class="vitals-item" key="bp_site"><strong>Site</strong> ${label}</span>`);
+  }
+  if (command.data.supplemental_oxygen != null) {
+    const label = supplementalOxygenLabel(command.data.supplemental_oxygen);
+    if (label) items.push(html`<span class="vitals-item" key="supplemental_oxygen"><strong>Supplemental O2</strong> ${label}</span>`);
   }
   if (command.data.note) {
     items.push(html`<span class="vitals-item" key="note"><strong>Note</strong> ${command.data.note}</span>`);

@@ -13,6 +13,7 @@ from logger import log
 
 from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
+from canvas_sdk.effects.configure_command_buttons import ConfigureCommandButtons
 from canvas_sdk.effects.note.note import Note as NoteEffect
 from canvas_sdk.effects.simple_api import Broadcast, JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
@@ -39,12 +40,14 @@ from canvas_sdk.v1.data.patient import Patient
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
+from hyperscribe.scribe.command_buttons import configure_command_buttons_effect
 
 import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
 from hyperscribe.scribe.clients.nabla.backend import NablaBackend
 from hyperscribe.scribe.backend import (
     ClinicalNote,
     CodingEntry,
+    CommandProposal,
     Condition,
     NoteSection,
     Observation,
@@ -89,6 +92,7 @@ from hyperscribe.scribe.commands.problem_list_match import (
 )
 from hyperscribe.scribe.recommendations import make_llm_client, prescription_dispense_enabled, recommend_commands
 from hyperscribe.scribe.recommendations._referral_diagnosis import link_referral_diagnoses
+from hyperscribe.scribe.recommendations._transcript_windows import PRN_PATTERN, find_keyword_matches
 from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
     BlockContext as DiagnosisBlockContext,
     resolve_uncoded_blocks,
@@ -1206,6 +1210,37 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         _save_summary(note_id, payload)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
+    @api.post("/configure-command-buttons")
+    def post_configure_command_buttons(self) -> list[Union[Response, Effect]]:
+        """Hide or restore all chart-section command buttons for the note's patient.
+
+        Called by the Scribe frontend on note-tab changes: hide while the Scribe
+        tab is active, restore when the user navigates to any other tab. The
+        effect is sticky and patient-scoped, so restores are explicit (here and on
+        NOTE_CLOSED). Authorization is read-level: any staff who can load the chart
+        (author, scribe, covering provider) may toggle their own button visibility.
+        """
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_id = str(data.get("note_id", ""))
+        if not note_id:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_read(note_id, self.request):
+            return [denial]
+        try:
+            patient_id = Note.objects.values_list("patient__id", flat=True).get(id=note_id)
+        except Note.DoesNotExist:
+            return [JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)]
+
+        hidden = bool(data.get("hidden", False))
+        visibility = ConfigureCommandButtons.Visibility.HIDDEN if hidden else ConfigureCommandButtons.Visibility.VISIBLE
+        return [
+            JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK),
+            configure_command_buttons_effect(patient_id, visibility),
+        ]
+
     @api.get("/summary-progress")
     def get_summary_progress(self) -> list[Union[Response, Effect]]:
         """Return current progress of the generate-summary pipeline."""
@@ -1360,6 +1395,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 "selected": p.selected,
                 "section_key": p.section_key,
                 "already_documented": p.already_documented,
+                "from_transcript": p.from_transcript,
             }
             for p in proposals
         ]
@@ -1420,6 +1456,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         # ── Step 3: Recommend commands ──
         _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
         recommendations_list: list[dict[str, Any]] = []
+        rec_proposals: list[CommandProposal] = []
         api_key = self.secrets.get("AnthropicAPIKey", "")
         if api_key:
             try:
@@ -1449,11 +1486,35 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                         "selected": p.selected,
                         "section_key": p.section_key,
                         "already_documented": p.already_documented,
+                        "from_transcript": p.from_transcript,
                     }
                     for p in rec_proposals
                 ]
             except Exception:
                 log.exception("recommend_commands failed (non-critical)")
+
+        # KOALA-6644: the defect was invisible — a dropped PRN produced no error, no log
+        # line and no audit row, so the only signal was absence. Record how many as-needed
+        # mentions the transcript carried against how many medications were actually
+        # recovered from it. Mentions with zero recoveries is the remaining-silent-drop
+        # case, and is what a later remediation sweep can select on.
+        #
+        # Deliberately outside the try above: that block swallows the entire recommendation
+        # stage as "non-critical", so emitting inside it would lose the telemetry in exactly
+        # the runs where a medication went missing. Emitted only when the transcript
+        # mentioned as-needed dosing at all, so the audit log stays signal-dense (mirrors
+        # VITALS_FIELD_REFUSED). Counts only — no drug names, no sigs, no transcript text.
+        if note_uuid and transcript:
+            prn_mentions = len(find_keyword_matches(transcript, PRN_PATTERN))
+            if prn_mentions:
+                audit_event(
+                    note_uuid,
+                    "MEDS_PRN_TRANSCRIPT",
+                    {
+                        "prn_mentions": prn_mentions,
+                        "recovered_from_transcript": sum(1 for p in rec_proposals if p.from_transcript),
+                    },
+                )
 
         # ── Step 3b: Check medication interactions ──
         interaction_warnings: list[dict[str, Any]] = []
@@ -1703,6 +1764,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                             "selected": p.selected,
                             "section_key": p.section_key,
                             "already_documented": p.already_documented,
+                            "from_transcript": p.from_transcript,
                         }
                         for p in proposals
                     ],
@@ -1731,9 +1793,26 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         zip_codes = resolve_zip_codes(patient_id, rec_note_id) or None
         allowlist = self.secrets.get(Constants.SECRET_SCRIBE_PRESCRIPTION_STAFFERS, "")
         dispense_engine_enabled = prescription_dispense_enabled(allowlist, _note_provider_id(rec_note_id))
+        # The medication recommenders fall back to the transcript when the generated note has
+        # dropped a PRN, so this endpoint must supply it too — otherwise re-running
+        # recommendations standalone silently reintroduces KOALA-6644.
+        transcript_data = data.get("transcript", {})
+        if not transcript_data.get("items") and rec_note_id:
+            try:
+                transcript_data = _load_transcript(rec_note_id)
+            except Exception:
+                # Recovering PRNs is an enhancement over the note-only path; never let a
+                # missing or unreadable transcript fail the whole endpoint.
+                log.exception("Could not load transcript for recommendations; falling back to note only")
+                transcript_data = {}
+        transcript = _parse_transcript(transcript_data) if transcript_data.get("items") else None
         try:
             proposals = recommend_commands(
-                note, api_key, zip_codes=zip_codes, dispense_engine_enabled=dispense_engine_enabled
+                note,
+                api_key,
+                zip_codes=zip_codes,
+                transcript=transcript,
+                dispense_engine_enabled=dispense_engine_enabled,
             )
         except Exception:
             log.exception("recommend_commands failed")
@@ -1757,6 +1836,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                             "selected": p.selected,
                             "section_key": p.section_key,
                             "already_documented": p.already_documented,
+                            "from_transcript": p.from_transcript,
                         }
                         for p in proposals
                     ],

@@ -864,6 +864,146 @@ def test_save_summary_does_not_set_was_finalized_when_unapproved(mock_summary: M
     assert "was_finalized" not in kwargs["defaults"]
 
 
+# --- /configure-command-buttons ---
+
+
+def _configure_buttons_locations(result: Any) -> list[dict[str, str]]:
+    """Pull the locations list off the ConfigureCommandButtons effect in a result."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    effect = result[1]
+    payload = json.loads(effect.payload)
+    assert effect.type == ConfigureCommandButtons.Meta.effect_type
+    return payload["data"]["locations"]
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_hidden(mock_note: MagicMock) -> None:
+    """hidden=True hides every command-button location for the note's patient."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-1"
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "note-uuid-1", "hidden": True}),
+    )
+    result = view.post_configure_command_buttons()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content) == {"status": "ok"}
+    mock_note.objects.values_list.assert_called_once_with("patient__id", flat=True)
+    mock_note.objects.values_list.return_value.get.assert_called_once_with(id="note-uuid-1")
+
+    locations = _configure_buttons_locations(result)
+    # One config per Location, all hidden, no duplicates.
+    assert len(locations) == len(list(ConfigureCommandButtons.Location))
+    assert {loc["location"] for loc in locations} == {loc.value for loc in ConfigureCommandButtons.Location}
+    assert all(loc["visibility"] == ConfigureCommandButtons.Visibility.HIDDEN for loc in locations)
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_restore(mock_note: MagicMock) -> None:
+    """hidden=False (and the default) restores every location to visible."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-2"
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "note-uuid-2", "hidden": False}),
+    )
+    result = view.post_configure_command_buttons()
+
+    assert result[0].status_code == HTTPStatus.OK
+    locations = _configure_buttons_locations(result)
+    assert all(loc["visibility"] == ConfigureCommandButtons.Visibility.VISIBLE for loc in locations)
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_defaults_to_visible(mock_note: MagicMock) -> None:
+    """Omitting `hidden` is treated as a restore (visible)."""
+    from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
+
+    mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-3"
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "note-uuid-3"}),
+    )
+    result = view.post_configure_command_buttons()
+
+    locations = _configure_buttons_locations(result)
+    assert all(loc["visibility"] == ConfigureCommandButtons.Visibility.VISIBLE for loc in locations)
+
+
+def test_configure_command_buttons_missing_note_id() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(headers={}, body=json.dumps({"hidden": True}))
+    result = view.post_configure_command_buttons()
+
+    assert len(result) == 1
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "note_id" in json.loads(result[0].content)["error"]
+
+
+def test_configure_command_buttons_invalid_json() -> None:
+    view = _helper_instance()
+    view.request = SimpleNamespace(headers={}, body="not-json")
+    result = view.post_configure_command_buttons()
+
+    assert len(result) == 1
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in json.loads(result[0].content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_note_not_found(mock_note: MagicMock) -> None:
+    from canvas_sdk.v1.data.note import Note as RealNote
+
+    mock_note.objects.values_list.return_value.get.side_effect = RealNote.DoesNotExist
+    mock_note.DoesNotExist = RealNote.DoesNotExist
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "missing", "hidden": True}),
+    )
+    result = view.post_configure_command_buttons()
+
+    assert len(result) == 1
+    assert result[0].status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.no_authorize_bypass
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_uses_authorize_read(mock_note: MagicMock) -> None:
+    """A denial from _authorize_read short-circuits before applying any effect,
+    and the endpoint uses read-level (not edit-level) auth so non-author staff
+    viewing the chart can still toggle their own button visibility."""
+    from hyperscribe.scribe.api import session_view
+
+    denial = JSONResponse({"error": "denied"}, status_code=HTTPStatus.FORBIDDEN)
+    with (
+        patch.object(session_view, "_authorize_read", return_value=denial) as read_auth,
+        patch.object(session_view, "_authorize_edit") as edit_auth,
+    ):
+        view = _helper_instance()
+        view.request = SimpleNamespace(
+            headers={"canvas-logged-in-user-id": "staff-1"},
+            body=json.dumps({"note_id": "note-uuid", "hidden": True}),
+        )
+        result = view.post_configure_command_buttons()
+
+    assert result == [denial]
+    read_auth.assert_called_once()
+    edit_auth.assert_not_called()
+    mock_note.objects.values_list.assert_not_called()
+
+
 # --- /generate-note ---
 
 
@@ -1501,6 +1641,65 @@ def test_summary_js_cache_flip_to_approved_true_is_unconditional_on_success() ->
     )
 
 
+def test_summary_js_restores_command_buttons_before_close_modal() -> None:
+    """KOALA-5808: the approve path must restore the chart-section command
+    buttons BEFORE it posts CLOSE_MODAL, because the CLOSE_MODAL tab change
+    never reaches this iframe.
+
+    Why the NOTE_TAB_CHANGE handler doesn't cover it: CLOSE_MODAL does switch
+    the note back to its body tab (NoteTabsContext.onCloseApplication ->
+    setActiveIndex(applications.length)), which fires a NOTE_TAB_CHANGE with
+    tab='note'. But home-app clears the app's frameData in the same commit
+    (NoteApplicationIframe.onCloseMessage), and the iframe ref cleanup nulls
+    the MessageChannel port (useMessageChannelBroker) during the mutation
+    phase - before the passive effect that broadcasts the tab change. The
+    broadcast is a silent no-op, so without an explicit restore here the
+    buttons stay hidden after "Confirm & Add to note", recoverable only by a
+    Scribe/Note tab round-trip or a page reload.
+
+    Structural-static pin, matching the other summary.js pins in this module
+    (no JS test framework for this file). Two assertions:
+      1. The RESTORE_BUTTONS_BEFORE_CLOSE_MODAL marker is present.
+      2. A POST to /configure-command-buttons carrying ``hidden: false``
+         appears BEFORE the ``CLOSE_MODAL`` postMessage. Ordering is the whole
+         point - after the close, this component is unmounted.
+
+    Caveat: structural, not behavioral. It does not execute the React code and
+    cannot prove the fetch is awaited or that the response is honoured.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) Marker comment - intent / trace breadcrumb.
+    assert "RESTORE_BUTTONS_BEFORE_CLOSE_MODAL" in src, (
+        "summary.js is missing the RESTORE_BUTTONS_BEFORE_CLOSE_MODAL marker. "
+        "Without an explicit restore before CLOSE_MODAL, the chart-section "
+        "command buttons stay hidden after the provider approves the summary - "
+        "the CLOSE_MODAL tab change cannot reach this iframe because its "
+        "MessageChannel port is already closed. Re-add the "
+        "POST /configure-command-buttons {hidden: false} ahead of the "
+        "CLOSE_MODAL postMessage and mark it with this comment."
+    )
+
+    # (2) Structural: the restore POST must precede the CLOSE_MODAL postMessage.
+    close_modal_idx = src.find("type: 'CLOSE_MODAL'")
+    assert close_modal_idx != -1, (
+        "Expected a `type: 'CLOSE_MODAL'` postMessage in summary.js. If the "
+        "approve flow no longer closes the modal, this pin needs updating."
+    )
+
+    restore_pattern = re.compile(r"configure-command-buttons(?:.|\n){0,400}?hidden:\s*false")
+    restore_match = restore_pattern.search(src[:close_modal_idx])
+    assert restore_match, (
+        "No `POST /configure-command-buttons` with `hidden: false` found BEFORE "
+        "the CLOSE_MODAL postMessage in summary.js. Ordering matters: once "
+        "CLOSE_MODAL lands, home-app unmounts this iframe and closes its port, "
+        "so a restore issued after it is dropped and the buttons stay hidden."
+    )
+
+
 def test_summary_js_stamps_accepted_recommendations_after_insert_commands() -> None:
     """KOALA-5634 ADDITIONAL COMMANDS duplicate regression (recommendations leg).
 
@@ -1871,6 +2070,82 @@ def test_summary_js_diagnose_to_assess_upstream_flip() -> None:
         "solely on the 80-char-truncated display + command_type and can "
         "stamp an unrelated assess row's uuid onto a diagnose row that "
         "shares the truncated display."
+    )
+
+
+def test_summary_js_dismissed_condition_is_not_a_validation_failure() -> None:
+    """KOALA-6555: dismissing a duplicate condition card made the note permanently
+    unsignable.
+
+    ``fd595251`` gave condition cards a ✕ that marks ``data.rejected`` instead of
+    deleting the row, and added a matching gate to the ``insertable`` filter so a
+    dismissed card never reaches the chart. Correct so far. But that created a THIRD
+    kind of intentional drop, and the two consumers that interpret ``dropped`` were
+    not taught about it:
+
+      * the ``COMMANDS_FILTERED`` audit reason, and
+      * ``droppedForValidation``, which halts Approve.
+
+    So a dismissed assess classified as a silent validation failure. Approve hard-
+    blocked with the generic "This command has invalid values", naming a card the
+    provider could not see (``hideRejected`` defaults to true) — and because
+    ``NoteLockGuard`` gates the ``LKD`` transition on ``ScribeSummary.approved``, the
+    note could never be signed. 11 notes across 5 providers on brigade.
+
+    The durable fix is that both consumers now read one shared pure classifier,
+    ``dropReason`` in ``command-drop.js``, so a new drop reason cannot be added to one
+    site without the other. The behavioral cases live in
+    ``tests/static/command-drop.test.mjs`` (real unit tests — ``command-drop.js`` has
+    zero imports and is node-importable, which ``summary.js`` is not).
+
+    This is the structural half, matching the other summary.js pins in this module.
+    Three assertions:
+      1. ``summary.js`` imports the shared classifier.
+      2. ``droppedForValidation`` delegates to it rather than hand-rolling the
+         predicate — the hand-rolled copy IS the bug.
+      3. The ``COMMANDS_FILTERED`` reason delegates to it too, so the audit signal
+         and the halt decision cannot disagree again. (The old inline ternary
+         reporting ``'validation'`` for a dismissed card is what made this P0 hard
+         to triage in the first place.)
+
+    Caveat: structural, not behavioral. It does not execute the React code.
+    """
+    from pathlib import Path
+
+    summary_js = Path(__file__).resolve().parents[4] / "hyperscribe" / "scribe" / "static" / "summary.js"
+    src = summary_js.read_text()
+
+    # (1) The shared classifier must be imported.
+    assert "command-drop.js" in src, (
+        "summary.js no longer imports command-drop.js. The drop classification must "
+        "stay in one shared module: KOALA-6555 happened because the 'is this drop "
+        "intentional?' rule was hand-written in two places that drifted apart when "
+        "the condition-card ✕ started marking data.rejected."
+    )
+
+    # (2) droppedForValidation must delegate, not re-implement.
+    dfv_pattern = re.compile(r"droppedForValidation\s*=\s*dropped\.filter\(\s*c\s*=>\s*!isIntentionalDrop\(c\)\s*\)")
+    assert dfv_pattern.search(src) is not None, (
+        "`droppedForValidation` is not delegating to `isIntentionalDrop` from "
+        "command-drop.js. Re-implementing the predicate inline is exactly what "
+        "caused KOALA-6555: the inline version tested only `c.display && "
+        "c.selected !== false`, so a dismissed condition card (display set, "
+        "`selected` true-or-absent, `data.rejected` true) counted as a silent "
+        "validation failure and permanently blocked Approve."
+    )
+
+    # (3) The audit reason must come from the same classifier.
+    assert "reason: dropReason(c)" in src, (
+        "The COMMANDS_FILTERED audit no longer reports `dropReason(c)`. Keep the "
+        "audit reason and the Approve-halt decision on the same classifier — a "
+        "dismissed condition logged as reason 'validation' is the misleading signal "
+        "that made KOALA-6555 hard to triage (106 bogus assess/validation events "
+        "across 11 notes)."
+    )
+    assert "'deselected' : 'validation'" not in src, (
+        "Found the pre-KOALA-6555 inline drop-reason ternary in summary.js. It "
+        "predates the `dismissed` reason and mislabels every dismissed condition "
+        "card as a validation failure; use `dropReason(c)` from command-drop.js."
     )
 
 
@@ -6891,3 +7166,172 @@ def test_summary_js_verify_count_excludes_from_note_commands() -> None:
     assert "c.section_key === FROM_THE_NOTE_SECTION" in src, (
         "isFromNoteCommand must recognize the from_the_note section key."
     )
+
+
+# --- /generate-summary MEDS_PRN_TRANSCRIPT telemetry (KOALA-6644) -------------------
+#
+# The PRN drop was completely invisible: no error, no log line, no audit row. These pin
+# the counter that makes it observable, and keep it silent on the happy path.
+
+
+def _prn_summary_view(mock_note: MagicMock, mock_transcript: MagicMock, mock_get_cache: MagicMock, text: str) -> Any:
+    """Wire /generate-summary with a one-item transcript containing ``text``."""
+    mock_get_cache.return_value = _mock_cache()
+    mock_note.objects.values_list.return_value.get.return_value = 91
+    mock_transcript.objects.filter.return_value.values.return_value.first.return_value = {
+        "items": [{"text": text, "speaker": "doctor", "start_offset_ms": 0, "end_offset_ms": 5000}],
+        "finalized": True,
+    }
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note_id": "91", "note_uuid": "91"}))
+    return view
+
+
+def _plain_backend() -> MagicMock:
+    """A backend returning a note with no vitals and no normalized data."""
+    backend = MagicMock()
+    backend.generate_note.return_value = ClinicalNote(
+        title="Note", sections=[NoteSection(key="plan", title="Plan", text="continue")]
+    )
+    backend.generate_normalized_data.return_value = NormalizedData(conditions=[], observations=[])
+    return backend
+
+
+def _prn_audit_payloads(mock_audit: MagicMock) -> list[dict[str, Any]]:
+    """Extract MEDS_PRN_TRANSCRIPT payloads from the audit_event mock."""
+    calls = [(c.args[1], c.args[2] if len(c.args) > 2 else {}) for c in mock_audit.call_args_list]
+    return [payload for event_type, payload in calls if event_type == "MEDS_PRN_TRANSCRIPT"]
+
+
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="")
+@patch("hyperscribe.scribe.api.session_view.prefill_assess_backgrounds_for_proposals")
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_records_recovered_prn_count(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+    _mock_prefill: MagicMock,
+    _mock_provider: MagicMock,
+) -> None:
+    """An as-needed mention plus a transcript-recovered proposal is counted."""
+    get_backend.return_value = _plain_backend()
+    mock_suggest.return_value = {}
+    mock_recommend.return_value = [
+        CommandProposal(
+            command_type="medication_statement",
+            display="Lorazepam 0.5 mg",
+            data={"medication_text": "Lorazepam 0.5 mg", "sig": "as needed"},
+            from_transcript=True,
+        ),
+        CommandProposal(
+            command_type="medication_statement",
+            display="Lisinopril 10 mg",
+            data={"medication_text": "Lisinopril 10 mg", "sig": "daily"},
+        ),
+    ]
+
+    view = _prn_summary_view(
+        mock_note, mock_transcript, mock_get_cache, "lorazepam 0.5 mg every four hours as needed for anxiety"
+    )
+    view.post_generate_summary()
+
+    payloads = _prn_audit_payloads(mock_audit)
+    assert len(payloads) == 1, f"expected one MEDS_PRN_TRANSCRIPT event, got {mock_audit.call_args_list}"
+    assert payloads[0] == {"prn_mentions": 1, "recovered_from_transcript": 1}
+
+
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="")
+@patch("hyperscribe.scribe.api.session_view.prefill_assess_backgrounds_for_proposals")
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_records_prn_mention_with_no_recovery(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+    _mock_prefill: MagicMock,
+    _mock_provider: MagicMock,
+) -> None:
+    """Mentions with zero recoveries still emit — this is the remaining-silent-drop signal.
+
+    It is the case a later remediation sweep needs to select on, so it must be recorded
+    rather than inferred from absence.
+    """
+    get_backend.return_value = _plain_backend()
+    mock_suggest.return_value = {}
+    mock_recommend.return_value = []
+
+    view = _prn_summary_view(mock_note, mock_transcript, mock_get_cache, "take ibuprofen as needed for pain")
+    view.post_generate_summary()
+
+    payloads = _prn_audit_payloads(mock_audit)
+    assert len(payloads) == 1
+    assert payloads[0] == {"prn_mentions": 1, "recovered_from_transcript": 0}
+
+
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="")
+@patch("hyperscribe.scribe.api.session_view.prefill_assess_backgrounds_for_proposals")
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.annotate_duplicates")
+@patch("hyperscribe.scribe.api.session_view.suggest_diagnoses")
+@patch("hyperscribe.scribe.api.session_view.recommend_commands")
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+@patch("hyperscribe.scribe.api.session_view.ScribeTranscript")
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.get_cache")
+@patch("hyperscribe.scribe.api.session_view.get_backend_from_secrets")
+def test_generate_summary_silent_when_no_prn_language(
+    get_backend: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_note: MagicMock,
+    mock_transcript: MagicMock,
+    _mock_summary: MagicMock,
+    mock_audit: MagicMock,
+    mock_recommend: MagicMock,
+    mock_suggest: MagicMock,
+    _mock_annotate: MagicMock,
+    _mock_zip: MagicMock,
+    _mock_prefill: MagicMock,
+    _mock_provider: MagicMock,
+) -> None:
+    """No as-needed phrasing means no event, keeping the audit log signal-dense."""
+    get_backend.return_value = _plain_backend()
+    mock_suggest.return_value = {}
+    mock_recommend.return_value = []
+
+    view = _prn_summary_view(mock_note, mock_transcript, mock_get_cache, "blood pressure is stable today")
+    view.post_generate_summary()
+
+    assert _prn_audit_payloads(mock_audit) == []

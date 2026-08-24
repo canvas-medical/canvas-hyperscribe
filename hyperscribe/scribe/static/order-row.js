@@ -382,6 +382,14 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
     setChangeToQuery(r.description);
     setChangeToResults([]);
     setChangeToSearched(false);
+    // The dispense-type options belong to the medication being dispensed, so
+    // swapping to a new med must rebuild them from the new med's quantities and
+    // drop the previous selection — otherwise the saved type_to_dispense /
+    // representative_ndc would still reference the old medication. Mirrors
+    // handleMedSelect.
+    const options = buildTypeToDispenseOptions(r.quantities || []);
+    setMedQuantities(options);
+    setTypeToDispense(options.length === 1 ? options[0].value : '');
   };
 
   const snapshotCurrentRx = () => ({
