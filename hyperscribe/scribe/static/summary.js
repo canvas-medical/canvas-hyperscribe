@@ -486,7 +486,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -554,7 +554,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         noteDiagnoses=${noteDiagnoses}
         onAddNow=${(isPlan || isObjective) ? onAddNow : null}
         hideRejected=${hideRejected}
-        alertFacilityEnabled=${alertFacilityEnabled}
+        alertFacilityCommands=${alertFacilityCommands}
         onEditingChange=${onEditingChange}
         questionnaireScores=${isObjective ? questionnaireScores : null}
         examTemplates=${(isObjective || isSubjective) ? examTemplates : null}
@@ -566,7 +566,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
     .filter(Boolean);
 }
 
-export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityEnabled = false, manualModeOnly = false, dictationEnabled = false, captureDictationEnabled = false, initialData = null }) {
+export function Scribe({ noteId, patientId, staffId, staffName, providerName, providerPhotoUrl, patientName, patientBirthDate, patientGender, debugMode, noteEditable = true, isAuthor = false, alertFacilityCommands = new Set(), manualModeOnly = false, dictationEnabled = false, captureDictationEnabled = false, initialData = null }) {
   const initSummary = initialData?.summary ?? null;
   const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
@@ -3749,7 +3749,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           diagnosisSuggestions,
           onAddNow: (authorEditable && !(wasFinalized && !approved)) ? handleAddNow : null,
           hideRejected,
-          alertFacilityEnabled,
+          alertFacilityCommands,
           onEditingChange: handleEditingChange,
           questionnaireScores: collectQuestionnaireScores(commands),
           chargeMatrixDiagnoses,

@@ -57,6 +57,11 @@ from hyperscribe.scribe.backend import (
     TranscriptItem,
     get_backend_from_secrets,
 )
+from hyperscribe.scribe.commands._alert_facility import (
+    COMMAND_TYPE_BY_SCHEMA_KEY,
+    DEFAULT_ON_BY_COMMAND_TYPE,
+    parse_alert_facility_commands,
+)
 from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
 from hyperscribe.scribe.commands.diagnosis_candidates import PatientConditionSnapshot
 from hyperscribe.scribe.commands.builder import (
@@ -247,6 +252,25 @@ _AMEND_AUDIT_ENTRY_KEYS = (
 # Scribe tab, regardless of schema_key. Each renders with the same locked,
 # read-only card — no per-type routing into the existing SOAP groups.
 FROM_THE_NOTE_SECTION = "from_the_note"
+
+
+def _inject_alert_facility_defaults(proposals: list[dict[str, Any]], allowed_commands: set[str]) -> None:
+    """Materialize the per-type Alert Facility default onto freshly generated
+    command/recommendation proposals so a new card displays its default without
+    being opened. Applies only to command types in ``allowed_commands``.
+    ``setdefault`` means an explicit, already-chosen value always wins. Only ever
+    called on the current generation's proposals — never on historical commands."""
+    if not allowed_commands:
+        return
+    for proposal in proposals:
+        command_type = proposal.get("command_type")
+        if not isinstance(command_type, str) or command_type not in allowed_commands:
+            continue
+        default_on = DEFAULT_ON_BY_COMMAND_TYPE.get(command_type)
+        data = proposal.get("data")
+        if default_on is not None and isinstance(data, dict):
+            data.setdefault("alert_facility", default_on)
+
 
 _CAMEL_BOUNDARY_RE = re.compile(r"([a-z0-9])([A-Z])")
 
@@ -573,7 +597,60 @@ def _infer_mode_for_heal(note_dbid: int) -> str:
     return ""
 
 
-def _load_summary(note_id: str) -> dict[str, Any] | None:
+def _reconcile_committed_alert_facility(
+    commands: list[dict[str, Any]], note_id: str, allowed_commands: set[str]
+) -> None:
+    """Make the Alert Facility value shown for COMMITTED commands match the committed record.
+
+    The Scribe cache can hold a fabricated/default ``alert_facility`` that was never written to
+    the chart (e.g. stamped by a post-launch re-generation, or carried forward on an edit-save).
+    For a committed command the committed ``CommandMetadata`` is the source of truth: show its
+    value when present, and show nothing when absent (a pre-feature command). Uncommitted (draft)
+    commands are left alone so their working value keeps showing. Mutates ``commands`` in place —
+    display-only; the persisted cache row is not rewritten.
+    """
+    if not allowed_commands:
+        return
+    applicable_uuids = [
+        str(c["command_uuid"])
+        for c in commands
+        if isinstance(c, dict) and c.get("command_type") in allowed_commands and c.get("command_uuid")
+    ]
+    if not applicable_uuids:
+        return
+
+    from canvas_sdk.v1.data.command import Command, CommandMetadata
+
+    committed_uuids = {
+        str(cid)
+        for cid in Command.objects.filter(note__id=note_id, id__in=applicable_uuids)
+        .exclude(state="entered_in_error")
+        .values_list("id", flat=True)
+    }
+    if not committed_uuids:
+        return
+    value_by_uuid = {
+        str(meta["command__id"]): meta["value"]
+        for meta in CommandMetadata.objects.filter(command__id__in=committed_uuids, key="alert_facility").values(
+            "command__id", "value"
+        )
+    }
+    for command in commands:
+        if not isinstance(command, dict) or command.get("command_type") not in allowed_commands:
+            continue
+        uuid = str(command.get("command_uuid") or "")
+        if uuid not in committed_uuids:
+            continue  # uncommitted draft — keep its working value
+        data = command.get("data")
+        if not isinstance(data, dict):
+            continue
+        if uuid in value_by_uuid:
+            data["alert_facility"] = value_by_uuid[uuid] == "Yes"
+        else:
+            data.pop("alert_facility", None)
+
+
+def _load_summary(note_id: str, alert_facility_commands: set[str]) -> dict[str, Any] | None:
     note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
     row = (
         ScribeSummary.objects.filter(note_id=note_dbid)
@@ -599,12 +676,21 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
             updated = ScribeSummary.objects.filter(note_id=note_dbid, mode="").update(mode=inferred)
             if updated:
                 mode = inferred
+    commands = row["commands"] or []
+    recommendations = row["recommendations"] or []
+    # Reconcile BOTH surfaces against the committed record. _inject stamps a
+    # per-type default onto commands and recommendations alike, so both can
+    # carry a fabricated value that must be re-derived once a card is committed.
+    # (An unaccepted recommendation has no committed command_uuid and is left
+    # untouched, so it keeps its in-flight default.)
+    _reconcile_committed_alert_facility(commands, note_id, alert_facility_commands)
+    _reconcile_committed_alert_facility(recommendations, note_id, alert_facility_commands)
     return {
         "note": row["note_data"] or None,
-        "commands": row["commands"] or [],
+        "commands": commands,
         "approved": row["approved"],
         "was_finalized": row["was_finalized"],
-        "recommendations": row["recommendations"] or [],
+        "recommendations": recommendations,
         "unmatched_conditions": row["unmatched_conditions"] or [],
         "diagnosis_suggestions": row["diagnosis_suggestions"] or {},
         "selected_template_name": row["selected_template_name"] or None,
@@ -811,7 +897,7 @@ def _load_initial_data(note_id: str, secrets: dict[str, str]) -> dict[str, Any]:
     """Compile all data needed for the Scribe UI initial render."""
     return {
         "transcript": _load_transcript(note_id),
-        "summary": _load_summary(note_id),
+        "summary": _load_summary(note_id, parse_alert_facility_commands(secrets.get("AlertFacilityCommands"))),
         "assignees": _load_assignees(),
         "templates": _load_templates(secrets),
     }
@@ -1065,7 +1151,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "")
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        data = _load_summary(note_id)
+        data = _load_summary(note_id, parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands")))
         if data is None:
             return [
                 JSONResponse(
@@ -1508,6 +1594,15 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             except Exception:
                 log.exception("link_referral_diagnoses failed (non-critical)")
 
+        # ── Alert Facility: stamp per-type defaults onto freshly generated cards ──
+        # So a new command/recommendation shows its default without being opened.
+        # Only for command types the AlertFacilityCommands secret allows; runs only on
+        # fresh generation (never on cache reload or /note-commands), and setdefault
+        # leaves any explicit value untouched.
+        alert_facility_commands = parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+        _inject_alert_facility_defaults(commands_list, alert_facility_commands)
+        _inject_alert_facility_defaults(recommendations_list, alert_facility_commands)
+
         # ── Save to database ──
         # `mode` and `selected_template_name` are owned by the session lifecycle
         # (Start AI / Start Manual, template picker) — generate-summary only
@@ -1824,7 +1919,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     status_code=HTTPStatus.BAD_REQUEST,
                 )
             ]
-        feature_flags = {"AlertFacilityEnabled": bool(self.secrets.get("AlertFacilityEnabled"))}
+        feature_flags = {
+            "AlertFacilityCommands": parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+        }
         # Carry-forward assess backgrounds from prior signed notes BEFORE building
         # effects, so the SDK command constructor sees the prefilled value. This
         # mirrors the symmetric placement of ``annotate_duplicates`` (called by
@@ -2101,7 +2198,13 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             # silently dropped by build_amend_edit_effects and logged at WARN
             # there. We don't surface them in the response - they signal a
             # stale or buggy frontend, not a user-facing condition.
-            effects, attempted = build_amend_edit_effects(commands, note_uuid)
+            # feature_flags is threaded through so a void+recreate re-emits
+            # per-command metadata (e.g. Alert Facility) for the recreated
+            # command — otherwise an amended command reads back as pre-feature.
+            feature_flags = {
+                "AlertFacilityCommands": parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+            }
+            effects, attempted = build_amend_edit_effects(commands, note_uuid, feature_flags)
 
         # Audit fires after the state read + effect-emission step. ``audit_event``
         # catches broad Exception via log.exception, so an audit-write failure
@@ -2452,10 +2555,37 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             .exclude(state="entered_in_error")
             .values("id", "schema_key", "data")
         )
+
+        # Alert Facility lives in command metadata (not Command.data), so read it
+        # back in one batched query and surface it as a detail row — keeping the
+        # flag visible on the flat cards, consistent with the pre-commit view.
+        # Only for command types the AlertFacilityCommands secret allows.
+        allowed_commands = parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+        allowed_schema_keys = {sk for sk, ct in COMMAND_TYPE_BY_SCHEMA_KEY.items() if ct in allowed_commands}
+        alert_facility_by_command: dict[str, str] = {}
+        if allowed_schema_keys:
+            from canvas_sdk.v1.data.command import CommandMetadata
+
+            alert_command_ids = [row["id"] for row in rows if (row.get("schema_key") or "") in allowed_schema_keys]
+            if alert_command_ids:
+                for meta in CommandMetadata.objects.filter(
+                    command__id__in=alert_command_ids, key="alert_facility"
+                ).values("command__id", "value"):
+                    alert_facility_by_command[str(meta["command__id"])] = meta["value"]
+
         commands: list[dict[str, Any]] = []
         for row in rows:
             schema_key = row.get("schema_key") or ""
             data = row.get("data") or {}
+            details = _details_for_command(data)
+            if schema_key in allowed_schema_keys:
+                # Show the flag only when the command actually recorded one. Post-feature
+                # commands always carry an explicit alert_facility metadata row (build_effects
+                # writes one via pending_metadata); a missing row means a pre-feature (or
+                # non-Scribe) command, which we leave blank so historical cards are unaltered.
+                command_id = str(row["id"])
+                if command_id in alert_facility_by_command:
+                    details.append({"label": "Alert Facility", "value": alert_facility_by_command[command_id]})
             commands.append(
                 {
                     "command_uuid": str(row["id"]),
@@ -2463,7 +2593,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     "section_key": FROM_THE_NOTE_SECTION,
                     "label": _humanize_schema_key(schema_key),
                     "data": data,
-                    "details": _details_for_command(data),
+                    "details": details,
                     "already_documented": True,
                     "_from_note": True,
                 }
