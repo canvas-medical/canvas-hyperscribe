@@ -595,6 +595,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // verify still set a result; now that success is silent on load, the effect
   // needs its own latch or it would re-POST /verify-commands every time
   // syncNoteCommands hands back fresh `commands` / `recommendations` arrays.
+  // Set only once a response actually arrives. See the comment at the
+  // assignment for why latching on attempt loses real failures.
   const autoVerifiedRef = useRef(false);
   const [validationError, setValidationError] = useState(null);
   const [chargeErrors, setChargeErrors] = useState([]);
@@ -1403,7 +1405,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       ...recommendations.filter(c => c.command_uuid),
     ];
     if (withUuids.length === 0) return;
-    autoVerifiedRef.current = true;
     const attempted = withUuids.map(c => ({
       command_uuid: c.command_uuid,
       command_type: c.command_type,
@@ -1419,6 +1420,13 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         });
         const data = await res.json();
         if (cancelled) return;
+        // Latch on DELIVERY, not on attempt. A response (clean or not) is a
+        // definitive answer, so nothing more needs asking. Setting this before
+        // the fetch instead would strand verification for the rest of the
+        // session: the catch below leaves the latch set, and a run cancelled by
+        // a dep change discards its response above, so neither path ever retries
+        // and a note with failed insertions would silently show no banner.
+        autoVerifiedRef.current = true;
         const failedCount = data.failed?.length || 0;
         // Only surface failures on LOAD. "All N command(s) inserted successfully"
         // is real feedback at the moment of signing (set unconditionally on the
