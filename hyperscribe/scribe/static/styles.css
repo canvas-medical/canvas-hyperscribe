@@ -508,8 +508,16 @@ h2 { margin-bottom: 4px; }
 .summary-container--finalized .cm-ghost-check {
   display: none;
 }
+/* every diagnosis row is locked in a finalized note, so charge-matrix.js mutes
+   EVERY rank badge, the same "dim describes 100% of the view" problem this
+   whole block exists to undo. #1b2733 is the base .cm-dxlabel color, so a
+   finalized row now matches an unlocked one exactly rather than landing on a
+   third grey. */
+.summary-container--finalized .cm-rank-muted {
+  opacity: 1;
+}
 .summary-container--finalized .cm-row-locked .cm-dxlabel {
-  color: #1f2937;
+  color: #1b2733;
 }
 
 .readonly-banner {
