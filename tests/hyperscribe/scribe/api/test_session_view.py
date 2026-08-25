@@ -7335,3 +7335,82 @@ def test_generate_summary_silent_when_no_prn_language(
     view.post_generate_summary()
 
     assert _prn_audit_payloads(mock_audit) == []
+
+
+def _brace_body(src: str, decl: str) -> str:
+    """Return `decl` plus its balanced `{...}` body, for pinning code inside one function."""
+    start = src.find(decl)
+    assert start != -1, f"Expected `{decl}` in the source."
+    depth = 0
+    for i in range(start + len(decl) - 1, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return src[start : i + 1]
+    raise AssertionError(f"Could not find the closing brace for `{decl}`.")
+
+
+def test_auto_verify_latch_is_set_on_delivery_not_on_attempt() -> None:
+    """KOALA-5631: the load-time auto-verify latch must only be set once a response arrives.
+
+    Setting ``autoVerifiedRef.current = true`` before the fetch strands verification for
+    the rest of the session, because neither failure path ever retries:
+
+      * the ``catch`` logs and returns with the latch still set, so a timeout, a 500, or
+        a non-JSON body permanently suppresses load-time verification;
+      * a run cancelled by a ``commands`` / ``recommendations`` dep change discards its
+        response at the ``if (cancelled) return;`` above, and the re-run bails on the latch.
+
+    Either way a note with genuinely failed command insertions shows no banner at all.
+    Latching on delivery keeps the run-once guarantee for the case it was added for (a
+    clean verify is silent, so ``verificationResult`` stays null and cannot guard) while
+    leaving a transient failure retryable, which is what the pre-latch code did.
+
+    Brace-extract the ``verify`` body rather than matching the whole file: there is a
+    second ``if (cancelled) return;`` in ``summary.js`` outside this effect.
+    """
+    body = _brace_body(_static_source("summary.js"), "async function verify() {")
+
+    assert "autoVerifiedRef.current = true" in body, (
+        "The load-time auto-verify must latch somewhere inside `verify()`. Without a "
+        "latch it re-POSTs /verify-commands on every syncNoteCommands cycle, because a "
+        "clean verify no longer sets `verificationResult`."
+    )
+    cancel_guard = body.find("if (cancelled) return;")
+    assert cancel_guard != -1, "Expected the `if (cancelled) return;` guard inside `verify()`."
+    assert cancel_guard < body.find("autoVerifiedRef.current = true"), (
+        "`autoVerifiedRef.current = true` must come AFTER `if (cancelled) return;` so the "
+        "latch is set on DELIVERY, not on attempt. Moving it before the fetch (or above "
+        "this guard) means a transient error or a mid-flight dep change silently kills "
+        "load-time verification for the session and real insertion failures never surface."
+    )
+
+
+def test_soap_group_raw_section_text_guards_work_as_a_pair() -> None:
+    """KOALA-5631: both duplicate-suppression guards have to stay.
+
+    ``showHistoryText`` gates on ``!coveredKeys.has(key)`` so a key whose content is
+    already rendered inside a review card does not also print a raw, uneditable copy
+    below it. That guard only reaches ``current_medications`` and ``allergies``. The
+    other covered keys are dropped earlier by the section-level early return, because
+    ``social_history`` and ``past_obstetric_history`` are in the server's
+    ``_HISTORY_REVIEW_KEYS`` but absent from ``HISTORY_SECTION_KEYS``, and
+    ``immunizations`` is absent from ``DEDICATED_SECTION_KEYS``.
+
+    Deleting the early return on the theory that ``showHistoryText`` now covers those
+    keys resurrects the duplicate for all three, so pin both.
+    """
+    src = _static_source("soap-group.js")
+
+    assert "const showHistoryText = s.text && !coveredKeys.has(key)" in src, (
+        "The raw-section-text fallback must skip ANY key a review command covers, not "
+        "just the three in HISTORY_SECTION_KEYS. Narrowing it back reprints a stale "
+        "uneditable copy of current_medications and allergies below their card."
+    )
+    assert "if (coveredKeys.has(key) && !hasRecsForKey" in src, (
+        "The section-level early return for covered keys must stay. It is what drops "
+        "social_history, past_obstetric_history, and immunizations, none of which reach "
+        "the showHistoryText guard above. It is load-bearing, not redundant with it."
+    )
