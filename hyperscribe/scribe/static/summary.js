@@ -590,6 +590,14 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [diagnosisSuggestions, setDiagnosisSuggestions] = useState(initSummary?.diagnosis_suggestions ?? {});
   const [progress, setProgress] = useState({ step: -1, total: 0, label: '' });
   const [verificationResult, setVerificationResult] = useState(null);
+  // Run-once latch for the load-time auto-verify below. It used to lean on
+  // `verificationResult` being non-null, but that only worked because a clean
+  // verify still set a result; now that success is silent on load, the effect
+  // needs its own latch or it would re-POST /verify-commands every time
+  // syncNoteCommands hands back fresh `commands` / `recommendations` arrays.
+  // Set only once a response actually arrives. See the comment at the
+  // assignment for why latching on attempt loses real failures.
+  const autoVerifiedRef = useRef(false);
   const [validationError, setValidationError] = useState(null);
   const [chargeErrors, setChargeErrors] = useState([]);
 
@@ -616,7 +624,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // `mode === 'ai'` gate at the top-bar render) since the transport can't
   // change mid-session.
   const [captureMode, setCaptureMode] = useState('conversation');
-  const [transcriptCollapsed, setTranscriptCollapsed] = useState(false);
+  // Collapsed by default on an already-finalized note: the transcript is capture
+  // scaffolding, and a finished note should open on the note, not on 40+ lines of
+  // dialogue. Still one click away, and the header shows the entry count.
+  const [transcriptCollapsed, setTranscriptCollapsed] = useState(initSummary?.approved ?? false);
   // Auto-scroll the transcript body to the latest entry whenever live capture
   // is producing or refining content. We deliberately don't try to "respect"
   // a user's scroll-up while recording — clinicians want to keep seeing the
@@ -1291,6 +1302,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }
           if (cached.approved) {
             setApproved(true);
+            // Same default as the `initialData` path applies at mount (see
+            // transcriptCollapsed's initializer): a note that ARRIVES finalized
+            // opens on the note, not on the transcript. Set here rather than in an
+            // effect on `approved` so it can't also fire when the user signs
+            // in-session and yank the panel closed under them.
+            setTranscriptCollapsed(true);
           }
           // Treat cached.approved as implying was_finalized for pre-existing
           // finalized notes that predate the explicit latch.
@@ -1382,7 +1399,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   // Auto-verify on load when approved with command UUIDs.
   useEffect(() => {
-    if (!approved || verificationResult) return;
+    if (!approved || verificationResult || autoVerifiedRef.current) return;
     const withUuids = [
       ...commands.filter(c => c.command_uuid && !isFromNoteCommand(c)),
       ...recommendations.filter(c => c.command_uuid),
@@ -1403,10 +1420,20 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         });
         const data = await res.json();
         if (cancelled) return;
+        // Latch on DELIVERY, not on attempt. A response (clean or not) is a
+        // definitive answer, so nothing more needs asking. Setting this before
+        // the fetch instead would strand verification for the rest of the
+        // session: the catch below leaves the latch set, and a run cancelled by
+        // a dep change discards its response above, so neither path ever retries
+        // and a note with failed insertions would silently show no banner.
+        autoVerifiedRef.current = true;
         const failedCount = data.failed?.length || 0;
-        setVerificationResult(failedCount > 0
-          ? { ok: false, verified: data.verified || [], failed: data.failed }
-          : { ok: true, verified: data.verified || [], failed: [] });
+        // Only surface failures on LOAD. "All N command(s) inserted successfully"
+        // is real feedback at the moment of signing (set unconditionally on the
+        // handleInsert success path), but on every later visit to a finished note
+        // it's just workflow residue. Failures still surface in both paths.
+        if (failedCount === 0) return;
+        setVerificationResult({ ok: false, verified: data.verified || [], failed: data.failed });
       } catch (err) {
         console.error('Auto-verify failed:', err);
       }
@@ -3418,7 +3445,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const progressPct = Math.max(((progressIndex + 1) / TOTAL_PROGRESS_STEPS) * 100, 5);
 
   return html`
-    <div class=${`summary-container${readOnlyReason === 'locked' ? ' summary-container--readonly' : ''}${!isAuthor ? ' summary-container--readonly-viewer' : ''}`}>
+    <div class=${`summary-container${approved ? ' summary-container--finalized' : ''}${readOnlyReason === 'locked' ? ' summary-container--readonly' : ''}${!isAuthor ? ' summary-container--readonly-viewer' : ''}`}>
       ${isNoteEditable && wasFinalized && html`
         <div class=${`summary-status-pill summary-status-pill--${approved ? 'finalized' : 'amending'}`} role="status" aria-live="polite">
           <svg class="summary-status-pill-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

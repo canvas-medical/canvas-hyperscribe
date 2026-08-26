@@ -819,7 +819,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
              (key === 'prescription' && visibleRecs.some(r => r.command_type === 'prescribe')));
           const DEDICATED_SECTION_KEYS = new Set(['current_medications', 'allergies']);
           const HISTORY_SECTION_KEYS = new Set(['past_medical_history', 'past_surgical_history', 'family_history']);
-          const isCoveredHistory = coveredKeys.has(key) && HISTORY_SECTION_KEYS.has(key);
           if (coveredKeys.has(key) && !hasRecsForKey && !DEDICATED_SECTION_KEYS.has(key) && !HISTORY_SECTION_KEYS.has(key)) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
 
@@ -1509,7 +1508,25 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           // plan commands), so raw `s.text` is always a duplicate — and it becomes a stale,
           // uneditable duplicate once every card is moved to Wrap Up (which empties
           // assessment_and_plan of commands and drops rendering into this fallback).
-          const showHistoryText = s.text && !isCoveredHistory && key !== 'assessment_and_plan';
+          // Never print raw note text for a key a review command already renders
+          // inside its card (chart_review covers allergies / current_medications /
+          // immunizations; history_review covers the five history keys; see
+          // getCoveredKeys). Same reasoning as the assessment_and_plan exclusion
+          // above: the card is the live, editable copy, so the raw section text is
+          // a stale uneditable duplicate. This used to check covered HISTORY keys
+          // only, which left current_medications and allergies printing a second,
+          // unstyled copy below their card whenever the dedicated branch above
+          // found nothing to render (KOALA-5631 follow-up).
+          //
+          // Those two keys are the ONLY ones this guard newly suppresses. The
+          // other covered keys never reach this line: social_history and
+          // past_obstetric_history are in the server's _HISTORY_REVIEW_KEYS
+          // (extractor.py) but absent from HISTORY_SECTION_KEYS here, and
+          // immunizations is absent from DEDICATED_SECTION_KEYS, so the early
+          // return near the top of this map already drops all three whenever a
+          // review command covers them. That early return is load-bearing for
+          // those keys, not redundant with this guard.
+          const showHistoryText = s.text && !coveredKeys.has(key) && key !== 'assessment_and_plan';
           // social_history has no manual input affordance (not in NARRATIVE_SECTIONS,
           // no SECTION_TO_HISTORY_TYPE entry), so an empty Social History section is a
           // dead, un-fillable header. Hide it whenever it has nothing to show; the AI
