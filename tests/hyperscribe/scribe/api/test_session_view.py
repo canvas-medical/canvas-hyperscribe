@@ -1494,6 +1494,409 @@ def test_get_patient_conditions_missing_patient_id() -> None:
     assert "patient_id is required" in json.loads(result[0].content)["error"]
 
 
+# --- /patient-medications ---
+
+
+def _stub_sig_queryset(mock_model: MagicMock, rows: list[dict[str, Any]], *, active: bool = False) -> None:
+    """Wire a mocked Prescription / MedicationStatement so its filter chain returns
+    the given ``.values()`` rows. ``active=True`` inserts the ``.active()`` hop the
+    Prescription queryset has and the MedicationStatement queryset does not."""
+    chain = mock_model.objects.filter.return_value
+    if active:
+        chain = chain.active.return_value
+    chain.order_by.return_value.values.return_value = rows
+
+
+@patch("hyperscribe.scribe.api.session_view.MedicationStatement")
+@patch("hyperscribe.scribe.api.session_view.Prescription")
+def test_latest_sigs_prefers_the_prescription_over_the_statement(
+    mock_prescription: MagicMock,
+    mock_statement: MagicMock,
+) -> None:
+    """A prescription outranks a medication statement for the same medication,
+    mirroring home-app's ``Medication.latest_sig``. A patient who was prescribed a
+    drug and also self-reported it must show the prescribed directions."""
+    from hyperscribe.scribe.api.session_view import _latest_sigs_by_medication
+
+    _stub_sig_queryset(
+        mock_prescription,
+        [{"medication_id": 11, "sig_original_input": "Take 1 tablet by mouth daily"}],
+        active=True,
+    )
+    _stub_sig_queryset(mock_statement, [{"medication_id": 11, "sig_original_input": "Patient reports 1 tab qhs"}])
+
+    assert _latest_sigs_by_medication([11]) == {11: "Take 1 tablet by mouth daily"}
+
+
+@patch("hyperscribe.scribe.api.session_view.MedicationStatement")
+@patch("hyperscribe.scribe.api.session_view.Prescription")
+def test_latest_sigs_falls_back_to_the_statement(
+    mock_prescription: MagicMock,
+    mock_statement: MagicMock,
+) -> None:
+    """A medication recorded rather than prescribed still gets directions. This is
+    the common case on a stop-medication list, which is why the statement source is
+    worth the second query."""
+    from hyperscribe.scribe.api.session_view import _latest_sigs_by_medication
+
+    _stub_sig_queryset(mock_prescription, [], active=True)
+    _stub_sig_queryset(mock_statement, [{"medication_id": 12, "sig_original_input": "Patient reports 1 tab qhs"}])
+
+    assert _latest_sigs_by_medication([12]) == {12: "Patient reports 1 tab qhs"}
+
+
+@patch("hyperscribe.scribe.api.session_view.MedicationStatement")
+@patch("hyperscribe.scribe.api.session_view.Prescription")
+def test_latest_sigs_newest_row_wins_within_a_source(
+    mock_prescription: MagicMock,
+    mock_statement: MagicMock,
+) -> None:
+    """Rows arrive oldest-first, so the last one for a medication overwrites the
+    earlier ones. This is what makes one bulk query per source equivalent to a
+    per-medication 'latest' lookup."""
+    from hyperscribe.scribe.api.session_view import _latest_sigs_by_medication
+
+    _stub_sig_queryset(
+        mock_prescription,
+        [
+            {"medication_id": 13, "sig_original_input": "Old directions"},
+            {"medication_id": 13, "sig_original_input": "Current directions"},
+        ],
+        active=True,
+    )
+    _stub_sig_queryset(mock_statement, [])
+
+    assert _latest_sigs_by_medication([13]) == {13: "Current directions"}
+
+
+@patch("hyperscribe.scribe.api.session_view.MedicationStatement")
+@patch("hyperscribe.scribe.api.session_view.Prescription")
+def test_latest_sigs_returns_empty_string_when_no_source_has_one(
+    mock_prescription: MagicMock,
+    mock_statement: MagicMock,
+) -> None:
+    """Every requested medication gets a key, so callers can use ``[]`` lookups
+    without a default. A medication with no directions on file renders as its name
+    alone rather than with a dangling separator."""
+    from hyperscribe.scribe.api.session_view import _latest_sigs_by_medication
+
+    _stub_sig_queryset(mock_prescription, [{"medication_id": 14, "sig_original_input": ""}], active=True)
+    _stub_sig_queryset(mock_statement, [])
+
+    assert _latest_sigs_by_medication([14, 15]) == {14: "", 15: ""}
+
+
+@patch("hyperscribe.scribe.api.session_view.MedicationStatement")
+@patch("hyperscribe.scribe.api.session_view.Prescription")
+def test_latest_sigs_skips_the_orm_for_an_empty_list(
+    mock_prescription: MagicMock,
+    mock_statement: MagicMock,
+) -> None:
+    """A patient with no active medications costs zero queries."""
+    from hyperscribe.scribe.api.session_view import _latest_sigs_by_medication
+
+    assert _latest_sigs_by_medication([]) == {}
+    mock_prescription.objects.filter.assert_not_called()
+    mock_statement.objects.filter.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view._latest_sigs_by_medication")
+@patch("hyperscribe.scribe.api.session_view.Medication")
+def test_get_patient_medications_carries_the_sig(
+    mock_medication: MagicMock,
+    mock_sigs: MagicMock,
+) -> None:
+    """The endpoint adds ``sig`` alongside the pre-existing ``id`` and ``name``, and
+    asks for every medication's directions in one call rather than per row (the
+    N+1 the refill endpoint still has). ``sig`` is what lets the stop-medication
+    picker tell apart two entries of the same drug."""
+    first = MagicMock(dbid=11)
+    first.id = "med-uuid-1"
+    first.codings.all.return_value = [MagicMock(dbid=1, display="Lisinopril 10 mg tablet")]
+    second = MagicMock(dbid=12)
+    second.id = "med-uuid-2"
+    second.codings.all.return_value = [MagicMock(dbid=2, display="Lisinopril 10 mg tablet")]
+    mock_medication.objects.filter.return_value.prefetch_related.return_value = [first, second]
+    mock_sigs.return_value = {11: "Take 1 tablet by mouth daily", 12: "Take 2 tablets by mouth at bedtime"}
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"patient_id": "patient-key-1"}, headers={}, body=b"")
+    result = view.get_patient_medications()
+
+    assert result[0].status_code == HTTPStatus.OK
+    assert json.loads(result[0].content)["medications"] == [
+        {"id": "med-uuid-1", "name": "Lisinopril 10 mg tablet", "sig": "Take 1 tablet by mouth daily"},
+        {"id": "med-uuid-2", "name": "Lisinopril 10 mg tablet", "sig": "Take 2 tablets by mouth at bedtime"},
+    ]
+    mock_sigs.assert_called_once_with([11, 12])
+
+
+@patch("hyperscribe.scribe.api.session_view._latest_sigs_by_medication")
+@patch("hyperscribe.scribe.api.session_view.Medication")
+def test_get_patient_medications_skips_medications_without_a_coding(
+    mock_medication: MagicMock,
+    mock_sigs: MagicMock,
+) -> None:
+    """A medication with no coding has no name to show and is dropped, unchanged
+    from before. Its dbid is still passed to the sig lookup, which is harmless and
+    keeps the list a single pass over the queryset."""
+    coded = MagicMock(dbid=11)
+    coded.id = "med-uuid-1"
+    coded.codings.all.return_value = [MagicMock(dbid=1, display="Lisinopril 10 mg tablet")]
+    uncoded = MagicMock(dbid=12)
+    uncoded.id = "med-uuid-2"
+    uncoded.codings.all.return_value = []
+    mock_medication.objects.filter.return_value.prefetch_related.return_value = [coded, uncoded]
+    mock_sigs.return_value = {11: "Take 1 tablet by mouth daily", 12: ""}
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"patient_id": "patient-key-1"}, headers={}, body=b"")
+    result = view.get_patient_medications()
+
+    assert json.loads(result[0].content)["medications"] == [
+        {"id": "med-uuid-1", "name": "Lisinopril 10 mg tablet", "sig": "Take 1 tablet by mouth daily"},
+    ]
+
+
+@patch("hyperscribe.scribe.api.session_view._latest_sigs_by_medication")
+@patch("hyperscribe.scribe.api.session_view.Medication")
+def test_get_patient_medications_picks_the_lowest_dbid_coding(
+    mock_medication: MagicMock,
+    mock_sigs: MagicMock,
+) -> None:
+    """With more than one coding the lowest dbid wins, regardless of the order the
+    prefetch returned them in.
+
+    This pins the swap away from ``.codings.first()``, which was quietly defeating
+    the ``prefetch_related`` and costing a query per medication. ``first()`` sorted
+    an unordered related queryset by pk, so reading the prefetched rows instead has
+    to keep that tie-break or a medication with several codings could start showing
+    a different name."""
+    med = MagicMock(dbid=11)
+    med.id = "med-uuid-1"
+    med.codings.all.return_value = [
+        MagicMock(dbid=7, display="Second coding"),
+        MagicMock(dbid=3, display="First coding"),
+    ]
+    mock_medication.objects.filter.return_value.prefetch_related.return_value = [med]
+    mock_sigs.return_value = {11: ""}
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"patient_id": "patient-key-1"}, headers={}, body=b"")
+    result = view.get_patient_medications()
+
+    assert json.loads(result[0].content)["medications"][0]["name"] == "First coding"
+    med.codings.first.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.AllergyIntolerance")
+def test_get_patient_allergies_picks_the_lowest_dbid_coding(mock_allergy: MagicMock) -> None:
+    """Same prefetch-preserving pick on the allergy endpoint, which had the identical
+    ``.codings.first()`` problem and no test coverage at all before this."""
+    allergy = MagicMock(dbid=21)
+    allergy.id = "allergy-uuid-1"
+    allergy.codings.all.return_value = [
+        MagicMock(dbid=9, display="Second coding"),
+        MagicMock(dbid=4, display="Penicillin G"),
+    ]
+    mock_allergy.objects.filter.return_value.prefetch_related.return_value = [allergy]
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"patient_id": "patient-key-1"}, headers={}, body=b"")
+    result = view.get_patient_allergies()
+
+    assert json.loads(result[0].content)["allergies"] == [{"id": "allergy-uuid-1", "name": "Penicillin G"}]
+    allergy.codings.first.assert_not_called()
+
+
+@patch("hyperscribe.scribe.api.session_view.AllergyIntolerance")
+def test_get_patient_allergies_skips_allergies_without_a_coding(mock_allergy: MagicMock) -> None:
+    """An allergy with no coding has no name to show and is dropped, unchanged."""
+    allergy = MagicMock(dbid=21)
+    allergy.id = "allergy-uuid-1"
+    allergy.codings.all.return_value = []
+    mock_allergy.objects.filter.return_value.prefetch_related.return_value = [allergy]
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"patient_id": "patient-key-1"}, headers={}, body=b"")
+    result = view.get_patient_allergies()
+
+    assert json.loads(result[0].content)["allergies"] == []
+
+
+@patch("hyperscribe.scribe.api.session_view.Medication")
+def test_get_patient_medications_missing_patient_id(mock_medication: MagicMock) -> None:
+    """Without ``patient_id`` the endpoint returns 400 without touching the ORM."""
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={}, headers={}, body=b"")
+    result = view.get_patient_medications()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "patient_id is required" in json.loads(result[0].content)["error"]
+    mock_medication.objects.filter.assert_not_called()
+
+
+# --- /patient-medications-for-refill ---
+
+
+def _refill_medication(dbid: int, uuid: str, display: str) -> MagicMock:
+    """A medication row carrying the FDB coding the refill endpoint requires."""
+    med = MagicMock(dbid=dbid, national_drug_code="ndc-1", potency_unit_code="C48542")
+    med.id = uuid
+    med.codings.all.return_value = [MagicMock(system="http://www.fdbhealth.com/", code="12345", display=display)]
+    return med
+
+
+@patch("hyperscribe.scribe.api.session_view._latest_sigs_by_medication")
+@patch("hyperscribe.scribe.api.session_view.Prescription")
+@patch("hyperscribe.scribe.api.session_view.Medication")
+def test_refill_medications_fall_back_to_the_statement_sig(
+    mock_medication: MagicMock,
+    mock_prescription: MagicMock,
+    mock_sigs: MagicMock,
+) -> None:
+    """A medication recorded through the Medication Statement command has no
+    Prescription row, so the prescription lookup returns None and every field it
+    supplies is empty. The sig still has to arrive, because it is the only thing
+    telling two entries of the same drug apart in the refill and adjust picker."""
+    mock_medication.objects.filter.return_value.prefetch_related.return_value = [
+        _refill_medication(11, "med-uuid-1", "Lisinopril 10 mg tablet")
+    ]
+    mock_prescription.objects.filter.return_value.order_by.return_value.first.return_value = None
+    mock_sigs.return_value = {11: "Patient reports 1 tab qhs"}
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"patient_id": "patient-key-1"}, headers={}, body=b"")
+    result = view.get_patient_medications_for_refill()
+
+    medication = json.loads(result[0].content)["medications"][0]
+    assert medication["sig"] == "Patient reports 1 tab qhs"
+    # The rest of the prescription-sourced fields stay empty: there is no prescription
+    # to take a quantity or a day supply from, and inventing one would be worse.
+    assert medication["quantity_to_dispense"] is None
+    assert medication["days_supply"] is None
+    assert medication["refills"] is None
+
+
+@patch("hyperscribe.scribe.api.session_view._latest_sigs_by_medication")
+@patch("hyperscribe.scribe.api.session_view.Prescription")
+@patch("hyperscribe.scribe.api.session_view.Medication")
+def test_refill_medications_keep_the_prescription_sig_when_there_is_one(
+    mock_medication: MagicMock,
+    mock_prescription: MagicMock,
+    mock_sigs: MagicMock,
+) -> None:
+    """The fallback never overrides a prescription. The sig shown in the option has
+    to be the one the form pre-fills, and the pre-fill takes its quantity, day
+    supply and refills from this same prescription row."""
+    mock_medication.objects.filter.return_value.prefetch_related.return_value = [
+        _refill_medication(11, "med-uuid-1", "Lisinopril 10 mg tablet")
+    ]
+    rx = MagicMock(
+        sig_original_input="Take 1 tablet by mouth daily",
+        dispense_quantity=30.0,
+        duration_in_days=30,
+        count_of_refills_allowed=3,
+        generic_substitutions_allowed=True,
+        note_to_pharmacist="",
+    )
+    mock_prescription.objects.filter.return_value.order_by.return_value.first.return_value = rx
+    mock_sigs.return_value = {11: "Patient reports 1 tab qhs"}
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"patient_id": "patient-key-1"}, headers={}, body=b"")
+    result = view.get_patient_medications_for_refill()
+
+    medication = json.loads(result[0].content)["medications"][0]
+    assert medication["sig"] == "Take 1 tablet by mouth daily"
+    assert medication["quantity_to_dispense"] == 30.0
+
+
+@patch("hyperscribe.scribe.api.session_view._latest_sigs_by_medication")
+@patch("hyperscribe.scribe.api.session_view.Prescription")
+@patch("hyperscribe.scribe.api.session_view.Medication")
+def test_refill_medications_fall_back_when_the_prescription_sig_is_blank(
+    mock_medication: MagicMock,
+    mock_prescription: MagicMock,
+    mock_sigs: MagicMock,
+) -> None:
+    """A prescription row with an empty sig is no better than no prescription for
+    telling entries apart, so the fallback applies there too."""
+    mock_medication.objects.filter.return_value.prefetch_related.return_value = [
+        _refill_medication(11, "med-uuid-1", "Lisinopril 10 mg tablet")
+    ]
+    rx = MagicMock(
+        sig_original_input="",
+        dispense_quantity=30.0,
+        duration_in_days=30,
+        count_of_refills_allowed=3,
+        generic_substitutions_allowed=True,
+        note_to_pharmacist="",
+    )
+    mock_prescription.objects.filter.return_value.order_by.return_value.first.return_value = rx
+    mock_sigs.return_value = {11: "Patient reports 1 tab qhs"}
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"patient_id": "patient-key-1"}, headers={}, body=b"")
+    result = view.get_patient_medications_for_refill()
+
+    assert json.loads(result[0].content)["medications"][0]["sig"] == "Patient reports 1 tab qhs"
+
+
+@patch("hyperscribe.scribe.api.session_view._latest_sigs_by_medication")
+@patch("hyperscribe.scribe.api.session_view.Prescription")
+@patch("hyperscribe.scribe.api.session_view.Medication")
+def test_refill_medications_report_no_sig_when_no_source_has_one(
+    mock_medication: MagicMock,
+    mock_prescription: MagicMock,
+    mock_sigs: MagicMock,
+) -> None:
+    """With neither a prescription nor a statement the sig is empty, and the option
+    renders as the drug name alone rather than with a dangling separator."""
+    mock_medication.objects.filter.return_value.prefetch_related.return_value = [
+        _refill_medication(11, "med-uuid-1", "Atorvastatin 20 mg tablet")
+    ]
+    mock_prescription.objects.filter.return_value.order_by.return_value.first.return_value = None
+    mock_sigs.return_value = {11: ""}
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"patient_id": "patient-key-1"}, headers={}, body=b"")
+    result = view.get_patient_medications_for_refill()
+
+    assert json.loads(result[0].content)["medications"][0]["sig"] == ""
+
+
+@patch("hyperscribe.scribe.api.session_view._latest_sigs_by_medication")
+@patch("hyperscribe.scribe.api.session_view.Medication")
+def test_refill_medications_skip_medications_without_an_fdb_coding(
+    mock_medication: MagicMock,
+    mock_sigs: MagicMock,
+) -> None:
+    """Unchanged behavior: a refill needs an FDB code, so a medication without one is
+    dropped. Pinned here because the sig lookup now runs before this filter."""
+    uncoded = MagicMock(dbid=12)
+    uncoded.id = "med-uuid-2"
+    uncoded.codings.all.return_value = [MagicMock(system="http://www.nlm.nih.gov/research/umls/rxnorm", code="1")]
+    mock_medication.objects.filter.return_value.prefetch_related.return_value = [uncoded]
+    mock_sigs.return_value = {12: "Patient reports 1 tab qhs"}
+
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={"patient_id": "patient-key-1"}, headers={}, body=b"")
+    result = view.get_patient_medications_for_refill()
+
+    assert json.loads(result[0].content)["medications"] == []
+
+
+def test_refill_medications_missing_patient_id() -> None:
+    """Without ``patient_id`` the endpoint returns 400."""
+    view = _helper_instance()
+    view.request = SimpleNamespace(query_params={}, headers={}, body=b"")
+    result = view.get_patient_medications_for_refill()
+
+    assert result[0].status_code == HTTPStatus.BAD_REQUEST
+    assert "patient_id is required" in json.loads(result[0].content)["error"]
+
+
 # --- /extract-commands ---
 
 

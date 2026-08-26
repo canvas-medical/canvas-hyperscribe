@@ -27,7 +27,7 @@ class CommandParser(ABC):
 
     def extract(self, text: str) -> CommandProposal | None:
         if self.data_field is None:
-            raise NotImplementedError(f"{type(self).__name__} must override extract()")
+            raise NotImplementedError(f"{self.__class__.__name__} must override extract()")
         return CommandProposal(
             command_type=self.command_type,
             display=text,
