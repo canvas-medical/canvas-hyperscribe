@@ -5,14 +5,18 @@ the patient-chart sections (Conditions, Medications, Allergies, Vitals, ...) so
 they document through the Scribe summary instead of the legacy chart rail. The
 buttons return once they leave the Scribe tab.
 
-OFF BY DEFAULT. The whole behavior sits behind the ``ScribeHideChartButtons``
+OFF BY DEFAULT. Every path below sits behind the ``ScribeHideChartButtons``
 secret (strict ``"true"``), because hiding the rail confused providers
-(KOALA-5808 follow-up). Only the two HIDE paths below are gated. The three
-RESTORE paths always run: they broadcast VISIBLE, which is the default state,
-so they are idempotent when the feature is off and they clear any browser that
-is still holding a hide from before the secret was switched off. That way the
-flag has no setting in which a button vanishes with nothing left to bring it
-back.
+(KOALA-5808 follow-up). Both HIDE paths and all three RESTORE paths are gated
+on the same predicate, so with the secret off the plugin emits nothing about
+command-button visibility at all and behaves exactly as it did before the
+feature existed. Half-gating it would have left a third state that never
+shipped, where the plugin broadcasts VISIBLE at moments nobody asked for, and
+that is a worse thing to debug than either of the two real ones.
+
+The one cost of gating the restores: flipping the secret from on to off while a
+provider is sitting on a chart that is already hidden leaves it hidden for that
+page. Nothing is persisted, so the next reload or patient navigation clears it.
 
 The one fact that shapes all of this: ``ConfigureCommandButtons`` is a **live
 broadcast, not persisted state**, and it is scoped to the **patient**, not the

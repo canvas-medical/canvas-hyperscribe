@@ -6,7 +6,7 @@ from canvas_sdk.events import EventType
 from canvas_sdk.handlers.base import BaseHandler
 from canvas_sdk.v1.data.note import NoteStateChangeEvent
 
-from hyperscribe.scribe.command_buttons import configure_command_buttons_effect
+from hyperscribe.scribe.command_buttons import command_button_hiding_enabled, configure_command_buttons_effect
 from hyperscribe.scribe.handlers.note_state import _EDITABLE_STATES
 
 
@@ -22,10 +22,14 @@ class NoteCommandButtonsRestoreHandler(BaseHandler):
     restore. Without this handler the buttons stay hidden even on an unrelated,
     non-Scribe note (KOALA-5808).
 
-    Its target is the patient, so we restore visibility for that patient
-    unconditionally — the effect is idempotent (buttons are visible by default)
-    and cheap, and a blanket restore is safer than trying to detect whether this
-    particular note had ever triggered a hide.
+    Its target is the patient, so we restore visibility for that patient without
+    checking whether this particular note ever triggered a hide — the effect is
+    idempotent (buttons are visible by default) and cheap, and a blanket restore
+    is safer than trying to reconstruct that history.
+
+    Gated on ScribeHideChartButtons like every other path in the feature, so
+    with the secret off this handler emits nothing. See command_buttons.py for
+    why the restores are gated rather than left always-on.
 
     SCOPE — NOTE_CLOSED is narrower than its name suggests. home-app only emits
     it as the ``previous_note_id`` side-channel of *expanding a different note*
@@ -39,6 +43,8 @@ class NoteCommandButtonsRestoreHandler(BaseHandler):
     RESPONDS_TO = [EventType.Name(EventType.NOTE_CLOSED)]
 
     def compute(self) -> list[Effect]:
+        if not command_button_hiding_enabled(self.secrets):
+            return []
         patient_id = self.event.target.id
         if not patient_id:
             return []
@@ -79,11 +85,16 @@ class NoteSignedCommandButtonsRestoreHandler(BaseHandler):
     Restores only on transitions *out* of an editable state. Transitions back in
     (unlock for an amend) need no restore: reopening the note reopens the Scribe
     tab, which re-asserts the hide.
+
+    Gated on ScribeHideChartButtons, checked before the query so a disabled
+    feature costs nothing on an event that fires for every note state change.
     """
 
     RESPONDS_TO = [EventType.Name(EventType.NOTE_STATE_CHANGE_EVENT_CREATED)]
 
     def compute(self) -> list[Effect]:
+        if not command_button_hiding_enabled(self.secrets):
+            return []
         try:
             state_event = NoteStateChangeEvent.objects.values("state", "note__patient__id").get(id=self.event.target.id)
         except NoteStateChangeEvent.DoesNotExist:

@@ -13,6 +13,10 @@ from hyperscribe.scribe.handlers.note_command_buttons import (
 
 MODULE = "hyperscribe.scribe.handlers.note_command_buttons"
 
+# The whole feature is behind this secret, so the behavioral tests below have to
+# switch it on; the disabled path is pinned separately for each handler.
+ENABLED = {"ScribeHideChartButtons": "true"}
+
 
 def test_class() -> None:
     assert issubclass(NoteCommandButtonsRestoreHandler, BaseHandler)
@@ -28,7 +32,7 @@ def test_restores_visible_for_patient(mock_restore: MagicMock) -> None:
 
     # NOTE_CLOSED targets the patient.
     event = Event(EventRequest(target="patient-uuid"))
-    tested = NoteCommandButtonsRestoreHandler(event, {})
+    tested = NoteCommandButtonsRestoreHandler(event, ENABLED)
     result = tested.compute()
 
     assert result == [Effect(type="LOG", payload="RestoreButtons")]
@@ -38,7 +42,7 @@ def test_restores_visible_for_patient(mock_restore: MagicMock) -> None:
 @patch(f"{MODULE}.configure_command_buttons_effect")
 def test_no_effect_without_patient(mock_restore: MagicMock) -> None:
     event = Event(EventRequest(target=""))
-    tested = NoteCommandButtonsRestoreHandler(event, {})
+    tested = NoteCommandButtonsRestoreHandler(event, ENABLED)
     assert tested.compute() == []
     mock_restore.assert_not_called()
 
@@ -71,7 +75,7 @@ def test_signed_restores_visible_for_patient(mock_restore: MagicMock, mock_model
     mock_model.DoesNotExist = Exception
 
     event = Event(EventRequest(target="state-event-uuid"))
-    result = NoteSignedCommandButtonsRestoreHandler(event, {}).compute()
+    result = NoteSignedCommandButtonsRestoreHandler(event, ENABLED).compute()
 
     assert result == [Effect(type="LOG", payload="RestoreButtons")]
     mock_restore.assert_called_once_with("patient-uuid", ConfigureCommandButtons.Visibility.VISIBLE)
@@ -93,7 +97,7 @@ def test_signed_restores_for_every_non_editable_state(mock_restore: MagicMock, m
             "note__patient__id": "patient-uuid",
         }
         event = Event(EventRequest(target="state-event-uuid"))
-        assert NoteSignedCommandButtonsRestoreHandler(event, {}).compute() == [
+        assert NoteSignedCommandButtonsRestoreHandler(event, ENABLED).compute() == [
             Effect(type="LOG", payload="RestoreButtons")
         ], f"expected a restore for state {state}"
         mock_restore.assert_called_once_with("patient-uuid", ConfigureCommandButtons.Visibility.VISIBLE)
@@ -111,7 +115,7 @@ def test_signed_ignores_editable_states(mock_restore: MagicMock, mock_model: Mag
             "note__patient__id": "patient-uuid",
         }
         event = Event(EventRequest(target="state-event-uuid"))
-        assert NoteSignedCommandButtonsRestoreHandler(event, {}).compute() == [], f"unexpected restore for {state}"
+        assert NoteSignedCommandButtonsRestoreHandler(event, ENABLED).compute() == [], f"unexpected restore for {state}"
     mock_restore.assert_not_called()
 
 
@@ -122,7 +126,7 @@ def test_signed_no_effect_when_note_has_no_patient(mock_restore: MagicMock, mock
     mock_model.DoesNotExist = Exception
 
     event = Event(EventRequest(target="state-event-uuid"))
-    assert NoteSignedCommandButtonsRestoreHandler(event, {}).compute() == []
+    assert NoteSignedCommandButtonsRestoreHandler(event, ENABLED).compute() == []
     mock_restore.assert_not_called()
 
 
@@ -136,7 +140,7 @@ def test_signed_no_effect_when_state_event_missing(mock_restore: MagicMock, mock
     mock_model.objects.values.return_value.get.side_effect = DoesNotExist()
 
     event = Event(EventRequest(target="state-event-uuid"))
-    assert NoteSignedCommandButtonsRestoreHandler(event, {}).compute() == []
+    assert NoteSignedCommandButtonsRestoreHandler(event, ENABLED).compute() == []
     mock_restore.assert_not_called()
 
 
@@ -157,8 +161,34 @@ def test_signed_restore_is_not_gated_on_scribe_usage(mock_restore: MagicMock, mo
     with patch(f"{MODULE}.ScribeSummary", create=True) as mock_summary:
         with patch(f"{MODULE}.ScribeTranscript", create=True) as mock_transcript:
             event = Event(EventRequest(target="state-event-uuid"))
-            assert NoteSignedCommandButtonsRestoreHandler(event, {}).compute() == [
+            assert NoteSignedCommandButtonsRestoreHandler(event, ENABLED).compute() == [
                 Effect(type="LOG", payload="RestoreButtons")
             ]
             mock_summary.objects.filter.assert_not_called()
             mock_transcript.objects.filter.assert_not_called()
+
+
+@patch(f"{MODULE}.configure_command_buttons_effect")
+def test_no_restore_when_feature_disabled(mock_restore: MagicMock) -> None:
+    """With ScribeHideChartButtons unset the plugin leaves visibility alone."""
+    event = Event(EventRequest(target="patient-uuid"))
+    assert NoteCommandButtonsRestoreHandler(event, {}).compute() == []
+    mock_restore.assert_not_called()
+
+
+@patch(f"{MODULE}.NoteStateChangeEvent")
+@patch(f"{MODULE}.configure_command_buttons_effect")
+def test_signed_no_restore_when_feature_disabled(mock_restore: MagicMock, mock_model: MagicMock) -> None:
+    """Disabled means disabled: no effect, and no query either. This event fires on
+    every note state change, so the gate goes before the database hit."""
+    event = Event(EventRequest(target="state-event-uuid"))
+    assert NoteSignedCommandButtonsRestoreHandler(event, {}).compute() == []
+    mock_restore.assert_not_called()
+    mock_model.objects.values.assert_not_called()
+
+
+@patch(f"{MODULE}.configure_command_buttons_effect")
+def test_restore_ignores_non_true_secret(mock_restore: MagicMock) -> None:
+    event = Event(EventRequest(target="patient-uuid"))
+    assert NoteCommandButtonsRestoreHandler(event, {"ScribeHideChartButtons": "false"}).compute() == []
+    mock_restore.assert_not_called()
