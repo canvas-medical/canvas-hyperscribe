@@ -133,6 +133,9 @@ class Constants:
     SECRET_NOTION_API_KEY = "NotionAPIKey"
     SECRET_MODALITY = "Modality"
     SECRET_SCRIBE_TAB_NAME = "ScribeTabName"
+    # Strict "true" enables hiding the chart-section command buttons while the
+    # Scribe tab is active; any other value (including unset) leaves them visible.
+    SECRET_SCRIBE_HIDE_CHART_BUTTONS = "ScribeHideChartButtons"
     MODALITY_SCRIBE = "scribe"
     # PILOT: remove SECRET_SCRIBE_PILOT_STAFFERS when scribe pilot ends
     SECRET_SCRIBE_PILOT_STAFFERS = "ScribePilotStaffers"

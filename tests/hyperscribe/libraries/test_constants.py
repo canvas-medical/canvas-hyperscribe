@@ -142,6 +142,7 @@ def test_constants():
         "SECRET_SCRIBE_PILOT_STAFFERS": "ScribePilotStaffers",
         "SECRET_SCRIBE_PRESCRIPTION_STAFFERS": "ScribePrescriptionStaffers",
         "SECRET_SCRIBE_TAB_NAME": "ScribeTabName",
+        "SECRET_SCRIBE_HIDE_CHART_BUTTONS": "ScribeHideChartButtons",
         "SECRET_TRIAL_STAFFERS_LIST": "TrialStaffersList",
         "MODALITY_SCRIBE": "scribe",
         #
