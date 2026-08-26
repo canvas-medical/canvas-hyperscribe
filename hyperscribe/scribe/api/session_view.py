@@ -1220,8 +1220,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         NOTE_CLOSED). Authorization is read-level: any staff who can load the chart
         (author, scribe, covering provider) may toggle their own button visibility.
 
-        Hiding requires the ScribeHideChartButtons secret; without it a hide request
-        is accepted and does nothing. Restores are never gated.
+        Requires the ScribeHideChartButtons secret. Without it the request is
+        accepted and does nothing, in either direction.
         """
         try:
             data: dict[str, Any] = json.loads(self.request.body)
@@ -1237,13 +1237,15 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except Note.DoesNotExist:
             return [JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)]
 
-        hidden = bool(data.get("hidden", False))
-        # Hiding is off unless ScribeHideChartButtons is "true"; a restore always
-        # goes through. Checked here, after the validation and lookups above, so
-        # the 400/403/404 responses stay identical whatever the secret says.
-        if hidden and not command_button_hiding_enabled(self.secrets):
+        # The whole feature is behind ScribeHideChartButtons. With it off the
+        # plugin leaves chart-button visibility alone in both directions, so the
+        # off state is behaviorally identical to the plugin before KOALA-5808.
+        # Checked here, after the validation and lookups above, so the 400/403/404
+        # responses stay identical whatever the secret says.
+        if not command_button_hiding_enabled(self.secrets):
             return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
+        hidden = bool(data.get("hidden", False))
         visibility = ConfigureCommandButtons.Visibility.HIDDEN if hidden else ConfigureCommandButtons.Visibility.VISIBLE
         return [
             JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK),
