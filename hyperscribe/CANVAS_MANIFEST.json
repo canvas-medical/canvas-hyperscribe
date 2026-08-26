@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.164.0",
-  "plugin_version": "2026-08-26 v0.4.50",
+  "plugin_version": "2026-08-23 v0.4.46",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -111,6 +111,15 @@
         }
       },
       {
+        "class": "hyperscribe.handlers.customization_display:CustomizationDisplay",
+        "description": "",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
         "class": "hyperscribe.scribe.application.transcript_app:ScribeApp",
         "description": "Note application for Canvas Scribe with recording and transcript",
         "data_access": {
@@ -210,7 +219,16 @@
         }
       }
     ],
-    "applications": [],
+    "applications": [
+      {
+        "class": "hyperscribe.handlers.customization_app:CustomizationApp",
+        "name": "Hyperscribe Customization",
+        "description": "UI Hyperscribe Customization",
+        "icon": "static/customization.png",
+        "scope": "global",
+        "show_in_panel": false
+      }
+    ],
     "commands": [
       {
         "name": "HistoryReview",
@@ -260,7 +278,7 @@
     "views": []
   },
   "secrets": [
-    "AlertFacilityCommands",
+    "AlertFacilityEnabled",
     "AnthropicAPIKey",
     "APISigningKey",
     "AudioHost",
@@ -290,7 +308,6 @@
     "ScribeDebugStaffers",
     "ScribeDictationEnabled",
     "ScribeCaptureDictationEnabled",
-    "ScribeHideChartButtons",
     "ScribeManualModeOnly",
     "ScribeNoteTypes",
     "ScribePilotStaffers",
@@ -305,9 +322,9 @@
     "VisitTemplates"
   ],
   "tags": {
-    "version_date": "2026-08-24",
-    "version_branch": "remove-hyperscribe-customization-app",
-    "version_semantic": "0.4.47"
+    "version_date": "2026-07-29",
+    "version_branch": "koala-6555",
+    "version_semantic": "0.4.43"
   },
   "custom_data": {
     "namespace": "canvas_medical__scribe",

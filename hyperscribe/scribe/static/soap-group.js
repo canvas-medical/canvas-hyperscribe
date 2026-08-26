@@ -13,6 +13,7 @@ import { HistoryEntryRow } from '/plugin-io/api/hyperscribe/scribe/static/histor
 import { DiagnoseRow } from '/plugin-io/api/hyperscribe/scribe/static/diagnose-row.js';
 import { QuestionnaireRow } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-row.js';
 import { ChargeMatrix } from '/plugin-io/api/hyperscribe/scribe/static/charge-matrix.js';
+import { medicationOptionLabel } from './med-option-label.js';
 
 const html = htm.bind(h);
 
@@ -118,7 +119,7 @@ const CHARGE_SEARCH_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
 const REMOVAL_TYPES = new Set(['stop_medication', 'remove_allergy', 'resolve_condition']);
 
-function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, alertFacilityCommands }) {
+function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, alertFacilityEnabled }) {
   const data = command.data || {};
   const type = command.command_type;
   const hasItem = !!(data.medication_id || data.allergy_id || data.condition_id);
@@ -126,7 +127,11 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
   const [loading, setLoading] = useState(false);
 
   const config = {
-    stop_medication: { endpoint: 'patient-medications', listKey: 'medications', idField: 'medication_id', nameField: 'medication_name', labelPlural: 'medications', placeholder: 'Select medication to stop...', actionLabel: 'STOP' },
+    // descriptionField reads the sig off the endpoint payload; descriptionDataField
+    // persists it onto the command so the card still reads correctly after the stop
+    // is committed and the medication leaves the patient's active list. Only
+    // stop_medication carries them, so allergy and condition options are unchanged.
+    stop_medication: { endpoint: 'patient-medications', listKey: 'medications', idField: 'medication_id', nameField: 'medication_name', descriptionField: 'sig', descriptionDataField: 'medication_sig', labelPlural: 'medications', placeholder: 'Select medication to stop...', actionLabel: 'STOP' },
     remove_allergy: { endpoint: 'patient-allergies', listKey: 'allergies', idField: 'allergy_id', nameField: 'allergy_name', labelPlural: 'allergies', placeholder: 'Select allergy to remove...', actionLabel: 'REMOVE' },
     resolve_condition: { endpoint: 'patient-conditions', listKey: 'conditions', idField: 'condition_id', nameField: 'condition_name', labelPlural: 'conditions', placeholder: 'Select condition to resolve...', actionLabel: 'RESOLVE' },
   }[type];
@@ -143,6 +148,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
         setItems(list.map(item => ({
           id: item.id || item.condition_id,
           name: item.name || item.display || '',
+          description: config.descriptionField ? (item[config.descriptionField] || '') : '',
         })));
       })
       .catch(() => setItems([]))
@@ -159,6 +165,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
       ...data,
       [config.idField]: item.id,
       [config.nameField]: item.name,
+      ...(config.descriptionDataField ? { [config.descriptionDataField]: item.description || '' } : {}),
     });
   };
 
@@ -175,7 +182,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
           : items.length > 0
             ? html`<select class="removal-select" onChange=${handleSelectChange} autoFocus>
                 <option value="">${config.placeholder}</option>
-                ${items.map(item => html`<option key=${item.id} value=${item.id}>${item.name}</option>`)}
+                ${items.map(item => html`<option key=${item.id} value=${item.id}>${medicationOptionLabel(item.name, item.description)}</option>`)}
               </select>`
             : html`<span class="removal-empty">No active ${config.labelPlural}</span>`
         }
@@ -184,17 +191,21 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
   }
 
   const itemName = data[config.nameField] || '';
+  // The directions the medication was stopped at, captured at selection. Absent on a
+  // command created before this shipped or loaded back from a documented note, which
+  // renders as the name alone. Shown in full rather than truncated: a card can wrap.
+  const itemDescription = config.descriptionDataField ? (data[config.descriptionDataField] || '') : '';
   return html`
     <div class="removal-row${readOnly ? ' read-only' : ''}">
       <span class="removal-action-label">${config.actionLabel}</span>
-      <span class="removal-item-name">${itemName}</span>
+      <span class="removal-item-name">${itemName}${itemDescription && html`<span class="removal-item-sig">${itemDescription}</span>`}</span>
+      ${type === 'stop_medication' && readOnly && (data.rationale || data.alert_facility) && html`
+        <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">
+          ${data.rationale || ''}
+          ${alertFacilityEnabled && data.alert_facility && html`<span class="badge badge-alert" style="margin-left: 6px;">Alert Facility</span>`}
+        </div>
+      `}
     </div>
-    ${type === 'stop_medication' && readOnly && (data.rationale || (alertFacilityCommands.has(command.command_type) && (data.alert_facility === true || data.alert_facility === false))) && html`
-      <div style="margin-top: 2px;">
-        ${data.rationale && html`<div style="font-size: 13px; color: #6b7280;">${data.rationale}</div>`}
-        ${alertFacilityCommands.has(command.command_type) && (data.alert_facility === true || data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${data.alert_facility ? 'Yes' : 'No'}</div>`}
-      </div>
-    `}
     ${type === 'stop_medication' && hasItem && !readOnly && html`
       <div class="history-form-field" style="margin-top: 8px;">
         <label class="history-form-label">Rationale</label>
@@ -206,10 +217,10 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
           placeholder="Reason for stopping..."
         />
       </div>
-      ${alertFacilityCommands.has(command.command_type) && html`
+      ${alertFacilityEnabled && html`
       <div class="history-form-field" style="margin-top: 8px;">
         <button type="button" class="alert-facility-toggle" onClick=${() => onEdit(commandIndex, { ...data, alert_facility: !data.alert_facility })}>
-          <div class="toggle-switch${data.alert_facility === true ? ' on' : ''}">
+          <div class="toggle-switch${data.alert_facility ? ' on' : ''}">
             <div class="toggle-knob" />
           </div>
           Alert Facility
@@ -759,7 +770,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, canEdit = true, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false, dictation }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, canEdit = true, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityEnabled, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false, dictation }) {
   const isCharges = title === 'CHARGES';
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
@@ -819,6 +830,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
              (key === 'prescription' && visibleRecs.some(r => r.command_type === 'prescribe')));
           const DEDICATED_SECTION_KEYS = new Set(['current_medications', 'allergies']);
           const HISTORY_SECTION_KEYS = new Set(['past_medical_history', 'past_surgical_history', 'family_history']);
+          const isCoveredHistory = coveredKeys.has(key) && HISTORY_SECTION_KEYS.has(key);
           if (coveredKeys.has(key) && !hasRecsForKey && !DEDICATED_SECTION_KEYS.has(key) && !HISTORY_SECTION_KEYS.has(key)) return null;
           const cmds = commandBySectionKey && commandBySectionKey[key];
 
@@ -1069,7 +1081,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${reRowReadOnly}
                           patientId=${patientId}
-                          alertFacilityCommands=${alertFacilityCommands}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                         />
                       </div>
                       ${!readOnly && !re.command.already_documented && !re.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(re.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1298,7 +1310,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          alertFacilityCommands=${alertFacilityCommands}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                           readOnly=${medRowReadOnly}
                           onEditingChange=${onEditingChange}
                         />
@@ -1325,7 +1337,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           commandIndex=${entry.index}
                           onEdit=${onEditCommand}
                           onDelete=${onDeleteCommand}
-                          alertFacilityCommands=${alertFacilityCommands}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                           readOnly=${adHocMedRowReadOnly}
                           onEditingChange=${onEditingChange}
                         />
@@ -1354,7 +1366,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           command=${entry.command}
                           commandIndex=${entry.index}
                           onEdit=${onEditRecommendation}
-                          alertFacilityCommands=${alertFacilityCommands}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                           readOnly=${medRecRowReadOnly || isRejected}
                           onEditingChange=${onEditingChange}                        />
                       </div>
@@ -1377,7 +1389,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${stopMedRowReadOnly}
                           patientId=${patientId}
-                          alertFacilityCommands=${alertFacilityCommands}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                         />
                       </div>
                       ${!readOnly && html`<div class="recommendation-actions">
@@ -1480,7 +1492,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${removeAllergyRowReadOnly}
                           patientId=${patientId}
-                          alertFacilityCommands=${alertFacilityCommands}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                         />
                       </div>
                       ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1508,25 +1520,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           // plan commands), so raw `s.text` is always a duplicate — and it becomes a stale,
           // uneditable duplicate once every card is moved to Wrap Up (which empties
           // assessment_and_plan of commands and drops rendering into this fallback).
-          // Never print raw note text for a key a review command already renders
-          // inside its card (chart_review covers allergies / current_medications /
-          // immunizations; history_review covers the five history keys; see
-          // getCoveredKeys). Same reasoning as the assessment_and_plan exclusion
-          // above: the card is the live, editable copy, so the raw section text is
-          // a stale uneditable duplicate. This used to check covered HISTORY keys
-          // only, which left current_medications and allergies printing a second,
-          // unstyled copy below their card whenever the dedicated branch above
-          // found nothing to render (KOALA-5631 follow-up).
-          //
-          // Those two keys are the ONLY ones this guard newly suppresses. The
-          // other covered keys never reach this line: social_history and
-          // past_obstetric_history are in the server's _HISTORY_REVIEW_KEYS
-          // (extractor.py) but absent from HISTORY_SECTION_KEYS here, and
-          // immunizations is absent from DEDICATED_SECTION_KEYS, so the early
-          // return near the top of this map already drops all three whenever a
-          // review command covers them. That early return is load-bearing for
-          // those keys, not redundant with this guard.
-          const showHistoryText = s.text && !coveredKeys.has(key) && key !== 'assessment_and_plan';
+          const showHistoryText = s.text && !isCoveredHistory && key !== 'assessment_and_plan';
           // social_history has no manual input affordance (not in NARRATIVE_SECTIONS,
           // no SECTION_TO_HISTORY_TYPE entry), so an empty Social History section is a
           // dead, un-fillable header. Hide it whenever it has nothing to show; the AI
@@ -1582,7 +1576,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                           onDelete=${onDeleteCommand}
                           readOnly=${resolveRowReadOnly}
                           patientId=${patientId}
-                          alertFacilityCommands=${alertFacilityCommands}
+                          alertFacilityEnabled=${alertFacilityEnabled}
                         />
                       </div>
                       ${!readOnly && !entry.command.already_documented && !entry.command._adding && html`<div class="recommendation-actions"><button type="button" class="rec-remove-x" onClick=${() => onDeleteCommand(entry.index)} title="Remove">${ICON_X}</button></div>`}
@@ -1694,7 +1688,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     onEdit=${onEditCommand}
                     onDelete=${onDeleteCommand}
                     readOnly=${orderRowReadOnly}
-                    alertFacilityCommands=${alertFacilityCommands}
                     patientId=${patientId}
                     noteId=${noteId}
                     staffId=${staffId}
@@ -1855,7 +1848,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
                       readOnly=${rxRecRowReadOnly || isRejected}
-                      alertFacilityCommands=${alertFacilityCommands}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}
@@ -1903,7 +1895,6 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       commandIndex=${entry.index}
                       onEdit=${onEditRecommendation}
                       readOnly=${referRecRowReadOnly || isRejected}
-                      alertFacilityCommands=${alertFacilityCommands}
                       patientId=${patientId}
                       noteId=${noteId}
                       staffId=${staffId}
