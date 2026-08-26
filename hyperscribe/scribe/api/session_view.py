@@ -3021,7 +3021,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             # Scrub query+URL from logs — the typed query may carry patient
             # identifiers (HIPAA). Log only the exception class so ops sees
             # the failure shape without the PHI-bearing context.
-            log.error("Imaging search failed: %s", type(exc).__name__)
+            log.error("Imaging search failed: %s", exc.__class__.__name__)
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         results = []
         for r in data.get("results", []):

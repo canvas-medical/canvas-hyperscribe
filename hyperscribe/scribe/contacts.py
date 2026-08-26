@@ -137,7 +137,7 @@ def _search_contacts(
         # refer search). Avoid log.exception/str(exc) — both leak the URL via
         # the traceback or the HTTPError message format. Log only the
         # exception class name.
-        log.error("%s failed: %s", log_label, type(exc).__name__)
+        log.error("%s failed: %s", log_label, exc.__class__.__name__)
         return []
 
     # Sort real contacts before generic placeholders so callers picking
