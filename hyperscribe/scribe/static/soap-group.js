@@ -13,6 +13,7 @@ import { HistoryEntryRow } from '/plugin-io/api/hyperscribe/scribe/static/histor
 import { DiagnoseRow } from '/plugin-io/api/hyperscribe/scribe/static/diagnose-row.js';
 import { QuestionnaireRow } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-row.js';
 import { ChargeMatrix } from '/plugin-io/api/hyperscribe/scribe/static/charge-matrix.js';
+import { medicationOptionLabel } from './med-option-label.js';
 
 const html = htm.bind(h);
 
@@ -126,7 +127,11 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
   const [loading, setLoading] = useState(false);
 
   const config = {
-    stop_medication: { endpoint: 'patient-medications', listKey: 'medications', idField: 'medication_id', nameField: 'medication_name', labelPlural: 'medications', placeholder: 'Select medication to stop...', actionLabel: 'STOP' },
+    // descriptionField reads the sig off the endpoint payload; descriptionDataField
+    // persists it onto the command so the card still reads correctly after the stop
+    // is committed and the medication leaves the patient's active list. Only
+    // stop_medication carries them, so allergy and condition options are unchanged.
+    stop_medication: { endpoint: 'patient-medications', listKey: 'medications', idField: 'medication_id', nameField: 'medication_name', descriptionField: 'sig', descriptionDataField: 'medication_sig', labelPlural: 'medications', placeholder: 'Select medication to stop...', actionLabel: 'STOP' },
     remove_allergy: { endpoint: 'patient-allergies', listKey: 'allergies', idField: 'allergy_id', nameField: 'allergy_name', labelPlural: 'allergies', placeholder: 'Select allergy to remove...', actionLabel: 'REMOVE' },
     resolve_condition: { endpoint: 'patient-conditions', listKey: 'conditions', idField: 'condition_id', nameField: 'condition_name', labelPlural: 'conditions', placeholder: 'Select condition to resolve...', actionLabel: 'RESOLVE' },
   }[type];
@@ -143,6 +148,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
         setItems(list.map(item => ({
           id: item.id || item.condition_id,
           name: item.name || item.display || '',
+          description: config.descriptionField ? (item[config.descriptionField] || '') : '',
         })));
       })
       .catch(() => setItems([]))
@@ -159,6 +165,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
       ...data,
       [config.idField]: item.id,
       [config.nameField]: item.name,
+      ...(config.descriptionDataField ? { [config.descriptionDataField]: item.description || '' } : {}),
     });
   };
 
@@ -175,7 +182,7 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
           : items.length > 0
             ? html`<select class="removal-select" onChange=${handleSelectChange} autoFocus>
                 <option value="">${config.placeholder}</option>
-                ${items.map(item => html`<option key=${item.id} value=${item.id}>${item.name}</option>`)}
+                ${items.map(item => html`<option key=${item.id} value=${item.id}>${medicationOptionLabel(item.name, item.description)}</option>`)}
               </select>`
             : html`<span class="removal-empty">No active ${config.labelPlural}</span>`
         }
@@ -184,10 +191,14 @@ function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patient
   }
 
   const itemName = data[config.nameField] || '';
+  // The directions the medication was stopped at, captured at selection. Absent on a
+  // command created before this shipped or loaded back from a documented note, which
+  // renders as the name alone. Shown in full rather than truncated: a card can wrap.
+  const itemDescription = config.descriptionDataField ? (data[config.descriptionDataField] || '') : '';
   return html`
     <div class="removal-row${readOnly ? ' read-only' : ''}">
       <span class="removal-action-label">${config.actionLabel}</span>
-      <span class="removal-item-name">${itemName}</span>
+      <span class="removal-item-name">${itemName}${itemDescription && html`<span class="removal-item-sig">${itemDescription}</span>`}</span>
     </div>
     ${type === 'stop_medication' && readOnly && (data.rationale || (alertFacilityCommands.has(command.command_type) && (data.alert_facility === true || data.alert_facility === false))) && html`
       <div style="margin-top: 2px;">

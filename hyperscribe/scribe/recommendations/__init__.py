@@ -85,5 +85,5 @@ def recommend_commands(
             client = LlmAnthropic(_make_settings(api_key))
             proposals.extend(recommender.recommend(note, client, transcript=transcript))
         except Exception:
-            log.exception(f"Recommender {type(recommender).__name__} failed")
+            log.exception(f"Recommender {recommender.__class__.__name__} failed")
     return proposals
