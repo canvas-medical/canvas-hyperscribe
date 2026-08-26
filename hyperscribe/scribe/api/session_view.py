@@ -24,6 +24,7 @@ from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from canvas_sdk.v1.data import AllergyIntolerance, ChargeDescriptionMaster, Medication, Note
 from canvas_sdk.v1.data.command import Command
+from canvas_sdk.v1.data.medication_statement import MedicationStatement
 from canvas_sdk.v1.data.prescription import Prescription
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
@@ -423,6 +424,55 @@ def _load_active_patient_conditions(patient_id: str) -> list[ActivePatientCondit
             )
         )
     return results
+
+
+def _latest_sigs_by_medication(medication_dbids: list[int]) -> dict[int, str]:
+    """Map each medication dbid to its most recent directions (its "sig").
+
+    Feeds the medication pickers, where a patient can intentionally carry the same
+    drug more than once with different directions. Without the sig those options are
+    indistinguishable and the wrong one gets stopped or refilled.
+
+    The statement source is what covers a medication recorded through the Medication
+    Statement command rather than prescribed: it has no ``Prescription`` row at all,
+    so a prescription-only lookup returns nothing for it.
+
+    A prescription wins over a medication statement, mirroring home-app's
+    ``Medication.latest_sig``. ``ChangeMedication`` is the third source there but
+    is not exposed as a data model by the SDK version this plugin pins, so a sig
+    changed only through that command falls back to the prescription's.
+
+    Both querysets are ordered oldest-first and collapsed into a dict, so the
+    newest row per medication wins the overwrite and one bulk query per source
+    replaces a per-medication lookup.
+
+    PHI note: the returned sigs are clinical data; callers must not log them
+    beyond aggregate counts.
+    """
+    if not medication_dbids:
+        return {}
+    prescriptions = {
+        row["medication_id"]: row["sig_original_input"]
+        for row in Prescription.objects.filter(medication_id__in=medication_dbids)
+        .active()
+        .order_by("dbid")
+        .values("medication_id", "sig_original_input")
+    }
+    # MedicationStatement has no `.active()` / `.committed()` queryset method, so the
+    # audit conditions `committed()` would apply are spelled out here. A retracted
+    # statement must not supply the text a prescriber reads when choosing what to stop.
+    statements = {
+        row["medication_id"]: row["sig_original_input"]
+        for row in MedicationStatement.objects.filter(
+            medication_id__in=medication_dbids,
+            committer__isnull=False,
+            entered_in_error__isnull=True,
+            deleted=False,
+        )
+        .order_by("dbid")
+        .values("medication_id", "sig_original_input")
+    }
+    return {dbid: (prescriptions.get(dbid) or statements.get(dbid) or "") for dbid in medication_dbids}
 
 
 def _load_patient_condition_history(patient_id: str) -> list[PatientConditionSnapshot]:
@@ -2611,15 +2661,22 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         patient_id = self.request.query_params.get("patient_id", "").strip()
         if not patient_id:
             return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        medications = Medication.objects.filter(
-            patient__id=patient_id, status=Status.ACTIVE, committer__isnull=False
-        ).prefetch_related("codings")
+        medications = list(
+            Medication.objects.filter(
+                patient__id=patient_id, status=Status.ACTIVE, committer__isnull=False
+            ).prefetch_related("codings")
+        )
+        sigs = _latest_sigs_by_medication([m.dbid for m in medications])
         results = []
         for m in medications:
-            coding = m.codings.first()
+            # min() by dbid rather than .codings.first(): first() sorts an unordered related
+            # queryset with order_by("pk"), and that clone starts with an empty result cache,
+            # so it throws away the prefetch above and queries once per medication. This reads
+            # the prefetched rows and still picks the row first() picked.
+            coding = min(m.codings.all(), key=lambda c: c.dbid, default=None)
             if not coding:
                 continue
-            results.append({"id": str(m.id), "name": coding.display})
+            results.append({"id": str(m.id), "name": coding.display, "sig": sigs.get(m.dbid, "")})
         return [JSONResponse({"medications": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/patient-allergies")
@@ -2633,7 +2690,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         ).prefetch_related("codings")
         results = []
         for a in allergies:
-            coding = a.codings.first()
+            # Same prefetch-preserving pick as get_patient_medications above.
+            coding = min(a.codings.all(), key=lambda c: c.dbid, default=None)
             if not coding:
                 continue
             results.append({"id": str(a.id), "name": coding.display})
@@ -2645,9 +2703,18 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         patient_id = self.request.query_params.get("patient_id", "").strip()
         if not patient_id:
             return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        medications = Medication.objects.filter(
-            patient__id=patient_id, status=Status.ACTIVE, committer__isnull=False
-        ).prefetch_related("codings")
+        medications = list(
+            Medication.objects.filter(
+                patient__id=patient_id, status=Status.ACTIVE, committer__isnull=False
+            ).prefetch_related("codings")
+        )
+        # A medication recorded through the Medication Statement command has no
+        # Prescription row, so every field below falls back to None/"" for it. The
+        # sig is the one a prescriber has to see: without it two entries of the same
+        # drug are indistinguishable in the picker. Fill only that gap, and only when
+        # the prescription has nothing, so the label still matches the rest of the
+        # prefill whenever a prescription is what supplied it.
+        fallback_sigs = _latest_sigs_by_medication([m.dbid for m in medications])
         results: list[dict[str, Any]] = []
         for m in medications:
             fdb_coding = next(
@@ -2667,7 +2734,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     "fdb_code": fdb_coding.code,
                     "national_drug_code": m.national_drug_code,
                     "potency_unit_code": m.potency_unit_code,
-                    "sig": rx.sig_original_input if rx else "",
+                    "sig": (rx.sig_original_input if rx else "") or fallback_sigs.get(m.dbid, ""),
                     "quantity_to_dispense": rx.dispense_quantity if rx else None,
                     "days_supply": rx.duration_in_days if rx else None,
                     "refills": rx.count_of_refills_allowed if rx else None,

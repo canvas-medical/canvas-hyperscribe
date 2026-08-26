@@ -1,6 +1,7 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useRef, useEffect, useCallback } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
+import { medicationOptionLabel } from './med-option-label.js';
 
 const html = htm.bind(h);
 
@@ -1418,7 +1419,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   : refillMeds.length > 0
                     ? html`<select class="history-form-input" onChange=${handleRefillSelect}>
                         <option value="">Choose a medication...</option>
-                        ${refillMeds.map((item, i) => html`<option key=${i} value=${i}>${item.medication_name}</option>`)}
+                        ${refillMeds.map((item, i) => html`<option key=${i} value=${i}>${medicationOptionLabel(item.medication_name, item.sig)}</option>`)}
                       </select>`
                     : html`<span class="removal-empty">No active medications</span>`
                 }
