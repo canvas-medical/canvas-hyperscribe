@@ -426,6 +426,100 @@ h2 { margin-bottom: 4px; }
   cursor: not-allowed;
 }
 
+/* Finalized notes (approved === true). Every card is on the note and nothing is
+   editable, so amend mode's per-card dim + padlock + "Already in chart" badge
+   describe 100% of the view and inform nothing — a signed note ends up looking
+   like a form someone greyed out. soap-group.js still EMITS all of that chrome
+   (it's correct while amending, where the dim contrasts locked rows against
+   still-editable ones — see rowLocked/ICON_LOCK in soap-group.js); this block
+   suppresses it for the finished document. Everything here is scoped to
+   --finalized, which only exists when approved, so amend mode and the
+   locked-but-incomplete state (.summary-container--readonly above) are
+   untouched. Purely subtractive: no geometry, border, or spacing changes. */
+
+/* full contrast: drop the dim and the padlock */
+.summary-container--finalized .command-locked {
+  opacity: 1;
+  filter: none;
+}
+.summary-container--finalized .command-row-icon-lock {
+  display: none;
+}
+
+/* medication and allergy rows dim THEMSELVES as well, via the `documented`
+   class their view branch adds when already_documented (medication-row.js,
+   allergy-row.js) — the same "already on the note" signal applied a second time
+   at row level, stacking with .command-locked above. Both have to be cleared or
+   these two card types stay grey while everything around them goes full
+   contrast. They already set cursor: default, so only the opacity needs
+   overriding. */
+.summary-container--finalized .medication-row.documented,
+.summary-container--finalized .allergy-row.documented {
+  opacity: 1;
+}
+
+/* the settled badge is redundant here: in read-only mode SoapGroup already
+   filters to only the commands that made it onto the note, so "Already in
+   chart" is true of everything on screen. */
+.summary-container--finalized .rec-settled {
+  display: none;
+}
+
+/* collapse the now-empty action gutter, but KEEP over-limit warning pills —
+   they share this container and flag genuinely truncated content (an
+   over-2048-character background/assessment), which must never be hidden. */
+.summary-container--finalized .recommendation-actions:not(:has(.rec-warning-pill)) {
+  display: none;
+}
+/* this padding existed only to clear the padlock */
+.summary-container--finalized .from-the-note-label {
+  padding-right: 0;
+}
+
+/* no phantom hover on cards that can't be opened. Selector shapes mirror the
+   originals below so specificity wins — the .content-block hover rule is
+   (0,4,0), so a plain descendant override would lose to it. */
+.summary-container--finalized .content-block:not(.recommendation-block):not(:has(.editing)):hover {
+  background: #fff;
+}
+.summary-container--finalized .recommendation-block .medication-row:hover:not(.editing):not(.documented),
+.summary-container--finalized .recommendation-block .allergy-row:hover:not(.editing):not(.documented),
+.summary-container--finalized .recommendation-block .order-row:hover:not(.editing) {
+  background: transparent;
+}
+
+/* rows set cursor: pointer unconditionally; nothing here opens */
+.summary-container--finalized .command-row,
+.summary-container--finalized .vitals-row,
+.summary-container--finalized .medication-row,
+.summary-container--finalized .allergy-row,
+.summary-container--finalized .task-row,
+.summary-container--finalized .order-row,
+.summary-container--finalized .charge-row,
+.summary-container--finalized .history-review-row,
+.summary-container--finalized .questionnaire-view {
+  cursor: default;
+}
+
+/* charges table: the grips, ghost column, and empty-add cell are already
+   !readOnly-gated in charge-matrix.js, so only their styling residue is left */
+.summary-container--finalized .cm-lock,
+.summary-container--finalized .cm-grip-empty,
+.summary-container--finalized .cm-ghost-check {
+  display: none;
+}
+/* every diagnosis row is locked in a finalized note, so charge-matrix.js mutes
+   EVERY rank badge, the same "dim describes 100% of the view" problem this
+   whole block exists to undo. #1b2733 is the base .cm-dxlabel color, so a
+   finalized row now matches an unlocked one exactly rather than landing on a
+   third grey. */
+.summary-container--finalized .cm-rank-muted {
+  opacity: 1;
+}
+.summary-container--finalized .cm-row-locked .cm-dxlabel {
+  color: #1b2733;
+}
+
 .readonly-banner {
   display: flex;
   align-items: center;
@@ -510,6 +604,10 @@ h2 { margin-bottom: 4px; }
 .toggle-knob { width: 16px; height: 16px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
 .toggle-switch.on .toggle-knob { left: 18px; }
 .alert-facility-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #6b7280; cursor: pointer; user-select: none; background: none; border: none; padding: 0; margin: 0; font-family: inherit; text-align: left; }
+/* Alert Facility — plain view-mode line showing the flag value; matches the
+   order details line (medication statement, stop medication, prescribe,
+   adjust prescription, refill) */
+.order-view-alert-facility { font-size: 12px; color: #888; }
 
 .summary-section {
   margin-bottom: 24px;
