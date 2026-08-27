@@ -23,9 +23,25 @@ const TITLE_CASE = {
   mental_status_exam: 'Mental Status Exam',
 };
 
-// Copy for the confirm popover shared by Template / Carry forward / Clear.
+// Copy for the confirm popover shared by Template / Carry forward / Remove template
+// defaults / Clear.
 function confirmCopy(action, sectionKind, templates) {
   const what = TITLE_CASE[sectionKind] || 'Physical Exam';
+  if (action.kind === 'untemplate') {
+    if (action.restoring) {
+      return {
+        title: 'Restore template defaults?',
+        body: `This puts back the merged ${what.toLowerCase()}, including the findings that came from the visit template. Any edits you have made since removing them will be discarded.`,
+        go: 'Restore',
+      };
+    }
+    const n = action.count || 0;
+    return {
+      title: 'Remove template defaults?',
+      body: `This removes the ${n} finding${n === 1 ? '' : 's'} that came from the visit template and keeps only what this visit documented. You can restore them afterward.`,
+      go: 'Remove',
+    };
+  }
   if (action.kind === 'clear') {
     return {
       title: `Clear ${what.toLowerCase()}?`,
@@ -58,13 +74,36 @@ export function ExamSectionsRow({
   sectionKind, templates = [], onCarryForward,
 }) {
   const sections = (command.data && command.data.sections) || [];
-  const seed = () => sections.map(s => ({ key: s.key || slug(s.title), title: s.title || '', text: stripMarkers(s.text), _new: false }));
+  // `_seedText` is what the row held when the editor opened. persist() compares against
+  // it to decide whether a row is still the template's or has become the provider's.
+  const seed = () => sections.map(s => ({
+    key: s.key || slug(s.title),
+    title: s.title || '',
+    text: stripMarkers(s.text),
+    updated: s.updated,
+    template_text: s.template_text,
+    _seedText: stripMarkers(s.text),
+    _new: false,
+  }));
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(seed);
-  const [confirm, setConfirm] = useState(null);     // { kind: 'carry'|'clear'|'template', index? }
+  const [confirm, setConfirm] = useState(null);     // { kind: 'carry'|'clear'|'template'|'untemplate', index? }
   const [menuOpen, setMenuOpen] = useState(false);
   const [busy, setBusy] = useState(false);           // carry-forward loading
+  const [removed, setRemoved] = useState(!!(command.data && command.data.template_removed));
+
+  // The Remove template defaults toggle is a working aid, so it stops once the command
+  // is on the chart (`already_documented` is the finalized signal). It also needs
+  // somewhere to revert to: Step 2.5 writes encounter_sections, so its absence means no
+  // template was merged into this card and the button stays hidden.
+  //
+  // `updated` / `template_text` still ride along on each section even though nothing
+  // renders them any more. They drive the count in the confirm popover and the
+  // TEMPLATE_DEFAULTS_SIGNED audit event.
+  const canUntemplate =
+    !command.already_documented && Array.isArray(command.data && command.data.encounter_sections);
+  const templateCount = draft.filter(s => s.updated === false && s.template_text).length;
   const listRef = useRef(null);
   const focusNew = useRef(false);
 
@@ -74,7 +113,10 @@ export function ExamSectionsRow({
   }, [editing, commandIndex]);
 
   useEffect(() => {
-    if (!editing) setDraft(seed());
+    if (!editing) {
+      setDraft(seed());
+      setRemoved(!!(command.data && command.data.template_removed));
+    }
   }, [command.data]);
 
   useEffect(() => {
@@ -103,17 +145,46 @@ export function ExamSectionsRow({
 
   const enterEdit = () => { if (!readOnly) { setDraft(seed()); setEditing(true); } };
 
-  const toRows = (secs) => secs.map(s => ({ key: s.key || slug(s.title), title: s.title || '', text: stripMarkers(s.text), _new: false }));
+  // keepProvenance is on only for the Remove/Restore toggle, which swaps in sections the
+  // server already stamped. Template apply and Carry forward bring in fresh content that
+  // has no relationship to this note's merge, so they drop attribution.
+  const toRows = (secs, keepProvenance = false) => secs.map(s => ({
+    key: s.key || slug(s.title),
+    title: s.title || '',
+    text: stripMarkers(s.text),
+    updated: keepProvenance ? s.updated : undefined,
+    template_text: keepProvenance ? s.template_text : undefined,
+    _seedText: stripMarkers(s.text),
+    _new: false,
+  }));
 
-  const persist = (rows) => {
+  const persist = (rows, removedFlag = removed) => {
     const cleaned = rows
-      .map(s => ({ key: s.key || slug(s.title), title: (s.title || '').trim(), text: (s.text || '').trim() }))
+      .map(s => {
+        const row = { key: s.key || slug(s.title), title: (s.title || '').trim(), text: (s.text || '').trim() };
+        // Attribution survives only on rows the provider left alone. Once they rewrite a
+        // finding it is theirs, so the badge goes.
+        if (s.template_text != null && (s.text || '') === (s._seedText || '')) {
+          row.updated = !!s.updated;
+          row.template_text = s.template_text;
+        }
+        return row;
+      })
       .filter(s => s.title || s.text);
-    onEdit(commandIndex, { sections: cleaned });
+    // handleEdit replaces command.data wholesale with whatever we pass, so the toggle's
+    // restore points have to be carried through explicitly or the first Save wipes them.
+    const data = { sections: cleaned };
+    const src = command.data || {};
+    if (Array.isArray(src.encounter_sections)) {
+      data.encounter_sections = src.encounter_sections;
+      data.reconciled_sections = src.reconciled_sections || [];
+      data.template_removed = removedFlag;
+    }
+    onEdit(commandIndex, data);
   };
 
   const handleSave = () => { persist(draft); setEditing(false); };
-  const handleCancel = () => { setDraft(seed()); setEditing(false); };
+  const handleCancel = () => { setDraft(seed()); setRemoved(!!(command.data && command.data.template_removed)); setEditing(false); };
 
   const updateText = (i, val) => setDraft(d => d.map((s, j) => (j === i ? { ...s, text: val } : s)));
   const updateTitle = (i, val) => setDraft(d => d.map((s, j) => (j === i ? { ...s, title: val } : s)));
@@ -126,6 +197,15 @@ export function ExamSectionsRow({
     setConfirm(null);
     if (!action) return;
     if (action.kind === 'clear') { setDraft([]); return; }
+    if (action.kind === 'untemplate') {
+      // Full revert: template-only systems disappear and blended ones drop back to
+      // Nabla's original wording, because both live in encounter_sections.
+      const src = command.data || {};
+      const next = removed ? (src.reconciled_sections || []) : (src.encounter_sections || []);
+      setRemoved(!removed);
+      setDraft(toRows(next, true));
+      return;
+    }
     if (action.kind === 'template') {
       const tmpl = templates[action.index];
       const secs = (tmpl && tmpl[TEMPLATE_FIELD[sectionKind]]) || [];
@@ -188,6 +268,13 @@ export function ExamSectionsRow({
         <button type="button" class="exam-action-btn" onClick=${() => setConfirm({ kind: 'clear' })} title="Remove all systems and findings">
           <span class="exam-ico">⊘</span> Clear
         </button>
+        ${canUntemplate && html`
+          <button type="button" class="exam-action-btn"
+            onClick=${() => setConfirm({ kind: 'untemplate', restoring: removed, count: templateCount })}
+            title=${removed ? 'Bring back the merged version, template findings included' : 'Keep only what this visit documented'}>
+            <span class="exam-ico">⇄</span> ${removed ? 'Restore template defaults' : 'Remove template defaults'}
+          </button>
+        `}
       </div>
 
       <div class="exam-list" ref=${listRef}>

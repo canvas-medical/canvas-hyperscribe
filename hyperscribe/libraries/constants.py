@@ -130,6 +130,10 @@ class Constants:
     SECRET_ALERT_FACILITY_COMMANDS = "AlertFacilityCommands"  # Comma-separated command types
     SECRET_SCRIBE_DEBUG_STAFFERS = "ScribeDebugStaffers"  # Comma-separated staff keys for debug apps
     SECRET_VISIT_TEMPLATES = "VisitTemplates"  # JSON: {"templates": [...]}
+    # Comma-separated section kinds whose visit-template scaffold auto-merges with the
+    # Nabla findings at generation: ros, physical_exam, mental_status_exam.
+    # Unset/blank = off for all three; the manual Template menu still works.
+    SECRET_SCRIBE_EXAM_TEMPLATE_MERGE = "ScribeExamTemplateMerge"
     SECRET_NOTION_API_KEY = "NotionAPIKey"
     SECRET_MODALITY = "Modality"
     SECRET_SCRIBE_TAB_NAME = "ScribeTabName"

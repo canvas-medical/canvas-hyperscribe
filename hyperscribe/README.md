@@ -91,6 +91,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `VendorTextLLM`                  | `OpenAi`, `Google`, `Anthropic`             | by default `OpenAi` (case insensitive)                                                                                                                      |
 | `KeyTextLLM`                     |                                             | the vendor's API key                                                                                                                                        |
 | `VisitTemplates`                 | JSON (see below)                            | per-visit-type note customization: questionnaires, ROS / PE / MSE scaffolds, and charges                                                                    |
+| `ScribeExamTemplateMerge`        | `ros,physical_exam,mental_status_exam`      | which exam sections auto-merge their `VisitTemplates` scaffold with the AI findings at generation; unset means none of them do                              |
 
 
 ### `CustomPrompts`
@@ -135,6 +136,22 @@ the prompt is non-empty, the command runs the extra LLM pass and the rewritten t
 - `name` — must exactly match the visit-template name the operator selects. The name `Psychiatry` routes the note to the psychiatry flow (AP-merged template, Mental Status Exam section).
 - `ros_template` / `pe_template` / `mse_template` — optional newline-separated scaffolds that populate the **Template** dropdown on the Review of Systems / Physical Exam / **Mental Status Exam** cards respectively. Each line is one system written as `Label:` (optionally followed by default findings). The label must be **1–3 words** — longer labels are skipped by the parser. `mse_template` only surfaces on the Mental Status Exam card (psychiatry visits); keep its labels aligned with the 11 categories the MSE prompt requests (Appearance, Behavior/Rapport, Movement, Speech, Mood, Orientation, Attention/Concentration, Thought Process, Thought Content, Insight, Judgment) so AI-generated and template-applied scaffolds line up.
 - `questionnaires` / `charges` — questionnaires and charge (CPT) codes pre-loaded for the visit.
+
+### `ScribeExamTemplateMerge`
+
+By default a visit template's exam scaffold is only applied when the provider picks it from the **Template** dropdown on the card. `ScribeExamTemplateMerge` turns on automatic merging at generation for the sections you name, as a comma-separated list:
+
+```
+ScribeExamTemplateMerge = ros,physical_exam
+```
+
+The three accepted values are `ros`, `physical_exam`, and `mental_status_exam`. Unset, blank, or unrecognised values mean that section does not auto-merge, so a typo fails safe rather than half-enabling the feature. The Template, Carry forward, and Clear controls on the cards keep working either way, which makes this a rollout switch rather than an on/off for templates as a whole.
+
+When a section is enabled, generation merges the scaffold with what the AI produced. A system the visit covered takes the AI's findings, a system it did not cover keeps the template's default text, and any system the AI found that the template does not list is appended at the end. An Anthropic call then refines the merge, mainly to blend template wording with visit findings inside a single system and to consolidate systems the two sources named differently. That call is best-effort: if it fails, the merge still stands and only the blending is lost.
+
+Providers can undo the whole thing per card with **Remove template defaults**, which reverts to exactly what the AI generated, and put it back with **Restore template defaults**.
+
+A caution on `mse_template`. If it carries default findings rather than bare labels, enabling `mental_status_exam` means an unaddressed category is documented from that default. For entries such as `Thought Content: No SI, no HI...`, that is a psychiatric assertion the visit never made. Enable this one deliberately, and consider bare labels in `mse_template` if you would rather the categories stay blank.
 
 
 The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above. The credentials must belong to an AWS IAM user with username following the format `hyperscribe-{canvas_instance}`.

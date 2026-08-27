@@ -99,6 +99,7 @@ from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
     resolve_uncoded_blocks,
 )
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
+from hyperscribe.scribe.recommendations.reconciliation import parse_exam_merge_kinds, reconcile_sections
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
@@ -384,6 +385,7 @@ SUMMARY_STEPS = [
     "Generating note",
     "Structuring the note",
     "Extracting commands",
+    "Reconciling template",
     "Generating recommendations",
     "Suggesting diagnoses",
 ]
@@ -822,6 +824,137 @@ def _last_exam_sections(note_uuid: str, staff_id: str, kind: str) -> list[dict[s
     except Exception:
         log.exception("last-exam: summary query/parse failed for note %s", note_uuid)
     return []
+
+
+# The three section kinds Step 2.5 can auto-merge, in the order the extractor emits
+# them. Each row is (command_type, request-body field holding the template scaffold,
+# section_key to stamp when the merge has to create the command, label for the LLM
+# prompt and the log line).
+_EXAM_MERGE_SPECS: tuple[tuple[str, str, str, str], ...] = (
+    ("ros", "template_ros_sections", "_ros", "Review of Systems"),
+    ("physical_exam", "template_pe_sections", "physical_exam", "Physical Exam"),
+    ("mental_status_exam", "template_mse_sections", "mental_status_exam", "Mental Status Exam"),
+)
+
+
+def _clean_template_sections(raw: Any) -> list[dict[str, str]]:
+    """Coerce a template scaffold off the request body into {key,title,text} dicts.
+
+    The payload is client-supplied, so anything that is not a list of dicts collapses
+    to an empty list and the caller skips that kind.
+    """
+    if not isinstance(raw, list):
+        return []
+    return [
+        {"key": str(s.get("key", "")), "title": str(s.get("title", "")), "text": str(s.get("text", ""))}
+        for s in raw
+        if isinstance(s, dict)
+    ]
+
+
+def _reconcile_exam_templates(
+    commands_list: list[dict[str, Any]],
+    data: dict[str, Any],
+    *,
+    note_uuid: str,
+    is_psychiatry: bool,
+    merge_kinds: set[str],
+    api_key: str,
+) -> None:
+    """Merge each enabled section kind's visit-template scaffold into the generated exam.
+
+    Mutates ``commands_list`` in place: an existing ROS / PE / MSE command has its
+    sections replaced, and a kind whose template exists but which generation did not
+    produce gets a command appended. Three reference keys land on ``data`` so the
+    frontend's "Remove template defaults" toggle can round-trip without another call:
+    ``encounter_sections`` (Nabla's pre-merge output), ``reconciled_sections`` (what
+    this produced), and ``template_removed``.
+
+    ``merge_kinds`` empty is the off switch and returns immediately, leaving
+    ``commands_list`` byte-identical to what generation produced.
+
+    ``allow_refine`` is a per-request circuit breaker. The SDK caps every HTTP call
+    at 30 seconds (``canvas_sdk/utils/http.py``), so during an Anthropic outage three
+    kinds would otherwise burn 90 seconds before the recommenders burn theirs. Once
+    one kind fails to refine, the rest take the deterministic merge directly.
+    """
+    if not merge_kinds:
+        return
+
+    allow_refine = True
+    for kind, payload_field, section_key, label in _EXAM_MERGE_SPECS:
+        if kind not in merge_kinds:
+            continue
+        # Mirrors the extractor: MSE only exists on a psychiatry visit, gated on the
+        # visit template the operator picked rather than on section presence.
+        if kind == "mental_status_exam" and not is_psychiatry:
+            continue
+        template_sections = _clean_template_sections(data.get(payload_field))
+        if not template_sections:
+            continue
+
+        command = next((c for c in commands_list if c.get("command_type") == kind), None)
+        raw_encounter = (command or {}).get("data", {}).get("sections", [])
+        encounter_sections = raw_encounter if isinstance(raw_encounter, list) else []
+
+        sections, refined = reconcile_sections(
+            template_sections,
+            encounter_sections,
+            api_key,
+            label,
+            allow_refine=allow_refine,
+        )
+
+        if not refined:
+            if not allow_refine:
+                reason = "circuit_open"
+            elif not api_key:
+                reason = "no_api_key"
+            else:
+                # Only a genuine call failure opens the circuit. A missing key would
+                # fail identically for every kind, but it costs nothing to skip.
+                reason = "llm_failed"
+                allow_refine = False
+            if note_uuid:
+                audit_event(note_uuid, "TEMPLATE_REFINE_FAILED", {"kind": kind, "reason": reason})
+
+        display = " | ".join(s["title"] for s in sections if s.get("title"))
+        merged_data: dict[str, Any] = {
+            "sections": sections,
+            # Independent copies so a later edit to ``sections`` cannot alias into the
+            # reference the toggle restores from.
+            "encounter_sections": [dict(s) for s in encounter_sections],
+            "reconciled_sections": [dict(s) for s in sections],
+            "template_removed": False,
+        }
+        if command is None:
+            commands_list.append(
+                {
+                    "command_type": kind,
+                    "display": display,
+                    "data": merged_data,
+                    "selected": True,
+                    "section_key": section_key,
+                    "already_documented": False,
+                    "from_transcript": False,
+                }
+            )
+        else:
+            command["display"] = display
+            command["data"] = merged_data
+
+        if note_uuid:
+            audit_event(
+                note_uuid,
+                "TEMPLATE_RECONCILED",
+                {
+                    "kind": kind,
+                    "template_section_count": len(template_sections),
+                    "encounter_section_count": len(encounter_sections),
+                    "updated_count": sum(1 for s in sections if s.get("updated")),
+                    "refined": refined,
+                },
+            )
 
 
 def _load_assignees() -> list[dict[str, Any]]:
@@ -1510,12 +1643,23 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         )
         prefill_diagnose_backgrounds(commands_list, note_uuid)
 
-        # Template ROS/PE reconciliation is not part of generation. Generation yields
-        # the raw Nabla findings; the provider applies a template explicitly from the
-        # PE/ROS card (Template ▾ → pick a template → confirm → replace).
+        # ── Step 2.5: Reconcile the visit template's exam scaffold with Nabla's findings ──
+        # Gated per section kind by ScribeExamTemplateMerge. An empty set skips the whole
+        # block and commands_list reaches Step 3 exactly as it did before this feature, so
+        # "secret unset" is a true no-op rather than a second code path. The manual
+        # Template menu on the PE/ROS/MSE cards is unaffected either way.
+        _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
+        _reconcile_exam_templates(
+            commands_list,
+            data,
+            note_uuid=note_uuid,
+            is_psychiatry=is_psychiatry_visit,
+            merge_kinds=parse_exam_merge_kinds(self.secrets.get(Constants.SECRET_SCRIBE_EXAM_TEMPLATE_MERGE)),
+            api_key=self.secrets.get("AnthropicAPIKey", ""),
+        )
 
         # ── Step 3: Recommend commands ──
-        _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
+        _save_progress(note_id, 4, total, SUMMARY_STEPS[4])
         recommendations_list: list[dict[str, Any]] = []
         rec_proposals: list[CommandProposal] = []
         api_key = self.secrets.get("AnthropicAPIKey", "")
@@ -1590,7 +1734,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         # ``candidate_suggestions`` on each uncoded diagnose proposal (no LLM, no
         # invented codes). Surface them as a ``block_id -> options`` map — the
         # stable association key, replacing the old mutable-header keying.
-        _save_progress(note_id, 4, total, SUMMARY_STEPS[4])
+        _save_progress(note_id, 5, total, SUMMARY_STEPS[5])
         # Grounded-LLM resolver: for the blocks the deterministic belt could not code,
         # retrieve real ICD-10 codes and let the LLM select the best (auto-apply on high
         # confidence) or curate a grounded picker. Best-effort — never invents a code,

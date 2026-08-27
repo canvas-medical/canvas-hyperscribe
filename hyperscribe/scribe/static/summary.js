@@ -466,6 +466,10 @@ const PROGRESS_STEPS = [
   'Generating note',
   'Structuring the note',
   'Extracting commands',
+  // Mirrors SUMMARY_STEPS in session_view.py. The step is listed unconditionally
+  // even though ScribeExamTemplateMerge may skip the work, because desyncing the
+  // two lists is a worse failure than a label that flashes past.
+  'Reconciling template',
   'Generating recommendations',
   'Suggesting diagnoses',
 ];
@@ -1457,6 +1461,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           selected_template_name: selectedTemplate?.name || null,
           template_ros_sections: selectedTemplate?.ros_sections || null,
           template_pe_sections: selectedTemplate?.pe_sections || null,
+          template_mse_sections: selectedTemplate?.mse_sections || null,
           patient_context: {
             name: patientName || '',
             birth_date: patientBirthDate || '',
@@ -1784,6 +1789,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         let next;
         if (type === 'history_review' || type === 'chart_review' || type === 'ros' || type === 'physical_exam' || type === 'mental_status_exam') {
           const display = (newData.sections || []).map(s => s.title).join(' | ');
+          // The Remove/Restore template toggle rides in on a normal edit, so catch the
+          // flag transition here rather than plumbing logEvent into the row component.
+          const wasRemoved = !!(cmd.data && cmd.data.template_removed);
+          const nowRemoved = !!newData.template_removed;
+          if (wasRemoved !== nowRemoved) {
+            logEvent(nowRemoved ? 'TEMPLATE_DEFAULTS_REMOVED' : 'TEMPLATE_DEFAULTS_RESTORED', {
+              kind: type,
+              removedCount: ((cmd.data && cmd.data.reconciled_sections) || [])
+                .filter(s => s.updated === false && s.template_text).length,
+            });
+          }
           next = { ...cmd, data: newData, display };
         } else if (type === 'vitals') {
           const vParts = [];
@@ -2766,6 +2782,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         reason: dropReason(c),
       })) });
     }
+    // Count template-sourced findings still standing on the exams about to be written.
+    // Gates nothing. It exists so the volume of machine-supplied findings reaching signed
+    // notes is measurable rather than assumed, which matters most for the MSE.
+    insertable
+      .filter(c => SECTION_TYPES.has(c.command_type))
+      .forEach(c => {
+        const fromTemplate = ((c.data && c.data.sections) || []).filter(s => s.updated === false && s.template_text);
+        if (fromTemplate.length > 0) {
+          logEvent('TEMPLATE_DEFAULTS_SIGNED', { kind: c.command_type, count: fromTemplate.length });
+        }
+      });
     // Batch B — re-link referrals to the provider's final diagnosis code before
     // validation, so a referral whose indication diagnosis was uncoded at generation
     // time inherits the ICD-10 code once the provider picks it (mirrors the backend
