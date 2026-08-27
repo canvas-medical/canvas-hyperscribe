@@ -6,7 +6,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from http import HTTPStatus
-from typing import Any, Union
+from typing import Any, Callable, Union
 from urllib.parse import urlencode
 
 from canvas_sdk.v1.data.medication import Status
@@ -851,7 +851,13 @@ def _load_assignees() -> list[dict[str, Any]]:
 
 
 def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
-    """Load and resolve visit templates from secrets config."""
+    """Load and resolve visit templates from secrets config.
+
+    Every stage degrades on its own. A template naming a questionnaire that does not
+    exist on this instance, a malformed entry, or an unavailable reference table costs
+    only the thing that failed — never the Scribe tab, which is what happens if this
+    raises (see ``_load_initial_data``).
+    """
     raw = secrets.get(Constants.SECRET_VISIT_TEMPLATES, "{}")
     try:
         config = json.loads(raw)
@@ -859,87 +865,153 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
         log.warning("visit-templates: malformed JSON in %s secret", Constants.SECRET_VISIT_TEMPLATES)
         return []
 
-    templates_config: list[dict[str, Any]] = config.get("templates", [])
+    # An operator can legally write valid JSON of the wrong shape; treat that as "no
+    # templates" rather than letting an AttributeError escape.
+    if not isinstance(config, dict):
+        log.warning("visit-templates: %s must be a JSON object", Constants.SECRET_VISIT_TEMPLATES)
+        return []
+    raw_templates = config.get("templates") or []
+    if not isinstance(raw_templates, list):
+        log.warning("visit-templates: 'templates' must be a list")
+        return []
+    templates_config: list[dict[str, Any]] = [t for t in raw_templates if isinstance(t, dict)]
+    if len(templates_config) != len(raw_templates):
+        log.warning(
+            "visit-templates: skipped %d entr(ies) that were not objects", len(raw_templates) - len(templates_config)
+        )
     if not templates_config:
         return []
 
     all_cpt_codes: set[str] = set()
     for tmpl in templates_config:
-        for code in tmpl.get("charges", []):
+        for code in tmpl.get("charges") or []:
             code = str(code).strip()
             if code:
                 all_cpt_codes.add(code)
 
     cdm_by_code: dict[str, Any] = {}
     if all_cpt_codes:
-        for record in ChargeDescriptionMaster.objects.filter(cpt_code__in=all_cpt_codes):
-            cdm_by_code[record.cpt_code] = record
+        try:
+            for record in ChargeDescriptionMaster.objects.filter(cpt_code__in=all_cpt_codes):
+                cdm_by_code[record.cpt_code] = record
+        except Exception:
+            log.exception("visit-templates: charge lookup failed; templates will carry no charges")
 
     all_q_names: list[str] = []
     for tmpl in templates_config:
-        all_q_names.extend(tmpl.get("questionnaires", []))
+        all_q_names.extend(str(n) for n in (tmpl.get("questionnaires") or []))
 
     q_by_name: dict[str, Any] = {}
     if all_q_names:
-        q_filter = Q()
-        for qn in set(all_q_names):
-            q_filter |= Q(name__iexact=qn)
-        for q_obj in QuestionnaireModel.objects.filter(q_filter, status="AC"):
-            q_by_name[q_obj.name.lower()] = q_obj
+        try:
+            q_filter = Q()
+            for qn in set(all_q_names):
+                q_filter |= Q(name__iexact=qn)
+            for q_obj in QuestionnaireModel.objects.filter(q_filter, status="AC"):
+                q_by_name[q_obj.name.lower()] = q_obj
+        except Exception:
+            log.exception("visit-templates: questionnaire lookup failed; templates will carry none")
+        missing = sorted({n for n in all_q_names if n.lower() not in q_by_name})
+        if missing:
+            # One aggregated line rather than one per template per name: the same handful
+            # of names repeat across templates and drowned the log.
+            log.warning(
+                "visit-templates: %d questionnaire(s) named in %s are not active on this "
+                "instance and will be skipped: %s",
+                len(missing),
+                Constants.SECRET_VISIT_TEMPLATES,
+                ", ".join(repr(n) for n in missing),
+            )
 
     result_templates: list[dict[str, Any]] = []
+    missing_codes: set[str] = set()
     for tmpl in templates_config:
-        q_names: list[str] = tmpl.get("questionnaires", [])
-        resolved: list[dict[str, Any]] = []
-        for q_name in q_names:
-            q_obj = q_by_name.get(q_name.lower())
-            if not q_obj:
-                log.warning("visit-templates: questionnaire %r not found", q_name)
-                continue
-            try:
-                resolved.append(resolve_questionnaire_definition(q_obj))
-            except Exception:
-                log.exception("visit-templates: failed to resolve %r", q_name)
-        ros_sections: list[dict[str, str]] | None = None
-        if raw_ros := tmpl.get("ros_template"):
-            ros_sections = parse_ros_subsections(raw_ros)
-        pe_sections: list[dict[str, str]] | None = None
-        if raw_pe := tmpl.get("pe_template"):
-            pe_sections = parse_ros_subsections(raw_pe)
-        mse_sections: list[dict[str, str]] | None = None
-        if raw_mse := tmpl.get("mse_template"):
-            mse_sections = parse_ros_subsections(raw_mse)
-        resolved_charges: list[dict[str, str]] = []
-        for code in tmpl.get("charges", []):
-            code = str(code).strip()
-            record = cdm_by_code.get(code)
-            if not record:
-                log.warning("visit-templates: charge CPT code %r not found", code)
-                continue
-            resolved_charges.append({"cpt_code": record.cpt_code, "description": record.short_name or record.name})
-        template_name = tmpl.get("name", "")
-        result_templates.append(
-            {
-                "name": template_name,
-                "questionnaires": resolved,
-                "ros_sections": ros_sections,
-                "pe_sections": pe_sections,
-                "mse_sections": mse_sections,
-                "is_psychiatry": NablaBackend.is_psychiatry_template(template_name),
-                "charges": resolved_charges,
-            }
+        template_name = str(tmpl.get("name") or "")
+        try:
+            resolved: list[dict[str, Any]] = []
+            for q_name in tmpl.get("questionnaires") or []:
+                q_obj = q_by_name.get(str(q_name).lower())
+                if not q_obj:
+                    # Already reported once, aggregated, above.
+                    continue
+                try:
+                    resolved.append(resolve_questionnaire_definition(q_obj))
+                except Exception:
+                    log.exception("visit-templates: failed to resolve %r", q_name)
+            ros_sections: list[dict[str, str]] | None = None
+            if raw_ros := tmpl.get("ros_template"):
+                ros_sections = parse_ros_subsections(raw_ros)
+            pe_sections: list[dict[str, str]] | None = None
+            if raw_pe := tmpl.get("pe_template"):
+                pe_sections = parse_ros_subsections(raw_pe)
+            mse_sections: list[dict[str, str]] | None = None
+            if raw_mse := tmpl.get("mse_template"):
+                mse_sections = parse_ros_subsections(raw_mse)
+            resolved_charges: list[dict[str, str]] = []
+            for code in tmpl.get("charges") or []:
+                code = str(code).strip()
+                record = cdm_by_code.get(code)
+                if not record:
+                    missing_codes.add(code)
+                    continue
+                resolved_charges.append({"cpt_code": record.cpt_code, "description": record.short_name or record.name})
+            result_templates.append(
+                {
+                    "name": template_name,
+                    "questionnaires": resolved,
+                    "ros_sections": ros_sections,
+                    "pe_sections": pe_sections,
+                    "mse_sections": mse_sections,
+                    "is_psychiatry": NablaBackend.is_psychiatry_template(template_name),
+                    "charges": resolved_charges,
+                }
+            )
+        except Exception:
+            # One bad template must not cost the operator every other template, nor the
+            # Scribe tab.
+            log.exception("visit-templates: skipping template %r after an unexpected error", template_name)
+
+    if missing_codes:
+        log.warning(
+            "visit-templates: %d charge code(s) not in the Charge Description Master and will be skipped: %s",
+            len(missing_codes),
+            ", ".join(repr(c) for c in sorted(missing_codes)),
         )
 
     return result_templates
 
 
+def _degrade(label: str, load: Callable[[], Any], fallback: Any) -> Any:
+    """Run one initial-data loader, falling back rather than taking the tab down.
+
+    ``_load_initial_data`` feeds the Scribe UI's first render and is called unguarded by
+    ``ScribeView``. Without this, an operator-set secret of the wrong shape, or a
+    reference table being briefly unavailable, means a provider opens the note to
+    nothing at all. Losing the template dropdown is recoverable; losing the tab is not.
+    """
+    try:
+        return load()
+    except Exception:
+        log.exception("scribe initial data: %s failed to load, continuing without it", label)
+        return fallback
+
+
 def _load_initial_data(note_id: str, secrets: dict[str, str]) -> dict[str, Any]:
-    """Compile all data needed for the Scribe UI initial render."""
+    """Compile all data needed for the Scribe UI initial render.
+
+    Each contributor degrades independently, so one failing costs only its own section.
+    """
     return {
-        "transcript": _load_transcript(note_id),
-        "summary": _load_summary(note_id, parse_alert_facility_commands(secrets.get("AlertFacilityCommands"))),
-        "assignees": _load_assignees(),
-        "templates": _load_templates(secrets),
+        "transcript": _degrade(
+            "transcript", lambda: _load_transcript(note_id), {"items": [], "finalized": False, "started": False}
+        ),
+        "summary": _degrade(
+            "summary",
+            lambda: _load_summary(note_id, parse_alert_facility_commands(secrets.get("AlertFacilityCommands"))),
+            None,
+        ),
+        "assignees": _degrade("assignees", _load_assignees, []),
+        "templates": _degrade("templates", lambda: _load_templates(secrets), []),
     }
 
 
@@ -1959,7 +2031,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
 
-        started = time.monotonic()
+        # time.time(), not time.monotonic(): the sandbox allowlists module attributes by
+        # name and monotonic is not on the list, which 500s the request with no plugin log.
+        started = time.time()
         try:
             transcript_data = _load_transcript(note_uuid)
             if not transcript_data.get("finalized"):
@@ -1993,7 +2067,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 )
             ]
 
-        telemetry["elapsed_ms"] = int((time.monotonic() - started) * 1000)
+        telemetry["elapsed_ms"] = int((time.time() - started) * 1000)
         results: list[dict[str, Any]] = []
         for outcome in outcomes:
             if outcome.error:

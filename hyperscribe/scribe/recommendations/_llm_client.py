@@ -18,10 +18,12 @@ Two other things this override buys:
 from __future__ import annotations
 
 import json
+from http import HTTPStatus
 from typing import Any
 
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 from canvas_sdk.clients.llms.structures.llm_response import LlmResponse
+from canvas_sdk.clients.llms.structures.llm_tokens import LlmTokens
 from canvas_sdk.clients.llms.structures.settings.llm_settings import LlmSettings
 
 DEFAULT_MODEL = "claude-opus-5"
@@ -106,38 +108,59 @@ class ScribeLlmAnthropic(LlmAnthropic):
         return payload
 
     def request(self) -> LlmResponse:
-        """Delegate to the SDK, capturing the raw ``usage`` block on the way past.
+        """POST to Anthropic and parse the response.
 
-        Done by shadowing ``self.http.post`` with a wrapper for the duration of the
-        call rather than by reimplementing ``request``, so the SDK keeps owning
-        response parsing and error handling and this stays a pure addition.
+        Reimplemented rather than delegating to ``super().request()``, for two reasons
+        that both matter on a thinking model.
+
+        The SDK reads structured output from ``content[0]``, which assumes the tool_use
+        block is first. With thinking enabled the first block is a ``thinking`` block, so
+        that lookup returns ``{}`` and every fill comes back empty. This selects the
+        tool_use block by type instead.
+
+        And the SDK discards everything in ``usage`` except the prompt and generated
+        counts, which drops ``cache_read_input_tokens`` — the one number that says
+        whether the prefix caching this design depends on is working. An earlier version
+        captured it by shadowing ``self.http.post``, which the sandbox rejects: reading
+        ``self.http.__dict__`` to restore the transport is blocked attribute access, and
+        it 500s the request with no plugin log.
         """
         self.last_usage = {}
-        # Restore exactly what was there. A blanket ``del`` would also remove a
-        # pre-existing instance attribute (a test double, a decorated transport) rather
-        # than only this wrapper.
-        missing = object()
-        previous = self.http.__dict__.get("post", missing)
-        original_post = self.http.post
-
-        def capturing_post(*args: Any, **kwargs: Any) -> Any:
-            response = original_post(*args, **kwargs)
-            try:
-                if response.status_code == 200:
-                    self.last_usage = json.loads(response.text).get("usage") or {}
-            except (ValueError, TypeError, AttributeError):
-                # Telemetry only. A malformed body is the SDK's problem to report.
-                pass
-            return response
-
-        self.http.post = capturing_post
+        headers = {
+            "Content-Type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": self.settings.api_key,
+        }
+        tokens = LlmTokens(prompt=0, generated=0)
         try:
-            return super().request()
-        finally:
-            if previous is missing:
-                self.http.__dict__.pop("post", None)
-            else:
-                self.http.post = previous
+            http_response = self.http.post("/v1/messages", headers=headers, data=json.dumps(self.to_dict()))
+        except Exception as exc:
+            # Mirrors the SDK: transport failures, including the 30s timeout, surface as
+            # a BAD_REQUEST rather than an exception.
+            return LlmResponse(code=HTTPStatus.BAD_REQUEST, response=f"Request failed: {exc}", tokens=tokens)
+
+        code = http_response.status_code
+        if code != HTTPStatus.OK.value:
+            return LlmResponse(code=HTTPStatus(code), response=http_response.text, tokens=tokens)
+
+        try:
+            body = json.loads(http_response.text)
+        except (ValueError, TypeError):
+            return LlmResponse(code=HTTPStatus.BAD_REQUEST, response=http_response.text, tokens=tokens)
+
+        blocks = body.get("content") or []
+        if self.schema:
+            payload: dict[str, Any] = next((b.get("input", {}) for b in blocks if b.get("type") == "tool_use"), {})
+            text = json.dumps(payload)
+        else:
+            text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
+
+        self.last_usage = body.get("usage") or {}
+        tokens = LlmTokens(
+            prompt=self.last_usage.get("input_tokens") or 0,
+            generated=self.last_usage.get("output_tokens") or 0,
+        )
+        return LlmResponse(code=HTTPStatus.OK, response=text, tokens=tokens)
 
 
 def make_fill_client(

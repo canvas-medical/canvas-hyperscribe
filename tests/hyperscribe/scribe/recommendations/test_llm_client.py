@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from http import HTTPStatus
 from unittest.mock import MagicMock
 
 from hyperscribe.scribe.recommendations._llm_client import (
@@ -10,6 +11,7 @@ from hyperscribe.scribe.recommendations._llm_client import (
     ScribeLlmSettings,
     make_fill_client,
 )
+from hyperscribe.scribe.recommendations.schemas import QuestionnaireFillResult
 
 
 def test_settings_never_send_a_sampling_parameter() -> None:
@@ -65,7 +67,44 @@ def _http_response(status: int, body: dict) -> MagicMock:
     return response
 
 
-def test_request_captures_raw_usage_and_restores_the_transport() -> None:
+def test_structured_output_is_read_from_the_tool_use_block_not_the_first_one() -> None:
+    """The SDK reads content[0]. With thinking on, content[0] is a thinking block, so
+    that lookup returns {} and every questionnaire comes back empty. This is the bug the
+    reimplemented request() exists to avoid."""
+    client = ScribeLlmAnthropic(ScribeLlmSettings(api_key="k", model="m"))
+    client.set_user_prompt(["hi"])
+    client.set_schema(QuestionnaireFillResult)
+    client.http.post = MagicMock(  # type: ignore[method-assign]
+        return_value=_http_response(
+            200,
+            {
+                "content": [
+                    {"type": "thinking", "thinking": "considering the transcript"},
+                    {"type": "tool_use", "name": "QuestionnaireFillResult", "input": {"questionnaireDbid": 7}},
+                ],
+                "usage": {"input_tokens": 10, "output_tokens": 4},
+            },
+        )
+    )
+
+    response = client.request()
+
+    assert json.loads(response.response) == {"questionnaireDbid": 7}
+
+
+def test_plain_text_output_concatenates_text_blocks_and_skips_thinking() -> None:
+    client = ScribeLlmAnthropic(ScribeLlmSettings(api_key="k", model="m"))
+    client.set_user_prompt(["hi"])
+    client.http.post = MagicMock(  # type: ignore[method-assign]
+        return_value=_http_response(
+            200,
+            {"content": [{"type": "thinking", "thinking": "hmm"}, {"type": "text", "text": "answer"}]},
+        )
+    )
+    assert client.request().response == "answer"
+
+
+def test_request_captures_the_full_usage_block() -> None:
     """The SDK narrows usage to prompt/generated, dropping cache_read_input_tokens — the
     one number that says whether the prefix caching is actually working."""
     client = ScribeLlmAnthropic(ScribeLlmSettings(api_key="k", model="m"))
@@ -74,33 +113,47 @@ def test_request_captures_raw_usage_and_restores_the_transport() -> None:
         return_value=_http_response(
             200,
             {
-                "content": [{"text": "ok"}],
+                "content": [{"type": "text", "text": "ok"}],
                 "usage": {"input_tokens": 12, "output_tokens": 3, "cache_read_input_tokens": 900},
             },
         )
     )
 
-    original_post = client.http.__dict__["post"]
-    client.request()
+    response = client.request()
 
     assert client.last_usage["cache_read_input_tokens"] == 900
-    assert client.last_usage["input_tokens"] == 12
-    # The wrapper is torn down and the caller's own transport is put back, not deleted.
-    assert client.http.__dict__["post"] is original_post
-    client.request()
-    assert client.last_usage["cache_read_input_tokens"] == 900
+    assert response.tokens.prompt == 12
+    assert response.tokens.generated == 3
 
 
-def test_request_survives_a_response_with_no_usage_block() -> None:
+def test_a_non_200_is_returned_not_raised() -> None:
     client = ScribeLlmAnthropic(ScribeLlmSettings(api_key="k", model="m"))
     client.set_user_prompt(["hi"])
-    client.http.post = MagicMock(  # type: ignore[method-assign]
-        return_value=_http_response(200, {"content": [{"text": "ok"}]})
-    )
+    client.http.post = MagicMock(return_value=_http_response(429, {"error": "slow down"}))  # type: ignore[method-assign]
+    assert client.request().code == HTTPStatus.TOO_MANY_REQUESTS
 
-    client.request()
 
-    assert client.last_usage == {}
+def test_a_transport_failure_becomes_a_bad_request() -> None:
+    """Mirrors the SDK, and matters because the sandbox's hardcoded 30s POST timeout
+    arrives here as an exception."""
+    client = ScribeLlmAnthropic(ScribeLlmSettings(api_key="k", model="m"))
+    client.set_user_prompt(["hi"])
+    client.http.post = MagicMock(side_effect=RuntimeError("timed out"))  # type: ignore[method-assign]
+
+    response = client.request()
+
+    assert response.code == HTTPStatus.BAD_REQUEST
+    assert "timed out" in response.response
+
+
+def test_an_unparseable_body_becomes_a_bad_request() -> None:
+    client = ScribeLlmAnthropic(ScribeLlmSettings(api_key="k", model="m"))
+    client.set_user_prompt(["hi"])
+    bad = MagicMock()
+    bad.status_code = 200
+    bad.text = "not json"
+    client.http.post = MagicMock(return_value=bad)  # type: ignore[method-assign]
+    assert client.request().code == HTTPStatus.BAD_REQUEST
 
 
 def test_usage_is_reset_between_requests() -> None:
@@ -109,7 +162,7 @@ def test_usage_is_reset_between_requests() -> None:
     client = ScribeLlmAnthropic(ScribeLlmSettings(api_key="k", model="m"))
     client.set_user_prompt(["hi"])
     client.http.post = MagicMock(  # type: ignore[method-assign]
-        return_value=_http_response(200, {"content": [{"text": "ok"}], "usage": {"input_tokens": 5}})
+        return_value=_http_response(200, {"content": [{"type": "text", "text": "ok"}], "usage": {"input_tokens": 5}})
     )
     client.request()
     assert client.last_usage == {"input_tokens": 5}
