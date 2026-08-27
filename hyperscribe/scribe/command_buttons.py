@@ -5,6 +5,19 @@ the patient-chart sections (Conditions, Medications, Allergies, Vitals, ...) so
 they document through the Scribe summary instead of the legacy chart rail. The
 buttons return once they leave the Scribe tab.
 
+OFF BY DEFAULT. Every path below sits behind the ``ScribeHideChartButtons``
+secret (strict ``"true"``), because hiding the rail confused providers
+(KOALA-5808 follow-up). Both HIDE paths and all three RESTORE paths are gated
+on the same predicate, so with the secret off the plugin emits nothing about
+command-button visibility at all and behaves exactly as it did before the
+feature existed. Half-gating it would have left a third state that never
+shipped, where the plugin broadcasts VISIBLE at moments nobody asked for, and
+that is a worse thing to debug than either of the two real ones.
+
+The one cost of gating the restores: flipping the secret from on to off while a
+provider is sitting on a chart that is already hidden leaves it hidden for that
+page. Nothing is persisted, so the next reload or patient navigation clears it.
+
 The one fact that shapes all of this: ``ConfigureCommandButtons`` is a **live
 broadcast, not persisted state**, and it is scoped to the **patient**, not the
 tab or the note. home-app's interpreter does nothing but push the hidden/disabled
@@ -74,8 +87,21 @@ function (and the plugin will not install) on older runtimes. Kept in sync with
 all three must agree.
 """
 
+from typing import Any
+
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.configure_command_buttons import ConfigureCommandButtons
+
+from hyperscribe.libraries.constants import Constants
+
+
+def command_button_hiding_enabled(secrets: dict[str, Any]) -> bool:
+    """Return True when chart-section command-button hiding is switched on.
+
+    Strict ``"true"`` match, like ``ScribeDictationEnabled``, so the secret can be
+    set to ``false`` to disable rather than having to be deleted.
+    """
+    return str(secrets.get(Constants.SECRET_SCRIBE_HIDE_CHART_BUTTONS, "")).strip().lower() == "true"
 
 
 def configure_command_buttons_effect(

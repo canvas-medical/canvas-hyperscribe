@@ -51,9 +51,14 @@ def _bypass_authorize_edit(request: pytest.FixtureRequest, monkeypatch: pytest.M
     monkeypatch.setattr(session_view, "_authorize_read", lambda *_args, **_kwargs: None)
 
 
-def _helper_instance(staff_id: str = "staff-key-abc") -> ScribeSessionView:
+def _helper_instance(
+    staff_id: str = "staff-key-abc",
+    *,
+    extra_secrets: dict[str, str] | None = None,
+) -> ScribeSessionView:
     event = SimpleNamespace(context={"method": "GET"})
     secrets: dict[str, str] = {"ScribeBackend": '{"vendor": "nabla", "client_id": "id", "client_secret": "secret"}'}
+    secrets.update(extra_secrets or {})
     environment: dict[str, str] = {}
     view = ScribeSessionView(event, secrets, environment)
     view._path_pattern = re.compile(r".*")
@@ -884,7 +889,7 @@ def test_configure_command_buttons_hidden(mock_note: MagicMock) -> None:
 
     mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-1"
 
-    view = _helper_instance()
+    view = _helper_instance(extra_secrets={"ScribeHideChartButtons": "true"})
     view.request = SimpleNamespace(
         headers={"canvas-logged-in-user-id": "staff-1"},
         body=json.dumps({"note_id": "note-uuid-1", "hidden": True}),
@@ -904,13 +909,55 @@ def test_configure_command_buttons_hidden(mock_note: MagicMock) -> None:
 
 
 @patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_disabled_by_default(mock_note: MagicMock) -> None:
+    """Without ScribeHideChartButtons the endpoint emits nothing in either direction.
+
+    Both a hide and a restore are accepted and do nothing, so the off state leaves
+    chart-button visibility exactly as the plugin found it.
+    """
+    for hidden in (True, False):
+        mock_note.reset_mock()
+        mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-1"
+
+        view = _helper_instance()
+        view.request = SimpleNamespace(
+            headers={"canvas-logged-in-user-id": "staff-1"},
+            body=json.dumps({"note_id": "note-uuid-1", "hidden": hidden}),
+        )
+        result = view.post_configure_command_buttons()
+
+        # Same 200 the frontend already expects, with no effect attached.
+        assert len(result) == 1, f"unexpected effect for hidden={hidden}"
+        assert result[0].status_code == HTTPStatus.OK
+        assert json.loads(result[0].content) == {"status": "ok"}
+        # The gate sits after the lookups, so auth and 404 behavior are unchanged.
+        mock_note.objects.values_list.return_value.get.assert_called_once_with(id="note-uuid-1")
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_configure_command_buttons_ignores_non_true_secret(mock_note: MagicMock) -> None:
+    """Only a strict "true" enables hiding, so "false" really disables it."""
+    mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-1"
+
+    view = _helper_instance(extra_secrets={"ScribeHideChartButtons": "false"})
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        body=json.dumps({"note_id": "note-uuid-1", "hidden": True}),
+    )
+    result = view.post_configure_command_buttons()
+
+    assert len(result) == 1
+    assert result[0].status_code == HTTPStatus.OK
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
 def test_configure_command_buttons_restore(mock_note: MagicMock) -> None:
     """hidden=False (and the default) restores every location to visible."""
     from hyperscribe.scribe.api.session_view import ConfigureCommandButtons
 
     mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-2"
 
-    view = _helper_instance()
+    view = _helper_instance(extra_secrets={"ScribeHideChartButtons": "true"})
     view.request = SimpleNamespace(
         headers={"canvas-logged-in-user-id": "staff-1"},
         body=json.dumps({"note_id": "note-uuid-2", "hidden": False}),
@@ -929,7 +976,7 @@ def test_configure_command_buttons_defaults_to_visible(mock_note: MagicMock) -> 
 
     mock_note.objects.values_list.return_value.get.return_value = "patient-uuid-3"
 
-    view = _helper_instance()
+    view = _helper_instance(extra_secrets={"ScribeHideChartButtons": "true"})
     view.request = SimpleNamespace(
         headers={"canvas-logged-in-user-id": "staff-1"},
         body=json.dumps({"note_id": "note-uuid-3"}),

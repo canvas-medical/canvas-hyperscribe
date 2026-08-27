@@ -41,7 +41,7 @@ from canvas_sdk.v1.data.patient import Patient
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
-from hyperscribe.scribe.command_buttons import configure_command_buttons_effect
+from hyperscribe.scribe.command_buttons import command_button_hiding_enabled, configure_command_buttons_effect
 
 import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
 from hyperscribe.scribe.clients.nabla.backend import NablaBackend
@@ -1269,6 +1269,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         effect is sticky and patient-scoped, so restores are explicit (here and on
         NOTE_CLOSED). Authorization is read-level: any staff who can load the chart
         (author, scribe, covering provider) may toggle their own button visibility.
+
+        Requires the ScribeHideChartButtons secret. Without it the request is
+        accepted and does nothing, in either direction.
         """
         try:
             data: dict[str, Any] = json.loads(self.request.body)
@@ -1283,6 +1286,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             patient_id = Note.objects.values_list("patient__id", flat=True).get(id=note_id)
         except Note.DoesNotExist:
             return [JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)]
+
+        # The whole feature is behind ScribeHideChartButtons. With it off the
+        # plugin leaves chart-button visibility alone in both directions, so the
+        # off state is behaviorally identical to the plugin before KOALA-5808.
+        # Checked here, after the validation and lookups above, so the 400/403/404
+        # responses stay identical whatever the secret says.
+        if not command_button_hiding_enabled(self.secrets):
+            return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
 
         hidden = bool(data.get("hidden", False))
         visibility = ConfigureCommandButtons.Visibility.HIDDEN if hidden else ConfigureCommandButtons.Visibility.VISIBLE
