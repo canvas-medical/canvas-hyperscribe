@@ -323,7 +323,7 @@ def test_build_effects_medication_with_alert_facility_emits_yes_inline() -> None
         effects, metadata_pending, attempted, build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
-            feature_flags={"AlertFacilityEnabled": True},
+            feature_flags={"AlertFacilityCommands": {"medication_statement"}},
         )
 
     assert len(effects) == 3
@@ -345,11 +345,11 @@ def test_build_effects_medication_with_alert_facility_emits_yes_inline() -> None
 
 
 def test_build_effects_medication_alert_facility_false_writes_no_inline() -> None:
-    """Flag on + alert_facility falsy: still emits inline metadata, value="No"."""
+    """Flag on + alert_facility explicitly False: emits inline metadata, value="No"."""
     proposals: list[dict[str, Any]] = [
         {
             "command_type": "medication_statement",
-            "data": {"medication_text": "Lisinopril 10mg"},
+            "data": {"medication_text": "Lisinopril 10mg", "alert_facility": False},
         },
     ]
     with patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med:
@@ -364,7 +364,7 @@ def test_build_effects_medication_alert_facility_false_writes_no_inline() -> Non
         effects, metadata_pending, attempted, build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
-            feature_flags={"AlertFacilityEnabled": True},
+            feature_flags={"AlertFacilityCommands": {"medication_statement"}},
         )
 
     assert len(effects) == 3
@@ -391,7 +391,7 @@ def test_build_effects_medication_alert_facility_flag_off_no_metadata() -> None:
         effects, metadata_pending, attempted, build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
-            feature_flags={"AlertFacilityEnabled": False},
+            feature_flags={"AlertFacilityCommands": set()},
         )
 
     assert len(effects) == 2
@@ -451,7 +451,11 @@ _GOOD_RX_DATA = {
 
 def test_validate_proposals_all_valid() -> None:
     proposals: list[dict[str, Any]] = [
-        {"command_type": "diagnose", "data": {"today_assessment": "Short text"}, "display": "Migraine"},
+        {
+            "command_type": "diagnose",
+            "data": {"icd10_code": "G43.909", "today_assessment": "Short text"},
+            "display": "Migraine",
+        },
         {"command_type": "assess", "data": {"narrative": "Brief"}, "display": "HTN"},
         # Prescribe / Refill / Adjust Prescription all share canvas-core's
         # Prescribe schema and need every required field populated to pass.
@@ -462,13 +466,27 @@ def test_validate_proposals_all_valid() -> None:
 
 def test_validate_proposals_diagnose_over_limit() -> None:
     proposals: list[dict[str, Any]] = [
-        {"command_type": "diagnose", "data": {"today_assessment": "x" * 2049}, "display": "Migraine"},
+        {
+            "command_type": "diagnose",
+            "data": {"icd10_code": "G43.909", "today_assessment": "x" * 2049},
+            "display": "Migraine",
+        },
     ]
     errors = validate_proposals(proposals)
     assert len(errors) == 1
     assert errors[0]["command_type"] == "diagnose"
     assert errors[0]["display"] == "Migraine"
     assert "2048" in errors[0]["errors"][0]
+
+
+def test_validate_proposals_diagnose_requires_code() -> None:
+    """Hard block on the insert path: an uncoded diagnose proposal is rejected."""
+    proposals: list[dict[str, Any]] = [
+        {"command_type": "diagnose", "data": {"today_assessment": "Short text"}, "display": "Migraine"},
+    ]
+    errors = validate_proposals(proposals)
+    assert len(errors) == 1
+    assert "ICD-10 code" in errors[0]["errors"][0]
 
 
 def test_validate_proposals_assess_over_limit() -> None:
@@ -1179,6 +1197,103 @@ def test_build_amend_edit_effects_hpi_void_and_recreate() -> None:
     assert attempted[0]["mode"] == "void_recreate"
     assert attempted[0]["old_command_uuid"] == "old-hpi-uuid-aaaa-bbbb-cccccccccccc"
     assert attempted[0]["new_command_uuid"] == minted_uuid
+
+
+def test_build_amend_edit_effects_medication_statement_reemits_alert_facility_metadata() -> None:
+    """Amending a medication_statement (void+recreate) re-emits the Alert Facility
+    metadata for the recreated command, ordered originate -> metadata -> commit.
+
+    Regression guard: without threading ``feature_flags`` into ``pending_metadata``,
+    the recreated command committed with NO alert_facility metadata row, so every
+    read path (reconcile + /note-commands) treated it as pre-feature and silently
+    dropped a value that was genuinely recorded on the original.
+    """
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "medication_statement",
+            "command_uuid": "old-med-uuid-aaaa-bbbb-cccccccccccc",
+            "section_key": "current_medications",
+            "data": {"medication_text": "Lisinopril 10mg", "alert_facility": True},
+            "display": "Lisinopril 10mg",
+        },
+    ]
+    minted_uuid = "fresh-med-uuid-1111-2222-3333-444444444444"
+    with (
+        patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med,
+        patch("hyperscribe.scribe.commands.builder.uuid.uuid4", return_value=minted_uuid),
+    ):
+        old_inst = MagicMock()
+        old_inst.enter_in_error.return_value = "med_enter_in_error"
+        old_inst.command_uuid = "old-med-uuid-aaaa-bbbb-cccccccccccc"
+        new_inst = MagicMock()
+        new_inst.originate.return_value = "med_originate"
+        new_inst.commit.return_value = "med_commit"
+        new_inst.command_uuid = minted_uuid
+        new_inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
+        new_inst.Meta.key = "medicationStatement"
+        mock_med.side_effect = [old_inst, new_inst]
+
+        effects, attempted = build_amend_edit_effects(
+            proposals,
+            "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            feature_flags={"AlertFacilityCommands": {"medication_statement"}},
+        )
+
+    # EIE(old) -> Originate(new) -> metadata(new) -> Commit(new): metadata lands
+    # after originate (row exists) and before commit (attaches while STAGED).
+    assert len(effects) == 4
+    assert effects[0] == "med_enter_in_error"
+    assert effects[1] == "med_originate"
+    assert effects[3] == "med_commit"
+    meta_effect = effects[2]
+    assert EffectType.Name(meta_effect.type) == "UPSERT_COMMAND_METADATA"
+    assert json.loads(meta_effect.payload) == {
+        "data": {
+            "schema_key": "medicationStatement",
+            "command_id": minted_uuid,  # the RECREATED command carries the metadata
+            "key": "alert_facility",
+            "value": "Yes",
+        },
+    }
+    assert attempted[0]["mode"] == "void_recreate"
+    assert attempted[0]["new_command_uuid"] == minted_uuid
+
+
+@pytest.mark.parametrize("feature_flags", [{"AlertFacilityCommands": set()}, None])
+def test_build_amend_edit_effects_no_alert_facility_metadata_when_gated_off(
+    feature_flags: dict[str, Any] | None,
+) -> None:
+    """The amend re-emit is gated by AlertFacilityCommands (and by feature_flags
+    being threaded at all): with an empty allow-set — or no feature_flags — a
+    void+recreate emits NO metadata effect, only EIE + originate + commit."""
+    proposals: list[dict[str, Any]] = [
+        {
+            "command_type": "medication_statement",
+            "command_uuid": "old-med-uuid-aaaa-bbbb-cccccccccccc",
+            "section_key": "current_medications",
+            "data": {"medication_text": "Lisinopril 10mg", "alert_facility": True},
+            "display": "Lisinopril 10mg",
+        },
+    ]
+    with (
+        patch("hyperscribe.scribe.commands.medication_statement.MedicationStatementCommand") as mock_med,
+        patch("hyperscribe.scribe.commands.builder.uuid.uuid4", return_value="fresh-med-uuid"),
+    ):
+        old_inst = MagicMock()
+        old_inst.enter_in_error.return_value = "med_enter_in_error"
+        new_inst = MagicMock()
+        new_inst.originate.return_value = "med_originate"
+        new_inst.commit.return_value = "med_commit"
+        mock_med.side_effect = [old_inst, new_inst]
+
+        effects, attempted = build_amend_edit_effects(
+            proposals,
+            "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
+            feature_flags=feature_flags,
+        )
+
+    assert effects == ["med_enter_in_error", "med_originate", "med_commit"]
+    assert attempted[0]["mode"] == "void_recreate"
 
 
 def test_build_amend_edit_effects_covers_all_void_recreate_sections() -> None:

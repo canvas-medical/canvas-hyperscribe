@@ -1,6 +1,6 @@
 {
-  "sdk_version": "0.155.0",
-  "plugin_version": "2026-06-24 v0.3.13",
+  "sdk_version": "0.164.0",
+  "plugin_version": "2026-08-26 v0.4.52",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -111,15 +111,6 @@
         }
       },
       {
-        "class": "hyperscribe.handlers.customization_display:CustomizationDisplay",
-        "description": "",
-        "data_access": {
-          "event": "",
-          "read": [],
-          "write": []
-        }
-      },
-      {
         "class": "hyperscribe.scribe.application.transcript_app:ScribeApp",
         "description": "Note application for Canvas Scribe with recording and transcript",
         "data_access": {
@@ -183,6 +174,24 @@
         }
       },
       {
+        "class": "hyperscribe.scribe.handlers.note_command_buttons:NoteCommandButtonsRestoreHandler",
+        "description": "Restore chart-section command buttons when a Scribe note is closed",
+        "data_access": {
+          "event": "NOTE_CLOSED",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.scribe.handlers.note_command_buttons:NoteSignedCommandButtonsRestoreHandler",
+        "description": "Restore chart-section command buttons when a Scribe note is signed or otherwise locked",
+        "data_access": {
+          "event": "NOTE_STATE_CHANGE_EVENT_CREATED",
+          "read": [],
+          "write": []
+        }
+      },
+      {
         "class": "hyperscribe.scribe.print.button:PrintScribeNoteButton",
         "description": "Note header dropdown button that launches a print preview of the scribe summary",
         "data_access": {
@@ -201,16 +210,7 @@
         }
       }
     ],
-    "applications": [
-      {
-        "class": "hyperscribe.handlers.customization_app:CustomizationApp",
-        "name": "Hyperscribe Customization",
-        "description": "UI Hyperscribe Customization",
-        "icon": "static/customization.png",
-        "scope": "global",
-        "show_in_panel": false
-      }
-    ],
+    "applications": [],
     "commands": [
       {
         "name": "HistoryReview",
@@ -260,7 +260,7 @@
     "views": []
   },
   "secrets": [
-    "AlertFacilityEnabled",
+    "AlertFacilityCommands",
     "AnthropicAPIKey",
     "APISigningKey",
     "AudioHost",
@@ -288,9 +288,13 @@
     "NotionFeedbackDatabaseId",
     "ScribeBackend",
     "ScribeDebugStaffers",
+    "ScribeDictationEnabled",
+    "ScribeCaptureDictationEnabled",
+    "ScribeHideChartButtons",
     "ScribeManualModeOnly",
     "ScribeNoteTypes",
     "ScribePilotStaffers",
+    "ScribePrescriptionStaffers",
     "ScribeTabName",
     "StaffersList",
     "StaffersPolicy",
@@ -301,9 +305,9 @@
     "VisitTemplates"
   ],
   "tags": {
-    "version_date": "2026-06-10",
-    "version_branch": "feat-physical-exam-improvements",
-    "version_semantic": "0.3.10"
+    "version_date": "2026-08-24",
+    "version_branch": "remove-hyperscribe-customization-app",
+    "version_semantic": "0.4.47"
   },
   "custom_data": {
     "namespace": "canvas_medical__scribe",

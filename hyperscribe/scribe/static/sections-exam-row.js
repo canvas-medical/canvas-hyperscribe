@@ -146,7 +146,7 @@ export function ExamSectionsRow({
     return html`
       <div class=${`exam-rows${readOnly ? '' : ' exam-clickable'}`} onClick=${enterEdit}>
         ${sections.length === 0
-          ? html`<div class="exam-empty">No ${LABEL[sectionKind]} documented.${readOnly ? '' : ' Click to add.'}</div>`
+          ? html`<div class="exam-empty">No ${LABEL[sectionKind]} documented.</div>`
           : sections.map((s, i) => html`
             <div class="exam-row" key=${s.key || i}>
               <div class="exam-sys">${s.title}</div>

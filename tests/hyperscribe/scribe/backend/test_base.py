@@ -7,6 +7,7 @@ from hyperscribe.scribe.backend import (
     NormalizedData,
     PatientContext,
     ScribeBackend,
+    ScribeError,
     Transcript,
 )
 
@@ -53,6 +54,31 @@ def test_complete_implementation_works() -> None:
 
     normalized = backend.generate_normalized_data(note)
     assert isinstance(normalized, NormalizedData)
+
+
+def test_get_dictation_config_defaults_to_unsupported() -> None:
+    """Dictation is optional: a backend implementing only the three required
+    methods inherits the base default, which raises to tell the
+    /dictation-config endpoint that dictation is unsupported."""
+
+    class NoDictation(ScribeBackend):
+        def get_transcription_config(self) -> dict[str, Any]:
+            return {}
+
+        def generate_note(
+            self,
+            transcript: Transcript,
+            *,
+            patient_context: PatientContext | None = None,
+        ) -> ClinicalNote:
+            return ClinicalNote(title="test")
+
+        def generate_normalized_data(self, note: ClinicalNote) -> NormalizedData:
+            return NormalizedData()
+
+    backend = NoDictation()
+    with pytest.raises(ScribeError, match="does not support dictation"):
+        backend.get_dictation_config()
 
 
 def test_generate_note_accepts_patient_context() -> None:

@@ -1,5 +1,8 @@
 from canvas_sdk.effects import Effect
+from canvas_sdk.effects.configure_command_buttons import ConfigureCommandButtons
 from canvas_sdk.effects.launch_modal import LaunchModalEffect
+
+from hyperscribe.scribe.command_buttons import command_button_hiding_enabled, configure_command_buttons_effect
 from canvas_sdk.handlers.application import NoteApplication
 from canvas_sdk.v1.data.note import Note
 
@@ -108,13 +111,34 @@ class ScribeApp(NoteApplication):
 
     def handle(self) -> list[Effect]:
         note_dbid = self.context.get("note_id")
-        note_id = Note.objects.values_list("id", flat=True).get(dbid=note_dbid)
+        note = Note.objects.values("id", "patient__id").get(dbid=note_dbid)
+        note_id = note["id"]
         url = f"{Constants.PLUGIN_API_BASE_ROUTE}/scribe/app?note_id={note_id}&view=scribe"
 
-        return [
+        effects: list[Effect] = [
             LaunchModalEffect(
                 url=url,
                 target=LaunchModalEffect.TargetType.NOTE,
                 title=self.NAME,
-            ).apply()
+            ).apply(),
         ]
+
+        # Hide every chart-section command button while the Scribe tab is open so
+        # providers chart through the Scribe summary rather than the legacy rail.
+        # This fires when the tab opens (including default-open on note load,
+        # where no NOTE_TAB_CHANGE is emitted). The effect is sticky and patient-
+        # scoped, so it is paired with explicit restores: the frontend restores on
+        # a switch to another tab, and NoteCommandButtonsRestoreHandler restores on
+        # NOTE_CLOSED when the provider leaves the note entirely.
+        #
+        # Off unless ScribeHideChartButtons is "true". The restores stay ungated,
+        # so switching the secret off can never leave a button stranded.
+        if command_button_hiding_enabled(self.secrets):
+            effects.append(
+                configure_command_buttons_effect(
+                    note["patient__id"],
+                    ConfigureCommandButtons.Visibility.HIDDEN,
+                )
+            )
+
+        return effects

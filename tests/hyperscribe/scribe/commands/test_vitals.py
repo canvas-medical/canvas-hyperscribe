@@ -478,10 +478,38 @@ def test_build() -> None:
         respiration_rate=16,
         oxygen_saturation=98,
         blood_pressure_position_and_site=mock_cmd.BloodPressureSite.return_value,
+        supplemental_oxygen=None,
         note="Patient was anxious",
         note_uuid="note-uuid-789",
         command_uuid="cmd-uuid",
     )
+    mock_cmd.SupplementalOxygen.assert_not_called()
+
+
+def test_build_with_supplemental_oxygen() -> None:
+    parser = VitalsParser()
+    data = {"pulse": 72, "supplemental_oxygen": "LA28684-1"}
+    with patch("hyperscribe.scribe.commands.vitals.VitalsCommand") as mock_cmd:
+        mock_cmd.return_value = MagicMock()
+        parser.build(data, "note-uuid", "cmd-uuid")
+
+    mock_cmd.SupplementalOxygen.assert_called_once_with("LA28684-1")
+    _, kwargs = mock_cmd.call_args
+    assert kwargs["supplemental_oxygen"] == mock_cmd.SupplementalOxygen.return_value
+
+
+def test_build_drops_unknown_supplemental_oxygen() -> None:
+    """An unrecognized value (e.g. a stale index) is dropped, not raised as a build error."""
+    parser = VitalsParser()
+    data = {"pulse": 72, "supplemental_oxygen": "0"}
+    with patch("hyperscribe.scribe.commands.vitals.VitalsCommand") as mock_cmd:
+        mock_cmd.return_value = MagicMock()
+        mock_cmd.SupplementalOxygen.side_effect = ValueError("not a valid SupplementalOxygen")
+        parser.build(data, "note-uuid", "cmd-uuid")
+
+    mock_cmd.SupplementalOxygen.assert_called_once_with("0")
+    _, kwargs = mock_cmd.call_args
+    assert kwargs["supplemental_oxygen"] is None
 
 
 def test_parse_vitals_respiratory_rate_phrasing() -> None:
@@ -548,6 +576,7 @@ def test_build_without_new_fields() -> None:
         respiration_rate=None,
         oxygen_saturation=None,
         blood_pressure_position_and_site=None,
+        supplemental_oxygen=None,
         note=None,
         note_uuid="note-uuid",
         command_uuid="cmd-uuid",

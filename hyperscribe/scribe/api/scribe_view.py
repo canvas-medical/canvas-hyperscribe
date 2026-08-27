@@ -12,6 +12,7 @@ from canvas_sdk.v1.data.staff import Staff
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.models.scribe import ScribeTranscript
 from hyperscribe.scribe.api.session_view import _load_initial_data
+from hyperscribe.scribe.commands._alert_facility import parse_alert_facility_commands
 
 
 def _safe_json(data: Any) -> str:
@@ -70,6 +71,15 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
             provider_photo_url = ""
 
         initial_data = _load_initial_data(note_id, self.secrets)
+        # Field dictation is gated behind a true/false secret (KOALA-6233). Strict
+        # "true" match so setting the secret to "false" disables it (unlike the
+        # truthy-if-present secrets, where any value would enable).
+        dictation_enabled = str(self.secrets.get("ScribeDictationEnabled", "")).strip().lower() == "true"
+        # Whole-visit dictation capture mode (the Conversation | Dictation toggle,
+        # KOALA-5513) is gated independently from field dictation so it can be
+        # enabled/disabled on its own while the broader note-gen fix is worked out.
+        # Same strict "true" match so setting it to "false" disables it.
+        capture_dictation_enabled = str(self.secrets.get("ScribeCaptureDictationEnabled", "")).strip().lower() == "true"
 
         html = render_to_string(
             "scribe/static/index.html",
@@ -87,8 +97,12 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
                 "debug_mode": "true" if self.secrets.get("ScribeDebugStaffers") else "",
                 "note_editable": "true" if note_editable else "",
                 "is_author": "true" if is_author else "",
-                "alert_facility_enabled": "true" if self.secrets.get("AlertFacilityEnabled") else "",
+                "alert_facility_commands": ",".join(
+                    sorted(parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands")))
+                ),
                 "manual_mode_only": "true" if self.secrets.get("ScribeManualModeOnly") else "",
+                "dictation_enabled": "true" if dictation_enabled else "",
+                "capture_dictation_enabled": "true" if capture_dictation_enabled else "",
                 "initial_data": _safe_json(initial_data),
             },
         )

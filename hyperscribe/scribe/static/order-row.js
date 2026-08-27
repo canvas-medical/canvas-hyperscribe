@@ -1,6 +1,7 @@
 import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useRef, useEffect, useCallback } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
+import { medicationOptionLabel } from './med-option-label.js';
 
 const html = htm.bind(h);
 
@@ -21,6 +22,15 @@ const SIG_MAX_LENGTH = 1000;
 const REFILLS_MIN = 0;
 const REFILLS_MAX = 99;
 const RX_TAB_KEYS = new Set(['prescribe', 'refill', 'adjust_prescription']);
+
+// Per-command-type default for Alert Facility. Prescribe and adjust prescription
+// default on; refill off. Applied everywhere (toggle, recorded value, display) so
+// a card gets its default without having to be opened.
+const ALERT_FACILITY_DEFAULT_ON = { prescribe: true, adjust_prescription: true, refill: false };
+
+// Effective on/off state: an explicit stored value wins, otherwise the type default.
+const alertFacilityOn = (commandType, raw) =>
+  raw === true ? true : raw === false ? false : !!ALERT_FACILITY_DEFAULT_ON[commandType];
 
 // Full NCPDP clinical quantity descriptions
 const CLINICAL_QUANTITY_DESCRIPTIONS = [
@@ -288,7 +298,7 @@ function InteractionWarningInline({ warning }) {
   `;
 }
 
-export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, noteId, staffId, staffName, noteDiagnoses = [], isRecommendation, onEditingChange }) {
+export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityCommands, patientId, noteId, staffId, staffName, noteDiagnoses = [], isRecommendation, onEditingChange }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   useEffect(() => {
@@ -300,10 +310,11 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   // Per-tab Rx state snapshots (saved when switching away, restored when switching back).
   const rxSnapshots = useRef({});
 
-  const initRxState = () => ({
+  const initRxState = (tabKey) => ({
     medQuery: '', selectedFdb: null, selectedMedDisplay: '', medQuantities: buildTypeToDispenseOptions([]),
     sig: '', daysSupply: '', quantity: '', typeToDispense: '', refills: '',
     substitutions: true, noteToPharmacist: '', interactionWarning: null, selectedPharmacy: '', pharmacyQuery: '',
+    alertFacility: !!ALERT_FACILITY_DEFAULT_ON[tabKey],
   });
 
   // Rx state
@@ -328,6 +339,16 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
   const [pharmacySearched, setPharmacySearched] = useState(false);
   const [interactionWarning, setInteractionWarning] = useState(null);
   const [checkingInteractions, setCheckingInteractions] = useState(false);
+
+  // Alert Facility toggle default is per command type (edit-mode starting position);
+  // an explicit stored value always wins. Mirrored into the per-tab Rx snapshots below
+  // so switching tabs follows the target tab's default until the user changes it.
+  const [alertFacility, setAlertFacility] = useState(
+    alertFacilityOn(command.command_type || 'prescribe', command.data.alert_facility),
+  );
+  // Only persist the flag when the user actually engaged it (or it's a brand-new
+  // card, or a value already exists) — never fabricate one on an unrelated edit.
+  const [alertFacilityTouched, setAlertFacilityTouched] = useState(false);
 
   // "Change to" medication (adjust_prescription only).
   const [changeToQuery, setChangeToQuery] = useState(command.data.new_medication_text || '');
@@ -362,12 +383,21 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setChangeToQuery(r.description);
     setChangeToResults([]);
     setChangeToSearched(false);
+    // The dispense-type options belong to the medication being dispensed, so
+    // swapping to a new med must rebuild them from the new med's quantities and
+    // drop the previous selection — otherwise the saved type_to_dispense /
+    // representative_ndc would still reference the old medication. Mirrors
+    // handleMedSelect.
+    const options = buildTypeToDispenseOptions(r.quantities || []);
+    setMedQuantities(options);
+    setTypeToDispense(options.length === 1 ? options[0].value : '');
   };
 
   const snapshotCurrentRx = () => ({
     medQuery, selectedFdb, selectedMedDisplay, medQuantities,
     sig, daysSupply, quantity, typeToDispense, refills,
     substitutions, noteToPharmacist, interactionWarning, selectedPharmacy, pharmacyQuery,
+    alertFacility,
   });
 
   const restoreRxSnapshot = (snap) => {
@@ -385,6 +415,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setSelectedPharmacy(snap.selectedPharmacy);
     setPharmacyQuery(snap.pharmacyQuery);
     setInteractionWarning(snap.interactionWarning);
+    setAlertFacility(snap.alertFacility);
     setMedResults([]);
     setMedSearched(false);
   };
@@ -727,6 +758,11 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setLabTestSearched(false);
   };
 
+  // Tolerant ICD-10 code key so the same diagnosis from different sources
+  // (chart conditions, live search, staged note dx) dedups regardless of dot
+  // formatting or case.
+  const normDiagCode = (c) => (c || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+
   const doDiagSearch = useCallback(async (q) => {
     if (!q || q.length < 2) { setDiagResults([]); setDiagSearched(false); return; }
     setDiagSearching(true);
@@ -758,17 +794,37 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setDiagQuery('');
     setDiagResults([]);
     setDiagSearched(false);
-    if (diagInputRef.current) diagInputRef.current.focus({ preventScroll: true });
+    // Close the dropdown after a selection; the provider can click back into
+    // the field to bring the list up again (mirrors the refer field).
+    setDiagFocused(false);
+    if (diagInputRef.current) diagInputRef.current.blur();
   };
 
   const handleDiagRemove = (code) => {
     setSelectedDiagnoses(selectedDiagnoses.filter(d => d.code !== code));
   };
 
+  // Diagnoses staged in this note's A&P, shown first as the most relevant
+  // indications. Excludes anything already selected as a chip.
+  const labNoteDiagSuggestions = (() => {
+    if (diagQuery || !noteDiagnoses || noteDiagnoses.length === 0) return [];
+    const selected = new Set(selectedDiagnoses.map(d => normDiagCode(d.code)));
+    const seen = new Set();
+    return noteDiagnoses.filter(d => {
+      const key = normDiagCode(d.code);
+      if (!key || selected.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
+
   const diagSuggestions = (() => {
     if (!diagQuery && patientConditions.length > 0) {
-      const alreadySelected = new Set(selectedDiagnoses.map(d => d.code));
-      return patientConditions.filter(c => !alreadySelected.has(c.code));
+      const alreadySelected = new Set(selectedDiagnoses.map(d => normDiagCode(d.code)));
+      // Suppress chart conditions already surfaced under "From this note".
+      const noteCodes = new Set(labNoteDiagSuggestions.map(d => normDiagCode(d.code)));
+      return patientConditions.filter(c =>
+        !alreadySelected.has(normDiagCode(c.code)) && !noteCodes.has(normDiagCode(c.code)));
     }
     return [];
   })();
@@ -837,17 +893,37 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setImagingDiagQuery('');
     setImagingDiagResults([]);
     setImagingDiagSearched(false);
-    if (imagingDiagInputRef.current) imagingDiagInputRef.current.focus({ preventScroll: true });
+    // Close the dropdown after a selection; the provider can click back into
+    // the field to bring the list up again (mirrors the refer field).
+    setImagingDiagFocused(false);
+    if (imagingDiagInputRef.current) imagingDiagInputRef.current.blur();
   };
 
   const handleImagingDiagRemove = (code) => {
     setImagingDiagnoses(imagingDiagnoses.filter(d => d.code !== code));
   };
 
+  // Diagnoses staged in this note's A&P, shown first as the most relevant
+  // indications. Excludes anything already selected as a chip.
+  const imagingNoteDiagSuggestions = (() => {
+    if (imagingDiagQuery || !noteDiagnoses || noteDiagnoses.length === 0) return [];
+    const selected = new Set(imagingDiagnoses.map(d => normDiagCode(d.code)));
+    const seen = new Set();
+    return noteDiagnoses.filter(d => {
+      const key = normDiagCode(d.code);
+      if (!key || selected.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
+
   const imagingDiagSuggestions = (() => {
     if (!imagingDiagQuery && patientConditions.length > 0) {
-      const alreadySelected = new Set(imagingDiagnoses.map(d => d.code));
-      return patientConditions.filter(c => !alreadySelected.has(c.code));
+      const alreadySelected = new Set(imagingDiagnoses.map(d => normDiagCode(d.code)));
+      // Suppress chart conditions already surfaced under "From this note".
+      const noteCodes = new Set(imagingNoteDiagSuggestions.map(d => normDiagCode(d.code)));
+      return patientConditions.filter(c =>
+        !alreadySelected.has(normDiagCode(c.code)) && !noteCodes.has(normDiagCode(c.code)));
     }
     return [];
   })();
@@ -986,11 +1062,6 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
     setReferDiagnoses(referDiagnoses.filter(d => d.code !== code));
   };
 
-  // Tolerant ICD-10 code key so the same diagnosis from different sources
-  // (chart conditions, live search, staged note dx) dedups regardless of dot
-  // formatting or case.
-  const normDiagCode = (c) => (c || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
-
   // Diagnoses staged in this note's A&P, shown first as the most relevant
   // indications. Excludes anything already selected as a chip.
   const noteDiagSuggestions = (() => {
@@ -1113,6 +1184,15 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
         pharmacy_name: selectedPharmacy ? pharmacyQuery : null,
         quantities: medQuantities.map(q => ({ representative_ndc: q.representative_ndc, ncpdp_quantity_qualifier_code: q.ncpdp_quantity_qualifier_code, clinical_quantity_description: q.label, quantity: 1 })),
       };
+      // Alert Facility: materialize only when this command type is enabled AND it's a
+      // brand-new card or the user set it; otherwise preserve any existing value (and leave
+      // a value-less card blank). handleSave rebuilds `data` from scratch, so an existing
+      // value must be carried over — preserved regardless of the enable gate.
+      if (alertFacilityCommands.has(activeTab) && (isNew || alertFacilityTouched)) {
+        data.alert_facility = alertFacility;
+      } else if (command.data.alert_facility !== undefined) {
+        data.alert_facility = command.data.alert_facility;
+      }
       // Include "change to" medication for adjust_prescription.
       if (activeTab === 'adjust_prescription' && changeToFdb) {
         data.new_fdb_code = changeToFdb;
@@ -1195,7 +1275,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                     if (RX_TABS.has(tab.key) && rxSnapshots.current[tab.key]) {
                       restoreRxSnapshot(rxSnapshots.current[tab.key]);
                     } else if (RX_TABS.has(tab.key)) {
-                      restoreRxSnapshot(initRxState());
+                      restoreRxSnapshot(initRxState(tab.key));
                     }
                     setActiveTab(tab.key);
                   }}
@@ -1370,7 +1450,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   : refillMeds.length > 0
                     ? html`<select class="history-form-input" onChange=${handleRefillSelect}>
                         <option value="">Choose a medication...</option>
-                        ${refillMeds.map((item, i) => html`<option key=${i} value=${i}>${item.medication_name}</option>`)}
+                        ${refillMeds.map((item, i) => html`<option key=${i} value=${i}>${medicationOptionLabel(item.medication_name, item.sig)}</option>`)}
                       </select>`
                     : html`<span class="removal-empty">No active medications</span>`
                 }
@@ -1456,16 +1536,28 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                       <div class="history-search-result search-no-results">No diagnoses found</div>
                     </div>
                   `}
-                  ${diagFocused && !diagQuery && diagSuggestions.length > 0 && html`
+                  ${diagFocused && !diagQuery && (labNoteDiagSuggestions.length > 0 || diagSuggestions.length > 0) && html`
                     <div class="history-search-dropdown">
-                      <div class="diag-suggestion-header">Patient conditions</div>
-                      ${diagSuggestions.map(d => html`
-                        <div
-                          key=${d.code}
-                          class="history-search-result"
-                          onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
-                        >${d.formatted_code || d.code} — ${d.display}</div>
-                      `)}
+                      ${labNoteDiagSuggestions.length > 0 && html`
+                        <div class="diag-suggestion-header">From this note</div>
+                        ${labNoteDiagSuggestions.map(d => html`
+                          <div
+                            key=${`note-${d.code}`}
+                            class="history-search-result"
+                            onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
+                          >${d.formatted_code || d.code} — ${d.display}</div>
+                        `)}
+                      `}
+                      ${diagSuggestions.length > 0 && html`
+                        <div class="diag-suggestion-header">Patient conditions</div>
+                        ${diagSuggestions.map(d => html`
+                          <div
+                            key=${`cond-${d.code}`}
+                            class="history-search-result"
+                            onMouseDown=${(e) => { e.preventDefault(); handleDiagSelect(d); }}
+                          >${d.formatted_code || d.code} — ${d.display}</div>
+                        `)}
+                      `}
                     </div>
                   `}
                 </div>
@@ -1547,12 +1639,20 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                   ${!imagingDiagSearching && imagingDiagSearched && imagingDiagResults.length === 0 && imagingDiagQuery.length >= 2 && html`
                     <div class="history-search-dropdown"><div class="history-search-result search-no-results">No diagnoses found</div></div>
                   `}
-                  ${imagingDiagFocused && !imagingDiagQuery && imagingDiagSuggestions.length > 0 && html`
+                  ${imagingDiagFocused && !imagingDiagQuery && (imagingNoteDiagSuggestions.length > 0 || imagingDiagSuggestions.length > 0) && html`
                     <div class="history-search-dropdown">
-                      <div class="diag-suggestion-header">Patient conditions</div>
-                      ${imagingDiagSuggestions.map(d => html`
-                        <div key=${d.code} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
-                      `)}
+                      ${imagingNoteDiagSuggestions.length > 0 && html`
+                        <div class="diag-suggestion-header">From this note</div>
+                        ${imagingNoteDiagSuggestions.map(d => html`
+                          <div key=${`note-${d.code}`} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                        `)}
+                      `}
+                      ${imagingDiagSuggestions.length > 0 && html`
+                        <div class="diag-suggestion-header">Patient conditions</div>
+                        ${imagingDiagSuggestions.map(d => html`
+                          <div key=${`cond-${d.code}`} class="history-search-result" onMouseDown=${(e) => { e.preventDefault(); handleImagingDiagSelect(d); }}>${d.formatted_code || d.code} — ${d.display}</div>
+                        `)}
+                      `}
                     </div>
                   `}
                 </div>
@@ -1760,6 +1860,16 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
                 `}
               </div>
             `}
+            ${alertFacilityCommands.has(activeTab) && html`
+              <div class="history-form-field">
+                <button type="button" class="alert-facility-toggle" onClick=${() => { setAlertFacility(prev => !prev); setAlertFacilityTouched(true); }}>
+                  <div class="toggle-switch${alertFacility ? ' on' : ''}">
+                    <div class="toggle-knob" />
+                  </div>
+                  Alert Facility
+                </button>
+              </div>
+            `}
             <div class="questionnaire-form-actions">
               <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
               <button
@@ -1832,6 +1942,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
             <div class="order-view-name">${command.display}</div>
             ${d.sig && html`<div class="order-view-sig">Sig: ${d.sig}</div>`}
             ${detailParts.length > 0 && html`<div class="order-view-details">${detailParts.join(' · ')}</div>`}
+            ${alertFacilityCommands.has(command.command_type) && (d.alert_facility === true || d.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${d.alert_facility ? 'Yes' : 'No'}</div>`}
           </div>
         </div>
         ${interactionWarning && html`<${InteractionWarningInline} warning=${interactionWarning} />`}
@@ -1885,6 +1996,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, pa
       <div class="order-view">
         <span class="command-type-label">${badgeLabel}</span>
         <div class="order-view-name">${command.display}</div>
+        ${alertFacilityCommands.has(command.command_type) && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
       </div>
     </div>
   `;

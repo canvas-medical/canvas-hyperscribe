@@ -13,6 +13,7 @@ from logger import log
 
 from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
+from canvas_sdk.effects.configure_command_buttons import ConfigureCommandButtons
 from canvas_sdk.effects.note.note import Note as NoteEffect
 from canvas_sdk.effects.simple_api import Broadcast, JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
@@ -23,6 +24,7 @@ from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from canvas_sdk.v1.data import AllergyIntolerance, ChargeDescriptionMaster, Medication, Note
 from canvas_sdk.v1.data.command import Command
+from canvas_sdk.v1.data.medication_statement import MedicationStatement
 from canvas_sdk.v1.data.prescription import Prescription
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
@@ -39,12 +41,14 @@ from canvas_sdk.v1.data.patient import Patient
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
+from hyperscribe.scribe.command_buttons import command_button_hiding_enabled, configure_command_buttons_effect
 
 import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
 from hyperscribe.scribe.clients.nabla.backend import NablaBackend
 from hyperscribe.scribe.backend import (
     ClinicalNote,
     CodingEntry,
+    CommandProposal,
     Condition,
     NoteSection,
     Observation,
@@ -54,7 +58,13 @@ from hyperscribe.scribe.backend import (
     TranscriptItem,
     get_backend_from_secrets,
 )
+from hyperscribe.scribe.commands._alert_facility import (
+    COMMAND_TYPE_BY_SCHEMA_KEY,
+    DEFAULT_ON_BY_COMMAND_TYPE,
+    parse_alert_facility_commands,
+)
 from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
+from hyperscribe.scribe.commands.diagnosis_candidates import PatientConditionSnapshot
 from hyperscribe.scribe.commands.builder import (
     DIRECT_EDIT_SECTIONS,
     EDITABLE_AMEND_SECTIONS,
@@ -81,8 +91,13 @@ from hyperscribe.scribe.commands.problem_list_match import (
     ActivePatientCondition,
     prefer_patient_specific_codes,
 )
-from hyperscribe.scribe.recommendations import recommend_commands
+from hyperscribe.scribe.recommendations import make_llm_client, prescription_dispense_enabled, recommend_commands
 from hyperscribe.scribe.recommendations._referral_diagnosis import link_referral_diagnoses
+from hyperscribe.scribe.recommendations._transcript_windows import PRN_PATTERN, find_keyword_matches
+from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
+    BlockContext as DiagnosisBlockContext,
+    resolve_uncoded_blocks,
+)
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
@@ -239,6 +254,25 @@ _AMEND_AUDIT_ENTRY_KEYS = (
 # Scribe tab, regardless of schema_key. Each renders with the same locked,
 # read-only card — no per-type routing into the existing SOAP groups.
 FROM_THE_NOTE_SECTION = "from_the_note"
+
+
+def _inject_alert_facility_defaults(proposals: list[dict[str, Any]], allowed_commands: set[str]) -> None:
+    """Materialize the per-type Alert Facility default onto freshly generated
+    command/recommendation proposals so a new card displays its default without
+    being opened. Applies only to command types in ``allowed_commands``.
+    ``setdefault`` means an explicit, already-chosen value always wins. Only ever
+    called on the current generation's proposals — never on historical commands."""
+    if not allowed_commands:
+        return
+    for proposal in proposals:
+        command_type = proposal.get("command_type")
+        if not isinstance(command_type, str) or command_type not in allowed_commands:
+            continue
+        default_on = DEFAULT_ON_BY_COMMAND_TYPE.get(command_type)
+        data = proposal.get("data")
+        if default_on is not None and isinstance(data, dict):
+            data.setdefault("alert_facility", default_on)
+
 
 _CAMEL_BOUNDARY_RE = re.compile(r"([a-z0-9])([A-Z])")
 
@@ -417,6 +451,103 @@ def _load_active_patient_conditions(patient_id: str) -> list[ActivePatientCondit
     return results
 
 
+def _latest_sigs_by_medication(medication_dbids: list[int]) -> dict[int, str]:
+    """Map each medication dbid to its most recent directions (its "sig").
+
+    Feeds the medication pickers, where a patient can intentionally carry the same
+    drug more than once with different directions. Without the sig those options are
+    indistinguishable and the wrong one gets stopped or refilled.
+
+    The statement source is what covers a medication recorded through the Medication
+    Statement command rather than prescribed: it has no ``Prescription`` row at all,
+    so a prescription-only lookup returns nothing for it.
+
+    A prescription wins over a medication statement, mirroring home-app's
+    ``Medication.latest_sig``. ``ChangeMedication`` is the third source there but
+    is not exposed as a data model by the SDK version this plugin pins, so a sig
+    changed only through that command falls back to the prescription's.
+
+    Both querysets are ordered oldest-first and collapsed into a dict, so the
+    newest row per medication wins the overwrite and one bulk query per source
+    replaces a per-medication lookup.
+
+    PHI note: the returned sigs are clinical data; callers must not log them
+    beyond aggregate counts.
+    """
+    if not medication_dbids:
+        return {}
+    prescriptions = {
+        row["medication_id"]: row["sig_original_input"]
+        for row in Prescription.objects.filter(medication_id__in=medication_dbids)
+        .active()
+        .order_by("dbid")
+        .values("medication_id", "sig_original_input")
+    }
+    # MedicationStatement has no `.active()` / `.committed()` queryset method, so the
+    # audit conditions `committed()` would apply are spelled out here. A retracted
+    # statement must not supply the text a prescriber reads when choosing what to stop.
+    statements = {
+        row["medication_id"]: row["sig_original_input"]
+        for row in MedicationStatement.objects.filter(
+            medication_id__in=medication_dbids,
+            committer__isnull=False,
+            entered_in_error__isnull=True,
+            deleted=False,
+        )
+        .order_by("dbid")
+        .values("medication_id", "sig_original_input")
+    }
+    return {dbid: (prescriptions.get(dbid) or statements.get(dbid) or "") for dbid in medication_dbids}
+
+
+def _load_patient_condition_history(patient_id: str) -> list[PatientConditionSnapshot]:
+    """Return the patient's committed conditions — active AND inactive (resolved,
+    remission, relapse, investigative) — narrowed to what the ICD-10 ranker needs.
+
+    Distinct from :func:`_load_active_patient_conditions` (which is ``.active()``
+    only and feeds the legacy rewrite/belt): the ranker uses prior conditions as a
+    selection signal and to show provenance ("Resolved 2021"), so this drops the
+    ``.active()`` filter and carries ``clinical_status`` / ``onset_date`` /
+    ``resolution_date``.
+
+    Best-effort: any ORM error returns ``[]`` so ``/generate-summary`` never dies
+    on a condition lookup (mirrors the contract documented in
+    ``ap_split._build_active_condition_icd10_index``). PHI: log only counts —
+    never codes, displays, or patient identifiers.
+    """
+    if not patient_id:
+        return []
+    try:
+        conditions = (
+            ConditionModel.objects.committed()
+            .for_patient(patient_id)
+            .prefetch_related("codings")
+            .order_by("-onset_date")
+        )
+        results: list[PatientConditionSnapshot] = []
+        for condition in conditions:
+            codings = list(condition.codings.all())
+            if not codings:
+                continue
+            icd10 = next((coding for coding in codings if "icd" in (coding.system or "").lower()), None)
+            chosen = icd10 or codings[0]
+            results.append(
+                PatientConditionSnapshot(
+                    condition_id=str(condition.id),
+                    code=chosen.code or "",
+                    display=chosen.display or "",
+                    system=chosen.system or "",
+                    clinical_status=condition.clinical_status or "",
+                    onset_date=condition.onset_date.isoformat() if condition.onset_date else "",
+                    resolution_date=condition.resolution_date.isoformat() if condition.resolution_date else "",
+                )
+            )
+        return results
+    except Exception:
+        log.exception("patient condition history lookup failed for note generation")
+        return []
+
+
 def _match_conditions_to_sections(
     note: ClinicalNote,
     conditions: list[Condition],
@@ -486,6 +617,8 @@ def _save_summary(note_id: str, payload: dict[str, Any]) -> None:
         defaults["mode"] = payload["mode"] or ""
     if "raw_response" in payload:
         defaults["raw_response"] = payload["raw_response"]
+    if "raw_normalized_response" in payload:
+        defaults["raw_normalized_response"] = payload["raw_normalized_response"]
     ScribeSummary.objects.update_or_create(note_id=note_dbid, defaults=defaults)
 
 
@@ -515,7 +648,60 @@ def _infer_mode_for_heal(note_dbid: int) -> str:
     return ""
 
 
-def _load_summary(note_id: str) -> dict[str, Any] | None:
+def _reconcile_committed_alert_facility(
+    commands: list[dict[str, Any]], note_id: str, allowed_commands: set[str]
+) -> None:
+    """Make the Alert Facility value shown for COMMITTED commands match the committed record.
+
+    The Scribe cache can hold a fabricated/default ``alert_facility`` that was never written to
+    the chart (e.g. stamped by a post-launch re-generation, or carried forward on an edit-save).
+    For a committed command the committed ``CommandMetadata`` is the source of truth: show its
+    value when present, and show nothing when absent (a pre-feature command). Uncommitted (draft)
+    commands are left alone so their working value keeps showing. Mutates ``commands`` in place —
+    display-only; the persisted cache row is not rewritten.
+    """
+    if not allowed_commands:
+        return
+    applicable_uuids = [
+        str(c["command_uuid"])
+        for c in commands
+        if isinstance(c, dict) and c.get("command_type") in allowed_commands and c.get("command_uuid")
+    ]
+    if not applicable_uuids:
+        return
+
+    from canvas_sdk.v1.data.command import Command, CommandMetadata
+
+    committed_uuids = {
+        str(cid)
+        for cid in Command.objects.filter(note__id=note_id, id__in=applicable_uuids)
+        .exclude(state="entered_in_error")
+        .values_list("id", flat=True)
+    }
+    if not committed_uuids:
+        return
+    value_by_uuid = {
+        str(meta["command__id"]): meta["value"]
+        for meta in CommandMetadata.objects.filter(command__id__in=committed_uuids, key="alert_facility").values(
+            "command__id", "value"
+        )
+    }
+    for command in commands:
+        if not isinstance(command, dict) or command.get("command_type") not in allowed_commands:
+            continue
+        uuid = str(command.get("command_uuid") or "")
+        if uuid not in committed_uuids:
+            continue  # uncommitted draft — keep its working value
+        data = command.get("data")
+        if not isinstance(data, dict):
+            continue
+        if uuid in value_by_uuid:
+            data["alert_facility"] = value_by_uuid[uuid] == "Yes"
+        else:
+            data.pop("alert_facility", None)
+
+
+def _load_summary(note_id: str, alert_facility_commands: set[str]) -> dict[str, Any] | None:
     note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_id)
     row = (
         ScribeSummary.objects.filter(note_id=note_dbid)
@@ -541,12 +727,21 @@ def _load_summary(note_id: str) -> dict[str, Any] | None:
             updated = ScribeSummary.objects.filter(note_id=note_dbid, mode="").update(mode=inferred)
             if updated:
                 mode = inferred
+    commands = row["commands"] or []
+    recommendations = row["recommendations"] or []
+    # Reconcile BOTH surfaces against the committed record. _inject stamps a
+    # per-type default onto commands and recommendations alike, so both can
+    # carry a fabricated value that must be re-derived once a card is committed.
+    # (An unaccepted recommendation has no committed command_uuid and is left
+    # untouched, so it keeps its in-flight default.)
+    _reconcile_committed_alert_facility(commands, note_id, alert_facility_commands)
+    _reconcile_committed_alert_facility(recommendations, note_id, alert_facility_commands)
     return {
         "note": row["note_data"] or None,
-        "commands": row["commands"] or [],
+        "commands": commands,
         "approved": row["approved"],
         "was_finalized": row["was_finalized"],
-        "recommendations": row["recommendations"] or [],
+        "recommendations": recommendations,
         "unmatched_conditions": row["unmatched_conditions"] or [],
         "diagnosis_suggestions": row["diagnosis_suggestions"] or {},
         "selected_template_name": row["selected_template_name"] or None,
@@ -753,7 +948,7 @@ def _load_initial_data(note_id: str, secrets: dict[str, str]) -> dict[str, Any]:
     """Compile all data needed for the Scribe UI initial render."""
     return {
         "transcript": _load_transcript(note_id),
-        "summary": _load_summary(note_id),
+        "summary": _load_summary(note_id, parse_alert_facility_commands(secrets.get("AlertFacilityCommands"))),
         "assignees": _load_assignees(),
         "templates": _load_templates(secrets),
     }
@@ -807,6 +1002,23 @@ def _parse_note(data: dict[str, Any]) -> ClinicalNote:
     return ClinicalNote(title=str(data.get("title", "")), sections=sections)
 
 
+def _note_provider_id(note_uuid: str | None) -> str | None:
+    """The note's provider (prescriber) staff id, or None. Used to gate the
+    prescription dispense-field engine against the allowlist secret."""
+    if not note_uuid:
+        return None
+    try:
+        provider_id = Note.objects.values_list("provider__id", flat=True).get(id=note_uuid)
+    except Note.DoesNotExist:
+        return None
+    except Exception:
+        # Unexpected query failure (DB/ORM): degrade gracefully to the gated-off
+        # path, but surface it to Sentry so we can tell *why* the engine is off.
+        log.exception("dispense-gate: provider lookup failed for note %s", note_uuid)
+        return None
+    return str(provider_id) if provider_id is not None else None
+
+
 class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
     """Scribe session management API."""
 
@@ -843,6 +1055,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 "selected_template_name",
                 "mode",
                 "raw_response",
+                "raw_normalized_response",
                 "updated_at",
             )
             .first()
@@ -939,6 +1152,26 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
         return [JSONResponse(config, status_code=HTTPStatus.OK)]
 
+    @api.get("/dictation-config")
+    def get_dictation_config(self) -> list[Union[Response, Effect]]:
+        """Return the Nabla dictate-ws config for talking into a single field post-generation.
+
+        Mirrors ``/config`` but for the separate dictation endpoint. Provides the
+        same per-user Nabla WS credentials; a backend that does not support
+        dictation raises ScribeError (→ 500). The field text/caret is supplied
+        client-side, so no note_id is needed here.
+        """
+        try:
+            backend = get_backend_from_secrets(self.secrets)
+        except ScribeError as exc:
+            return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.BAD_REQUEST)]
+        try:
+            staff_id = self.request.headers.get("canvas-logged-in-user-id")
+            config = backend.get_dictation_config(user_external_id=staff_id)
+        except ScribeError as exc:
+            return [JSONResponse({"error": str(exc)}, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)]
+        return [JSONResponse(config, status_code=HTTPStatus.OK)]
+
     @api.get("/transcript")
     def get_transcript(self) -> list[Union[Response, Effect]]:
         note_id = self.request.query_params.get("note_id", "")
@@ -969,7 +1202,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         note_id = self.request.query_params.get("note_id", "")
         if not note_id:
             return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        data = _load_summary(note_id)
+        data = _load_summary(note_id, parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands")))
         if data is None:
             return [
                 JSONResponse(
@@ -1027,6 +1260,48 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             payload["mode"] = data["mode"]
         _save_summary(note_id, payload)
         return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
+
+    @api.post("/configure-command-buttons")
+    def post_configure_command_buttons(self) -> list[Union[Response, Effect]]:
+        """Hide or restore all chart-section command buttons for the note's patient.
+
+        Called by the Scribe frontend on note-tab changes: hide while the Scribe
+        tab is active, restore when the user navigates to any other tab. The
+        effect is sticky and patient-scoped, so restores are explicit (here and on
+        NOTE_CLOSED). Authorization is read-level: any staff who can load the chart
+        (author, scribe, covering provider) may toggle their own button visibility.
+
+        Requires the ScribeHideChartButtons secret. Without it the request is
+        accepted and does nothing, in either direction.
+        """
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+        note_id = str(data.get("note_id", ""))
+        if not note_id:
+            return [JSONResponse({"error": "note_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if denial := _authorize_read(note_id, self.request):
+            return [denial]
+        try:
+            patient_id = Note.objects.values_list("patient__id", flat=True).get(id=note_id)
+        except Note.DoesNotExist:
+            return [JSONResponse({"error": "Note not found"}, status_code=HTTPStatus.NOT_FOUND)]
+
+        # The whole feature is behind ScribeHideChartButtons. With it off the
+        # plugin leaves chart-button visibility alone in both directions, so the
+        # off state is behaviorally identical to the plugin before KOALA-5808.
+        # Checked here, after the validation and lookups above, so the 400/403/404
+        # responses stay identical whatever the secret says.
+        if not command_button_hiding_enabled(self.secrets):
+            return [JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK)]
+
+        hidden = bool(data.get("hidden", False))
+        visibility = ConfigureCommandButtons.Visibility.HIDDEN if hidden else ConfigureCommandButtons.Visibility.VISIBLE
+        return [
+            JSONResponse({"status": "ok"}, status_code=HTTPStatus.OK),
+            configure_command_buttons_effect(patient_id, visibility),
+        ]
 
     @api.get("/summary-progress")
     def get_summary_progress(self) -> list[Union[Response, Effect]]:
@@ -1182,6 +1457,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 "selected": p.selected,
                 "section_key": p.section_key,
                 "already_documented": p.already_documented,
+                "from_transcript": p.from_transcript,
             }
             for p in proposals
         ]
@@ -1221,8 +1497,17 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     note_for_split = Note.objects.select_related("patient").get(id=note_uuid)
                 except Note.DoesNotExist:
                     note_for_split = None
+        # Feed the grounded ranker the patient's full condition history (active +
+        # inactive) for selection/provenance, and the science service for the
+        # fallback/unspecified-refinement lookups. ``note`` still drives the
+        # active-only condition_id stamping (diagnose→assess flip eligibility).
+        chart_conditions = _load_patient_condition_history(str(data.get("patient_id", "")))
         commands_list, unmatched_conditions = split_plan_into_diagnoses(
-            commands_list, section_conditions, note=note_for_split
+            commands_list,
+            section_conditions,
+            note=note_for_split,
+            chart_conditions=chart_conditions,
+            science_search=CanvasScience.search_conditions,
         )
         prefill_diagnose_backgrounds(commands_list, note_uuid)
 
@@ -1233,12 +1518,26 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         # ── Step 3: Recommend commands ──
         _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
         recommendations_list: list[dict[str, Any]] = []
+        rec_proposals: list[CommandProposal] = []
         api_key = self.secrets.get("AnthropicAPIKey", "")
         if api_key:
             try:
                 patient_id = str(data.get("patient_id", ""))
                 zip_codes = resolve_zip_codes(patient_id, note_id) or None
-                rec_proposals = recommend_commands(note, api_key, zip_codes=zip_codes, transcript=transcript)
+                allowlist = self.secrets.get(Constants.SECRET_SCRIBE_PRESCRIPTION_STAFFERS, "")
+                provider_id = _note_provider_id(note_uuid)
+                dispense_engine_enabled = prescription_dispense_enabled(allowlist, provider_id)
+                log.info(
+                    f"Prescription dispense engine: {'ON' if dispense_engine_enabled else 'OFF'} "
+                    f"(allowlist_set={bool((allowlist or '').strip())})"
+                )
+                rec_proposals = recommend_commands(
+                    note,
+                    api_key,
+                    zip_codes=zip_codes,
+                    transcript=transcript,
+                    dispense_engine_enabled=dispense_engine_enabled,
+                )
                 annotate_duplicates(rec_proposals, note_uuid)
                 prefill_assess_backgrounds_for_proposals(rec_proposals, note_uuid)
                 recommendations_list = [
@@ -1249,11 +1548,35 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                         "selected": p.selected,
                         "section_key": p.section_key,
                         "already_documented": p.already_documented,
+                        "from_transcript": p.from_transcript,
                     }
                     for p in rec_proposals
                 ]
             except Exception:
                 log.exception("recommend_commands failed (non-critical)")
+
+        # KOALA-6644: the defect was invisible — a dropped PRN produced no error, no log
+        # line and no audit row, so the only signal was absence. Record how many as-needed
+        # mentions the transcript carried against how many medications were actually
+        # recovered from it. Mentions with zero recoveries is the remaining-silent-drop
+        # case, and is what a later remediation sweep can select on.
+        #
+        # Deliberately outside the try above: that block swallows the entire recommendation
+        # stage as "non-critical", so emitting inside it would lose the telemetry in exactly
+        # the runs where a medication went missing. Emitted only when the transcript
+        # mentioned as-needed dosing at all, so the audit log stays signal-dense (mirrors
+        # VITALS_FIELD_REFUSED). Counts only — no drug names, no sigs, no transcript text.
+        if note_uuid and transcript:
+            prn_mentions = len(find_keyword_matches(transcript, PRN_PATTERN))
+            if prn_mentions:
+                audit_event(
+                    note_uuid,
+                    "MEDS_PRN_TRANSCRIPT",
+                    {
+                        "prn_mentions": prn_mentions,
+                        "recovered_from_transcript": sum(1 for p in rec_proposals if p.from_transcript),
+                    },
+                )
 
         # ── Step 3b: Check medication interactions ──
         interaction_warnings: list[dict[str, Any]] = []
@@ -1263,32 +1586,84 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             except Exception:
                 log.exception("interaction check failed (non-critical)")
 
-        # ── Step 4: Suggest diagnoses for unmatched blocks ──
+        # ── Step 4: Collect grounded suggestions for uncoded blocks ──
+        # The A&P belt already stamped ranked, science/chart-grounded
+        # ``candidate_suggestions`` on each uncoded diagnose proposal (no LLM, no
+        # invented codes). Surface them as a ``block_id -> options`` map — the
+        # stable association key, replacing the old mutable-header keying.
         _save_progress(note_id, 4, total, SUMMARY_STEPS[4])
-        diagnosis_suggestions: dict[str, Any] = {}
-        unmatched_headers = [
-            c["data"].get("condition_header", "")
+        # Grounded-LLM resolver: for the blocks the deterministic belt could not code,
+        # retrieve real ICD-10 codes and let the LLM select the best (auto-apply on high
+        # confidence) or curate a grounded picker. Best-effort — never invents a code,
+        # never overrides a code the belt already applied, never crashes generation.
+        if api_key:
+            uncoded_blocks = [
+                DiagnosisBlockContext(
+                    block_id=c["data"]["block_id"],
+                    header=c["data"].get("condition_header", ""),
+                    body=c["data"].get("today_assessment", ""),
+                    candidates=c["data"].get("candidate_suggestions") or [],
+                )
+                for c in commands_list
+                if c.get("command_type") == "diagnose"
+                and not c.get("data", {}).get("icd10_code")
+                and c.get("data", {}).get("block_id")
+            ]
+            if uncoded_blocks:
+                try:
+                    resolutions = resolve_uncoded_blocks(
+                        uncoded_blocks,
+                        lambda: make_llm_client(api_key),
+                        CanvasScience.search_conditions,
+                    )
+                    by_block = {
+                        c["data"].get("block_id"): c for c in commands_list if c.get("command_type") == "diagnose"
+                    }
+                    for block_id, resolution in resolutions.items():
+                        command = by_block.get(block_id)
+                        if command is None:
+                            continue
+                        # Never auto-apply — only surface the resolver's grounded suggestions;
+                        # the provider picks the code in the picker.
+                        if resolution.suggestions:
+                            command["data"]["candidate_suggestions"] = resolution.suggestions
+                except Exception:
+                    log.exception("diagnosis LLM resolver failed (non-critical)")
+
+        # The belt + resolver have stamped ranked, science/chart-grounded
+        # ``candidate_suggestions`` on each still-uncoded diagnose proposal (no invented
+        # codes). Surface them as a ``block_id -> options`` map — the stable association
+        # key, replacing the old mutable-header keying.
+        diagnosis_suggestions: dict[str, Any] = {
+            c["data"]["block_id"]: c["data"]["candidate_suggestions"]
             for c in commands_list
-            if c.get("command_type") == "diagnose" and not c.get("data", {}).get("icd10_code")
-        ]
-        unmatched_headers = [h for h in unmatched_headers if h]
-        if unmatched_headers and api_key:
-            try:
-                diagnosis_suggestions = suggest_diagnoses(unmatched_headers, api_key)
-            except Exception:
-                log.exception("suggest_diagnoses failed (non-critical)")
+            if c.get("command_type") == "diagnose"
+            and not c.get("data", {}).get("icd10_code")
+            and c.get("data", {}).get("block_id")
+            and c.get("data", {}).get("candidate_suggestions")
+        }
 
         # ── Step 4b: Give generic referrals a validated indication ──
-        # Match each referral's condition to a code already in the note (diagnose
-        # commands → diagnosis suggestions → unmatched conditions) so a generic,
-        # provider-less referral is commit-ready. Never fabricates a code.
+        # Match each referral's condition to a code already in the note — a coded
+        # diagnose command or an active-chart (unmatched) condition — so a generic,
+        # provider-less referral is commit-ready. Never fabricates a code, and never
+        # links from a still-uncoded block's ranked suggestions (that would stamp a
+        # guess the provider may not pick); those are linked to the provider's final
+        # code at reconciliation time by the frontend live-linker.
         if recommendations_list:
             try:
-                link_referral_diagnoses(
-                    recommendations_list, commands_list, unmatched_conditions, diagnosis_suggestions
-                )
+                link_referral_diagnoses(recommendations_list, commands_list, unmatched_conditions)
             except Exception:
                 log.exception("link_referral_diagnoses failed (non-critical)")
+
+        # ── Alert Facility: stamp per-type defaults onto freshly generated cards ──
+        # So a new command/recommendation shows its default without being opened.
+        # Only for command types the AlertFacilityCommands secret allows; runs only on
+        # fresh generation (never on cache reload or /note-commands), and setdefault
+        # leaves any explicit value untouched.
+        alert_facility_commands = parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+        _inject_alert_facility_defaults(commands_list, alert_facility_commands)
+        _inject_alert_facility_defaults(recommendations_list, alert_facility_commands)
 
         # ── Save to database ──
         # `mode` and `selected_template_name` are owned by the session lifecycle
@@ -1310,6 +1685,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             summary_payload["selected_template_name"] = data["selected_template_name"]
         if raw_response is not None:
             summary_payload["raw_response"] = raw_response
+        raw_normalized_response = getattr(backend, "_last_raw_normalized_response", None)
+        if raw_normalized_response is not None:
+            summary_payload["raw_normalized_response"] = raw_normalized_response
         _save_summary(note_id, summary_payload)
 
         return [
@@ -1448,6 +1826,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                             "selected": p.selected,
                             "section_key": p.section_key,
                             "already_documented": p.already_documented,
+                            "from_transcript": p.from_transcript,
                         }
                         for p in proposals
                     ],
@@ -1474,8 +1853,29 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         patient_id = str(data.get("patient_id", ""))
         rec_note_id = str(data.get("note_id", ""))
         zip_codes = resolve_zip_codes(patient_id, rec_note_id) or None
+        allowlist = self.secrets.get(Constants.SECRET_SCRIBE_PRESCRIPTION_STAFFERS, "")
+        dispense_engine_enabled = prescription_dispense_enabled(allowlist, _note_provider_id(rec_note_id))
+        # The medication recommenders fall back to the transcript when the generated note has
+        # dropped a PRN, so this endpoint must supply it too — otherwise re-running
+        # recommendations standalone silently reintroduces KOALA-6644.
+        transcript_data = data.get("transcript", {})
+        if not transcript_data.get("items") and rec_note_id:
+            try:
+                transcript_data = _load_transcript(rec_note_id)
+            except Exception:
+                # Recovering PRNs is an enhancement over the note-only path; never let a
+                # missing or unreadable transcript fail the whole endpoint.
+                log.exception("Could not load transcript for recommendations; falling back to note only")
+                transcript_data = {}
+        transcript = _parse_transcript(transcript_data) if transcript_data.get("items") else None
         try:
-            proposals = recommend_commands(note, api_key, zip_codes=zip_codes)
+            proposals = recommend_commands(
+                note,
+                api_key,
+                zip_codes=zip_codes,
+                transcript=transcript,
+                dispense_engine_enabled=dispense_engine_enabled,
+            )
         except Exception:
             log.exception("recommend_commands failed")
             return [
@@ -1498,6 +1898,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                             "selected": p.selected,
                             "section_key": p.section_key,
                             "already_documented": p.already_documented,
+                            "from_transcript": p.from_transcript,
                         }
                         for p in proposals
                     ],
@@ -1515,16 +1916,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         conditions = data.get("conditions", [])
         if not conditions or not isinstance(conditions, list):
             return [JSONResponse({"suggestions": {}}, status_code=HTTPStatus.OK)]
-        api_key = self.secrets.get("AnthropicAPIKey", "")
-        if not api_key:
-            return [
-                JSONResponse(
-                    {"error": "AnthropicAPIKey secret is not configured"},
-                    status_code=HTTPStatus.BAD_REQUEST,
-                )
-            ]
         try:
-            suggestions = suggest_diagnoses(conditions, api_key)
+            # Grounded in the science service only — no LLM, no invented codes.
+            suggestions = suggest_diagnoses(conditions)
         except Exception:
             log.exception("suggest_diagnoses failed")
             return [
@@ -1637,7 +2031,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     status_code=HTTPStatus.BAD_REQUEST,
                 )
             ]
-        feature_flags = {"AlertFacilityEnabled": bool(self.secrets.get("AlertFacilityEnabled"))}
+        feature_flags = {
+            "AlertFacilityCommands": parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+        }
         # Carry-forward assess backgrounds from prior signed notes BEFORE building
         # effects, so the SDK command constructor sees the prefilled value. This
         # mirrors the symmetric placement of ``annotate_duplicates`` (called by
@@ -1914,7 +2310,13 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             # silently dropped by build_amend_edit_effects and logged at WARN
             # there. We don't surface them in the response - they signal a
             # stale or buggy frontend, not a user-facing condition.
-            effects, attempted = build_amend_edit_effects(commands, note_uuid)
+            # feature_flags is threaded through so a void+recreate re-emits
+            # per-command metadata (e.g. Alert Facility) for the recreated
+            # command — otherwise an amended command reads back as pre-feature.
+            feature_flags = {
+                "AlertFacilityCommands": parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+            }
+            effects, attempted = build_amend_edit_effects(commands, note_uuid, feature_flags)
 
         # Audit fires after the state read + effect-emission step. ``audit_event``
         # catches broad Exception via log.exception, so an audit-write failure
@@ -2162,8 +2564,25 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except (json.JSONDecodeError, ValueError) as exc:
             return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
         note_uuid = str(data.get("note_uuid", ""))
-        attempted: list[dict[str, Any]] = data.get("attempted", [])
-        if not note_uuid or not attempted:
+        attempted_raw: list[dict[str, Any]] = data.get("attempted", [])
+        if not note_uuid or not attempted_raw:
+            return [JSONResponse({"verified": [], "failed": []}, status_code=HTTPStatus.OK)]
+
+        # KOALA-4800: dedup by command_uuid and drop entries without one before
+        # counting. The verification banner shows len(verified) + len(failed);
+        # a caller that passes the same command twice — or a stale/empty uuid —
+        # would otherwise inflate that total and surface phantom `not_found`
+        # failures for commands that are actually on the note. Defensive
+        # backstop mirroring the frontend's dedup at the attempted-set build.
+        attempted: list[dict[str, Any]] = []
+        seen_uuids: set[str] = set()
+        for a in attempted_raw:
+            command_uuid = a.get("command_uuid")
+            if not command_uuid or command_uuid in seen_uuids:
+                continue
+            seen_uuids.add(command_uuid)
+            attempted.append(a)
+        if not attempted:
             return [JSONResponse({"verified": [], "failed": []}, status_code=HTTPStatus.OK)]
 
         uuids = [a["command_uuid"] for a in attempted]
@@ -2248,10 +2667,37 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             .exclude(state="entered_in_error")
             .values("id", "schema_key", "data")
         )
+
+        # Alert Facility lives in command metadata (not Command.data), so read it
+        # back in one batched query and surface it as a detail row — keeping the
+        # flag visible on the flat cards, consistent with the pre-commit view.
+        # Only for command types the AlertFacilityCommands secret allows.
+        allowed_commands = parse_alert_facility_commands(self.secrets.get("AlertFacilityCommands"))
+        allowed_schema_keys = {sk for sk, ct in COMMAND_TYPE_BY_SCHEMA_KEY.items() if ct in allowed_commands}
+        alert_facility_by_command: dict[str, str] = {}
+        if allowed_schema_keys:
+            from canvas_sdk.v1.data.command import CommandMetadata
+
+            alert_command_ids = [row["id"] for row in rows if (row.get("schema_key") or "") in allowed_schema_keys]
+            if alert_command_ids:
+                for meta in CommandMetadata.objects.filter(
+                    command__id__in=alert_command_ids, key="alert_facility"
+                ).values("command__id", "value"):
+                    alert_facility_by_command[str(meta["command__id"])] = meta["value"]
+
         commands: list[dict[str, Any]] = []
         for row in rows:
             schema_key = row.get("schema_key") or ""
             data = row.get("data") or {}
+            details = _details_for_command(data)
+            if schema_key in allowed_schema_keys:
+                # Show the flag only when the command actually recorded one. Post-feature
+                # commands always carry an explicit alert_facility metadata row (build_effects
+                # writes one via pending_metadata); a missing row means a pre-feature (or
+                # non-Scribe) command, which we leave blank so historical cards are unaltered.
+                command_id = str(row["id"])
+                if command_id in alert_facility_by_command:
+                    details.append({"label": "Alert Facility", "value": alert_facility_by_command[command_id]})
             commands.append(
                 {
                     "command_uuid": str(row["id"]),
@@ -2259,7 +2705,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     "section_key": FROM_THE_NOTE_SECTION,
                     "label": _humanize_schema_key(schema_key),
                     "data": data,
-                    "details": _details_for_command(data),
+                    "details": details,
                     "already_documented": True,
                     "_from_note": True,
                 }
@@ -2407,15 +2853,22 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         patient_id = self.request.query_params.get("patient_id", "").strip()
         if not patient_id:
             return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        medications = Medication.objects.filter(
-            patient__id=patient_id, status=Status.ACTIVE, committer__isnull=False
-        ).prefetch_related("codings")
+        medications = list(
+            Medication.objects.filter(
+                patient__id=patient_id, status=Status.ACTIVE, committer__isnull=False
+            ).prefetch_related("codings")
+        )
+        sigs = _latest_sigs_by_medication([m.dbid for m in medications])
         results = []
         for m in medications:
-            coding = m.codings.first()
+            # min() by dbid rather than .codings.first(): first() sorts an unordered related
+            # queryset with order_by("pk"), and that clone starts with an empty result cache,
+            # so it throws away the prefetch above and queries once per medication. This reads
+            # the prefetched rows and still picks the row first() picked.
+            coding = min(m.codings.all(), key=lambda c: c.dbid, default=None)
             if not coding:
                 continue
-            results.append({"id": str(m.id), "name": coding.display})
+            results.append({"id": str(m.id), "name": coding.display, "sig": sigs.get(m.dbid, "")})
         return [JSONResponse({"medications": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/patient-allergies")
@@ -2429,7 +2882,8 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         ).prefetch_related("codings")
         results = []
         for a in allergies:
-            coding = a.codings.first()
+            # Same prefetch-preserving pick as get_patient_medications above.
+            coding = min(a.codings.all(), key=lambda c: c.dbid, default=None)
             if not coding:
                 continue
             results.append({"id": str(a.id), "name": coding.display})
@@ -2441,9 +2895,18 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         patient_id = self.request.query_params.get("patient_id", "").strip()
         if not patient_id:
             return [JSONResponse({"error": "patient_id is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        medications = Medication.objects.filter(
-            patient__id=patient_id, status=Status.ACTIVE, committer__isnull=False
-        ).prefetch_related("codings")
+        medications = list(
+            Medication.objects.filter(
+                patient__id=patient_id, status=Status.ACTIVE, committer__isnull=False
+            ).prefetch_related("codings")
+        )
+        # A medication recorded through the Medication Statement command has no
+        # Prescription row, so every field below falls back to None/"" for it. The
+        # sig is the one a prescriber has to see: without it two entries of the same
+        # drug are indistinguishable in the picker. Fill only that gap, and only when
+        # the prescription has nothing, so the label still matches the rest of the
+        # prefill whenever a prescription is what supplied it.
+        fallback_sigs = _latest_sigs_by_medication([m.dbid for m in medications])
         results: list[dict[str, Any]] = []
         for m in medications:
             fdb_coding = next(
@@ -2463,7 +2926,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     "fdb_code": fdb_coding.code,
                     "national_drug_code": m.national_drug_code,
                     "potency_unit_code": m.potency_unit_code,
-                    "sig": rx.sig_original_input if rx else "",
+                    "sig": (rx.sig_original_input if rx else "") or fallback_sigs.get(m.dbid, ""),
                     "quantity_to_dispense": rx.dispense_quantity if rx else None,
                     "days_supply": rx.duration_in_days if rx else None,
                     "refills": rx.count_of_refills_allowed if rx else None,
@@ -2620,7 +3083,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             # Scrub query+URL from logs — the typed query may carry patient
             # identifiers (HIPAA). Log only the exception class so ops sees
             # the failure shape without the PHI-bearing context.
-            log.error("Imaging search failed: %s", type(exc).__name__)
+            log.error("Imaging search failed: %s", exc.__class__.__name__)
             return [JSONResponse({"results": []}, status_code=HTTPStatus.OK)]
         results = []
         for r in data.get("results", []):

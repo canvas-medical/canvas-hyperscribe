@@ -127,15 +127,21 @@ class Constants:
     SECRET_NOTION_FEEDBACK_DATABASE_ID = "NotionFeedbackDatabaseId"
     SECRET_SCRIBE_BACKEND = "ScribeBackend"  # JSON: {"vendor": "nabla", "region": "us", ...}
     SECRET_SCRIBE_NOTE_TYPES = "ScribeNoteTypes"  # Comma-separated note type names
-    SECRET_ALERT_FACILITY_ENABLED = "AlertFacilityEnabled"
+    SECRET_ALERT_FACILITY_COMMANDS = "AlertFacilityCommands"  # Comma-separated command types
     SECRET_SCRIBE_DEBUG_STAFFERS = "ScribeDebugStaffers"  # Comma-separated staff keys for debug apps
     SECRET_VISIT_TEMPLATES = "VisitTemplates"  # JSON: {"templates": [...]}
     SECRET_NOTION_API_KEY = "NotionAPIKey"
     SECRET_MODALITY = "Modality"
     SECRET_SCRIBE_TAB_NAME = "ScribeTabName"
+    # Strict "true" enables hiding the chart-section command buttons while the
+    # Scribe tab is active; any other value (including unset) leaves them visible.
+    SECRET_SCRIBE_HIDE_CHART_BUTTONS = "ScribeHideChartButtons"
     MODALITY_SCRIBE = "scribe"
     # PILOT: remove SECRET_SCRIBE_PILOT_STAFFERS when scribe pilot ends
     SECRET_SCRIBE_PILOT_STAFFERS = "ScribePilotStaffers"
+    # Comma-separated staff keys allowed the prescription dispense-field engine
+    # (quantity / days supply / refills / dispense type). Blank = all users.
+    SECRET_SCRIBE_PRESCRIPTION_STAFFERS = "ScribePrescriptionStaffers"
     SECRET_TRIAL_STAFFERS_LIST = "TrialStaffersList"
     # JSON credentials which take precedence over the secrets
     AWS_S3_CREDENTIALS_LOGS = "S3CredentialsLogs"

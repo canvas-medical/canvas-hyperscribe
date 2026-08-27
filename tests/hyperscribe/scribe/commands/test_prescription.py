@@ -168,6 +168,47 @@ def test_build_with_partial_clinical_quantity() -> None:
     assert "description" not in qty
 
 
+def test_build_decodes_encoded_type_to_dispense() -> None:
+    """A recommendation accepted without opening the order row carries
+    type_to_dispense in the encoded 'ndc|erx_qty|qualifier_code' form. The
+    builder must decode it (like order-row.js) into a bare qualifier code +
+    representative_ndc, not pass the whole pipe-string through."""
+    parser = PrescriptionParser()
+    data = {
+        "sig": "one tablet PO daily",
+        "type_to_dispense": "76282073050|1.0000000|C48542",
+        "type_to_dispense_label": "tablet",
+    }
+    with patch("hyperscribe.scribe.commands.prescription.PrescribeCommand") as mock_cmd:
+        mock_cmd.Substitutions = MagicMock()
+        mock_cmd.return_value = MagicMock()
+        parser.build(data, "note-uuid", "cmd-uuid")
+
+    qty: ClinicalQuantity = mock_cmd.call_args.kwargs["type_to_dispense"]
+    assert qty["representative_ndc"] == "76282073050"
+    assert qty["ncpdp_quantity_qualifier_code"] == "C48542"
+    assert qty["description"] == "tablet"
+
+
+def test_build_explicit_representative_ndc_wins_over_encoded() -> None:
+    """When the data already carries a decoded representative_ndc (saved via the
+    order row), it takes precedence over the ndc embedded in the encoded string."""
+    parser = PrescriptionParser()
+    data = {
+        "sig": "one tablet PO daily",
+        "type_to_dispense": "76282073050|1.0000000|C48542",
+        "representative_ndc": "99999999999",
+    }
+    with patch("hyperscribe.scribe.commands.prescription.PrescribeCommand") as mock_cmd:
+        mock_cmd.Substitutions = MagicMock()
+        mock_cmd.return_value = MagicMock()
+        parser.build(data, "note-uuid", "cmd-uuid")
+
+    qty: ClinicalQuantity = mock_cmd.call_args.kwargs["type_to_dispense"]
+    assert qty["representative_ndc"] == "99999999999"
+    assert qty["ncpdp_quantity_qualifier_code"] == "C48542"
+
+
 def test_build_invalid_quantity_ignored() -> None:
     parser = PrescriptionParser()
     data = {"quantity_to_dispense": "not-a-number", "sig": ""}
@@ -177,3 +218,58 @@ def test_build_invalid_quantity_ignored() -> None:
         parser.build(data, "note-uuid", "cmd-uuid")
 
     assert mock_cmd.call_args.kwargs["quantity_to_dispense"] is None
+
+
+def _make_rx_command() -> MagicMock:
+    cmd = MagicMock()
+    cmd.command_uuid = "00000000-0000-0000-0000-0000000000c1"
+    cmd.note_uuid = "00000000-0000-0000-0000-0000000000cc"
+    return cmd
+
+
+def test_pending_metadata_flag_off_returns_none() -> None:
+    cmd = _make_rx_command()
+    proposal = {"data": {"alert_facility": True}}
+    assert PrescriptionParser().pending_metadata(cmd, proposal, feature_flags={}) is None
+    assert PrescriptionParser().pending_metadata(cmd, proposal, feature_flags=None) is None
+    assert (
+        PrescriptionParser().pending_metadata(cmd, proposal, feature_flags={"AlertFacilityCommands": {"refill"}})
+        is None
+    )
+
+
+def test_pending_metadata_flag_on_alert_truthy_returns_yes() -> None:
+    cmd = _make_rx_command()
+    proposal = {"data": {"alert_facility": True}}
+    result = PrescriptionParser().pending_metadata(
+        cmd, proposal, feature_flags={"AlertFacilityCommands": {"prescribe"}}
+    )
+    assert result == {
+        "command_uuid": cmd.command_uuid,
+        "command_type": "prescribe",
+        "note_uuid": cmd.note_uuid,
+        "metadata": {"alert_facility": "Yes"},
+    }
+
+
+def test_pending_metadata_flag_on_explicit_false_returns_no() -> None:
+    cmd = _make_rx_command()
+    result = PrescriptionParser().pending_metadata(
+        cmd, {"data": {"alert_facility": False}}, feature_flags={"AlertFacilityCommands": {"prescribe"}}
+    )
+    assert result is not None
+    assert result["metadata"] == {"alert_facility": "No"}
+
+
+def test_pending_metadata_flag_on_defaults_to_yes_when_unset() -> None:
+    cmd = _make_rx_command()
+    for proposal in (
+        {"data": {"alert_facility": True}},
+        {"data": {}},
+        None,
+    ):
+        result = PrescriptionParser().pending_metadata(
+            cmd, proposal, feature_flags={"AlertFacilityCommands": {"prescribe"}}
+        )
+        assert result is not None
+        assert result["metadata"] == {"alert_facility": "Yes"}
