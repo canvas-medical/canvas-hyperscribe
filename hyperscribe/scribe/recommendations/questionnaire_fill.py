@@ -232,7 +232,9 @@ def fill_chunk_with_retry(
         if not exc.retryable:
             raise
         log.info(f"questionnaire fill: retrying chunk of '{name}' after {exc}")
-        sleep(0.4 + random.random() * 0.6)
+        # random.uniform, not random.random(): the sandbox allowlists module attributes
+        # by name and random is not among them.
+        sleep(random.uniform(0.4, 1.0))
         return fill_chunk(name, questions, transcript, client)
 
 
