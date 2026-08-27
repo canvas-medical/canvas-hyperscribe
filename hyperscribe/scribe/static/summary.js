@@ -2,6 +2,7 @@ import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
+import { mergeFilled } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-fill.js';
 import { collectQuestionnaireScores } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-score.js';
 import { dropReason, isIntentionalDrop, isDismissedCondition } from '/plugin-io/api/hyperscribe/scribe/static/command-drop.js';
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
@@ -486,7 +487,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation, transcriptFinalized } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -503,6 +504,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         commandBySectionKey=${commandBySectionKey}
         onEditCommand=${onEditCommand}
         onDeleteCommand=${onDeleteCommand}
+        transcriptFinalized=${transcriptFinalized}
         adHocCommands=${isPlan ? adHocCommands : isObjective ? objectiveAdHocCommands : isHistory ? historyAdHocCommands : isSubjective ? subjectiveAdHocCommands : isCharges ? chargeAdHocCommands : null}
         assignees=${isPlan ? assignees : null}
         onAddTask=${isPlan ? onAddTask : null}
@@ -1446,6 +1448,43 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     logEvent('GENERATE_START');
     setGenerating(true);
     setError(null);
+
+    // Fired alongside generation rather than awaited before or after it. The note is
+    // never held up by a questionnaire, and both read the same finalized transcript.
+    // One request for every questionnaire on the note, so they share a single warmed
+    // prompt cache server-side.
+    const templateQuestionnaireDbids = (selectedTemplate?.questionnaires || []).map(q => q.questionnaire_dbid);
+    if (templateQuestionnaireDbids.length > 0) {
+      fetch(`${API_BASE}/fill-questionnaires`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note_uuid: noteId, questionnaire_dbids: templateQuestionnaireDbids }),
+      })
+        .then(r => r.json())
+        .then(json => {
+          const filled = (json.results || []).filter(r => r.data && r.drafted > 0);
+          if (filled.length === 0) return;
+          logEvent('QUESTIONNAIRE_AUTOFILL', { count: filled.length });
+          // Merge into the existing template-inserted cards rather than appending new
+          // ones. mergeFilled leaves any question the provider already answered alone,
+          // which matters because this can land while the card is open.
+          setCommands(prev => prev.map(c => {
+            if (c.command_type !== 'questionnaire') return c;
+            const match = filled.find(f => f.questionnaire_dbid === c.data?.questionnaire_dbid);
+            if (!match) return c;
+            const merged = mergeFilled({
+              dbid: c.data.questionnaire_dbid,
+              name: c.data.questionnaire_name,
+              is_scored: c.data.is_scored,
+              scoring_function_name: c.data.scoring_function_name,
+              questions: c.data.questions || [],
+            }, match.data);
+            return { ...c, data: { ...c.data, is_scored: merged.is_scored, scoring_function_name: merged.scoring_function_name, questions: merged.questions } };
+          }));
+        })
+        .catch(err => console.error('Questionnaire autofill failed:', err));
+    }
+
     try {
       const res = await fetch(`${API_BASE}/generate-summary`, {
         method: 'POST',
@@ -3773,6 +3812,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           examTemplates: templates,
           onCarryForwardExam: handleCarryForwardExam,
           isPsychiatry,
+          // Gates the manual "Fill from transcript" action: drafting from a partial
+          // transcript answers questions the visit has not reached yet, and the
+          // grounding rule cannot catch it because the quote it cites is real.
+          transcriptFinalized: recording.finalized,
           dictation: {
             // Gated behind the ScribeDictationEnabled secret. A single physical
             // mic: also only offered when editable and NOT while ambient recording

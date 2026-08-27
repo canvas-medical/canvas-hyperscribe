@@ -1,21 +1,59 @@
+"""Draft questionnaire answers from a visit transcript.
+
+Two constraints shape everything here.
+
+**Grounding.** The model may only answer when the transcript explicitly supports it, and
+must attach the verbatim turns it relied on. ``_apply_grounding_gate`` drops anything whose
+evidence does not resolve to a real transcript item, so an ungrounded guess never reaches
+the chart. "Denied" stays distinct from "not discussed" — silence is never a negative.
+
+**The 30-second wall.** ``canvas_sdk.utils.http.Http`` hardcodes a 30s timeout on every
+POST with no per-request override, and a timeout surfaces as an HTTP 400 rather than an
+exception, so a slow call fails silently. Latency tracks output and thinking tokens, both
+of which scale with the number of judgments in one call, so questionnaires are split into
+small chunks. Chunking repeats the transcript on every call, which is why the transcript
+block is cached: without it the input cost would multiply by the chunk count.
+"""
+
 from __future__ import annotations
 
 import json
+import random
+import time
 from http import HTTPStatus
-from typing import Any
+from typing import Any, Callable
 
 from logger import log
 
-from canvas_sdk.clients.llms.libraries import LlmAnthropic
-from canvas_sdk.clients.llms.structures.settings import LlmSettingsAnthropic
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
+from canvas_sdk.utils.http import ThreadPoolExecutor
 from canvas_sdk.v1.data.questionnaire import Questionnaire as QuestionnaireModel
 
-from hyperscribe.scribe.backend.models import CommandProposal, Transcript
-from hyperscribe.scribe.recommendations.schemas import QuestionnaireFillResult
+from hyperscribe.scribe.backend.models import Transcript
+from hyperscribe.scribe.recommendations._llm_client import (
+    DEFAULT_EFFORT,
+    DEFAULT_MODEL,
+    ScribeLlmAnthropic,
+    make_fill_client,
+)
+from hyperscribe.scribe.recommendations.schemas import QuestionnaireFillResult, QuestionnaireItemFill
 
-_MODEL = "claude-sonnet-4-5-20250929"
+# Questions per request. Chosen so PHQ-2, AUDIT-C and GAD-7 stay single-call while PHQ-9
+# splits in two and a long intake splits into many, keeping every request well inside the
+# 30s wall.
+CHUNK_SIZE = 6
+SINGLE_CALL_MAX = 8
+
+# Anthropic rate limits, not local CPU, are what bounds this.
+MAX_WORKERS = 4
+
+# The transcript is block 1: block 0 is the system prompt and block 2 the chunk
+# definition. Marking block 1 caches system + transcript and leaves the per-chunk part
+# out of the cached prefix.
+TRANSCRIPT_BLOCK_INDEX = 1
+
+_RETRYABLE = (HTTPStatus.TOO_MANY_REQUESTS,)
 
 _TYPE_LABELS = {
     ResponseOption.TYPE_TEXT: "free text (one written answer)",
@@ -47,19 +85,60 @@ BY QUESTION TYPE:
 Return one item per question you answer or that is explicitly denied. Omit questions the transcript does not address."""
 
 
-def _make_settings(api_key: str) -> LlmSettingsAnthropic:
-    return LlmSettingsAnthropic(api_key=api_key, model=_MODEL, temperature=0.0, max_tokens=8192)
+def _ensure_str(value: Any) -> str:
+    """None becomes empty string; 0 and False keep their stringified form.
+
+    Questionnaire scoring metadata uses integer 0 to mean "Not at all", so the falsy
+    ``or ""`` idiom would silently destroy a real score.
+    """
+    return "" if value is None else str(value)
 
 
-def load_questionnaire(questionnaire_dbid: int) -> tuple[str, list[dict[str, Any]]]:
-    """Return (name, questions) for a questionnaire; each question carries dbid, label, type, options."""
-    q_obj = QuestionnaireModel.objects.get(dbid=questionnaire_dbid)
+def resolve_questionnaire_definition(q_obj: Any) -> dict[str, Any]:
+    """Full definition for a questionnaire: name, scoring metadata, questions, options.
+
+    Single source of truth for this shape. ``session_view._resolve_questionnaire`` and the
+    fill both need it, and when they built it separately they drifted — the fill's copy
+    dropped ``code`` and ``score_value``, which is why a filled card could not compute a
+    PHQ-9 score.
+    """
     command = QuestionnaireCommand(questionnaire_id=str(q_obj.id), note_uuid="", command_uuid="")
     questions: list[dict[str, Any]] = []
     for question in command.questions:
-        options = [{"dbid": option.dbid, "value": option.name} for option in question.options]
+        options = [
+            {
+                "dbid": option.dbid,
+                "value": option.name,
+                "code": _ensure_str(getattr(option, "code", None)),
+                "score_value": _ensure_str(getattr(option, "value", None)),
+            }
+            for option in question.options
+        ]
         questions.append({"dbid": int(question.id), "label": question.label, "type": question.type, "options": options})
-    return q_obj.name, questions
+    scoring_function_name = getattr(q_obj, "scoring_function_name", "") or ""
+    return {
+        "questionnaire_dbid": q_obj.dbid,
+        "questionnaire_name": q_obj.name,
+        "is_scored": bool(scoring_function_name),
+        "scoring_function_name": scoring_function_name,
+        "questions": questions,
+    }
+
+
+def load_questionnaire(questionnaire_dbid: int) -> dict[str, Any]:
+    """Fetch and resolve one questionnaire by dbid."""
+    return resolve_questionnaire_definition(QuestionnaireModel.objects.get(dbid=questionnaire_dbid))
+
+
+def chunk_questions(questions: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """Split a question list into per-request chunks.
+
+    Short questionnaires run whole so they pay no cache-warm-up penalty; longer ones split
+    so no single request approaches the 30s wall.
+    """
+    if len(questions) <= SINGLE_CALL_MAX:
+        return [questions] if questions else []
+    return [questions[i : i + CHUNK_SIZE] for i in range(0, len(questions), CHUNK_SIZE)]
 
 
 def _render_transcript(transcript: Transcript) -> str:
@@ -94,103 +173,295 @@ def _apply_grounding_gate(result: QuestionnaireFillResult, transcript: Transcrip
             log.info(f"questionnaire fill: dropping ungrounded item {item.question_dbid}")
             continue
         kept.append(item)
-    return result.model_copy(update={"items": kept})
+    gated: QuestionnaireFillResult = result.model_copy(update={"items": kept})
+    return gated
 
 
-def fill_questionnaire(
+class FillChunkError(Exception):
+    """A chunk failed. ``retryable`` distinguishes an overloaded API from a bad request."""
+
+    def __init__(self, message: str, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.retryable = retryable
+
+
+def fill_chunk(
     name: str,
     questions: list[dict[str, Any]],
     transcript: Transcript,
-    client: LlmAnthropic,
-) -> QuestionnaireFillResult | None:
-    """Ask the model to complete the questionnaire from the transcript and return the grounded result."""
-    if not transcript.items:
-        return None
-    user_prompt = "\n".join(
-        [
-            "TRANSCRIPT (one object per turn):",
-            "```json",
-            _render_transcript(transcript),
-            "```",
-            "",
-            f"QUESTIONNAIRE DEFINITION '{name}':",
-            "```json",
-            _render_definition(name, questions),
-            "```",
-        ]
-    )
+    client: ScribeLlmAnthropic,
+) -> QuestionnaireFillResult:
+    """Ask the model to answer one chunk of questions. Raises ``FillChunkError`` on failure."""
     client.reset_prompts()
     client.set_system_prompt([_SYSTEM_PROMPT])
-    client.set_user_prompt([user_prompt])
+    # Two separate calls, not one joined string: they become two content blocks, which is
+    # what lets the transcript be cached while the chunk definition varies per request.
+    client.set_user_prompt(["TRANSCRIPT (one object per turn):", "```json", _render_transcript(transcript), "```"])
+    client.set_user_prompt(
+        [f"QUESTIONNAIRE DEFINITION '{name}':", "```json", _render_definition(name, questions), "```"]
+    )
     client.set_schema(QuestionnaireFillResult)
     try:
         response = client.request()
-    except Exception:
-        log.exception("LLM request failed for questionnaire fill")
-        return None
+    except Exception as exc:
+        raise FillChunkError(f"LLM request raised: {exc}", retryable=True) from exc
     if response.code != HTTPStatus.OK:
-        log.info(f"LLM returned {response.code} for questionnaire fill: {response.response}")
-        return None
+        # A 400 here is ambiguous: the SDK converts connection errors and timeouts into
+        # BAD_REQUEST too. Treat it as non-retryable either way, since a retry of a real
+        # timeout just burns another 30 seconds on the same failure.
+        retryable = response.code in _RETRYABLE or int(response.code) >= 500
+        raise FillChunkError(f"LLM returned {response.code}: {response.response}", retryable=retryable)
     try:
         result = QuestionnaireFillResult.model_validate(json.loads(response.response))
-    except Exception:
-        log.exception(f"Failed to parse questionnaire fill LLM response: {response.response}")
-        return None
+    except Exception as exc:
+        raise FillChunkError(f"Unparseable LLM response: {response.response}") from exc
     return _apply_grounding_gate(result, transcript)
 
 
-def build_fill_command_data(result: QuestionnaireFillResult, questions: list[dict[str, Any]]) -> dict[str, Any]:
-    """Map the rich LLM result to the thin questionnaire command payload QuestionnaireParser.build consumes.
+def fill_chunk_with_retry(
+    name: str,
+    questions: list[dict[str, Any]],
+    transcript: Transcript,
+    client: ScribeLlmAnthropic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> QuestionnaireFillResult:
+    """One narrow retry, for an overloaded or briefly broken API only."""
+    try:
+        return fill_chunk(name, questions, transcript, client)
+    except FillChunkError as exc:
+        if not exc.retryable:
+            raise
+        log.info(f"questionnaire fill: retrying chunk of '{name}' after {exc}")
+        sleep(0.4 + random.random() * 0.6)
+        return fill_chunk(name, questions, transcript, client)
 
-    Only answered/denied questions are written; not_assessed questions are omitted and left blank. Denial is
-    lossy by design - it is stored as selecting the option the model chose (e.g. a "none"/"not at all" option),
-    while the full status and evidence are preserved separately in the audit log.
+
+def build_fill_command_data(
+    definition: dict[str, Any],
+    items_by_dbid: dict[int, QuestionnaireItemFill],
+) -> dict[str, Any]:
+    """Build the command payload the questionnaire card renders and the parser consumes.
+
+    Every question is emitted, answered or not, in the shape ``handleSelectTemplate``
+    builds in ``summary.js``. Emitting only the answered subset — as an earlier version did
+    — leaves the provider unable to finish the form by hand and breaks scoring, because
+    ``computeScore`` needs ``score_value`` on every response and ``isComplete`` needs every
+    question present.
+
+    Each question also carries a ``fill`` block with the status, confidence, rationale and
+    evidence. The card reads it for provenance; ``QuestionnaireParser.build`` ignores it.
     """
-    by_dbid = {item.question_dbid: item for item in result.items}
+
+    def response_for(option: dict[str, Any], selected: bool, value: Any = None) -> dict[str, Any]:
+        return {
+            "dbid": option["dbid"],
+            "value": option["value"] if value is None else value,
+            "code": option.get("code", ""),
+            "score_value": option.get("score_value", ""),
+            "selected": selected,
+            "comment": None,
+        }
+
     out_questions: list[dict[str, Any]] = []
-    for question in questions:
-        item = by_dbid.get(question["dbid"])
-        if item is None or item.status == "not_assessed":
-            continue
+    for question in definition["questions"]:
         question_type = question["type"]
-        options = question["options"]
-        if question_type == ResponseOption.TYPE_TEXT:
-            if not item.value:
-                continue
-            responses = [{"value": item.value, "selected": True, "comment": None}]
-        elif question_type == ResponseOption.TYPE_INTEGER:
-            if item.value is None or not str(item.value).strip():
-                continue
-            responses = [{"value": str(item.value), "selected": True, "comment": None}]
+        options: list[dict[str, Any]] = question["options"]
+        candidate = items_by_dbid.get(question["dbid"])
+        # ``not_assessed`` means the transcript never addressed the question, which is a
+        # deliberate abstention rather than an answer, so it is treated as undrafted.
+        item = candidate if candidate is not None and candidate.status in ("answered", "denied") else None
+
+        if question_type in (ResponseOption.TYPE_TEXT, ResponseOption.TYPE_INTEGER):
+            text = str(item.value) if item is not None and item.value is not None else ""
+            if not text.strip():
+                text, item = "", None
+            if options:
+                responses = [response_for(options[0], selected=bool(text), value=text)]
+            else:
+                responses = [
+                    {
+                        "dbid": None,
+                        "value": text,
+                        "code": "",
+                        "score_value": "",
+                        "selected": bool(text),
+                        "comment": None,
+                    }
+                ]
         elif question_type == ResponseOption.TYPE_RADIO:
-            chosen = item.selected_option_dbid
-            responses = [{"value": o["value"], "selected": o["dbid"] == chosen, "comment": None} for o in options]
+            chosen = item.selected_option_dbid if item is not None else None
+            responses = [response_for(o, selected=o["dbid"] == chosen) for o in options]
             if not any(r["selected"] for r in responses):
-                continue
-        else:  # ResponseOption.TYPE_CHECKBOX
-            affirmed = set(item.selected_option_dbids or [])
+                item = None
+        else:  # TYPE_CHECKBOX
+            affirmed = set(item.selected_option_dbids or []) if item is not None else set()
+            responses = [response_for(o, selected=o["dbid"] in affirmed) for o in options]
             if not affirmed:
-                continue
-            responses = [{"value": o["value"], "selected": o["dbid"] in affirmed, "comment": None} for o in options]
-        out_questions.append({"dbid": question["dbid"], "responses": responses})
-    return {"questionnaire_dbid": result.questionnaire_dbid, "questions": out_questions}
+                item = None
+
+        entry: dict[str, Any] = {
+            "dbid": question["dbid"],
+            "label": question["label"],
+            "type": question_type,
+            "responses": responses,
+        }
+        if item is not None:
+            entry["fill"] = {
+                "status": item.status,
+                "confidence": item.confidence,
+                "rationale": item.rationale,
+                "evidence": [
+                    {"speaker": turn.speaker, "quote": turn.quote, "item_id": turn.item_id} for turn in item.evidence
+                ],
+            }
+        out_questions.append(entry)
+
+    return {
+        "questionnaire_dbid": definition["questionnaire_dbid"],
+        "questionnaire_name": definition["questionnaire_name"],
+        "is_scored": definition["is_scored"],
+        "scoring_function_name": definition["scoring_function_name"],
+        "questions": out_questions,
+    }
 
 
-def fill_questionnaire_command(
-    questionnaire_dbid: int,
+class FillOutcome:
+    """Per-questionnaire result: the command payload, or the reason there isn't one."""
+
+    def __init__(
+        self,
+        questionnaire_dbid: int,
+        data: dict[str, Any] | None = None,
+        drafted: int = 0,
+        error: str | None = None,
+        items: list[QuestionnaireItemFill] | None = None,
+    ) -> None:
+        self.questionnaire_dbid = questionnaire_dbid
+        self.data = data
+        self.drafted = drafted
+        self.error = error
+        self.items = items or []
+
+
+def fill_questionnaires(
+    questionnaire_dbids: list[int],
     transcript: Transcript,
     api_key: str,
-    client: LlmAnthropic | None = None,
-) -> tuple[CommandProposal | None, QuestionnaireFillResult | None]:
-    """Load the questionnaire, run the fill, and return (proposal, result); proposal is None when nothing was filled."""
-    name, questions = load_questionnaire(questionnaire_dbid)
-    if client is None:
-        client = LlmAnthropic(_make_settings(api_key))
-    result = fill_questionnaire(name, questions, transcript, client)
-    if result is None:
-        return None, None
-    data = build_fill_command_data(result, questions)
-    if not data["questions"]:
-        return None, result
-    proposal = CommandProposal(command_type="questionnaire", display=name, data=data, section_key="_recommended")
-    return proposal, result
+    model: str = DEFAULT_MODEL,
+    effort: str = DEFAULT_EFFORT,
+    client_factory: Callable[[], ScribeLlmAnthropic] | None = None,
+) -> tuple[list[FillOutcome], dict[str, Any]]:
+    """Fill every requested questionnaire, returning outcomes and run telemetry.
+
+    Work is flattened across questionnaires into one list of chunks. The first chunk runs
+    alone so it writes the prompt cache; the rest fan out behind it and read from it.
+    Running them all at once would mean every request missing a cache no request had
+    written yet, paying the 1.25x write premium N times over.
+
+    The lone first chunk doubles as an outage probe. If it fails in a way that says the API
+    is unavailable, the remaining chunks are abandoned rather than each marching into its
+    own 30-second timeout.
+    """
+    telemetry: dict[str, Any] = {
+        "model": model,
+        "effort": effort,
+        "chunks": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "aborted": False,
+    }
+    if not transcript.items or not questionnaire_dbids:
+        return [], telemetry
+
+    def make_client() -> ScribeLlmAnthropic:
+        if client_factory is not None:
+            return client_factory()
+        return make_fill_client(api_key, model=model, effort=effort, cache_index=TRANSCRIPT_BLOCK_INDEX)
+
+    definitions: dict[int, dict[str, Any]] = {}
+    errors: dict[int, str] = {}
+    results: dict[int, dict[int, QuestionnaireItemFill]] = {}
+    work: list[tuple[int, list[dict[str, Any]]]] = []
+    for dbid in questionnaire_dbids:
+        try:
+            definition = load_questionnaire(dbid)
+        except Exception:
+            log.exception(f"questionnaire fill: could not load questionnaire {dbid}")
+            errors[dbid] = "load_failed"
+            continue
+        definitions[dbid] = definition
+        results[dbid] = {}
+        for chunk in chunk_questions(definition["questions"]):
+            work.append((dbid, chunk))
+
+    telemetry["chunks"] = len(work)
+
+    # Explicit reassignment, not ``+=``: the plugin sandbox rejects augmented assignment
+    # on a subscript.
+    usage_keys = (
+        ("input_tokens", "input_tokens"),
+        ("output_tokens", "output_tokens"),
+        ("cache_read_tokens", "cache_read_input_tokens"),
+        ("cache_write_tokens", "cache_creation_input_tokens"),
+    )
+
+    def record(usage: dict[str, Any]) -> None:
+        for local_key, usage_key in usage_keys:
+            telemetry[local_key] = telemetry[local_key] + (usage.get(usage_key) or 0)
+
+    def run(unit: tuple[int, list[dict[str, Any]]]) -> tuple[int, QuestionnaireFillResult | None, str | None]:
+        dbid, chunk = unit
+        client = make_client()
+        try:
+            result = fill_chunk_with_retry(definitions[dbid]["questionnaire_name"], chunk, transcript, client)
+        except FillChunkError as exc:
+            log.info(f"questionnaire fill: chunk failed for {dbid}: {exc}")
+            record(client.last_usage)
+            return dbid, None, str(exc)
+        record(client.last_usage)
+        return dbid, result, None
+
+    if work:
+        # Warm-up: one chunk alone, writing the cache the rest will read.
+        first_dbid, first_result, first_error = run(work[0])
+        if first_error is not None and len(work) > 1:
+            # The probe failed. Everything else shares the same API and the same
+            # transcript, so marching each remaining chunk into its own timeout would
+            # only rediscover this.
+            log.info("questionnaire fill: warm-up chunk failed, abandoning the fan-out")
+            telemetry["aborted"] = True
+            for dbid in definitions:
+                errors.setdefault(dbid, first_error)
+            work = []
+        else:
+            if first_result is not None:
+                for item in first_result.items:
+                    results[first_dbid][item.question_dbid] = item
+            elif first_error is not None:
+                errors.setdefault(first_dbid, first_error)
+            work = work[1:]
+
+    if work:
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+            for dbid, result, error in pool.map(run, work):
+                if result is not None:
+                    for item in result.items:
+                        results[dbid][item.question_dbid] = item
+                elif error is not None:
+                    # One chunk failing costs only its own questions; they stay blank and
+                    # editable rather than taking the whole questionnaire down.
+                    errors.setdefault(dbid, error)
+
+    outcomes: list[FillOutcome] = []
+    for dbid in questionnaire_dbids:
+        if dbid not in definitions:
+            outcomes.append(FillOutcome(dbid, error=errors.get(dbid, "load_failed")))
+            continue
+        items_by_dbid = results.get(dbid, {})
+        data = build_fill_command_data(definitions[dbid], items_by_dbid)
+        drafted = sum(1 for question in data["questions"] if "fill" in question)
+        error = errors.get(dbid) if drafted == 0 else None
+        outcomes.append(FillOutcome(dbid, data=data, drafted=drafted, error=error, items=list(items_by_dbid.values())))
+    return outcomes, telemetry

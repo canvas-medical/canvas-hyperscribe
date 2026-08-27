@@ -5,7 +5,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection
-from hyperscribe.scribe.recommendations import prescription_dispense_enabled, recommend_commands
+from hyperscribe.scribe.recommendations import (
+    prescription_dispense_enabled,
+    questionnaire_fill_enabled,
+    recommend_commands,
+)
 
 
 def _make_note() -> ClinicalNote:
@@ -174,3 +178,13 @@ def test_recommend_commands_empty_note(mock_llm_cls: MagicMock) -> None:
         proposals = recommend_commands(note, "test-api-key")
 
     assert proposals == []
+
+
+def test_questionnaire_fill_enabled_matches_the_dispense_gate() -> None:
+    """Same tokenize-and-match rule as the other scribe staffer secrets, including the
+    deliberate fail-open on a blank allowlist."""
+    assert questionnaire_fill_enabled("", "staff-1") is True
+    assert questionnaire_fill_enabled(None, "staff-1") is True
+    assert questionnaire_fill_enabled("staff1, staff2", "staff1") is True
+    assert questionnaire_fill_enabled("staff1, staff2", "staff3") is False
+    assert questionnaire_fill_enabled("staff1", None) is False

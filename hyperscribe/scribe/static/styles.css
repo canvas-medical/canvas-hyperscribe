@@ -2330,3 +2330,67 @@ select.history-form-input {
 .exam-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .exam-confirm-go { background: #052B49; color: #fff; border: none; }
 .exam-confirm-go:hover { opacity: .92; }
+
+/* ── Questionnaire fill from transcript ───────────────────────────────────────
+   Every rule here is a variation on something the card already owns, so the
+   feature does not introduce a new visual language. No new hue: the card's own
+   navy (#052B49) and hint grey (#6b7280) carry all of it, and no icons. */
+
+/* Third chip state, between unselected and selected. The card already says
+   "chosen" with a navy fill; an answer the model drafted is chosen but not
+   confirmed, so it gets the same navy at lower commitment. Clicking it commits
+   it to the ordinary filled state. This is the ONLY persistent signal the
+   feature adds to the card. */
+.questionnaire-chip.proposed { color: #052B49; border-color: #052B49; background: #fff; font-weight: 600; }
+.questionnaire-chip.proposed:hover { background: #f5f7fa; border-color: #052B49; }
+.questionnaire-text-input.proposed { border-color: #052B49; color: #052B49; font-weight: 600; }
+
+/* A question holding a drafted answer becomes clickable and reveals its evidence.
+   Nothing is added to it — no icon, no badge, no text — it just gains a pointer
+   and a hover shift. The navy outline below it is what says there is something
+   to open. Rendered as a button so it is keyboard reachable; a question with no
+   drafted answer keeps .q-ask without .has-ev and stays inert. */
+.q-ask { display: block; width: 100%; text-align: left; font-family: inherit; font-size: 13px;
+  font-weight: 600; color: #4b5563; background: none; border: none; padding: 0; margin-bottom: 8px; cursor: default; }
+.q-ask.has-ev { cursor: pointer; border-radius: 4px; transition: color 0.13s; }
+.q-ask.has-ev:hover { color: #052B49; }
+.q-ask.has-ev:focus-visible { outline: 2px solid #052B49; outline-offset: 3px; }
+.q-ask.has-ev[aria-expanded="true"] { color: #052B49; }
+
+/* The evidence wears the tooltip skin with a caret pointing back at the answer it
+   explains, so it reads as a tooltip pinned open rather than a new kind of panel.
+   Laid out in flow rather than floated: works on touch, keyboard reachable, no
+   edge-collision logic, and it never covers a chip about to be clicked. */
+.q-ev { position: relative; margin-top: 14px; padding: 10px 12px; background: #1f2937; color: #dfe4ea;
+  border-radius: 7px; font-size: 11.5px; line-height: 1.5; box-shadow: 0 10px 26px -8px rgba(17, 24, 39, 0.42);
+  animation: q-ev-in 0.13s ease-out; }
+.q-ev::after { content: ''; position: absolute; bottom: 100%; left: 17px; border: 6px solid transparent;
+  border-bottom-color: #1f2937; }
+.q-ev b { color: #fff; font-weight: 650; }
+.q-ev p { margin: 0; }
+.q-ev p + p { margin-top: 5px; }
+@keyframes q-ev-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .q-ev { animation: none; } .q-spin { animation: none; } }
+
+/* Footer: one bound group at the left holding the action and every status it
+   produces, so nothing bleeds into Cancel and Save at the right. */
+.q-group { margin-right: auto; display: inline-flex; align-items: center; gap: 2px; background: #f5f7fa;
+  border: 1px solid #eceff3; border-radius: 8px; padding: 3px; }
+.q-fill { height: 30px; padding: 0 11px; font-family: inherit; font-size: 13px; font-weight: 600; color: #052B49;
+  background: none; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; transition: background 0.14s; }
+.q-fill:hover:not(:disabled) { background: #e6ecf2; }
+.q-fill:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(5, 43, 73, 0.18); }
+.q-fill:disabled { color: #a3abb6; cursor: not-allowed; }
+.q-fill.failed { color: #b91c1c; }
+.q-fill.failed:hover { background: #fbe9e9; }
+.q-sep { width: 1px; height: 16px; background: #dfe4ea; margin: 0 3px; flex-shrink: 0; }
+.q-status { font-size: 12px; color: #6b7280; white-space: nowrap; display: inline-flex; align-items: center;
+  gap: 7px; padding: 0 8px 0 4px; }
+.q-status.failed { color: #b91c1c; }
+.q-spin { width: 12px; height: 12px; border: 2px solid #e0e5eb; border-top-color: #6b7280; border-radius: 50%;
+  animation: q-spin 0.7s linear infinite; }
+@keyframes q-spin { to { transform: rotate(360deg); } }
+.q-undo { height: 30px; padding: 0 10px; font-family: inherit; font-size: 12px; font-weight: 600; color: #6b7280;
+  background: none; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap;
+  transition: background 0.14s, color 0.14s; }
+.q-undo:hover { color: #b91c1c; background: #fbe9e9; }

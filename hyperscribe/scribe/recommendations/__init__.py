@@ -36,18 +36,27 @@ def make_llm_client(api_key: str) -> LlmAnthropic:
     return LlmAnthropic(_make_settings(api_key))
 
 
-def prescription_dispense_enabled(allowlist_raw: str | None, provider_id: str | None) -> bool:
-    """Whether the prescription dispense-field engine is enabled for this provider.
+def _staffer_allowed(allowlist_raw: str | None, provider_id: str | None) -> bool:
+    """Shared allowlist check for the scribe staffer secrets.
 
-    The allowlist is a comma/space-separated list of staff keys (same tokenization
-    as the other scribe staffer secrets). **Blank/unset -> enabled for all users**
-    (fail-open, by product decision); otherwise enabled only when the note's
-    provider is in the list.
+    The allowlist is a comma/space-separated list of staff keys. **Blank/unset ->
+    enabled for all users** (fail-open, by product decision); otherwise enabled only
+    when the note's provider is in the list.
     """
     allowed = re.findall(r"[A-Za-z0-9]+", allowlist_raw or "")
     if not allowed:
         return True
     return bool(provider_id) and str(provider_id) in allowed
+
+
+def prescription_dispense_enabled(allowlist_raw: str | None, provider_id: str | None) -> bool:
+    """Whether the prescription dispense-field engine is enabled for this provider."""
+    return _staffer_allowed(allowlist_raw, provider_id)
+
+
+def questionnaire_fill_enabled(allowlist_raw: str | None, provider_id: str | None) -> bool:
+    """Whether filling questionnaires from the transcript is enabled for this provider."""
+    return _staffer_allowed(allowlist_raw, provider_id)
 
 
 def _build_recommenders(

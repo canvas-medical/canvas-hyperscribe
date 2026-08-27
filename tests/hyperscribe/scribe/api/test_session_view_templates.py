@@ -48,7 +48,7 @@ def test_get_visit_templates_empty_templates() -> None:
     assert result == [JSONResponse({"templates": []}, status_code=HTTPStatus.OK)]
 
 
-@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
     q1 = MagicMock()
@@ -151,7 +151,7 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
     ]
 
 
-@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_get_visit_templates_skips_missing_questionnaire(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
     q1 = MagicMock()
@@ -199,7 +199,7 @@ def test_get_visit_templates_skips_missing_questionnaire(mock_model: MagicMock, 
     ]
 
 
-@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_get_visit_templates_preserves_integer_zero_score_value(
     mock_model: MagicMock, mock_cmd_class: MagicMock
@@ -282,7 +282,7 @@ def test_get_visit_templates_preserves_integer_zero_score_value(
     ]
 
 
-@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_get_visit_templates_no_questionnaire_names(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
     """Templates with no questionnaires should not trigger any DB queries."""

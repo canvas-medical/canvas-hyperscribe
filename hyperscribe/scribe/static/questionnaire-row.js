@@ -9,6 +9,7 @@ import {
   isComplete,
   computeScore,
 } from './questionnaire-score.js';
+import { clearDrafted, countDrafted, isDrafted, mergeFilled } from './questionnaire-fill.js';
 
 const html = htm.bind(h);
 
@@ -88,8 +89,11 @@ function QuestionnaireSearch({ onSelect }) {
   `;
 }
 
-function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }) {
+function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, noteId, canFill }) {
   const [loading, setLoading] = useState(false);
+  // 'idle' | 'busy' | 'failed'. Every state of the fill renders in the footer group.
+  const [fillState, setFillState] = useState('idle');
+  const [openEvidence, setOpenEvidence] = useState(null);
   const [questionnaire, setQuestionnaire] = useState(
     command.data.questionnaire_dbid
       ? {
@@ -144,17 +148,19 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
         if (qi !== qIdx) return q;
         const responses = q.responses.map((r, ri) => {
           if (field === 'selected' && q.type === TYPE_RADIO) {
-            return { ...r, selected: ri === rIdx };
+            return { ...r, selected: ri === rIdx, proposed: false };
           }
           if (ri !== rIdx) return r;
           // Deselecting a checkbox clears its comment so dead annotations don't persist on disk
           // or spring back into view if the option is re-selected later.
           if (field === 'selected' && q.type === TYPE_CHECKBOX && value === false) {
-            return { ...r, selected: false, comment: null };
+            return { ...r, selected: false, comment: null, proposed: false };
           }
-          return { ...r, [field]: value };
+          return { ...r, [field]: value, ...(field === 'selected' ? { proposed: false } : {}) };
         });
-        return { ...q, responses };
+        // Once the provider has touched an answer it is theirs, so the drafted state and
+        // the evidence it carried retire together.
+        return { ...q, responses, fill: responses.some(r => r.proposed) ? q.fill : null };
       });
       return { ...prev, questions };
     });
@@ -164,11 +170,41 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
     setQuestionnaire(prev => {
       const questions = prev.questions.map((q, qi) => {
         if (qi !== qIdx) return q;
-        const responses = q.responses.map((r, ri) => ri === 0 ? { ...r, value } : r);
-        return { ...q, responses };
+        const responses = q.responses.map((r, ri) => ri === 0 ? { ...r, value, proposed: false } : r);
+        return { ...q, responses, fill: null };
       });
       return { ...prev, questions };
     });
+  };
+
+  const draftedCount = questionnaire ? countDrafted(questionnaire.questions) : 0;
+
+  const handleFill = useCallback(async () => {
+    if (!questionnaire || !noteId) return;
+    setFillState('busy');
+    try {
+      const res = await fetch(`${API_BASE}/fill-questionnaires`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note_uuid: noteId, questionnaire_dbids: [questionnaire.dbid] }),
+      });
+      const json = await res.json();
+      const result = (json.results || [])[0];
+      if (json.error || !result || result.error || !result.data) {
+        setFillState('failed');
+        return;
+      }
+      setQuestionnaire(prev => mergeFilled(prev, result.data));
+      setFillState('idle');
+    } catch (err) {
+      console.error('Questionnaire fill failed:', err);
+      setFillState('failed');
+    }
+  }, [questionnaire, noteId]);
+
+  const handleClearDrafted = () => {
+    setQuestionnaire(prev => prev && ({ ...prev, questions: clearDrafted(prev.questions) }));
+    setOpenEvidence(null);
   };
 
   const handleSave = () => {
@@ -199,16 +235,21 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
       <div class="questionnaire-questions-2col">
       ${questionnaire.questions.map((q, qIdx) => html`
         <div class="questionnaire-question" key=${q.dbid}>
-          <div class="questionnaire-question-label">
+          <button
+            type="button"
+            class=${'q-ask' + (isDrafted(q) && q.fill ? ' has-ev' : '')}
+            aria-expanded=${isDrafted(q) && q.fill ? String(openEvidence === q.dbid) : undefined}
+            onClick=${() => isDrafted(q) && q.fill && setOpenEvidence(openEvidence === q.dbid ? null : q.dbid)}
+          >
             ${q.label}
             ${q.type === TYPE_CHECKBOX && html`<span class="questionnaire-question-hint"> · Select all that apply</span>`}
-          </div>
+          </button>
           ${q.type === TYPE_RADIO && html`
             <div class="questionnaire-chips" role="radiogroup">
               ${q.responses.map((r, rIdx) => html`
                 <button
                   type="button"
-                  class=${'questionnaire-chip' + (r.selected ? ' selected' : '')}
+                  class=${'questionnaire-chip' + (r.proposed ? ' proposed' : r.selected ? ' selected' : '')}
                   role="radio"
                   aria-checked=${r.selected}
                   key=${r.dbid}
@@ -222,7 +263,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
               ${q.responses.map((r, rIdx) => html`
                 <button
                   type="button"
-                  class=${'questionnaire-chip' + (r.selected ? ' selected' : '')}
+                  class=${'questionnaire-chip' + (r.proposed ? ' proposed' : r.selected ? ' selected' : '')}
                   role="checkbox"
                   aria-checked=${r.selected}
                   key=${r.dbid}
@@ -250,7 +291,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
           ${q.type === TYPE_TEXT && html`
             <input
               type="text"
-              class="questionnaire-text-input"
+              class=${'questionnaire-text-input' + ((q.responses[0] || {}).proposed ? ' proposed' : '')}
               value=${(q.responses[0] || {}).value || ''}
               onInput=${(e) => handleTextChange(qIdx, e.target.value)}
               placeholder="Enter response..."
@@ -259,17 +300,45 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
           ${q.type === TYPE_INTEGER && html`
             <input
               type="number"
-              class="questionnaire-text-input"
+              class=${'questionnaire-text-input' + ((q.responses[0] || {}).proposed ? ' proposed' : '')}
               style="max-width: 120px;"
               value=${(q.responses[0] || {}).value || ''}
               onInput=${(e) => handleTextChange(qIdx, e.target.value)}
               placeholder="0"
             />
           `}
+          ${openEvidence === q.dbid && q.fill && html`
+            <div class="q-ev">
+              ${(q.fill.evidence || []).map((turn, i) => html`
+                <p key=${i}><b>${turn.speaker}:</b> "${turn.quote}"</p>
+              `)}
+            </div>
+          `}
         </div>
       `)}
       </div>
       <div class="questionnaire-form-actions">
+        <span class="q-group">
+          <button
+            type="button"
+            class=${'q-fill' + (fillState === 'failed' ? ' failed' : '')}
+            disabled=${!canFill || fillState === 'busy'}
+            onClick=${handleFill}
+          >${fillState === 'failed' ? 'Try again' : draftedCount > 0 ? 'Re-fill from transcript' : 'Fill from transcript'}</button>
+          ${!canFill && html`
+            <span class="q-sep"></span><span class="q-status">Available when recording ends</span>
+          `}
+          ${canFill && fillState === 'busy' && html`
+            <span class="q-sep"></span><span class="q-status"><span class="q-spin"></span> Reading transcript</span>
+          `}
+          ${canFill && fillState === 'failed' && html`
+            <span class="q-sep"></span><span class="q-status failed">Fill failed. No answers changed.</span>
+          `}
+          ${canFill && fillState === 'idle' && draftedCount > 0 && html`
+            <span class="q-sep"></span>
+            <button type="button" class="q-undo" onClick=${handleClearDrafted}>Clear responses</button>
+          `}
+        </span>
         <button type="button" class="form-btn form-btn-cancel" onClick=${onCancel}>Cancel</button>
         <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
       </div>
@@ -314,7 +383,7 @@ function renderResponse(q) {
   return html`<span class="questionnaire-readonly-answer">${parts.join(', ')}</span>`;
 }
 
-export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {
+export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange, noteId, canFill }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   useEffect(() => {
@@ -344,6 +413,8 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
           onEdit=${handleEdit}
           onDelete=${onDelete}
           onCancel=${handleCancel}
+          noteId=${noteId}
+          canFill=${!!canFill}
         />
       </div>
     `;
