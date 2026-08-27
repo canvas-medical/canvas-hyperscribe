@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import uuid
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -21,7 +22,6 @@ from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 from django.db.models import Q
 
 from canvas_sdk.commands.commands.allergy import AllergenType
-from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from canvas_sdk.v1.data import AllergyIntolerance, ChargeDescriptionMaster, Medication, Note
 from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.medication_statement import MedicationStatement
@@ -91,7 +91,16 @@ from hyperscribe.scribe.commands.problem_list_match import (
     ActivePatientCondition,
     prefer_patient_specific_codes,
 )
-from hyperscribe.scribe.recommendations import make_llm_client, prescription_dispense_enabled, recommend_commands
+from hyperscribe.scribe.recommendations import (
+    make_llm_client,
+    prescription_dispense_enabled,
+    questionnaire_fill_enabled,
+    recommend_commands,
+)
+from hyperscribe.scribe.recommendations._llm_client import (
+    DEFAULT_EFFORT as DEFAULT_FILL_EFFORT,
+    DEFAULT_MODEL as DEFAULT_FILL_MODEL,
+)
 from hyperscribe.scribe.recommendations._referral_diagnosis import link_referral_diagnoses
 from hyperscribe.scribe.recommendations._transcript_windows import PRN_PATTERN, find_keyword_matches
 from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
@@ -103,7 +112,10 @@ from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
 )
-from hyperscribe.scribe.recommendations.questionnaire_fill import fill_questionnaire_command
+from hyperscribe.scribe.recommendations.questionnaire_fill import (
+    fill_questionnaires,
+    resolve_questionnaire_definition,
+)
 from hyperscribe.scribe.contacts import (
     resolve_zip_codes,
     search_imaging_centers,
@@ -875,29 +887,6 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
         for q_obj in QuestionnaireModel.objects.filter(q_filter, status="AC"):
             q_by_name[q_obj.name.lower()] = q_obj
 
-    def _resolve_questionnaire(q_obj: Any) -> dict[str, Any]:
-        cmd = QuestionnaireCommand(questionnaire_id=str(q_obj.id), note_uuid="", command_uuid="")
-        questions: list[dict[str, Any]] = []
-        for q in cmd.questions:
-            options = [
-                {
-                    "dbid": o.dbid,
-                    "value": o.name,
-                    "code": _ensure_str(getattr(o, "code", None)),
-                    "score_value": _ensure_str(getattr(o, "value", None)),
-                }
-                for o in q.options
-            ]
-            questions.append({"dbid": int(q.id), "label": q.label, "type": q.type, "options": options})
-        scoring_function_name = getattr(q_obj, "scoring_function_name", "") or ""
-        return {
-            "questionnaire_dbid": q_obj.dbid,
-            "questionnaire_name": q_obj.name,
-            "is_scored": bool(scoring_function_name),
-            "scoring_function_name": scoring_function_name,
-            "questions": questions,
-        }
-
     result_templates: list[dict[str, Any]] = []
     for tmpl in templates_config:
         q_names: list[str] = tmpl.get("questionnaires", [])
@@ -908,7 +897,7 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
                 log.warning("visit-templates: questionnaire %r not found", q_name)
                 continue
             try:
-                resolved.append(_resolve_questionnaire(q_obj))
+                resolved.append(resolve_questionnaire_definition(q_obj))
             except Exception:
                 log.exception("visit-templates: failed to resolve %r", q_name)
         ros_sections: list[dict[str, str]] | None = None
@@ -1929,8 +1918,14 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             ]
         return [JSONResponse({"suggestions": suggestions}, status_code=HTTPStatus.OK)]
 
-    @api.post("/fill-questionnaire")
-    def post_fill_questionnaire(self) -> list[Union[Response, Effect]]:
+    @api.post("/fill-questionnaires")
+    def post_fill_questionnaires(self) -> list[Union[Response, Effect]]:
+        """Draft answers for one or more questionnaires from the visit transcript.
+
+        Batched rather than one request per questionnaire so every chunk on the note
+        shares a single warmed prompt cache; see ``fill_questionnaires`` for why the
+        first chunk runs alone.
+        """
         try:
             data: dict[str, Any] = json.loads(self.request.body)
         except (json.JSONDecodeError, ValueError) as exc:
@@ -1940,10 +1935,21 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
         if denial := _authorize_edit(note_uuid, self.request):
             return [denial]
+
+        raw_dbids = data.get("questionnaire_dbids")
+        if raw_dbids is None and "questionnaire_dbid" in data:
+            raw_dbids = [data["questionnaire_dbid"]]
         try:
-            questionnaire_dbid = int(data["questionnaire_dbid"])
-        except (KeyError, TypeError, ValueError):
-            return [JSONResponse({"error": "questionnaire_dbid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+            questionnaire_dbids = [int(dbid) for dbid in (raw_dbids or [])]
+        except (TypeError, ValueError):
+            return [JSONResponse({"error": "questionnaire_dbids must be integers"}, status_code=HTTPStatus.BAD_REQUEST)]
+        if not questionnaire_dbids:
+            return [JSONResponse({"error": "questionnaire_dbids is required"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        allowlist = self.secrets.get(Constants.SECRET_SCRIBE_QUESTIONNAIRE_FILL_STAFFERS, "")
+        if not questionnaire_fill_enabled(allowlist, _note_provider_id(note_uuid)):
+            return [JSONResponse({"results": [], "disabled": True}, status_code=HTTPStatus.OK)]
+
         api_key = self.secrets.get("AnthropicAPIKey", "")
         if not api_key:
             return [
@@ -1952,32 +1958,78 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     status_code=HTTPStatus.BAD_REQUEST,
                 )
             ]
+
+        started = time.monotonic()
         try:
-            transcript = _parse_transcript(_load_transcript(note_uuid))
-            proposal, result = fill_questionnaire_command(questionnaire_dbid, transcript, api_key)
+            transcript_data = _load_transcript(note_uuid)
+            if not transcript_data.get("finalized"):
+                # Answers drafted from a partial transcript address questions the visit has
+                # not reached yet, and the grounding rule cannot catch it because the quote
+                # it cites is genuinely real.
+                return [
+                    JSONResponse(
+                        {"error": "Transcript is still in progress."},
+                        status_code=HTTPStatus.BAD_REQUEST,
+                    )
+                ]
+            outcomes, telemetry = fill_questionnaires(
+                questionnaire_dbids,
+                _parse_transcript(transcript_data),
+                api_key,
+                model=self.secrets.get(Constants.SECRET_SCRIBE_FILL_MODEL, "") or DEFAULT_FILL_MODEL,
+                effort=self.secrets.get(Constants.SECRET_SCRIBE_FILL_EFFORT, "") or DEFAULT_FILL_EFFORT,
+            )
         except Exception:
-            log.exception("fill_questionnaire failed")
+            log.exception("fill_questionnaires failed")
+            audit_event(
+                note_uuid,
+                "QUESTIONNAIRE_FILL_FAILED",
+                {"questionnaire_dbids": questionnaire_dbids, "reason": "unhandled"},
+            )
             return [
                 JSONResponse(
                     {"error": "Questionnaire fill failed"},
                     status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                 )
             ]
-        if result is not None:
-            audit_event(
-                note_uuid,
-                "QUESTIONNAIRE_FILLED",
-                {"questionnaire_dbid": questionnaire_dbid, "items": [item.model_dump() for item in result.items]},
+
+        telemetry["elapsed_ms"] = int((time.monotonic() - started) * 1000)
+        results: list[dict[str, Any]] = []
+        for outcome in outcomes:
+            if outcome.error:
+                # Emitted per questionnaire, not per run: a chunk failing on one screener
+                # while another fills fine is exactly the case that used to disappear into
+                # a silent None.
+                audit_event(
+                    note_uuid,
+                    "QUESTIONNAIRE_FILL_FAILED",
+                    {"questionnaire_dbid": outcome.questionnaire_dbid, "reason": outcome.error[:200]},
+                )
+            elif outcome.drafted:
+                audit_event(
+                    note_uuid,
+                    "QUESTIONNAIRE_FILLED",
+                    {
+                        "questionnaire_dbid": outcome.questionnaire_dbid,
+                        "drafted": outcome.drafted,
+                        "items": [item.model_dump() for item in outcome.items],
+                        **telemetry,
+                    },
+                )
+            results.append(
+                {
+                    "questionnaire_dbid": outcome.questionnaire_dbid,
+                    "data": outcome.data,
+                    "drafted": outcome.drafted,
+                    "error": outcome.error,
+                }
             )
-        command = None
-        if proposal is not None:
-            command = {
-                "command_type": proposal.command_type,
-                "display": proposal.display,
-                "data": proposal.data,
-                "section_key": proposal.section_key,
-            }
-        return [JSONResponse({"command": command}, status_code=HTTPStatus.OK)]
+        # Defensive .get: a telemetry line must never be the thing that fails the request.
+        log.info(
+            f"questionnaire fill: {telemetry.get('chunks', 0)} chunk(s) in {telemetry.get('elapsed_ms', 0)}ms, "
+            f"cache_read={telemetry.get('cache_read_tokens', 0)} cache_write={telemetry.get('cache_write_tokens', 0)}"
+        )
+        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
 
     @api.get("/check-interactions")
     def get_check_interactions(self) -> list[Union[Response, Effect]]:
@@ -3216,43 +3268,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except (QuestionnaireModel.DoesNotExist, ValueError):
             return [JSONResponse({"error": "not found"}, status_code=HTTPStatus.NOT_FOUND)]
 
-        cmd = QuestionnaireCommand(
-            questionnaire_id=str(questionnaire.id),
-            note_uuid="",
-            command_uuid="",
-        )
-        questions = []
-        for q in cmd.questions:
-            options = [
-                {
-                    "dbid": o.dbid,
-                    "value": o.name,
-                    "code": _ensure_str(getattr(o, "code", None)),
-                    "score_value": _ensure_str(getattr(o, "value", None)),
-                }
-                for o in q.options
-            ]
-            questions.append(
-                {
-                    "dbid": int(q.id),
-                    "label": q.label,
-                    "type": q.type,
-                    "options": options,
-                }
-            )
-        scoring_function_name = getattr(questionnaire, "scoring_function_name", "") or ""
-        return [
-            JSONResponse(
-                {
-                    "questionnaire_dbid": questionnaire.dbid,
-                    "questionnaire_name": questionnaire.name,
-                    "is_scored": bool(scoring_function_name),
-                    "scoring_function_name": scoring_function_name,
-                    "questions": questions,
-                },
-                status_code=HTTPStatus.OK,
-            )
-        ]
+        return [JSONResponse(resolve_questionnaire_definition(questionnaire), status_code=HTTPStatus.OK)]
 
     @api.get("/visit-templates")
     def get_visit_templates(self) -> list[Union[Response, Effect]]:

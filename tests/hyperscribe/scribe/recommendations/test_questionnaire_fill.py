@@ -2,16 +2,26 @@ from __future__ import annotations
 
 import json
 from http import HTTPStatus
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from canvas_sdk.clients.llms.structures import LlmResponse, LlmTokens
 from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 
 from hyperscribe.scribe.backend.models import Transcript, TranscriptItem
 from hyperscribe.scribe.recommendations.questionnaire_fill import (
+    CHUNK_SIZE,
+    SINGLE_CALL_MAX,
+    FillChunkError,
     _apply_grounding_gate,
     build_fill_command_data,
-    fill_questionnaire,
+    chunk_questions,
+    fill_chunk,
+    fill_chunk_with_retry,
+    fill_questionnaires,
+    resolve_questionnaire_definition,
 )
 from hyperscribe.scribe.recommendations.schemas import (
     EvidenceTurn,
@@ -31,15 +41,31 @@ def _questions() -> list[dict]:
             "dbid": 12,
             "label": "Interest or pleasure in doing things?",
             "type": ResponseOption.TYPE_RADIO,
-            "options": [{"dbid": 100, "value": "Not at all"}, {"dbid": 101, "value": "Several days"}],
+            "options": [
+                {"dbid": 100, "value": "Not at all", "code": "LA6568-5", "score_value": "0"},
+                {"dbid": 101, "value": "Several days", "code": "LA6569-3", "score_value": "1"},
+            ],
         },
         {
             "dbid": 13,
             "label": "Which symptoms?",
             "type": ResponseOption.TYPE_CHECKBOX,
-            "options": [{"dbid": 200, "value": "Cough"}, {"dbid": 201, "value": "Fever"}],
+            "options": [
+                {"dbid": 200, "value": "Cough", "code": "", "score_value": "0"},
+                {"dbid": 201, "value": "Fever", "code": "", "score_value": "2"},
+            ],
         },
     ]
+
+
+def _definition(questions: list[dict] | None = None, scored: bool = True) -> dict:
+    return {
+        "questionnaire_dbid": 7,
+        "questionnaire_name": "PHQ-9",
+        "is_scored": scored,
+        "scoring_function_name": "sum" if scored else "",
+        "questions": _questions() if questions is None else questions,
+    }
 
 
 def _transcript(item_ids: tuple[str, str] = ("t1", "t2")) -> Transcript:
@@ -57,6 +83,7 @@ def _transcript(item_ids: tuple[str, str] = ("t1", "t2")) -> Transcript:
 
 def _client(response_data: dict | None, code: HTTPStatus = HTTPStatus.OK) -> MagicMock:
     client = MagicMock()
+    client.last_usage = {}
     if response_data is not None:
         client.request.return_value = LlmResponse(
             code=code, response=json.dumps(response_data), tokens=LlmTokens(prompt=10, generated=5)
@@ -68,81 +95,140 @@ def _ev(item_id: str = "t1") -> dict:
     return {"speaker": "patient", "quote": "...", "itemId": item_id}
 
 
+def _turn(item_id: str = "t1") -> EvidenceTurn:
+    return EvidenceTurn(speaker="patient", quote="...", itemId=item_id)
+
+
+def _items(*items: QuestionnaireItemFill) -> dict[int, QuestionnaireItemFill]:
+    return {item.question_dbid: item for item in items}
+
+
+# --- chunk_questions ---
+
+
+def test_chunk_boundary_single_call_at_the_max() -> None:
+    questions = [{"dbid": i} for i in range(SINGLE_CALL_MAX)]
+    assert chunk_questions(questions) == [questions]
+
+
+def test_chunk_boundary_splits_one_past_the_max() -> None:
+    questions = [{"dbid": i} for i in range(SINGLE_CALL_MAX + 1)]
+    chunks = chunk_questions(questions)
+    assert len(chunks) == 2
+    assert [len(c) for c in chunks] == [CHUNK_SIZE, SINGLE_CALL_MAX + 1 - CHUNK_SIZE]
+    assert [q for chunk in chunks for q in chunk] == questions
+
+
+def test_chunk_empty_questionnaire() -> None:
+    assert chunk_questions([]) == []
+
+
 # --- build_fill_command_data (pure mapper) ---
 
 
-def test_mapper_text_and_integer() -> None:
-    result = QuestionnaireFillResult(
-        questionnaireDbid=1,
-        items=[
-            QuestionnaireItemFill(questionDbid=10, status="answered", value="Nurse"),
-            QuestionnaireItemFill(questionDbid=11, status="answered", value="14"),
-        ],
-    )
-    data = build_fill_command_data(result, _questions())
-    assert data == {
-        "questionnaire_dbid": 1,
-        "questions": [
-            {"dbid": 10, "responses": [{"value": "Nurse", "selected": True, "comment": None}]},
-            {"dbid": 11, "responses": [{"value": "14", "selected": True, "comment": None}]},
-        ],
-    }
+def test_mapper_emits_every_question_with_full_render_shape() -> None:
+    """Unanswered questions must survive: the provider finishes the form by hand, and both
+    isComplete and computeScore in questionnaire-score.js need every question and every
+    score_value present."""
+    data = build_fill_command_data(_definition(), _items())
 
+    assert data["questionnaire_name"] == "PHQ-9"
+    assert data["is_scored"] is True
+    assert data["scoring_function_name"] == "sum"
+    assert [q["dbid"] for q in data["questions"]] == [10, 11, 12, 13]
 
-def test_mapper_radio_selects_one_positionally() -> None:
-    result = QuestionnaireFillResult(
-        questionnaireDbid=1,
-        items=[QuestionnaireItemFill(questionDbid=12, status="answered", selectedOptionDbid=101)],
-    )
-    data = build_fill_command_data(result, _questions())
-    assert data["questions"] == [
+    radio = data["questions"][2]
+    assert radio["label"] == "Interest or pleasure in doing things?"
+    assert radio["type"] == ResponseOption.TYPE_RADIO
+    assert radio["responses"] == [
         {
-            "dbid": 12,
-            "responses": [
-                {"value": "Not at all", "selected": False, "comment": None},
-                {"value": "Several days", "selected": True, "comment": None},
-            ],
-        }
+            "dbid": 100,
+            "value": "Not at all",
+            "code": "LA6568-5",
+            "score_value": "0",
+            "selected": False,
+            "comment": None,
+        },
+        {
+            "dbid": 101,
+            "value": "Several days",
+            "code": "LA6569-3",
+            "score_value": "1",
+            "selected": False,
+            "comment": None,
+        },
     ]
+    assert all("fill" not in q for q in data["questions"])
 
 
-def test_mapper_denied_radio_records_chosen_option() -> None:
-    # Lossy denial: status="denied" is stored simply as selecting the option the model picked.
-    result = QuestionnaireFillResult(
-        questionnaireDbid=1,
-        items=[QuestionnaireItemFill(questionDbid=12, status="denied", selectedOptionDbid=100)],
+def test_mapper_text_and_integer() -> None:
+    items = _items(
+        QuestionnaireItemFill(questionDbid=10, status="answered", value="nurse", evidence=[_turn()]),
+        QuestionnaireItemFill(questionDbid=11, status="answered", value="3", evidence=[_turn()]),
     )
-    data = build_fill_command_data(result, _questions())
-    assert data["questions"][0]["responses"][0] == {"value": "Not at all", "selected": True, "comment": None}
+    data = build_fill_command_data(_definition(), items)
+    assert data["questions"][0]["responses"][0]["value"] == "nurse"
+    assert data["questions"][0]["responses"][0]["selected"] is True
+    assert data["questions"][1]["responses"][0]["value"] == "3"
+    assert "fill" in data["questions"][0]
+
+
+def test_mapper_radio_selects_by_dbid_not_position() -> None:
+    items = _items(
+        QuestionnaireItemFill(questionDbid=12, status="answered", selectedOptionDbid=101, evidence=[_turn()])
+    )
+    data = build_fill_command_data(_definition(), items)
+    assert [r["selected"] for r in data["questions"][2]["responses"]] == [False, True]
+
+
+def test_mapper_denied_radio_records_chosen_option_and_status() -> None:
+    items = _items(QuestionnaireItemFill(questionDbid=12, status="denied", selectedOptionDbid=100, evidence=[_turn()]))
+    data = build_fill_command_data(_definition(), items)
+    assert [r["selected"] for r in data["questions"][2]["responses"]] == [True, False]
+    assert data["questions"][2]["fill"]["status"] == "denied"
 
 
 def test_mapper_checkbox_affirmed_options() -> None:
-    result = QuestionnaireFillResult(
-        questionnaireDbid=1,
-        items=[QuestionnaireItemFill(questionDbid=13, status="answered", selectedOptionDbids=[201])],
+    items = _items(
+        QuestionnaireItemFill(questionDbid=13, status="answered", selectedOptionDbids=[201], evidence=[_turn()])
     )
-    data = build_fill_command_data(result, _questions())
-    assert data["questions"] == [
-        {
-            "dbid": 13,
-            "responses": [
-                {"value": "Cough", "selected": False, "comment": None},
-                {"value": "Fever", "selected": True, "comment": None},
+    data = build_fill_command_data(_definition(), items)
+    assert [r["selected"] for r in data["questions"][3]["responses"]] == [False, True]
+
+
+def test_mapper_not_assessed_and_blank_leave_no_fill_block() -> None:
+    items = _items(
+        QuestionnaireItemFill(questionDbid=10, status="not_assessed"),
+        QuestionnaireItemFill(questionDbid=11, status="answered", value="   ", evidence=[_turn()]),
+        QuestionnaireItemFill(questionDbid=12, status="answered", selectedOptionDbid=None, evidence=[_turn()]),
+        QuestionnaireItemFill(questionDbid=13, status="answered", selectedOptionDbids=[], evidence=[_turn()]),
+    )
+    data = build_fill_command_data(_definition(), items)
+    assert all("fill" not in q for q in data["questions"])
+    assert all(not r["selected"] for q in data["questions"] for r in q["responses"])
+
+
+def test_mapper_fill_block_carries_every_evidence_turn() -> None:
+    """A bare 'No' is not interpretable without the provider's question, so the card has to
+    receive both turns, not just the patient's."""
+    items = _items(
+        QuestionnaireItemFill(
+            questionDbid=12,
+            status="denied",
+            selectedOptionDbid=100,
+            confidence="high",
+            rationale="explicit denial",
+            evidence=[
+                EvidenceTurn(speaker="provider", quote="Any thoughts of harming yourself?", itemId="t1"),
+                EvidenceTurn(speaker="patient", quote="No, nothing like that.", itemId="t2"),
             ],
-        }
-    ]
-
-
-def test_mapper_omits_not_assessed_and_blank() -> None:
-    result = QuestionnaireFillResult(
-        questionnaireDbid=1,
-        items=[
-            QuestionnaireItemFill(questionDbid=10, status="not_assessed"),
-            QuestionnaireItemFill(questionDbid=12, status="answered", selectedOptionDbid=None),
-        ],
+        )
     )
-    data = build_fill_command_data(result, _questions())
-    assert data == {"questionnaire_dbid": 1, "questions": []}
+    data = build_fill_command_data(_definition(), items)
+    fill = data["questions"][2]["fill"]
+    assert [turn["speaker"] for turn in fill["evidence"]] == ["provider", "patient"]
+    assert fill["confidence"] == "high"
+    assert fill["rationale"] == "explicit denial"
 
 
 # --- grounding gate ---
@@ -150,54 +236,294 @@ def test_mapper_omits_not_assessed_and_blank() -> None:
 
 def test_grounding_gate_drops_ungrounded() -> None:
     result = QuestionnaireFillResult(
-        questionnaireDbid=1,
+        questionnaireDbid=7,
         items=[
+            QuestionnaireItemFill(questionDbid=12, status="answered", selectedOptionDbid=100, evidence=[_turn("t1")]),
             QuestionnaireItemFill(
-                questionDbid=10, status="answered", value="Nurse", evidence=[EvidenceTurn(**_ev("t1"))]
-            ),
-            QuestionnaireItemFill(
-                questionDbid=11, status="answered", value="14", evidence=[EvidenceTurn(**_ev("zzz"))]
+                questionDbid=13, status="answered", selectedOptionDbids=[200], evidence=[_turn("nope")]
             ),
         ],
     )
     gated = _apply_grounding_gate(result, _transcript())
-    assert [i.question_dbid for i in gated.items] == [10]
+    assert [item.question_dbid for item in gated.items] == [12]
 
 
 def test_grounding_gate_keeps_not_assessed() -> None:
     result = QuestionnaireFillResult(
-        questionnaireDbid=1,
-        items=[QuestionnaireItemFill(questionDbid=10, status="not_assessed")],
+        questionnaireDbid=7,
+        items=[QuestionnaireItemFill(questionDbid=12, status="not_assessed", evidence=[])],
     )
-    gated = _apply_grounding_gate(result, _transcript())
-    assert [i.question_dbid for i in gated.items] == [10]
+    assert len(_apply_grounding_gate(result, _transcript()).items) == 1
 
 
-# --- fill_questionnaire (prompt + parse + gate, mock client) ---
+# --- fill_chunk ---
 
 
-def test_fill_questionnaire_parses_and_grounds() -> None:
-    data = {
-        "questionnaireDbid": 1,
+def test_fill_chunk_sends_transcript_and_definition_as_separate_blocks() -> None:
+    """Two set_user_prompt calls, not one joined string. Only separate content blocks let
+    the transcript be cached while the per-chunk definition varies."""
+    client = _client({"questionnaireDbid": 7, "items": []})
+    fill_chunk("PHQ-9", _questions(), _transcript(), client)
+    assert client.set_user_prompt.call_count == 2
+    transcript_block = "\n".join(client.set_user_prompt.call_args_list[0].args[0])
+    definition_block = "\n".join(client.set_user_prompt.call_args_list[1].args[0])
+    assert "TRANSCRIPT" in transcript_block
+    assert "QUESTIONNAIRE DEFINITION" in definition_block
+
+
+def test_fill_chunk_parses_and_grounds() -> None:
+    payload = {
+        "questionnaireDbid": 7,
         "items": [
-            {"questionDbid": 10, "status": "answered", "value": "Nurse", "evidence": [_ev("t1")]},
-            {"questionDbid": 11, "status": "answered", "value": "14", "evidence": [_ev("missing")]},
+            {"questionDbid": 12, "status": "answered", "selectedOptionDbid": 100, "evidence": [_ev("t1")]},
+            {"questionDbid": 13, "status": "answered", "selectedOptionDbids": [200], "evidence": [_ev("gone")]},
         ],
     }
-    client = _client(data)
-    result = fill_questionnaire("PHQ-9", _questions(), _transcript(), client)
-    assert result is not None
-    assert [i.question_dbid for i in result.items] == [10]  # ungrounded item dropped by the gate
-    client.set_schema.assert_called_once_with(QuestionnaireFillResult)
-    client.request.assert_called_once()
+    result = fill_chunk("PHQ-9", _questions(), _transcript(), _client(payload))
+    assert [item.question_dbid for item in result.items] == [12]
 
 
-def test_fill_questionnaire_empty_transcript_returns_none() -> None:
-    client = _client({"questionnaireDbid": 1, "items": []})
-    assert fill_questionnaire("PHQ-9", _questions(), Transcript(items=[]), client) is None
-    client.request.assert_not_called()
+def test_fill_chunk_rate_limit_is_retryable() -> None:
+    client = _client({"items": []}, code=HTTPStatus.TOO_MANY_REQUESTS)
+    with pytest.raises(FillChunkError) as excinfo:
+        fill_chunk("PHQ-9", _questions(), _transcript(), client)
+    assert excinfo.value.retryable is True
 
 
-def test_fill_questionnaire_non_ok_returns_none() -> None:
-    client = _client({"questionnaireDbid": 1, "items": []}, code=HTTPStatus.INTERNAL_SERVER_ERROR)
-    assert fill_questionnaire("PHQ-9", _questions(), _transcript(), client) is None
+def test_fill_chunk_bad_request_is_not_retryable() -> None:
+    """The SDK turns a 30s timeout into BAD_REQUEST, so retrying it just burns another 30
+    seconds on the same failure."""
+    client = _client({"items": []}, code=HTTPStatus.BAD_REQUEST)
+    with pytest.raises(FillChunkError) as excinfo:
+        fill_chunk("PHQ-9", _questions(), _transcript(), client)
+    assert excinfo.value.retryable is False
+
+
+def test_fill_chunk_unparseable_response() -> None:
+    client = MagicMock()
+    client.request.return_value = LlmResponse(
+        code=HTTPStatus.OK, response="not json", tokens=LlmTokens(prompt=0, generated=0)
+    )
+    with pytest.raises(FillChunkError):
+        fill_chunk("PHQ-9", _questions(), _transcript(), client)
+
+
+def test_retry_runs_once_for_a_retryable_failure() -> None:
+    client = MagicMock()
+    client.request.side_effect = [
+        LlmResponse(code=HTTPStatus.TOO_MANY_REQUESTS, response="slow down", tokens=LlmTokens(prompt=0, generated=0)),
+        LlmResponse(
+            code=HTTPStatus.OK,
+            response=json.dumps({"questionnaireDbid": 7, "items": []}),
+            tokens=LlmTokens(prompt=0, generated=0),
+        ),
+    ]
+    result = fill_chunk_with_retry("PHQ-9", _questions(), _transcript(), client, sleep=lambda _: None)
+    assert result.items == []
+    assert client.request.call_count == 2
+
+
+def test_retry_does_not_run_for_a_non_retryable_failure() -> None:
+    client = _client({"items": []}, code=HTTPStatus.BAD_REQUEST)
+    with pytest.raises(FillChunkError):
+        fill_chunk_with_retry("PHQ-9", _questions(), _transcript(), client, sleep=lambda _: None)
+    assert client.request.call_count == 1
+
+
+# --- fill_questionnaires (orchestration) ---
+
+
+def _long_definition(count: int) -> dict:
+    questions = [
+        {
+            "dbid": 500 + i,
+            "label": f"Q{i}",
+            "type": ResponseOption.TYPE_RADIO,
+            "options": [{"dbid": 900 + i, "value": "Yes", "code": "", "score_value": "1"}],
+        }
+        for i in range(count)
+    ]
+    return _definition(questions, scored=False)
+
+
+def _answer_for(question_dbid: int) -> dict:
+    return {
+        "questionDbid": question_dbid,
+        "status": "answered",
+        "selectedOptionDbid": question_dbid + 400,
+        "evidence": [_ev("t1")],
+    }
+
+
+def test_fill_questionnaires_empty_transcript_does_nothing() -> None:
+    outcomes, telemetry = fill_questionnaires([7], Transcript(items=[]), "key")
+    assert outcomes == []
+    assert telemetry["chunks"] == 0
+
+
+def test_fill_questionnaires_warm_up_failure_abandons_the_fan_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A seven-chunk form must not spend seven 30-second timeouts rediscovering one outage."""
+    definition = _long_definition(20)
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: definition
+    )
+    calls = {"n": 0}
+
+    def factory() -> MagicMock:
+        calls["n"] += 1
+        return _client({"items": []}, code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    outcomes, telemetry = fill_questionnaires([7], _transcript(), "key", client_factory=factory)
+    assert telemetry["chunks"] == 4
+    assert telemetry["aborted"] is True
+    # The warm-up ran; the retry ran on the same client; nothing else was attempted.
+    assert calls["n"] == 1
+    assert outcomes[0].error is not None
+    assert outcomes[0].drafted == 0
+
+
+def test_fill_questionnaires_one_failed_chunk_keeps_the_others(monkeypatch: pytest.MonkeyPatch) -> None:
+    definition = _long_definition(12)
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: definition
+    )
+    made: list[MagicMock] = []
+
+    def factory() -> MagicMock:
+        # Chunk 1 (warm-up) succeeds so the fan-out proceeds; chunk 2 fails.
+        if not made:
+            client = _client({"questionnaireDbid": 7, "items": [_answer_for(500), _answer_for(501)]})
+        else:
+            client = _client({"items": []}, code=HTTPStatus.BAD_REQUEST)
+        made.append(client)
+        return client
+
+    outcomes, telemetry = fill_questionnaires([7], _transcript(), "key", client_factory=factory)
+    assert telemetry["chunks"] == 2
+    assert telemetry["aborted"] is False
+    outcome = outcomes[0]
+    # The surviving chunk's answers landed, so the questionnaire is not reported as failed.
+    assert outcome.drafted == 2
+    assert outcome.error is None
+    # The failed chunk's questions are present, blank, and editable.
+    assert len(outcome.data["questions"]) == 12
+    assert all("fill" not in q for q in outcome.data["questions"][CHUNK_SIZE:])
+
+
+def test_fill_questionnaires_accumulates_cache_telemetry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Zero cache reads across a multi-chunk run means the chunking is costing money
+    instead of saving it, so the number has to be recorded."""
+    definition = _long_definition(12)
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: definition
+    )
+    seen: list[MagicMock] = []
+
+    def factory() -> MagicMock:
+        client = _client({"questionnaireDbid": 7, "items": []})
+        client.last_usage = (
+            {"input_tokens": 100, "output_tokens": 20, "cache_creation_input_tokens": 900}
+            if not seen
+            else {"input_tokens": 10, "output_tokens": 20, "cache_read_input_tokens": 900}
+        )
+        seen.append(client)
+        return client
+
+    _, telemetry = fill_questionnaires([7], _transcript(), "key", client_factory=factory)
+    assert telemetry["cache_write_tokens"] == 900
+    assert telemetry["cache_read_tokens"] == 900
+    assert telemetry["output_tokens"] == 40
+
+
+def test_fill_questionnaires_unloadable_questionnaire_reports_and_continues(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def loader(dbid: int) -> dict:
+        if dbid == 99:
+            raise ValueError("no such questionnaire")
+        return _definition()
+
+    monkeypatch.setattr("hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", loader)
+    outcomes, _ = fill_questionnaires(
+        [99, 7], _transcript(), "key", client_factory=lambda: _client({"questionnaireDbid": 7, "items": []})
+    )
+    assert outcomes[0].error == "load_failed"
+    assert outcomes[0].data is None
+    assert outcomes[1].data is not None
+
+
+def test_fill_chunk_treats_a_raised_request_as_retryable() -> None:
+    """A transport blowing up is not the same as the API refusing, so it earns the retry."""
+    client = MagicMock()
+    client.request.side_effect = RuntimeError("socket closed")
+    with pytest.raises(FillChunkError) as excinfo:
+        fill_chunk("PHQ-9", _questions(), _transcript(), client)
+    assert excinfo.value.retryable is True
+
+
+def test_fill_questionnaires_single_chunk_failure_is_not_an_abort(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With one chunk there is no fan-out to abandon, so the run reports a plain failure
+    rather than the outage-probe abort."""
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: _definition()
+    )
+    outcomes, telemetry = fill_questionnaires(
+        [7], _transcript(), "key", client_factory=lambda: _client({"items": []}, code=HTTPStatus.BAD_REQUEST)
+    )
+    assert telemetry["chunks"] == 1
+    assert telemetry["aborted"] is False
+    assert outcomes[0].error is not None
+    # The card still receives every question, blank and editable.
+    assert len(outcomes[0].data["questions"]) == 4
+
+
+def test_fill_questionnaires_spans_several_questionnaires(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Batching is the point: one warm cache shared across every questionnaire on the note."""
+    definitions = {7: _definition(), 8: _definition(_questions()[:2], scored=False)}
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: definitions[dbid]
+    )
+    payload = {
+        "questionnaireDbid": 7,
+        "items": [{"questionDbid": 10, "status": "answered", "value": "nurse", "evidence": [_ev("t1")]}],
+    }
+    outcomes, telemetry = fill_questionnaires([7, 8], _transcript(), "key", client_factory=lambda: _client(payload))
+    assert telemetry["chunks"] == 2
+    assert [o.questionnaire_dbid for o in outcomes] == [7, 8]
+    assert all(o.error is None for o in outcomes)
+
+
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
+def test_resolve_definition_is_the_one_shape_three_call_sites_share(mock_command: MagicMock) -> None:
+    """/questionnaire-details, /visit-templates and the fill all render from this. They
+    used to build it separately and drifted: the fill's copy dropped code and score_value,
+    which is exactly why a filled PHQ-9 could not compute a score."""
+    option = SimpleNamespace(dbid=100, name="Not at all", code="LA6568-5", value=0)
+    question = SimpleNamespace(id="12", label="Interest?", type=ResponseOption.TYPE_RADIO, options=[option])
+    mock_command.return_value = SimpleNamespace(questions=[question])
+    q_obj = SimpleNamespace(id="uuid-1", dbid=7, name="PHQ-9", scoring_function_name="sum")
+
+    definition = resolve_questionnaire_definition(q_obj)
+
+    assert definition["questionnaire_dbid"] == 7
+    assert definition["questionnaire_name"] == "PHQ-9"
+    assert definition["is_scored"] is True
+    assert definition["questions"] == [
+        {
+            "dbid": 12,
+            "label": "Interest?",
+            "type": ResponseOption.TYPE_RADIO,
+            # score_value "0" survives as a string: integer 0 means "Not at all" and a
+            # falsy-coerce would silently destroy a real clinical score.
+            "options": [{"dbid": 100, "value": "Not at all", "code": "LA6568-5", "score_value": "0"}],
+        }
+    ]
+
+
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
+def test_resolve_definition_marks_an_unscored_questionnaire(mock_command: MagicMock) -> None:
+    mock_command.return_value = SimpleNamespace(questions=[])
+    q_obj = SimpleNamespace(id="uuid-1", dbid=8, name="Social history", scoring_function_name="")
+    definition = resolve_questionnaire_definition(q_obj)
+    assert definition["is_scored"] is False
+    assert definition["scoring_function_name"] == ""

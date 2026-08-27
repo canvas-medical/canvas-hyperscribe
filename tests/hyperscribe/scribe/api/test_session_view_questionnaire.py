@@ -1,3 +1,4 @@
+import json
 import re
 from http import HTTPStatus
 from types import SimpleNamespace
@@ -96,7 +97,7 @@ def test_questionnaire_details_not_found(mock_model: MagicMock) -> None:
     assert result == [JSONResponse({"error": "not found"}, status_code=HTTPStatus.NOT_FOUND)]
 
 
-@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_questionnaire_details_success_scored(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
     questionnaire = MagicMock()
@@ -154,7 +155,7 @@ def test_questionnaire_details_success_scored(mock_model: MagicMock, mock_cmd_cl
     ]
 
 
-@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_questionnaire_details_preserves_integer_zero_score_value(
     mock_model: MagicMock, mock_cmd_class: MagicMock
@@ -217,7 +218,7 @@ def test_questionnaire_details_preserves_integer_zero_score_value(
     ]
 
 
-@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_questionnaire_details_success_unscored(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
     questionnaire = MagicMock()
@@ -267,3 +268,179 @@ def test_questionnaire_details_success_unscored(mock_model: MagicMock, mock_cmd_
             status_code=HTTPStatus.OK,
         )
     ]
+
+
+# --- /fill-questionnaires ---
+
+
+def _fill_view(secrets: dict[str, str] | None = None, body: bytes = b"{}") -> ScribeSessionView:
+    view = _helper_instance()
+    view.secrets = {"AnthropicAPIKey": "key", **(secrets or {})}
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-key"},
+        query_params={},
+        body=body,
+    )
+    return view
+
+
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_fill_questionnaires_rejects_invalid_json(mock_auth: MagicMock) -> None:
+    response = _fill_view(body=b"{not json").post_fill_questionnaires()[0]
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_fill_questionnaires_requires_dbids(mock_auth: MagicMock) -> None:
+    response = _fill_view(body=b'{"note_uuid": "n1"}').post_fill_questionnaires()[0]
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="other-staff")
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_fill_questionnaires_respects_the_staffer_gate(mock_auth: MagicMock, mock_provider: MagicMock) -> None:
+    view = _fill_view(
+        secrets={"ScribeQuestionnaireFillStaffers": "allowed1, allowed2"},
+        body=b'{"note_uuid": "n1", "questionnaire_dbids": [7]}',
+    )
+    response = view.post_fill_questionnaires()[0]
+    assert response.status_code == HTTPStatus.OK
+    assert json.loads(response.content) == {"results": [], "disabled": True}
+
+
+@patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [], "finalized": False})
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key")
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_fill_questionnaires_refuses_an_unfinalized_transcript(
+    mock_auth: MagicMock, mock_provider: MagicMock, mock_transcript: MagicMock
+) -> None:
+    """Drafting from a partial transcript answers questions the visit has not reached, and
+    the grounding rule cannot catch it because the quote it cites is genuinely real."""
+    view = _fill_view(body=b'{"note_uuid": "n1", "questionnaire_dbids": [7]}')
+    response = view.post_fill_questionnaires()[0]
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert "in progress" in json.loads(response.content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.fill_questionnaires")
+@patch("hyperscribe.scribe.api.session_view._parse_transcript")
+@patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [{}], "finalized": True})
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key")
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_fill_questionnaires_returns_results_and_audits_success(
+    mock_auth: MagicMock,
+    mock_provider: MagicMock,
+    mock_load: MagicMock,
+    mock_parse: MagicMock,
+    mock_fill: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    outcome = SimpleNamespace(
+        questionnaire_dbid=7,
+        data={"questionnaire_dbid": 7, "questions": []},
+        drafted=3,
+        error=None,
+        items=[],
+    )
+    mock_fill.return_value = ([outcome], {"chunks": 2, "cache_read_tokens": 900, "cache_write_tokens": 0})
+
+    view = _fill_view(body=b'{"note_uuid": "n1", "questionnaire_dbids": [7]}')
+    response = view.post_fill_questionnaires()[0]
+
+    assert response.status_code == HTTPStatus.OK
+    payload = json.loads(response.content)
+    assert payload["results"][0]["drafted"] == 3
+    assert payload["results"][0]["error"] is None
+    event_types = [call.args[1] for call in mock_audit.call_args_list]
+    assert event_types == ["QUESTIONNAIRE_FILLED"]
+    # Telemetry rides on the audit row so a run with no cache reads is diagnosable later.
+    assert mock_audit.call_args_list[0].args[2]["cache_read_tokens"] == 900
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.fill_questionnaires")
+@patch("hyperscribe.scribe.api.session_view._parse_transcript")
+@patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [{}], "finalized": True})
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key")
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_fill_questionnaires_audits_a_failure(
+    mock_auth: MagicMock,
+    mock_provider: MagicMock,
+    mock_load: MagicMock,
+    mock_parse: MagicMock,
+    mock_fill: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    """A silent failure is the exact defect this replaces, so the audit row is the point."""
+    outcome = SimpleNamespace(questionnaire_dbid=7, data=None, drafted=0, error="LLM returned 500", items=[])
+    mock_fill.return_value = ([outcome], {"chunks": 1})
+
+    view = _fill_view(body=b'{"note_uuid": "n1", "questionnaire_dbids": [7]}')
+    response = view.post_fill_questionnaires()[0]
+
+    assert response.status_code == HTTPStatus.OK
+    assert json.loads(response.content)["results"][0]["error"] == "LLM returned 500"
+    assert [call.args[1] for call in mock_audit.call_args_list] == ["QUESTIONNAIRE_FILL_FAILED"]
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.fill_questionnaires", side_effect=RuntimeError("boom"))
+@patch("hyperscribe.scribe.api.session_view._parse_transcript")
+@patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [{}], "finalized": True})
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key")
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_fill_questionnaires_unhandled_error_is_audited_not_swallowed(
+    mock_auth: MagicMock,
+    mock_provider: MagicMock,
+    mock_load: MagicMock,
+    mock_parse: MagicMock,
+    mock_fill: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    view = _fill_view(body=b'{"note_uuid": "n1", "questionnaire_dbids": [7]}')
+    response = view.post_fill_questionnaires()[0]
+    assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert [call.args[1] for call in mock_audit.call_args_list] == ["QUESTIONNAIRE_FILL_FAILED"]
+
+
+@patch("hyperscribe.scribe.api.session_view.fill_questionnaires")
+@patch("hyperscribe.scribe.api.session_view._parse_transcript")
+@patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [{}], "finalized": True})
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key")
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_fill_questionnaires_model_and_effort_come_from_secrets(
+    mock_auth: MagicMock,
+    mock_provider: MagicMock,
+    mock_load: MagicMock,
+    mock_parse: MagicMock,
+    mock_fill: MagicMock,
+) -> None:
+    mock_fill.return_value = ([], {"chunks": 0})
+    view = _fill_view(
+        secrets={"ScribeFillModel": "claude-sonnet-5", "ScribeFillEffort": "low"},
+        body=b'{"note_uuid": "n1", "questionnaire_dbids": [7]}',
+    )
+    view.post_fill_questionnaires()
+    assert mock_fill.call_args.kwargs["model"] == "claude-sonnet-5"
+    assert mock_fill.call_args.kwargs["effort"] == "low"
+
+
+@patch("hyperscribe.scribe.api.session_view.fill_questionnaires")
+@patch("hyperscribe.scribe.api.session_view._parse_transcript")
+@patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [{}], "finalized": True})
+@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key")
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_fill_questionnaires_accepts_a_single_dbid(
+    mock_auth: MagicMock,
+    mock_provider: MagicMock,
+    mock_load: MagicMock,
+    mock_parse: MagicMock,
+    mock_fill: MagicMock,
+) -> None:
+    """The card's own button sends one questionnaire; the automatic path sends the batch."""
+    mock_fill.return_value = ([], {"chunks": 0})
+    view = _fill_view(body=b'{"note_uuid": "n1", "questionnaire_dbid": 7}')
+    view.post_fill_questionnaires()
+    assert mock_fill.call_args.args[0] == [7]
