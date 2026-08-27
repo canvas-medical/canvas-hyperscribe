@@ -83,3 +83,35 @@ def test_extract_raises() -> None:
         assert False, "Should have raised NotImplementedError"
     except NotImplementedError:
         pass
+
+
+@patch("hyperscribe.scribe.commands.physical_exam.render_to_string")
+def test_build_ignores_merge_metadata(mock_render: MagicMock) -> None:
+    """Step 2.5 stamps attribution and restore points onto the proposal's sections.
+    None of it may reach the chart: the rendered HTML must match a bare section."""
+    mock_render.return_value = "<div><b>General:</b> WA</div>"
+    parser = PhysicalExamParser()
+    bare = {"sections": [{"key": "general", "title": "General", "text": "WA"}]}
+    annotated = {
+        "sections": [
+            {
+                "key": "general",
+                "title": "General",
+                "text": "WA",
+                "updated": False,
+                "template_text": "Well-appearing per template",
+            }
+        ],
+        "encounter_sections": [{"key": "general", "title": "General", "text": "raw nabla text"}],
+        "reconciled_sections": [{"key": "general", "title": "General", "text": "WA"}],
+        "template_removed": False,
+    }
+
+    with patch("hyperscribe.scribe.commands.physical_exam.CustomCommand") as mock_cmd:
+        mock_cmd.return_value = MagicMock()
+        parser.build(bare, "n", "c")
+        parser.build(annotated, "n", "c")
+
+    first, second = mock_render.call_args_list
+    assert first[0][1] == second[0][1] == {"sections": [{"title": "General", "text": "WA"}]}
+    assert mock_cmd.call_args_list[0][1]["content"] == mock_cmd.call_args_list[1][1]["content"]
