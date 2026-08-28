@@ -355,12 +355,6 @@ def _answer_for(question_dbid: int) -> dict:
     }
 
 
-def test_fill_questionnaires_empty_transcript_does_nothing() -> None:
-    outcomes, telemetry = fill_questionnaires([7], Transcript(items=[]), "key")
-    assert outcomes == []
-    assert telemetry["chunks"] == 0
-
-
 def test_fill_questionnaires_warm_up_failure_abandons_the_fan_out(monkeypatch: pytest.MonkeyPatch) -> None:
     """A seven-chunk form must not spend seven 30-second timeouts rediscovering one outage."""
     definition = _long_definition(20)
@@ -527,3 +521,106 @@ def test_resolve_definition_marks_an_unscored_questionnaire(mock_command: MagicM
     definition = resolve_questionnaire_definition(q_obj)
     assert definition["is_scored"] is False
     assert definition["scoring_function_name"] == ""
+
+
+# --- outcome status ---------------------------------------------------------
+#
+# The point of `status` is that `drafted == 0` on its own is ambiguous: it means both
+# "read the transcript and nothing supported an answer" (the grounding rule working) and
+# "never ran" (a bug). These pin the boundary between them.
+
+
+def _all_not_assessed() -> dict:
+    """What a real abstention looks like: the model considered every question and declined."""
+    return {
+        "questionnaireDbid": 7,
+        "items": [{"questionDbid": q["dbid"], "status": "not_assessed"} for q in _questions()],
+    }
+
+
+def test_status_abstained_when_the_transcript_covers_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: _definition()
+    )
+    outcomes, _ = fill_questionnaires([7], _transcript(), "key", client_factory=lambda: _client(_all_not_assessed()))
+    outcome = outcomes[0]
+    assert outcome.status == "abstained"
+    assert outcome.error is None
+    assert outcome.drafted == 0
+    assert outcome.total == 4
+    # It considered every question, which is what separates this from a parse problem.
+    assert outcome.assessed == 4
+    # The card still receives the whole questionnaire, blank and editable.
+    assert len(outcome.data["questions"]) == 4
+
+
+def test_status_failed_is_distinguished_from_abstained(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Both have drafted == 0. Conflating them is the bug this change exists to fix."""
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: _definition()
+    )
+    outcomes, _ = fill_questionnaires(
+        [7], _transcript(), "key", client_factory=lambda: _client({"items": []}, code=HTTPStatus.BAD_REQUEST)
+    )
+    assert outcomes[0].status == "failed"
+    assert outcomes[0].error is not None
+
+
+def test_status_filled_when_anything_landed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: _definition()
+    )
+    payload = {
+        "questionnaireDbid": 7,
+        "items": [{"questionDbid": 10, "status": "answered", "value": "nurse", "evidence": [_ev("t1")]}],
+    }
+    outcomes, _ = fill_questionnaires([7], _transcript(), "key", client_factory=lambda: _client(payload))
+    assert outcomes[0].status == "filled"
+    assert (outcomes[0].drafted, outcomes[0].total) == (1, 4)
+
+
+def test_status_no_transcript_is_not_a_failure() -> None:
+    """Returning [] here made the frontend report 'Fill failed'. Nothing failed."""
+    outcomes, telemetry = fill_questionnaires([7, 8], Transcript(items=[]), "key")
+    assert [o.status for o in outcomes] == ["no_transcript", "no_transcript"]
+    assert all(o.error is None for o in outcomes)
+    assert telemetry["chunks"] == 0
+
+
+def test_no_questionnaires_requested_is_a_caller_error_not_an_outcome() -> None:
+    assert fill_questionnaires([], _transcript(), "key")[0] == []
+
+
+def test_status_filled_when_one_chunk_failed_but_another_landed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A partial success is a success: the surviving answers are real and grounded."""
+    definition = _long_definition(12)
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: definition
+    )
+    made: list[MagicMock] = []
+
+    def factory() -> MagicMock:
+        client = (
+            _client({"questionnaireDbid": 7, "items": [_answer_for(500)]})
+            if not made
+            else _client({"items": []}, code=HTTPStatus.BAD_REQUEST)
+        )
+        made.append(client)
+        return client
+
+    outcomes, _ = fill_questionnaires([7], _transcript(), "key", client_factory=factory)
+    assert outcomes[0].status == "filled"
+    assert outcomes[0].error is None
+
+
+def test_assessed_is_zero_when_the_model_returns_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Looks like an abstention from outside, but points at a schema or parse problem
+    rather than an honest one, which is why the audit row carries the count."""
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: _definition()
+    )
+    outcomes, _ = fill_questionnaires(
+        [7], _transcript(), "key", client_factory=lambda: _client({"questionnaireDbid": 7, "items": []})
+    )
+    assert outcomes[0].status == "abstained"
+    assert outcomes[0].assessed == 0

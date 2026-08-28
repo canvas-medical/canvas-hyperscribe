@@ -1462,16 +1462,24 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       })
         .then(r => r.json())
         .then(json => {
-          const filled = (json.results || []).filter(r => r.data && r.drafted > 0);
-          if (filled.length === 0) return;
-          logEvent('QUESTIONNAIRE_AUTOFILL', { count: filled.length });
+          // Every result is kept, not just the ones with answers. A questionnaire the
+          // transcript did not cover is a real outcome, and dropping it here left the
+          // card unable to tell an auto-fill that abstained from one that never ran.
+          const results = json.results || [];
+          if (results.length === 0) return;
+          const drafted = results.filter(r => r.drafted > 0).length;
+          logEvent('QUESTIONNAIRE_AUTOFILL', { filled: drafted, total: results.length });
           // Merge into the existing template-inserted cards rather than appending new
           // ones. mergeFilled leaves any question the provider already answered alone,
           // which matters because this can land while the card is open.
           setCommands(prev => prev.map(c => {
             if (c.command_type !== 'questionnaire') return c;
-            const match = filled.find(f => f.questionnaire_dbid === c.data?.questionnaire_dbid);
+            const match = results.find(f => f.questionnaire_dbid === c.data?.questionnaire_dbid);
             if (!match) return c;
+            // Recorded on the command so the footer can report it when the card is
+            // opened. The collapsed row stays silent, as with everything else here.
+            const data = { ...c.data, fill_status: match.status };
+            if (!match.data) return { ...c, data };
             const merged = mergeFilled({
               dbid: c.data.questionnaire_dbid,
               name: c.data.questionnaire_name,
@@ -1479,7 +1487,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
               scoring_function_name: c.data.scoring_function_name,
               questions: c.data.questions || [],
             }, match.data);
-            return { ...c, data: { ...c.data, is_scored: merged.is_scored, scoring_function_name: merged.scoring_function_name, questions: merged.questions } };
+            return { ...c, data: { ...data, is_scored: merged.is_scored, scoring_function_name: merged.scoring_function_name, questions: merged.questions } };
           }));
         })
         .catch(err => console.error('Questionnaire autofill failed:', err));

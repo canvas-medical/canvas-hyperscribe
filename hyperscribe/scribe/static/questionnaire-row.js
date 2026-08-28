@@ -91,8 +91,10 @@ function QuestionnaireSearch({ onSelect }) {
 
 function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, noteId, canFill }) {
   const [loading, setLoading] = useState(false);
-  // 'idle' | 'busy' | 'failed'. Every state of the fill renders in the footer group.
-  const [fillState, setFillState] = useState('idle');
+  // Mirrors the server's outcome: idle | busy | filled | abstained | no_transcript | failed.
+  // Seeded from the command so an automatic fill that abstained is still reported when the
+  // provider opens the card, rather than looking like a fill that never ran.
+  const [fillState, setFillState] = useState(command.data?.fill_status || 'idle');
   const [openEvidence, setOpenEvidence] = useState(null);
   const [questionnaire, setQuestionnaire] = useState(
     command.data.questionnaire_dbid
@@ -178,6 +180,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, 
   };
 
   const draftedCount = questionnaire ? countDrafted(questionnaire.questions) : 0;
+  const totalQuestions = questionnaire ? (questionnaire.questions || []).length : 0;
 
   const handleFill = useCallback(async () => {
     if (!questionnaire || !noteId) return;
@@ -190,12 +193,15 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, 
       });
       const json = await res.json();
       const result = (json.results || [])[0];
-      if (json.error || !result || result.error || !result.data) {
+      if (json.error || !result) {
         setFillState('failed');
         return;
       }
-      setQuestionnaire(prev => mergeFilled(prev, result.data));
-      setFillState('idle');
+      // The server states the outcome rather than leaving it to be inferred from a count:
+      // drafted === 0 means both "read it, nothing supported an answer" and "never ran",
+      // and those need different messages.
+      if (result.data) setQuestionnaire(prev => mergeFilled(prev, result.data));
+      setFillState(result.status || (result.error ? 'failed' : 'idle'));
     } catch (err) {
       console.error('Questionnaire fill failed:', err);
       setFillState('failed');
@@ -205,6 +211,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, 
   const handleClearDrafted = () => {
     setQuestionnaire(prev => prev && ({ ...prev, questions: clearDrafted(prev.questions) }));
     setOpenEvidence(null);
+    setFillState('idle');
   };
 
   const handleSave = () => {
@@ -334,7 +341,21 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, 
           ${canFill && fillState === 'failed' && html`
             <span class="q-sep"></span><span class="q-status failed">Fill failed. No answers changed.</span>
           `}
-          ${canFill && fillState === 'idle' && draftedCount > 0 && html`
+          ${canFill && fillState === 'no_transcript' && html`
+            <span class="q-sep"></span><span class="q-status">No transcript on this note.</span>
+          `}
+          ${/* Grey, not red: an honest abstention is the grounding rule working, not a failure. */ ''}
+          ${canFill && fillState === 'abstained' && html`
+            <span class="q-sep"></span><span class="q-status">No answers found in the transcript.</span>
+          `}
+          ${/* Only when partial. On a complete fill every chip is navy and a count would
+                restate the screen; on a partial one it says the blank questions were
+                considered and abstained on rather than never reached. */ ''}
+          ${canFill && draftedCount > 0 && draftedCount < totalQuestions && html`
+            <span class="q-sep"></span>
+            <span class="q-status">${draftedCount} of ${totalQuestions} answered from the transcript</span>
+          `}
+          ${canFill && fillState !== 'busy' && draftedCount > 0 && html`
             <span class="q-sep"></span>
             <button type="button" class="q-undo" onClick=${handleClearDrafted}>Clear responses</button>
           `}
