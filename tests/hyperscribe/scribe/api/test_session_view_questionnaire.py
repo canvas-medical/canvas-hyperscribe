@@ -284,6 +284,52 @@ def _fill_view(secrets: dict[str, str] | None = None, body: bytes = b"{}") -> Sc
     return view
 
 
+def _compose(*decorators):
+    """Apply a stack of @patch decorators as one, so each test states only its own setup."""
+
+    def wrap(func):
+        # Reversed so the list reads top-down like a normal @patch stack: the last entry
+        # is innermost and therefore the first mock argument.
+        for decorator in reversed(decorators):
+            func = decorator(func)
+        return func
+
+    return wrap
+
+
+fill_patches = _compose(
+    patch("hyperscribe.scribe.api.session_view.audit_event"),
+    patch("hyperscribe.scribe.api.session_view.fill_questionnaires"),
+    patch("hyperscribe.scribe.api.session_view._parse_transcript"),
+    patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [{}], "finalized": True}),
+    patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key"),
+    patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None),
+)
+
+
+def _outcome(
+    status: str,
+    drafted: int = 0,
+    total: int = 4,
+    items: list | None = None,
+    error: str | None = None,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        questionnaire_dbid=7,
+        status=status,
+        data=None if error else {"questionnaire_dbid": 7, "questions": []},
+        drafted=drafted,
+        total=total,
+        error=error,
+        items=items or [],
+        assessed=len(items or []),
+    )
+
+
+def _post() -> JSONResponse:
+    return _fill_view(body=b'{"note_uuid": "n1", "questionnaire_dbids": [7]}').post_fill_questionnaires()[0]
+
+
 @patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
 def test_fill_questionnaires_rejects_invalid_json(mock_auth: MagicMock) -> None:
     response = _fill_view(body=b"{not json").post_fill_questionnaires()[0]
@@ -323,99 +369,14 @@ def test_fill_questionnaires_refuses_an_unfinalized_transcript(
     assert "in progress" in json.loads(response.content)["error"]
 
 
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.fill_questionnaires")
-@patch("hyperscribe.scribe.api.session_view._parse_transcript")
-@patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [{}], "finalized": True})
-@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key")
-@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
-def test_fill_questionnaires_returns_results_and_audits_success(
-    mock_auth: MagicMock,
-    mock_provider: MagicMock,
-    mock_load: MagicMock,
-    mock_parse: MagicMock,
-    mock_fill: MagicMock,
-    mock_audit: MagicMock,
-) -> None:
-    outcome = SimpleNamespace(
-        questionnaire_dbid=7,
-        data={"questionnaire_dbid": 7, "questions": []},
-        drafted=3,
-        error=None,
-        items=[],
-    )
-    mock_fill.return_value = ([outcome], {"chunks": 2, "cache_read_tokens": 900, "cache_write_tokens": 0})
-
-    view = _fill_view(body=b'{"note_uuid": "n1", "questionnaire_dbids": [7]}')
-    response = view.post_fill_questionnaires()[0]
-
-    assert response.status_code == HTTPStatus.OK
-    payload = json.loads(response.content)
-    assert payload["results"][0]["drafted"] == 3
-    assert payload["results"][0]["error"] is None
-    event_types = [call.args[1] for call in mock_audit.call_args_list]
-    assert event_types == ["QUESTIONNAIRE_FILLED"]
-    # Telemetry rides on the audit row so a run with no cache reads is diagnosable later.
-    assert mock_audit.call_args_list[0].args[2]["cache_read_tokens"] == 900
-
-
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.fill_questionnaires")
-@patch("hyperscribe.scribe.api.session_view._parse_transcript")
-@patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [{}], "finalized": True})
-@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key")
-@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
-def test_fill_questionnaires_audits_a_failure(
-    mock_auth: MagicMock,
-    mock_provider: MagicMock,
-    mock_load: MagicMock,
-    mock_parse: MagicMock,
-    mock_fill: MagicMock,
-    mock_audit: MagicMock,
-) -> None:
-    """A silent failure is the exact defect this replaces, so the audit row is the point."""
-    outcome = SimpleNamespace(questionnaire_dbid=7, data=None, drafted=0, error="LLM returned 500", items=[])
-    mock_fill.return_value = ([outcome], {"chunks": 1})
-
-    view = _fill_view(body=b'{"note_uuid": "n1", "questionnaire_dbids": [7]}')
-    response = view.post_fill_questionnaires()[0]
-
-    assert response.status_code == HTTPStatus.OK
-    assert json.loads(response.content)["results"][0]["error"] == "LLM returned 500"
-    assert [call.args[1] for call in mock_audit.call_args_list] == ["QUESTIONNAIRE_FILL_FAILED"]
-
-
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.fill_questionnaires", side_effect=RuntimeError("boom"))
-@patch("hyperscribe.scribe.api.session_view._parse_transcript")
-@patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [{}], "finalized": True})
-@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key")
-@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
-def test_fill_questionnaires_unhandled_error_is_audited_not_swallowed(
-    mock_auth: MagicMock,
-    mock_provider: MagicMock,
-    mock_load: MagicMock,
-    mock_parse: MagicMock,
-    mock_fill: MagicMock,
-    mock_audit: MagicMock,
-) -> None:
-    view = _fill_view(body=b'{"note_uuid": "n1", "questionnaire_dbids": [7]}')
-    response = view.post_fill_questionnaires()[0]
-    assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
-    assert [call.args[1] for call in mock_audit.call_args_list] == ["QUESTIONNAIRE_FILL_FAILED"]
-
-
-@patch("hyperscribe.scribe.api.session_view.fill_questionnaires")
-@patch("hyperscribe.scribe.api.session_view._parse_transcript")
-@patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [{}], "finalized": True})
-@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key")
-@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+@fill_patches
 def test_fill_questionnaires_model_and_effort_come_from_secrets(
     mock_auth: MagicMock,
     mock_provider: MagicMock,
     mock_load: MagicMock,
     mock_parse: MagicMock,
     mock_fill: MagicMock,
+    mock_audit: MagicMock,
 ) -> None:
     mock_fill.return_value = ([], {"chunks": 0})
     view = _fill_view(
@@ -427,20 +388,96 @@ def test_fill_questionnaires_model_and_effort_come_from_secrets(
     assert mock_fill.call_args.kwargs["effort"] == "low"
 
 
-@patch("hyperscribe.scribe.api.session_view.fill_questionnaires")
-@patch("hyperscribe.scribe.api.session_view._parse_transcript")
-@patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [{}], "finalized": True})
-@patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff-key")
-@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+@fill_patches
 def test_fill_questionnaires_accepts_a_single_dbid(
     mock_auth: MagicMock,
     mock_provider: MagicMock,
     mock_load: MagicMock,
     mock_parse: MagicMock,
     mock_fill: MagicMock,
+    mock_audit: MagicMock,
 ) -> None:
     """The card's own button sends one questionnaire; the automatic path sends the batch."""
     mock_fill.return_value = ([], {"chunks": 0})
     view = _fill_view(body=b'{"note_uuid": "n1", "questionnaire_dbid": 7}')
     view.post_fill_questionnaires()
     assert mock_fill.call_args.args[0] == [7]
+
+
+@fill_patches
+def test_abstention_is_audited_so_the_rate_is_measurable(
+    mock_auth: MagicMock,
+    mock_provider: MagicMock,
+    mock_load: MagicMock,
+    mock_parse: MagicMock,
+    mock_fill: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    """A clean abstention used to write no audit row at all, leaving us unable to tell an
+    over-conservative prompt from a model that never abstains."""
+    mock_fill.return_value = (
+        [_outcome("abstained", items=[MagicMock() for _ in range(4)])],
+        {"chunks": 1, "cache_read_tokens": 0},
+    )
+
+    response = _post()
+
+    assert [c.args[1] for c in mock_audit.call_args_list] == ["QUESTIONNAIRE_FILL_EMPTY"]
+    details = mock_audit.call_args_list[0].args[2]
+    # assessed == total says the model considered every question and declined, rather than
+    # returning nothing, which would be a schema problem wearing abstention's clothes.
+    assert (details["assessed"], details["total"]) == (4, 4)
+    assert json.loads(response.content)["results"][0]["status"] == "abstained"
+
+
+@fill_patches
+def test_no_transcript_is_not_audited_as_a_failure(
+    mock_auth: MagicMock,
+    mock_provider: MagicMock,
+    mock_load: MagicMock,
+    mock_parse: MagicMock,
+    mock_fill: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    mock_fill.return_value = ([_outcome("no_transcript")], {"chunks": 0})
+
+    response = _post()
+
+    assert mock_audit.call_args_list == []
+    assert json.loads(response.content)["results"][0]["status"] == "no_transcript"
+
+
+@fill_patches
+def test_the_response_carries_status_drafted_and_total(
+    mock_auth: MagicMock,
+    mock_provider: MagicMock,
+    mock_load: MagicMock,
+    mock_parse: MagicMock,
+    mock_fill: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    mock_fill.return_value = ([_outcome("filled", drafted=3, total=9, items=[MagicMock()])], {"chunks": 2})
+
+    result = json.loads(_post().content)["results"][0]
+
+    assert (result["status"], result["drafted"], result["total"]) == ("filled", 3, 9)
+    assert [c.args[1] for c in mock_audit.call_args_list] == ["QUESTIONNAIRE_FILLED"]
+
+
+@fill_patches
+def test_a_failed_fill_is_audited_and_reported(
+    mock_auth: MagicMock,
+    mock_provider: MagicMock,
+    mock_load: MagicMock,
+    mock_parse: MagicMock,
+    mock_fill: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    """Same drafted count as an abstention; only the status separates them."""
+    mock_fill.return_value = ([_outcome("failed", error="LLM returned 500")], {"chunks": 1})
+
+    result = json.loads(_post().content)["results"][0]
+
+    assert result["status"] == "failed"
+    assert result["error"] == "LLM returned 500"
+    assert [c.args[1] for c in mock_audit.call_args_list] == ["QUESTIONNAIRE_FILL_FAILED"]

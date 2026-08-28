@@ -184,3 +184,69 @@ test('mergeFilled tolerates missing inputs', () => {
   const current = { questions: [text(1)] };
   assert.equal(mergeFilled(current, null), current);
 });
+
+// --- outcome status -----------------------------------------------------------------
+//
+// The server states the outcome rather than leaving the card to infer it. drafted === 0
+// means both "read the transcript, nothing supported an answer" and "never ran", and the
+// card has to say different things for each.
+
+// Mirrors the branch in QuestionnaireForm's footer, kept in sync with questionnaire-row.js.
+function footerMessage(status, drafted, total, canFill = true) {
+  if (!canFill) return 'Available when recording ends';
+  if (status === 'busy') return 'Reading transcript';
+  if (status === 'failed') return 'Fill failed. No answers changed.';
+  if (status === 'no_transcript') return 'No transcript on this note.';
+  if (status === 'abstained') return 'No answers found in the transcript.';
+  if (drafted > 0 && drafted < total) return `${drafted} of ${total} answered from the transcript`;
+  return null;
+}
+
+test('an abstention reads as a result, not a failure', () => {
+  assert.equal(footerMessage('abstained', 0, 9), 'No answers found in the transcript.');
+  assert.notEqual(footerMessage('abstained', 0, 9), footerMessage('failed', 0, 9));
+});
+
+test('an empty transcript is not reported as a failure', () => {
+  // Returning [] from the server used to land here as "Fill failed", which was wrong.
+  assert.equal(footerMessage('no_transcript', 0, 9), 'No transcript on this note.');
+});
+
+test('the partial count appears only when some but not all questions filled', () => {
+  assert.equal(footerMessage('filled', 3, 9), '3 of 9 answered from the transcript');
+  // Complete: every chip is navy, so a count would restate the screen.
+  assert.equal(footerMessage('filled', 9, 9), null);
+  // None: the abstain message covers it, a "0 of 9" would be noise on top.
+  assert.equal(footerMessage('abstained', 0, 9), 'No answers found in the transcript.');
+});
+
+test('recording state wins over every outcome', () => {
+  assert.equal(footerMessage('abstained', 0, 9, false), 'Available when recording ends');
+});
+
+test('a partial fill still merges the answers it did find', () => {
+  const current = { questions: [
+    radio(1, [[10, 'No', 0], [11, 'Yes', 1]]),
+    radio(2, [[20, 'No', 0], [21, 'Yes', 1]]),
+  ] };
+  const filled = { questions: [
+    { ...select(radio(1, [[10, 'No', 0], [11, 'Yes', 1]]), 11), fill: fill() },
+    radio(2, [[20, 'No', 0], [21, 'Yes', 1]]),
+  ] };
+
+  const merged = mergeFilled(current, filled);
+  assert.equal(countDrafted(merged.questions), 1);
+  assert.equal(footerMessage('filled', countDrafted(merged.questions), merged.questions.length),
+    '1 of 2 answered from the transcript');
+});
+
+test('an abstained payload leaves every question blank and editable', () => {
+  // The card still receives the whole questionnaire so the provider can fill it by hand.
+  const current = { questions: [radio(1, [[10, 'No', 0], [11, 'Yes', 1]]), text(2)] };
+  const abstained = { questions: [radio(1, [[10, 'No', 0], [11, 'Yes', 1]]), text(2)] };
+
+  const merged = mergeFilled(current, abstained);
+  assert.equal(countDrafted(merged.questions), 0);
+  assert.equal(merged.questions.length, 2);
+  assert.ok(merged.questions.every(q => q.responses.every(r => !r.selected)));
+});

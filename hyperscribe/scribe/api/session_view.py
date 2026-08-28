@@ -113,6 +113,8 @@ from hyperscribe.scribe.recommendations.interactions import (
     check_single_medication_interactions,
 )
 from hyperscribe.scribe.recommendations.questionnaire_fill import (
+    STATUS_ABSTAINED,
+    STATUS_FILLED,
     fill_questionnaires,
     resolve_questionnaire_definition,
 )
@@ -2079,22 +2081,42 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     "QUESTIONNAIRE_FILL_FAILED",
                     {"questionnaire_dbid": outcome.questionnaire_dbid, "reason": outcome.error[:200]},
                 )
-            elif outcome.drafted:
+            elif outcome.status == STATUS_FILLED:
                 audit_event(
                     note_uuid,
                     "QUESTIONNAIRE_FILLED",
                     {
                         "questionnaire_dbid": outcome.questionnaire_dbid,
                         "drafted": outcome.drafted,
+                        "total": outcome.total,
                         "items": [item.model_dump() for item in outcome.items],
+                        **telemetry,
+                    },
+                )
+            elif outcome.status == STATUS_ABSTAINED:
+                # The abstention rate is the best calibration signal this feature has: too
+                # high and the prompt is over-conservative, zero and the model is inventing
+                # answers. Without this row a clean abstention wrote nothing at all and we
+                # could measure neither. ``assessed`` separates the model considering every
+                # question and declining from it returning nothing, which look identical
+                # from outside but want different follow-up.
+                audit_event(
+                    note_uuid,
+                    "QUESTIONNAIRE_FILL_EMPTY",
+                    {
+                        "questionnaire_dbid": outcome.questionnaire_dbid,
+                        "total": outcome.total,
+                        "assessed": outcome.assessed,
                         **telemetry,
                     },
                 )
             results.append(
                 {
                     "questionnaire_dbid": outcome.questionnaire_dbid,
+                    "status": outcome.status,
                     "data": outcome.data,
                     "drafted": outcome.drafted,
+                    "total": outcome.total,
                     "error": outcome.error,
                 }
             )

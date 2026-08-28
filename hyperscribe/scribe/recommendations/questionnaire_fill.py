@@ -327,22 +327,46 @@ def build_fill_command_data(
     }
 
 
+# Outcome of one questionnaire's fill. Stated explicitly rather than inferred, because
+# a drafted count plus a nullable error cannot distinguish the two cases that matter
+# most: "read the transcript and nothing supported an answer" is the grounding rule
+# working, and "never ran" is a bug. Both used to look like drafted == 0, error == None.
+STATUS_FILLED = "filled"
+STATUS_ABSTAINED = "abstained"
+STATUS_NO_TRANSCRIPT = "no_transcript"
+STATUS_FAILED = "failed"
+
+
 class FillOutcome:
-    """Per-questionnaire result: the command payload, or the reason there isn't one."""
+    """Per-questionnaire result: what happened, and the command payload if there is one."""
 
     def __init__(
         self,
         questionnaire_dbid: int,
+        status: str,
         data: dict[str, Any] | None = None,
         drafted: int = 0,
+        total: int = 0,
         error: str | None = None,
         items: list[QuestionnaireItemFill] | None = None,
     ) -> None:
         self.questionnaire_dbid = questionnaire_dbid
+        self.status = status
         self.data = data
         self.drafted = drafted
+        self.total = total
         self.error = error
         self.items = items or []
+
+    @property
+    def assessed(self) -> int:
+        """How many questions the model returned an opinion on, in any status.
+
+        Separates a healthy abstention (it considered each question and declined, so this
+        equals ``total``) from the model returning nothing at all (zero), which points at a
+        schema or parse problem wearing abstention's clothes.
+        """
+        return len(self.items)
 
 
 def fill_questionnaires(
@@ -374,8 +398,13 @@ def fill_questionnaires(
         "cache_write_tokens": 0,
         "aborted": False,
     }
-    if not transcript.items or not questionnaire_dbids:
+    if not questionnaire_dbids:
+        # Caller error, not an outcome.
         return [], telemetry
+    if not transcript.items:
+        # An outcome in its own right. Returning [] here made the frontend report
+        # "Fill failed", which is wrong: nothing failed, there was nothing to read.
+        return [FillOutcome(dbid, status=STATUS_NO_TRANSCRIPT) for dbid in questionnaire_dbids], telemetry
 
     def make_client() -> ScribeLlmAnthropic:
         if client_factory is not None:
@@ -459,11 +488,29 @@ def fill_questionnaires(
     outcomes: list[FillOutcome] = []
     for dbid in questionnaire_dbids:
         if dbid not in definitions:
-            outcomes.append(FillOutcome(dbid, error=errors.get(dbid, "load_failed")))
+            outcomes.append(FillOutcome(dbid, status=STATUS_FAILED, error=errors.get(dbid, "load_failed")))
             continue
         items_by_dbid = results.get(dbid, {})
         data = build_fill_command_data(definitions[dbid], items_by_dbid)
         drafted = sum(1 for question in data["questions"] if "fill" in question)
+        # A chunk error only makes this a failure when nothing landed. One chunk failing
+        # while another fills is a partial success, and the surviving answers are real.
         error = errors.get(dbid) if drafted == 0 else None
-        outcomes.append(FillOutcome(dbid, data=data, drafted=drafted, error=error, items=list(items_by_dbid.values())))
+        if drafted:
+            status = STATUS_FILLED
+        elif error:
+            status = STATUS_FAILED
+        else:
+            status = STATUS_ABSTAINED
+        outcomes.append(
+            FillOutcome(
+                dbid,
+                status=status,
+                data=data,
+                drafted=drafted,
+                total=len(data["questions"]),
+                error=error,
+                items=list(items_by_dbid.values()),
+            )
+        )
     return outcomes, telemetry
