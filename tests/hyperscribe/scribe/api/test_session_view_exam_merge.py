@@ -5,6 +5,7 @@ Exercises ``_reconcile_exam_templates`` directly rather than driving the whole
 and the audit payloads are each pinned without a Nabla or Anthropic round trip.
 """
 
+import json
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -203,16 +204,14 @@ def test_ros_command_created_with_underscore_section_key(mock_reconcile: MagicMo
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_first_refine_failure_disables_the_llm_for_later_kinds(
-    mock_reconcile: MagicMock, mock_audit: MagicMock
-) -> None:
-    mock_reconcile.side_effect = [(_merged(), False), (_merged(), False)]
+def test_first_failure_disables_the_llm_for_later_kinds(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
+    mock_reconcile.side_effect = [([], False), ([], False)]
 
     _run([], {"template_ros_sections": ROS_TEMPLATE, "template_pe_sections": PE_TEMPLATE})
 
-    # ROS runs first and is allowed to try; PE then takes the deterministic merge.
-    assert mock_reconcile.call_args_list[0][1]["allow_refine"] is True
-    assert mock_reconcile.call_args_list[1][1]["allow_refine"] is False
+    # ROS runs first and is allowed to try; PE then skips the call entirely.
+    assert mock_reconcile.call_args_list[0][1]["allow_llm"] is True
+    assert mock_reconcile.call_args_list[1][1]["allow_llm"] is False
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
@@ -222,7 +221,7 @@ def test_success_leaves_the_circuit_closed(mock_reconcile: MagicMock, mock_audit
 
     _run([], {"template_ros_sections": ROS_TEMPLATE, "template_pe_sections": PE_TEMPLATE})
 
-    assert all(call[1]["allow_refine"] is True for call in mock_reconcile.call_args_list)
+    assert all(call[1]["allow_llm"] is True for call in mock_reconcile.call_args_list)
 
 
 # ── audit ──
@@ -232,8 +231,22 @@ def test_success_leaves_the_circuit_closed(mock_reconcile: MagicMock, mock_audit
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
 def test_reconciled_audit_payload(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
     merged = [
-        {"key": "general", "title": "General", "text": "Ill.", "updated": True, "template_text": "Well."},
-        {"key": "lungs", "title": "Lungs", "text": "Clear.", "updated": False, "template_text": "Clear."},
+        {
+            "key": "general",
+            "title": "General",
+            "text": "Ill.",
+            "updated": True,
+            "template_text": "Well.",
+            "clauses": [{"text": "Ill.", "provenance": "encounter"}],
+        },
+        {
+            "key": "lungs",
+            "title": "Lungs",
+            "text": "Clear.",
+            "updated": False,
+            "template_text": "Clear.",
+            "clauses": [{"text": "Clear.", "provenance": "template"}],
+        },
     ]
     mock_reconcile.return_value = (merged, True)
 
@@ -247,30 +260,30 @@ def test_reconciled_audit_payload(mock_reconcile: MagicMock, mock_audit: MagicMo
             "template_section_count": 1,
             "encounter_section_count": 1,
             "updated_count": 1,
-            "refined": True,
+            "template_clause_count": 1,
         },
     )
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_refine_failure_audits_llm_failed_then_circuit_open(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    mock_reconcile.side_effect = [(_merged(), False), (_merged(), False)]
+def test_failure_audits_llm_failed_then_circuit_open(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
+    mock_reconcile.side_effect = [([], False), ([], False)]
 
     _run([], {"template_ros_sections": ROS_TEMPLATE, "template_pe_sections": PE_TEMPLATE})
 
-    reasons = [call.args[2]["reason"] for call in mock_audit.call_args_list if call.args[1] == "TEMPLATE_REFINE_FAILED"]
+    reasons = [call.args[2]["reason"] for call in mock_audit.call_args_list if call.args[1] == "TEMPLATE_MERGE_SKIPPED"]
     assert reasons == ["llm_failed", "circuit_open"]
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
 def test_missing_api_key_audits_no_api_key(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    mock_reconcile.return_value = (_merged(), False)
+    mock_reconcile.return_value = ([], False)
 
     _run([], {"template_pe_sections": PE_TEMPLATE}, api_key="")
 
-    failures = [call for call in mock_audit.call_args_list if call.args[1] == "TEMPLATE_REFINE_FAILED"]
+    failures = [call for call in mock_audit.call_args_list if call.args[1] == "TEMPLATE_MERGE_SKIPPED"]
     assert failures[0].args[2] == {"kind": "physical_exam", "reason": "no_api_key"}
 
 
@@ -311,3 +324,44 @@ def test_clean_template_sections_coerces_and_filters() -> None:
         {"key": "a", "title": "A", "text": "b"}
     ]
     assert _clean_template_sections([{"title": "A"}]) == [{"key": "", "title": "A", "text": ""}]
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
+def test_failed_merge_leaves_the_generated_command_untouched(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
+    """No deterministic fallback any more. A failed merge must leave generation's own
+    findings exactly as they were, which is the behavior that shipped before the feature."""
+    mock_reconcile.return_value = ([], False)
+    original = _pe_command()
+    before = json.loads(json.dumps(original))
+    commands = [original]
+
+    _run(commands, {"template_pe_sections": PE_TEMPLATE})
+
+    assert commands == [before]
+    assert "encounter_sections" not in commands[0]["data"]
+    assert "template_removed" not in commands[0]["data"]
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
+def test_failed_merge_creates_no_command_when_generation_produced_none(
+    mock_reconcile: MagicMock, mock_audit: MagicMock
+) -> None:
+    mock_reconcile.return_value = ([], False)
+    commands: list[dict[str, Any]] = []
+
+    _run(commands, {"template_pe_sections": PE_TEMPLATE})
+
+    assert commands == []
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
+def test_note_sections_are_passed_for_the_contradiction_rule(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
+    mock_reconcile.return_value = (_merged(), True)
+    note_sections = [{"key": "PHYSICAL_EXAM", "text": "Extremities: Trace bilateral ankle edema"}]
+
+    _run([_pe_command()], {"template_pe_sections": PE_TEMPLATE}, note_sections=note_sections)
+
+    assert mock_reconcile.call_args[1]["note_sections"] == note_sections
