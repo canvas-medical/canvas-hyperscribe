@@ -36,6 +36,41 @@ VALID_EFFORTS = ("low", "medium", "high", "xhigh", "max")
 CACHE_CONTROL = {"type": "ephemeral"}
 
 
+# Failure kinds, used as a stable prefix on the response text so the cause is greppable in
+# the logs and readable in the QUESTIONNAIRE_FILL_FAILED audit row.
+FAILURE_TIMEOUT = "timeout"
+FAILURE_CONNECTION = "connection_error"
+FAILURE_TRANSPORT = "transport_error"
+
+# Concrete `requests` exception class names. Classified by NAME rather than by `isinstance`
+# because the sandbox's ALLOWED_MODULES exposes only a handful of names from `requests`
+# (Session, post, RequestException, ...) and neither `Timeout` nor `ConnectionError` is
+# among them, so they cannot be imported to catch.
+_TIMEOUT_NAMES = ("ConnectTimeout", "ReadTimeout", "Timeout")
+_CONNECTION_NAMES = ("ConnectionError", "SSLError", "ProxyError", "ChunkedEncodingError")
+
+
+def classify_transport_error(exc: BaseException) -> tuple[HTTPStatus, str]:
+    """Map a transport exception to a status that preserves its cause.
+
+    A timeout becomes 408 and stays non-retryable: the 30s ceiling is fixed, so a retry
+    burns another 30 seconds on the same too-large chunk. A connection error becomes 503,
+    which the caller's ``code >= 500`` rule makes retryable — that is the case a single
+    retry genuinely fixes, and it used to be dropped for sharing a bucket with timeouts.
+    """
+    # ``exc.__class__.__name__``, not ``type(exc).__name__``: `type` is NOT in the
+    # sandbox's builtins, so the latter raises NameError at request time — invisible to
+    # `canvas validate`, which only executes module-level code. Both of these dunders are
+    # in the sandbox's read allowlist.
+    name = exc.__class__.__name__
+    # Timeout first: ConnectTimeout matches both lists and is a timeout, not a blip.
+    if any(candidate in name for candidate in _TIMEOUT_NAMES):
+        return HTTPStatus.REQUEST_TIMEOUT, FAILURE_TIMEOUT
+    if name in _CONNECTION_NAMES:
+        return HTTPStatus.SERVICE_UNAVAILABLE, FAILURE_CONNECTION
+    return HTTPStatus.BAD_REQUEST, FAILURE_TRANSPORT
+
+
 class ScribeLlmSettings(LlmSettings):
     """Settings for a current-generation Anthropic model.
 
@@ -135,9 +170,12 @@ class ScribeLlmAnthropic(LlmAnthropic):
         try:
             http_response = self.http.post("/v1/messages", headers=headers, data=json.dumps(self.to_dict()))
         except Exception as exc:
-            # Mirrors the SDK: transport failures, including the 30s timeout, surface as
-            # a BAD_REQUEST rather than an exception.
-            return LlmResponse(code=HTTPStatus.BAD_REQUEST, response=f"Request failed: {exc}", tokens=tokens)
+            # Give the transport failure its own status so the cause survives into the
+            # logs. Collapsing everything into BAD_REQUEST made a 30s timeout — the
+            # likeliest failure here, since a long transcript pushes chunk latency toward
+            # the wall — read as "your request was malformed", pointing at the wrong fix.
+            code, kind = classify_transport_error(exc)
+            return LlmResponse(code=code, response=f"{kind}: {exc}", tokens=tokens)
 
         code = http_response.status_code
         if code != HTTPStatus.OK.value:

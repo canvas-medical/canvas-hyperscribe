@@ -4,11 +4,14 @@ import json
 from http import HTTPStatus
 from unittest.mock import MagicMock
 
+import pytest
+
 from hyperscribe.scribe.recommendations._llm_client import (
     DEFAULT_EFFORT,
     DEFAULT_MODEL,
     ScribeLlmAnthropic,
     ScribeLlmSettings,
+    classify_transport_error,
     make_fill_client,
 )
 from hyperscribe.scribe.recommendations.schemas import QuestionnaireFillResult
@@ -170,3 +173,87 @@ def test_usage_is_reset_between_requests() -> None:
     client.http.post = MagicMock(return_value=_http_response(500, {}))  # type: ignore[method-assign]
     client.request()
     assert client.last_usage == {}
+
+
+# --- transport error classification -----------------------------------------
+#
+# Collapsing every transport failure into BAD_REQUEST made a 30s timeout read as "your
+# request was malformed", which points at the wrong fix: the cause is a chunk pushing past
+# the SDK's fixed ceiling, not bad code. Classified by exception class NAME because the
+# sandbox's ALLOWED_MODULES does not expose `Timeout` or `ConnectionError` from `requests`,
+# so they cannot be imported to catch.
+
+
+class _ReadTimeout(Exception):
+    pass
+
+
+class _ConnectTimeout(Exception):
+    pass
+
+
+class _ConnectionError(Exception):
+    pass
+
+
+class _SSLError(Exception):
+    pass
+
+
+class _InvalidHeader(Exception):
+    pass
+
+
+@pytest.mark.parametrize(
+    "name, expected_code, expected_kind",
+    [
+        ("ReadTimeout", HTTPStatus.REQUEST_TIMEOUT, "timeout"),
+        ("ConnectTimeout", HTTPStatus.REQUEST_TIMEOUT, "timeout"),
+        ("Timeout", HTTPStatus.REQUEST_TIMEOUT, "timeout"),
+        ("ConnectionError", HTTPStatus.SERVICE_UNAVAILABLE, "connection_error"),
+        ("SSLError", HTTPStatus.SERVICE_UNAVAILABLE, "connection_error"),
+        ("ProxyError", HTTPStatus.SERVICE_UNAVAILABLE, "connection_error"),
+        ("InvalidHeader", HTTPStatus.BAD_REQUEST, "transport_error"),
+        ("ValueError", HTTPStatus.BAD_REQUEST, "transport_error"),
+    ],
+)
+def test_transport_errors_are_classified_by_class_name(
+    name: str, expected_code: HTTPStatus, expected_kind: str
+) -> None:
+    exc = type(name, (Exception,), {})("boom")
+    assert classify_transport_error(exc) == (expected_code, expected_kind)
+
+
+def test_connect_timeout_is_a_timeout_not_a_connection_blip() -> None:
+    """ConnectTimeout matches both name lists; timeout must win, because a retry cannot
+    help a fixed 30s ceiling while it can help a transient blip."""
+    code, kind = classify_transport_error(type("ConnectTimeout", (Exception,), {})("x"))
+    assert (code, kind) == (HTTPStatus.REQUEST_TIMEOUT, "timeout")
+
+
+def test_a_timeout_surfaces_as_408_with_a_named_cause() -> None:
+    client = ScribeLlmAnthropic(ScribeLlmSettings(api_key="k", model="m"))
+    client.set_user_prompt(["hi"])
+    client.http.post = MagicMock(  # type: ignore[method-assign]
+        side_effect=type("ReadTimeout", (Exception,), {})("timed out after 30s")
+    )
+
+    response = client.request()
+
+    assert response.code == HTTPStatus.REQUEST_TIMEOUT
+    assert response.response.startswith("timeout:")
+
+
+def test_a_connection_error_surfaces_as_503_so_it_gets_retried() -> None:
+    """503 is >= 500, which is what makes the caller retry it. Under the old scheme this
+    shared the 400 bucket with timeouts and was never retried."""
+    client = ScribeLlmAnthropic(ScribeLlmSettings(api_key="k", model="m"))
+    client.set_user_prompt(["hi"])
+    client.http.post = MagicMock(  # type: ignore[method-assign]
+        side_effect=type("ConnectionError", (Exception,), {})("reset by peer")
+    )
+
+    response = client.request()
+
+    assert response.code == HTTPStatus.SERVICE_UNAVAILABLE
+    assert response.response.startswith("connection_error:")

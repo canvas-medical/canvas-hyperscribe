@@ -375,4 +375,6 @@ def _format_decimal(value: float | Decimal) -> str:
     fixed-point formatting yields ``"1"``, ``"2.5"``, ``"150"``.
     """
     decimal_value = Decimal(str(value)).quantize(Decimal("0.01")).normalize()
-    return format(decimal_value, "f")
+    # f-string, not format(): the plugin sandbox does not provide `format` as a
+    # builtin, so the call raised NameError at request time. Same output.
+    return f"{decimal_value:f}"

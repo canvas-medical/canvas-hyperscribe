@@ -2121,9 +2121,12 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 }
             )
         # Defensive .get: a telemetry line must never be the thing that fails the request.
+        failures = telemetry.get("failures") or {}
+        failure_summary = ", ".join(f"{kind}={count}" for kind, count in sorted(failures.items())) or "none"
         log.info(
             f"questionnaire fill: {telemetry.get('chunks', 0)} chunk(s) in {telemetry.get('elapsed_ms', 0)}ms, "
-            f"cache_read={telemetry.get('cache_read_tokens', 0)} cache_write={telemetry.get('cache_write_tokens', 0)}"
+            f"cache_read={telemetry.get('cache_read_tokens', 0)} cache_write={telemetry.get('cache_write_tokens', 0)}, "
+            f"failures: {failure_summary}"
         )
         return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
 

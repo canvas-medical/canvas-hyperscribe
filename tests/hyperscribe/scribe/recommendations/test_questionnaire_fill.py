@@ -21,6 +21,7 @@ from hyperscribe.scribe.recommendations.questionnaire_fill import (
     fill_chunk,
     fill_chunk_with_retry,
     fill_questionnaires,
+    failure_kind,
     resolve_questionnaire_definition,
 )
 from hyperscribe.scribe.recommendations.schemas import (
@@ -624,3 +625,75 @@ def test_assessed_is_zero_when_the_model_returns_nothing(monkeypatch: pytest.Mon
     )
     assert outcomes[0].status == "abstained"
     assert outcomes[0].assessed == 0
+
+
+# --- failure kinds ----------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "code, expected",
+    [
+        (HTTPStatus.REQUEST_TIMEOUT, "timeout"),
+        (HTTPStatus.TOO_MANY_REQUESTS, "rate_limited"),
+        (HTTPStatus.SERVICE_UNAVAILABLE, "connection_error"),
+        (HTTPStatus.BAD_REQUEST, "bad_request"),
+        (HTTPStatus.INTERNAL_SERVER_ERROR, "server_error"),
+        (HTTPStatus.NOT_FOUND, "client_error"),
+    ],
+)
+def test_failure_kind_names_the_cause(code: HTTPStatus, expected: str) -> None:
+    assert failure_kind(code) == expected
+
+
+def test_a_timeout_is_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The 30s ceiling is fixed, so a second attempt burns another 30 seconds on the same
+    too-large chunk."""
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: _definition()
+    )
+    client = _client({}, code=HTTPStatus.REQUEST_TIMEOUT)
+    outcomes, telemetry = fill_questionnaires([7], _transcript(), "key", client_factory=lambda: client)
+
+    assert client.request.call_count == 1
+    assert outcomes[0].status == "failed"
+    assert telemetry["failures"] == {"timeout": 1}
+
+
+def test_a_connection_error_is_retried_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """This is the behaviour change: while every transport failure was a 400, a transient
+    blip shared the timeout's bucket and was never retried."""
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: _definition()
+    )
+    monkeypatch.setattr("hyperscribe.scribe.recommendations.questionnaire_fill.time.sleep", lambda _: None)
+    client = _client({}, code=HTTPStatus.SERVICE_UNAVAILABLE)
+    _, telemetry = fill_questionnaires([7], _transcript(), "key", client_factory=lambda: client)
+
+    assert client.request.call_count == 2
+    assert telemetry["failures"] == {"connection_error": 1}
+
+
+def test_the_run_records_which_kind_of_failure_it_hit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One audit row should answer 'why did this run fail' without reading chunk logs."""
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire",
+        lambda dbid: _long_definition(12),
+    )
+    monkeypatch.setattr("hyperscribe.scribe.recommendations.questionnaire_fill.time.sleep", lambda _: None)
+    _, telemetry = fill_questionnaires(
+        [7], _transcript(), "key", client_factory=lambda: _client({}, code=HTTPStatus.REQUEST_TIMEOUT)
+    )
+    assert telemetry["failures"] == {"timeout": 1}
+    # The warm-up doubles as the outage probe, so the fan-out never ran.
+    assert telemetry["aborted"] is True
+
+
+def test_a_parse_failure_is_named_separately() -> None:
+    client = MagicMock()
+    client.last_usage = {}
+    client.request.return_value = LlmResponse(
+        code=HTTPStatus.OK, response="not json", tokens=LlmTokens(prompt=0, generated=0)
+    )
+    with pytest.raises(FillChunkError) as excinfo:
+        fill_chunk("PHQ-9", _questions(), _transcript(), client)
+    assert excinfo.value.kind == "parse_error"

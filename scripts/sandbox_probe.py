@@ -27,10 +27,80 @@ from pathlib import Path
 PLUGIN = Path(__file__).resolve().parent.parent / "hyperscribe"
 sys.path.insert(0, str(PLUGIN.parent))
 
-from plugin_runner.sandbox import ALLOWED_MODULES  # noqa: E402
+import builtins as _builtins  # noqa: E402
 
-# Dunders the sandbox permits on ordinary objects. Anything else raises at runtime.
-SAFE_DUNDERS = {"__class__", "__name__", "__doc__", "__len__", "__iter__", "__next__"}
+from RestrictedPython import safe_builtins, utility_builtins  # noqa: E402
+
+from plugin_runner.sandbox import (  # noqa: E402
+    ALLOWED_MODULES,
+    SAFE_EXTERNAL_DUNDER_READ_ATTRIBUTES,
+)
+
+# Sourced from the sandbox itself rather than hand-written, so this cannot drift from what
+# the runner actually permits.
+SAFE_DUNDERS = set(SAFE_EXTERNAL_DUNDER_READ_ATTRIBUTES)
+
+# Builtins the sandbox provides. Mirrors the dict the runner installs as __builtins__:
+# RestrictedPython's two base sets plus the explicit additions. Notably absent: `type`,
+# `open`, `eval`, `exec`, `set`, `frozenset`, `sorted`, `print`, `isinstance`, `id`.
+# Calling one of those raises NameError at REQUEST time, which `canvas validate` cannot
+# see because it only executes module-level code.
+ALLOWED_BUILTINS = (
+    set(safe_builtins)
+    | set(utility_builtins)
+    | {
+        "__import__",
+        "all",
+        "any",
+        "classmethod",
+        "dict",
+        "enumerate",
+        "filter",
+        "getattr",
+        "hasattr",
+        "iter",
+        "list",
+        "map",
+        "max",
+        "min",
+        "next",
+        "property",
+        "reversed",
+        "staticmethod",
+        "sum",
+        "super",
+        "vars",
+        "extract_exc_frames",
+    }
+)
+
+
+# Names that are legal to *call* even though they are not builtins: anything the module
+# imports or defines itself is resolved from module scope, not __builtins__.
+def _module_level_names(tree: ast.AST) -> set[str]:
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                names.add((alias.asname or alias.name).split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                names.add(alias.asname or alias.name)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    names.add(target.id)
+        elif isinstance(node, (ast.arg,)):
+            names.add(node.arg)
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            names.add(node.id)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            names.add(node.name)
+        elif isinstance(node, (ast.comprehension,)) and isinstance(node.target, ast.Name):
+            names.add(node.target.id)
+    return names
 
 
 def _annotation_nodes(tree: ast.AST) -> set[int]:
@@ -60,6 +130,9 @@ def _annotation_nodes(tree: ast.AST) -> set[int]:
     return marked
 
 
+_BUILTIN_NAMES = set(dir(_builtins))
+
+
 def check(path: Path) -> list[str]:
     try:
         tree = ast.parse(path.read_text())
@@ -84,6 +157,23 @@ def check(path: Path) -> list[str]:
                         f"{rel}:{node.lineno}  from {node.module} import {alias.name}  "
                         f"-- not in ALLOWED_MODULES[{node.module!r}]"
                     )
+
+    # Disallowed builtins. This is the gap that let `type(exc).__name__` through: the
+    # module-attribute and dunder rules both passed it, and it would have raised NameError
+    # only when a request actually hit that line.
+    defined = _module_level_names(tree)
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and id(node) not in skip
+            and node.id in _BUILTIN_NAMES
+            and node.id not in ALLOWED_BUILTINS
+            and node.id not in defined
+        ):
+            problems.append(
+                f"{rel}:{node.lineno}  {node.id}()  -- not in the sandbox's builtins; raises NameError at request time"
+            )
 
     for node in ast.walk(tree):
         if not isinstance(node, ast.Attribute) or id(node) in skip:
