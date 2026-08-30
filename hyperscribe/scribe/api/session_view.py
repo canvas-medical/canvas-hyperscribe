@@ -867,7 +867,7 @@ def _reconcile_exam_templates(
     Mutates ``commands_list`` in place: an existing ROS / PE / MSE command has its
     sections replaced, and a kind whose template exists but which generation did not
     produce gets a command appended. Three reference keys land on ``data`` so the
-    frontend's "Remove template defaults" toggle can round-trip without another call:
+    frontend's "Remove template default text" toggle can round-trip without another call:
     ``encounter_sections`` (Nabla's pre-merge output), ``reconciled_sections`` (what
     this produced), and ``template_removed``.
 

@@ -2266,7 +2266,8 @@ select.history-form-input {
 .exam-action-btn:hover { background: #f5f7fa; border-color: #052B49; }
 .exam-action-btn:active { background: #e8edf2; }
 .exam-action-btn:disabled { opacity: .6; cursor: wait; }
-.exam-action-btn .exam-ico { font-size: 15px; line-height: 1; opacity: .75; }
+.exam-action-btn .exam-ico { font-size: 15px; line-height: 1; opacity: .75; display: inline-flex; align-items: center; }
+.exam-action-btn .exam-ico svg { width: 15px; height: 15px; display: block; }
 /* Template ▾ menu — pick a template, then confirm via the shared popover. */
 .exam-dropdown { position: relative; }
 .exam-menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; min-width: 240px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 14px 36px rgba(15,23,42,.16); padding: 6px; }

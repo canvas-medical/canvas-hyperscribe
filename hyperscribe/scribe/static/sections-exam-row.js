@@ -4,6 +4,35 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
+// Toolbar icons for the template-text toggle. Inline SVG rather than a unicode glyph so
+// the stroke weight and baseline do not drift with the system font. Both are built on a
+// 24x24 box: the eraser's divider sits exactly on the two long edges of the rhombus, and
+// the refresh arc is centred on 12,12 at r=8.5 with a filled head on the travel tangent.
+const SVG_ATTRS = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  'stroke-width': '1.8',
+  'stroke-linecap': 'round',
+  'stroke-linejoin': 'round',
+  'aria-hidden': 'true',
+};
+
+const eraserIcon = () => html`
+  <svg ...${SVG_ATTRS}>
+    <path d="M4 20h16" />
+    <path d="M14 4 4 14l4 4 10-10-4-4Z" />
+    <path d="M7.5 10.5 11.5 14.5" />
+  </svg>
+`;
+
+const refreshIcon = () => html`
+  <svg ...${SVG_ATTRS}>
+    <path d="M3.5 12A8.5 8.5 0 1 0 5.99 5.99" />
+    <polygon points="3.87,8.11 5.55,3.43 8.55,6.43" fill="currentColor" stroke="none" />
+  </svg>
+`;
+
 // Strip the reconciliation bold markers (**...**) — the redesign drops the
 // normal/abnormal distinction, so positives render as plain text.
 function stripMarkers(text) {
@@ -24,20 +53,20 @@ const TITLE_CASE = {
 };
 
 // Copy for the confirm popover shared by Template / Carry forward / Remove template
-// defaults / Clear.
+// default text / Clear.
 function confirmCopy(action, sectionKind, templates) {
   const what = TITLE_CASE[sectionKind] || 'Physical Exam';
   if (action.kind === 'untemplate') {
     if (action.restoring) {
       return {
-        title: 'Restore template defaults?',
+        title: 'Restore template default text?',
         body: `This puts back the merged ${what.toLowerCase()}, including the findings that came from the visit template. Any edits you have made since removing them will be discarded.`,
         go: 'Restore',
       };
     }
     const n = action.count || 0;
     return {
-      title: 'Remove template defaults?',
+      title: 'Remove template default text?',
       body: `This removes the ${n} finding${n === 1 ? '' : 's'} that came from the visit template and keeps only what this visit documented. You can restore them afterward.`,
       go: 'Remove',
     };
@@ -94,7 +123,7 @@ export function ExamSectionsRow({
   const [busy, setBusy] = useState(false);           // carry-forward loading
   const [removed, setRemoved] = useState(!!(command.data && command.data.template_removed));
 
-  // The Remove template defaults toggle is a working aid, so it stops once the command
+  // The Remove template default text toggle is a working aid, so it stops once the command
   // is on the chart (`already_documented` is the finalized signal). It also needs
   // somewhere to revert to: Step 2.5 writes encounter_sections, so its absence means no
   // template was merged into this card and the button stays hidden.
@@ -287,7 +316,7 @@ export function ExamSectionsRow({
           <button type="button" class="exam-action-btn"
             onClick=${() => setConfirm({ kind: 'untemplate', restoring: removed, count: templateCount })}
             title=${removed ? 'Bring back the merged version, template findings included' : 'Keep only what this visit documented'}>
-            <span class="exam-ico">⇄</span> ${removed ? 'Restore template defaults' : 'Remove template defaults'}
+            <span class="exam-ico">${removed ? refreshIcon() : eraserIcon()}</span> ${removed ? 'Restore template default text' : 'Remove template default text'}
           </button>
         `}
       </div>
