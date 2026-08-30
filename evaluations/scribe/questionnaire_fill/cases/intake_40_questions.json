@@ -1,0 +1,1060 @@
+{
+  "id": "intake_40_questions",
+  "probes": "seven chunks: cache warm-up, four-wide fan-out, 30s wall, and 34 fabrication tests",
+  "questionnaire": {
+    "questionnaire_dbid": 2,
+    "questionnaire_name": "Adult intake",
+    "is_scored": false,
+    "scoring_function_name": "",
+    "questions": [
+      {
+        "dbid": 101,
+        "label": "Recreational drug use",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 210,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 211,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 102,
+        "label": "Diet quality, self-rated",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 220,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 221,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 103,
+        "label": "Current smoking status",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 230,
+            "value": "Never",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 231,
+            "value": "Former",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 232,
+            "value": "Current",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 104,
+        "label": "Food security concerns",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 240,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 241,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 105,
+        "label": "Highest education completed",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 250,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 251,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 106,
+        "label": "Marital status",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 260,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 261,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 107,
+        "label": "Alcohol use",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 270,
+            "value": "None",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 271,
+            "value": "Occasional",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 272,
+            "value": "Weekly",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 273,
+            "value": "Daily",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 108,
+        "label": "Firearms in the home",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 280,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 281,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 109,
+        "label": "Regular dental care",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 290,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 291,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 110,
+        "label": "Vision checked in the last year",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 300,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 301,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 111,
+        "label": "Hearing difficulty",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 310,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 311,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 112,
+        "label": "Employment status",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 320,
+            "value": "Full time",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 321,
+            "value": "Part time",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 322,
+            "value": "Retired",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 323,
+            "value": "Unemployed",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 113,
+        "label": "Falls in the last year",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 330,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 331,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 114,
+        "label": "Memory concerns",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 340,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 341,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 115,
+        "label": "Chronic pain",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 350,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 351,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 116,
+        "label": "Difficulty with stairs",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 360,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 361,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 117,
+        "label": "Difficulty dressing",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 370,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 371,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 118,
+        "label": "Difficulty bathing",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 380,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 381,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 119,
+        "label": "Feels safe at home",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 390,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 391,
+            "value": "No",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 392,
+            "value": "Prefer not to say",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 120,
+        "label": "Uses a mobility aid",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 400,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 401,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 121,
+        "label": "Home has stair rails",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 410,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 411,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 122,
+        "label": "Lives alone",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 420,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 421,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 123,
+        "label": "Has a caregiver",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 430,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 431,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 124,
+        "label": "Caregiver strain",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 440,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 441,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 125,
+        "label": "Transportation difficulty",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 450,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 451,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 126,
+        "label": "Housing stability",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 460,
+            "value": "Stable",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 461,
+            "value": "At risk",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 462,
+            "value": "Unstable",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 127,
+        "label": "Missed appointments due to transport",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 470,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 471,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 128,
+        "label": "Utility shut-off worries",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 480,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 481,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 129,
+        "label": "Interpreter needed",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 490,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 491,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 130,
+        "label": "Health literacy concerns",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 500,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 501,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 131,
+        "label": "Advance directive on file",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 510,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 511,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 132,
+        "label": "Healthcare proxy named",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 520,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 521,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 133,
+        "label": "Seatbelt use",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 530,
+            "value": "Always",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 531,
+            "value": "Usually",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 532,
+            "value": "Sometimes",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 533,
+            "value": "Never",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 134,
+        "label": "Religious or cultural care preferences",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 540,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 541,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 135,
+        "label": "Tobacco cessation interest",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 550,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 551,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 136,
+        "label": "Exercise, days per week",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 560,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 561,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 137,
+        "label": "Sleep, hours per night",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 570,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 571,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 138,
+        "label": "Screen time before bed",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 580,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 581,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 139,
+        "label": "Caffeine after noon",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 590,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 591,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      },
+      {
+        "dbid": 140,
+        "label": "Recent weight change",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 600,
+            "value": "No",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 601,
+            "value": "Yes",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      }
+    ]
+  },
+  "transcript": [
+    {
+      "item_id": "t1",
+      "speaker": "DOCTOR",
+      "text": "Let's run through the intake questions, this won't take long.",
+      "start_offset_ms": 0,
+      "end_offset_ms": 3355
+    },
+    {
+      "item_id": "t2",
+      "speaker": "DOCTOR",
+      "text": "Do you smoke, or have you in the past?",
+      "start_offset_ms": 3355,
+      "end_offset_ms": 5445
+    },
+    {
+      "item_id": "t3",
+      "speaker": "PATIENT",
+      "text": "I quit about three years ago now. Twenty years before that.",
+      "start_offset_ms": 5445,
+      "end_offset_ms": 8690
+    },
+    {
+      "item_id": "t4",
+      "speaker": "DOCTOR",
+      "text": "How about alcohol?",
+      "start_offset_ms": 8690,
+      "end_offset_ms": 10190
+    },
+    {
+      "item_id": "t5",
+      "speaker": "PATIENT",
+      "text": "A glass of wine maybe once a week, that's it.",
+      "start_offset_ms": 10190,
+      "end_offset_ms": 12665
+    },
+    {
+      "item_id": "t6",
+      "speaker": "DOCTOR",
+      "text": "Are you working at the moment?",
+      "start_offset_ms": 12665,
+      "end_offset_ms": 14315
+    },
+    {
+      "item_id": "t7",
+      "speaker": "PATIENT",
+      "text": "Yes, full time. Same place for twelve years.",
+      "start_offset_ms": 14315,
+      "end_offset_ms": 16735
+    },
+    {
+      "item_id": "t8",
+      "speaker": "DOCTOR",
+      "text": "Do you feel safe where you live?",
+      "start_offset_ms": 16735,
+      "end_offset_ms": 18495
+    },
+    {
+      "item_id": "t9",
+      "speaker": "PATIENT",
+      "text": "Yes, absolutely. No problems there at all.",
+      "start_offset_ms": 18495,
+      "end_offset_ms": 20805
+    },
+    {
+      "item_id": "t10",
+      "speaker": "DOCTOR",
+      "text": "Any worries about housing?",
+      "start_offset_ms": 20805,
+      "end_offset_ms": 22305
+    },
+    {
+      "item_id": "t11",
+      "speaker": "PATIENT",
+      "text": "No, we own the place. Nine years now.",
+      "start_offset_ms": 22305,
+      "end_offset_ms": 24340
+    },
+    {
+      "item_id": "t12",
+      "speaker": "DOCTOR",
+      "text": "Do you wear a seatbelt?",
+      "start_offset_ms": 24340,
+      "end_offset_ms": 25840
+    },
+    {
+      "item_id": "t13",
+      "speaker": "PATIENT",
+      "text": "Always. Every single time, it's the job.",
+      "start_offset_ms": 25840,
+      "end_offset_ms": 28040
+    },
+    {
+      "item_id": "t14",
+      "speaker": "DOCTOR",
+      "text": "Great, that's everything I needed. I'll get this written up.",
+      "start_offset_ms": 28040,
+      "end_offset_ms": 31340
+    }
+  ],
+  "expected": {
+    "101": {
+      "status": "not_assessed"
+    },
+    "102": {
+      "status": "not_assessed"
+    },
+    "103": {
+      "status": "answered",
+      "option_dbid": 231,
+      "note": "corrected: 'I quit three years ago' is Former, not Current"
+    },
+    "104": {
+      "status": "not_assessed"
+    },
+    "105": {
+      "status": "not_assessed"
+    },
+    "106": {
+      "status": "not_assessed"
+    },
+    "107": {
+      "status": "answered",
+      "option_dbid": 272,
+      "acceptable_option_dbids": [
+        271,
+        272
+      ],
+      "note": "'once a week' maps to Weekly; Occasional is a defensible neighbour"
+    },
+    "108": {
+      "status": "not_assessed"
+    },
+    "109": {
+      "status": "not_assessed"
+    },
+    "110": {
+      "status": "not_assessed"
+    },
+    "111": {
+      "status": "not_assessed"
+    },
+    "112": {
+      "status": "answered",
+      "option_dbid": 320
+    },
+    "113": {
+      "status": "not_assessed"
+    },
+    "114": {
+      "status": "not_assessed"
+    },
+    "115": {
+      "status": "not_assessed"
+    },
+    "116": {
+      "status": "not_assessed"
+    },
+    "117": {
+      "status": "not_assessed"
+    },
+    "118": {
+      "status": "not_assessed"
+    },
+    "119": {
+      "status": "answered",
+      "option_dbid": 390
+    },
+    "120": {
+      "status": "not_assessed"
+    },
+    "121": {
+      "status": "not_assessed"
+    },
+    "122": {
+      "status": "not_assessed"
+    },
+    "123": {
+      "status": "not_assessed"
+    },
+    "124": {
+      "status": "not_assessed"
+    },
+    "125": {
+      "status": "not_assessed"
+    },
+    "126": {
+      "status": "answered",
+      "option_dbid": 460
+    },
+    "127": {
+      "status": "not_assessed"
+    },
+    "128": {
+      "status": "not_assessed"
+    },
+    "129": {
+      "status": "not_assessed"
+    },
+    "130": {
+      "status": "not_assessed"
+    },
+    "131": {
+      "status": "not_assessed"
+    },
+    "132": {
+      "status": "not_assessed"
+    },
+    "133": {
+      "status": "answered",
+      "option_dbid": 530
+    },
+    "134": {
+      "status": "not_assessed"
+    },
+    "135": {
+      "status": "not_assessed"
+    },
+    "136": {
+      "status": "not_assessed"
+    },
+    "137": {
+      "status": "not_assessed"
+    },
+    "138": {
+      "status": "not_assessed"
+    },
+    "139": {
+      "status": "not_assessed"
+    },
+    "140": {
+      "status": "not_assessed"
+    }
+  }
+}
