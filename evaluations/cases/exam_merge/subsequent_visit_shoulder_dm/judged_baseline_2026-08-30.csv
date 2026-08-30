@@ -1,0 +1,87 @@
+Kind,Row,Assertion,Provenance,Supported,Citation,Contradicted By,Note
+ros,CARDIAC,Denies shortness of breath with exertion,template,NO,,,"Patient stated 'I do get winded on the stairs but I blame that on being out of shape' which indicates shortness of breath with exertion is present, not denied"
+ros,CARDIAC,Denies swelling in the legs,template,NO,,PHYSICAL_EXAM/Extremities,Physical exam documents 'Trace bilateral ankle edema' which contradicts the denial of leg swelling
+ros,DIGESTIVE,Denies nausea,template,NO,,,"The doctor asked 'Any belly pain, nausea, changes in bowel habits?' but the patient only responded about heartburn, not specifically addressing nausea"
+ros,DIGESTIVE,Denies vomiting,template,NO,,,Vomiting was not specifically addressed in the transcript
+ros,DIGESTIVE,Denies abdominal pain,template,NO,,PHYSICAL_EXAM/Abdomen,Physical exam documents 'mild epigastric tenderness to palpation' which contradicts the denial of abdominal pain
+ros,DIGESTIVE,Denies constipation,template,NO,,,The doctor asked about 'changes in bowel habits' but constipation was not specifically addressed
+ros,DIGESTIVE,Denies diarrhea,template,NO,,,The doctor asked about 'changes in bowel habits' but diarrhea was not specifically addressed
+ros,ENDOCRINE,No increased thirst,encounter,NO,,,"The doctor asked 'Any symptoms? Increased thirst, getting up at night to pee more than usual?' but the patient only responded about nocturia, not specifically addressing thirst"
+ros,MUSCULOSKELETAL,Denies muscle aches or cramps,template,NO,,,Muscle aches or cramps were not specifically addressed in the transcript
+ros,MUSCULOSKELETAL,Denies arthritis,template,NO,,,Arthritis was not specifically addressed in the transcript
+ros,NEUROLOGIC,No dizziness,encounter,NO,,,"The doctor asked about dizziness but the patient only specifically denied headaches and vision changes, not dizziness"
+ros,RESPIRATORY,Denies nocturnal dyspnea,template,NO,,,Nocturnal dyspnea was not specifically addressed in the transcript
+ros,RESPIRATORY,Denies shortness of breath,blended,NO,,,"Patient reported getting 'winded on the stairs' which is shortness of breath with exertion; the broad denial of shortness of breath is unsupported [provenance disputed: model said template, strings say blended]"
+ros,SKIN,Denies lumps/bumps,template,NO,,,"The doctor asked 'Any rashes or skin issues?' and patient said 'Nope,' but lumps/bumps were not specifically addressed"
+ros,SKIN,Denies skin tear,template,NO,,,"The doctor asked 'Any rashes or skin issues?' and patient said 'Nope,' but skin tears were not specifically addressed"
+ros,CARDIAC,Denies chest pain,blended,yes,DOCTOR: Let me just run through a few review questions. Any chest pain or shortness of breath with exertion? PATIENT: No chest pain.,,"[provenance disputed: model said template, strings say blended]"
+ros,CARDIAC,Denies palpitations,blended,yes,"DOCTOR: Any palpitations, racing heart? PATIENT: No.",,"[provenance disputed: model said encounter, strings say blended]"
+ros,CONSTITUTIONAL,Low energy,encounter,yes,"PATIENT: Just, I don't know. Low energy. I haven't been enjoying things the way I used to.",,
+ros,CONSTITUTIONAL,Increased sleep,encounter,yes,"DOCTOR: Any trouble sleeping? Appetite changes? PATIENT: I'm sleeping more than usual, honestly.",,
+ros,CONSTITUTIONAL,Decreased appetite,blended,yes,"PATIENT: I'm sleeping more than usual, honestly. And not eating as much.",,"[provenance disputed: model said encounter, strings say blended]"
+ros,CONSTITUTIONAL,Denies fever,template,yes,"DOCTOR: Fevers, chills, night sweats? UNSPECIFIED: None of that.",,
+ros,CONSTITUTIONAL,Denies chills,template,yes,"DOCTOR: Fevers, chills, night sweats? UNSPECIFIED: None of that.",,
+ros,DIGESTIVE,Heartburn,encounter,yes,"PATIENT: Actually, my stomach's been acting up again. Heartburn, especially at night.",,
+ros,DIGESTIVE,Denies blood in stool,encounter,yes,"DOCTOR: Any blood in the stool, black stools? PATIENT: No, nothing like that.",,
+ros,DIGESTIVE,Denies black stools,encounter,yes,"DOCTOR: Any blood in the stool, black stools? PATIENT: No, nothing like that.",,
+ros,ENDOCRINE,Elevated blood glucose readings,encounter,yes,"PATIENT: Mornings, they've been running one-sixty to one-eighty. Before dinner, one-forty or so, sometimes higher.",,
+ros,MUSCULOSKELETAL,Right shoulder pain,encounter,yes,"PATIENT: Well, two things really. My right shoulder's been bothering me for about three weeks now.",,
+ros,MUSCULOSKELETAL,No numbness,encounter,yes,"DOCTOR: Any numbness or tingling going down the arm? PATIENT: No, no numbness, no tingling.",,
+ros,MUSCULOSKELETAL,No tingling,encounter,yes,"DOCTOR: Any numbness or tingling going down the arm? PATIENT: No, no numbness, no tingling.",,
+ros,MUSCULOSKELETAL,No weakness,encounter,yes,"DOCTOR: Any weakness? Trouble gripping things, opening jars? PATIENT: Grip feels fine. It's just the pain that limits me.",,
+ros,NEUROLOGIC,No headaches,encounter,yes,"DOCTOR: Any headaches, dizziness, vision changes? PATIENT: No headaches. Vision's fine.",,
+ros,NEUROLOGIC,No vision changes,encounter,yes,"DOCTOR: Any headaches, dizziness, vision changes? PATIENT: No headaches. Vision's fine.",,
+ros,OTHER,None reported,template,yes,,,This is a summary statement indicating no additional systems were reported
+ros,PSYCHIATRIC,Feeling down,encounter,yes,"PATIENT: Just, I don't know. Low energy. I haven't been enjoying things the way I used to.",,
+ros,PSYCHIATRIC,Decreased enjoyment,encounter,yes,"PATIENT: Just, I don't know. Low energy. I haven't been enjoying things the way I used to.",,
+ros,PSYCHIATRIC,No thoughts of self-harm,encounter,yes,"DOCTOR: Any thoughts of hurting yourself? PATIENT: No, nothing like that. I just feel kind of empty.",,
+ros,RESPIRATORY,Denies cough,blended,yes,"DOCTOR: Any cough, wheezing, trouble breathing? UNSPECIFIED: No.",,"[provenance disputed: model said template, strings say blended]"
+ros,RESPIRATORY,Denies wheezing,blended,yes,"DOCTOR: Any cough, wheezing, trouble breathing? UNSPECIFIED: No.",,"[provenance disputed: model said encounter, strings say blended]"
+ros,SKIN,Denies rash,blended,yes,DOCTOR: Any rashes or skin issues? PATIENT: Nope.,,"[provenance disputed: model said template, strings say blended]"
+physical_exam,CARDIOVASCULAR,S1 normal,blended,NO,,,"[provenance disputed: model said template, strings say blended]"
+physical_exam,CARDIOVASCULAR,S2 normal,blended,NO,,,"[provenance disputed: model said template, strings say blended]"
+physical_exam,CONSTITUTIONAL,Well developed,template,NO,,,
+physical_exam,CONSTITUTIONAL,Nourished,template,NO,,,
+physical_exam,EXTREMITIES,No clubbing,template,NO,,,
+physical_exam,EXTREMITIES,No cyanosis,template,NO,,,
+physical_exam,ABDOMEN,Soft,encounter,yes,"Abdomen is soft, bowel sounds are normal, no masses.",,
+physical_exam,ABDOMEN,Normoactive bowel sounds,encounter,yes,"Abdomen is soft, bowel sounds are normal, no masses.",,
+physical_exam,ABDOMEN,No masses,encounter,yes,"Abdomen is soft, bowel sounds are normal, no masses.",,
+physical_exam,ABDOMEN,Mild epigastric tenderness to palpation,encounter,yes,There is some mild tenderness right up here in the epigastrium when I press.,,
+physical_exam,CARDIOVASCULAR,Regular rate and rhythm,blended,yes,"Heart — regular rate and rhythm, no murmurs, no gallops.",,
+physical_exam,CARDIOVASCULAR,No murmurs,blended,yes,"Heart — regular rate and rhythm, no murmurs, no gallops.",,
+physical_exam,CARDIOVASCULAR,No gallops,encounter,yes,"Heart — regular rate and rhythm, no murmurs, no gallops.",,
+physical_exam,CARDIOVASCULAR,Carotid arteries without bruits,encounter,yes,Carotids without bruits.,,
+physical_exam,CARDIOVASCULAR,Dorsalis pedis pulses 2+ bilaterally,encounter,yes,Dorsalis pedis pulses 2 plus bilaterally.,,
+physical_exam,CONSTITUTIONAL,Alert,blended,yes,"General appearance. You're alert and oriented, comfortable, in no acute distress.",,"[provenance disputed: model said template, strings say blended]"
+physical_exam,CONSTITUTIONAL,No acute distress,blended,yes,"General appearance. You're alert and oriented, comfortable, in no acute distress.",,"[provenance disputed: model said template, strings say blended]"
+physical_exam,CONSTITUTIONAL,Appears tired,encounter,yes,"You do look a little tired today, though.",,
+physical_exam,EXTREMITIES,Trace bilateral ankle edema,encounter,yes,Extremities. I'm seeing trace edema at both ankles.,,
+physical_exam,EXTREMITIES,No ulcers on feet,encounter,yes,No ulcers.,,
+physical_exam,HEENT,Head atraumatic,encounter,yes,"HEENT exam unremarkable — ears, nose, throat all normal.",,
+physical_exam,HEENT,Ears normal,encounter,yes,"HEENT exam unremarkable — ears, nose, throat all normal.",,
+physical_exam,HEENT,Nose normal,encounter,yes,"HEENT exam unremarkable — ears, nose, throat all normal.",,
+physical_exam,HEENT,Throat normal,encounter,yes,"HEENT exam unremarkable — ears, nose, throat all normal.",,
+physical_exam,HEENT,Neck supple,encounter,yes,"Neck supple, no thyromegaly, no lymphadenopathy.",,
+physical_exam,HEENT,No thyromegaly,encounter,yes,"Neck supple, no thyromegaly, no lymphadenopathy.",,
+physical_exam,HEENT,No cervical lymphadenopathy,encounter,yes,"Neck supple, no thyromegaly, no lymphadenopathy.",,
+physical_exam,MUSCULOSKELETAL,Pain with shoulder abduction past 90 degrees,encounter,yes,Pain with abduction past 90 degrees.,,
+physical_exam,MUSCULOSKELETAL,Positive Neer's impingement sign,encounter,yes,Positive Neer's impingement sign.,,
+physical_exam,MUSCULOSKELETAL,Negative Hawkins sign,encounter,yes,Negative Hawkins.,,
+physical_exam,MUSCULOSKELETAL,No weakness with resisted external rotation,encounter,yes,No weakness with resisted external rotation.,,
+physical_exam,NEUROLOGIC,Cranial nerves intact,encounter,yes,"Cranial nerves are intact, strength is five out of five in all four extremities, and your gait is steady.",,
+physical_exam,NEUROLOGIC,Strength 5/5 in all extremities,encounter,yes,"Cranial nerves are intact, strength is five out of five in all four extremities, and your gait is steady.",,
+physical_exam,NEUROLOGIC,Gait steady,encounter,yes,"Cranial nerves are intact, strength is five out of five in all four extremities, and your gait is steady.",,
+physical_exam,NEUROLOGIC,Monofilament sensation intact in feet,encounter,yes,Monofilament intact.,,
+physical_exam,NEUROLOGIC,Speech normal,encounter,yes,"Speech is normal, thought process is linear.",,
+physical_exam,NEUROLOGIC,Thought process linear,encounter,yes,"Speech is normal, thought process is linear.",,
+physical_exam,PSYCH,Affect flat,blended,yes,Your affect is flat today and you're making less eye contact than usual.,,"[provenance disputed: model said encounter, strings say blended]"
+physical_exam,PSYCH,Decreased eye contact,blended,yes,Your affect is flat today and you're making less eye contact than usual.,,"[provenance disputed: model said encounter, strings say blended]"
+physical_exam,PULMONARY,Clear to auscultation bilaterally,blended,yes,"Lungs are clear bilaterally, no wheezing or crackles.",,
+physical_exam,PULMONARY,No wheezing,encounter,yes,"Lungs are clear bilaterally, no wheezing or crackles.",,
+physical_exam,PULMONARY,No crackles,encounter,yes,"Lungs are clear bilaterally, no wheezing or crackles.",,
+physical_exam,SKIN,Warm,blended,yes,"Skin is warm and dry, no rashes anywhere.",,"[provenance disputed: model said encounter, strings say blended]"
+physical_exam,SKIN,Dry,encounter,yes,"Skin is warm and dry, no rashes anywhere.",,
+physical_exam,SKIN,No rashes,encounter,yes,"Skin is warm and dry, no rashes anywhere.",,
+physical_exam,SKIN,Callus present on ball of right foot,encounter,yes,"There's a callus on the ball of your right foot, no breakdown around it.",,
+physical_exam,SKIN,Without surrounding breakdown,encounter,yes,"There's a callus on the ball of your right foot, no breakdown around it.",,

@@ -2788,9 +2788,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     insertable
       .filter(c => SECTION_TYPES.has(c.command_type))
       .forEach(c => {
-        const fromTemplate = ((c.data && c.data.sections) || []).filter(s => s.updated === false && s.template_text);
-        if (fromTemplate.length > 0) {
-          logEvent('TEMPLATE_DEFAULTS_SIGNED', { kind: c.command_type, count: fromTemplate.length });
+        // Clause-level. Row counts undercounted this by roughly 7x on a measured note.
+        const sections = (c.data && c.data.sections) || [];
+        const count = sections.reduce((total, s) => {
+          if (Array.isArray(s.clauses) && s.clauses.length > 0) {
+            return total + s.clauses.filter(cl => cl.provenance === 'template').length;
+          }
+          return total + (s.updated === false && s.template_text ? 1 : 0);
+        }, 0);
+        if (count > 0) {
+          logEvent('TEMPLATE_DEFAULTS_SIGNED', { kind: c.command_type, count });
         }
       });
     // Batch B — re-link referrals to the provider's final diagnosis code before

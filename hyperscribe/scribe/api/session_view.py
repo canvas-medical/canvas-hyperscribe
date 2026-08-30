@@ -860,6 +860,7 @@ def _reconcile_exam_templates(
     is_psychiatry: bool,
     merge_kinds: set[str],
     api_key: str,
+    note_sections: list[dict[str, str]] | None = None,
 ) -> None:
     """Merge each enabled section kind's visit-template scaffold into the generated exam.
 
@@ -873,15 +874,20 @@ def _reconcile_exam_templates(
     ``merge_kinds`` empty is the off switch and returns immediately, leaving
     ``commands_list`` byte-identical to what generation produced.
 
-    ``allow_refine`` is a per-request circuit breaker. The SDK caps every HTTP call
-    at 30 seconds (``canvas_sdk/utils/http.py``), so during an Anthropic outage three
-    kinds would otherwise burn 90 seconds before the recommenders burn theirs. Once
-    one kind fails to refine, the rest take the deterministic merge directly.
+    When the merge does not happen - the LLM failed twice, or its output failed
+    validation - generation's own command is left exactly as it was. There is no
+    deterministic fallback any more, because the one we had emitted a fabricated normal
+    exam. Leaving the AI findings alone is the behavior that shipped before this feature.
+
+    ``allow_llm`` is a per-request circuit breaker. The SDK caps every HTTP call at 30
+    seconds (``canvas_sdk/utils/http.py``) and each kind now retries once, so during an
+    outage three kinds would otherwise burn three minutes before the recommenders burn
+    theirs. Once one kind exhausts its attempts, the rest skip the call.
     """
     if not merge_kinds:
         return
 
-    allow_refine = True
+    allow_llm = True
     for kind, payload_field, section_key, label in _EXAM_MERGE_SPECS:
         if kind not in merge_kinds:
             continue
@@ -897,26 +903,30 @@ def _reconcile_exam_templates(
         raw_encounter = (command or {}).get("data", {}).get("sections", [])
         encounter_sections = raw_encounter if isinstance(raw_encounter, list) else []
 
-        sections, refined = reconcile_sections(
+        sections, merged = reconcile_sections(
             template_sections,
             encounter_sections,
             api_key,
             label,
-            allow_refine=allow_refine,
+            note_sections=note_sections or [],
+            allow_llm=allow_llm,
         )
 
-        if not refined:
-            if not allow_refine:
+        if not merged:
+            # Leave generation's output alone. Nothing is stamped onto the command, so
+            # the toggle stays hidden and the card reads as an ordinary AI exam.
+            if not allow_llm:
                 reason = "circuit_open"
             elif not api_key:
                 reason = "no_api_key"
             else:
-                # Only a genuine call failure opens the circuit. A missing key would
+                # Only a genuine attempt failure opens the circuit. A missing key would
                 # fail identically for every kind, but it costs nothing to skip.
                 reason = "llm_failed"
-                allow_refine = False
+                allow_llm = False
             if note_uuid:
-                audit_event(note_uuid, "TEMPLATE_REFINE_FAILED", {"kind": kind, "reason": reason})
+                audit_event(note_uuid, "TEMPLATE_MERGE_SKIPPED", {"kind": kind, "reason": reason})
+            continue
 
         display = " | ".join(s["title"] for s in sections if s.get("title"))
         merged_data: dict[str, Any] = {
@@ -952,7 +962,11 @@ def _reconcile_exam_templates(
                     "template_section_count": len(template_sections),
                     "encounter_section_count": len(encounter_sections),
                     "updated_count": sum(1 for s in sections if s.get("updated")),
-                    "refined": refined,
+                    # Clause-level, because a row marked updated=true can still carry
+                    # unearned template wording. Row counts undercounted this ~7x.
+                    "template_clause_count": sum(
+                        1 for s in sections for c in (s.get("clauses") or []) if c.get("provenance") == "template"
+                    ),
                 },
             )
 
@@ -1656,6 +1670,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             is_psychiatry=is_psychiatry_visit,
             merge_kinds=parse_exam_merge_kinds(self.secrets.get(Constants.SECRET_SCRIBE_EXAM_TEMPLATE_MERGE)),
             api_key=self.secrets.get("AnthropicAPIKey", ""),
+            # Rule 5 needs these: a denial is wrong when another section of the same note
+            # positively records the finding.
+            note_sections=note_dict["sections"],
         )
 
         # ── Step 3: Recommend commands ──

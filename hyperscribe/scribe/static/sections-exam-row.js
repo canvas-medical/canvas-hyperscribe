@@ -82,6 +82,7 @@ export function ExamSectionsRow({
     text: stripMarkers(s.text),
     updated: s.updated,
     template_text: s.template_text,
+    clauses: s.clauses,
     _seedText: stripMarkers(s.text),
     _new: false,
   }));
@@ -103,7 +104,16 @@ export function ExamSectionsRow({
   // TEMPLATE_DEFAULTS_SIGNED audit event.
   const canUntemplate =
     !command.already_documented && Array.isArray(command.data && command.data.encounter_sections);
-  const templateCount = draft.filter(s => s.updated === false && s.template_text).length;
+  // Clause-level, not row-level. A row marked updated=true can still carry unearned
+  // template wording inside it: on one measured note the physical exam had zero
+  // template-sourced ROWS but six template-sourced CLAUSES. Falls back to the row count
+  // for summaries saved before clauses existed.
+  const templateCount = draft.reduce((total, s) => {
+    if (Array.isArray(s.clauses) && s.clauses.length > 0) {
+      return total + s.clauses.filter(c => c.provenance === 'template').length;
+    }
+    return total + (s.updated === false && s.template_text ? 1 : 0);
+  }, 0);
   const listRef = useRef(null);
   const focusNew = useRef(false);
 
@@ -154,6 +164,7 @@ export function ExamSectionsRow({
     text: stripMarkers(s.text),
     updated: keepProvenance ? s.updated : undefined,
     template_text: keepProvenance ? s.template_text : undefined,
+    clauses: keepProvenance ? s.clauses : undefined,
     _seedText: stripMarkers(s.text),
     _new: false,
   }));
@@ -167,6 +178,10 @@ export function ExamSectionsRow({
         if (s.template_text != null && (s.text || '') === (s._seedText || '')) {
           row.updated = !!s.updated;
           row.template_text = s.template_text;
+        }
+        // Clauses describe this exact text, so they only survive an untouched row.
+        if (Array.isArray(s.clauses) && (s.text || '') === (s._seedText || '')) {
+          row.clauses = s.clauses;
         }
         return row;
       })

@@ -143,6 +143,16 @@ class ReferRecommendationList(BaseModelLlmJson):
     )
 
 
+class ReconciliationClause(BaseModelLlmJson):
+    text: str = Field(description="One clause of the row's final text")
+    provenance: str = Field(
+        description=(
+            "Where this clause's wording came from: 'template' if from the template alone, "
+            "'encounter' if from the encounter alone, 'blended' if both contributed"
+        ),
+    )
+
+
 class ReconciliationSection(BaseModelLlmJson):
     key: str = Field(description="Lowercase key for the system (e.g. 'constitutional', 'eyes')")
     title: str = Field(description="Display title (e.g. 'CONSTITUTIONAL', 'EYES')")
@@ -151,6 +161,15 @@ class ReconciliationSection(BaseModelLlmJson):
         description=(
             "true if the text was changed from the template based on encounter findings, "
             "false if the template text was kept exactly as-is"
+        ),
+    )
+    clauses: list[ReconciliationClause] = Field(
+        default_factory=list,
+        description=(
+            "The row's text broken into clauses, each labelled with where its wording came "
+            "from. Together the clauses must cover the whole of 'text'. This is what the "
+            "provider-facing counts read, because a row marked updated=true can still carry "
+            "unearned template wording inside it"
         ),
     )
 
