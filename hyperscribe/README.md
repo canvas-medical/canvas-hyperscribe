@@ -149,7 +149,7 @@ The three accepted values are `ros`, `physical_exam`, and `mental_status_exam`. 
 
 When a section is enabled, generation merges the scaffold with what the AI produced. A system the visit covered takes the AI's findings, a system it did not cover keeps the template's default text, and any system the AI found that the template does not list is appended at the end. An Anthropic call then refines the merge, mainly to blend template wording with visit findings inside a single system and to consolidate systems the two sources named differently. That call is best-effort: if it fails, the merge still stands and only the blending is lost.
 
-Providers can undo the whole thing per card with **Remove template defaults**, which reverts to exactly what the AI generated, and put it back with **Restore template defaults**.
+Providers can undo the whole thing per card with **Remove template default text**, which reverts to exactly what the AI generated, and put it back with **Restore template default text**.
 
 A caution on `mse_template`. If it carries default findings rather than bare labels, enabling `mental_status_exam` means an unaddressed category is documented from that default. For entries such as `Thought Content: No SI, no HI...`, that is a psychiatric assertion the visit never made. Enable this one deliberately, and consider bare labels in `mse_template` if you would rather the categories stay blank.
 
