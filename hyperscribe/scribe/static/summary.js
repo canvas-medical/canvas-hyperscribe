@@ -2,8 +2,6 @@ import { h } from 'https://esm.sh/preact@10.25.4';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'https://esm.sh/preact@10.25.4/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
-import { mergeFilled } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-fill.js';
-import { mergeGeneratedCommands } from '/plugin-io/api/hyperscribe/scribe/static/command-merge.js';
 import { collectQuestionnaireScores } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-score.js';
 import { dropReason, isIntentionalDrop, isDismissedCondition } from '/plugin-io/api/hyperscribe/scribe/static/command-drop.js';
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
@@ -81,23 +79,11 @@ const isReferIncompleteForApprove = (d) => {
   if (!d.diagnosis_codes || d.diagnosis_codes.length === 0) return true;
   return false;
 };
-// Same shape for labs: the LLM recommender (recommendations/lab.py) always emits
-// `diagnosis_codes: []`, so an accepted-without-edit lab order would land on the
-// chart with no indication. Unlike refer the server does not reject it, so this
-// client gate is the only thing keeping an indication-less lab out of the note.
-const isLabIncompleteForApprove = (d) => {
-  if (!d) return true;
-  if (!d.lab_partner) return true;
-  if (!d.tests_order_codes || d.tests_order_codes.length === 0) return true;
-  if (!d.diagnosis_codes || d.diagnosis_codes.length === 0) return true;
-  return false;
-};
 // Single source of truth for recommendation-side validation. Returns the
 // failure reason for the COMMANDS_FILTERED audit, or null if insertable.
 const getAcceptedRecFailureReason = (c) => {
   if (isRxCommand(c) && isRxIncomplete(c.data)) return 'rx_incomplete';
   if (c.command_type === 'refer' && isReferIncompleteForApprove(c.data)) return 'refer_incomplete';
-  if (c.command_type === 'lab_order' && isLabIncompleteForApprove(c.data)) return 'lab_incomplete';
   return null;
 };
 // Classify a dropped command for the validation-error surface. Mirrors the
@@ -117,7 +103,7 @@ const _validationErrorMessage = (c, reason, context = 'approving') => {
   if (reason === 'rx_incomplete') return `This prescription is missing required fields or contains invalid values (e.g. non-ASCII characters in sig, refills out of range, trailing-zero quantity). ${suffix}`;
   if (reason === 'refer_incomplete') return `This referral is missing required fields (indications, notes to specialist, clinical question, or service provider). ${suffix}`;
   if (reason === 'imaging_incomplete') return `This imaging order is missing required fields (image code, service provider, ordering provider, or diagnosis codes). ${suffix}`;
-  if (reason === 'lab_incomplete') return `This lab order is missing required fields (lab partner, tests, or diagnoses). ${suffix}`;
+  if (reason === 'lab_incomplete') return `This lab order is missing required fields (lab partner or tests). ${suffix}`;
   if (reason === 'perform_incomplete') return `This perform command is missing a CPT code. ${suffix}`;
   if (reason === 'diagnose_uncoded') return `This diagnosis needs an ICD-10 code. Pick one from the list (or dismiss the card with the ✕) before ${context}.`;
   return `This command has invalid values. ${suffix}`;
@@ -480,16 +466,30 @@ const PROGRESS_STEPS = [
   'Generating note',
   'Structuring the note',
   'Extracting commands',
-  // Mirrors SUMMARY_STEPS in session_view.py. The step is listed unconditionally
-  // even though ScribeExamTemplateMerge may skip the work, because desyncing the
-  // two lists is a worse failure than a label that flashes past.
-  'Reconciling template',
+  // Mirrors SUMMARY_STEPS in session_view.py, positionally: the render indexes into
+  // this array with the server's step number, so the two lists must change together.
+  // The template merge is no longer here - it runs on demand from the exam card.
   'Generating recommendations',
   'Suggesting diagnoses',
 ];
 // Total steps shown to the user = "Finalizing transcript" + the server-driven
 // SUMMARY_STEPS pipeline. Used for the % progress calculation.
 const TOTAL_PROGRESS_STEPS = PROGRESS_STEPS.length + 1;
+
+const EXAM_MERGE_LABELS = {
+  physical_exam: 'physical exam',
+  ros: 'review of systems',
+  mental_status_exam: 'mental status exam',
+};
+// Every reason POST /merge-exam-template can refuse with. A provider who waited on a
+// spinner is owed a sentence, so there is no generic fallthrough for the known cases.
+const MERGE_REFUSAL_COPY = {
+  not_enabled: 'Merging template defaults is turned off for this section.',
+  no_template: 'This note has no visit template selected, so there are no defaults to merge.',
+  not_psychiatry: 'The mental status exam only merges defaults on a psychiatry visit template.',
+  no_template_exam: 'This visit template does not define an exam for this section.',
+  merge_failed: 'The merge did not complete, so nothing was changed. You can try again.',
+};
 
 function buildCommandBySectionKey(commands) {
   const map = {};
@@ -504,7 +504,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation, transcriptFinalized } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, onMergeExamTemplate, examMergeKinds, examMergeTemplate, noteDiagnoses, isPsychiatry, dictation } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -521,7 +521,6 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         commandBySectionKey=${commandBySectionKey}
         onEditCommand=${onEditCommand}
         onDeleteCommand=${onDeleteCommand}
-        transcriptFinalized=${transcriptFinalized}
         adHocCommands=${isPlan ? adHocCommands : isObjective ? objectiveAdHocCommands : isHistory ? historyAdHocCommands : isSubjective ? subjectiveAdHocCommands : isCharges ? chargeAdHocCommands : null}
         assignees=${isPlan ? assignees : null}
         onAddTask=${isPlan ? onAddTask : null}
@@ -578,6 +577,9 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         questionnaireScores=${isObjective ? questionnaireScores : null}
         examTemplates=${(isObjective || isSubjective) ? examTemplates : null}
         onCarryForwardExam=${(isObjective || isSubjective) ? onCarryForwardExam : null}
+        onMergeExamTemplate=${(isObjective || isSubjective) ? onMergeExamTemplate : null}
+        examMergeKinds=${(isObjective || isSubjective) ? examMergeKinds : null}
+        examMergeTemplate=${(isObjective || isSubjective) ? examMergeTemplate : null}
         isPsychiatry=${isObjective ? isPsychiatry : false}
         dictation=${dictation}
       />`;
@@ -623,6 +625,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // Template state.
   const [templates, setTemplates] = useState(initialData?.templates ?? []);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  // Section kinds ScribeExamTemplateMerge enables. The secret is still the only gate;
+  // this just stops the card guessing and offering a button the server would refuse.
+  const [examMergeKinds, setExamMergeKinds] = useState(initialData?.exam_merge_kinds ?? []);
   const [mode, setMode] = useState(() => {
     const cached = initSummary?.mode ?? null;
     // Dead state recovery: ai mode was persisted but recording was never started (e.g.
@@ -1465,51 +1470,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     logEvent('GENERATE_START');
     setGenerating(true);
     setError(null);
-
-    // Fired alongside generation rather than awaited before or after it. The note is
-    // never held up by a questionnaire, and both read the same finalized transcript.
-    // One request for every questionnaire on the note, so they share a single warmed
-    // prompt cache server-side.
-    const templateQuestionnaireDbids = (selectedTemplate?.questionnaires || []).map(q => q.questionnaire_dbid);
-    if (templateQuestionnaireDbids.length > 0) {
-      fetch(`${API_BASE}/fill-questionnaires`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_uuid: noteId, questionnaire_dbids: templateQuestionnaireDbids }),
-      })
-        .then(r => r.json())
-        .then(json => {
-          // Every result is kept, not just the ones with answers. A questionnaire the
-          // transcript did not cover is a real outcome, and dropping it here left the
-          // card unable to tell an auto-fill that abstained from one that never ran.
-          const results = json.results || [];
-          if (results.length === 0) return;
-          const drafted = results.filter(r => r.drafted > 0).length;
-          logEvent('QUESTIONNAIRE_AUTOFILL', { filled: drafted, total: results.length });
-          // Merge into the existing template-inserted cards rather than appending new
-          // ones. mergeFilled leaves any question the provider already answered alone,
-          // which matters because this can land while the card is open.
-          setCommands(prev => prev.map(c => {
-            if (c.command_type !== 'questionnaire') return c;
-            const match = results.find(f => f.questionnaire_dbid === c.data?.questionnaire_dbid);
-            if (!match) return c;
-            // Recorded on the command so the footer can report it when the card is
-            // opened. The collapsed row stays silent, as with everything else here.
-            const data = { ...c.data, fill_status: match.status, fill_unread: match.unread || 0 };
-            if (!match.data) return { ...c, data };
-            const merged = mergeFilled({
-              dbid: c.data.questionnaire_dbid,
-              name: c.data.questionnaire_name,
-              is_scored: c.data.is_scored,
-              scoring_function_name: c.data.scoring_function_name,
-              questions: c.data.questions || [],
-            }, match.data);
-            return { ...c, data: { ...data, is_scored: merged.is_scored, scoring_function_name: merged.scoring_function_name, questions: merged.questions } };
-          }));
-        })
-        .catch(err => console.error('Questionnaire autofill failed:', err));
-    }
-
     try {
       const res = await fetch(`${API_BASE}/generate-summary`, {
         method: 'POST',
@@ -1534,19 +1494,17 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         setError(data.error);
         logEvent('GENERATE_ERROR', { error: data.error });
       } else {
-        // Merge against the LIVE command list, not the snapshot taken when Generate was
-        // clicked. The automatic questionnaire fill runs in parallel and merges drafted
-        // answers into these same commands with setCommands(prev => ...); on a real
-        // transcript it finished in ~38s while generation was still running, so reading
-        // the closure's `commands` here overwrote every drafted answer seconds after it
-        // landed. Nothing errored, which is why it looked like the fill had never run.
-        let newCommands = [];
-        setCommands(prev => {
-          newCommands = mergeGeneratedCommands(prev, data.commands);
-          return newCommands;
-        });
+        const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
+        const existingAdHoc = commands.filter(c => adHocKeys.has(c.section_key));
+        const generated = data.commands || [];
+        const generatedTypes = new Set(generated.map(c => c.command_type));
+        const templateKeep = commands.filter(c =>
+          c._template_inserted && !adHocKeys.has(c.section_key) && !generatedTypes.has(c.command_type)
+        );
+        const newCommands = [...generated, ...existingAdHoc, ...templateKeep];
         const newRecs = data.recommendations || [];
         setNoteData(data.note);
+        setCommands(newCommands);
         setRecommendations(newRecs);
         setSectionConditions(data.section_conditions || {});
         setUnmatchedConditions(data.unmatched_conditions || []);
@@ -1567,7 +1525,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     } finally {
       setGenerating(false);
     }
-  }, [noteId, selectedTemplate, mode]);
+  }, [noteId, selectedTemplate, commands, mode]);
 
   // Fetch assignees for task assignment (independent, small).
   useEffect(() => {
@@ -1595,7 +1553,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       try {
         const res = await fetch(`${API_BASE}/visit-templates`);
         const data = await res.json();
-        if (!cancelled && data.templates) setTemplates(data.templates);
+        if (cancelled) return;
+        if (data.templates) setTemplates(data.templates);
+        if (Array.isArray(data.exam_merge_kinds)) setExamMergeKinds(data.exam_merge_kinds);
       } catch (err) {
         console.error('Failed to load visit templates:', err);
       }
@@ -1825,6 +1785,43 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       return [];
     }
   }, [noteId]);
+
+  // Merge the note's visit-template exam scaffold into one card, on provider request.
+  // Unlike carry-forward this is an LLM call the provider waits on, so every failure
+  // has to come back as something we can show them. Resolves to
+  // { ok: true, data } | { ok: false, message }.
+  const handleMergeExamTemplate = useCallback(async (kind, sections) => {
+    const label = EXAM_MERGE_LABELS[kind] || 'exam';
+    const controller = new AbortController();
+    // The server does up to two LLM attempts against a 30s ceiling each, so this sits
+    // just above that worst case rather than at a round number that would cut a slow
+    // but succeeding merge short.
+    const timer = setTimeout(() => controller.abort(), 70000);
+    try {
+      const res = await fetch(`${API_BASE}/merge-exam-template`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          note_id: noteId,
+          kind,
+          sections,
+          selected_template_name: selectedTemplate?.name || '',
+        }),
+      });
+      if (res.status === 403) return { ok: false, message: 'Only the note author can change this note.' };
+      if (!res.ok) return { ok: false, message: 'The merge could not run. Nothing was changed.' };
+      const data = await res.json();
+      if (data.merged && Array.isArray(data.sections)) return { ok: true, data };
+      return { ok: false, message: MERGE_REFUSAL_COPY[data.reason] || `The ${label} could not be merged. Nothing was changed.` };
+    } catch (e) {
+      if (e.name === 'AbortError') return { ok: false, message: 'The merge took too long and was stopped. Nothing was changed.' };
+      console.error('exam template merge failed:', e);
+      return { ok: false, message: 'The merge could not run. Nothing was changed.' };
+    } finally {
+      clearTimeout(timer);
+    }
+  }, [noteId, selectedTemplate]);
 
   const handleEdit = useCallback((index, newData, newType) => {
     logEvent('EDIT_COMMAND', { index, commandType: newType || commands[index]?.command_type, sectionKey: commands[index]?.section_key, data: newData });
@@ -2260,23 +2257,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // mark it so the live auto-linker never overrides their choice, even if they
         // deliberately cleared the indication.
         return { ...cmd, command_type: type, data: newData, display: newData.refer_to_display || 'Referral', accepted: true, _indicationTouched: true };
-      }
-      if (type === 'lab_order') {
-        const isComplete = !!newData.lab_partner
-          && Array.isArray(newData.tests_order_codes) && newData.tests_order_codes.length > 0
-          && Array.isArray(newData.diagnosis_codes) && newData.diagnosis_codes.length > 0;
-        const tests = (newData.test_names && newData.test_names.length) ? newData.test_names.join(', ') : '';
-        // OrderRow's lab payload rebuilds `data` from scratch, but the AOE answers and
-        // the recommendation reason only exist on the original LLM payload — carry them
-        // forward (scoped to tests that survived the edit) or the required
-        // pick-a-diagnosis edit silently erases the entire AOE pass.
-        const keptCodes = new Set(newData.tests_order_codes || []);
-        const preserved = {
-          aoe_answers: (cmd.data?.aoe_answers || []).filter(a => keptCodes.has(a.test_order_code)),
-          missing_required_aoes: (cmd.data?.missing_required_aoes || []).filter(m => keptCodes.has(m.test_order_code)),
-          reason: cmd.data?.reason,
-        };
-        return { ...cmd, command_type: type, data: { ...preserved, ...newData }, display: tests || cmd.display, accepted: isComplete };
       }
       return { ...cmd, data: newData, accepted: true };
     }));
@@ -3429,9 +3409,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const INCOMPLETE_LABELS = { diagnose: 'diagnose', imaging_order: 'imaging order', prescribe: 'prescription', refer: 'referral', lab_order: 'lab order' };
   // Module-scope `isRxIncomplete` is the single source of truth — see top of file.
   const _isRxIncomplete = isRxIncomplete;
-  // Commands use the lenient rule (mirrors the `insertable` filter: the server accepts
-  // a lab order without diagnoses). Recommendations use the strict module-scope
-  // isLabIncompleteForApprove, matching the Approve gate that will actually drop them.
   const _isLabIncomplete = (d) => !d.lab_partner || !d.tests_order_codes || d.tests_order_codes.length === 0;
   const _isImagingIncomplete = (d) => !d.image_code || !d.service_provider || !d.ordering_provider_id || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
   const _isReferIncomplete = (d) => !d.service_provider || !d.clinical_question || !d.notes_to_specialist || !d.diagnosis_codes || d.diagnosis_codes.length === 0;
@@ -3459,9 +3436,6 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     if (c.command_type === 'refer' && _isReferIncomplete(c.data)) {
       if (!incompleteTypes.includes('refer')) incompleteTypes.push('refer');
     }
-    if (c.command_type === 'lab_order' && isLabIncompleteForApprove(c.data)) {
-      if (!incompleteTypes.includes('lab_order')) incompleteTypes.push('lab_order');
-    }
   }
   const incompleteCount = commands.filter(c =>
     !c.already_documented && c.display && (
@@ -3473,11 +3447,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   ).length + recommendations.filter(c =>
     !c.already_documented && c.display && !c.rejected && (
       ((c.command_type === 'prescribe' || c.command_type === 'refill' || c.command_type === 'adjust_prescription') && _isRxIncomplete(c.data)) ||
-      (c.command_type === 'refer' && _isReferIncomplete(c.data)) ||
-      (c.command_type === 'lab_order' && isLabIncompleteForApprove(c.data))
+      (c.command_type === 'refer' && _isReferIncomplete(c.data))
     )
   ).length;
-  const UNDECIDED_LABELS = { medication_statement: 'medication', allergy: 'allergy', prescribe: 'prescription', refill: 'prescription', adjust_prescription: 'prescription', refer: 'referral', lab_order: 'lab order' };
+  const UNDECIDED_LABELS = { medication_statement: 'medication', allergy: 'allergy', prescribe: 'prescription', refill: 'prescription', adjust_prescription: 'prescription', refer: 'referral' };
   // "Undecided" now covers only the recommendation families that still have Accept/Reject.
   // Condition cards have no accept/reject to be undecided about — their equivalent gate is
   // "has a code been picked?", counted separately as uncodedConditionCount below.
@@ -3892,11 +3865,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onRemoveChargeByUuid: authorEditable ? onRemoveChargeByUuid : null,
           examTemplates: templates,
           onCarryForwardExam: handleCarryForwardExam,
+          onMergeExamTemplate: handleMergeExamTemplate,
+          examMergeKinds,
+          examMergeTemplate: selectedTemplate,
           isPsychiatry,
-          // Gates the manual "Fill from transcript" action: drafting from a partial
-          // transcript answers questions the visit has not reached yet, and the
-          // grounding rule cannot catch it because the quote it cites is real.
-          transcriptFinalized: recording.finalized,
           dictation: {
             // Gated behind the ScribeDictationEnabled secret. A single physical
             // mic: also only offered when editable and NOT while ambient recording

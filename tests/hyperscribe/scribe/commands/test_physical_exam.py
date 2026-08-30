@@ -87,7 +87,7 @@ def test_extract_raises() -> None:
 
 @patch("hyperscribe.scribe.commands.physical_exam.render_to_string")
 def test_build_ignores_merge_metadata(mock_render: MagicMock) -> None:
-    """Step 2.5 stamps attribution and restore points onto the proposal's sections.
+    """The merge stamps attribution and restore points onto the proposal's sections.
     None of it may reach the chart: the rendered HTML must match a bare section."""
     mock_render.return_value = "<div><b>General:</b> WA</div>"
     parser = PhysicalExamParser()

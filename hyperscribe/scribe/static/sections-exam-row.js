@@ -4,10 +4,10 @@ import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
 
-// Toolbar icons for the template-text toggle. Inline SVG rather than a unicode glyph so
-// the stroke weight and baseline do not drift with the system font. Both are built on a
-// 24x24 box: the eraser's divider sits exactly on the two long edges of the rhombus, and
-// the refresh arc is centred on 12,12 at r=8.5 with a filled head on the travel tangent.
+// Toolbar icons for the template-merge button. Inline SVG rather than a unicode glyph
+// so the stroke weight and baseline do not drift with the system font. Both are built on
+// a 24x24 box: the merge arrows converge on a filled head, and the refresh arc is centred
+// on 12,12 at r=8.5 with its head on the travel tangent so it reads counter-clockwise.
 const SVG_ATTRS = {
   viewBox: '0 0 24 24',
   fill: 'none',
@@ -18,11 +18,11 @@ const SVG_ATTRS = {
   'aria-hidden': 'true',
 };
 
-const eraserIcon = () => html`
+const mergeIcon = () => html`
   <svg ...${SVG_ATTRS}>
-    <path d="M4 20h16" />
-    <path d="M14 4 4 14l4 4 10-10-4-4Z" />
-    <path d="M7.5 10.5 11.5 14.5" />
+    <path d="M2.5 5.5H7l5.5 6.5H16.5" />
+    <path d="M2.5 18.5H7l5.5-6.5" />
+    <polygon points="16.5,10.2 16.5,13.8 20,12" fill="currentColor" stroke="none" />
   </svg>
 `;
 
@@ -52,23 +52,37 @@ const TITLE_CASE = {
   mental_status_exam: 'Mental Status Exam',
 };
 
-// Copy for the confirm popover shared by Template / Carry forward / Remove template
-// default text / Clear.
-function confirmCopy(action, sectionKind, templates) {
+const MERGE_LABEL = { apply: 'Merge template defaults', undo: 'Undo merge', redo: 'Redo merge' };
+const MERGE_TITLE = {
+  apply: "Blend the visit template's defaults into what this visit documented",
+  undo: 'Keep only what this visit documented',
+  redo: 'Bring back the merged version, template findings included',
+};
+
+// Copy for the confirm popover shared by Template / Carry forward / merge / Clear.
+function confirmCopy(action, sectionKind, templates, mergeTemplateName) {
   const what = TITLE_CASE[sectionKind] || 'Physical Exam';
-  if (action.kind === 'untemplate') {
-    if (action.restoring) {
+  if (action.kind === 'merge') {
+    if (action.mode === 'apply') {
+      const named = mergeTemplateName ? `the "${mergeTemplateName}" template` : 'the visit template';
       return {
-        title: 'Restore template default text?',
-        body: `This puts back the merged ${what.toLowerCase()}, including the findings that came from the visit template. Any edits you have made since removing them will be discarded.`,
-        go: 'Restore',
+        title: 'Merge template defaults?',
+        body: `This blends ${named} into the ${what.toLowerCase()} you have now. Systems this visit never addressed will carry the template's wording. It takes a few seconds, and you can undo it afterward.`,
+        go: 'Merge',
+      };
+    }
+    if (action.mode === 'redo') {
+      return {
+        title: 'Redo the merge?',
+        body: `This puts back the merged ${what.toLowerCase()}, including the findings that came from the visit template. Any edits you have made since undoing it will be discarded.`,
+        go: 'Redo',
       };
     }
     const n = action.count || 0;
     return {
-      title: 'Remove template default text?',
-      body: `This removes the ${n} finding${n === 1 ? '' : 's'} that came from the visit template and keeps only what this visit documented. You can restore them afterward.`,
-      go: 'Remove',
+      title: 'Undo the merge?',
+      body: `This removes the ${n} finding${n === 1 ? '' : 's'} that came from the visit template and keeps only what this visit documented. You can redo it afterward.`,
+      go: 'Undo',
     };
   }
   if (action.kind === 'clear') {
@@ -101,6 +115,7 @@ function confirmCopy(action, sectionKind, templates) {
 export function ExamSectionsRow({
   command, commandIndex, onEdit, readOnly, onEditingChange,
   sectionKind, templates = [], onCarryForward,
+  onMergeTemplate, mergeKinds = [], mergeTemplate = null,
 }) {
   const sections = (command.data && command.data.sections) || [];
   // `_seedText` is what the row held when the editor opened. persist() compares against
@@ -118,21 +133,42 @@ export function ExamSectionsRow({
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(seed);
-  const [confirm, setConfirm] = useState(null);     // { kind: 'carry'|'clear'|'template'|'untemplate', index? }
+  const [confirm, setConfirm] = useState(null);     // { kind: 'carry'|'clear'|'template'|'merge', index?, mode? }
   const [menuOpen, setMenuOpen] = useState(false);
-  const [busy, setBusy] = useState(false);           // carry-forward loading
+  const [busy, setBusy] = useState(false);           // carry-forward or merge in flight
   const [removed, setRemoved] = useState(!!(command.data && command.data.template_removed));
+  const [mergeError, setMergeError] = useState(null);
+  // A fresh merge's restore points live here until Save writes them onto command.data,
+  // so persist() has something to carry through and the button can flip to Undo first.
+  const [mergeRefs, setMergeRefs] = useState(null);
+  // Bumped on every request and on Save/Cancel. A response whose sequence is stale lost
+  // its race and must not write into a draft that has moved on. The merge takes seconds,
+  // so this is a real window rather than a theoretical one.
+  const reqSeq = useRef(0);
 
-  // The Remove template default text toggle is a working aid, so it stops once the command
-  // is on the chart (`already_documented` is the finalized signal). It also needs
-  // somewhere to revert to: Step 2.5 writes encounter_sections, so its absence means no
-  // template was merged into this card and the button stays hidden.
+  // The merge button is a drafting aid, so it stops once the command is on the chart
+  // (`already_documented` is the finalized signal).
+  //
+  // Three states, and only the first costs a server call. Once a merge has landed, its
+  // two restore points are on the card and undo/redo are local array swaps:
+  //   no refs           -> "Merge template defaults"  (LLM call)
+  //   refs, showing merged -> "Undo merge"            (instant)
+  //   refs, showing pre-merge -> "Redo merge"         (instant)
+  // Because it turns into Undo the moment a merge lands, a provider cannot merge twice
+  // and compound template wording into an already-merged card.
   //
   // `updated` / `template_text` still ride along on each section even though nothing
   // renders them any more. They drive the count in the confirm popover and the
   // TEMPLATE_DEFAULTS_SIGNED audit event.
-  const canUntemplate =
-    !command.already_documented && Array.isArray(command.data && command.data.encounter_sections);
+  const mergeSrc = mergeRefs || command.data || {};
+  const hasMergeRefs = Array.isArray(mergeSrc.encounter_sections);
+  const mergeScaffold = (mergeTemplate && mergeTemplate[TEMPLATE_FIELD[sectionKind]]) || [];
+  const mergeState = !hasMergeRefs ? 'apply' : (removed ? 'redo' : 'undo');
+  // An already-merged card keeps its undo even if the secret or the template changed
+  // underneath it, otherwise the provider would be stuck with wording they cannot revert.
+  const showMerge =
+    !command.already_documented &&
+    (hasMergeRefs || (mergeKinds.includes(sectionKind) && mergeScaffold.length > 0));
   // Clause-level, not row-level. A row marked updated=true can still carry unearned
   // template wording inside it: on one measured note the physical exam had zero
   // template-sourced ROWS but six template-sourced CLAUSES. Falls back to the row count
@@ -155,6 +191,8 @@ export function ExamSectionsRow({
     if (!editing) {
       setDraft(seed());
       setRemoved(!!(command.data && command.data.template_removed));
+      setMergeRefs(null);
+      setMergeError(null);
     }
   }, [command.data]);
 
@@ -184,9 +222,15 @@ export function ExamSectionsRow({
 
   const enterEdit = () => { if (!readOnly) { setDraft(seed()); setEditing(true); } };
 
-  // keepProvenance is on only for the Remove/Restore toggle, which swaps in sections the
-  // server already stamped. Template apply and Carry forward bring in fresh content that
-  // has no relationship to this note's merge, so they drop attribution.
+  // What the server and the chart both see: title and text, nothing else. The merge
+  // request sends this so it blends into what the provider is actually looking at.
+  const cleanRows = (rows) => rows
+    .map(s => ({ key: s.key || slug(s.title), title: (s.title || '').trim(), text: (s.text || '').trim() }))
+    .filter(s => s.title || s.text);
+
+  // keepProvenance is on only for the merge button's undo and redo, which swap in
+  // sections the server already stamped. Template apply and Carry forward bring in fresh
+  // content that has no relationship to this note's merge, so they drop attribution.
   const toRows = (secs, keepProvenance = false) => secs.map(s => ({
     key: s.key || slug(s.title),
     title: s.title || '',
@@ -218,7 +262,8 @@ export function ExamSectionsRow({
     // handleEdit replaces command.data wholesale with whatever we pass, so the toggle's
     // restore points have to be carried through explicitly or the first Save wipes them.
     const data = { sections: cleaned };
-    const src = command.data || {};
+    // A merge applied in this editing session has its refs in state, not on command.data.
+    const src = mergeRefs || command.data || {};
     if (Array.isArray(src.encounter_sections)) {
       data.encounter_sections = src.encounter_sections;
       data.reconciled_sections = src.reconciled_sections || [];
@@ -227,8 +272,15 @@ export function ExamSectionsRow({
     onEdit(commandIndex, data);
   };
 
-  const handleSave = () => { persist(draft); setEditing(false); };
-  const handleCancel = () => { setDraft(seed()); setRemoved(!!(command.data && command.data.template_removed)); setEditing(false); };
+  const handleSave = () => { reqSeq.current++; persist(draft); setEditing(false); };
+  const handleCancel = () => {
+    reqSeq.current++;
+    setDraft(seed());
+    setRemoved(!!(command.data && command.data.template_removed));
+    setMergeRefs(null);
+    setMergeError(null);
+    setEditing(false);
+  };
 
   const updateText = (i, val) => setDraft(d => d.map((s, j) => (j === i ? { ...s, text: val } : s)));
   const updateTitle = (i, val) => setDraft(d => d.map((s, j) => (j === i ? { ...s, title: val } : s)));
@@ -241,13 +293,42 @@ export function ExamSectionsRow({
     setConfirm(null);
     if (!action) return;
     if (action.kind === 'clear') { setDraft([]); return; }
-    if (action.kind === 'untemplate') {
-      // Full revert: template-only systems disappear and blended ones drop back to
-      // Nabla's original wording, because both live in encounter_sections.
-      const src = command.data || {};
-      const next = removed ? (src.reconciled_sections || []) : (src.encounter_sections || []);
-      setRemoved(!removed);
-      setDraft(toRows(next, true));
+    if (action.kind === 'merge') {
+      // Undo and redo are local swaps between the two restore points, so they are
+      // instant and make no request. Undo drops template-only systems entirely and
+      // returns blended rows to their pre-merge wording, because that is what
+      // encounter_sections holds.
+      if (action.mode !== 'apply') {
+        const next = action.mode === 'redo'
+          ? (mergeSrc.reconciled_sections || [])
+          : (mergeSrc.encounter_sections || []);
+        setRemoved(action.mode !== 'redo');
+        setDraft(toRows(next, true));
+        return;
+      }
+      // Apply is the one server call. Send the card as it stands so edits made before
+      // the click are merged into rather than thrown away.
+      const seq = ++reqSeq.current;
+      setMergeError(null);
+      setBusy(true);
+      let result = null;
+      try {
+        result = onMergeTemplate && (await onMergeTemplate(sectionKind, cleanRows(draft)));
+      } catch (e) {
+        result = null;
+      }
+      if (seq !== reqSeq.current) return;   // superseded by Save, Cancel, or a newer click
+      setBusy(false);
+      if (!result || !result.ok) {
+        setMergeError((result && result.message) || 'The merge could not run. Nothing was changed.');
+        return;
+      }
+      setMergeRefs({
+        encounter_sections: result.data.encounter_sections || [],
+        reconciled_sections: result.data.reconciled_sections || [],
+      });
+      setRemoved(false);
+      setDraft(toRows(result.data.sections || [], true));
       return;
     }
     if (action.kind === 'template') {
@@ -287,7 +368,7 @@ export function ExamSectionsRow({
     <div class="exam-edit editing">
       <div class="exam-toolbar">
         <span class="exam-dropdown">
-          <button type="button" class="exam-action-btn" onClick=${(e) => { e.stopPropagation(); setMenuOpen(o => !o); }} title="Apply a configured visit template">
+          <button type="button" class="exam-action-btn" disabled=${busy} onClick=${(e) => { e.stopPropagation(); setMenuOpen(o => !o); }} title="Apply a configured visit template">
             <span class="exam-ico">⊞</span> Template <span class="exam-ico">▾</span>
           </button>
           ${menuOpen && html`
@@ -309,17 +390,24 @@ export function ExamSectionsRow({
         <button type="button" class="exam-action-btn" disabled=${busy} onClick=${() => setConfirm({ kind: 'carry' })} title="Overwrite with your last documented exam">
           <span class="exam-ico">⤵</span> ${busy ? 'Loading…' : 'Carry forward'}
         </button>
-        <button type="button" class="exam-action-btn" onClick=${() => setConfirm({ kind: 'clear' })} title="Remove all systems and findings">
+        <button type="button" class="exam-action-btn" disabled=${busy} onClick=${() => setConfirm({ kind: 'clear' })} title="Remove all systems and findings">
           <span class="exam-ico">⊘</span> Clear
         </button>
-        ${canUntemplate && html`
-          <button type="button" class="exam-action-btn"
-            onClick=${() => setConfirm({ kind: 'untemplate', restoring: removed, count: templateCount })}
-            title=${removed ? 'Bring back the merged version, template findings included' : 'Keep only what this visit documented'}>
-            <span class="exam-ico">${removed ? refreshIcon() : eraserIcon()}</span> ${removed ? 'Restore template default text' : 'Remove template default text'}
+        ${showMerge && html`
+          <button type="button" class="exam-action-btn" disabled=${busy}
+            onClick=${() => setConfirm({ kind: 'merge', mode: mergeState, count: templateCount })}
+            title=${MERGE_TITLE[mergeState]}>
+            <span class="exam-ico">${mergeState === 'undo' ? refreshIcon() : mergeIcon()}</span> ${busy && mergeState === 'apply' ? 'Merging…' : MERGE_LABEL[mergeState]}
           </button>
         `}
       </div>
+
+      ${mergeError && html`
+        <div class="exam-merge-error" role="alert">
+          ${mergeError}
+          <button type="button" class="exam-merge-error-x" title="Dismiss" onClick=${() => setMergeError(null)}>×</button>
+        </div>
+      `}
 
       <div class="exam-list" ref=${listRef}>
         ${draft.map((s, i) => html`
@@ -344,14 +432,14 @@ export function ExamSectionsRow({
       </div>
 
       <div class="exam-actions">
-        <button type="button" class="form-btn form-btn-cancel" onClick=${handleCancel}>Cancel</button>
-        <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
+        <button type="button" class="form-btn form-btn-cancel" disabled=${busy} onClick=${handleCancel}>Cancel</button>
+        <button type="button" class="form-btn form-btn-save" disabled=${busy} onClick=${handleSave}>Save</button>
       </div>
 
       ${confirm && html`
         <div class="exam-confirm-overlay" onClick=${() => setConfirm(null)}>
           <div class="exam-confirm" onClick=${(e) => e.stopPropagation()}>
-            ${(() => { const c = confirmCopy(confirm, sectionKind, templates); return html`
+            ${(() => { const c = confirmCopy(confirm, sectionKind, templates, mergeTemplate && mergeTemplate.name); return html`
               <h3>${c.title}</h3>
               <p>${c.body}</p>
               <div class="exam-confirm-actions">

@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import json
 import re
-import time
 import uuid
 from datetime import datetime, timezone
 from http import HTTPStatus
-from typing import Any, Callable, Union
+from typing import Any, Union
 from urllib.parse import urlencode
 
 from canvas_sdk.v1.data.medication import Status
@@ -22,6 +21,7 @@ from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
 from django.db.models import Q
 
 from canvas_sdk.commands.commands.allergy import AllergenType
+from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from canvas_sdk.v1.data import AllergyIntolerance, ChargeDescriptionMaster, Medication, Note
 from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.medication_statement import MedicationStatement
@@ -91,17 +91,7 @@ from hyperscribe.scribe.commands.problem_list_match import (
     ActivePatientCondition,
     prefer_patient_specific_codes,
 )
-from hyperscribe.scribe.recommendations import (
-    lab_aoe_enabled,
-    make_llm_client,
-    prescription_dispense_enabled,
-    questionnaire_fill_enabled,
-    recommend_commands,
-)
-from hyperscribe.scribe.recommendations._llm_client import (
-    DEFAULT_EFFORT as DEFAULT_FILL_EFFORT,
-    DEFAULT_MODEL as DEFAULT_FILL_MODEL,
-)
+from hyperscribe.scribe.recommendations import make_llm_client, prescription_dispense_enabled, recommend_commands
 from hyperscribe.scribe.recommendations._referral_diagnosis import link_referral_diagnoses
 from hyperscribe.scribe.recommendations._transcript_windows import PRN_PATTERN, find_keyword_matches
 from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
@@ -113,13 +103,6 @@ from hyperscribe.scribe.recommendations.reconciliation import parse_exam_merge_k
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
-)
-from hyperscribe.scribe.recommendations.questionnaire_fill import (
-    STATUS_ABSTAINED,
-    STATUS_FILLED,
-    STATUS_PARTIAL,
-    fill_questionnaires,
-    resolve_questionnaire_definition,
 )
 from hyperscribe.scribe.contacts import (
     resolve_zip_codes,
@@ -402,7 +385,6 @@ SUMMARY_STEPS = [
     "Generating note",
     "Structuring the note",
     "Extracting commands",
-    "Reconciling template",
     "Generating recommendations",
     "Suggesting diagnoses",
 ]
@@ -843,22 +825,26 @@ def _last_exam_sections(note_uuid: str, staff_id: str, kind: str) -> list[dict[s
     return []
 
 
-# The three section kinds Step 2.5 can auto-merge, in the order the extractor emits
-# them. Each row is (command_type, request-body field holding the template scaffold,
-# section_key to stamp when the merge has to create the command, label for the LLM
-# prompt and the log line).
-_EXAM_MERGE_SPECS: tuple[tuple[str, str, str, str], ...] = (
-    ("ros", "template_ros_sections", "_ros", "Review of Systems"),
-    ("physical_exam", "template_pe_sections", "physical_exam", "Physical Exam"),
-    ("mental_status_exam", "template_mse_sections", "mental_status_exam", "Mental Status Exam"),
-)
+# The three section kinds the provider can merge a visit template into. Each row is
+# (field on the resolved template dict holding the scaffold, section_key to stamp when
+# the merge has to create the command, label for the LLM prompt and the log line).
+# NOTE: the eval harness mirrors this in evaluations/exam_merge/case.py, but against the
+# raw secret fields (ros_template / pe_template / mse_template) rather than the parsed
+# ones _load_templates produces.
+_EXAM_MERGE_SPECS: dict[str, tuple[str, str, str]] = {
+    "ros": ("ros_sections", "_ros", "Review of Systems"),
+    "physical_exam": ("pe_sections", "physical_exam", "Physical Exam"),
+    "mental_status_exam": ("mse_sections", "mental_status_exam", "Mental Status Exam"),
+}
 
 
 def _clean_template_sections(raw: Any) -> list[dict[str, str]]:
-    """Coerce a template scaffold off the request body into {key,title,text} dicts.
+    """Coerce a template scaffold into {key,title,text} dicts.
 
-    The payload is client-supplied, so anything that is not a list of dicts collapses
-    to an empty list and the caller skips that kind.
+    Anything that is not a list of dicts collapses to an empty list and the caller
+    skips the merge. The scaffold now comes from the VisitTemplates secret rather than
+    the request body, but the coercion stays because a malformed secret is just as
+    capable of putting a non-string in front of ``normalize_title``.
     """
     if not isinstance(raw, list):
         return []
@@ -869,123 +855,116 @@ def _clean_template_sections(raw: Any) -> list[dict[str, str]]:
     ]
 
 
-def _reconcile_exam_templates(
-    commands_list: list[dict[str, Any]],
-    data: dict[str, Any],
+def _saved_template_name(note_uuid: str) -> str:
+    """The visit template name on the saved summary row, or "" if unavailable."""
+    try:
+        note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_uuid)
+        row = ScribeSummary.objects.filter(note_id=note_dbid).values("selected_template_name").first()
+    except Exception:
+        log.exception("merge-exam-template: could not read the saved template name")
+        return ""
+    return str((row or {}).get("selected_template_name") or "")
+
+
+def _resolve_merge_template(secrets: dict[str, str], note_uuid: str, requested_name: Any) -> dict[str, Any] | None:
+    """Find the note's visit template among the operator-configured ones.
+
+    The scaffold is never taken from the request body. The client may pass a name,
+    because the debounced autosave can lag a click by half a second, but that name is
+    only ever used to look up a template from the VisitTemplates secret. A hostile body
+    can therefore pick a different configured template but cannot inject exam text.
+    """
+    name = str(requested_name or "").strip() or _saved_template_name(note_uuid)
+    if not name:
+        return None
+    for template in _load_templates(secrets):
+        if str(template.get("name", "")).strip() == name:
+            return template
+    return None
+
+
+def _merge_note_sections(note_uuid: str) -> list[dict[str, str]]:
+    """The note's other sections, for the merge's do-not-contradict rule.
+
+    At generation these came straight off the live note object. On demand they come from
+    the saved summary row instead, which is the same data plus any edits the provider has
+    made since. It is prompt context only, so drift is not fatal.
+    """
+    try:
+        note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_uuid)
+        row = ScribeSummary.objects.filter(note_id=note_dbid).values("note_data").first()
+    except Exception:
+        log.exception("merge-exam-template: could not read the note sections")
+        return []
+    sections = ((row or {}).get("note_data") or {}).get("sections")
+    if not isinstance(sections, list):
+        return []
+    return [{"key": str(s.get("key", "")), "text": str(s.get("text", ""))} for s in sections if isinstance(s, dict)]
+
+
+def _merge_exam_kind(
+    kind: str,
+    template_sections: list[dict[str, str]],
+    encounter_sections: list[dict[str, Any]],
     *,
     note_uuid: str,
-    is_psychiatry: bool,
-    merge_kinds: set[str],
     api_key: str,
     note_sections: list[dict[str, str]] | None = None,
-) -> None:
-    """Merge each enabled section kind's visit-template scaffold into the generated exam.
+) -> dict[str, Any] | None:
+    """Merge one section kind's template scaffold into the card's current sections.
 
-    Mutates ``commands_list`` in place: an existing ROS / PE / MSE command has its
-    sections replaced, and a kind whose template exists but which generation did not
-    produce gets a command appended. Three reference keys land on ``data`` so the
-    frontend's "Remove template default text" toggle can round-trip without another call:
-    ``encounter_sections`` (Nabla's pre-merge output), ``reconciled_sections`` (what
-    this produced), and ``template_removed``.
+    Returns the ``data`` payload to put on the command, or ``None`` when the merge did
+    not happen (the LLM failed twice, or its output failed validation). ``None`` means
+    leave the card exactly as it is: there is no deterministic fallback, because the one
+    we had emitted a fabricated normal exam.
 
-    ``merge_kinds`` empty is the off switch and returns immediately, leaving
-    ``commands_list`` byte-identical to what generation produced.
-
-    When the merge does not happen - the LLM failed twice, or its output failed
-    validation - generation's own command is left exactly as it was. There is no
-    deterministic fallback any more, because the one we had emitted a fabricated normal
-    exam. Leaving the AI findings alone is the behavior that shipped before this feature.
-
-    ``allow_llm`` is a per-request circuit breaker. The SDK caps every HTTP call at 30
-    seconds (``canvas_sdk/utils/http.py``) and each kind now retries once, so during an
-    outage three kinds would otherwise burn three minutes before the recommenders burn
-    theirs. Once one kind exhausts its attempts, the rest skip the call.
+    Three reference keys ride along so the card's undo works without another call.
+    ``encounter_sections`` is the pre-merge content, ``reconciled_sections`` is what this
+    produced, and ``template_removed`` tracks which of the two the card is showing. Once
+    both exist, undo and redo are local swaps and cost nothing.
     """
-    if not merge_kinds:
-        return
+    _field, _section_key, label = _EXAM_MERGE_SPECS[kind]
+    sections, merged = reconcile_sections(
+        template_sections,
+        encounter_sections,
+        api_key,
+        label,
+        note_sections=note_sections or [],
+    )
 
-    allow_llm = True
-    for kind, payload_field, section_key, label in _EXAM_MERGE_SPECS:
-        if kind not in merge_kinds:
-            continue
-        # Mirrors the extractor: MSE only exists on a psychiatry visit, gated on the
-        # visit template the operator picked rather than on section presence.
-        if kind == "mental_status_exam" and not is_psychiatry:
-            continue
-        template_sections = _clean_template_sections(data.get(payload_field))
-        if not template_sections:
-            continue
+    if not merged:
+        reason = "no_api_key" if not api_key else "llm_failed"
+        if note_uuid:
+            audit_event(note_uuid, "TEMPLATE_MERGE_SKIPPED", {"kind": kind, "reason": reason})
+        return None
 
-        command = next((c for c in commands_list if c.get("command_type") == kind), None)
-        raw_encounter = (command or {}).get("data", {}).get("sections", [])
-        encounter_sections = raw_encounter if isinstance(raw_encounter, list) else []
-
-        sections, merged = reconcile_sections(
-            template_sections,
-            encounter_sections,
-            api_key,
-            label,
-            note_sections=note_sections or [],
-            allow_llm=allow_llm,
+    if note_uuid:
+        audit_event(
+            note_uuid,
+            "TEMPLATE_RECONCILED",
+            {
+                "kind": kind,
+                "template_section_count": len(template_sections),
+                # Named for the generation-time original. It now counts the card's
+                # pre-merge rows, which are Nabla's output only until the provider edits.
+                "encounter_section_count": len(encounter_sections),
+                "updated_count": sum(1 for s in sections if s.get("updated")),
+                # Clause-level, because a row marked updated=true can still carry
+                # unearned template wording. Row counts undercounted this ~7x.
+                "template_clause_count": sum(
+                    1 for s in sections for c in (s.get("clauses") or []) if c.get("provenance") == "template"
+                ),
+            },
         )
 
-        if not merged:
-            # Leave generation's output alone. Nothing is stamped onto the command, so
-            # the toggle stays hidden and the card reads as an ordinary AI exam.
-            if not allow_llm:
-                reason = "circuit_open"
-            elif not api_key:
-                reason = "no_api_key"
-            else:
-                # Only a genuine attempt failure opens the circuit. A missing key would
-                # fail identically for every kind, but it costs nothing to skip.
-                reason = "llm_failed"
-                allow_llm = False
-            if note_uuid:
-                audit_event(note_uuid, "TEMPLATE_MERGE_SKIPPED", {"kind": kind, "reason": reason})
-            continue
-
-        display = " | ".join(s["title"] for s in sections if s.get("title"))
-        merged_data: dict[str, Any] = {
-            "sections": sections,
-            # Independent copies so a later edit to ``sections`` cannot alias into the
-            # reference the toggle restores from.
-            "encounter_sections": [dict(s) for s in encounter_sections],
-            "reconciled_sections": [dict(s) for s in sections],
-            "template_removed": False,
-        }
-        if command is None:
-            commands_list.append(
-                {
-                    "command_type": kind,
-                    "display": display,
-                    "data": merged_data,
-                    "selected": True,
-                    "section_key": section_key,
-                    "already_documented": False,
-                    "from_transcript": False,
-                }
-            )
-        else:
-            command["display"] = display
-            command["data"] = merged_data
-
-        if note_uuid:
-            audit_event(
-                note_uuid,
-                "TEMPLATE_RECONCILED",
-                {
-                    "kind": kind,
-                    "template_section_count": len(template_sections),
-                    "encounter_section_count": len(encounter_sections),
-                    "updated_count": sum(1 for s in sections if s.get("updated")),
-                    # Clause-level, because a row marked updated=true can still carry
-                    # unearned template wording. Row counts undercounted this ~7x.
-                    "template_clause_count": sum(
-                        1 for s in sections for c in (s.get("clauses") or []) if c.get("provenance") == "template"
-                    ),
-                },
-            )
+    return {
+        "sections": sections,
+        # Independent copies so a later edit to ``sections`` cannot alias into the
+        # reference the undo restores from.
+        "encounter_sections": [dict(s) for s in encounter_sections],
+        "reconciled_sections": [dict(s) for s in sections],
+        "template_removed": False,
+    }
 
 
 def _load_assignees() -> list[dict[str, Any]]:
@@ -1002,13 +981,7 @@ def _load_assignees() -> list[dict[str, Any]]:
 
 
 def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
-    """Load and resolve visit templates from secrets config.
-
-    Every stage degrades on its own. A template naming a questionnaire that does not
-    exist on this instance, a malformed entry, or an unavailable reference table costs
-    only the thing that failed — never the Scribe tab, which is what happens if this
-    raises (see ``_load_initial_data``).
-    """
+    """Load and resolve visit templates from secrets config."""
     raw = secrets.get(Constants.SECRET_VISIT_TEMPLATES, "{}")
     try:
         config = json.loads(raw)
@@ -1016,153 +989,111 @@ def _load_templates(secrets: dict[str, str]) -> list[dict[str, Any]]:
         log.warning("visit-templates: malformed JSON in %s secret", Constants.SECRET_VISIT_TEMPLATES)
         return []
 
-    # An operator can legally write valid JSON of the wrong shape; treat that as "no
-    # templates" rather than letting an AttributeError escape.
-    if not isinstance(config, dict):
-        log.warning("visit-templates: %s must be a JSON object", Constants.SECRET_VISIT_TEMPLATES)
-        return []
-    raw_templates = config.get("templates") or []
-    if not isinstance(raw_templates, list):
-        log.warning("visit-templates: 'templates' must be a list")
-        return []
-    templates_config: list[dict[str, Any]] = [t for t in raw_templates if isinstance(t, dict)]
-    if len(templates_config) != len(raw_templates):
-        log.warning(
-            "visit-templates: skipped %d entr(ies) that were not objects", len(raw_templates) - len(templates_config)
-        )
+    templates_config: list[dict[str, Any]] = config.get("templates", [])
     if not templates_config:
         return []
 
     all_cpt_codes: set[str] = set()
     for tmpl in templates_config:
-        for code in tmpl.get("charges") or []:
+        for code in tmpl.get("charges", []):
             code = str(code).strip()
             if code:
                 all_cpt_codes.add(code)
 
     cdm_by_code: dict[str, Any] = {}
     if all_cpt_codes:
-        try:
-            for record in ChargeDescriptionMaster.objects.filter(cpt_code__in=all_cpt_codes):
-                cdm_by_code[record.cpt_code] = record
-        except Exception:
-            log.exception("visit-templates: charge lookup failed; templates will carry no charges")
+        for record in ChargeDescriptionMaster.objects.filter(cpt_code__in=all_cpt_codes):
+            cdm_by_code[record.cpt_code] = record
 
     all_q_names: list[str] = []
     for tmpl in templates_config:
-        all_q_names.extend(str(n) for n in (tmpl.get("questionnaires") or []))
+        all_q_names.extend(tmpl.get("questionnaires", []))
 
     q_by_name: dict[str, Any] = {}
     if all_q_names:
-        try:
-            q_filter = Q()
-            for qn in set(all_q_names):
-                q_filter |= Q(name__iexact=qn)
-            for q_obj in QuestionnaireModel.objects.filter(q_filter, status="AC"):
-                q_by_name[q_obj.name.lower()] = q_obj
-        except Exception:
-            log.exception("visit-templates: questionnaire lookup failed; templates will carry none")
-        missing = sorted({n for n in all_q_names if n.lower() not in q_by_name})
-        if missing:
-            # One aggregated line rather than one per template per name: the same handful
-            # of names repeat across templates and drowned the log.
-            log.warning(
-                "visit-templates: %d questionnaire(s) named in %s are not active on this "
-                "instance and will be skipped: %s",
-                len(missing),
-                Constants.SECRET_VISIT_TEMPLATES,
-                ", ".join(repr(n) for n in missing),
-            )
+        q_filter = Q()
+        for qn in set(all_q_names):
+            q_filter |= Q(name__iexact=qn)
+        for q_obj in QuestionnaireModel.objects.filter(q_filter, status="AC"):
+            q_by_name[q_obj.name.lower()] = q_obj
+
+    def _resolve_questionnaire(q_obj: Any) -> dict[str, Any]:
+        cmd = QuestionnaireCommand(questionnaire_id=str(q_obj.id), note_uuid="", command_uuid="")
+        questions: list[dict[str, Any]] = []
+        for q in cmd.questions:
+            options = [
+                {
+                    "dbid": o.dbid,
+                    "value": o.name,
+                    "code": _ensure_str(getattr(o, "code", None)),
+                    "score_value": _ensure_str(getattr(o, "value", None)),
+                }
+                for o in q.options
+            ]
+            questions.append({"dbid": int(q.id), "label": q.label, "type": q.type, "options": options})
+        scoring_function_name = getattr(q_obj, "scoring_function_name", "") or ""
+        return {
+            "questionnaire_dbid": q_obj.dbid,
+            "questionnaire_name": q_obj.name,
+            "is_scored": bool(scoring_function_name),
+            "scoring_function_name": scoring_function_name,
+            "questions": questions,
+        }
 
     result_templates: list[dict[str, Any]] = []
-    missing_codes: set[str] = set()
     for tmpl in templates_config:
-        template_name = str(tmpl.get("name") or "")
-        try:
-            resolved: list[dict[str, Any]] = []
-            for q_name in tmpl.get("questionnaires") or []:
-                q_obj = q_by_name.get(str(q_name).lower())
-                if not q_obj:
-                    # Already reported once, aggregated, above.
-                    continue
-                try:
-                    resolved.append(resolve_questionnaire_definition(q_obj))
-                except Exception:
-                    log.exception("visit-templates: failed to resolve %r", q_name)
-            ros_sections: list[dict[str, str]] | None = None
-            if raw_ros := tmpl.get("ros_template"):
-                ros_sections = parse_ros_subsections(raw_ros)
-            pe_sections: list[dict[str, str]] | None = None
-            if raw_pe := tmpl.get("pe_template"):
-                pe_sections = parse_ros_subsections(raw_pe)
-            mse_sections: list[dict[str, str]] | None = None
-            if raw_mse := tmpl.get("mse_template"):
-                mse_sections = parse_ros_subsections(raw_mse)
-            resolved_charges: list[dict[str, str]] = []
-            for code in tmpl.get("charges") or []:
-                code = str(code).strip()
-                record = cdm_by_code.get(code)
-                if not record:
-                    missing_codes.add(code)
-                    continue
-                resolved_charges.append({"cpt_code": record.cpt_code, "description": record.short_name or record.name})
-            result_templates.append(
-                {
-                    "name": template_name,
-                    "questionnaires": resolved,
-                    "ros_sections": ros_sections,
-                    "pe_sections": pe_sections,
-                    "mse_sections": mse_sections,
-                    "is_psychiatry": NablaBackend.is_psychiatry_template(template_name),
-                    "charges": resolved_charges,
-                }
-            )
-        except Exception:
-            # One bad template must not cost the operator every other template, nor the
-            # Scribe tab.
-            log.exception("visit-templates: skipping template %r after an unexpected error", template_name)
-
-    if missing_codes:
-        log.warning(
-            "visit-templates: %d charge code(s) not in the Charge Description Master and will be skipped: %s",
-            len(missing_codes),
-            ", ".join(repr(c) for c in sorted(missing_codes)),
+        q_names: list[str] = tmpl.get("questionnaires", [])
+        resolved: list[dict[str, Any]] = []
+        for q_name in q_names:
+            q_obj = q_by_name.get(q_name.lower())
+            if not q_obj:
+                log.warning("visit-templates: questionnaire %r not found", q_name)
+                continue
+            try:
+                resolved.append(_resolve_questionnaire(q_obj))
+            except Exception:
+                log.exception("visit-templates: failed to resolve %r", q_name)
+        ros_sections: list[dict[str, str]] | None = None
+        if raw_ros := tmpl.get("ros_template"):
+            ros_sections = parse_ros_subsections(raw_ros)
+        pe_sections: list[dict[str, str]] | None = None
+        if raw_pe := tmpl.get("pe_template"):
+            pe_sections = parse_ros_subsections(raw_pe)
+        mse_sections: list[dict[str, str]] | None = None
+        if raw_mse := tmpl.get("mse_template"):
+            mse_sections = parse_ros_subsections(raw_mse)
+        resolved_charges: list[dict[str, str]] = []
+        for code in tmpl.get("charges", []):
+            code = str(code).strip()
+            record = cdm_by_code.get(code)
+            if not record:
+                log.warning("visit-templates: charge CPT code %r not found", code)
+                continue
+            resolved_charges.append({"cpt_code": record.cpt_code, "description": record.short_name or record.name})
+        template_name = tmpl.get("name", "")
+        result_templates.append(
+            {
+                "name": template_name,
+                "questionnaires": resolved,
+                "ros_sections": ros_sections,
+                "pe_sections": pe_sections,
+                "mse_sections": mse_sections,
+                "is_psychiatry": NablaBackend.is_psychiatry_template(template_name),
+                "charges": resolved_charges,
+            }
         )
 
     return result_templates
 
 
-def _degrade(label: str, load: Callable[[], Any], fallback: Any) -> Any:
-    """Run one initial-data loader, falling back rather than taking the tab down.
-
-    ``_load_initial_data`` feeds the Scribe UI's first render and is called unguarded by
-    ``ScribeView``. Without this, an operator-set secret of the wrong shape, or a
-    reference table being briefly unavailable, means a provider opens the note to
-    nothing at all. Losing the template dropdown is recoverable; losing the tab is not.
-    """
-    try:
-        return load()
-    except Exception:
-        log.exception("scribe initial data: %s failed to load, continuing without it", label)
-        return fallback
-
-
 def _load_initial_data(note_id: str, secrets: dict[str, str]) -> dict[str, Any]:
-    """Compile all data needed for the Scribe UI initial render.
-
-    Each contributor degrades independently, so one failing costs only its own section.
-    """
+    """Compile all data needed for the Scribe UI initial render."""
     return {
-        "transcript": _degrade(
-            "transcript", lambda: _load_transcript(note_id), {"items": [], "finalized": False, "started": False}
-        ),
-        "summary": _degrade(
-            "summary",
-            lambda: _load_summary(note_id, parse_alert_facility_commands(secrets.get("AlertFacilityCommands"))),
-            None,
-        ),
-        "assignees": _degrade("assignees", _load_assignees, []),
-        "templates": _degrade("templates", lambda: _load_templates(secrets), []),
+        "transcript": _load_transcript(note_id),
+        "summary": _load_summary(note_id, parse_alert_facility_commands(secrets.get("AlertFacilityCommands"))),
+        "assignees": _load_assignees(),
+        "templates": _load_templates(secrets),
+        "exam_merge_kinds": sorted(parse_exam_merge_kinds(secrets.get(Constants.SECRET_SCRIBE_EXAM_TEMPLATE_MERGE))),
     }
 
 
@@ -1441,6 +1372,76 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         staff_id = headers.get("canvas-logged-in-user-id") or ""
         sections = _last_exam_sections(note_uuid, staff_id, kind)
         return [JSONResponse({"sections": sections}, status_code=HTTPStatus.OK)]
+
+    @api.post("/merge-exam-template")
+    def post_merge_exam_template(self) -> list[Union[Response, Effect]]:
+        """Merge the note's visit-template exam scaffold into one card's sections.
+
+        Provider-initiated. Generation leaves the exam as the AI produced it, and this
+        runs only when the provider asks for the template defaults, so no template
+        wording enters a note unless somebody chose it.
+
+        ``sections`` in the body is whatever the card holds right now, which means edits
+        made before the click are merged into rather than discarded.
+
+        A merge that cannot happen returns 200 with ``merged: false`` and a reason,
+        rather than an error status. The frontend has to tell the provider what happened:
+        they waited several seconds for this, so a silent no-op is not acceptable the way
+        it is for carry-forward.
+        """
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        note_uuid = str(data.get("note_id", ""))
+        # Edit-gate: this rewrites the working note, so it is provider-only.
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+
+        kind = str(data.get("kind", ""))
+        if kind not in _EXAM_MERGE_SPECS:
+            return [JSONResponse({"error": "invalid kind"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        def refused(reason: str) -> list[Union[Response, Effect]]:
+            return [JSONResponse({"merged": False, "reason": reason}, status_code=HTTPStatus.OK)]
+
+        if kind not in parse_exam_merge_kinds(self.secrets.get(Constants.SECRET_SCRIBE_EXAM_TEMPLATE_MERGE)):
+            return refused("not_enabled")
+
+        template = _resolve_merge_template(self.secrets, note_uuid, data.get("selected_template_name"))
+        if template is None:
+            return refused("no_template")
+
+        # MSE only exists on a psychiatry visit, gated on the visit template the
+        # operator picked rather than on section presence.
+        if kind == "mental_status_exam" and not template.get("is_psychiatry"):
+            return refused("not_psychiatry")
+
+        field, _section_key, _label = _EXAM_MERGE_SPECS[kind]
+        template_sections = _clean_template_sections(template.get(field))
+        if not template_sections:
+            return refused("no_template_exam")
+
+        raw_sections = data.get("sections")
+        encounter_sections = _clean_template_sections(raw_sections)
+        if not encounter_sections and isinstance(raw_sections, list) and raw_sections:
+            return [JSONResponse({"error": "malformed sections"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        merged_data = _merge_exam_kind(
+            kind,
+            template_sections,
+            encounter_sections,
+            note_uuid=note_uuid,
+            api_key=self.secrets.get("AnthropicAPIKey", ""),
+            # Rule 5 needs these: a denial is wrong when another section of the same
+            # note positively records the finding.
+            note_sections=_merge_note_sections(note_uuid),
+        )
+        if merged_data is None:
+            return refused("merge_failed")
+
+        return [JSONResponse({"merged": True, **merged_data}, status_code=HTTPStatus.OK)]
 
     @api.post("/save-summary")
     def post_save_summary(self) -> list[Union[Response, Effect]]:
@@ -1723,26 +1724,12 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         )
         prefill_diagnose_backgrounds(commands_list, note_uuid)
 
-        # ── Step 2.5: Reconcile the visit template's exam scaffold with Nabla's findings ──
-        # Gated per section kind by ScribeExamTemplateMerge. An empty set skips the whole
-        # block and commands_list reaches Step 3 exactly as it did before this feature, so
-        # "secret unset" is a true no-op rather than a second code path. The manual
-        # Template menu on the PE/ROS/MSE cards is unaffected either way.
-        _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
-        _reconcile_exam_templates(
-            commands_list,
-            data,
-            note_uuid=note_uuid,
-            is_psychiatry=is_psychiatry_visit,
-            merge_kinds=parse_exam_merge_kinds(self.secrets.get(Constants.SECRET_SCRIBE_EXAM_TEMPLATE_MERGE)),
-            api_key=self.secrets.get("AnthropicAPIKey", ""),
-            # Rule 5 needs these: a denial is wrong when another section of the same note
-            # positively records the finding.
-            note_sections=note_dict["sections"],
-        )
+        # Generation deliberately does NOT merge the visit template into the exam.
+        # The note carries only the AI's findings, and the provider merges the template
+        # in per card via POST /merge-exam-template. See that endpoint for why.
 
         # ── Step 3: Recommend commands ──
-        _save_progress(note_id, 4, total, SUMMARY_STEPS[4])
+        _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
         recommendations_list: list[dict[str, Any]] = []
         rec_proposals: list[CommandProposal] = []
         api_key = self.secrets.get("AnthropicAPIKey", "")
@@ -1763,7 +1750,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     zip_codes=zip_codes,
                     transcript=transcript,
                     dispense_engine_enabled=dispense_engine_enabled,
-                    aoe_enabled=lab_aoe_enabled(self.secrets.get(Constants.SECRET_SCRIBE_LAB_AOE)),
                 )
                 annotate_duplicates(rec_proposals, note_uuid)
                 prefill_assess_backgrounds_for_proposals(rec_proposals, note_uuid)
@@ -1818,7 +1804,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         # ``candidate_suggestions`` on each uncoded diagnose proposal (no LLM, no
         # invented codes). Surface them as a ``block_id -> options`` map — the
         # stable association key, replacing the old mutable-header keying.
-        _save_progress(note_id, 5, total, SUMMARY_STEPS[5])
+        _save_progress(note_id, 4, total, SUMMARY_STEPS[4])
         # Grounded-LLM resolver: for the blocks the deterministic belt could not code,
         # retrieve real ICD-10 codes and let the LLM select the best (auto-apply on high
         # confidence) or curate a grounded picker. Best-effort — never invents a code,
@@ -2102,7 +2088,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 zip_codes=zip_codes,
                 transcript=transcript,
                 dispense_engine_enabled=dispense_engine_enabled,
-                aoe_enabled=lab_aoe_enabled(self.secrets.get(Constants.SECRET_SCRIBE_LAB_AOE)),
             )
         except Exception:
             log.exception("recommend_commands failed")
@@ -2157,165 +2142,6 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             ]
         return [JSONResponse({"suggestions": suggestions}, status_code=HTTPStatus.OK)]
 
-    @api.post("/fill-questionnaires")
-    def post_fill_questionnaires(self) -> list[Union[Response, Effect]]:
-        """Draft answers for one or more questionnaires from the visit transcript.
-
-        Batched rather than one request per questionnaire so every chunk on the note
-        shares a single warmed prompt cache; see ``fill_questionnaires`` for why the
-        first chunk runs alone.
-        """
-        try:
-            data: dict[str, Any] = json.loads(self.request.body)
-        except (json.JSONDecodeError, ValueError) as exc:
-            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
-        note_uuid = str(data.get("note_uuid", ""))
-        if not note_uuid:
-            return [JSONResponse({"error": "note_uuid is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-        if denial := _authorize_edit(note_uuid, self.request):
-            return [denial]
-
-        raw_dbids = data.get("questionnaire_dbids")
-        if raw_dbids is None and "questionnaire_dbid" in data:
-            raw_dbids = [data["questionnaire_dbid"]]
-        try:
-            questionnaire_dbids = [int(dbid) for dbid in (raw_dbids or [])]
-        except (TypeError, ValueError):
-            return [JSONResponse({"error": "questionnaire_dbids must be integers"}, status_code=HTTPStatus.BAD_REQUEST)]
-        if not questionnaire_dbids:
-            return [JSONResponse({"error": "questionnaire_dbids is required"}, status_code=HTTPStatus.BAD_REQUEST)]
-
-        allowlist = self.secrets.get(Constants.SECRET_SCRIBE_QUESTIONNAIRE_FILL_STAFFERS, "")
-        if not questionnaire_fill_enabled(allowlist, _note_provider_id(note_uuid)):
-            return [JSONResponse({"results": [], "disabled": True}, status_code=HTTPStatus.OK)]
-
-        api_key = self.secrets.get("AnthropicAPIKey", "")
-        if not api_key:
-            return [
-                JSONResponse(
-                    {"error": "AnthropicAPIKey secret is not configured"},
-                    status_code=HTTPStatus.BAD_REQUEST,
-                )
-            ]
-
-        # time.time(), not time.monotonic(): the sandbox allowlists module attributes by
-        # name and monotonic is not on the list, which 500s the request with no plugin log.
-        started = time.time()
-        try:
-            transcript_data = _load_transcript(note_uuid)
-            if not transcript_data.get("finalized"):
-                # Answers drafted from a partial transcript address questions the visit has
-                # not reached yet, and the grounding rule cannot catch it because the quote
-                # it cites is genuinely real.
-                return [
-                    JSONResponse(
-                        {"error": "Transcript is still in progress."},
-                        status_code=HTTPStatus.BAD_REQUEST,
-                    )
-                ]
-            outcomes, telemetry = fill_questionnaires(
-                questionnaire_dbids,
-                _parse_transcript(transcript_data),
-                api_key,
-                model=self.secrets.get(Constants.SECRET_SCRIBE_FILL_MODEL, "") or DEFAULT_FILL_MODEL,
-                effort=self.secrets.get(Constants.SECRET_SCRIBE_FILL_EFFORT, "") or DEFAULT_FILL_EFFORT,
-            )
-        except Exception:
-            log.exception("fill_questionnaires failed")
-            audit_event(
-                note_uuid,
-                "QUESTIONNAIRE_FILL_FAILED",
-                {"questionnaire_dbids": questionnaire_dbids, "reason": "unhandled"},
-            )
-            return [
-                JSONResponse(
-                    {"error": "Questionnaire fill failed"},
-                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                )
-            ]
-
-        telemetry["elapsed_ms"] = int((time.time() - started) * 1000)
-        results: list[dict[str, Any]] = []
-        for outcome in outcomes:
-            if outcome.status == STATUS_PARTIAL:
-                # Checked before ``outcome.error``, which a partial also carries. It needs
-                # its own row rather than the failure one, because the answers that did land
-                # are going into the chart and the audit has to hold them - same reason the
-                # filled branch records ``items``. ``unread`` is the count of questions the
-                # model never saw, which is the part a provider cannot otherwise tell from a
-                # question the model read and declined to answer.
-                audit_event(
-                    note_uuid,
-                    "QUESTIONNAIRE_FILL_PARTIAL",
-                    {
-                        "questionnaire_dbid": outcome.questionnaire_dbid,
-                        "drafted": outcome.drafted,
-                        "total": outcome.total,
-                        "unread": len(outcome.unread),
-                        "reason": (outcome.error or "")[:200],
-                        "items": [item.model_dump() for item in outcome.items],
-                        **telemetry,
-                    },
-                )
-            elif outcome.error:
-                # Emitted per questionnaire, not per run: a chunk failing on one screener
-                # while another fills fine is exactly the case that used to disappear into
-                # a silent None.
-                audit_event(
-                    note_uuid,
-                    "QUESTIONNAIRE_FILL_FAILED",
-                    {"questionnaire_dbid": outcome.questionnaire_dbid, "reason": outcome.error[:200]},
-                )
-            elif outcome.status == STATUS_FILLED:
-                audit_event(
-                    note_uuid,
-                    "QUESTIONNAIRE_FILLED",
-                    {
-                        "questionnaire_dbid": outcome.questionnaire_dbid,
-                        "drafted": outcome.drafted,
-                        "total": outcome.total,
-                        "items": [item.model_dump() for item in outcome.items],
-                        **telemetry,
-                    },
-                )
-            elif outcome.status == STATUS_ABSTAINED:
-                # The abstention rate is the best calibration signal this feature has: too
-                # high and the prompt is over-conservative, zero and the model is inventing
-                # answers. Without this row a clean abstention wrote nothing at all and we
-                # could measure neither. ``assessed`` separates the model considering every
-                # question and declining from it returning nothing, which look identical
-                # from outside but want different follow-up.
-                audit_event(
-                    note_uuid,
-                    "QUESTIONNAIRE_FILL_EMPTY",
-                    {
-                        "questionnaire_dbid": outcome.questionnaire_dbid,
-                        "total": outcome.total,
-                        "assessed": outcome.assessed,
-                        **telemetry,
-                    },
-                )
-            results.append(
-                {
-                    "questionnaire_dbid": outcome.questionnaire_dbid,
-                    "status": outcome.status,
-                    "data": outcome.data,
-                    "drafted": outcome.drafted,
-                    "total": outcome.total,
-                    "unread": len(outcome.unread),
-                    "error": outcome.error,
-                }
-            )
-        # Defensive .get: a telemetry line must never be the thing that fails the request.
-        failures = telemetry.get("failures") or {}
-        failure_summary = ", ".join(f"{kind}={count}" for kind, count in sorted(failures.items())) or "none"
-        log.info(
-            f"questionnaire fill: {telemetry.get('chunks', 0)} chunk(s) in {telemetry.get('elapsed_ms', 0)}ms, "
-            f"cache_read={telemetry.get('cache_read_tokens', 0)} cache_write={telemetry.get('cache_write_tokens', 0)}, "
-            f"failures: {failure_summary}"
-        )
-        return [JSONResponse({"results": results}, status_code=HTTPStatus.OK)]
-
     @api.get("/check-interactions")
     def get_check_interactions(self) -> list[Union[Response, Effect]]:
         """Check a single medication for drug-drug and drug-allergy interactions."""
@@ -2355,7 +2181,11 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         if denial := _authorize_edit(note_uuid, self.request):
             return [denial]
         commands = data.get("commands", [])
-        validation_errors = validate_proposals(commands)
+        # Pass the note_uuid so refill / adjust_prescription parsers can verify
+        # the source medication is active on the patient before we ORIGINATE.
+        # This catches the failure mode where REVIEW raises ValidationError and
+        # rolls back the transaction while insert-commands still returns 200.
+        validation_errors = validate_proposals(commands, note_uuid=note_uuid)
         if validation_errors:
             audit_event(note_uuid, "VALIDATION_FAILED", {"errors": validation_errors})
             return [
@@ -3549,12 +3379,62 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         except (QuestionnaireModel.DoesNotExist, ValueError):
             return [JSONResponse({"error": "not found"}, status_code=HTTPStatus.NOT_FOUND)]
 
-        return [JSONResponse(resolve_questionnaire_definition(questionnaire), status_code=HTTPStatus.OK)]
+        cmd = QuestionnaireCommand(
+            questionnaire_id=str(questionnaire.id),
+            note_uuid="",
+            command_uuid="",
+        )
+        questions = []
+        for q in cmd.questions:
+            options = [
+                {
+                    "dbid": o.dbid,
+                    "value": o.name,
+                    "code": _ensure_str(getattr(o, "code", None)),
+                    "score_value": _ensure_str(getattr(o, "value", None)),
+                }
+                for o in q.options
+            ]
+            questions.append(
+                {
+                    "dbid": int(q.id),
+                    "label": q.label,
+                    "type": q.type,
+                    "options": options,
+                }
+            )
+        scoring_function_name = getattr(questionnaire, "scoring_function_name", "") or ""
+        return [
+            JSONResponse(
+                {
+                    "questionnaire_dbid": questionnaire.dbid,
+                    "questionnaire_name": questionnaire.name,
+                    "is_scored": bool(scoring_function_name),
+                    "scoring_function_name": scoring_function_name,
+                    "questions": questions,
+                },
+                status_code=HTTPStatus.OK,
+            )
+        ]
 
     @api.get("/visit-templates")
     def get_visit_templates(self) -> list[Union[Response, Effect]]:
-        """Load visit templates with resolved questionnaire definitions."""
-        return [JSONResponse({"templates": _load_templates(self.secrets)}, status_code=HTTPStatus.OK)]
+        """Load visit templates with resolved questionnaire definitions.
+
+        ``exam_merge_kinds`` tells the frontend which cards may offer the merge button.
+        The secret is still the only gate; this just saves the client from guessing.
+        """
+        return [
+            JSONResponse(
+                {
+                    "templates": _load_templates(self.secrets),
+                    "exam_merge_kinds": sorted(
+                        parse_exam_merge_kinds(self.secrets.get(Constants.SECRET_SCRIBE_EXAM_TEMPLATE_MERGE))
+                    ),
+                },
+                status_code=HTTPStatus.OK,
+            )
+        ]
 
     @api.post("/save-audit-log")
     def post_save_audit_log(self) -> list[Union[Response, Effect]]:

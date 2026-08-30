@@ -91,7 +91,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `VendorTextLLM`                  | `OpenAi`, `Google`, `Anthropic`             | by default `OpenAi` (case insensitive)                                                                                                                      |
 | `KeyTextLLM`                     |                                             | the vendor's API key                                                                                                                                        |
 | `VisitTemplates`                 | JSON (see below)                            | per-visit-type note customization: questionnaires, ROS / PE / MSE scaffolds, and charges                                                                    |
-| `ScribeExamTemplateMerge`        | `ros,physical_exam,mental_status_exam`      | which exam sections auto-merge their `VisitTemplates` scaffold with the AI findings at generation; unset means none of them do                              |
+| `ScribeExamTemplateMerge`        | `ros,physical_exam,mental_status_exam`      | which exam sections offer the provider a button to merge their `VisitTemplates` scaffold into the AI findings; unset means none of them do                   |
 
 
 ### `CustomPrompts`
@@ -139,19 +139,21 @@ the prompt is non-empty, the command runs the extra LLM pass and the rewritten t
 
 ### `ScribeExamTemplateMerge`
 
-By default a visit template's exam scaffold is only applied when the provider picks it from the **Template** dropdown on the card. `ScribeExamTemplateMerge` turns on automatic merging at generation for the sections you name, as a comma-separated list:
+A generated note carries only what the AI extracted from the visit. Nothing merges automatically. `ScribeExamTemplateMerge` decides which exam cards offer a **Merge template defaults** button, as a comma-separated list:
 
 ```
 ScribeExamTemplateMerge = ros,physical_exam
 ```
 
-The three accepted values are `ros`, `physical_exam`, and `mental_status_exam`. Unset, blank, or unrecognised values mean that section does not auto-merge, so a typo fails safe rather than half-enabling the feature. The Template, Carry forward, and Clear controls on the cards keep working either way, which makes this a rollout switch rather than an on/off for templates as a whole.
+The three accepted values are `ros`, `physical_exam`, and `mental_status_exam`. Unset, blank, or unrecognised values mean that section gets no button, so a typo fails safe rather than half-enabling the feature. The Template, Carry forward, and Clear controls keep working either way.
 
-When a section is enabled, generation merges the scaffold with what the AI produced. A system the visit covered takes the AI's findings, a system it did not cover keeps the template's default text, and any system the AI found that the template does not list is appended at the end. An Anthropic call then refines the merge, mainly to blend template wording with visit findings inside a single system and to consolidate systems the two sources named differently. That call is best-effort: if it fails, the merge still stands and only the blending is lost.
+When a provider clicks it, `POST /merge-exam-template` blends the note's visit template into whatever the card holds at that moment, so edits made before the click are merged into rather than discarded. A system the visit covered takes the visit's findings, a system it did not cover keeps the template's default text, and any system the visit produced that the template does not list is appended at the end. Two rules override all of that: a denial is never widened past what was actually asked, and a denial is dropped when another section of the same note contradicts it.
 
-Providers can undo the whole thing per card with **Remove template default text**, which reverts to exactly what the AI generated, and put it back with **Restore template default text**.
+The scaffold is read from `VisitTemplates` on the server, never from the request body, so the client can name which configured template to use but cannot supply exam text of its own.
 
-A caution on `mse_template`. If it carries default findings rather than bare labels, enabling `mental_status_exam` means an unaddressed category is documented from that default. For entries such as `Thought Content: No SI, no HI...`, that is a psychiatric assertion the visit never made. Enable this one deliberately, and consider bare labels in `mse_template` if you would rather the categories stay blank.
+Only the first click costs an LLM call. It stores the pre-merge content and the merged result on the card, after which the button flips to **Undo merge** and then **Redo merge**, both of which are instant local swaps. Because the button becomes Undo as soon as a merge lands, a provider cannot merge twice and compound template wording into an already-merged card. A merge that cannot complete leaves the card untouched and tells the provider why.
+
+A caution on `mse_template`. If it carries default findings rather than bare labels, a provider who merges the mental status exam documents an unaddressed category from that default. For entries such as `Thought Content: No SI, no HI...`, that is a psychiatric assertion the visit never made. The merge being opt-in limits the exposure, but it does not remove it, so consider bare labels in `mse_template` if you would rather the categories stay blank.
 
 
 The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above. The credentials must belong to an AWS IAM user with username following the format `hyperscribe-{canvas_instance}`.
