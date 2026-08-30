@@ -294,7 +294,6 @@ class LimitedCache:
             immunizations = Immunization.objects.for_patient(self.patient_uuid).filter(deleted=False)
             # immunizations = Immunization.objects.committed().for_patient(self.patient_uuid)
             for immunization in immunizations.order_by("-dbid"):
-                print("--->", immunization.note.datetime_of_service.date())
                 self._immunizations.append(
                     self.immunization_from(
                         str(immunization.id),

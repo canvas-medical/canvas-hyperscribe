@@ -177,12 +177,34 @@ def _apply_grounding_gate(result: QuestionnaireFillResult, transcript: Transcrip
     return gated
 
 
+# Failure kinds recorded per run. Keyed off the status code so a timeout is never again
+# reported as "LLM returned 400", which pointed at a malformed request when the real cause
+# was a chunk pushing past the SDK's fixed 30s ceiling.
+FAILURE_KINDS = {
+    HTTPStatus.REQUEST_TIMEOUT: "timeout",
+    HTTPStatus.TOO_MANY_REQUESTS: "rate_limited",
+    HTTPStatus.SERVICE_UNAVAILABLE: "connection_error",
+    HTTPStatus.BAD_REQUEST: "bad_request",
+}
+
+
+def failure_kind(code: Any) -> str:
+    """Human-readable cause for a non-OK status."""
+    if code in FAILURE_KINDS:
+        return FAILURE_KINDS[code]
+    try:
+        return "server_error" if int(code) >= 500 else "client_error"
+    except (TypeError, ValueError):
+        return "unknown"
+
+
 class FillChunkError(Exception):
     """A chunk failed. ``retryable`` distinguishes an overloaded API from a bad request."""
 
-    def __init__(self, message: str, retryable: bool = False) -> None:
+    def __init__(self, message: str, retryable: bool = False, kind: str = "unknown") -> None:
         super().__init__(message)
         self.retryable = retryable
+        self.kind = kind
 
 
 def fill_chunk(
@@ -204,17 +226,19 @@ def fill_chunk(
     try:
         response = client.request()
     except Exception as exc:
-        raise FillChunkError(f"LLM request raised: {exc}", retryable=True) from exc
+        raise FillChunkError(f"LLM request raised: {exc}", retryable=True, kind="raised") from exc
     if response.code != HTTPStatus.OK:
-        # A 400 here is ambiguous: the SDK converts connection errors and timeouts into
-        # BAD_REQUEST too. Treat it as non-retryable either way, since a retry of a real
-        # timeout just burns another 30 seconds on the same failure.
+        # 408 is a timeout and stays non-retryable: the 30s ceiling is fixed, so a second
+        # attempt burns another 30 seconds on the same too-large chunk. 503 is a transient
+        # connection error and IS retried, which it was not while it shared the 400 bucket
+        # with timeouts.
+        kind = failure_kind(response.code)
         retryable = response.code in _RETRYABLE or int(response.code) >= 500
-        raise FillChunkError(f"LLM returned {response.code}: {response.response}", retryable=retryable)
+        raise FillChunkError(f"{kind} (HTTP {int(response.code)}): {response.response}", retryable=retryable, kind=kind)
     try:
         result = QuestionnaireFillResult.model_validate(json.loads(response.response))
     except Exception as exc:
-        raise FillChunkError(f"Unparseable LLM response: {response.response}") from exc
+        raise FillChunkError(f"parse_error: {response.response}", kind="parse_error") from exc
     return _apply_grounding_gate(result, transcript)
 
 
@@ -231,7 +255,7 @@ def fill_chunk_with_retry(
     except FillChunkError as exc:
         if not exc.retryable:
             raise
-        log.info(f"questionnaire fill: retrying chunk of '{name}' after {exc}")
+        log.info(f"questionnaire fill: retrying chunk of '{name}' [{exc.kind}] after {exc}")
         # random.uniform, not random.random(): the sandbox allowlists module attributes
         # by name and random is not among them.
         sleep(random.uniform(0.4, 1.0))
@@ -397,6 +421,7 @@ def fill_questionnaires(
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "aborted": False,
+        "failures": {},
     }
     if not questionnaire_dbids:
         # Caller error, not an outcome.
@@ -448,7 +473,9 @@ def fill_questionnaires(
         try:
             result = fill_chunk_with_retry(definitions[dbid]["questionnaire_name"], chunk, transcript, client)
         except FillChunkError as exc:
-            log.info(f"questionnaire fill: chunk failed for {dbid}: {exc}")
+            failures = telemetry["failures"]
+            failures[exc.kind] = failures.get(exc.kind, 0) + 1
+            log.info(f"questionnaire fill: chunk failed for {dbid} [{exc.kind}]: {exc}")
             record(client.last_usage)
             return dbid, None, str(exc)
         record(client.last_usage)
@@ -461,7 +488,10 @@ def fill_questionnaires(
             # The probe failed. Everything else shares the same API and the same
             # transcript, so marching each remaining chunk into its own timeout would
             # only rediscover this.
-            log.info("questionnaire fill: warm-up chunk failed, abandoning the fan-out")
+            log.info(
+                f"questionnaire fill: warm-up chunk failed, abandoning the fan-out "
+                f"({len(work) - 1} chunk(s) skipped): {first_error}"
+            )
             telemetry["aborted"] = True
             for dbid in definitions:
                 errors.setdefault(dbid, first_error)
