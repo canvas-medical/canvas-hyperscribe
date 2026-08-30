@@ -1,32 +1,52 @@
-"""Step 2.5: merging a visit template's exam scaffold into the generated commands.
+"""Provider-initiated merge of a visit template's exam scaffold into one card.
 
-Exercises ``_reconcile_exam_templates`` directly rather than driving the whole
-``post_generate_summary``, so the gating, the per-kind routing, the circuit breaker,
-and the audit payloads are each pinned without a Nabla or Anthropic round trip.
+Generation no longer merges anything, so these exercise the on-demand path: the
+endpoint's gating and refusal reasons, the template lookup, and the single-kind merge
+helper that stamps the undo reference copies and the audit payload. No Nabla or
+Anthropic round trip.
 """
 
 import json
+import re
+from http import HTTPStatus
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from hyperscribe.scribe.api.session_view import _clean_template_sections, _reconcile_exam_templates
+from canvas_sdk.effects.simple_api import JSONResponse
+
+from hyperscribe.scribe.api.session_view import (
+    ScribeSessionView,
+    _clean_template_sections,
+    _merge_exam_kind,
+    _merge_note_sections,
+    _resolve_merge_template,
+)
+
+# Disable automatic route resolution (mirrors test_session_view.py).
+ScribeSessionView._ROUTES = {}
 
 PE_TEMPLATE = [{"key": "general", "title": "General", "text": "Well-appearing."}]
 ROS_TEMPLATE = [{"key": "constitutional", "title": "Constitutional", "text": "Denies fever."}]
 MSE_TEMPLATE = [{"key": "mood", "title": "Mood", "text": "Euthymic."}]
+CARD = [{"key": "general", "title": "General", "text": "Ill."}]
 
-
-def _pe_command(sections: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    return {
-        "command_type": "physical_exam",
-        "display": "General",
-        "data": {
-            "sections": sections if sections is not None else [{"key": "general", "title": "General", "text": "Ill."}]
-        },
-        "selected": True,
-        "section_key": "physical_exam",
-        "already_documented": False,
-    }
+TEMPLATES = [
+    {
+        "name": "Subsequent Visit",
+        "pe_sections": PE_TEMPLATE,
+        "ros_sections": ROS_TEMPLATE,
+        "mse_sections": None,
+        "is_psychiatry": False,
+    },
+    {
+        "name": "Psychiatry",
+        "pe_sections": None,
+        "ros_sections": ROS_TEMPLATE,
+        "mse_sections": MSE_TEMPLATE,
+        "is_psychiatry": True,
+    },
+]
 
 
 def _merged(title: str = "General", text: str = "Ill.", updated: bool = True) -> list[dict[str, Any]]:
@@ -35,225 +55,108 @@ def _merged(title: str = "General", text: str = "Ill.", updated: bool = True) ->
     ]
 
 
-def _run(commands: list[dict[str, Any]], data: dict[str, Any], **kwargs: Any) -> None:
-    params: dict[str, Any] = {
-        "note_uuid": "note-uuid",
-        "is_psychiatry": False,
-        "merge_kinds": {"ros", "physical_exam", "mental_status_exam"},
-        "api_key": "key",
-    }
-    params.update(kwargs)
-    _reconcile_exam_templates(commands, data, **params)
+def _view(secrets: dict[str, str] | None = None, body: dict[str, Any] | None = None) -> ScribeSessionView:
+    base = {"ScribeBackend": "{}", "ScribeExamTemplateMerge": "ros,physical_exam,mental_status_exam"}
+    base.update(secrets or {})
+    event = SimpleNamespace(context={"method": "POST"})
+    view = ScribeSessionView(event, base, {})
+    view._path_pattern = re.compile(r".*")
+    view.request = SimpleNamespace(
+        headers={"canvas-logged-in-user-id": "staff-1"},
+        query_params={},
+        body=json.dumps(body if body is not None else {}).encode(),
+    )
+    return view
 
 
-# ── the off switch ──
+def _post(view: ScribeSessionView) -> tuple[int, dict[str, Any]]:
+    result = view.post_merge_exam_template()
+    assert len(result) == 1
+    return result[0].status_code, json.loads(result[0].content)
 
 
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_empty_merge_kinds_is_a_no_op(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    commands = [_pe_command()]
-    before = [dict(c) for c in commands]
-
-    _run(commands, {"template_pe_sections": PE_TEMPLATE}, merge_kinds=set())
-
-    assert commands == before
-    mock_reconcile.assert_not_called()
-    mock_audit.assert_not_called()
+# ── the single-kind merge helper ──
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_kind_not_enabled_is_skipped(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    commands = [_pe_command()]
-
-    _run(commands, {"template_pe_sections": PE_TEMPLATE}, merge_kinds={"ros"})
-
-    mock_reconcile.assert_not_called()
-    assert "encounter_sections" not in commands[0]["data"]
-
-
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_no_template_for_kind_is_skipped(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    commands = [_pe_command()]
-
-    _run(commands, {})
-
-    mock_reconcile.assert_not_called()
-    assert commands[0]["data"] == {"sections": [{"key": "general", "title": "General", "text": "Ill."}]}
-
-
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_malformed_template_payload_is_skipped(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    commands = [_pe_command()]
-
-    _run(commands, {"template_pe_sections": "not a list"})
-
-    mock_reconcile.assert_not_called()
-
-
-# ── the psychiatry gate on MSE ──
-
-
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_mse_skipped_on_non_psychiatry_visit(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    commands: list[dict[str, Any]] = []
-
-    _run(commands, {"template_mse_sections": MSE_TEMPLATE}, is_psychiatry=False)
-
-    mock_reconcile.assert_not_called()
-    assert commands == []
-
-
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_mse_runs_on_psychiatry_visit(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    mock_reconcile.return_value = (_merged("Mood", "Euthymic.", False), True)
-    commands: list[dict[str, Any]] = []
-
-    _run(commands, {"template_mse_sections": MSE_TEMPLATE}, is_psychiatry=True)
-
-    assert len(commands) == 1
-    assert commands[0]["command_type"] == "mental_status_exam"
-    assert commands[0]["section_key"] == "mental_status_exam"
-
-
-# ── merging into an existing command ──
-
-
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_existing_command_gets_sections_display_and_reference_keys(
-    mock_reconcile: MagicMock, mock_audit: MagicMock
-) -> None:
-    merged = _merged() + [
-        {"key": "lungs", "title": "Lungs", "text": "Clear.", "updated": False, "template_text": "Clear."}
-    ]
-    mock_reconcile.return_value = (merged, True)
-    encounter = [{"key": "general", "title": "General", "text": "Ill."}]
-    commands = [_pe_command(encounter)]
-
-    _run(commands, {"template_pe_sections": PE_TEMPLATE})
-
-    data = commands[0]["data"]
-    assert data["sections"] == merged
-    assert commands[0]["display"] == "General | Lungs"
-    assert data["encounter_sections"] == encounter
-    assert data["reconciled_sections"] == merged
+def test_merge_returns_sections_and_both_restore_points(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
+    sections = _merged()
+    mock_reconcile.return_value = (sections, True)
+    data = _merge_exam_kind("physical_exam", PE_TEMPLATE, CARD, note_uuid="n1", api_key="key")
+    assert data is not None
+    assert data["sections"] == sections
+    assert data["encounter_sections"] == CARD
+    assert data["reconciled_sections"] == sections
     assert data["template_removed"] is False
-    # The restore points must not alias the live list, or an edit to sections would
-    # silently rewrite what the toggle reverts to.
-    assert data["encounter_sections"] is not encounter
-    assert data["reconciled_sections"] is not merged
-    assert data["reconciled_sections"][0] is not merged[0]
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_encounter_sections_passed_to_reconcile(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
+def test_restore_points_are_independent_copies(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
+    """Undo restores from these, so a later edit to ``sections`` must not alias in."""
+    sections = _merged()
+    mock_reconcile.return_value = (sections, True)
+    data = _merge_exam_kind("physical_exam", PE_TEMPLATE, CARD, note_uuid="n1", api_key="key")
+    assert data is not None
+    data["sections"][0]["text"] = "rewritten"
+    assert data["reconciled_sections"][0]["text"] == "Ill."
+    assert data["encounter_sections"][0]["text"] == "Ill."
+
+
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
+def test_card_sections_are_what_gets_merged(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
+    """The card's current content is the merge input, so provider edits are respected."""
     mock_reconcile.return_value = (_merged(), True)
-    encounter = [{"key": "general", "title": "General", "text": "Ill."}]
-
-    _run([_pe_command(encounter)], {"template_pe_sections": PE_TEMPLATE})
-
-    args = mock_reconcile.call_args
-    assert args[0][0] == PE_TEMPLATE
-    assert args[0][1] == encounter
-    assert args[0][3] == "Physical Exam"
-
-
-# ── creating a command generation did not produce ──
+    edited = [{"key": "general", "title": "General", "text": "Provider typed this."}]
+    _merge_exam_kind(
+        "physical_exam", PE_TEMPLATE, edited, note_uuid="n1", api_key="key", note_sections=[{"key": "hpi"}]
+    )
+    args, kwargs = mock_reconcile.call_args
+    assert args[0] == PE_TEMPLATE
+    assert args[1] == edited
+    assert args[3] == "Physical Exam"
+    assert kwargs["note_sections"] == [{"key": "hpi"}]
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_missing_command_is_created_from_the_template(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    merged = _merged("General", "Well-appearing.", False)
-    mock_reconcile.return_value = (merged, True)
-    commands: list[dict[str, Any]] = []
-
-    _run(commands, {"template_pe_sections": PE_TEMPLATE})
-
-    assert mock_reconcile.call_args[0][1] == []
-    assert len(commands) == 1
-    created = commands[0]
-    assert created["command_type"] == "physical_exam"
-    assert created["section_key"] == "physical_exam"
-    assert created["selected"] is True
-    assert created["already_documented"] is False
-    assert created["display"] == "General"
-    assert created["data"]["encounter_sections"] == []
+def test_failed_merge_returns_none_and_audits(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
+    mock_reconcile.return_value = ([], False)
+    assert _merge_exam_kind("ros", ROS_TEMPLATE, CARD, note_uuid="n1", api_key="key") is None
+    mock_audit.assert_called_once_with("n1", "TEMPLATE_MERGE_SKIPPED", {"kind": "ros", "reason": "llm_failed"})
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_ros_command_created_with_underscore_section_key(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    mock_reconcile.return_value = (_merged("Constitutional", "Denies fever.", False), True)
-    commands: list[dict[str, Any]] = []
-
-    _run(commands, {"template_ros_sections": ROS_TEMPLATE})
-
-    assert commands[0]["section_key"] == "_ros"
-
-
-# ── the circuit breaker ──
-
-
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_first_failure_disables_the_llm_for_later_kinds(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    mock_reconcile.side_effect = [([], False), ([], False)]
-
-    _run([], {"template_ros_sections": ROS_TEMPLATE, "template_pe_sections": PE_TEMPLATE})
-
-    # ROS runs first and is allowed to try; PE then skips the call entirely.
-    assert mock_reconcile.call_args_list[0][1]["allow_llm"] is True
-    assert mock_reconcile.call_args_list[1][1]["allow_llm"] is False
-
-
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_success_leaves_the_circuit_closed(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    mock_reconcile.side_effect = [(_merged(), True), (_merged(), True)]
-
-    _run([], {"template_ros_sections": ROS_TEMPLATE, "template_pe_sections": PE_TEMPLATE})
-
-    assert all(call[1]["allow_llm"] is True for call in mock_reconcile.call_args_list)
-
-
-# ── audit ──
+def test_missing_api_key_audits_no_api_key(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
+    mock_reconcile.return_value = ([], False)
+    assert _merge_exam_kind("ros", ROS_TEMPLATE, CARD, note_uuid="n1", api_key="") is None
+    mock_audit.assert_called_once_with("n1", "TEMPLATE_MERGE_SKIPPED", {"kind": "ros", "reason": "no_api_key"})
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
 def test_reconciled_audit_payload(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    merged = [
-        {
-            "key": "general",
-            "title": "General",
-            "text": "Ill.",
-            "updated": True,
-            "template_text": "Well.",
-            "clauses": [{"text": "Ill.", "provenance": "encounter"}],
-        },
-        {
-            "key": "lungs",
-            "title": "Lungs",
-            "text": "Clear.",
-            "updated": False,
-            "template_text": "Clear.",
-            "clauses": [{"text": "Clear.", "provenance": "template"}],
-        },
-    ]
-    mock_reconcile.return_value = (merged, True)
-
-    _run([_pe_command()], {"template_pe_sections": PE_TEMPLATE})
-
+    mock_reconcile.return_value = (
+        [
+            {
+                "title": "General",
+                "text": "Ill.",
+                "updated": True,
+                "clauses": [
+                    {"text": "Ill.", "provenance": "encounter"},
+                    {"text": "Well developed.", "provenance": "template"},
+                ],
+            },
+            {"title": "Skin", "text": "No rashes.", "updated": False, "clauses": []},
+        ],
+        True,
+    )
+    _merge_exam_kind("physical_exam", PE_TEMPLATE, CARD, note_uuid="n1", api_key="key")
     mock_audit.assert_called_once_with(
-        "note-uuid",
+        "n1",
         "TEMPLATE_RECONCILED",
         {
             "kind": "physical_exam",
@@ -267,101 +170,231 @@ def test_reconciled_audit_payload(mock_reconcile: MagicMock, mock_audit: MagicMo
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_failure_audits_llm_failed_then_circuit_open(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    mock_reconcile.side_effect = [([], False), ([], False)]
-
-    _run([], {"template_ros_sections": ROS_TEMPLATE, "template_pe_sections": PE_TEMPLATE})
-
-    reasons = [call.args[2]["reason"] for call in mock_audit.call_args_list if call.args[1] == "TEMPLATE_MERGE_SKIPPED"]
-    assert reasons == ["llm_failed", "circuit_open"]
-
-
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_missing_api_key_audits_no_api_key(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    mock_reconcile.return_value = ([], False)
-
-    _run([], {"template_pe_sections": PE_TEMPLATE}, api_key="")
-
-    failures = [call for call in mock_audit.call_args_list if call.args[1] == "TEMPLATE_MERGE_SKIPPED"]
-    assert failures[0].args[2] == {"kind": "physical_exam", "reason": "no_api_key"}
-
-
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
 def test_no_audit_payload_carries_section_text(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    secret_text = "PATIENT-IDENTIFIABLE FINDING"
-    mock_reconcile.return_value = (
-        [{"key": "general", "title": "General", "text": secret_text, "updated": True, "template_text": secret_text}],
-        False,
-    )
-
-    _run([_pe_command()], {"template_pe_sections": [{"key": "g", "title": "General", "text": secret_text}]})
-
-    for call in mock_audit.call_args_list:
-        assert secret_text not in str(call.args[2])
+    """Audit rows are counts only. Exam text is PHI and must never land in the log."""
+    mock_reconcile.return_value = (_merged(text="tender right shoulder"), True)
+    _merge_exam_kind("physical_exam", PE_TEMPLATE, CARD, note_uuid="n1", api_key="key")
+    assert "tender right shoulder" not in json.dumps(mock_audit.call_args[0][2])
 
 
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
 def test_merge_still_runs_without_a_note_uuid(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
     mock_reconcile.return_value = (_merged(), True)
-    commands = [_pe_command()]
-
-    _run(commands, {"template_pe_sections": PE_TEMPLATE}, note_uuid="")
-
-    assert "encounter_sections" in commands[0]["data"]
+    assert _merge_exam_kind("physical_exam", PE_TEMPLATE, CARD, note_uuid="", api_key="key") is not None
     mock_audit.assert_not_called()
 
 
-# ── payload coercion ──
-
-
 def test_clean_template_sections_coerces_and_filters() -> None:
-    assert _clean_template_sections(None) == []
-    assert _clean_template_sections("nope") == []
-    assert _clean_template_sections([{"key": "a", "title": "A", "text": "b"}, "junk", 7]) == [
-        {"key": "a", "title": "A", "text": "b"}
+    raw = [{"key": 1, "title": None, "text": 2}, "nope", {"title": "Skin"}]
+    assert _clean_template_sections(raw) == [
+        {"key": "1", "title": "None", "text": "2"},
+        {"key": "", "title": "Skin", "text": ""},
     ]
-    assert _clean_template_sections([{"title": "A"}]) == [{"key": "", "title": "A", "text": ""}]
+    assert _clean_template_sections("nope") == []
+    assert _clean_template_sections(None) == []
 
 
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_failed_merge_leaves_the_generated_command_untouched(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    """No deterministic fallback any more. A failed merge must leave generation's own
-    findings exactly as they were, which is the behavior that shipped before the feature."""
-    mock_reconcile.return_value = ([], False)
-    original = _pe_command()
-    before = json.loads(json.dumps(original))
-    commands = [original]
-
-    _run(commands, {"template_pe_sections": PE_TEMPLATE})
-
-    assert commands == [before]
-    assert "encounter_sections" not in commands[0]["data"]
-    assert "template_removed" not in commands[0]["data"]
+# ── resolving which template to merge ──
 
 
-@patch("hyperscribe.scribe.api.session_view.audit_event")
-@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_failed_merge_creates_no_command_when_generation_produced_none(
-    mock_reconcile: MagicMock, mock_audit: MagicMock
+@patch("hyperscribe.scribe.api.session_view._load_templates", return_value=TEMPLATES)
+def test_resolve_template_by_requested_name(mock_load: MagicMock) -> None:
+    tmpl = _resolve_merge_template({}, "n1", "Psychiatry")
+    assert tmpl is not None and tmpl["is_psychiatry"] is True
+
+
+@patch("hyperscribe.scribe.api.session_view._load_templates", return_value=TEMPLATES)
+def test_resolve_template_ignores_an_unknown_name(mock_load: MagicMock) -> None:
+    """A hostile body can pick another configured template but cannot inject exam text."""
+    assert _resolve_merge_template({}, "n1", "Attacker Template") is None
+
+
+@patch("hyperscribe.scribe.api.session_view._saved_template_name", return_value="Subsequent Visit")
+@patch("hyperscribe.scribe.api.session_view._load_templates", return_value=TEMPLATES)
+def test_resolve_template_falls_back_to_the_saved_name(mock_load: MagicMock, mock_saved: MagicMock) -> None:
+    """The autosave can lag a click, so an absent name is read off the summary row."""
+    tmpl = _resolve_merge_template({}, "n1", "")
+    assert tmpl is not None and tmpl["name"] == "Subsequent Visit"
+
+
+@patch("hyperscribe.scribe.api.session_view._saved_template_name", return_value="")
+@patch("hyperscribe.scribe.api.session_view._load_templates", return_value=TEMPLATES)
+def test_resolve_template_none_when_no_name_anywhere(mock_load: MagicMock, mock_saved: MagicMock) -> None:
+    assert _resolve_merge_template({}, "n1", None) is None
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+@patch("hyperscribe.scribe.api.session_view.ScribeSummary")
+def test_merge_note_sections_projects_key_and_text(mock_summary: MagicMock, mock_note: MagicMock) -> None:
+    mock_note.objects.values_list.return_value.get.return_value = 7
+    mock_summary.objects.filter.return_value.values.return_value.first.return_value = {
+        "note_data": {"sections": [{"key": "hpi", "title": "HPI", "text": "Shoulder pain."}, "junk"]}
+    }
+    assert _merge_note_sections("n1") == [{"key": "hpi", "text": "Shoulder pain."}]
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_merge_note_sections_swallows_a_query_error(mock_note: MagicMock) -> None:
+    mock_note.objects.values_list.return_value.get.side_effect = RuntimeError("boom")
+    assert _merge_note_sections("n1") == []
+
+
+# ── the endpoint ──
+
+
+def test_endpoint_rejects_bad_json() -> None:
+    view = _view()
+    view.request.body = b"{not json"
+    status, payload = _post(view)
+    assert status == HTTPStatus.BAD_REQUEST
+    assert "Invalid JSON" in payload["error"]
+
+
+@patch(
+    "hyperscribe.scribe.api.session_view._authorize_edit",
+    return_value=JSONResponse({"error": "nope"}, status_code=HTTPStatus.FORBIDDEN),
+)
+def test_endpoint_passes_the_auth_denial_through(mock_auth: MagicMock) -> None:
+    status, payload = _post(_view(body={"note_id": "n1", "kind": "physical_exam"}))
+    assert status == HTTPStatus.FORBIDDEN
+    assert payload == {"error": "nope"}
+
+
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_endpoint_rejects_an_unknown_kind(mock_auth: MagicMock) -> None:
+    status, payload = _post(_view(body={"note_id": "n1", "kind": "exam"}))
+    assert status == HTTPStatus.BAD_REQUEST
+    assert payload == {"error": "invalid kind"}
+
+
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_endpoint_refuses_a_kind_the_secret_does_not_enable(mock_auth: MagicMock) -> None:
+    view = _view({"ScribeExamTemplateMerge": "ros"}, {"note_id": "n1", "kind": "physical_exam"})
+    status, payload = _post(view)
+    assert status == HTTPStatus.OK
+    assert payload == {"merged": False, "reason": "not_enabled"}
+
+
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_endpoint_off_switch_refuses_everything(mock_auth: MagicMock) -> None:
+    view = _view({"ScribeExamTemplateMerge": ""}, {"note_id": "n1", "kind": "ros"})
+    assert _post(view)[1] == {"merged": False, "reason": "not_enabled"}
+
+
+@patch("hyperscribe.scribe.api.session_view._saved_template_name", return_value="")
+@patch("hyperscribe.scribe.api.session_view._load_templates", return_value=TEMPLATES)
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_endpoint_refuses_when_the_note_has_no_template(
+    mock_auth: MagicMock, mock_load: MagicMock, mock_saved: MagicMock
 ) -> None:
-    mock_reconcile.return_value = ([], False)
-    commands: list[dict[str, Any]] = []
-
-    _run(commands, {"template_pe_sections": PE_TEMPLATE})
-
-    assert commands == []
+    status, payload = _post(_view(body={"note_id": "n1", "kind": "physical_exam"}))
+    assert payload == {"merged": False, "reason": "no_template"}
 
 
+@patch("hyperscribe.scribe.api.session_view._load_templates", return_value=TEMPLATES)
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_endpoint_refuses_mse_on_a_non_psychiatry_template(mock_auth: MagicMock, mock_load: MagicMock) -> None:
+    body = {"note_id": "n1", "kind": "mental_status_exam", "selected_template_name": "Subsequent Visit"}
+    assert _post(_view(body=body))[1] == {"merged": False, "reason": "not_psychiatry"}
+
+
+@patch("hyperscribe.scribe.api.session_view._load_templates", return_value=TEMPLATES)
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_endpoint_refuses_when_the_template_has_no_exam_for_the_kind(
+    mock_auth: MagicMock, mock_load: MagicMock
+) -> None:
+    body = {"note_id": "n1", "kind": "physical_exam", "selected_template_name": "Psychiatry"}
+    assert _post(_view(body=body))[1] == {"merged": False, "reason": "no_template_exam"}
+
+
+@patch("hyperscribe.scribe.api.session_view._merge_note_sections", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.reconcile_sections", return_value=([], False))
+@patch("hyperscribe.scribe.api.session_view._load_templates", return_value=TEMPLATES)
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_endpoint_reports_a_failed_merge(
+    mock_auth: MagicMock,
+    mock_load: MagicMock,
+    mock_reconcile: MagicMock,
+    mock_audit: MagicMock,
+    mock_notes: MagicMock,
+) -> None:
+    """200 with a reason, not a 5xx: the provider waited on this and is owed a sentence."""
+    body = {
+        "note_id": "n1",
+        "kind": "physical_exam",
+        "sections": CARD,
+        "selected_template_name": "Subsequent Visit",
+    }
+    status, payload = _post(_view({"AnthropicAPIKey": "key"}, body))
+    assert status == HTTPStatus.OK
+    assert payload == {"merged": False, "reason": "merge_failed"}
+
+
+@patch("hyperscribe.scribe.api.session_view._merge_note_sections", return_value=[{"key": "hpi", "text": "Pain."}])
 @patch("hyperscribe.scribe.api.session_view.audit_event")
 @patch("hyperscribe.scribe.api.session_view.reconcile_sections")
-def test_note_sections_are_passed_for_the_contradiction_rule(mock_reconcile: MagicMock, mock_audit: MagicMock) -> None:
-    mock_reconcile.return_value = (_merged(), True)
-    note_sections = [{"key": "PHYSICAL_EXAM", "text": "Extremities: Trace bilateral ankle edema"}]
+@patch("hyperscribe.scribe.api.session_view._load_templates", return_value=TEMPLATES)
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_endpoint_success_returns_sections_and_restore_points(
+    mock_auth: MagicMock,
+    mock_load: MagicMock,
+    mock_reconcile: MagicMock,
+    mock_audit: MagicMock,
+    mock_notes: MagicMock,
+) -> None:
+    sections = _merged()
+    mock_reconcile.return_value = (sections, True)
+    body = {
+        "note_id": "n1",
+        "kind": "physical_exam",
+        "sections": CARD,
+        "selected_template_name": "Subsequent Visit",
+    }
+    status, payload = _post(_view({"AnthropicAPIKey": "key"}, body))
+    assert status == HTTPStatus.OK
+    assert payload["merged"] is True
+    assert payload["sections"] == sections
+    assert payload["encounter_sections"] == CARD
+    assert payload["reconciled_sections"] == sections
+    assert payload["template_removed"] is False
+    # The scaffold comes from the secret, never from the body.
+    assert mock_reconcile.call_args[0][0] == PE_TEMPLATE
+    assert mock_reconcile.call_args[0][1] == CARD
+    assert mock_reconcile.call_args[1]["note_sections"] == [{"key": "hpi", "text": "Pain."}]
 
-    _run([_pe_command()], {"template_pe_sections": PE_TEMPLATE}, note_sections=note_sections)
 
-    assert mock_reconcile.call_args[1]["note_sections"] == note_sections
+@patch("hyperscribe.scribe.api.session_view._merge_note_sections", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.audit_event")
+@patch("hyperscribe.scribe.api.session_view.reconcile_sections")
+@patch("hyperscribe.scribe.api.session_view._load_templates", return_value=TEMPLATES)
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_endpoint_merges_an_empty_card(
+    mock_auth: MagicMock,
+    mock_load: MagicMock,
+    mock_reconcile: MagicMock,
+    mock_audit: MagicMock,
+    mock_notes: MagicMock,
+) -> None:
+    """A card with nothing in it is a legitimate merge: the template becomes the exam."""
+    mock_reconcile.return_value = (PE_TEMPLATE, True)
+    body = {"note_id": "n1", "kind": "physical_exam", "sections": [], "selected_template_name": "Subsequent Visit"}
+    status, payload = _post(_view({"AnthropicAPIKey": "key"}, body))
+    assert status == HTTPStatus.OK
+    assert payload["merged"] is True
+    assert mock_reconcile.call_args[0][1] == []
+
+
+@patch("hyperscribe.scribe.api.session_view._load_templates", return_value=TEMPLATES)
+@patch("hyperscribe.scribe.api.session_view._authorize_edit", return_value=None)
+def test_endpoint_rejects_malformed_sections(mock_auth: MagicMock, mock_load: MagicMock) -> None:
+    body = {
+        "note_id": "n1",
+        "kind": "physical_exam",
+        "sections": ["not a dict"],
+        "selected_template_name": "Subsequent Visit",
+    }
+    status, payload = _post(_view(body=body))
+    assert status == HTTPStatus.BAD_REQUEST
+    assert payload == {"error": "malformed sections"}

@@ -130,9 +130,11 @@ class Constants:
     SECRET_ALERT_FACILITY_COMMANDS = "AlertFacilityCommands"  # Comma-separated command types
     SECRET_SCRIBE_DEBUG_STAFFERS = "ScribeDebugStaffers"  # Comma-separated staff keys for debug apps
     SECRET_VISIT_TEMPLATES = "VisitTemplates"  # JSON: {"templates": [...]}
-    # Comma-separated section kinds whose visit-template scaffold auto-merges with the
-    # Nabla findings at generation: ros, physical_exam, mental_status_exam.
-    # Unset/blank = off for all three; the manual Template menu still works.
+    # Comma-separated section kinds whose card offers the provider a button to merge
+    # the visit-template scaffold into the AI findings: ros, physical_exam,
+    # mental_status_exam. Nothing merges automatically - generation leaves the exam as
+    # the AI produced it, and the merge is one provider click per card.
+    # Unset/blank = no button on any of them; the manual Template menu still works.
     SECRET_SCRIBE_EXAM_TEMPLATE_MERGE = "ScribeExamTemplateMerge"
     SECRET_NOTION_API_KEY = "NotionAPIKey"
     SECRET_MODALITY = "Modality"

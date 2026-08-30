@@ -2268,6 +2268,11 @@ select.history-form-input {
 .exam-action-btn:disabled { opacity: .6; cursor: wait; }
 .exam-action-btn .exam-ico { font-size: 15px; line-height: 1; opacity: .75; display: inline-flex; align-items: center; }
 .exam-action-btn .exam-ico svg { width: 15px; height: 15px; display: block; }
+/* Merge failure, shown in the card. The provider waited seconds on this, so a silent
+   no-op the way carry-forward does it is not good enough. */
+.exam-merge-error { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 12px; padding: 10px 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; color: #7c2d12; font-size: 13px; line-height: 1.45; }
+.exam-merge-error-x { margin-left: auto; flex: 0 0 auto; border: 0; background: none; color: #9a3412; font-size: 16px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.exam-merge-error-x:hover { color: #7c2d12; }
 /* Template ▾ menu — pick a template, then confirm via the shared popover. */
 .exam-dropdown { position: relative; }
 .exam-menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; min-width: 240px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 14px 36px rgba(15,23,42,.16); padding: 6px; }

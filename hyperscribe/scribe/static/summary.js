@@ -466,16 +466,30 @@ const PROGRESS_STEPS = [
   'Generating note',
   'Structuring the note',
   'Extracting commands',
-  // Mirrors SUMMARY_STEPS in session_view.py. The step is listed unconditionally
-  // even though ScribeExamTemplateMerge may skip the work, because desyncing the
-  // two lists is a worse failure than a label that flashes past.
-  'Reconciling template',
+  // Mirrors SUMMARY_STEPS in session_view.py, positionally: the render indexes into
+  // this array with the server's step number, so the two lists must change together.
+  // The template merge is no longer here - it runs on demand from the exam card.
   'Generating recommendations',
   'Suggesting diagnoses',
 ];
 // Total steps shown to the user = "Finalizing transcript" + the server-driven
 // SUMMARY_STEPS pipeline. Used for the % progress calculation.
 const TOTAL_PROGRESS_STEPS = PROGRESS_STEPS.length + 1;
+
+const EXAM_MERGE_LABELS = {
+  physical_exam: 'physical exam',
+  ros: 'review of systems',
+  mental_status_exam: 'mental status exam',
+};
+// Every reason POST /merge-exam-template can refuse with. A provider who waited on a
+// spinner is owed a sentence, so there is no generic fallthrough for the known cases.
+const MERGE_REFUSAL_COPY = {
+  not_enabled: 'Merging template defaults is turned off for this section.',
+  no_template: 'This note has no visit template selected, so there are no defaults to merge.',
+  not_psychiatry: 'The mental status exam only merges defaults on a psychiatry visit template.',
+  no_template_exam: 'This visit template does not define an exam for this section.',
+  merge_failed: 'The merge did not complete, so nothing was changed. You can try again.',
+};
 
 function buildCommandBySectionKey(commands) {
   const map = {};
@@ -490,7 +504,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, noteDiagnoses, isPsychiatry, dictation } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, onMergeExamTemplate, examMergeKinds, examMergeTemplate, noteDiagnoses, isPsychiatry, dictation } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -563,6 +577,9 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         questionnaireScores=${isObjective ? questionnaireScores : null}
         examTemplates=${(isObjective || isSubjective) ? examTemplates : null}
         onCarryForwardExam=${(isObjective || isSubjective) ? onCarryForwardExam : null}
+        onMergeExamTemplate=${(isObjective || isSubjective) ? onMergeExamTemplate : null}
+        examMergeKinds=${(isObjective || isSubjective) ? examMergeKinds : null}
+        examMergeTemplate=${(isObjective || isSubjective) ? examMergeTemplate : null}
         isPsychiatry=${isObjective ? isPsychiatry : false}
         dictation=${dictation}
       />`;
@@ -608,6 +625,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // Template state.
   const [templates, setTemplates] = useState(initialData?.templates ?? []);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  // Section kinds ScribeExamTemplateMerge enables. The secret is still the only gate;
+  // this just stops the card guessing and offering a button the server would refuse.
+  const [examMergeKinds, setExamMergeKinds] = useState(initialData?.exam_merge_kinds ?? []);
   const [mode, setMode] = useState(() => {
     const cached = initSummary?.mode ?? null;
     // Dead state recovery: ai mode was persisted but recording was never started (e.g.
@@ -1533,7 +1553,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       try {
         const res = await fetch(`${API_BASE}/visit-templates`);
         const data = await res.json();
-        if (!cancelled && data.templates) setTemplates(data.templates);
+        if (cancelled) return;
+        if (data.templates) setTemplates(data.templates);
+        if (Array.isArray(data.exam_merge_kinds)) setExamMergeKinds(data.exam_merge_kinds);
       } catch (err) {
         console.error('Failed to load visit templates:', err);
       }
@@ -1763,6 +1785,43 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       return [];
     }
   }, [noteId]);
+
+  // Merge the note's visit-template exam scaffold into one card, on provider request.
+  // Unlike carry-forward this is an LLM call the provider waits on, so every failure
+  // has to come back as something we can show them. Resolves to
+  // { ok: true, data } | { ok: false, message }.
+  const handleMergeExamTemplate = useCallback(async (kind, sections) => {
+    const label = EXAM_MERGE_LABELS[kind] || 'exam';
+    const controller = new AbortController();
+    // The server does up to two LLM attempts against a 30s ceiling each, so this sits
+    // just above that worst case rather than at a round number that would cut a slow
+    // but succeeding merge short.
+    const timer = setTimeout(() => controller.abort(), 70000);
+    try {
+      const res = await fetch(`${API_BASE}/merge-exam-template`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          note_id: noteId,
+          kind,
+          sections,
+          selected_template_name: selectedTemplate?.name || '',
+        }),
+      });
+      if (res.status === 403) return { ok: false, message: 'Only the note author can change this note.' };
+      if (!res.ok) return { ok: false, message: 'The merge could not run. Nothing was changed.' };
+      const data = await res.json();
+      if (data.merged && Array.isArray(data.sections)) return { ok: true, data };
+      return { ok: false, message: MERGE_REFUSAL_COPY[data.reason] || `The ${label} could not be merged. Nothing was changed.` };
+    } catch (e) {
+      if (e.name === 'AbortError') return { ok: false, message: 'The merge took too long and was stopped. Nothing was changed.' };
+      console.error('exam template merge failed:', e);
+      return { ok: false, message: 'The merge could not run. Nothing was changed.' };
+    } finally {
+      clearTimeout(timer);
+    }
+  }, [noteId, selectedTemplate]);
 
   const handleEdit = useCallback((index, newData, newType) => {
     logEvent('EDIT_COMMAND', { index, commandType: newType || commands[index]?.command_type, sectionKey: commands[index]?.section_key, data: newData });
@@ -3806,6 +3865,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           onRemoveChargeByUuid: authorEditable ? onRemoveChargeByUuid : null,
           examTemplates: templates,
           onCarryForwardExam: handleCarryForwardExam,
+          onMergeExamTemplate: handleMergeExamTemplate,
+          examMergeKinds,
+          examMergeTemplate: selectedTemplate,
           isPsychiatry,
           dictation: {
             // Gated behind the ScribeDictationEnabled secret. A single physical

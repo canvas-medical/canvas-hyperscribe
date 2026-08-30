@@ -101,7 +101,7 @@ _STOPWORDS = frozenset(
 
 def parse_exam_merge_kinds(raw: str | None) -> set[str]:
     """Parse the ``ScribeExamTemplateMerge`` secret (comma-separated section kinds)
-    into a normalized set of kinds whose template auto-merges at generation. Blank
+    into a normalized set of kinds whose card offers the provider a merge button. Blank
     entries and unknown names (typos, unsupported kinds) are dropped, so an unset
     or malformed secret turns the feature off everywhere rather than partially on."""
     return {entry.strip().lower() for entry in (raw or "").split(",") if entry.strip()} & SUPPORTED_MERGE_KINDS
