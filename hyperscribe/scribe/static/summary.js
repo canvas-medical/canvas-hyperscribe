@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'https://esm.s
 import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
 import { mergeFilled } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-fill.js';
+import { mergeGeneratedCommands } from '/plugin-io/api/hyperscribe/scribe/static/command-merge.js';
 import { collectQuestionnaireScores } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-score.js';
 import { dropReason, isIntentionalDrop, isDismissedCondition } from '/plugin-io/api/hyperscribe/scribe/static/command-drop.js';
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
@@ -1516,17 +1517,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         setError(data.error);
         logEvent('GENERATE_ERROR', { error: data.error });
       } else {
-        const adHocKeys = new Set(['_ad_hoc', '_objective_ad_hoc', '_history_ad_hoc', '_subjective_ad_hoc', '_charges_ad_hoc']);
-        const existingAdHoc = commands.filter(c => adHocKeys.has(c.section_key));
-        const generated = data.commands || [];
-        const generatedTypes = new Set(generated.map(c => c.command_type));
-        const templateKeep = commands.filter(c =>
-          c._template_inserted && !adHocKeys.has(c.section_key) && !generatedTypes.has(c.command_type)
-        );
-        const newCommands = [...generated, ...existingAdHoc, ...templateKeep];
+        // Merge against the LIVE command list, not the snapshot taken when Generate was
+        // clicked. The automatic questionnaire fill runs in parallel and merges drafted
+        // answers into these same commands with setCommands(prev => ...); on a real
+        // transcript it finished in ~38s while generation was still running, so reading
+        // the closure's `commands` here overwrote every drafted answer seconds after it
+        // landed. Nothing errored, which is why it looked like the fill had never run.
+        let newCommands = [];
+        setCommands(prev => {
+          newCommands = mergeGeneratedCommands(prev, data.commands);
+          return newCommands;
+        });
         const newRecs = data.recommendations || [];
         setNoteData(data.note);
-        setCommands(newCommands);
         setRecommendations(newRecs);
         setSectionConditions(data.section_conditions || {});
         setUnmatchedConditions(data.unmatched_conditions || []);
@@ -1547,7 +1550,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     } finally {
       setGenerating(false);
     }
-  }, [noteId, selectedTemplate, commands, mode]);
+  }, [noteId, selectedTemplate, mode]);
 
   // Fetch assignees for task assignment (independent, small).
   useEffect(() => {
