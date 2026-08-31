@@ -13,6 +13,8 @@ from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 from hyperscribe.scribe.backend.models import Transcript, TranscriptItem
 from hyperscribe.scribe.recommendations.questionnaire_fill import (
     CHUNK_SIZE,
+    LONG_CHUNK_SIZE,
+    LONG_TRANSCRIPT_CHARS,
     SINGLE_CALL_MAX,
     FillChunkError,
     _apply_grounding_gate,
@@ -300,6 +302,98 @@ def test_fill_chunk_bad_request_is_not_retryable() -> None:
     assert excinfo.value.retryable is False
 
 
+def test_a_long_transcript_withdraws_the_single_call_shortcut() -> None:
+    """On a 47-minute visit, eight questions in one call measured 29s against a 30s wall.
+
+    Latency is not a function of question count alone: a long transcript adds prefill on
+    top of the generation the questions drive, so the chunk size has to see the transcript.
+    """
+    questions = [{"dbid": i} for i in range(SINGLE_CALL_MAX)]
+    assert chunk_questions(questions, LONG_TRANSCRIPT_CHARS - 1) == [questions]
+    chunks = chunk_questions(questions, LONG_TRANSCRIPT_CHARS)
+    assert [len(c) for c in chunks] == [LONG_CHUNK_SIZE, SINGLE_CALL_MAX - LONG_CHUNK_SIZE]
+    assert [q for chunk in chunks for q in chunk] == questions
+
+
+def test_a_long_transcript_leaves_a_short_questionnaire_in_one_call() -> None:
+    questions = [{"dbid": i} for i in range(LONG_CHUNK_SIZE)]
+    assert chunk_questions(questions, LONG_TRANSCRIPT_CHARS * 10) == [questions]
+    assert chunk_questions([], LONG_TRANSCRIPT_CHARS * 10) == []
+
+
+def test_a_stray_top_level_key_does_not_discard_the_whole_chunk() -> None:
+    """THE PRODUCTION FAILURE. Verbatim payload from scribeqa-sandbox, trimmed.
+
+    The model emitted a top-level ``questionDbid`` next to eight correctly grounded
+    answers. ``extra="forbid"`` turned that one hallucinated key into a parse error, threw
+    all eight answers away, and reported the questionnaire as failed.
+    """
+    client = _client(
+        {
+            "questionDbid": 0,
+            "questionnaireDbid": 0,
+            "items": [
+                {"questionDbid": 10, "status": "answered", "value": "electrician", "evidence": [_ev("t1")]},
+                {"questionDbid": 11, "status": "answered", "value": "3", "evidence": [_ev("t2")]},
+            ],
+        }
+    )
+    result = fill_chunk("PHQ-9", _questions(), _transcript(), client)
+    assert [item.question_dbid for item in result.items] == [10, 11]
+
+
+def test_one_malformed_item_does_not_take_its_siblings_down() -> None:
+    """A chunk is one request carrying the whole transcript, so salvage what validated."""
+    client = _client(
+        {
+            "items": [
+                {"questionDbid": 10, "status": "answered", "value": "electrician", "evidence": [_ev("t1")]},
+                {"status": "answered", "value": "no question dbid at all"},
+                {"questionDbid": 11, "status": "answered", "value": "3", "evidence": [_ev("t2")]},
+            ]
+        }
+    )
+    result = fill_chunk("PHQ-9", _questions(), _transcript(), client)
+    assert [item.question_dbid for item in result.items] == [10, 11]
+
+
+def test_nothing_salvageable_still_fails() -> None:
+    """Salvage must not turn a genuinely broken response into a silent empty success."""
+    client = _client({"items": [{"status": "answered"}]})
+    with pytest.raises(FillChunkError) as excinfo:
+        fill_chunk("PHQ-9", _questions(), _transcript(), client)
+    assert excinfo.value.kind == "parse_error"
+
+
+def test_a_truncated_response_fails_instead_of_reading_as_abstention() -> None:
+    """A chunk cut off at max_tokens must not look like a deliberate abstention.
+
+    Anthropic drops the incomplete tool_use arguments when generation stops at
+    max_tokens, so the block arrives with an empty ``input``. That parses cleanly as "no
+    items", which is exactly what a correct abstention looks like. Confirmed against the
+    real API: stop_reason "max_tokens", one tool_use block, input {}.
+    """
+    client = _client({"items": []})
+    client.last_stop_reason = "max_tokens"
+    with pytest.raises(FillChunkError) as excinfo:
+        fill_chunk("PHQ-9", _questions(), _transcript(), client)
+    assert excinfo.value.kind == "truncated"
+    assert excinfo.value.retryable is False, "the same chunk would truncate again"
+
+
+def test_a_complete_response_is_not_treated_as_truncated() -> None:
+    client = _client({"items": []})
+    client.last_stop_reason = "tool_use"
+    assert fill_chunk("PHQ-9", _questions(), _transcript(), client).items == []
+
+
+def test_truncation_does_not_abandon_the_fan_out() -> None:
+    """Truncation is a bad answer, not an unavailable API."""
+    from hyperscribe.scribe.recommendations.questionnaire_fill import ABORT_KINDS
+
+    assert "truncated" not in ABORT_KINDS
+
+
 def test_fill_chunk_unparseable_response() -> None:
     client = MagicMock()
     client.request.return_value = LlmResponse(
@@ -377,6 +471,89 @@ def test_fill_questionnaires_warm_up_failure_abandons_the_fan_out(monkeypatch: p
     assert outcomes[0].drafted == 0
 
 
+def test_a_parse_error_on_the_warm_up_does_not_abandon_the_fan_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A parse error means the API answered, so the other chunks are still worth running.
+
+    On scribeqa-sandbox one stray key in the first response abandoned every chunk of all
+    three questionnaires on the note, and each was reported with the same failure. The
+    abort is an outage probe; only an unavailable API should trigger it.
+    """
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire",
+        lambda dbid: _long_definition(12),
+    )
+    made: list[MagicMock] = []
+
+    def factory() -> MagicMock:
+        # The warm-up returns an unparseable body; every later chunk is fine.
+        if not made:
+            client = MagicMock()
+            client.last_usage = {}
+            client.request.return_value = LlmResponse(
+                code=HTTPStatus.OK, response="{not json", tokens=LlmTokens(prompt=0, generated=0)
+            )
+        else:
+            client = _client({"items": [_answer_for(506), _answer_for(507)]})
+        made.append(client)
+        return client
+
+    outcomes, telemetry = fill_questionnaires([7], _transcript(), "key", client_factory=factory)
+    assert telemetry["aborted"] is False
+    assert len(made) == telemetry["chunks"], "every chunk after the warm-up still ran"
+    # Partial rather than filled: the later chunks answered, but the warm-up chunk's own
+    # questions never got read, and that is exactly what must not be silent.
+    assert outcomes[0].status == "partial"
+    assert outcomes[0].drafted == 2
+    assert len(outcomes[0].unread) == CHUNK_SIZE
+
+
+def test_an_unavailable_api_on_the_warm_up_still_abandons_the_fan_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The pair to the test above: a 5xx is an outage, so the abort must still fire."""
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire",
+        lambda dbid: _long_definition(12),
+    )
+    calls = {"n": 0}
+
+    def factory() -> MagicMock:
+        calls["n"] += 1
+        return _client({"items": []}, code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    _, telemetry = fill_questionnaires([7], _transcript(), "key", client_factory=factory)
+    assert telemetry["aborted"] is True
+    assert calls["n"] == 1
+
+
+def test_a_parse_error_on_one_questionnaire_leaves_the_others_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Three template questionnaires, one bad first response. The other two must fill."""
+    definitions = {
+        7: _long_definition(2),
+        8: _long_definition(2),
+        9: _long_definition(2),
+    }
+    monkeypatch.setattr(
+        "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire",
+        lambda dbid: definitions[dbid],
+    )
+    made: list[MagicMock] = []
+
+    def factory() -> MagicMock:
+        if not made:
+            client = MagicMock()
+            client.last_usage = {}
+            client.request.return_value = LlmResponse(
+                code=HTTPStatus.OK, response="{not json", tokens=LlmTokens(prompt=0, generated=0)
+            )
+        else:
+            client = _client({"items": [_answer_for(500), _answer_for(501)]})
+        made.append(client)
+        return client
+
+    outcomes, telemetry = fill_questionnaires([7, 8, 9], _transcript(), "key", client_factory=factory)
+    assert telemetry["aborted"] is False
+    assert [o.status for o in outcomes] == ["failed", "filled", "filled"]
+
+
 def test_fill_questionnaires_one_failed_chunk_keeps_the_others(monkeypatch: pytest.MonkeyPatch) -> None:
     definition = _long_definition(12)
     monkeypatch.setattr(
@@ -399,10 +576,12 @@ def test_fill_questionnaires_one_failed_chunk_keeps_the_others(monkeypatch: pyte
     outcome = outcomes[0]
     # The surviving chunk's answers landed, so the questionnaire is not reported as failed.
     assert outcome.drafted == 2
-    assert outcome.error is None
-    # The failed chunk's questions are present, blank, and editable.
+    assert outcome.status == "partial", "not a clean fill: six questions were never read"
+    # The failed chunk's questions are present, blank, and editable - and now also named, so
+    # the card can distinguish "never read" from "read and declined".
     assert len(outcome.data["questions"]) == 12
     assert all("fill" not in q for q in outcome.data["questions"][CHUNK_SIZE:])
+    assert outcome.unread == [q["dbid"] for q in outcome.data["questions"][CHUNK_SIZE:]]
 
 
 def test_fill_questionnaires_accumulates_cache_telemetry(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -592,8 +771,14 @@ def test_no_questionnaires_requested_is_a_caller_error_not_an_outcome() -> None:
     assert fill_questionnaires([], _transcript(), "key")[0] == []
 
 
-def test_status_filled_when_one_chunk_failed_but_another_landed(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A partial success is a success: the surviving answers are real and grounded."""
+def test_status_partial_when_one_chunk_failed_but_another_landed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A partial success is not a clean fill, and the difference has to reach the card.
+
+    The surviving answers are real and grounded, so the questionnaire is not a failure. But
+    the questions in the failed chunk were never read, and reporting the whole thing as
+    ``filled`` left them sitting blank next to copy that said the model had considered them
+    and declined. Silence looked like a finding.
+    """
     definition = _long_definition(12)
     monkeypatch.setattr(
         "hyperscribe.scribe.recommendations.questionnaire_fill.load_questionnaire", lambda dbid: definition
@@ -610,8 +795,12 @@ def test_status_filled_when_one_chunk_failed_but_another_landed(monkeypatch: pyt
         return client
 
     outcomes, _ = fill_questionnaires([7], _transcript(), "key", client_factory=factory)
-    assert outcomes[0].status == "filled"
-    assert outcomes[0].error is None
+    outcome = outcomes[0]
+    assert outcome.status == "partial"
+    assert outcome.drafted == 1, "the surviving answer landed"
+    # The failed chunk was questions 506..511, so those are the ones never read.
+    assert outcome.unread == [506, 507, 508, 509, 510, 511]
+    assert outcome.error is not None, "the cause survives into the audit row"
 
 
 def test_assessed_is_zero_when_the_model_returns_nothing(monkeypatch: pytest.MonkeyPatch) -> None:

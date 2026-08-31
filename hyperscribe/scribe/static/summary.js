@@ -1479,7 +1479,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             if (!match) return c;
             // Recorded on the command so the footer can report it when the card is
             // opened. The collapsed row stays silent, as with everything else here.
-            const data = { ...c.data, fill_status: match.status };
+            const data = { ...c.data, fill_status: match.status, fill_unread: match.unread || 0 };
             if (!match.data) return { ...c, data };
             const merged = mergeFilled({
               dbid: c.data.questionnaire_dbid,

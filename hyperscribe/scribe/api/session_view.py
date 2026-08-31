@@ -115,6 +115,7 @@ from hyperscribe.scribe.recommendations.interactions import (
 from hyperscribe.scribe.recommendations.questionnaire_fill import (
     STATUS_ABSTAINED,
     STATUS_FILLED,
+    STATUS_PARTIAL,
     fill_questionnaires,
     resolve_questionnaire_definition,
 )
@@ -2072,7 +2073,27 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         telemetry["elapsed_ms"] = int((time.time() - started) * 1000)
         results: list[dict[str, Any]] = []
         for outcome in outcomes:
-            if outcome.error:
+            if outcome.status == STATUS_PARTIAL:
+                # Checked before ``outcome.error``, which a partial also carries. It needs
+                # its own row rather than the failure one, because the answers that did land
+                # are going into the chart and the audit has to hold them - same reason the
+                # filled branch records ``items``. ``unread`` is the count of questions the
+                # model never saw, which is the part a provider cannot otherwise tell from a
+                # question the model read and declined to answer.
+                audit_event(
+                    note_uuid,
+                    "QUESTIONNAIRE_FILL_PARTIAL",
+                    {
+                        "questionnaire_dbid": outcome.questionnaire_dbid,
+                        "drafted": outcome.drafted,
+                        "total": outcome.total,
+                        "unread": len(outcome.unread),
+                        "reason": (outcome.error or "")[:200],
+                        "items": [item.model_dump() for item in outcome.items],
+                        **telemetry,
+                    },
+                )
+            elif outcome.error:
                 # Emitted per questionnaire, not per run: a chunk failing on one screener
                 # while another fills fine is exactly the case that used to disappear into
                 # a silent None.
@@ -2117,6 +2138,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     "data": outcome.data,
                     "drafted": outcome.drafted,
                     "total": outcome.total,
+                    "unread": len(outcome.unread),
                     "error": outcome.error,
                 }
             )

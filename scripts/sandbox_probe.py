@@ -42,9 +42,11 @@ SAFE_DUNDERS = set(SAFE_EXTERNAL_DUNDER_READ_ATTRIBUTES)
 
 # Builtins the sandbox provides. Mirrors the dict the runner installs as __builtins__:
 # RestrictedPython's two base sets plus the explicit additions. Notably absent: `type`,
-# `open`, `eval`, `exec`, `set`, `frozenset`, `sorted`, `print`, `isinstance`, `id`.
-# Calling one of those raises NameError at REQUEST time, which `canvas validate` cannot
-# see because it only executes module-level code.
+# `open`, `eval`, `exec`, `print`, `format`, `id`. Calling one of those raises NameError at
+# REQUEST time, which `canvas validate` cannot see because it only executes module-level
+# code. `isinstance`, `issubclass`, `set`, `frozenset` and `sorted` ARE available - they
+# come in via RestrictedPython's safe_builtins, and an earlier version of this comment
+# wrongly listed them as absent.
 ALLOWED_BUILTINS = (
     set(safe_builtins)
     | set(utility_builtins)

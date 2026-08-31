@@ -313,6 +313,7 @@ def _outcome(
     total: int = 4,
     items: list | None = None,
     error: str | None = None,
+    unread: list[int] | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         questionnaire_dbid=7,
@@ -323,6 +324,7 @@ def _outcome(
         error=error,
         items=items or [],
         assessed=len(items or []),
+        unread=unread or [],
     )
 
 
@@ -481,3 +483,46 @@ def test_a_failed_fill_is_audited_and_reported(
     assert result["status"] == "failed"
     assert result["error"] == "LLM returned 500"
     assert [c.args[1] for c in mock_audit.call_args_list] == ["QUESTIONNAIRE_FILL_FAILED"]
+
+
+@fill_patches
+def test_a_partial_fill_gets_its_own_audit_row_and_keeps_its_items(
+    mock_auth: MagicMock,
+    mock_provider: MagicMock,
+    mock_load: MagicMock,
+    mock_parse: MagicMock,
+    mock_fill: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    """A partial carries an error, so it must be checked before the failure branch.
+
+    Falling into QUESTIONNAIRE_FILL_FAILED would drop ``items``, and those answers are going
+    into the chart, so the audit has to hold them.
+    """
+    mock_fill.return_value = (
+        [_outcome("partial", drafted=3, total=9, items=[MagicMock()], error="parse_error: ...", unread=[5, 6, 7])],
+        {"chunks": 3},
+    )
+
+    result = json.loads(_post().content)["results"][0]
+
+    assert (result["status"], result["drafted"], result["total"], result["unread"]) == ("partial", 3, 9, 3)
+    assert [c.args[1] for c in mock_audit.call_args_list] == ["QUESTIONNAIRE_FILL_PARTIAL"]
+    payload = mock_audit.call_args_list[0].args[2]
+    assert payload["unread"] == 3
+    assert len(payload["items"]) == 1, "the drafted answers reach the audit row"
+    assert payload["reason"].startswith("parse_error")
+
+
+@fill_patches
+def test_a_clean_fill_reports_no_unread(
+    mock_auth: MagicMock,
+    mock_provider: MagicMock,
+    mock_load: MagicMock,
+    mock_parse: MagicMock,
+    mock_fill: MagicMock,
+    mock_audit: MagicMock,
+) -> None:
+    mock_fill.return_value = ([_outcome("filled", drafted=9, total=9, items=[MagicMock()])], {"chunks": 2})
+
+    assert json.loads(_post().content)["results"][0]["unread"] == 0

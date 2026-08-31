@@ -72,3 +72,20 @@ export function clearDrafted(questions) {
     };
   });
 }
+
+// The footer's count line, as data rather than markup, because it makes a clinical claim and
+// a wrong claim here is invisible.
+//
+// When nothing failed, the questions left blank really were read and declined, and the plain
+// count says so. When a chunk failed, its questions were never read at all - a different
+// thing entirely, which the card used to report as if the model had looked at them and found
+// nothing. Returns null when there is nothing worth saying: a complete fill needs no count,
+// because every chip is already navy.
+export function draftedCountLine(draftedCount, totalQuestions, unread = 0) {
+  if (!draftedCount) return null;
+  if (unread > 0) {
+    return { text: `${draftedCount} of ${totalQuestions} answered. ${unread} could not be read.`, failed: true };
+  }
+  if (draftedCount >= totalQuestions) return null;
+  return { text: `${draftedCount} of ${totalQuestions} answered from the transcript`, failed: false };
+}

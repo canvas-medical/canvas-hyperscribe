@@ -41,6 +41,7 @@ CACHE_CONTROL = {"type": "ephemeral"}
 FAILURE_TIMEOUT = "timeout"
 FAILURE_CONNECTION = "connection_error"
 FAILURE_TRANSPORT = "transport_error"
+FAILURE_TRUNCATED = "truncated"
 
 # Concrete `requests` exception class names. Classified by NAME rather than by `isinstance`
 # because the sandbox's ALLOWED_MODULES exposes only a handful of names from `requests`
@@ -126,6 +127,12 @@ class ScribeLlmAnthropic(LlmAnthropic):
         # counts, which drops ``cache_read_input_tokens`` — the one number that says
         # whether the prefix caching this design depends on is actually working.
         self.last_usage: dict[str, Any] = {}
+        # ``stop_reason`` from the last response. Anthropic drops the incomplete tool_use
+        # arguments when generation is cut off at ``max_tokens``, so the block arrives with
+        # an empty ``input``. That parses cleanly as "no items", which is indistinguishable
+        # from the model deliberately abstaining on every question - the worst available
+        # failure for a feature whose whole safety story is that abstention is meaningful.
+        self.last_stop_reason: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         """Compose the request body, stamping ``cache_control`` on the prefix block."""
@@ -161,6 +168,7 @@ class ScribeLlmAnthropic(LlmAnthropic):
         it 500s the request with no plugin log.
         """
         self.last_usage = {}
+        self.last_stop_reason = ""
         headers = {
             "Content-Type": "application/json",
             "anthropic-version": "2023-06-01",
@@ -193,6 +201,7 @@ class ScribeLlmAnthropic(LlmAnthropic):
         else:
             text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
 
+        self.last_stop_reason = body.get("stop_reason") or ""
         self.last_usage = body.get("usage") or {}
         tokens = LlmTokens(
             prompt=self.last_usage.get("input_tokens") or 0,
