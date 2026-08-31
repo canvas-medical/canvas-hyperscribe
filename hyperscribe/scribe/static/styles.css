@@ -2273,6 +2273,11 @@ select.history-form-input {
 .exam-merge-error { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 12px; padding: 10px 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; color: #7c2d12; font-size: 13px; line-height: 1.45; }
 .exam-merge-error-x { margin-left: auto; flex: 0 0 auto; border: 0; background: none; color: #9a3412; font-size: 16px; line-height: 1; cursor: pointer; padding: 0 2px; }
 .exam-merge-error-x:hover { color: #7c2d12; }
+/* In-flight chip for the first merge, which is a ~10s round trip. Mirrors the
+   questionnaire card's .q-status/.q-spin so the two read alike, but with its own class
+   names so neither feature can break the other. Reuses the existing q-spin keyframes. */
+.exam-status { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: #6b7280; white-space: nowrap; padding: 0 4px; }
+.exam-spin { width: 12px; height: 12px; border: 2px solid #e0e5eb; border-top-color: #6b7280; border-radius: 50%; animation: q-spin 0.7s linear infinite; }
 /* Template ▾ menu — pick a template, then confirm via the shared popover. */
 .exam-dropdown { position: relative; }
 .exam-menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; min-width: 240px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 14px 36px rgba(15,23,42,.16); padding: 6px; }
@@ -2364,7 +2369,7 @@ select.history-form-input {
 .q-ev p { margin: 0; }
 .q-ev p + p { margin-top: 5px; }
 @keyframes q-ev-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .q-ev { animation: none; } .q-spin { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .q-ev { animation: none; } .q-spin { animation: none; } .exam-spin { animation: none; } }
 
 /* Footer: one bound group at the left holding the action and every status it
    produces, so nothing bleeds into Cancel and Save at the right. */
