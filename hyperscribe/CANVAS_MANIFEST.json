@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.164.0",
-  "plugin_version": "2026-08-31 v0.4.62",
+  "plugin_version": "2026-08-31 v0.4.63",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -298,6 +298,7 @@
     "ScribeQuestionnaireFillStaffers",
     "ScribeFillModel",
     "ScribeFillEffort",
+    "ScribeLabAoeEnabled",
     "ScribeTabName",
     "StaffersList",
     "StaffersPolicy",

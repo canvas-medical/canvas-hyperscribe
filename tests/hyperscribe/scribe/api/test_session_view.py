@@ -7864,3 +7864,37 @@ def test_soap_group_raw_section_text_guards_work_as_a_pair() -> None:
         "social_history, past_obstetric_history, and immunizations, none of which reach "
         "the showHistoryText guard above. It is load-bearing, not redundant with it."
     )
+
+
+# --- lab AOE secret gate ---
+
+
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.recommend_commands", return_value=[])
+def test_recommend_commands_lab_aoe_off_when_secret_unset(
+    mock_recommend: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note": {"title": "Note", "sections": []}}))
+
+    view.post_recommend_commands()
+
+    assert mock_recommend.call_args.kwargs["aoe_enabled"] is False
+
+
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.recommend_commands", return_value=[])
+def test_recommend_commands_lab_aoe_on_when_secret_set(
+    mock_recommend: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.secrets["ScribeLabAoeEnabled"] = "true"
+    view.request = SimpleNamespace(body=json.dumps({"note": {"title": "Note", "sections": []}}))
+
+    view.post_recommend_commands()
+
+    assert mock_recommend.call_args.kwargs["aoe_enabled"] is True
