@@ -144,6 +144,7 @@ def test_constants():
         "SECRET_SCRIBE_QUESTIONNAIRE_FILL_STAFFERS": "ScribeQuestionnaireFillStaffers",
         "SECRET_SCRIBE_FILL_MODEL": "ScribeFillModel",
         "SECRET_SCRIBE_FILL_EFFORT": "ScribeFillEffort",
+        "SECRET_SCRIBE_LAB_AOE": "ScribeLabAoeEnabled",
         "SECRET_SCRIBE_TAB_NAME": "ScribeTabName",
         "SECRET_SCRIBE_HIDE_CHART_BUTTONS": "ScribeHideChartButtons",
         "SECRET_TRIAL_STAFFERS_LIST": "TrialStaffersList",

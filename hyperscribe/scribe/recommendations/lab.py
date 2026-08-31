@@ -47,7 +47,6 @@ _PASS1_SYSTEM_PROMPT = (
     "- tests: one entry per test with full name + comma-separated keyword synonyms "
     "(CPT name, common abbreviation, panel constituents) for compendium search (max 5 keywords)\n"
     "- fasting_required: true/false if mentioned; null otherwise\n"
-    "- comment: brief note (max 128 chars)\n"
     "- reason: the note excerpt explaining the order\n\n"
     "Return empty list if no orders found."
 )
@@ -237,6 +236,11 @@ def _build_aoe_payload(
 
 
 class LabRecommender(BaseRecommender):
+    def __init__(self, aoe_enabled: bool = False) -> None:
+        # When False (the default), the Ask-On-Order-Entry pass is skipped entirely:
+        # no question lookup, no second LLM call, and both AOE lists come back empty.
+        self.aoe_enabled = aoe_enabled
+
     def recommend(
         self,
         note: ClinicalNote,
@@ -300,51 +304,54 @@ class LabRecommender(BaseRecommender):
                 unique_tests.setdefault(test.dbid, test)
         all_resolved_tests = list(unique_tests.values())
 
-        questions = list(
-            LabPartnerTestQuestion.objects.filter(
-                lab_partner_test__in=all_resolved_tests,
-            ).prefetch_related("choices"),
-        )
-
         test_questions: dict[str, tuple[str, list[LabPartnerTestQuestion]]] = {}
         valid_keys: set[tuple[str, str]] = set()
-        for question in questions:
-            test = question.lab_partner_test
-            entry = test_questions.setdefault(test.order_code, (test.order_name, []))
-            entry[1].append(question)
-            valid_keys.add((test.order_code, question.code))
-
         aoe_answers_by_key: dict[tuple[str, str], AoeAnswer] = {}
-        if test_questions and transcript and transcript.items:
-            transcript_text = _format_transcript(transcript)
-            aoe_answers_by_key = _run_pass2(client, transcript_text, test_questions, valid_keys)
+        if self.aoe_enabled:
+            questions = list(
+                LabPartnerTestQuestion.objects.filter(
+                    lab_partner_test__in=all_resolved_tests,
+                ).prefetch_related("choices"),
+            )
+            for question in questions:
+                test = question.lab_partner_test
+                entry = test_questions.setdefault(test.order_code, (test.order_name, []))
+                entry[1].append(question)
+                valid_keys.add((test.order_code, question.code))
 
-        proposals: list[CommandProposal] = []
-        for order, resolved_tests in order_resolutions:
-            aoe_answers, missing_required = _build_aoe_payload(
-                resolved_tests,
-                test_questions,
-                aoe_answers_by_key,
-            )
-            display = ", ".join(t.order_name for t in resolved_tests)
-            proposals.append(
-                CommandProposal(
-                    command_type="lab_order",
-                    display=display,
-                    data={
-                        "lab_partner": str(lab_partner.id),
-                        "lab_partner_name": lab_partner.name,
-                        "tests_order_codes": [t.order_code for t in resolved_tests],
-                        "test_names": [t.order_name for t in resolved_tests],
-                        "fasting_required": bool(order.fasting_required),
-                        "comment": (order.comment or "")[:128] or None,
-                        "diagnosis_codes": [],
-                        "diagnosis_displays": [],
-                        "aoe_answers": aoe_answers,
-                        "missing_required_aoes": missing_required,
-                        "reason": order.reason,
-                    },
-                    section_key="_recommended",
-                ),
-            )
-        return proposals
+            if test_questions and transcript and transcript.items:
+                transcript_text = _format_transcript(transcript)
+                aoe_answers_by_key = _run_pass2(client, transcript_text, test_questions, valid_keys)
+
+        # One proposal for the whole note, not one per extracted order. Canvas models a
+        # requisition as a single LabOrder with many LabTest children sharing one fasting
+        # flag, and pass 1 groups by the note's A&P problem headings rather than by
+        # anything to do with specimen collection, so its split was not reproducible.
+        aoe_answers, missing_required = _build_aoe_payload(
+            all_resolved_tests,
+            test_questions,
+            aoe_answers_by_key,
+        )
+        return [
+            CommandProposal(
+                command_type="lab_order",
+                display=", ".join(t.order_name for t in all_resolved_tests),
+                data={
+                    "lab_partner": str(lab_partner.id),
+                    "lab_partner_name": lab_partner.name,
+                    "tests_order_codes": [t.order_code for t in all_resolved_tests],
+                    "test_names": [t.order_name for t in all_resolved_tests],
+                    # Fasting describes the patient's state at collection, not a per-test
+                    # requirement, so one order asking for it covers the requisition.
+                    "fasting_required": any(bool(order.fasting_required) for order, _ in order_resolutions),
+                    # Never generated. The provider types their own in the lab order card.
+                    "comment": None,
+                    "diagnosis_codes": [],
+                    "diagnosis_displays": [],
+                    "aoe_answers": aoe_answers,
+                    "missing_required_aoes": missing_required,
+                    "reason": " ".join(order.reason for order, _ in order_resolutions if order.reason),
+                },
+                section_key="_recommended",
+            ),
+        ]

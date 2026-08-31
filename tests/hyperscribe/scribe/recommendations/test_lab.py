@@ -639,7 +639,8 @@ def test_recommend_happy_path_no_aoe_no_transcript() -> None:
     assert p.data["test_names"] == ["Complete Blood Count"]
     assert p.data["diagnosis_displays"] == []
     assert p.data["fasting_required"] is False
-    assert p.data["comment"] == "fasting OK"
+    # Comments are never generated; the provider types their own in the card.
+    assert p.data["comment"] is None
     assert p.data["diagnosis_codes"] == []
     assert p.data["aoe_answers"] == []
     assert p.data["missing_required_aoes"] == []
@@ -739,7 +740,7 @@ def test_recommend_with_aoe_extracted_from_transcript() -> None:
             qs_mock,
         ),
     ):
-        proposals = LabRecommender().recommend(note, client, transcript=transcript)
+        proposals = LabRecommender(aoe_enabled=True).recommend(note, client, transcript=transcript)
 
     assert len(proposals) == 1
     data = proposals[0].data
@@ -804,7 +805,7 @@ def test_recommend_pass2_skipped_when_no_questions() -> None:
             qs_mock,
         ),
     ):
-        proposals = LabRecommender().recommend(note, client, transcript=transcript)
+        proposals = LabRecommender(aoe_enabled=True).recommend(note, client, transcript=transcript)
 
     # Only one LLM request should have been made (pass 1)
     assert client.request.call_count == 1
@@ -878,7 +879,7 @@ def test_recommend_pass2_error_still_emits_proposal() -> None:
             qs_mock,
         ),
     ):
-        proposals = LabRecommender().recommend(note, client, transcript=transcript)
+        proposals = LabRecommender(aoe_enabled=True).recommend(note, client, transcript=transcript)
 
     assert len(proposals) == 1
     data = proposals[0].data
@@ -941,10 +942,259 @@ def test_recommend_no_transcript_skips_pass2_marks_required_missing() -> None:
             qs_mock,
         ),
     ):
-        proposals = LabRecommender().recommend(note, client, transcript=None)
+        proposals = LabRecommender(aoe_enabled=True).recommend(note, client, transcript=None)
 
     # Only pass 1 was called, no pass 2
     assert client.request.call_count == 1
     assert len(proposals) == 1
     assert proposals[0].data["aoe_answers"] == []
     assert len(proposals[0].data["missing_required_aoes"]) == 1
+
+
+# ---------- single-proposal collapse ----------
+
+
+def _patch_multi_test_resolution(tests_by_keyword: dict[str, MagicMock]):
+    """Patch LabPartnerTest so each search keyword resolves to its own compendium row."""
+
+    def outer_filter(**_kwargs: Any) -> MagicMock:
+        filter_initial = MagicMock()
+
+        def inner_filter(*args: Any, **_kw: Any) -> MagicMock:
+            # _resolve_tests passes a Q object; recover the keyword from its children.
+            keyword = ""
+            if args:
+                children = getattr(args[0], "children", [])
+                for child in children:
+                    if isinstance(child, tuple) and len(child) == 2:
+                        keyword = str(child[1])
+                        break
+            chained = MagicMock()
+            chained.first.return_value = tests_by_keyword.get(keyword)
+            return chained
+
+        filter_initial.filter.side_effect = inner_filter
+        return filter_initial
+
+    return patch(
+        "hyperscribe.scribe.recommendations.lab.LabPartnerTest.objects",
+        MagicMock(filter=MagicMock(side_effect=outer_filter)),
+    )
+
+
+def test_recommend_collapses_multiple_orders_into_one_proposal() -> None:
+    """Two extracted orders become ONE lab card carrying every resolved test."""
+    note = _make_note([NoteSection(key="plan", title="Plan", text="Order CBC and a urine culture")])
+    client = _make_client(
+        [
+            {
+                "orders": [
+                    {
+                        "tests": [{"name": "Complete Blood Count", "keywords": "CBC"}],
+                        "fastingRequired": True,
+                        "reason": "fatigue workup",
+                    },
+                    {
+                        "tests": [{"name": "Culture, Urine, Routine", "keywords": "urine cx"}],
+                        "fastingRequired": False,
+                        "reason": "dysuria",
+                    },
+                ],
+            },
+        ]
+    )
+    partner = _make_partner(name="Generic Lab")
+    cbc = _make_test(dbid=10, order_code="CBC", order_name="Complete Blood Count")
+    culture = _make_test(dbid=11, order_code="395", order_name="CULTURE, URINE, ROUTINE")
+
+    qs_filter = MagicMock()
+    qs_filter.prefetch_related.return_value = []
+    qs_mock = MagicMock()
+    qs_mock.filter.return_value = qs_filter
+
+    p_setting, p_partner = _patch_partner_resolution(
+        preferred_value="Generic Lab",
+        name_match=partner,
+        fallback=None,
+    )
+    with (
+        p_setting,
+        p_partner,
+        _patch_multi_test_resolution({"Complete Blood Count": cbc, "Culture, Urine, Routine": culture}),
+        patch("hyperscribe.scribe.recommendations.lab.LabPartnerTestQuestion.objects", qs_mock),
+    ):
+        proposals = LabRecommender().recommend(note, client)
+
+    assert len(proposals) == 1
+    p = proposals[0]
+    assert p.data["tests_order_codes"] == ["CBC", "395"]
+    assert p.data["test_names"] == ["Complete Blood Count", "CULTURE, URINE, ROUTINE"]
+    assert p.display == "Complete Blood Count, CULTURE, URINE, ROUTINE"
+    # One order asked for fasting, so the whole requisition does.
+    assert p.data["fasting_required"] is True
+    assert p.data["reason"] == "fatigue workup dysuria"
+    assert p.data["comment"] is None
+
+
+def test_recommend_collapse_dedupes_a_test_named_by_two_orders() -> None:
+    """The same compendium row reached from two orders appears once, not twice."""
+    note = _make_note([NoteSection(key="plan", title="Plan", text="Order CBC twice over")])
+    client = _make_client(
+        [
+            {
+                "orders": [
+                    {
+                        "tests": [{"name": "Complete Blood Count", "keywords": "CBC"}],
+                        "fastingRequired": False,
+                        "reason": "first",
+                    },
+                    {
+                        "tests": [{"name": "CBC", "keywords": "hemogram"}],
+                        "fastingRequired": False,
+                        "reason": "second",
+                    },
+                ],
+            },
+        ]
+    )
+    partner = _make_partner(name="Generic Lab")
+    cbc = _make_test(dbid=10, order_code="CBC", order_name="Complete Blood Count")
+
+    qs_filter = MagicMock()
+    qs_filter.prefetch_related.return_value = []
+    qs_mock = MagicMock()
+    qs_mock.filter.return_value = qs_filter
+
+    p_setting, p_partner = _patch_partner_resolution(
+        preferred_value="Generic Lab",
+        name_match=partner,
+        fallback=None,
+    )
+    with (
+        p_setting,
+        p_partner,
+        _patch_multi_test_resolution({"Complete Blood Count": cbc, "CBC": cbc}),
+        patch("hyperscribe.scribe.recommendations.lab.LabPartnerTestQuestion.objects", qs_mock),
+    ):
+        proposals = LabRecommender().recommend(note, client)
+
+    assert len(proposals) == 1
+    assert proposals[0].data["tests_order_codes"] == ["CBC"]
+    assert proposals[0].data["fasting_required"] is False
+
+
+def test_recommend_drops_a_model_supplied_comment() -> None:
+    """Even when the model emits a comment, none reaches the proposal."""
+    note = _make_note([NoteSection(key="plan", title="Plan", text="Order CBC")])
+    client = _make_client(
+        [
+            {
+                "orders": [
+                    {
+                        "tests": [{"name": "Complete Blood Count", "keywords": "CBC"}],
+                        "fastingRequired": False,
+                        "comment": "Fast at least 10 hours prior to blood draw",
+                        "reason": "screening",
+                    },
+                ],
+            },
+        ]
+    )
+    partner = _make_partner(name="Generic Lab")
+    cbc = _make_test(dbid=10, order_code="CBC", order_name="Complete Blood Count")
+
+    chained = MagicMock()
+    chained.first.return_value = cbc
+    filter_initial = MagicMock()
+    filter_initial.filter.return_value = chained
+
+    qs_filter = MagicMock()
+    qs_filter.prefetch_related.return_value = []
+    qs_mock = MagicMock()
+    qs_mock.filter.return_value = qs_filter
+
+    p_setting, p_partner = _patch_partner_resolution(
+        preferred_value="Generic Lab",
+        name_match=partner,
+        fallback=None,
+    )
+    with (
+        p_setting,
+        p_partner,
+        patch(
+            "hyperscribe.scribe.recommendations.lab.LabPartnerTest.objects",
+            MagicMock(filter=MagicMock(return_value=filter_initial)),
+        ),
+        patch("hyperscribe.scribe.recommendations.lab.LabPartnerTestQuestion.objects", qs_mock),
+    ):
+        proposals = LabRecommender().recommend(note, client)
+
+    assert proposals[0].data["comment"] is None
+
+
+def test_pass1_prompt_does_not_ask_for_a_comment() -> None:
+    from hyperscribe.scribe.recommendations.lab import _PASS1_SYSTEM_PROMPT
+
+    assert "comment" not in _PASS1_SYSTEM_PROMPT.lower()
+
+
+# ---------- AOE gate ----------
+
+
+def test_recommend_aoe_off_by_default_skips_question_lookup_and_pass2() -> None:
+    """Default recommender never queries AOE questions and never runs pass 2."""
+    note = _make_note([NoteSection(key="plan", title="Plan", text="Order CBC")])
+    client = _make_client(
+        [
+            {
+                "orders": [
+                    {
+                        "tests": [{"name": "Complete Blood Count", "keywords": "CBC"}],
+                        "fastingRequired": False,
+                        "reason": "screening",
+                    },
+                ],
+            },
+        ]
+    )
+    partner = _make_partner(name="Generic Lab")
+    cbc = _make_test(dbid=10, order_code="CBC", order_name="Complete Blood Count")
+    transcript = Transcript(
+        items=[
+            TranscriptItem(
+                text="It was a clean catch midstream sample.",
+                speaker="DOCTOR",
+                start_offset_ms=0,
+                end_offset_ms=1000,
+            ),
+        ],
+    )
+
+    chained = MagicMock()
+    chained.first.return_value = cbc
+    filter_initial = MagicMock()
+    filter_initial.filter.return_value = chained
+
+    qs_mock = MagicMock()
+
+    p_setting, p_partner = _patch_partner_resolution(
+        preferred_value="Generic Lab",
+        name_match=partner,
+        fallback=None,
+    )
+    with (
+        p_setting,
+        p_partner,
+        patch(
+            "hyperscribe.scribe.recommendations.lab.LabPartnerTest.objects",
+            MagicMock(filter=MagicMock(return_value=filter_initial)),
+        ),
+        patch("hyperscribe.scribe.recommendations.lab.LabPartnerTestQuestion.objects", qs_mock),
+    ):
+        proposals = LabRecommender().recommend(note, client, transcript=transcript)
+
+    # No question lookup at all, and only pass 1 hit the LLM.
+    qs_mock.filter.assert_not_called()
+    assert client.request.call_count == 1
+    assert proposals[0].data["aoe_answers"] == []
+    assert proposals[0].data["missing_required_aoes"] == []
