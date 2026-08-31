@@ -407,8 +407,11 @@ def _call_llm(
 
     try:
         response = client.request()
-    except Exception:
-        log.exception("merge %s: LLM request raised", section_type)
+    # Exception TYPE only, never the traceback. A transport error can carry the request
+    # body, and that body is the exam findings plus the note's other sections. Logs ship
+    # to S3 when credentials are configured, so PHI in a log line leaves the instance.
+    except Exception as exc:
+        log.warning("merge %s: LLM request raised %s", section_type, type(exc).__name__)
         return None
 
     if response.code != HTTPStatus.OK:
@@ -417,8 +420,10 @@ def _call_llm(
 
     try:
         parsed = ReconciliationResult.model_validate(_unwrap(json.loads(response.response)))
-    except Exception:
-        log.exception("merge %s: unparseable response", section_type)
+    # Type only, for the same reason. Pydantic puts the offending input in the message,
+    # and that input is the merged exam: a short row such as "Passive SI" appears verbatim.
+    except Exception as exc:
+        log.warning("merge %s: unparseable response (%s)", section_type, type(exc).__name__)
         return None
 
     result: list[dict[str, Any]] = []
