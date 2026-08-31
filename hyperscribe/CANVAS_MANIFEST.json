@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.164.0",
-  "plugin_version": "2026-08-31 v0.4.63",
+  "plugin_version": "2026-08-31 v0.4.64",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -288,6 +288,7 @@
     "NotionFeedbackDatabaseId",
     "ScribeBackend",
     "ScribeDebugStaffers",
+    "ScribeExamTemplateMerge",
     "ScribeDictationEnabled",
     "ScribeCaptureDictationEnabled",
     "ScribeHideChartButtons",
@@ -309,9 +310,9 @@
     "VisitTemplates"
   ],
   "tags": {
-    "version_date": "2026-08-24",
-    "version_branch": "remove-hyperscribe-customization-app",
-    "version_semantic": "0.4.47"
+    "version_date": "2026-08-31",
+    "version_branch": "feat/ai-physical-exam",
+    "version_semantic": "0.4.64"
   },
   "custom_data": {
     "namespace": "canvas_medical__scribe",

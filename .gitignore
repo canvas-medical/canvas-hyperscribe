@@ -19,3 +19,5 @@ artifacts/
 .ruff_cache/
 htmlcov/
 *.egg-info/
+evaluations/cases/*/*/report/
+invalid_output.json
