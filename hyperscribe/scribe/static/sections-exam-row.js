@@ -135,7 +135,10 @@ export function ExamSectionsRow({
   const [draft, setDraft] = useState(seed);
   const [confirm, setConfirm] = useState(null);     // { kind: 'carry'|'clear'|'template'|'merge', index?, mode? }
   const [menuOpen, setMenuOpen] = useState(false);
-  const [busy, setBusy] = useState(false);           // carry-forward or merge in flight
+  // null | 'merge' | 'carry'. A tag rather than a boolean so the in-flight chip can
+  // name the right action, without a second flag that could drift out of sync with this
+  // one. Every read is a truthiness check, so `disabled=${busy}` is unchanged.
+  const [busy, setBusy] = useState(null);
   const [removed, setRemoved] = useState(!!(command.data && command.data.template_removed));
   const [mergeError, setMergeError] = useState(null);
   // A fresh merge's restore points live here until Save writes them onto command.data,
@@ -310,15 +313,19 @@ export function ExamSectionsRow({
       // the click are merged into rather than thrown away.
       const seq = ++reqSeq.current;
       setMergeError(null);
-      setBusy(true);
+      setBusy('merge');
       let result = null;
       try {
         result = onMergeTemplate && (await onMergeTemplate(sectionKind, cleanRows(draft)));
       } catch (e) {
         result = null;
       }
-      if (seq !== reqSeq.current) return;   // superseded by Save, Cancel, or a newer click
-      setBusy(false);
+      // Clear BEFORE the supersede check. Save and Cancel bump reqSeq, so returning first
+      // left this set for good and reopening the card showed a fully disabled toolbar. A
+      // second concurrent merge cannot reach here, because the button is disabled while the
+      // tag is set and both Save and Cancel close the editor.
+      setBusy(null);
+      if (seq !== reqSeq.current) return;   // superseded: drop the result, the tag is clear
       if (!result || !result.ok) {
         setMergeError((result && result.message) || 'The merge could not run. Nothing was changed.');
         return;
@@ -338,10 +345,10 @@ export function ExamSectionsRow({
       return;
     }
     if (action.kind === 'carry') {
-      setBusy(true);
+      setBusy('carry');
       let secs = [];
       try { secs = (onCarryForward && (await onCarryForward(sectionKind))) || []; } catch (e) { secs = []; }
-      setBusy(false);
+      setBusy(null);
       if (secs.length) setDraft(toRows(secs));  // silent no-op when no prior exam
     }
   };
@@ -388,7 +395,7 @@ export function ExamSectionsRow({
           `}
         </span>
         <button type="button" class="exam-action-btn" disabled=${busy} onClick=${() => setConfirm({ kind: 'carry' })} title="Overwrite with your last documented exam">
-          <span class="exam-ico">⤵</span> ${busy ? 'Loading…' : 'Carry forward'}
+          <span class="exam-ico">⤵</span> ${busy === 'carry' ? 'Loading…' : 'Carry forward'}
         </button>
         <button type="button" class="exam-action-btn" disabled=${busy} onClick=${() => setConfirm({ kind: 'clear' })} title="Remove all systems and findings">
           <span class="exam-ico">⊘</span> Clear
@@ -397,8 +404,13 @@ export function ExamSectionsRow({
           <button type="button" class="exam-action-btn" disabled=${busy}
             onClick=${() => setConfirm({ kind: 'merge', mode: mergeState, count: templateCount })}
             title=${MERGE_TITLE[mergeState]}>
-            <span class="exam-ico">${mergeState === 'undo' ? refreshIcon() : mergeIcon()}</span> ${busy && mergeState === 'apply' ? 'Merging…' : MERGE_LABEL[mergeState]}
+            <span class="exam-ico">${mergeState === 'undo' ? refreshIcon() : mergeIcon()}</span> ${MERGE_LABEL[mergeState]}
           </button>
+        `}
+        ${busy === 'merge' && html`
+          <span class="exam-status" role="status" aria-live="polite">
+            <span class="exam-spin"></span> Merging template defaults
+          </span>
         `}
       </div>
 
