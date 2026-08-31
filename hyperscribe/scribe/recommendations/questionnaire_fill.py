@@ -34,6 +34,7 @@ from hyperscribe.scribe.backend.models import Transcript
 from hyperscribe.scribe.recommendations._llm_client import (
     DEFAULT_EFFORT,
     DEFAULT_MODEL,
+    FAILURE_TRUNCATED,
     ScribeLlmAnthropic,
     make_fill_client,
 )
@@ -44,6 +45,16 @@ from hyperscribe.scribe.recommendations.schemas import QuestionnaireFillResult, 
 # 30s wall.
 CHUNK_SIZE = 6
 SINGLE_CALL_MAX = 8
+
+# Above this many characters of transcript, chunk harder. Question count alone is not a
+# good enough proxy for latency, because a long transcript adds prefill time on top of the
+# generation time the question count drives. Measured against a 43k-character, 47-minute
+# visit: 8 questions took 24s locally and 29s on the instance, one second inside the wall;
+# 6 took 20s; 4 took 15s and 13s. The instance runs consistently slower than a local call,
+# so the budget has to leave room for it. Chunking more costs almost nothing, because every
+# chunk after the first reads the cached transcript at a tenth of the input price.
+LONG_TRANSCRIPT_CHARS = 20_000
+LONG_CHUNK_SIZE = 4
 
 # Anthropic rate limits, not local CPU, are what bounds this.
 MAX_WORKERS = 4
@@ -130,15 +141,23 @@ def load_questionnaire(questionnaire_dbid: int) -> dict[str, Any]:
     return resolve_questionnaire_definition(QuestionnaireModel.objects.get(dbid=questionnaire_dbid))
 
 
-def chunk_questions(questions: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+def chunk_questions(questions: list[dict[str, Any]], transcript_chars: int = 0) -> list[list[dict[str, Any]]]:
     """Split a question list into per-request chunks.
 
     Short questionnaires run whole so they pay no cache-warm-up penalty; longer ones split
-    so no single request approaches the 30s wall.
+    so no single request approaches the 30s wall. Past ``LONG_TRANSCRIPT_CHARS`` the
+    shortcut is withdrawn and the chunks get smaller, because on a long visit even eight
+    questions in one call runs to the wall.
+
+    ``transcript_chars`` defaults to 0 so a caller that only wants the question-count
+    behaviour, and every existing test, gets it unchanged.
     """
-    if len(questions) <= SINGLE_CALL_MAX:
+    long_visit = transcript_chars >= LONG_TRANSCRIPT_CHARS
+    chunk_size = LONG_CHUNK_SIZE if long_visit else CHUNK_SIZE
+    single_call_max = LONG_CHUNK_SIZE if long_visit else SINGLE_CALL_MAX
+    if len(questions) <= single_call_max:
         return [questions] if questions else []
-    return [questions[i : i + CHUNK_SIZE] for i in range(0, len(questions), CHUNK_SIZE)]
+    return [questions[i : i + chunk_size] for i in range(0, len(questions), chunk_size)]
 
 
 def _render_transcript(transcript: Transcript) -> str:
@@ -188,6 +207,14 @@ FAILURE_KINDS = {
 }
 
 
+# Failure kinds that mean the API is unavailable, so the remaining chunks should be
+# abandoned rather than each marching into its own 30-second timeout. Everything else -
+# a parse error above all - means the API answered and the fan-out is still worth running.
+# A single stray key in one response used to abandon every chunk of every questionnaire on
+# the note, so one bad answer to one questionnaire took the other two down with it.
+ABORT_KINDS = frozenset({"timeout", "connection_error", "rate_limited", "server_error", "raised"})
+
+
 def failure_kind(code: Any) -> str:
     """Human-readable cause for a non-OK status."""
     if code in FAILURE_KINDS:
@@ -196,6 +223,30 @@ def failure_kind(code: Any) -> str:
         return "server_error" if int(code) >= 500 else "client_error"
     except (TypeError, ValueError):
         return "unknown"
+
+
+def _salvage_items(payload: Any) -> QuestionnaireFillResult | None:
+    """Keep the items that validate when the response as a whole does not.
+
+    A chunk is one request carrying the whole transcript, so throwing away every answer
+    because one of them is malformed is the most expensive possible reaction to the
+    smallest possible defect. Returns None when there is nothing to salvage, which sends
+    the caller back to raising ``parse_error``.
+    """
+    if not isinstance(payload, dict):
+        return None
+    raw_items = payload.get("items")
+    if not isinstance(raw_items, list):
+        return None
+    kept = []
+    for raw in raw_items:
+        try:
+            kept.append(QuestionnaireItemFill.model_validate(raw))
+        except Exception:
+            log.info("questionnaire fill: dropping an item that did not validate")
+    if not kept:
+        return None
+    return QuestionnaireFillResult(items=kept)
 
 
 class FillChunkError(Exception):
@@ -235,10 +286,26 @@ def fill_chunk(
         kind = failure_kind(response.code)
         retryable = response.code in _RETRYABLE or int(response.code) >= 500
         raise FillChunkError(f"{kind} (HTTP {int(response.code)}): {response.response}", retryable=retryable, kind=kind)
+    if getattr(client, "last_stop_reason", "") == "max_tokens":
+        # Loud rather than silent. The response is well-formed and empty, so without this
+        # the chunk reports a clean abstention on every question it was asked.
+        raise FillChunkError(
+            f"{FAILURE_TRUNCATED}: response cut off at max_tokens, answers discarded",
+            retryable=False,
+            kind=FAILURE_TRUNCATED,
+        )
     try:
-        result = QuestionnaireFillResult.model_validate(json.loads(response.response))
-    except Exception as exc:
+        payload = json.loads(response.response)
+    except (ValueError, TypeError) as exc:
         raise FillChunkError(f"parse_error: {response.response}", kind="parse_error") from exc
+    try:
+        result = QuestionnaireFillResult.model_validate(payload)
+    except Exception as exc:
+        salvaged = _salvage_items(payload)
+        if salvaged is None:
+            raise FillChunkError(f"parse_error: {response.response}", kind="parse_error") from exc
+        log.info(f"questionnaire fill: salvaged {len(salvaged.items)} item(s) from a response that did not validate")
+        result = salvaged
     return _apply_grounding_gate(result, transcript)
 
 
@@ -356,6 +423,11 @@ def build_fill_command_data(
 # most: "read the transcript and nothing supported an answer" is the grounding rule
 # working, and "never ran" is a bug. Both used to look like drafted == 0, error == None.
 STATUS_FILLED = "filled"
+# Some answers landed and some questions were never assessed, because the chunk carrying them
+# failed. Distinct from ``filled`` because the blank questions in this case were NOT
+# considered and declined - they were never read. Those look identical on the card, and
+# conflating them told the provider that silence was a finding.
+STATUS_PARTIAL = "partial"
 STATUS_ABSTAINED = "abstained"
 STATUS_NO_TRANSCRIPT = "no_transcript"
 STATUS_FAILED = "failed"
@@ -373,6 +445,7 @@ class FillOutcome:
         total: int = 0,
         error: str | None = None,
         items: list[QuestionnaireItemFill] | None = None,
+        unread: list[int] | None = None,
     ) -> None:
         self.questionnaire_dbid = questionnaire_dbid
         self.status = status
@@ -381,6 +454,9 @@ class FillOutcome:
         self.total = total
         self.error = error
         self.items = items or []
+        # dbids of questions whose chunk failed, so the model never saw them. Reported so
+        # the card can say "3 could not be read" instead of leaving them looking abstained.
+        self.unread = unread or []
 
     @property
     def assessed(self) -> int:
@@ -436,8 +512,13 @@ def fill_questionnaires(
             return client_factory()
         return make_fill_client(api_key, model=model, effort=effort, cache_index=TRANSCRIPT_BLOCK_INDEX)
 
+    transcript_chars = sum(len(item.text) for item in transcript.items)
+    telemetry["transcript_chars"] = transcript_chars
+
     definitions: dict[int, dict[str, Any]] = {}
     errors: dict[int, str] = {}
+    # Question dbids belonging to chunks that failed, per questionnaire.
+    unread: dict[int, set[int]] = {}
     results: dict[int, dict[int, QuestionnaireItemFill]] = {}
     work: list[tuple[int, list[dict[str, Any]]]] = []
     for dbid in questionnaire_dbids:
@@ -449,7 +530,8 @@ def fill_questionnaires(
             continue
         definitions[dbid] = definition
         results[dbid] = {}
-        for chunk in chunk_questions(definition["questions"]):
+        unread[dbid] = set()
+        for chunk in chunk_questions(definition["questions"], transcript_chars):
             work.append((dbid, chunk))
 
     telemetry["chunks"] = len(work)
@@ -467,7 +549,9 @@ def fill_questionnaires(
         for local_key, usage_key in usage_keys:
             telemetry[local_key] = telemetry[local_key] + (usage.get(usage_key) or 0)
 
-    def run(unit: tuple[int, list[dict[str, Any]]]) -> tuple[int, QuestionnaireFillResult | None, str | None]:
+    def run(
+        unit: tuple[int, list[dict[str, Any]]],
+    ) -> tuple[int, QuestionnaireFillResult | None, str | None, str | None]:
         dbid, chunk = unit
         client = make_client()
         try:
@@ -477,17 +561,20 @@ def fill_questionnaires(
             failures[exc.kind] = failures.get(exc.kind, 0) + 1
             log.info(f"questionnaire fill: chunk failed for {dbid} [{exc.kind}]: {exc}")
             record(client.last_usage)
-            return dbid, None, str(exc)
+            # ``.update()`` rather than ``|=``: the sandbox rejects augmented assignment on
+            # a subscript.
+            unread[dbid].update(question["dbid"] for question in chunk)
+            return dbid, None, str(exc), exc.kind
         record(client.last_usage)
-        return dbid, result, None
+        return dbid, result, None, None
 
     if work:
         # Warm-up: one chunk alone, writing the cache the rest will read.
-        first_dbid, first_result, first_error = run(work[0])
-        if first_error is not None and len(work) > 1:
-            # The probe failed. Everything else shares the same API and the same
-            # transcript, so marching each remaining chunk into its own timeout would
-            # only rediscover this.
+        first_dbid, first_result, first_error, first_kind = run(work[0])
+        if first_error is not None and first_kind in ABORT_KINDS and len(work) > 1:
+            # The probe says the API itself is unavailable. Everything else shares the
+            # same API and the same transcript, so marching each remaining chunk into its
+            # own timeout would only rediscover this.
             log.info(
                 f"questionnaire fill: warm-up chunk failed, abandoning the fan-out "
                 f"({len(work) - 1} chunk(s) skipped): {first_error}"
@@ -495,6 +582,9 @@ def fill_questionnaires(
             telemetry["aborted"] = True
             for dbid in definitions:
                 errors.setdefault(dbid, first_error)
+            # Nothing after the probe ran, so every question in every skipped chunk is unread.
+            for skipped_dbid, skipped_chunk in work[1:]:
+                unread[skipped_dbid].update(question["dbid"] for question in skipped_chunk)
             work = []
         else:
             if first_result is not None:
@@ -506,7 +596,7 @@ def fill_questionnaires(
 
     if work:
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-            for dbid, result, error in pool.map(run, work):
+            for dbid, result, error, _kind in pool.map(run, work):
                 if result is not None:
                     for item in result.items:
                         results[dbid][item.question_dbid] = item
@@ -523,10 +613,16 @@ def fill_questionnaires(
         items_by_dbid = results.get(dbid, {})
         data = build_fill_command_data(definitions[dbid], items_by_dbid)
         drafted = sum(1 for question in data["questions"] if "fill" in question)
-        # A chunk error only makes this a failure when nothing landed. One chunk failing
-        # while another fills is a partial success, and the surviving answers are real.
-        error = errors.get(dbid) if drafted == 0 else None
-        if drafted:
+        # A chunk error does not make the whole questionnaire a failure when answers landed -
+        # the surviving ones are real. But it is not a clean fill either: the questions in the
+        # failed chunk were never read, and reporting that as ``filled`` left them looking
+        # like the model had considered them and declined. The error is kept in every case
+        # where one occurred, so the cause survives into the audit row.
+        error = errors.get(dbid)
+        never_read = sorted(unread.get(dbid, set()))
+        if drafted and never_read:
+            status = STATUS_PARTIAL
+        elif drafted:
             status = STATUS_FILLED
         elif error:
             status = STATUS_FAILED
@@ -541,6 +637,7 @@ def fill_questionnaires(
                 total=len(data["questions"]),
                 error=error,
                 items=list(items_by_dbid.values()),
+                unread=never_read,
             )
         )
     return outcomes, telemetry

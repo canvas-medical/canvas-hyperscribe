@@ -9,7 +9,7 @@ import {
   isComplete,
   computeScore,
 } from './questionnaire-score.js';
-import { clearDrafted, countDrafted, isDrafted, mergeFilled } from './questionnaire-fill.js';
+import { clearDrafted, countDrafted, draftedCountLine, isDrafted, mergeFilled } from './questionnaire-fill.js';
 
 const html = htm.bind(h);
 
@@ -95,6 +95,10 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, 
   // Seeded from the command so an automatic fill that abstained is still reported when the
   // provider opens the card, rather than looking like a fill that never ran.
   const [fillState, setFillState] = useState(command.data?.fill_status || 'idle');
+  // How many questions the model never saw because the chunk carrying them failed. Seeded
+  // from the command for the same reason as fillState: an automatic fill that only partly
+  // landed has to still say so when the provider opens the card later.
+  const [unread, setUnread] = useState(command.data?.fill_unread || 0);
   const [openEvidence, setOpenEvidence] = useState(null);
   const [questionnaire, setQuestionnaire] = useState(
     command.data.questionnaire_dbid
@@ -181,6 +185,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, 
 
   const draftedCount = questionnaire ? countDrafted(questionnaire.questions) : 0;
   const totalQuestions = questionnaire ? (questionnaire.questions || []).length : 0;
+  const countLine = draftedCountLine(draftedCount, totalQuestions, unread);
 
   const handleFill = useCallback(async () => {
     if (!questionnaire || !noteId) return;
@@ -202,6 +207,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, 
       // and those need different messages.
       if (result.data) setQuestionnaire(prev => mergeFilled(prev, result.data));
       setFillState(result.status || (result.error ? 'failed' : 'idle'));
+      setUnread(result.unread || 0);
     } catch (err) {
       console.error('Questionnaire fill failed:', err);
       setFillState('failed');
@@ -212,6 +218,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, 
     setQuestionnaire(prev => prev && ({ ...prev, questions: clearDrafted(prev.questions) }));
     setOpenEvidence(null);
     setFillState('idle');
+    setUnread(0);
   };
 
   const handleSave = () => {
@@ -348,12 +355,12 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, 
           ${canFill && fillState === 'abstained' && html`
             <span class="q-sep"></span><span class="q-status">No answers found in the transcript.</span>
           `}
-          ${/* Only when partial. On a complete fill every chip is navy and a count would
-                restate the screen; on a partial one it says the blank questions were
-                considered and abstained on rather than never reached. */ ''}
-          ${canFill && draftedCount > 0 && draftedCount < totalQuestions && html`
+          ${/* One line, never two, because a count and a could-not-be-read note side by
+                side would contradict each other. draftedCountLine decides which claim is
+                true; it lives in questionnaire-fill.js so it can be tested. */ ''}
+          ${canFill && countLine && html`
             <span class="q-sep"></span>
-            <span class="q-status">${draftedCount} of ${totalQuestions} answered from the transcript</span>
+            <span class=${'q-status' + (countLine.failed ? ' failed' : '')}>${countLine.text}</span>
           `}
           ${canFill && fillState !== 'busy' && draftedCount > 0 && html`
             <span class="q-sep"></span>

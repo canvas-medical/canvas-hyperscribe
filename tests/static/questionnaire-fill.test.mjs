@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   clearDrafted,
   countDrafted,
+  draftedCountLine,
   isDrafted,
   mergeFilled,
 } from '../../hyperscribe/scribe/static/questionnaire-fill.js';
@@ -249,4 +250,30 @@ test('an abstained payload leaves every question blank and editable', () => {
   assert.equal(countDrafted(merged.questions), 0);
   assert.equal(merged.questions.length, 2);
   assert.ok(merged.questions.every(q => q.responses.every(r => !r.selected)));
+});
+
+test('a complete fill says nothing, because every chip is already navy', () => {
+  assert.equal(draftedCountLine(8, 8, 0), null);
+  assert.equal(draftedCountLine(0, 8, 0), null);
+});
+
+test('a partial fill with nothing failed reports the plain count', () => {
+  const line = draftedCountLine(5, 8, 0);
+  assert.equal(line.text, '5 of 8 answered from the transcript');
+  assert.equal(line.failed, false);
+});
+
+test('questions that were never read are named as such, not left looking abstained', () => {
+  // THE REGRESSION. A failed chunk left its questions blank next to copy claiming the
+  // model had considered them and declined. Silence read as a finding.
+  const line = draftedCountLine(5, 8, 3);
+  assert.equal(line.text, '5 of 8 answered. 3 could not be read.');
+  assert.equal(line.failed, true);
+});
+
+test('unread wins over the complete-fill shortcut', () => {
+  // 4 of 4 chips navy but a second chunk failed: still has to say so.
+  const line = draftedCountLine(4, 4, 2);
+  assert.equal(line.failed, true);
+  assert.match(line.text, /2 could not be read/);
 });
