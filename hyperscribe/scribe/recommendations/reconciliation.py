@@ -410,8 +410,10 @@ def _call_llm(
     # Exception TYPE only, never the traceback. A transport error can carry the request
     # body, and that body is the exam findings plus the note's other sections. Logs ship
     # to S3 when credentials are configured, so PHI in a log line leaves the instance.
+    # ``exc.__class__.__name__`` and not ``type(exc).__name__``: `type` is not in the
+    # sandbox's builtins, so the latter is rejected as [type-blocked] by canvas install.
     except Exception as exc:
-        log.warning("merge %s: LLM request raised %s", section_type, type(exc).__name__)
+        log.warning("merge %s: LLM request raised %s", section_type, exc.__class__.__name__)
         return None
 
     if response.code != HTTPStatus.OK:
@@ -423,7 +425,7 @@ def _call_llm(
     # Type only, for the same reason. Pydantic puts the offending input in the message,
     # and that input is the merged exam: a short row such as "Passive SI" appears verbatim.
     except Exception as exc:
-        log.warning("merge %s: unparseable response (%s)", section_type, type(exc).__name__)
+        log.warning("merge %s: unparseable response (%s)", section_type, exc.__class__.__name__)
         return None
 
     result: list[dict[str, Any]] = []
