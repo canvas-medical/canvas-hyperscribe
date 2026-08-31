@@ -66,6 +66,13 @@ _PLACEHOLDER = re.compile(r"\*{2,}|___+|<[^>]{0,40}>|\[[^\]]{0,40}\]")
 # and relocates findings, so a strict threshold would reject good work.
 _COVERAGE_THRESHOLD = 0.5
 
+# A "Label: " segment inside a row's prose, at the start or after a sentence break. The
+# merge writes plain findings, so a row carrying these is one that packed several systems
+# into itself: "OTHER: Neurologic: no headaches. Psychiatric: flat affect." Measured at
+# zero occurrences across every known-good merge on both saved cases, which is what makes
+# it safe to reject on.
+_INLINE_LABEL = re.compile(r"(?:^|(?<=[.;])\s)([A-Z][A-Za-z][A-Za-z/ ]{1,26}):\s")
+
 _STOPWORDS = frozenset(
     {
         "and",
@@ -159,10 +166,12 @@ _SYSTEM_PROMPT = (
     "RULES:\n"
     "1. The template supplies the section's systems, their names, and their order. Use "
     "the template's name and position for any system it lists. Systems found only in the "
-    "encounter go at the end.\n"
+    "encounter are APPENDED AFTER the template's last row, each as its own row under its "
+    "own name, never folded inside an existing row.\n"
     "2. CONSOLIDATE: when the template and the encounter refer to the same system under "
     "different names, emit ONE row for it, using the template's name. Several encounter "
-    "rows may fold into one template row.\n"
+    "rows may fold into one template row ONLY when they are the same body system. Two "
+    "different systems never share a row.\n"
     "3. BLEND WITHIN A SYSTEM: produce one coherent finding per system. Keep template "
     "language still true of this visit, replace what the encounter contradicts, and fold "
     "in encounter detail the template lacks. Never emit both side by side.\n"
@@ -185,7 +194,14 @@ _SYSTEM_PROMPT = (
     "10. For every row, break the final text into clauses and label each one "
     '"template" (wording from the template alone), "encounter" (from the encounter '
     'alone), or "blended". Every clause of the row\'s text must appear exactly once '
-    "across its clauses."
+    "across its clauses.\n"
+    "11. A catch-all template system, named OTHER or MISCELLANEOUS or similar, is NOT a "
+    "dumping ground. Never move an encounter system into it. If the encounter documented "
+    "Neurologic, Psychiatric and Endocrine findings and the template lists none of them, "
+    "emit three separate rows named for those systems and leave the catch-all carrying "
+    "its own template text. Never write the name of one system as a label inside the text "
+    "of another row, because that destroys the one-row-per-system structure the provider "
+    "edits and the chart renders."
 )
 
 
@@ -255,6 +271,30 @@ def coverage_gaps(
     return gaps
 
 
+def buried_systems(sections: list[dict[str, Any]], encounter_sections: list[dict[str, str]]) -> list[tuple[str, str]]:
+    """Encounter systems with no row of their own whose name is an inline label elsewhere.
+
+    The failure this catches: a template ending in a catch-all system such as
+    ``OTHER: None reported.`` reads as an invitation, and the model funnels every
+    encounter-only system into it as ``Neurologic: ... Psychiatric: ... Endocrine: ...``.
+    The content survives, so ``coverage_gaps`` sees nothing wrong, and the shape is legal,
+    so the ordering and duplicate checks see nothing either. What is lost is one row per
+    system, which is the whole structure of an exam: the provider can no longer edit or
+    remove a single system, and the chart renders it as one run-on paragraph.
+
+    Returns (encounter system, row it was buried in) pairs.
+    """
+    present = {normalize_title(str(s.get("title", ""))) for s in sections}
+    buried: list[tuple[str, str]] = []
+    for row in sections:
+        labels = {normalize_title(m) for m in _INLINE_LABEL.findall(str(row.get("text", "")))}
+        for encounter in encounter_sections:
+            title = normalize_title(str(encounter.get("title", "")))
+            if title and title not in present and title in labels:
+                buried.append((title, str(row.get("title", ""))))
+    return buried
+
+
 def validate_merge(
     sections: list[dict[str, Any]],
     template_sections: list[dict[str, str]],
@@ -267,9 +307,9 @@ def validate_merge(
     ``coverage_gaps``; whether a denial is clinically too broad is the prompt's job, and
     the eval harness measures how often that judgement fails.
 
-    ``encounter_sections`` is accepted but unused, kept so the signature reads as the
-    full input to a merge and so callers do not have to change if coverage is ever
-    promoted to a hard check.
+    ``encounter_sections`` drives the buried-system check: whether every encounter system
+    got its own row is structural, so it rejects. Whether the wording is clinically too
+    broad is not, so it stays the prompt's job.
     """
     errors: list[str] = []
     if not sections:
@@ -293,6 +333,25 @@ def validate_merge(
     expected = [t for t in template_order if t in present]
     if present != expected:
         errors.append("template systems are out of the template's order")
+
+    # A catch-all template row is not a dumping ground. See buried_systems for why this
+    # is worth a rejection rather than a warning.
+    flagged = set()
+    for name, row_title in buried_systems(sections, encounter_sections):
+        flagged.add(row_title)
+        errors.append(
+            f"encounter system {name!r} was folded into row {row_title!r} as an inline "
+            f"label instead of getting its own row"
+        )
+    for section in sections:
+        title = str(section.get("title", ""))
+        if title in flagged:
+            continue
+        packed = len(_INLINE_LABEL.findall(str(section.get("text", ""))))
+        if packed >= 2:
+            errors.append(
+                f"row {title!r} packs {packed} systems into one row as inline labels; emit one row per system"
+            )
 
     return errors
 
