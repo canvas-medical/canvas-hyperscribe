@@ -1,0 +1,71 @@
+{
+  "id": "provider_only_no_confirmation",
+  "probes": "the respondent must affirm; a provider's observation is not an answer",
+  "questionnaire": {
+    "questionnaire_dbid": 1,
+    "questionnaire_name": "PHQ-9",
+    "is_scored": true,
+    "scoring_function_name": "sum",
+    "questions": [
+      {
+        "dbid": 10,
+        "label": "Feeling down, depressed, or hopeless?",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 100,
+            "value": "Not at all",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 101,
+            "value": "Several days",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 102,
+            "value": "More than half the days",
+            "code": "",
+            "score_value": "2"
+          },
+          {
+            "dbid": 103,
+            "value": "Nearly every day",
+            "code": "",
+            "score_value": "3"
+          }
+        ]
+      }
+    ]
+  },
+  "transcript": [
+    {
+      "item_id": "t1",
+      "speaker": "DOCTOR",
+      "text": "You seem a bit down today, more than last time.",
+      "start_offset_ms": 0,
+      "end_offset_ms": 2585
+    },
+    {
+      "item_id": "t2",
+      "speaker": "DOCTOR",
+      "text": "Anyway, let's look at the blood pressure numbers.",
+      "start_offset_ms": 2585,
+      "end_offset_ms": 5280
+    },
+    {
+      "item_id": "t3",
+      "speaker": "PATIENT",
+      "text": "Sure.",
+      "start_offset_ms": 5280,
+      "end_offset_ms": 6780
+    }
+  ],
+  "expected": {
+    "10": {
+      "status": "not_assessed"
+    }
+  }
+}

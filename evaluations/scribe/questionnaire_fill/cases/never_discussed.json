@@ -1,0 +1,78 @@
+{
+  "id": "never_discussed",
+  "probes": "fabrication: the topic never came up, must abstain",
+  "questionnaire": {
+    "questionnaire_dbid": 1,
+    "questionnaire_name": "PHQ-9",
+    "is_scored": true,
+    "scoring_function_name": "sum",
+    "questions": [
+      {
+        "dbid": 10,
+        "label": "Trouble falling asleep, staying asleep, or sleeping too much?",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 100,
+            "value": "Not at all",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 101,
+            "value": "Several days",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 102,
+            "value": "More than half the days",
+            "code": "",
+            "score_value": "2"
+          },
+          {
+            "dbid": 103,
+            "value": "Nearly every day",
+            "code": "",
+            "score_value": "3"
+          }
+        ]
+      }
+    ]
+  },
+  "transcript": [
+    {
+      "item_id": "t1",
+      "speaker": "DOCTOR",
+      "text": "So the knee has been bothering you since the fall?",
+      "start_offset_ms": 0,
+      "end_offset_ms": 2750
+    },
+    {
+      "item_id": "t2",
+      "speaker": "PATIENT",
+      "text": "Yeah, it's the stairs mostly. Going down is worse than going up.",
+      "start_offset_ms": 2750,
+      "end_offset_ms": 6270
+    },
+    {
+      "item_id": "t3",
+      "speaker": "DOCTOR",
+      "text": "Any swelling around the joint?",
+      "start_offset_ms": 6270,
+      "end_offset_ms": 7920
+    },
+    {
+      "item_id": "t4",
+      "speaker": "PATIENT",
+      "text": "A little in the evenings after I've been on it all day.",
+      "start_offset_ms": 7920,
+      "end_offset_ms": 10945
+    }
+  ],
+  "expected": {
+    "10": {
+      "status": "not_assessed"
+    }
+  }
+}

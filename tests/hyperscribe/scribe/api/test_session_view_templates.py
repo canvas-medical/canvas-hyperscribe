@@ -4,10 +4,12 @@ from http import HTTPStatus
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 from canvas_sdk.effects.simple_api import JSONResponse
 
-from hyperscribe.scribe.api.session_view import ScribeSessionView
+from hyperscribe.scribe.api.session_view import ScribeSessionView, _load_initial_data, _load_templates
 
 # Disable automatic route resolution
 ScribeSessionView._ROUTES = {}
@@ -48,7 +50,7 @@ def test_get_visit_templates_empty_templates() -> None:
     assert result == [JSONResponse({"templates": []}, status_code=HTTPStatus.OK)]
 
 
-@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
     q1 = MagicMock()
@@ -151,7 +153,7 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
     ]
 
 
-@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_get_visit_templates_skips_missing_questionnaire(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
     q1 = MagicMock()
@@ -199,7 +201,7 @@ def test_get_visit_templates_skips_missing_questionnaire(mock_model: MagicMock, 
     ]
 
 
-@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_get_visit_templates_preserves_integer_zero_score_value(
     mock_model: MagicMock, mock_cmd_class: MagicMock
@@ -282,7 +284,7 @@ def test_get_visit_templates_preserves_integer_zero_score_value(
     ]
 
 
-@patch("hyperscribe.scribe.api.session_view.QuestionnaireCommand")
+@patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
 @patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
 def test_get_visit_templates_no_questionnaire_names(mock_model: MagicMock, mock_cmd_class: MagicMock) -> None:
     """Templates with no questionnaires should not trigger any DB queries."""
@@ -483,3 +485,112 @@ def test_get_visit_templates_drops_invalid_charges(mock_cdm: MagicMock) -> None:
     charges = data["templates"][0]["charges"]
     assert len(charges) == 1
     assert charges[0]["cpt_code"] == "99342"
+
+
+# --- config resilience -------------------------------------------------------
+#
+# _load_initial_data feeds the Scribe UI's first render and ScribeView calls it
+# unguarded, so anything that escapes these loaders means a provider opens the note to
+# nothing at all. An operator-set secret is untrusted input: it can be valid JSON of
+# entirely the wrong shape. Losing the template dropdown is recoverable; losing the tab
+# is not.
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        '{"templates": "not-a-list"}',
+        '["a", "list", "not", "an", "object"]',
+        '"just a string"',
+        "42",
+        "{not json at all",
+    ],
+    ids=["templates-not-a-list", "top-level-list", "top-level-string", "top-level-number", "malformed"],
+)
+def test_load_templates_survives_a_wrongly_shaped_secret(raw: str) -> None:
+    assert _load_templates({"VisitTemplates": raw}) == []
+
+
+def test_load_templates_skips_non_object_entries_and_keeps_the_rest() -> None:
+    raw = json.dumps({"templates": ["oops", {"name": "Annual"}, None]})
+    result = _load_templates({"VisitTemplates": raw})
+    assert [t["name"] for t in result] == ["Annual"]
+
+
+@patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
+def test_load_templates_survives_a_questionnaire_lookup_failure(mock_model: MagicMock) -> None:
+    """A reference table being briefly unavailable costs the questionnaires on the
+    template, not the template and not the tab."""
+    mock_model.objects.filter.side_effect = RuntimeError("db down")
+    raw = json.dumps({"templates": [{"name": "Annual", "questionnaires": ["Exercise"]}]})
+    result = _load_templates({"VisitTemplates": raw})
+    assert [t["name"] for t in result] == ["Annual"]
+    assert result[0]["questionnaires"] == []
+
+
+@patch("hyperscribe.scribe.api.session_view.ChargeDescriptionMaster")
+def test_load_templates_survives_a_charge_lookup_failure(mock_cdm: MagicMock) -> None:
+    mock_cdm.objects.filter.side_effect = RuntimeError("db down")
+    raw = json.dumps({"templates": [{"name": "Annual", "charges": ["99213"]}]})
+    result = _load_templates({"VisitTemplates": raw})
+    assert result[0]["charges"] == []
+
+
+@patch("hyperscribe.scribe.api.session_view.parse_ros_subsections", side_effect=RuntimeError("bad template text"))
+def test_load_templates_one_bad_template_does_not_cost_the_others(mock_parse: MagicMock) -> None:
+    raw = json.dumps({"templates": [{"name": "Broken", "ros_template": "x"}, {"name": "Fine"}]})
+    result = _load_templates({"VisitTemplates": raw})
+    assert [t["name"] for t in result] == ["Fine"]
+
+
+@patch("hyperscribe.scribe.api.session_view.QuestionnaireModel")
+def test_missing_questionnaires_are_reported_once_not_per_template(
+    mock_model: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The same handful of names repeat across templates; one line per name per template
+    drowned the log on scribeqa-playground."""
+    mock_model.objects.filter.return_value = []
+    raw = json.dumps(
+        {
+            "templates": [
+                {"name": "A", "questionnaires": ["Social History", "MOCA"]},
+                {"name": "B", "questionnaires": ["Social History"]},
+                {"name": "C", "questionnaires": ["Social History", "MOCA"]},
+            ]
+        }
+    )
+    _load_templates({"VisitTemplates": raw})
+    warnings = [r.getMessage() for r in caplog.records if "not active on this" in r.getMessage()]
+    assert len(warnings) == 1
+    assert "'MOCA'" in warnings[0] and "'Social History'" in warnings[0]
+
+
+def test_load_initial_data_degrades_each_section_independently() -> None:
+    """Every loader failing at once still yields a renderable payload."""
+    with (
+        patch("hyperscribe.scribe.api.session_view._load_transcript", side_effect=RuntimeError("x")),
+        patch("hyperscribe.scribe.api.session_view._load_summary", side_effect=RuntimeError("x")),
+        patch("hyperscribe.scribe.api.session_view._load_assignees", side_effect=RuntimeError("x")),
+        patch("hyperscribe.scribe.api.session_view._load_templates", side_effect=RuntimeError("x")),
+    ):
+        data = _load_initial_data("note-1", {})
+
+    assert data["transcript"] == {"items": [], "finalized": False, "started": False}
+    assert data["summary"] is None
+    assert data["assignees"] == []
+    assert data["templates"] == []
+
+
+def test_load_initial_data_keeps_the_sections_that_do_work() -> None:
+    with (
+        patch("hyperscribe.scribe.api.session_view._load_transcript", return_value={"items": [1]}),
+        patch("hyperscribe.scribe.api.session_view._load_summary", return_value={"note_data": {}}),
+        patch("hyperscribe.scribe.api.session_view._load_assignees", return_value=[{"id": 1}]),
+        patch("hyperscribe.scribe.api.session_view._load_templates", side_effect=RuntimeError("bad config")),
+    ):
+        data = _load_initial_data("note-1", {})
+
+    # Only the operator-misconfigured section is empty.
+    assert data["transcript"] == {"items": [1]}
+    assert data["assignees"] == [{"id": 1}]
+    assert data["templates"] == []

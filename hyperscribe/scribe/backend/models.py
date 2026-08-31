@@ -23,7 +23,10 @@ class TranscriptItem:
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, TranscriptItem):
-            return NotImplemented
+            # False rather than NotImplemented: the sandbox does not provide
+            # `NotImplemented` as a builtin, so returning it raised NameError. Nothing
+            # here depends on the reflected-comparison fallback it would have enabled.
+            return False
         return (
             self.text == other.text
             and self.speaker == other.speaker
