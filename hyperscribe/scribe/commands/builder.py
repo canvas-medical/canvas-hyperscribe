@@ -27,6 +27,7 @@ from hyperscribe.scribe.commands.lab_order import LabOrderParser
 from hyperscribe.scribe.commands.lab_results import LabResultsParser
 from hyperscribe.scribe.commands.medical_history import MedicalHistoryParser
 from hyperscribe.scribe.commands.medication_statement import MedicationParser
+from hyperscribe.scribe.commands.mental_status_exam import MentalStatusExamParser
 from hyperscribe.scribe.commands.perform import PerformParser
 from hyperscribe.scribe.commands.physical_exam import PhysicalExamParser
 from hyperscribe.scribe.commands.plan import PlanParser
@@ -59,6 +60,7 @@ _BUILDERS: dict[str, CommandParser] = {
     "lab_results": LabResultsParser(),
     "medicalHistory": MedicalHistoryParser(),
     "medication_statement": MedicationParser(),
+    "mental_status_exam": MentalStatusExamParser(),
     "perform": PerformParser(),
     "physical_exam": PhysicalExamParser(),
     "plan": PlanParser(),
@@ -370,7 +372,7 @@ _BUILD_ERROR_LABELS: dict[str, str] = {
 def build_effects(
     proposals: list[dict[str, Any]],
     note_uuid: str,
-    feature_flags: dict[str, bool] | None = None,
+    feature_flags: dict[str, Any] | None = None,
 ) -> tuple[list[Effect], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Convert selected command proposals into Canvas SDK Effects.
 
@@ -538,6 +540,7 @@ EDITABLE_AMEND_SECTIONS: frozenset[str] = frozenset(
         "_ros",
         "_history_review",
         "_chart_review",
+        "mental_status_exam",
         "physical_exam",
         "lab_results",
         "imaging_results",
@@ -597,6 +600,7 @@ DIRECT_EDIT_SECTIONS: frozenset[str] = frozenset({"chief_complaint"})
 #   * RosParser            -> CustomCommand("reviewOfSystems")
 #   * HistoryReviewParser  -> CustomCommand("historyReview")
 #   * ChartReviewParser    -> CustomCommand("chartReview")
+#   * MentalStatusExamParser -> CustomCommand("mentalStatusExam")
 #   * PhysicalExamParser   -> CustomCommand("physicalExam")
 #   * LabResultsParser     -> CustomCommand("labResult")
 #   * ImageResultsParser   -> CustomCommand("imageResult")
@@ -605,6 +609,7 @@ CUSTOM_COMMAND_ROUTED_SECTIONS: frozenset[str] = frozenset(
         "_ros",
         "_history_review",
         "_chart_review",
+        "mental_status_exam",
         "physical_exam",
         "lab_results",
         "imaging_results",
@@ -669,6 +674,7 @@ NON_EDITABLE_AMEND_COMMAND_TYPES: frozenset[str] = frozenset(
 def build_amend_edit_effects(
     proposals: list[dict[str, Any]],
     note_uuid: str,
+    feature_flags: dict[str, Any] | None = None,
 ) -> tuple[list[Effect], list[dict[str, Any]]]:
     """Build Canvas SDK Effects for amendment-mode edits of already-documented commands.
 
@@ -677,6 +683,12 @@ def build_amend_edit_effects(
     silently dropped and logged at WARN (defense in depth - we never trust a
     hand-crafted payload enough to invent a uuid or emit effects for a
     non-amendable section).
+
+    ``feature_flags`` is threaded through to ``pending_metadata`` so a
+    void+recreate re-emits per-command metadata (e.g. Alert Facility) for the
+    recreated command. Without this, an amended command lands in the chart with
+    no metadata row and every read path treats it as pre-feature — silently
+    dropping a value that was genuinely recorded on the original.
 
     Returns ``(effects, attempted)`` where ``attempted`` carries enough state
     for the API layer to (a) emit a structured audit-log entry and (b) let the
@@ -763,6 +775,16 @@ def build_amend_edit_effects(
             mode = "void_recreate_questionnaire"
         else:
             effects.append(new_command.originate())
+            # Re-emit pending metadata (e.g. Alert Facility) for the recreated
+            # command. Must land after originate (the Command row now exists)
+            # and before commit (attaches while still STAGED) — mirrors the
+            # originate -> metadata -> commit ordering in build_effects. A no-op
+            # for command types without pending metadata or when the feature is
+            # off for this type.
+            meta = builder.pending_metadata(new_command, proposal, feature_flags)
+            if meta:
+                for key, value in (meta.get("metadata") or {}).items():
+                    effects.append(_build_unvalidated_metadata_effect(new_command, key, value))
             if section_key in CUSTOM_COMMAND_ROUTED_SECTIONS:
                 mode = "void_recreate_custom"
             else:

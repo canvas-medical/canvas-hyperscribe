@@ -392,7 +392,8 @@ def test_command_parameters_schemas():
 
     #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    expected_hash = "f248a67eecc13ae7d4754b8ad608b93a"
+    # canvas 0.164.0+ adds "STAT" to the imaging-order priority enum.
+    expected_hash = "00c27a75e4e0bf2b9f8be13643444bba"
     assert schema_hash == expected_hash
 
     tests = [
@@ -530,7 +531,7 @@ def test_command_parameters_schemas():
                     "priority": "invalid_priority",
                 }
             ],
-            "'invalid_priority' is not one of ['Routine', 'Urgent'], in path [0, 'priority']",
+            "'invalid_priority' is not one of ['Routine', 'Urgent', 'STAT'], in path [0, 'priority']",
         ),
         (
             [

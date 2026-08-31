@@ -22,6 +22,7 @@ SCHEMA_KEY_LABELS: dict[str, str] = {
     "perform": "Perform",
     "vitals": "Vitals",
     "physicalExam": "Physical Exam",
+    "mentalStatusExam": "Mental Status Exam",
     "reviewOfSystems": "Review of Systems",
     "questionnaire": "Questionnaire",
     "labOrder": "Lab Order",
@@ -74,6 +75,7 @@ SOAP_SECTIONS: dict[str, str] = {
     "historyReview": "HISTORY",
     "vitals": "OBJECTIVE",
     "physicalExam": "OBJECTIVE",
+    "mentalStatusExam": "OBJECTIVE",
     "exam": "OBJECTIVE",
     "questionnaire": "OBJECTIVE",
     "pocLabTest": "OBJECTIVE",
@@ -136,6 +138,13 @@ BP_SITE_LABELS: dict[int, str] = {
     9: "Supine, Left Upper Arm",
     10: "Supine, Right Lower Arm",
     11: "Supine, Left Lower Arm",
+}
+
+# LOINC LL4908-1 answers for "Use of supplemental oxygen" (88658-0), keyed by answer code.
+SUPPLEMENTAL_OXYGEN_LABELS: dict[str, str] = {
+    "LA28684-1": "Continuously depending on high oxygen flow",
+    "LA28685-8": "Continuously depending on low oxygen flow",
+    "LA28686-6": "Intermittent oxygen consumption",
 }
 
 
@@ -591,6 +600,10 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
         if bp_site is not None:
             site_label = BP_SITE_LABELS.get(bp_site, str(bp_site))
             vitals_parts.append({"label": "Site", "value": site_label, "unit": ""})
+        supplemental_oxygen = data.get("supplemental_oxygen")
+        if supplemental_oxygen is not None:
+            supplemental_oxygen_label = SUPPLEMENTAL_OXYGEN_LABELS.get(supplemental_oxygen, str(supplemental_oxygen))
+            vitals_parts.append({"label": "Supplemental Oxygen", "value": supplemental_oxygen_label, "unit": ""})
         note_val = data.get("note")
         if note_val:
             vitals_parts.append({"label": "Note", "value": str(note_val), "unit": ""})
@@ -657,6 +670,7 @@ def extract_command_display(schema_key: str, data: dict[str, Any], command_displ
     elif schema_key in (
         "reviewOfSystems",
         "physicalExam",
+        "mentalStatusExam",
         "historyReview",
         "chartReview",
         "chartSectionReview",

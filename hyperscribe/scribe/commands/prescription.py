@@ -43,9 +43,23 @@ class PrescriptionParser(CommandParser):
         raw_type = data.get("type_to_dispense")
         if raw_type:
             representative_ndc = data.get("representative_ndc") or ""
+            qualifier_code = raw_type
+            # Recommendations carry type_to_dispense in the order-row's encoded
+            # "representative_ndc|erx_quantity|qualifier_code" form so the dropdown
+            # can pre-select the right option. The UI decodes it (decodeClinicalQuantity
+            # in order-row.js) when the row is opened and saved, but a recommendation
+            # accepted WITHOUT opening the row arrives here still encoded. Decode it the
+            # same way so the ClinicalQuantity is well-formed (bare qualifier code +
+            # representative_ndc) instead of stuffing the whole pipe-string into the
+            # qualifier-code field, which silently drops type_to_dispense on the command.
+            parts = raw_type.split("|")
+            if len(parts) == 3:
+                decoded_ndc, _erx_quantity, qualifier_code = parts
+                if not representative_ndc:
+                    representative_ndc = decoded_ndc
             type_to_dispense = ClinicalQuantity(
                 representative_ndc=representative_ndc,
-                ncpdp_quantity_qualifier_code=raw_type,
+                ncpdp_quantity_qualifier_code=qualifier_code,
                 **({"description": label} if (label := data.get("type_to_dispense_label")) else {}),
             )
 
@@ -68,6 +82,23 @@ class PrescriptionParser(CommandParser):
             note_uuid=note_uuid,
             command_uuid=command_uuid,
         )
+
+    def pending_metadata(
+        self,
+        command: _BaseCommand,
+        proposal: dict[str, Any] | None = None,
+        feature_flags: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        if self.command_type not in (feature_flags or {}).get("AlertFacilityCommands", set()):
+            return None
+        # Alert Facility defaults to Yes; only an explicit stored ``False`` records No.
+        truthy = ((proposal or {}).get("data") or {}).get("alert_facility", True) is not False
+        return {
+            "command_uuid": command.command_uuid,
+            "command_type": self.command_type,
+            "note_uuid": command.note_uuid,
+            "metadata": {"alert_facility": "Yes" if truthy else "No"},
+        }
 
     def to_effects(self, command: _BaseCommand, note_uuid: str | None = None) -> list[Effect]:
         """Prescriptions require originate + review (not commit) for provider sign-off."""

@@ -23,7 +23,10 @@ class TranscriptItem:
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, TranscriptItem):
-            return NotImplemented
+            # False rather than NotImplemented: the sandbox does not provide
+            # `NotImplemented` as a builtin, so returning it raised NameError. Nothing
+            # here depends on the reflected-comparison fallback it would have enabled.
+            return False
         return (
             self.text == other.text
             and self.speaker == other.speaker
@@ -110,6 +113,7 @@ class CommandProposal:
         selected: bool = True,
         section_key: str = "",
         already_documented: bool = False,
+        from_transcript: bool = False,
     ) -> None:
         self.command_type = command_type
         self.display = display
@@ -117,6 +121,9 @@ class CommandProposal:
         self.selected = selected
         self.section_key = section_key
         self.already_documented = already_documented
+        # True when this proposal was recovered from the visit transcript because the
+        # generated note omitted it. Drives the "from transcript" badge in the review UI.
+        self.from_transcript = from_transcript
 
 
 class PatientContext:

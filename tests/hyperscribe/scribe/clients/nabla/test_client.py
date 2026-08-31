@@ -99,4 +99,6 @@ def test_headers_include_bearer_token():
     client, auth = _make_client()
     auth.get_access_token.return_value = "my-token"
     headers = client._headers()
-    assert headers == {"Authorization": "Bearer my-token", "nabla-api-version": "2025-05-21"}
+    # Per Nabla docs the version-override header is "X-Nabla-Api-Version"
+    # (the bare "nabla-api-version" is the query-param form and is ignored as a header).
+    assert headers == {"Authorization": "Bearer my-token", "X-Nabla-Api-Version": "2025-05-21"}

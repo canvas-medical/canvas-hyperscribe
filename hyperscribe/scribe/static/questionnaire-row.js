@@ -9,6 +9,7 @@ import {
   isComplete,
   computeScore,
 } from './questionnaire-score.js';
+import { clearDrafted, countDrafted, draftedCountLine, isDrafted, mergeFilled } from './questionnaire-fill.js';
 
 const html = htm.bind(h);
 
@@ -88,8 +89,17 @@ function QuestionnaireSearch({ onSelect }) {
   `;
 }
 
-function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }) {
+function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, noteId, canFill }) {
   const [loading, setLoading] = useState(false);
+  // Mirrors the server's outcome: idle | busy | filled | abstained | no_transcript | failed.
+  // Seeded from the command so an automatic fill that abstained is still reported when the
+  // provider opens the card, rather than looking like a fill that never ran.
+  const [fillState, setFillState] = useState(command.data?.fill_status || 'idle');
+  // How many questions the model never saw because the chunk carrying them failed. Seeded
+  // from the command for the same reason as fillState: an automatic fill that only partly
+  // landed has to still say so when the provider opens the card later.
+  const [unread, setUnread] = useState(command.data?.fill_unread || 0);
+  const [openEvidence, setOpenEvidence] = useState(null);
   const [questionnaire, setQuestionnaire] = useState(
     command.data.questionnaire_dbid
       ? {
@@ -144,17 +154,19 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
         if (qi !== qIdx) return q;
         const responses = q.responses.map((r, ri) => {
           if (field === 'selected' && q.type === TYPE_RADIO) {
-            return { ...r, selected: ri === rIdx };
+            return { ...r, selected: ri === rIdx, proposed: false };
           }
           if (ri !== rIdx) return r;
           // Deselecting a checkbox clears its comment so dead annotations don't persist on disk
           // or spring back into view if the option is re-selected later.
           if (field === 'selected' && q.type === TYPE_CHECKBOX && value === false) {
-            return { ...r, selected: false, comment: null };
+            return { ...r, selected: false, comment: null, proposed: false };
           }
-          return { ...r, [field]: value };
+          return { ...r, [field]: value, ...(field === 'selected' ? { proposed: false } : {}) };
         });
-        return { ...q, responses };
+        // Once the provider has touched an answer it is theirs, so the drafted state and
+        // the evidence it carried retire together.
+        return { ...q, responses, fill: responses.some(r => r.proposed) ? q.fill : null };
       });
       return { ...prev, questions };
     });
@@ -164,11 +176,49 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
     setQuestionnaire(prev => {
       const questions = prev.questions.map((q, qi) => {
         if (qi !== qIdx) return q;
-        const responses = q.responses.map((r, ri) => ri === 0 ? { ...r, value } : r);
-        return { ...q, responses };
+        const responses = q.responses.map((r, ri) => ri === 0 ? { ...r, value, proposed: false } : r);
+        return { ...q, responses, fill: null };
       });
       return { ...prev, questions };
     });
+  };
+
+  const draftedCount = questionnaire ? countDrafted(questionnaire.questions) : 0;
+  const totalQuestions = questionnaire ? (questionnaire.questions || []).length : 0;
+  const countLine = draftedCountLine(draftedCount, totalQuestions, unread);
+
+  const handleFill = useCallback(async () => {
+    if (!questionnaire || !noteId) return;
+    setFillState('busy');
+    try {
+      const res = await fetch(`${API_BASE}/fill-questionnaires`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note_uuid: noteId, questionnaire_dbids: [questionnaire.dbid] }),
+      });
+      const json = await res.json();
+      const result = (json.results || [])[0];
+      if (json.error || !result) {
+        setFillState('failed');
+        return;
+      }
+      // The server states the outcome rather than leaving it to be inferred from a count:
+      // drafted === 0 means both "read it, nothing supported an answer" and "never ran",
+      // and those need different messages.
+      if (result.data) setQuestionnaire(prev => mergeFilled(prev, result.data));
+      setFillState(result.status || (result.error ? 'failed' : 'idle'));
+      setUnread(result.unread || 0);
+    } catch (err) {
+      console.error('Questionnaire fill failed:', err);
+      setFillState('failed');
+    }
+  }, [questionnaire, noteId]);
+
+  const handleClearDrafted = () => {
+    setQuestionnaire(prev => prev && ({ ...prev, questions: clearDrafted(prev.questions) }));
+    setOpenEvidence(null);
+    setFillState('idle');
+    setUnread(0);
   };
 
   const handleSave = () => {
@@ -199,16 +249,21 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
       <div class="questionnaire-questions-2col">
       ${questionnaire.questions.map((q, qIdx) => html`
         <div class="questionnaire-question" key=${q.dbid}>
-          <div class="questionnaire-question-label">
+          <button
+            type="button"
+            class=${'q-ask' + (isDrafted(q) && q.fill ? ' has-ev' : '')}
+            aria-expanded=${isDrafted(q) && q.fill ? String(openEvidence === q.dbid) : undefined}
+            onClick=${() => isDrafted(q) && q.fill && setOpenEvidence(openEvidence === q.dbid ? null : q.dbid)}
+          >
             ${q.label}
             ${q.type === TYPE_CHECKBOX && html`<span class="questionnaire-question-hint"> · Select all that apply</span>`}
-          </div>
+          </button>
           ${q.type === TYPE_RADIO && html`
             <div class="questionnaire-chips" role="radiogroup">
               ${q.responses.map((r, rIdx) => html`
                 <button
                   type="button"
-                  class=${'questionnaire-chip' + (r.selected ? ' selected' : '')}
+                  class=${'questionnaire-chip' + (r.proposed ? ' proposed' : r.selected ? ' selected' : '')}
                   role="radio"
                   aria-checked=${r.selected}
                   key=${r.dbid}
@@ -222,7 +277,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
               ${q.responses.map((r, rIdx) => html`
                 <button
                   type="button"
-                  class=${'questionnaire-chip' + (r.selected ? ' selected' : '')}
+                  class=${'questionnaire-chip' + (r.proposed ? ' proposed' : r.selected ? ' selected' : '')}
                   role="checkbox"
                   aria-checked=${r.selected}
                   key=${r.dbid}
@@ -250,7 +305,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
           ${q.type === TYPE_TEXT && html`
             <input
               type="text"
-              class="questionnaire-text-input"
+              class=${'questionnaire-text-input' + ((q.responses[0] || {}).proposed ? ' proposed' : '')}
               value=${(q.responses[0] || {}).value || ''}
               onInput=${(e) => handleTextChange(qIdx, e.target.value)}
               placeholder="Enter response..."
@@ -259,17 +314,59 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel }
           ${q.type === TYPE_INTEGER && html`
             <input
               type="number"
-              class="questionnaire-text-input"
+              class=${'questionnaire-text-input' + ((q.responses[0] || {}).proposed ? ' proposed' : '')}
               style="max-width: 120px;"
               value=${(q.responses[0] || {}).value || ''}
               onInput=${(e) => handleTextChange(qIdx, e.target.value)}
               placeholder="0"
             />
           `}
+          ${openEvidence === q.dbid && q.fill && html`
+            <div class="q-ev">
+              ${(q.fill.evidence || []).map((turn, i) => html`
+                <p key=${i}><b>${turn.speaker}:</b> "${turn.quote}"</p>
+              `)}
+            </div>
+          `}
         </div>
       `)}
       </div>
       <div class="questionnaire-form-actions">
+        <span class="q-group">
+          <button
+            type="button"
+            class=${'q-fill' + (fillState === 'failed' ? ' failed' : '')}
+            disabled=${!canFill || fillState === 'busy'}
+            onClick=${handleFill}
+          >${fillState === 'failed' ? 'Try again' : draftedCount > 0 ? 'Re-fill from transcript' : 'Fill from transcript'}</button>
+          ${!canFill && html`
+            <span class="q-sep"></span><span class="q-status">Available when recording ends</span>
+          `}
+          ${canFill && fillState === 'busy' && html`
+            <span class="q-sep"></span><span class="q-status"><span class="q-spin"></span> Reading transcript</span>
+          `}
+          ${canFill && fillState === 'failed' && html`
+            <span class="q-sep"></span><span class="q-status failed">Fill failed. No answers changed.</span>
+          `}
+          ${canFill && fillState === 'no_transcript' && html`
+            <span class="q-sep"></span><span class="q-status">No transcript on this note.</span>
+          `}
+          ${/* Grey, not red: an honest abstention is the grounding rule working, not a failure. */ ''}
+          ${canFill && fillState === 'abstained' && html`
+            <span class="q-sep"></span><span class="q-status">No answers found in the transcript.</span>
+          `}
+          ${/* One line, never two, because a count and a could-not-be-read note side by
+                side would contradict each other. draftedCountLine decides which claim is
+                true; it lives in questionnaire-fill.js so it can be tested. */ ''}
+          ${canFill && countLine && html`
+            <span class="q-sep"></span>
+            <span class=${'q-status' + (countLine.failed ? ' failed' : '')}>${countLine.text}</span>
+          `}
+          ${canFill && fillState !== 'busy' && draftedCount > 0 && html`
+            <span class="q-sep"></span>
+            <button type="button" class="q-undo" onClick=${handleClearDrafted}>Clear responses</button>
+          `}
+        </span>
         <button type="button" class="form-btn form-btn-cancel" onClick=${onCancel}>Cancel</button>
         <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
       </div>
@@ -314,7 +411,7 @@ function renderResponse(q) {
   return html`<span class="questionnaire-readonly-answer">${parts.join(', ')}</span>`;
 }
 
-export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange }) {
+export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange, noteId, canFill }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   useEffect(() => {
@@ -344,6 +441,8 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
           onEdit=${handleEdit}
           onDelete=${onDelete}
           onCancel=${handleCancel}
+          noteId=${noteId}
+          canFill=${!!canFill}
         />
       </div>
     `;

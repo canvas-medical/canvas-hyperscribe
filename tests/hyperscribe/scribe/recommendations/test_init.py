@@ -2,8 +2,14 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection
-from hyperscribe.scribe.recommendations import recommend_commands
+from hyperscribe.scribe.recommendations import (
+    prescription_dispense_enabled,
+    questionnaire_fill_enabled,
+    recommend_commands,
+)
 
 
 def _make_note() -> ClinicalNote:
@@ -125,6 +131,38 @@ def test_recommend_commands_handles_recommender_exception(mock_llm_cls: MagicMoc
     assert proposals[0].command_type == "allergy"
 
 
+@pytest.mark.parametrize(
+    "allowlist, provider_id, expected",
+    [
+        (None, "abc", True),  # unset -> all users (fail-open)
+        ("", "abc", True),  # blank -> all
+        ("   ", "abc", True),  # whitespace-only -> all
+        ("abc", "abc", True),  # listed
+        ("abc, def", "def", True),  # listed (comma + space tokenized)
+        ("abc,def", "xyz", False),  # not listed
+        ("abc", None, False),  # non-blank list but no provider -> off
+        ("abc", "ABC", False),  # exact match (case-sensitive), consistent with other staffer secrets
+    ],
+)
+def test_prescription_dispense_enabled(allowlist: str | None, provider_id: str | None, expected: bool) -> None:
+    assert prescription_dispense_enabled(allowlist, provider_id) is expected
+
+
+@patch("hyperscribe.scribe.recommendations.LlmAnthropic")
+@patch("hyperscribe.scribe.recommendations.PrescriptionRecommender")
+def test_recommend_commands_threads_dispense_flag(mock_rx_cls: MagicMock, mock_llm_cls: MagicMock) -> None:
+    mock_llm_cls.return_value = MagicMock()
+    mock_rx_cls.return_value.recommend.return_value = []
+    with (
+        patch("hyperscribe.scribe.recommendations.MedicationRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.AllergyRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.TaskRecommender.recommend", return_value=[]),
+    ):
+        recommend_commands(_make_note(), "k", dispense_engine_enabled=False)
+    mock_rx_cls.assert_called_once_with(dispense_engine_enabled=False)
+
+
 @patch("hyperscribe.scribe.recommendations.LlmAnthropic")
 def test_recommend_commands_empty_note(mock_llm_cls: MagicMock) -> None:
     mock_llm_cls.return_value = MagicMock()
@@ -140,3 +178,13 @@ def test_recommend_commands_empty_note(mock_llm_cls: MagicMock) -> None:
         proposals = recommend_commands(note, "test-api-key")
 
     assert proposals == []
+
+
+def test_questionnaire_fill_enabled_matches_the_dispense_gate() -> None:
+    """Same tokenize-and-match rule as the other scribe staffer secrets, including the
+    deliberate fail-open on a blank allowlist."""
+    assert questionnaire_fill_enabled("", "staff-1") is True
+    assert questionnaire_fill_enabled(None, "staff-1") is True
+    assert questionnaire_fill_enabled("staff1, staff2", "staff1") is True
+    assert questionnaire_fill_enabled("staff1, staff2", "staff3") is False
+    assert questionnaire_fill_enabled("staff1", None) is False

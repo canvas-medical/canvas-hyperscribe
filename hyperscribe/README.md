@@ -77,6 +77,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `AwsSecret`                      |                                             | AWS secret to access the S3 service                                                                                                                         |
 | `CommandsList`                   | `Command1,Command2 Command3`                | list of commands, as defined in [libraries/implemented_commands.py::command_list](libraries/implemented_commands.py), related to the `CommandsPolicy` value |
 | `CommandsPolicy`                 | `y`, `yes` or `1`                           | the commands of `CommandsList` are allowed (`y`) or excluded (`n`)                                                                                          |
+| `CustomPrompts`                  | JSON (see below)                            | per-command instructions applied to the generated narrative, see below                                                                                     |
 | `CycleTranscriptOverlap`         | `100`                                       | the numbers of words from the end of the last audio chunk provided to the LLM when generating the transcript from the audio                                 |
 | `HierarchicalDetectionThreshold` | `5`                                         | the minimum numbers of staged common commands to use the hierarchical instruction detection flow (opposed to the flat instruction detection)                |
 | `IsTuning`                       | `y`, `yes` or `1`                           | any other value means `no`/`false`, if `true`, only the `Tuning` button is displayed, otherwise the `Hyperscribe` and `Reviewer` buttons are displayed      |
@@ -89,6 +90,51 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `KeyAudioLLM`                    |                                             | the vendor's API key                                                                                                                                        |
 | `VendorTextLLM`                  | `OpenAi`, `Google`, `Anthropic`             | by default `OpenAi` (case insensitive)                                                                                                                      |
 | `KeyTextLLM`                     |                                             | the vendor's API key                                                                                                                                        |
+| `VisitTemplates`                 | JSON (see below)                            | per-visit-type note customization: questionnaires, ROS / PE / MSE scaffolds, and charges                                                                    |
+
+
+### `CustomPrompts`
+
+`CustomPrompts` lets you rewrite the narrative a command produces, using a second LLM pass that receives the
+generated text plus your instructions. It is a JSON list, e.g.:
+
+```json
+[
+  {"command": "Plan", "prompt": "Write the plan as a numbered list, one item per problem.", "active": true},
+  {"command": "HistoryOfPresentIllness", "prompt": "Keep it under three sentences.", "active": false}
+]
+```
+
+Only these five commands support it, and `command` has to match the class name exactly:
+
+`FollowUp`, `HistoryOfPresentIllness`, `Instruct`, `Plan`, `ReasonForVisit`
+
+An entry with `active` set to `false`, an empty `prompt`, or a `command` value that does not match one of the five
+above is ignored silently, so check the spelling if a prompt appears to have no effect. When `active` is `true` and
+the prompt is non-empty, the command runs the extra LLM pass and the rewritten text replaces the original narrative.
+
+### `VisitTemplates`
+
+`VisitTemplates` is a JSON object mapping each visit type to its note customization, e.g.:
+
+```json
+{
+  "templates": [
+    {
+      "name": "Psychiatry",
+      "questionnaires": ["PHQ-9", "GAD-7"],
+      "ros_template": "General:\nHEENT:\nCardiovascular:",
+      "pe_template": "General:\nHEENT:\nCardiovascular:",
+      "mse_template": "Appearance:\nBehavior/Rapport:\nMovement:\nSpeech:\nMood:\nOrientation:\nAttention/Concentration:\nThought Process:\nThought Content:\nInsight:\nJudgment:",
+      "charges": ["99213", "G2211"]
+    }
+  ]
+}
+```
+
+- `name` — must exactly match the visit-template name the operator selects. The name `Psychiatry` routes the note to the psychiatry flow (AP-merged template, Mental Status Exam section).
+- `ros_template` / `pe_template` / `mse_template` — optional newline-separated scaffolds that populate the **Template** dropdown on the Review of Systems / Physical Exam / **Mental Status Exam** cards respectively. Each line is one system written as `Label:` (optionally followed by default findings). The label must be **1–3 words** — longer labels are skipped by the parser. `mse_template` only surfaces on the Mental Status Exam card (psychiatry visits); keep its labels aligned with the 11 categories the MSE prompt requests (Appearance, Behavior/Rapport, Movement, Speech, Mood, Orientation, Attention/Concentration, Thought Process, Thought Content, Insight, Judgment) so AI-generated and template-applied scaffolds line up.
+- `questionnaires` / `charges` — questionnaires and charge (CPT) codes pre-loaded for the visit.
 
 
 The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above. The credentials must belong to an AWS IAM user with username following the format `hyperscribe-{canvas_instance}`.

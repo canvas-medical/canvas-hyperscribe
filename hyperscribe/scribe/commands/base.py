@@ -27,7 +27,7 @@ class CommandParser(ABC):
 
     def extract(self, text: str) -> CommandProposal | None:
         if self.data_field is None:
-            raise NotImplementedError(f"{type(self).__name__} must override extract()")
+            raise NotImplementedError(f"{self.__class__.__name__} must override extract()")
         return CommandProposal(
             command_type=self.command_type,
             display=text,
@@ -83,7 +83,7 @@ class CommandParser(ABC):
         self,
         command: _BaseCommand,
         proposal: dict[str, Any] | None = None,
-        feature_flags: dict[str, bool] | None = None,
+        feature_flags: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """Return metadata to upsert, or None. Override per command type."""
         return None

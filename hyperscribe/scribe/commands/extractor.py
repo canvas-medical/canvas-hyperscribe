@@ -82,8 +82,18 @@ def parse_ros_subsections(text: str) -> list[dict[str, str]]:
                             "text": "\n".join(current_lines).strip(),
                         }
                     )
-                current_title = label.strip()
-                current_lines = [rest.strip()] if rest.strip() else []
+                    current_title = label.strip()
+                    current_lines = [rest.strip()] if rest.strip() else []
+                elif current_lines:
+                    # Pre-header narrative: prepend to the first subsection's body
+                    # so it isn't silently dropped (relevant for mental_health_exam
+                    # where raw section text may start with narrative prose).
+                    pre_text = "\n".join(current_lines).strip()
+                    current_title = label.strip()
+                    current_lines = [pre_text] + ([rest.strip()] if rest.strip() else [])
+                else:
+                    current_title = label.strip()
+                    current_lines = [rest.strip()] if rest.strip() else []
                 continue
         current_lines.append(line)
 
@@ -116,6 +126,38 @@ def _extract_ros(note: ClinicalNote) -> CommandProposal | None:
         display=display,
         data={"sections": subsections},
         section_key="_ros",
+    )
+
+
+def _extract_mental_status_exam(note: ClinicalNote, *, is_psychiatry: bool = False) -> CommandProposal | None:
+    """Extract the mental_health_exam section into a Mental Status Exam command.
+
+    Psychiatry-only: gated on BOTH the psychiatry visit-template flag AND section
+    presence. Nabla only emits a ``mental_health_exam`` section when configured via
+    the psychiatry template's section customization (see
+    NablaBackend._build_note_payload), so section presence is normally a reliable
+    proxy — but the ``is_psychiatry`` gate ensures the MSE routing only fires when
+    the operator picked the Psychiatry visit template, even if a debug PUT injects
+    the section under a non-psych template. Mirrors ``_extract_physical_exam``.
+    """
+    if not is_psychiatry:
+        return None
+    mse_section = next(
+        (s for s in note.sections if s.key.lower() == "mental_health_exam" and s.text.strip()),
+        None,
+    )
+    if mse_section is None:
+        return None
+    subsections = parse_ros_subsections(mse_section.text)
+    if not subsections:
+        # Fall back to a single section if no category headers were detected.
+        subsections = [{"key": "mental_status_exam", "title": "Mental Status Exam", "text": mse_section.text.strip()}]
+    display = " | ".join(s["title"] for s in subsections)
+    return CommandProposal(
+        command_type="mental_status_exam",
+        display=display,
+        data={"sections": subsections},
+        section_key="mental_status_exam",
     )
 
 
@@ -260,12 +302,21 @@ def classify_vitals_source(note: ClinicalNote, observations: list[Observation]) 
 def extract_commands(
     note: ClinicalNote,
     observations: list[Observation] | None = None,
+    *,
+    is_psychiatry: bool = False,
 ) -> list[CommandProposal]:
     """Map ClinicalNote sections to CommandProposal list (deterministic, no LLM).
 
     ``observations`` carries Nabla's normalized vital signs (LOINC-coded). Pass them
     when available so the vitals parser can avoid format-drift bugs that plague the
     regex over Nabla's free-text vitals string.
+
+    ``is_psychiatry`` gates the psychiatry-specific Mental Status Exam command
+    (see ``_extract_mental_status_exam``): when False (default), the
+    mental_health_exam section is ignored even if present, and ROS behaves
+    exactly as on a generic visit. Callers should derive this from the visit
+    template the operator picked (see ``NablaBackend.is_psychiatry_template``),
+    not from section presence in the parsed note.
     """
     obs = observations or []
     proposals: list[CommandProposal] = []
@@ -301,6 +352,10 @@ def extract_commands(
     ros_proposal = _extract_ros(note)
     if ros_proposal is not None:
         proposals.append(ros_proposal)
+
+    mse_proposal = _extract_mental_status_exam(note, is_psychiatry=is_psychiatry)
+    if mse_proposal is not None:
+        proposals.append(mse_proposal)
 
     pe_proposal = _extract_physical_exam(note)
     if pe_proposal is not None:
