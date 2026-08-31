@@ -298,7 +298,7 @@ function InteractionWarningInline({ warning }) {
   `;
 }
 
-export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityCommands, patientId, noteId, staffId, staffName, noteDiagnoses = [], isRecommendation, onEditingChange }) {
+export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityCommands = new Set(), patientId, noteId, staffId, staffName, noteDiagnoses = [], isRecommendation, onEditingChange }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   useEffect(() => {

@@ -2393,3 +2393,16 @@ select.history-form-input {
   background: none; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap;
   transition: background 0.14s, color 0.14s; }
 .q-undo:hover { color: #b91c1c; background: #fbe9e9; }
+
+/* Lab recommendation AOE preview */
+.rec-aoe-summary {
+    margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e5e7eb;
+}
+.rec-aoe-line {
+    font-size: 12px; color: #374151; margin-top: 2px; line-height: 1.4;
+}
+.rec-aoe-line .rec-aoe-q { font-weight: 500; color: #1f2937; }
+.rec-aoe-line .rec-aoe-confidence-medium {
+    color: #b45309; font-style: italic; margin-left: 4px;
+}
+.rec-aoe-summary .rec-warning-pill { display: inline-block; margin-top: 4px; }

@@ -10,6 +10,7 @@ from canvas_sdk.clients.llms.structures.settings import LlmSettingsAnthropic
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, Transcript
 from hyperscribe.scribe.recommendations.allergy import AllergyRecommender
 from hyperscribe.scribe.recommendations.base import BaseRecommender
+from hyperscribe.scribe.recommendations.lab import LabRecommender
 from hyperscribe.scribe.recommendations.medication_statement import MedicationRecommender
 from hyperscribe.scribe.recommendations.prescription import PrescriptionRecommender
 from hyperscribe.scribe.recommendations.refer import ReferRecommender
@@ -59,9 +60,27 @@ def questionnaire_fill_enabled(allowlist_raw: str | None, provider_id: str | Non
     return _staffer_allowed(allowlist_raw, provider_id)
 
 
+_TRUTHY = {"yes", "y", "1", "true", "on"}
+
+
+def lab_aoe_enabled(raw: str | None) -> bool:
+    """Whether the lab Ask-On-Order-Entry pass is turned on.
+
+    **Blank/unset -> off** (fail-closed), the opposite of
+    ``prescription_dispense_enabled``: the AOE answers are review-only today, since
+    ``LabOrderCommand`` has no field to persist them to.
+
+    Accepts every truthy spelling the repo already uses, because ``Settings.is_true``
+    takes yes/y/1 while ``scribe_view`` takes only "true", and a secret set with the
+    other convention would silently do nothing.
+    """
+    return str(raw or "").strip().lower() in _TRUTHY
+
+
 def _build_recommenders(
     zip_codes: list[str] | None = None,
     dispense_engine_enabled: bool = True,
+    aoe_enabled: bool = False,
 ) -> list[BaseRecommender]:
     return [
         MedicationRecommender(),
@@ -70,6 +89,7 @@ def _build_recommenders(
         # zip_codes is intentionally not passed: referrals are recommended
         # generically (specialty only), without a provider lookup.
         ReferRecommender(),
+        LabRecommender(aoe_enabled=aoe_enabled),
         TaskRecommender(),
     ]
 
@@ -80,6 +100,7 @@ def recommend_commands(
     zip_codes: list[str] | None = None,
     transcript: Transcript | None = None,
     dispense_engine_enabled: bool = True,
+    aoe_enabled: bool = False,
 ) -> list[CommandProposal]:
     """Run all recommenders against the clinical note and return proposals.
 
@@ -87,9 +108,11 @@ def recommend_commands(
     (quantity / days supply / refills / dispense type); when False, prescribe
     recommendations are emitted in the baseline (canvas-scribe) shape. All other
     recommendation types are unaffected.
+
+    ``aoe_enabled`` gates only the lab Ask-On-Order-Entry pass and defaults to off.
     """
     proposals: list[CommandProposal] = []
-    for recommender in _build_recommenders(zip_codes, dispense_engine_enabled):
+    for recommender in _build_recommenders(zip_codes, dispense_engine_enabled, aoe_enabled):
         try:
             client = LlmAnthropic(_make_settings(api_key))
             proposals.extend(recommender.recommend(note, client, transcript=transcript))

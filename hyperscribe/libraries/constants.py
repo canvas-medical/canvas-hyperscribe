@@ -155,6 +155,9 @@ class Constants:
     # they can be retuned without a deploy.
     SECRET_SCRIBE_FILL_MODEL = "ScribeFillModel"
     SECRET_SCRIBE_FILL_EFFORT = "ScribeFillEffort"
+    # Opt-in switch for the lab Ask-On-Order-Entry pass. Blank/unset = off, because the
+    # answers are review-only today: LabOrderCommand has no AOE field to write them to.
+    SECRET_SCRIBE_LAB_AOE = "ScribeLabAoeEnabled"
     SECRET_TRIAL_STAFFERS_LIST = "TrialStaffersList"
     # JSON credentials which take precedence over the secrets
     AWS_S3_CREDENTIALS_LOGS = "S3CredentialsLogs"

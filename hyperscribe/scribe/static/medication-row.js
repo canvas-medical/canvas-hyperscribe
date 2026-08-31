@@ -24,7 +24,7 @@ function useDebounce(fn, delay) {
   }, [fn, delay]);
 }
 
-export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityCommands, onEditingChange }) {
+export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnly, alertFacilityCommands = new Set(), onEditingChange }) {
   const [editing, setEditing] = useState(!command.display);
   useEffect(() => {
     onEditingChange?.(commandIndex, editing);

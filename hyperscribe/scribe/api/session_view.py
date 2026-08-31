@@ -92,6 +92,7 @@ from hyperscribe.scribe.commands.problem_list_match import (
     prefer_patient_specific_codes,
 )
 from hyperscribe.scribe.recommendations import (
+    lab_aoe_enabled,
     make_llm_client,
     prescription_dispense_enabled,
     questionnaire_fill_enabled,
@@ -1819,6 +1820,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     zip_codes=zip_codes,
                     transcript=transcript,
                     dispense_engine_enabled=dispense_engine_enabled,
+                    aoe_enabled=lab_aoe_enabled(self.secrets.get(Constants.SECRET_SCRIBE_LAB_AOE)),
                 )
                 annotate_duplicates(rec_proposals, note_uuid)
                 prefill_assess_backgrounds_for_proposals(rec_proposals, note_uuid)
@@ -2157,6 +2159,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 zip_codes=zip_codes,
                 transcript=transcript,
                 dispense_engine_enabled=dispense_engine_enabled,
+                aoe_enabled=lab_aoe_enabled(self.secrets.get(Constants.SECRET_SCRIBE_LAB_AOE)),
             )
         except Exception:
             log.exception("recommend_commands failed")

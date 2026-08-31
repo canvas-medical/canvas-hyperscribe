@@ -299,6 +299,7 @@
     "ScribeQuestionnaireFillStaffers",
     "ScribeFillModel",
     "ScribeFillEffort",
+    "ScribeLabAoeEnabled",
     "ScribeTabName",
     "StaffersList",
     "StaffersPolicy",

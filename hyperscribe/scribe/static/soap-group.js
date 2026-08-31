@@ -119,7 +119,7 @@ const CHARGE_SEARCH_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
 const REMOVAL_TYPES = new Set(['stop_medication', 'remove_allergy', 'resolve_condition']);
 
-function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, alertFacilityCommands }) {
+function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, alertFacilityCommands = new Set() }) {
   const data = command.data || {};
   const type = command.command_type;
   const hasItem = !!(data.medication_id || data.allergy_id || data.condition_id);
@@ -1800,6 +1800,67 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           }
           return null;
         })}
+        ${(() => {
+          // Lab recommendations render inline after the ad hoc orders above rather than
+          // in a titled subsection: providers read AI-recommended and note-generated
+          // labs as one list.
+          if (title !== 'ASSESSMENT & PLAN') return null;
+          const labRecs = visibleRecs
+            .map(cmd => ({ command: cmd, index: cmd._origIndex }))
+            .filter(e => e.command.command_type === 'lab_order');
+          if (labRecs.length === 0) return null;
+          return labRecs.map(entry => {
+            const data = entry.command.data || {};
+            const aoeAnswers = Array.isArray(data.aoe_answers) ? data.aoe_answers : [];
+            const missingAoes = Array.isArray(data.missing_required_aoes) ? data.missing_required_aoes : [];
+            const missingFields = [];
+            if (!data.lab_partner) missingFields.push('Lab partner');
+            if (!data.tests_order_codes || data.tests_order_codes.length === 0) missingFields.push('Tests');
+            if (!data.diagnosis_codes || data.diagnosis_codes.length === 0) missingFields.push('Diagnoses');
+            const isIncomplete = missingFields.length > 0;
+            const isAccepted = entry.command.accepted && !entry.command.rejected;
+            const isRejected = entry.command.rejected;
+            const labRecRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
+            return html`
+            <div class=${`content-block recommendation-block rec-lab${isRejected ? ' rec-rejected' : ''}${!isAccepted && !isRejected && !readOnly && !entry.command.already_documented ? ' rec-needs-review' : ''}${(readOnly || isAmending) && labRecRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`} key=${'rec-lab-' + entry.index}>
+              ${(readOnly || isAmending) && labRecRowReadOnly && entry.command.already_documented && ICON_LOCK}
+              <div class="recommendation-content">
+                <${OrderRow}
+                  command=${entry.command}
+                  commandIndex=${entry.index}
+                  onEdit=${onEditRecommendation}
+                  readOnly=${labRecRowReadOnly || isRejected}
+                  alertFacilityCommands=${alertFacilityCommands}
+                  patientId=${patientId}
+                  noteId=${noteId}
+                  staffId=${staffId}
+                  staffName=${staffName}
+                  noteDiagnoses=${noteDiagnoses}
+                  isRecommendation=${true}
+                  onEditingChange=${onEditingChange}
+                />
+                ${(aoeAnswers.length > 0 || missingAoes.length > 0) && html`
+                  <div class="rec-aoe-summary">
+                    ${aoeAnswers.map((a, i) => html`
+                      <div class="rec-aoe-line" key=${'aoe-' + i}>
+                        <span class="rec-aoe-q">${a.question_body}:</span>
+                        ${' '}${a.answer_label || a.answer_value}
+                        ${a.confidence === 'medium' && html`<span class="rec-aoe-confidence-medium">(inferred)</span>`}
+                      </div>
+                    `)}
+                    ${missingAoes.map((m, i) => html`
+                      <span class="rec-warning-pill" key=${'aoe-missing-' + i}>Needs AOE: ${m.question_body}</span>
+                    `)}
+                  </div>
+                `}
+              </div>
+              <div class="recommendation-actions">
+                ${renderRecActions({ command: entry.command, index: entry.index, isAccepted, isRejected, incomplete: isIncomplete, missingLabel: missingFields.join(', '), acceptDisabled: isIncomplete, readOnly, onAccept: () => onAcceptRecommendation(entry.index), onReject: () => onRejectRecommendation(entry.index), onAddNow })}
+              </div>
+            </div>
+            `;
+          });
+        })()}
         ${(() => {
           const questionnaireCommands = visibleAdHoc
             .filter(e => e.command.command_type === 'questionnaire');
