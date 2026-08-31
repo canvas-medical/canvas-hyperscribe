@@ -1815,6 +1815,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                   commandIndex=${entry.index}
                   onEdit=${onEditRecommendation}
                   readOnly=${labRecRowReadOnly || isRejected}
+                  alertFacilityCommands=${alertFacilityCommands}
                   patientId=${patientId}
                   noteId=${noteId}
                   staffId=${staffId}
