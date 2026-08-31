@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.164.0",
-  "plugin_version": "2026-08-30 v0.4.61",
+  "plugin_version": "2026-08-30 v0.4.62",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -296,6 +296,9 @@
     "ScribeNoteTypes",
     "ScribePilotStaffers",
     "ScribePrescriptionStaffers",
+    "ScribeQuestionnaireFillStaffers",
+    "ScribeFillModel",
+    "ScribeFillEffort",
     "ScribeTabName",
     "StaffersList",
     "StaffersPolicy",
@@ -308,7 +311,7 @@
   "tags": {
     "version_date": "2026-08-30",
     "version_branch": "feat/ai-physical-exam",
-    "version_semantic": "0.4.61"
+    "version_semantic": "0.4.62"
   },
   "custom_data": {
     "namespace": "canvas_medical__scribe",

@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from canvas_sdk.clients.llms.structures import BaseModelLlmJson
 
@@ -242,4 +242,53 @@ class DiagnosisResolutionStep(BaseModelLlmJson):
             "up when no provided candidate fits — e.g. 'hypoalbuminemia', 'pulmonary edema', "
             "'iron deficiency anemia'. Leave empty when a provided candidate is selected."
         ),
+    )
+
+
+class EvidenceTurn(BaseModelLlmJson):
+    speaker: str = Field(description="Speaker label of the transcript turn")
+    quote: str = Field(description="Verbatim quote from the transcript, lightly cleaned of disfluencies")
+    item_id: str = Field(description="item_id of the transcript turn the quote came from")
+
+
+# The two questionnaire fill models validate leniently where the rest of this file does
+# not. ``BaseModelLlmJson`` sets ``extra="forbid"``, and on a real run the model added a
+# stray top-level key alongside eight correctly grounded answers; forbidding it threw all
+# eight away and reported the questionnaire as failed. ``additionalProperties: false`` is
+# kept in the schema the model is shown, so the constraint is still stated - it is only no
+# longer enforced destructively on the way back in.
+_LENIENT = ConfigDict(extra="ignore", json_schema_extra={"additionalProperties": False})
+
+
+class QuestionnaireItemFill(BaseModelLlmJson):
+    model_config = _LENIENT
+
+    question_dbid: int = Field(description="dbid of the question being answered")
+    status: str = Field(description="answered, denied, or not_assessed")
+    selected_option_dbid: int | None = Field(
+        default=None, description="Single choice: dbid of the one chosen option; null otherwise"
+    )
+    selected_option_dbids: list[int] = Field(
+        default_factory=list, description="Multiple choice: dbids of every option the respondent affirmed"
+    )
+    value: str | None = Field(
+        default=None, description="Free-text span, or the stated integer as a string; null otherwise"
+    )
+    evidence: list[EvidenceTurn] = Field(
+        default_factory=list, description="Transcript turn(s) supporting the answer; required unless not_assessed"
+    )
+    confidence: str = Field(default="low", description="high, medium, or low")
+    rationale: str = Field(default="", description="One sentence linking the evidence to the classification")
+
+
+class QuestionnaireFillResult(BaseModelLlmJson):
+    # Deliberately carries no ``questionnaire_dbid``. Nothing read it - the caller keys
+    # results by the dbid it asked for - and the model was never told the dbid in the
+    # first place, so a required field it had to invent sat one letter away from the
+    # item-level ``questionDbid``. That is the collision the stray key came out of.
+    model_config = _LENIENT
+
+    items: list[QuestionnaireItemFill] = Field(
+        default_factory=list,
+        description="One entry per answered or explicitly denied question; omit untouched questions",
     )

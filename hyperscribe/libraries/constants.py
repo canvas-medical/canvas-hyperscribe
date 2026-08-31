@@ -148,6 +148,13 @@ class Constants:
     # Comma-separated staff keys allowed the prescription dispense-field engine
     # (quantity / days supply / refills / dispense type). Blank = all users.
     SECRET_SCRIBE_PRESCRIPTION_STAFFERS = "ScribePrescriptionStaffers"
+    # Comma-separated staff keys allowed to fill questionnaires from the visit
+    # transcript. Blank = all users, matching the dispense-staffers convention.
+    SECRET_SCRIBE_QUESTIONNAIRE_FILL_STAFFERS = "ScribeQuestionnaireFillStaffers"
+    # Model and reasoning effort for the questionnaire fill, both overridable so
+    # they can be retuned without a deploy.
+    SECRET_SCRIBE_FILL_MODEL = "ScribeFillModel"
+    SECRET_SCRIBE_FILL_EFFORT = "ScribeFillEffort"
     SECRET_TRIAL_STAFFERS_LIST = "TrialStaffersList"
     # JSON credentials which take precedence over the secrets
     AWS_S3_CREDENTIALS_LOGS = "S3CredentialsLogs"

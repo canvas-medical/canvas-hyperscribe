@@ -86,7 +86,9 @@ def _format_number(value: Decimal) -> str:
     Mirrors the formatting idiom in ``_dosage._format_decimal``; kept local to
     avoid importing from ``_dosage`` (which imports from this module).
     """
-    return format(value.normalize(), "f")
+    # f-string, not format(): the plugin sandbox does not provide `format` as a
+    # builtin, so the call raised NameError at request time. Same output.
+    return f"{value.normalize():f}"
 
 
 def _strength_token(number: str, unit: str, denom: str | None) -> str | None:
