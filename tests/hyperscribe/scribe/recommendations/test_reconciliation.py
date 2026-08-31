@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from hyperscribe.scribe.recommendations.reconciliation import (
+    buried_systems,
     content_words,
     normalize_title,
     overlap_ratio,
@@ -465,3 +466,83 @@ def test_merge_model_needs_no_client_workaround() -> None:
         f"{_MODEL} requires dropping `temperature` and reading the first text block; "
         "fix canvas_sdk's LlmAnthropic before pinning the merge to it"
     )
+
+
+# ── the catch-all dumping ground (buried_systems) ──
+
+
+def test_buried_systems_flags_encounter_systems_folded_into_a_catch_all() -> None:
+    """A template ending in "OTHER: None reported." reads as an invitation, and the model
+    funnelled four encounter-only systems into it as inline labels. The content survived,
+    so coverage saw nothing; the shape was legal, so ordering and duplicates saw nothing."""
+    sections = [
+        {"title": "SKIN", "text": "No rashes. Callus on right foot."},
+        {
+            "title": "OTHER",
+            "text": (
+                "Neurologic: No headaches, no dizziness. Psychiatric: Flat affect. "
+                "Endocrine: Elevated blood sugars. Genitourinary: No urinary issues."
+            ),
+        },
+    ]
+    encounter = [
+        {"title": "Skin", "text": "No rashes"},
+        {"title": "Neurologic", "text": "No headaches"},
+        {"title": "Psychiatric", "text": "Flat affect"},
+        {"title": "Endocrine", "text": "High sugars"},
+        {"title": "Genitourinary", "text": "No urinary issues"},
+    ]
+    buried = buried_systems(sections, encounter)
+    assert [name for name, _ in buried] == ["neurologic", "psychiatric", "endocrine", "genitourinary"]
+    assert {row for _, row in buried} == {"OTHER"}
+
+
+def test_buried_systems_quiet_when_each_system_has_its_own_row() -> None:
+    sections = [
+        {"title": "SKIN", "text": "No rashes."},
+        {"title": "NEUROLOGIC", "text": "No headaches, no dizziness."},
+        {"title": "OTHER", "text": "None reported."},
+    ]
+    encounter = [{"title": "Skin", "text": "x"}, {"title": "Neurologic", "text": "y"}]
+    assert buried_systems(sections, encounter) == []
+
+
+def test_buried_systems_ignores_a_label_for_a_system_that_does_have_a_row() -> None:
+    """Consolidation is legal, so a template row may legitimately mention a system it
+    absorbed. Only a system with nowhere else to live counts as buried."""
+    sections = [{"title": "NEUROLOGIC", "text": "Neurologic: no headaches."}]
+    assert buried_systems(sections, [{"title": "Neurologic", "text": "x"}]) == []
+
+
+def test_validate_merge_rejects_a_catch_all_dumping_ground() -> None:
+    sections = [
+        {"title": "SKIN", "text": "No rashes."},
+        {"title": "OTHER", "text": "Neurologic: No headaches. Psychiatric: Flat affect."},
+    ]
+    template = [{"title": "SKIN", "text": "x"}, {"title": "OTHER", "text": "None reported."}]
+    encounter = [{"title": "Neurologic", "text": "a"}, {"title": "Psychiatric", "text": "b"}]
+    errors = validate_merge(sections, template, encounter)
+    assert len(errors) == 2
+    assert all("instead of getting its own row" in e for e in errors)
+
+
+def test_validate_merge_rejects_packed_rows_even_for_unnamed_systems() -> None:
+    """Backstop for the case where the model relabels while packing, so the inline label
+    no longer matches an encounter title. Known-good output carries zero inline labels."""
+    sections = [{"title": "OTHER", "text": "Neuro: no headaches. Psych: flat affect."}]
+    errors = validate_merge(sections, [{"title": "OTHER", "text": "None reported."}], [])
+    assert errors == ["row 'OTHER' packs 2 systems into one row as inline labels; emit one row per system"]
+
+
+def test_validate_merge_allows_a_single_inline_label() -> None:
+    """One colon in a row is ordinary prose, not a packed row."""
+    sections = [{"title": "PSYCH", "text": "Mood: depressed with congruent affect."}]
+    assert validate_merge(sections, [{"title": "PSYCH", "text": "x"}], []) == []
+
+
+def test_validate_merge_does_not_double_report_a_buried_row() -> None:
+    """A row caught by the precise check is not also reported by the packed backstop."""
+    sections = [{"title": "OTHER", "text": "Neurologic: none. Psychiatric: none."}]
+    encounter = [{"title": "Neurologic", "text": "a"}, {"title": "Psychiatric", "text": "b"}]
+    errors = validate_merge(sections, [{"title": "OTHER", "text": "None reported."}], encounter)
+    assert all("packs" not in e for e in errors)
