@@ -770,7 +770,7 @@ function AddConditionSearch({ onAdd, patientId }) {
   `;
 }
 
-export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, canEdit = true, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, isPsychiatry = false, dictation, transcriptFinalized = false }) {
+export function SoapGroup({ title, groupColor, sections, commandBySectionKey, onEditCommand, onDeleteCommand, adHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, readOnly, canEdit = true, isAmending = false, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, noteDiagnoses = [], onAddNow, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses = [], chargeMatrixCharges = [], searchCharges = () => {}, suggestedCharges = [], onToggleChargePointer = () => {}, onReorderDiagnoses = () => {}, onAddChargeModifier = () => {}, onRemoveChargeModifier = () => {}, onSetChargeComment = () => {}, onClearChargeComment = () => {}, onRemoveChargeByUuid = () => {}, examTemplates, onCarryForwardExam, onMergeExamTemplate, examMergeKinds, examMergeTemplate, isPsychiatry = false, dictation, transcriptFinalized = false }) {
   const isCharges = title === 'CHARGES';
   const coveredKeys = getCoveredKeys(commandBySectionKey);
 
@@ -1207,6 +1207,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       sectionKind="mental_status_exam"
                       templates=${examTemplates}
                       onCarryForward=${onCarryForwardExam}
+                      onMergeTemplate=${onMergeExamTemplate}
+                      mergeKinds=${examMergeKinds}
+                      mergeTemplate=${examMergeTemplate}
                     />
                   </div>
                 </div>
@@ -1228,6 +1231,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     sectionKind="mental_status_exam"
                     templates=${examTemplates}
                     onCarryForward=${onCarryForwardExam}
+                    onMergeTemplate=${onMergeExamTemplate}
+                    mergeKinds=${examMergeKinds}
+                    mergeTemplate=${examMergeTemplate}
                   />
                 </div>
               </div>
@@ -1257,6 +1263,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                       sectionKind="physical_exam"
                       templates=${examTemplates}
                       onCarryForward=${onCarryForwardExam}
+                      onMergeTemplate=${onMergeExamTemplate}
+                      mergeKinds=${examMergeKinds}
+                      mergeTemplate=${examMergeTemplate}
                     />
                   </div>
                 </div>
@@ -1282,6 +1291,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                     sectionKind="physical_exam"
                     templates=${examTemplates}
                     onCarryForward=${onCarryForwardExam}
+                    onMergeTemplate=${onMergeExamTemplate}
+                    mergeKinds=${examMergeKinds}
+                    mergeTemplate=${examMergeTemplate}
                   />
                 </div>
               </div>
@@ -1630,6 +1642,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                 sectionKind="ros"
                 templates=${examTemplates}
                 onCarryForward=${onCarryForwardExam}
+                onMergeTemplate=${onMergeExamTemplate}
+                mergeKinds=${examMergeKinds}
+                mergeTemplate=${examMergeTemplate}
               />
             </div>
           `;

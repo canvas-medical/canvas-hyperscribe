@@ -67,3 +67,35 @@ def test_extract_raises() -> None:
         assert False, "Should have raised NotImplementedError"
     except NotImplementedError:
         pass
+
+
+@patch("hyperscribe.scribe.commands.mental_status_exam.render_to_string")
+def test_build_ignores_merge_metadata(mock_render: MagicMock) -> None:
+    """The merge stamps attribution and restore points onto the proposal's sections.
+    None of it may reach the chart: the rendered HTML must match a bare section."""
+    mock_render.return_value = "<div><b>Mood:</b> Euthymic</div>"
+    parser = MentalStatusExamParser()
+    bare = {"sections": [{"key": "mood", "title": "Mood", "text": "Euthymic"}]}
+    annotated = {
+        "sections": [
+            {
+                "key": "mood",
+                "title": "Mood",
+                "text": "Euthymic",
+                "updated": False,
+                "template_text": "Affect congruent to mood",
+            }
+        ],
+        "encounter_sections": [],
+        "reconciled_sections": [{"key": "mood", "title": "Mood", "text": "Euthymic"}],
+        "template_removed": False,
+    }
+
+    with patch("hyperscribe.scribe.commands.mental_status_exam.CustomCommand") as mock_cmd:
+        mock_cmd.return_value = MagicMock()
+        parser.build(bare, "n", "c")
+        parser.build(annotated, "n", "c")
+
+    first, second = mock_render.call_args_list
+    assert first[0][1] == second[0][1] == {"sections": [{"title": "Mood", "text": "Euthymic"}]}
+    assert mock_cmd.call_args_list[0][1]["content"] == mock_cmd.call_args_list[1][1]["content"]

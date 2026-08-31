@@ -108,6 +108,7 @@ from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
     resolve_uncoded_blocks,
 )
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
+from hyperscribe.scribe.recommendations.reconciliation import parse_exam_merge_kinds, reconcile_sections
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
@@ -840,6 +841,148 @@ def _last_exam_sections(note_uuid: str, staff_id: str, kind: str) -> list[dict[s
     return []
 
 
+# The three section kinds the provider can merge a visit template into. Each row is
+# (field on the resolved template dict holding the scaffold, section_key to stamp when
+# the merge has to create the command, label for the LLM prompt and the log line).
+# NOTE: the eval harness mirrors this in evaluations/exam_merge/case.py, but against the
+# raw secret fields (ros_template / pe_template / mse_template) rather than the parsed
+# ones _load_templates produces.
+_EXAM_MERGE_SPECS: dict[str, tuple[str, str, str]] = {
+    "ros": ("ros_sections", "_ros", "Review of Systems"),
+    "physical_exam": ("pe_sections", "physical_exam", "Physical Exam"),
+    "mental_status_exam": ("mse_sections", "mental_status_exam", "Mental Status Exam"),
+}
+
+
+def _clean_template_sections(raw: Any) -> list[dict[str, str]]:
+    """Coerce a template scaffold into {key,title,text} dicts.
+
+    Anything that is not a list of dicts collapses to an empty list and the caller
+    skips the merge. The scaffold now comes from the VisitTemplates secret rather than
+    the request body, but the coercion stays because a malformed secret is just as
+    capable of putting a non-string in front of ``normalize_title``.
+    """
+    if not isinstance(raw, list):
+        return []
+    return [
+        {"key": str(s.get("key", "")), "title": str(s.get("title", "")), "text": str(s.get("text", ""))}
+        for s in raw
+        if isinstance(s, dict)
+    ]
+
+
+def _saved_template_name(note_uuid: str) -> str:
+    """The visit template name on the saved summary row, or "" if unavailable."""
+    try:
+        note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_uuid)
+        row = ScribeSummary.objects.filter(note_id=note_dbid).values("selected_template_name").first()
+    except Exception:
+        log.exception("merge-exam-template: could not read the saved template name")
+        return ""
+    return str((row or {}).get("selected_template_name") or "")
+
+
+def _resolve_merge_template(secrets: dict[str, str], note_uuid: str, requested_name: Any) -> dict[str, Any] | None:
+    """Find the note's visit template among the operator-configured ones.
+
+    The scaffold is never taken from the request body. The client may pass a name,
+    because the debounced autosave can lag a click by half a second, but that name is
+    only ever used to look up a template from the VisitTemplates secret. A hostile body
+    can therefore pick a different configured template but cannot inject exam text.
+    """
+    name = str(requested_name or "").strip() or _saved_template_name(note_uuid)
+    if not name:
+        return None
+    for template in _load_templates(secrets):
+        if str(template.get("name", "")).strip() == name:
+            return template
+    return None
+
+
+def _merge_note_sections(note_uuid: str) -> list[dict[str, str]]:
+    """The note's other sections, for the merge's do-not-contradict rule.
+
+    At generation these came straight off the live note object. On demand they come from
+    the saved summary row instead, which is the same data plus any edits the provider has
+    made since. It is prompt context only, so drift is not fatal.
+    """
+    try:
+        note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_uuid)
+        row = ScribeSummary.objects.filter(note_id=note_dbid).values("note_data").first()
+    except Exception:
+        log.exception("merge-exam-template: could not read the note sections")
+        return []
+    sections = ((row or {}).get("note_data") or {}).get("sections")
+    if not isinstance(sections, list):
+        return []
+    return [{"key": str(s.get("key", "")), "text": str(s.get("text", ""))} for s in sections if isinstance(s, dict)]
+
+
+def _merge_exam_kind(
+    kind: str,
+    template_sections: list[dict[str, str]],
+    encounter_sections: list[dict[str, Any]],
+    *,
+    note_uuid: str,
+    api_key: str,
+    note_sections: list[dict[str, str]] | None = None,
+) -> dict[str, Any] | None:
+    """Merge one section kind's template scaffold into the card's current sections.
+
+    Returns the ``data`` payload to put on the command, or ``None`` when the merge did
+    not happen (the LLM failed twice, or its output failed validation). ``None`` means
+    leave the card exactly as it is: there is no deterministic fallback, because the one
+    we had emitted a fabricated normal exam.
+
+    Three reference keys ride along so the card's undo works without another call.
+    ``encounter_sections`` is the pre-merge content, ``reconciled_sections`` is what this
+    produced, and ``template_removed`` tracks which of the two the card is showing. Once
+    both exist, undo and redo are local swaps and cost nothing.
+    """
+    _field, _section_key, label = _EXAM_MERGE_SPECS[kind]
+    sections, merged = reconcile_sections(
+        template_sections,
+        encounter_sections,
+        api_key,
+        label,
+        note_sections=note_sections or [],
+    )
+
+    if not merged:
+        reason = "no_api_key" if not api_key else "llm_failed"
+        if note_uuid:
+            audit_event(note_uuid, "TEMPLATE_MERGE_SKIPPED", {"kind": kind, "reason": reason})
+        return None
+
+    if note_uuid:
+        audit_event(
+            note_uuid,
+            "TEMPLATE_RECONCILED",
+            {
+                "kind": kind,
+                "template_section_count": len(template_sections),
+                # Named for the generation-time original. It now counts the card's
+                # pre-merge rows, which are Nabla's output only until the provider edits.
+                "encounter_section_count": len(encounter_sections),
+                "updated_count": sum(1 for s in sections if s.get("updated")),
+                # Clause-level, because a row marked updated=true can still carry
+                # unearned template wording. Row counts undercounted this ~7x.
+                "template_clause_count": sum(
+                    1 for s in sections for c in (s.get("clauses") or []) if c.get("provenance") == "template"
+                ),
+            },
+        )
+
+    return {
+        "sections": sections,
+        # Independent copies so a later edit to ``sections`` cannot alias into the
+        # reference the undo restores from.
+        "encounter_sections": [dict(s) for s in encounter_sections],
+        "reconciled_sections": [dict(s) for s in sections],
+        "template_removed": False,
+    }
+
+
 def _load_assignees() -> list[dict[str, Any]]:
     """Load active staff members and teams for task assignment."""
     assignees: list[dict[str, Any]] = []
@@ -1015,6 +1158,11 @@ def _load_initial_data(note_id: str, secrets: dict[str, str]) -> dict[str, Any]:
         ),
         "assignees": _degrade("assignees", _load_assignees, []),
         "templates": _degrade("templates", lambda: _load_templates(secrets), []),
+        "exam_merge_kinds": _degrade(
+            "exam_merge_kinds",
+            lambda: sorted(parse_exam_merge_kinds(secrets.get(Constants.SECRET_SCRIBE_EXAM_TEMPLATE_MERGE))),
+            [],
+        ),
     }
 
 
@@ -1293,6 +1441,76 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         staff_id = headers.get("canvas-logged-in-user-id") or ""
         sections = _last_exam_sections(note_uuid, staff_id, kind)
         return [JSONResponse({"sections": sections}, status_code=HTTPStatus.OK)]
+
+    @api.post("/merge-exam-template")
+    def post_merge_exam_template(self) -> list[Union[Response, Effect]]:
+        """Merge the note's visit-template exam scaffold into one card's sections.
+
+        Provider-initiated. Generation leaves the exam as the AI produced it, and this
+        runs only when the provider asks for the template defaults, so no template
+        wording enters a note unless somebody chose it.
+
+        ``sections`` in the body is whatever the card holds right now, which means edits
+        made before the click are merged into rather than discarded.
+
+        A merge that cannot happen returns 200 with ``merged: false`` and a reason,
+        rather than an error status. The frontend has to tell the provider what happened:
+        they waited several seconds for this, so a silent no-op is not acceptable the way
+        it is for carry-forward.
+        """
+        try:
+            data: dict[str, Any] = json.loads(self.request.body)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return [JSONResponse({"error": f"Invalid JSON: {exc}"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        note_uuid = str(data.get("note_id", ""))
+        # Edit-gate: this rewrites the working note, so it is provider-only.
+        if denial := _authorize_edit(note_uuid, self.request):
+            return [denial]
+
+        kind = str(data.get("kind", ""))
+        if kind not in _EXAM_MERGE_SPECS:
+            return [JSONResponse({"error": "invalid kind"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        def refused(reason: str) -> list[Union[Response, Effect]]:
+            return [JSONResponse({"merged": False, "reason": reason}, status_code=HTTPStatus.OK)]
+
+        if kind not in parse_exam_merge_kinds(self.secrets.get(Constants.SECRET_SCRIBE_EXAM_TEMPLATE_MERGE)):
+            return refused("not_enabled")
+
+        template = _resolve_merge_template(self.secrets, note_uuid, data.get("selected_template_name"))
+        if template is None:
+            return refused("no_template")
+
+        # MSE only exists on a psychiatry visit, gated on the visit template the
+        # operator picked rather than on section presence.
+        if kind == "mental_status_exam" and not template.get("is_psychiatry"):
+            return refused("not_psychiatry")
+
+        field, _section_key, _label = _EXAM_MERGE_SPECS[kind]
+        template_sections = _clean_template_sections(template.get(field))
+        if not template_sections:
+            return refused("no_template_exam")
+
+        raw_sections = data.get("sections")
+        encounter_sections = _clean_template_sections(raw_sections)
+        if not encounter_sections and isinstance(raw_sections, list) and raw_sections:
+            return [JSONResponse({"error": "malformed sections"}, status_code=HTTPStatus.BAD_REQUEST)]
+
+        merged_data = _merge_exam_kind(
+            kind,
+            template_sections,
+            encounter_sections,
+            note_uuid=note_uuid,
+            api_key=self.secrets.get("AnthropicAPIKey", ""),
+            # Rule 5 needs these: a denial is wrong when another section of the same
+            # note positively records the finding.
+            note_sections=_merge_note_sections(note_uuid),
+        )
+        if merged_data is None:
+            return refused("merge_failed")
+
+        return [JSONResponse({"merged": True, **merged_data}, status_code=HTTPStatus.OK)]
 
     @api.post("/save-summary")
     def post_save_summary(self) -> list[Union[Response, Effect]]:
@@ -1575,9 +1793,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
         )
         prefill_diagnose_backgrounds(commands_list, note_uuid)
 
-        # Template ROS/PE reconciliation is not part of generation. Generation yields
-        # the raw Nabla findings; the provider applies a template explicitly from the
-        # PE/ROS card (Template ▾ → pick a template → confirm → replace).
+        # Generation deliberately does NOT merge the visit template into the exam.
+        # The note carries only the AI's findings, and the provider merges the template
+        # in per card via POST /merge-exam-template. See that endpoint for why.
 
         # ── Step 3: Recommend commands ──
         _save_progress(note_id, 3, total, SUMMARY_STEPS[3])
@@ -3393,8 +3611,22 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
 
     @api.get("/visit-templates")
     def get_visit_templates(self) -> list[Union[Response, Effect]]:
-        """Load visit templates with resolved questionnaire definitions."""
-        return [JSONResponse({"templates": _load_templates(self.secrets)}, status_code=HTTPStatus.OK)]
+        """Load visit templates with resolved questionnaire definitions.
+
+        ``exam_merge_kinds`` tells the frontend which cards may offer the merge button.
+        The secret is still the only gate; this just saves the client from guessing.
+        """
+        return [
+            JSONResponse(
+                {
+                    "templates": _load_templates(self.secrets),
+                    "exam_merge_kinds": sorted(
+                        parse_exam_merge_kinds(self.secrets.get(Constants.SECRET_SCRIBE_EXAM_TEMPLATE_MERGE))
+                    ),
+                },
+                status_code=HTTPStatus.OK,
+            )
+        ]
 
     @api.post("/save-audit-log")
     def post_save_audit_log(self) -> list[Union[Response, Effect]]:

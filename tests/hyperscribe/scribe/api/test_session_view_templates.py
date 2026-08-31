@@ -35,19 +35,19 @@ def _helper_instance(template_secret: str = "{}") -> ScribeSessionView:
 def test_get_visit_templates_no_secret() -> None:
     view = _helper_instance(template_secret="{}")
     result = view.get_visit_templates()
-    assert result == [JSONResponse({"templates": []}, status_code=HTTPStatus.OK)]
+    assert result == [JSONResponse({"templates": [], "exam_merge_kinds": []}, status_code=HTTPStatus.OK)]
 
 
 def test_get_visit_templates_invalid_json() -> None:
     view = _helper_instance(template_secret="not valid json {{{")
     result = view.get_visit_templates()
-    assert result == [JSONResponse({"templates": []}, status_code=HTTPStatus.OK)]
+    assert result == [JSONResponse({"templates": [], "exam_merge_kinds": []}, status_code=HTTPStatus.OK)]
 
 
 def test_get_visit_templates_empty_templates() -> None:
     view = _helper_instance(template_secret=json.dumps({"templates": []}))
     result = view.get_visit_templates()
-    assert result == [JSONResponse({"templates": []}, status_code=HTTPStatus.OK)]
+    assert result == [JSONResponse({"templates": [], "exam_merge_kinds": []}, status_code=HTTPStatus.OK)]
 
 
 @patch("hyperscribe.scribe.recommendations.questionnaire_fill.QuestionnaireCommand")
@@ -94,7 +94,8 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
             "templates": [
                 {"name": "Initial Visit", "questionnaires": ["PHQ-9", "GAD-7"]},
                 {"name": "Follow-Up", "questionnaires": []},
-            ]
+            ],
+            "exam_merge_kinds": [],
         }
     )
     view = _helper_instance(template_secret=secret)
@@ -146,7 +147,8 @@ def test_get_visit_templates_resolves_questionnaires(mock_model: MagicMock, mock
                         "is_psychiatry": False,
                         "charges": [],
                     },
-                ]
+                ],
+                "exam_merge_kinds": [],
             },
             status_code=HTTPStatus.OK,
         )
@@ -194,7 +196,8 @@ def test_get_visit_templates_skips_missing_questionnaire(mock_model: MagicMock, 
                         "is_psychiatry": False,
                         "charges": [],
                     }
-                ]
+                ],
+                "exam_merge_kinds": [],
             },
             status_code=HTTPStatus.OK,
         )
@@ -277,7 +280,8 @@ def test_get_visit_templates_preserves_integer_zero_score_value(
                         "is_psychiatry": False,
                         "charges": [],
                     }
-                ]
+                ],
+                "exam_merge_kinds": [],
             },
             status_code=HTTPStatus.OK,
         )
@@ -306,7 +310,8 @@ def test_get_visit_templates_no_questionnaire_names(mock_model: MagicMock, mock_
                         "is_psychiatry": False,
                         "charges": [],
                     }
-                ]
+                ],
+                "exam_merge_kinds": [],
             },
             status_code=HTTPStatus.OK,
         )
@@ -323,7 +328,8 @@ def test_get_visit_templates_parses_ros_and_pe() -> None:
                     "ros_template": "CONSTITUTIONAL: Denies fever.\nEYES: Denies visual changes.",
                     "pe_template": "GENERAL: NAD. Well-developed.\nHEENT: NCAT.",
                 }
-            ]
+            ],
+            "exam_merge_kinds": [],
         }
     )
     view = _helper_instance(template_secret=secret)
@@ -347,7 +353,8 @@ def test_get_visit_templates_parses_ros_and_pe() -> None:
                         "is_psychiatry": False,
                         "charges": [],
                     }
-                ]
+                ],
+                "exam_merge_kinds": [],
             },
             status_code=HTTPStatus.OK,
         )
@@ -364,7 +371,8 @@ def test_get_visit_templates_null_ros_pe() -> None:
                     "ros_template": None,
                     "pe_template": None,
                 }
-            ]
+            ],
+            "exam_merge_kinds": [],
         }
     )
     view = _helper_instance(template_secret=secret)
@@ -382,7 +390,8 @@ def test_get_visit_templates_null_ros_pe() -> None:
                         "is_psychiatry": False,
                         "charges": [],
                     }
-                ]
+                ],
+                "exam_merge_kinds": [],
             },
             status_code=HTTPStatus.OK,
         )
@@ -399,7 +408,8 @@ def test_get_visit_templates_psychiatry_parses_mse_and_sets_flag() -> None:
                     "questionnaires": [],
                     "mse_template": "Appearance: Well-groomed.\nMood: Euthymic.",
                 }
-            ]
+            ],
+            "exam_merge_kinds": [],
         }
     )
     view = _helper_instance(template_secret=secret)
@@ -444,7 +454,8 @@ def test_get_visit_templates_resolves_charges(mock_cdm: MagicMock) -> None:
                     "questionnaires": [],
                     "charges": ["99342", "G2211"],
                 }
-            ]
+            ],
+            "exam_merge_kinds": [],
         }
     )
     view = _helper_instance(template_secret=secret)
@@ -475,7 +486,8 @@ def test_get_visit_templates_drops_invalid_charges(mock_cdm: MagicMock) -> None:
                     "questionnaires": [],
                     "charges": ["99342", "XXXXX"],
                 }
-            ]
+            ],
+            "exam_merge_kinds": [],
         }
     )
     view = _helper_instance(template_secret=secret)
