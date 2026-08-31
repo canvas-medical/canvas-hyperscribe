@@ -1,0 +1,449 @@
+{
+  "selected_template_name": "Subsequent Visit",
+  "mode": "ai",
+  "approved": false,
+  "note_data": {
+    "title": "Kevin Saver - Right shoulder pain and diabetes follow-up",
+    "sections": [
+      {
+        "key": "CHIEF_COMPLAINT",
+        "title": "Chief complaint",
+        "text": "Right shoulder pain."
+      },
+      {
+        "key": "HISTORY_OF_PRESENT_ILLNESS",
+        "title": "History of present illness",
+        "text": "Kevin Saver is a 36-year-old male who presents today for right shoulder pain.\nThree weeks ago, he experienced a sharp twinge in his right shoulder while helping his son move a sofa up the stairs, which transitioned into a persistent ache localized to the top of the right shoulder and extending into the upper arm. The pain is aggravated by reaching overhead and putting on a shirt, and worsens at night when rolling onto the affected side, prompting him to sleep on the opposite side. He denies numbness, tingling, or weakness in the arm or hand. He has tried ice, Tylenol, muscle rub, and ibuprofen for relief, with only temporary improvement from ibuprofen and concern about stomach irritation.\nHe is concerned about blood sugar control, noting home glucose readings of 160-180 mg/dL in the morning and 140 mg/dL or higher before dinner. He attributes recent dietary changes and decreased activity to the holidays and colder weather. He denies increased thirst, nocturia beyond his usual pattern, blurred vision, or new tingling in the feet.\nHe describes feeling down and low in energy for approximately two months, coinciding with the passing of his brother. He reports decreased enjoyment in activities, increased sleep, and reduced appetite. He denies thoughts of self-harm. He notes feeling empty and less engaged than usual.\nHe reports recurrent heartburn, especially at night, and admits to missing omeprazole doses on weekends. He denies blood in stool or black stools.\nHe has a history of type 2 diabetes diagnosed in 2010, hypertension diagnosed in 2015, hyperlipidemia, and GERD. Surgical history includes laparoscopic cholecystectomy in 2010 and appendectomy at age ten. He reports penicillin allergy with hives in his twenties, without respiratory or facial swelling. Family history includes mother with heart disease and fatal myocardial infarction, father with type 2 diabetes, and aunt with breast cancer. Brother had heart disease."
+      },
+      {
+        "key": "review_of_systems",
+        "title": "Review of Systems",
+        "text": "General: Low energy, increased sleep, decreased appetite\nMusculoskeletal: Right shoulder pain, no numbness, tingling, or weakness\nEndocrine: Elevated blood glucose readings, no increased thirst\nGastrointestinal: Heartburn, no blood in stool or black stools\nNeurologic: No headaches, dizziness, or vision changes\nCardiovascular: No chest pain, palpitations, or shortness of breath\nRespiratory: No cough, wheezing, or trouble breathing\nSkin: No rashes\nPsychiatric: Feeling down, decreased enjoyment, no thoughts of self-harm"
+      },
+      {
+        "key": "VITALS",
+        "title": "Vitals",
+        "text": "- Blood pressure: 146/88 mmHg\n- Heart rate: 74 bpm\n- Respiratory rate: 16 breaths/min\n- Temperature: 98.2 F\n- Oxygen saturation: 97%\n- Weight: 198 lb\n- Height: 5 ft 10 in"
+      },
+      {
+        "key": "PHYSICAL_EXAM",
+        "title": "Physical exam",
+        "text": "General: Alert and oriented, comfortable, in no acute distress, appears tired\nHEENT: Head atraumatic, ears, nose, and throat normal, neck supple, no thyromegaly, no cervical lymphadenopathy\nCardiovascular: Regular rate and rhythm, no murmurs, no gallops, carotid arteries without bruits, dorsalis pedis pulses 2+ bilaterally\nLungs: Clear to auscultation bilaterally, no wheezing, no crackles\nAbdomen: Soft, normoactive bowel sounds, no masses, mild epigastric tenderness to palpation\nMusculoskeletal: Pain with shoulder abduction past 90 degrees, positive Neer's impingement sign, negative Hawkins sign, no weakness with resisted external rotation\nSkin: Warm, dry, no rashes, callus present on ball of right foot without surrounding breakdown\nNeurologic: Cranial nerves intact, strength 5/5 in all extremities, gait steady, monofilament sensation intact in feet, affect flat, decreased eye contact, speech normal, thought process linear\nLymphatic: No cervical lymphadenopathy\nExtremities: Trace bilateral ankle edema, no ulcers on feet"
+      },
+      {
+        "key": "LAB_RESULTS",
+        "title": "Lab results",
+        "text": "- Hemoglobin A1c: 7.8%\n- LDL cholesterol: 142 mg/dL\n- HDL cholesterol: 38 mg/dL\n- Triglycerides: 210 mg/dL\n- Creatinine: 1.1 mg/dL\n- Estimated GFR: 68 mL/min/1.73 m2\n- TSH: within normal limits"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "command_type": "ros",
+      "section_key": "_ros",
+      "display": "CONSTITUTIONAL | CARDIAC | RESPIRATORY | DIGESTIVE | MUSCULOSKELETAL | SKIN | OTHER | ENDOCRINE | NEUROLOGIC | PSYCHIATRIC",
+      "selected": true,
+      "already_documented": false,
+      "data": {
+        "template_removed": false,
+        "sections": [
+          {
+            "key": "constitutional",
+            "title": "CONSTITUTIONAL",
+            "text": "Low energy, increased sleep, decreased appetite. Denies fever, chills.",
+            "updated": true,
+            "template_text": "Denies fever, chills, loss of appetite, fatigue, or weakness."
+          },
+          {
+            "key": "cardiac",
+            "title": "CARDIAC",
+            "text": "Denies chest pain, shortness of breath with exertion, palpitations, or swelling in the legs.",
+            "updated": true,
+            "template_text": "Denies chest pain, shortness of breath with exertion, or swelling in the legs."
+          },
+          {
+            "key": "respiratory",
+            "title": "RESPIRATORY",
+            "text": "Denies cough, wheezing, nocturnal dyspnea, or shortness of breath.",
+            "updated": true,
+            "template_text": "Denies cough, nocturnal dyspnea, or shortness of breath."
+          },
+          {
+            "key": "digestive",
+            "title": "DIGESTIVE",
+            "text": "Heartburn. Denies nausea, vomiting, abdominal pain, constipation, diarrhea, blood in stool, or black stools.",
+            "updated": true,
+            "template_text": "Denies nausea, vomiting, abdominal pain, constipation, or diarrhea."
+          },
+          {
+            "key": "musculoskeletal",
+            "title": "MUSCULOSKELETAL",
+            "text": "Right shoulder pain, no numbness, tingling, or weakness. Denies muscle aches or cramps, or arthritis.",
+            "updated": true,
+            "template_text": "Denies muscle aches or cramps, body aches, or arthritis."
+          },
+          {
+            "key": "skin",
+            "title": "SKIN",
+            "text": "Denies lumps/bumps, rash, or skin tear.",
+            "updated": false,
+            "template_text": "Denies lumps/bumps, rash, or skin tear."
+          },
+          {
+            "key": "other",
+            "title": "OTHER",
+            "text": "None reported.",
+            "updated": false,
+            "template_text": "None reported."
+          },
+          {
+            "key": "endocrine",
+            "title": "ENDOCRINE",
+            "text": "Elevated blood glucose readings, no increased thirst.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "neurologic",
+            "title": "NEUROLOGIC",
+            "text": "No headaches, dizziness, or vision changes.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "psychiatric",
+            "title": "PSYCHIATRIC",
+            "text": "Feeling down, decreased enjoyment, no thoughts of self-harm.",
+            "updated": true,
+            "template_text": null
+          }
+        ],
+        "encounter_sections": [
+          {
+            "key": "general",
+            "title": "General",
+            "text": "Low energy, increased sleep, decreased appetite"
+          },
+          {
+            "key": "musculoskeletal",
+            "title": "Musculoskeletal",
+            "text": "Right shoulder pain, no numbness, tingling, or weakness"
+          },
+          {
+            "key": "endocrine",
+            "title": "Endocrine",
+            "text": "Elevated blood glucose readings, no increased thirst"
+          },
+          {
+            "key": "gastrointestinal",
+            "title": "Gastrointestinal",
+            "text": "Heartburn, no blood in stool or black stools"
+          },
+          {
+            "key": "neurologic",
+            "title": "Neurologic",
+            "text": "No headaches, dizziness, or vision changes"
+          },
+          {
+            "key": "cardiovascular",
+            "title": "Cardiovascular",
+            "text": "No chest pain, palpitations, or shortness of breath"
+          },
+          {
+            "key": "respiratory",
+            "title": "Respiratory",
+            "text": "No cough, wheezing, or trouble breathing"
+          },
+          {
+            "key": "skin",
+            "title": "Skin",
+            "text": "No rashes"
+          },
+          {
+            "key": "psychiatric",
+            "title": "Psychiatric",
+            "text": "Feeling down, decreased enjoyment, no thoughts of self-harm"
+          }
+        ],
+        "reconciled_sections": [
+          {
+            "key": "constitutional",
+            "title": "CONSTITUTIONAL",
+            "text": "Low energy, increased sleep, decreased appetite. Denies fever, chills.",
+            "updated": true,
+            "template_text": "Denies fever, chills, loss of appetite, fatigue, or weakness."
+          },
+          {
+            "key": "cardiac",
+            "title": "CARDIAC",
+            "text": "Denies chest pain, shortness of breath with exertion, palpitations, or swelling in the legs.",
+            "updated": true,
+            "template_text": "Denies chest pain, shortness of breath with exertion, or swelling in the legs."
+          },
+          {
+            "key": "respiratory",
+            "title": "RESPIRATORY",
+            "text": "Denies cough, wheezing, nocturnal dyspnea, or shortness of breath.",
+            "updated": true,
+            "template_text": "Denies cough, nocturnal dyspnea, or shortness of breath."
+          },
+          {
+            "key": "digestive",
+            "title": "DIGESTIVE",
+            "text": "Heartburn. Denies nausea, vomiting, abdominal pain, constipation, diarrhea, blood in stool, or black stools.",
+            "updated": true,
+            "template_text": "Denies nausea, vomiting, abdominal pain, constipation, or diarrhea."
+          },
+          {
+            "key": "musculoskeletal",
+            "title": "MUSCULOSKELETAL",
+            "text": "Right shoulder pain, no numbness, tingling, or weakness. Denies muscle aches or cramps, or arthritis.",
+            "updated": true,
+            "template_text": "Denies muscle aches or cramps, body aches, or arthritis."
+          },
+          {
+            "key": "skin",
+            "title": "SKIN",
+            "text": "Denies lumps/bumps, rash, or skin tear.",
+            "updated": false,
+            "template_text": "Denies lumps/bumps, rash, or skin tear."
+          },
+          {
+            "key": "other",
+            "title": "OTHER",
+            "text": "None reported.",
+            "updated": false,
+            "template_text": "None reported."
+          },
+          {
+            "key": "endocrine",
+            "title": "ENDOCRINE",
+            "text": "Elevated blood glucose readings, no increased thirst.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "neurologic",
+            "title": "NEUROLOGIC",
+            "text": "No headaches, dizziness, or vision changes.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "psychiatric",
+            "title": "PSYCHIATRIC",
+            "text": "Feeling down, decreased enjoyment, no thoughts of self-harm.",
+            "updated": true,
+            "template_text": null
+          }
+        ]
+      }
+    },
+    {
+      "command_type": "physical_exam",
+      "section_key": "physical_exam",
+      "display": "CONSTITUTIONAL | SKIN | PULMONARY | CARDIOVASCULAR | EXTREMITIES | PSYCH | HEENT | ABDOMEN | MUSCULOSKELETAL | NEUROLOGIC",
+      "selected": true,
+      "already_documented": false,
+      "data": {
+        "template_removed": false,
+        "sections": [
+          {
+            "key": "constitutional",
+            "title": "CONSTITUTIONAL",
+            "text": "Alert, no acute distress, appears tired. Well developed and nourished.",
+            "updated": true,
+            "template_text": "Alert, no acute distress. Well developed and nourished."
+          },
+          {
+            "key": "skin",
+            "title": "SKIN",
+            "text": "Warm and dry, no rashes, callus present on ball of right foot without surrounding breakdown.",
+            "updated": true,
+            "template_text": "Warm and dry, no suspicious lesions."
+          },
+          {
+            "key": "pulmonary",
+            "title": "PULMONARY",
+            "text": "Clear to auscultation bilaterally, no wheezing, no crackles.",
+            "updated": true,
+            "template_text": "Clear to auscultation bilaterally."
+          },
+          {
+            "key": "cardiovascular",
+            "title": "CARDIOVASCULAR",
+            "text": "Regular rate and rhythm, S1, S2 normal, no murmurs, no gallops, carotid arteries without bruits, dorsalis pedis pulses 2+ bilaterally.",
+            "updated": true,
+            "template_text": "Regular rate and rhythm, S1, S2 normal, no murmurs."
+          },
+          {
+            "key": "extremities",
+            "title": "EXTREMITIES",
+            "text": "Trace bilateral ankle edema, no clubbing or cyanosis, no ulcers on feet.",
+            "updated": true,
+            "template_text": "No clubbing, cyanosis, or edema."
+          },
+          {
+            "key": "psych",
+            "title": "PSYCH",
+            "text": "Affect flat, decreased eye contact.",
+            "updated": true,
+            "template_text": "Good eye contact. Normal mood and affect."
+          },
+          {
+            "key": "heent",
+            "title": "HEENT",
+            "text": "Head atraumatic, ears, nose, and throat normal, neck supple, no thyromegaly, no cervical lymphadenopathy.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "abdomen",
+            "title": "ABDOMEN",
+            "text": "Soft, normoactive bowel sounds, no masses, mild epigastric tenderness to palpation.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "musculoskeletal",
+            "title": "MUSCULOSKELETAL",
+            "text": "Pain with shoulder abduction past 90 degrees, positive Neer's impingement sign, negative Hawkins sign, no weakness with resisted external rotation.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "neurologic",
+            "title": "NEUROLOGIC",
+            "text": "Cranial nerves intact, strength 5/5 in all extremities, gait steady, monofilament sensation intact in feet, speech normal, thought process linear.",
+            "updated": true,
+            "template_text": null
+          }
+        ],
+        "encounter_sections": [
+          {
+            "key": "general",
+            "title": "General",
+            "text": "Alert and oriented, comfortable, in no acute distress, appears tired"
+          },
+          {
+            "key": "heent",
+            "title": "HEENT",
+            "text": "Head atraumatic, ears, nose, and throat normal, neck supple, no thyromegaly, no cervical lymphadenopathy"
+          },
+          {
+            "key": "cardiovascular",
+            "title": "Cardiovascular",
+            "text": "Regular rate and rhythm, no murmurs, no gallops, carotid arteries without bruits, dorsalis pedis pulses 2+ bilaterally"
+          },
+          {
+            "key": "lungs",
+            "title": "Lungs",
+            "text": "Clear to auscultation bilaterally, no wheezing, no crackles"
+          },
+          {
+            "key": "abdomen",
+            "title": "Abdomen",
+            "text": "Soft, normoactive bowel sounds, no masses, mild epigastric tenderness to palpation"
+          },
+          {
+            "key": "musculoskeletal",
+            "title": "Musculoskeletal",
+            "text": "Pain with shoulder abduction past 90 degrees, positive Neer's impingement sign, negative Hawkins sign, no weakness with resisted external rotation"
+          },
+          {
+            "key": "skin",
+            "title": "Skin",
+            "text": "Warm, dry, no rashes, callus present on ball of right foot without surrounding breakdown"
+          },
+          {
+            "key": "neurologic",
+            "title": "Neurologic",
+            "text": "Cranial nerves intact, strength 5/5 in all extremities, gait steady, monofilament sensation intact in feet, affect flat, decreased eye contact, speech normal, thought process linear"
+          },
+          {
+            "key": "lymphatic",
+            "title": "Lymphatic",
+            "text": "No cervical lymphadenopathy"
+          },
+          {
+            "key": "extremities",
+            "title": "Extremities",
+            "text": "Trace bilateral ankle edema, no ulcers on feet"
+          }
+        ],
+        "reconciled_sections": [
+          {
+            "key": "constitutional",
+            "title": "CONSTITUTIONAL",
+            "text": "Alert, no acute distress, appears tired. Well developed and nourished.",
+            "updated": true,
+            "template_text": "Alert, no acute distress. Well developed and nourished."
+          },
+          {
+            "key": "skin",
+            "title": "SKIN",
+            "text": "Warm and dry, no rashes, callus present on ball of right foot without surrounding breakdown.",
+            "updated": true,
+            "template_text": "Warm and dry, no suspicious lesions."
+          },
+          {
+            "key": "pulmonary",
+            "title": "PULMONARY",
+            "text": "Clear to auscultation bilaterally, no wheezing, no crackles.",
+            "updated": true,
+            "template_text": "Clear to auscultation bilaterally."
+          },
+          {
+            "key": "cardiovascular",
+            "title": "CARDIOVASCULAR",
+            "text": "Regular rate and rhythm, S1, S2 normal, no murmurs, no gallops, carotid arteries without bruits, dorsalis pedis pulses 2+ bilaterally.",
+            "updated": true,
+            "template_text": "Regular rate and rhythm, S1, S2 normal, no murmurs."
+          },
+          {
+            "key": "extremities",
+            "title": "EXTREMITIES",
+            "text": "Trace bilateral ankle edema, no clubbing or cyanosis, no ulcers on feet.",
+            "updated": true,
+            "template_text": "No clubbing, cyanosis, or edema."
+          },
+          {
+            "key": "psych",
+            "title": "PSYCH",
+            "text": "Affect flat, decreased eye contact.",
+            "updated": true,
+            "template_text": "Good eye contact. Normal mood and affect."
+          },
+          {
+            "key": "heent",
+            "title": "HEENT",
+            "text": "Head atraumatic, ears, nose, and throat normal, neck supple, no thyromegaly, no cervical lymphadenopathy.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "abdomen",
+            "title": "ABDOMEN",
+            "text": "Soft, normoactive bowel sounds, no masses, mild epigastric tenderness to palpation.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "musculoskeletal",
+            "title": "MUSCULOSKELETAL",
+            "text": "Pain with shoulder abduction past 90 degrees, positive Neer's impingement sign, negative Hawkins sign, no weakness with resisted external rotation.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "neurologic",
+            "title": "NEUROLOGIC",
+            "text": "Cranial nerves intact, strength 5/5 in all extremities, gait steady, monofilament sensation intact in feet, speech normal, thought process linear.",
+            "updated": true,
+            "template_text": null
+          }
+        ]
+      }
+    }
+  ]
+}

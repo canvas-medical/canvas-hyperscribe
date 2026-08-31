@@ -26,6 +26,8 @@ def test_constants():
         "BUTTON_TITLE": "💬 Transcript",
         "BUTTON_KEY": "HYPERSCRIBE_TRANSCRIPT",
         "BUTTON_LOCATION": "note_header",
+        "BUTTON_BACKGROUND_COLOR": None,
+        "BUTTON_TEXT_COLOR": None,
         "RESPONDS_TO": ["SHOW_NOTE_HEADER_BUTTON", "ACTION_BUTTON_CLICKED"],
         "PRIORITY": 0,
     }

@@ -17,9 +17,6 @@ from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
-from hyperscribe.structures.custom_prompt import CustomPrompt
-from hyperscribe.structures.customization import Customization
-from hyperscribe.structures.default_tab import DefaultTab
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
 from hyperscribe.structures.progress_message import ProgressMessage
@@ -167,22 +164,19 @@ def test_session_progress_log(progress):
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.capture_view.Customization")
 @patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.render_to_string")
 @patch("hyperscribe.handlers.capture_view.Authenticator")
-def test_capture_get(authenticator, render_to_string, stop_and_go, helper, customization):
+def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
     def reset_mocks():
         authenticator.reset_mock()
         render_to_string.reset_mock()
         stop_and_go.reset_mock()
         helper.reset_mock()
-        customization.reset_mock()
 
     render_to_string.side_effect = ["<html/>"]
     helper.canvas_ws_host.side_effect = ["theWsHost"]
-    customization.customizations.side_effect = [Customization(ui_default_tab=DefaultTab.ACTIVITY, custom_prompts=[])]
     authenticator.presigned_url.side_effect = ["Url1"]
     authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7", "Url8", "Url9"]
     stop_and_go.get.return_value.is_ended.side_effect = [False]
@@ -259,7 +253,6 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
                 "isEnded": False,
                 "isPaused": False,
                 "chunkId": 6,
-                "uiDefaultTab": "activity",
             },
         ),
     ]
@@ -274,14 +267,6 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper, custo
     assert stop_and_go.mock_calls == exp_calls
     exp_calls = [call.canvas_ws_host("customerIdentifier")]
     assert helper.mock_calls == exp_calls
-    exp_calls = [
-        call.customizations(
-            AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketLogs"),
-            "customerIdentifier",
-            "the-00-user",
-        )
-    ]
-    assert customization.mock_calls == exp_calls
     reset_mocks()
 
 
@@ -1390,7 +1375,6 @@ def test_run_reviewer(session_progress_log, log, implemented_commands, llm_decis
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.capture_view.Customization")
 @patch("hyperscribe.handlers.capture_view.LlmTurnsStore")
 @patch("hyperscribe.handlers.capture_view.Commander")
 @patch("hyperscribe.handlers.capture_view.ProgressDisplay")
@@ -1410,7 +1394,6 @@ def test_run_commander(
     progress,
     commander,
     llm_turns_store,
-    customization,
     monkeypatch,
 ):
     monkeypatch.setattr("hyperscribe.handlers.capture_view.version", "theVersion")
@@ -1425,7 +1408,6 @@ def test_run_commander(
         progress.reset_mock()
         commander.reset_mock()
         llm_turns_store.reset_mock()
-        customization.reset_mock()
 
     date_0 = datetime(2025, 12, 5, 13, 35, 46, tzinfo=timezone.utc)
     identification = IdentificationParameters(
@@ -1434,46 +1416,23 @@ def test_run_commander(
         provider_uuid="theProviderId",
         canvas_instance="customerIdentifier",
     )
-    settings = [
-        Settings(
-            api_signing_key="signingKey",
-            llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
-            llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-            structured_rfv=True,
-            audit_llm=True,
-            reasoning_llm=False,
-            custom_prompts=[
-                CustomPrompt(command="theCommand1", prompt="thePrompt1", active=True),
-                CustomPrompt(command="theCommand2", prompt="thePrompt2", active=False),
-                CustomPrompt(command="theCommand3", prompt="thePrompt3", active=True),
-            ],
-            is_tuning=False,
-            max_workers=5,
-            hierarchical_detection_threshold=5,
-            send_progress=True,
-            commands_policy=AccessPolicy(policy=False, items=[]),
-            staffers_policy=AccessPolicy(policy=False, items=[]),
-            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
-            cycle_transcript_overlap=37,
-        ),
-        Settings(
-            api_signing_key="signingKey",
-            llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
-            llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-            structured_rfv=True,
-            audit_llm=True,
-            reasoning_llm=False,
-            custom_prompts=[CustomPrompt(command="theCommand1", prompt="thePrompt1", active=True)],
-            is_tuning=False,
-            max_workers=5,
-            hierarchical_detection_threshold=5,
-            send_progress=True,
-            commands_policy=AccessPolicy(policy=False, items=[]),
-            staffers_policy=AccessPolicy(policy=False, items=[]),
-            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
-            cycle_transcript_overlap=37,
-        ),
-    ]
+    settings = Settings(
+        api_signing_key="signingKey",
+        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+        structured_rfv=True,
+        audit_llm=True,
+        reasoning_llm=False,
+        custom_prompts=[],
+        is_tuning=False,
+        max_workers=5,
+        hierarchical_detection_threshold=5,
+        send_progress=True,
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
+        cycle_transcript_overlap=37,
+    )
     credentials = AwsS3Credentials(
         aws_key="theKey",
         aws_secret="theSecret",
@@ -1508,7 +1467,6 @@ def test_run_commander(
     assert progress.mock_calls == []
     assert commander.mock_calls == []
     assert llm_turns_store.mock_calls == []
-    assert customization.mock_calls == []
     reset_mocks()
 
     # -- no exception
@@ -1523,13 +1481,6 @@ def test_run_commander(
         stop_and_go.get.return_value.created.side_effect = [date_0]
         stop_and_go.get.return_value.cycle.side_effect = [2, 3, 4, 5]
         stop_and_go.get.return_value.is_ended.side_effect = [is_ended]
-        customization.custom_prompts_as_secret.side_effect = [
-            {
-                "CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1","active":true},'
-                '{"command":"theCommand2","prompt":"thePrompt2","active":false},'
-                '{"command":"theCommand3","prompt":"thePrompt3"}]'
-            }
-        ]
 
         tested.run_commander(identification, "theUserId")
 
@@ -1586,9 +1537,9 @@ def test_run_commander(
         assert memory_log.mock_calls == exp_calls
         assert progress.mock_calls == []
         exp_calls = [
-            call.compute_cycle(identification, settings[0], credentials, 2),
-            call.compute_cycle(identification, settings[0], credentials, 3),
-            call.compute_cycle(identification, settings[0], credentials, 4),
+            call.compute_cycle(identification, settings, credentials, 2),
+            call.compute_cycle(identification, settings, credentials, 3),
+            call.compute_cycle(identification, settings, credentials, 4),
         ]
         assert commander.mock_calls == exp_calls
         exp_calls = [
@@ -1597,8 +1548,6 @@ def test_run_commander(
             call.end_session("noteId"),
         ]
         assert llm_turns_store.mock_calls == exp_calls
-        exp_calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier", "theUserId")]
-        assert customization.mock_calls == exp_calls
         reset_mocks()
 
     # error in Commander.compute_audio
@@ -1607,9 +1556,6 @@ def test_run_commander(
     stop_and_go.get.return_value.consume_next_waiting_cycles.side_effect = [True]
     stop_and_go.get.return_value.cycle.side_effect = [7]
     stop_and_go.get.return_value.is_ended.side_effect = [False]
-    customization.custom_prompts_as_secret.side_effect = [
-        {"CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1","active":true}]'}
-    ]
 
     tested.run_commander(identification, "theUserId")
 
@@ -1642,9 +1588,7 @@ def test_run_commander(
     ]
     assert memory_log.mock_calls == exp_calls
     assert progress.mock_calls == []
-    exp_calls = [call.compute_cycle(identification, settings[1], credentials, 7)]
+    exp_calls = [call.compute_cycle(identification, settings, credentials, 7)]
     assert commander.mock_calls == exp_calls
     assert llm_turns_store.mock_calls == []
-    exp_calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier", "theUserId")]
-    assert customization.mock_calls == exp_calls
     reset_mocks()
