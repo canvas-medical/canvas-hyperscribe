@@ -119,7 +119,7 @@ const CHARGE_SEARCH_BASE = '/plugin-io/api/hyperscribe/scribe-session';
 
 const REMOVAL_TYPES = new Set(['stop_medication', 'remove_allergy', 'resolve_condition']);
 
-function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, alertFacilityCommands }) {
+function RemovalRow({ command, commandIndex, onEdit, onDelete, readOnly, patientId, alertFacilityCommands = new Set() }) {
   const data = command.data || {};
   const type = command.command_type;
   const hasItem = !!(data.medication_id || data.allergy_id || data.condition_id);
