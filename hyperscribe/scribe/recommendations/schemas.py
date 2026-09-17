@@ -3,8 +3,19 @@ from pydantic import ConfigDict, Field
 from canvas_sdk.clients.llms.structures import BaseModelLlmJson
 
 
+_NAME_DESCRIPTION = (
+    "Full medication name including strength. Leave this null when the note states a dose, "
+    "a strength or directions but never names the drug — a strength on its own does not "
+    "identify a medication, and naming one that was not stated is a patient-safety error. "
+    "Never substitute a dose or form description ('5 mg tablets') for the name."
+)
+
+
 class MedicationRecommendation(BaseModelLlmJson):
-    medication_name: str = Field(description="Full medication name including strength")
+    # Optional because a dictated dose with no drug name has no honest string to put here.
+    # While this was required, the model filled it with the dose itself ("5 mg tablets"),
+    # which the FDB lookup then resolved to a real coded product (KOALA-7077).
+    medication_name: str | None = Field(default=None, description=_NAME_DESCRIPTION)
     sig: str | None = Field(
         default=None,
         description="Directions/sig exactly as stated in the note; leave null if no directions are stated",
@@ -49,7 +60,8 @@ class AllergyRecommendationList(BaseModelLlmJson):
 
 
 class PrescriptionRecommendation(BaseModelLlmJson):
-    medication_name: str = Field(description="Full medication name including strength/form")
+    # Optional for the same reason as MedicationRecommendation.medication_name (KOALA-7077).
+    medication_name: str | None = Field(default=None, description=_NAME_DESCRIPTION)
     sig: str | None = Field(
         default=None,
         description="Directions/sig exactly as stated in the note; leave null if no directions are stated",

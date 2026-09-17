@@ -35,7 +35,11 @@ _SYSTEM_PROMPT = (
     "Do NOT infer or calculate days supply from the quantity or frequency; only report a duration the note "
     "actually states, otherwise leave it null. "
     "If the note does not state directions, leave the sig null rather than "
-    "guessing or inferring a frequency."
+    "guessing or inferring a frequency. "
+    "NEVER NAME A DRUG THAT WAS NOT STATED: a strength, a dose or a set of directions on their "
+    "own do not identify a medication. When a dose or a sig appears with no drug name, leave "
+    "medication_name null rather than supplying a drug that exists at that strength, and never "
+    "put the dose or form there instead ('5 mg tablets')."
 )
 
 # Baseline (canvas-scribe) extraction prompt, used when the dispense-field engine
@@ -54,7 +58,11 @@ _SYSTEM_PROMPT_BASELINE = (
     "CRITICAL: preserve the exact strength/dose as stated in the note (e.g. '20 mg'); "
     "never round it or substitute a different strength. "
     "If the note does not state directions, leave the sig null rather than "
-    "guessing or inferring a frequency."
+    "guessing or inferring a frequency. "
+    "NEVER NAME A DRUG THAT WAS NOT STATED: a strength, a dose or a set of directions on their "
+    "own do not identify a medication. When a dose or a sig appears with no drug name, leave "
+    "medication_name null rather than supplying a drug that exists at that strength, and never "
+    "put the dose or form there instead ('5 mg tablets')."
 )
 
 
@@ -135,10 +143,17 @@ class PrescriptionRecommender(BaseRecommender):
 
         lookup_cache: dict[str, list[MedicationDetail]] = {}
         proposals: list[CommandProposal] = []
+        unnamed = 0
         for med in parsed.prescriptions:
-            detail = _resolve_prescription(med.medication_name, med.keywords, lookup_cache)
+            # No drug named means there is nothing to prescribe. The schema lets the model
+            # report that instead of inventing a string for a required field (KOALA-7077).
+            medication_name = (med.medication_name or "").strip()
+            if not medication_name:
+                unnamed += 1
+                continue
+            detail = _resolve_prescription(medication_name, med.keywords, lookup_cache)
             fdb_code: str | None = None
-            display = med.medication_name
+            display = medication_name
             quantities: list[dict[str, str]] = []
             if detail:
                 fdb_code = detail.fdb_code
@@ -191,4 +206,7 @@ class PrescriptionRecommender(BaseRecommender):
                     section_key="_recommended",
                 )
             )
+        # Counts only: the names themselves are derived from the note and may contain PHI.
+        if unnamed:
+            log.info(f"PrescriptionRecommender: skipped {unnamed} entry/entries with no drug name")
         return proposals
