@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from canvas_sdk.v1.data.note import Note as RealNote
 
-from hyperscribe.scribe.api.session_view import _authorize_edit, _authorize_read
+from hyperscribe.scribe.api.session_view import _authorize_edit, _authorize_read, _authorize_save_summary
 
 
 def _note_dict(dbid: int, provider_id: str | None) -> dict[str, object]:
@@ -86,6 +86,50 @@ def test_authorize_edit_matching_provider(mock_note: MagicMock, editable: MagicM
     assert result is None
     editable.assert_called_once_with(42)
     mock_note.objects.values.assert_called_once_with("dbid", "provider__id")
+
+
+# _authorize_save_summary (KOALA-5895): gates the Scribe-summary save. Requires
+# the note to exist and be editable, but — unlike _authorize_edit — does NOT
+# check staff-is-provider, so scribes documenting on a provider's behalf can save.
+def test_authorize_save_summary_missing_note_uuid() -> None:
+    result = _authorize_save_summary("", _request())
+    assert result is not None
+    assert result.status_code == HTTPStatus.BAD_REQUEST
+
+
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_authorize_save_summary_note_not_found(mock_note: MagicMock) -> None:
+    mock_note.objects.values.return_value.get.side_effect = RealNote.DoesNotExist
+    mock_note.DoesNotExist = RealNote.DoesNotExist
+
+    result = _authorize_save_summary("note-uuid", _request())
+    assert result is not None
+    assert result.status_code == HTTPStatus.NOT_FOUND
+
+
+@patch("hyperscribe.scribe.api.session_view.Helper.editable_note", return_value=False)
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_authorize_save_summary_not_editable(mock_note: MagicMock, _editable: MagicMock) -> None:
+    mock_note.objects.values.return_value.get.return_value = {"dbid": 42}
+
+    result = _authorize_save_summary("note-uuid", _request())
+    assert result is not None
+    assert result.status_code == HTTPStatus.FORBIDDEN
+    assert "not editable" in json.loads(result.content)["error"]
+
+
+@patch("hyperscribe.scribe.api.session_view.Helper.editable_note", return_value=True)
+@patch("hyperscribe.scribe.api.session_view.Note")
+def test_authorize_save_summary_non_provider_allowed(mock_note: MagicMock, editable: MagicMock) -> None:
+    """A scribe who is NOT the note's provider can still save the Scribe summary
+    on an editable note: only existence + editable_note are required, with no
+    provider gate (mirrors _authorize_read). This is the KOALA-5895 fix."""
+    mock_note.objects.values.return_value.get.return_value = {"dbid": 42}
+
+    result = _authorize_save_summary("note-uuid", _request("not-the-provider"))
+    assert result is None
+    editable.assert_called_once_with(42)
+    mock_note.objects.values.assert_called_once_with("dbid")
 
 
 # ---------------------------------------------------------------------------

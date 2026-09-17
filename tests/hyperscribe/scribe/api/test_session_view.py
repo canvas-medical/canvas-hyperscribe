@@ -48,6 +48,7 @@ def _bypass_authorize_edit(request: pytest.FixtureRequest, monkeypatch: pytest.M
     from hyperscribe.scribe.api import session_view
 
     monkeypatch.setattr(session_view, "_authorize_edit", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(session_view, "_authorize_save_summary", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(session_view, "_authorize_read", lambda *_args, **_kwargs: None)
 
 
