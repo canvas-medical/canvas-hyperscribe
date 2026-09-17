@@ -1,0 +1,67 @@
+{
+  "id": "free_text_and_integer",
+  "probes": "verbatim span and a stated number, with no rounding",
+  "questionnaire": {
+    "questionnaire_dbid": 1,
+    "questionnaire_name": "Social history",
+    "is_scored": true,
+    "scoring_function_name": "sum",
+    "questions": [
+      {
+        "dbid": 10,
+        "label": "Occupation",
+        "type": "TXT",
+        "options": []
+      },
+      {
+        "dbid": 11,
+        "label": "Days this week symptoms interfered with work",
+        "type": "INT",
+        "options": []
+      }
+    ]
+  },
+  "transcript": [
+    {
+      "item_id": "t1",
+      "speaker": "DOCTOR",
+      "text": "What do you do for work?",
+      "start_offset_ms": 0,
+      "end_offset_ms": 1500
+    },
+    {
+      "item_id": "t2",
+      "speaker": "PATIENT",
+      "text": "I've been driving long haul for about twelve years now.",
+      "start_offset_ms": 1500,
+      "end_offset_ms": 4525
+    },
+    {
+      "item_id": "t3",
+      "speaker": "DOCTOR",
+      "text": "And how many days this week did the symptoms get in the way of that?",
+      "start_offset_ms": 4525,
+      "end_offset_ms": 8265
+    },
+    {
+      "item_id": "t4",
+      "speaker": "PATIENT",
+      "text": "Four days. Maybe five if you count Sunday.",
+      "start_offset_ms": 8265,
+      "end_offset_ms": 10575
+    }
+  ],
+  "expected": {
+    "10": {
+      "status": "answered",
+      "value_contains": "long haul"
+    },
+    "11": {
+      "status": "answered",
+      "value": "4",
+      "acceptable_values": [
+        "4"
+      ]
+    }
+  }
+}

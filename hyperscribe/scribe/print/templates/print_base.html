@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}{{ note_type }} — {{ patient_name }}{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.4;
+            color: #333;
+            background: #fff;
+            padding: 0.5in;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* --- Header --- */
+        .header {
+            border-bottom: 1px solid #d1d5db;
+            padding-bottom: 16px;
+            margin-bottom: 14px;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: stretch;
+        }
+
+        .header-left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .header-top {
+            font-size: 11px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #6b7280;
+            line-height: 1;
+        }
+
+        .header-top .header-date {
+            font-weight: 400;
+            letter-spacing: 0.1em;
+            color: #6b7280;
+        }
+
+        .patient-name {
+            font-size: 30px;
+            font-weight: 700;
+            color: #000;
+            margin: 6px 0;
+            letter-spacing: -0.02em;
+            line-height: 1;
+        }
+
+        .patient-summary {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            color: #333;
+            line-height: 1;
+        }
+
+        .dob-badge {
+            display: inline-block;
+            font-weight: 700;
+            font-size: 11px;
+            border: 1.5px solid #000;
+            border-radius: 3px;
+            padding: 2px 6px;
+        }
+
+        .patient-summary strong {
+            font-weight: 600;
+        }
+
+        .practice-info {
+            text-align: right;
+            font-size: 11px;
+            color: #6b7280;
+            line-height: 1.5;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .practice-details {
+            margin-top: auto;
+        }
+
+        .practice-name {
+            font-weight: 400;
+            color: #6b7280;
+            font-size: 11px;
+        }
+
+        .practice-contact {
+            color: #333;
+        }
+
+        .practice-contact strong {
+            font-weight: 600;
+        }
+
+        /* --- SOAP Section Headers --- */
+        .soap-header {
+            font-size: 16px;
+            font-weight: 700;
+            color: #052B49;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-top: 14px;
+            margin-bottom: 8px;
+        }
+
+        .soap-header:first-child {
+            margin-top: 0;
+        }
+
+        /* --- Content Block (each command) --- */
+        .content-block {
+            background: #fff;
+            border: 1.5px solid #e8e8ec;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+        }
+
+        .command-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        /* --- Narrative text (HPI, Plan, RFV, Instruct, etc.) --- */
+        .command-text {
+            font-size: 15px;
+            line-height: 1.5;
+            color: #333;
+            white-space: pre-line;
+        }
+
+        /* --- Vitals --- */
+        .vitals-values {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 18px;
+            font-size: 15px;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        .vitals-item {
+            padding: 2px 0;
+        }
+
+        .vitals-item strong {
+            font-weight: 600;
+            color: #555;
+            margin-right: 2px;
+        }
+
+        /* --- Order view (medications, allergies, prescriptions, labs, etc.) --- */
+        .order-view {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .order-view-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            word-break: break-word;
+        }
+
+        .order-view-sig {
+            font-size: 13px;
+            color: #555;
+            font-style: italic;
+        }
+
+        .order-view-details {
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* --- Diagnose --- */
+        .diagnose-header {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .diagnose-icd-code {
+            font-size: 12px;
+            font-weight: 700;
+            color: #059669;
+        }
+
+        .diagnose-display {
+            font-size: 15px;
+            font-weight: 700;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .diagnose-assessment {
+            font-size: 15px;
+            line-height: 1.4;
+            color: #444;
+            word-break: break-word;
+            margin-top: 4px;
+        }
+
+        /* --- Charge (perform) --- */
+        .charge-view {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+
+        .charge-cpt-code {
+            font-size: 14px;
+            font-weight: 700;
+            color: #052B49;
+            flex-shrink: 0;
+        }
+
+        .charge-description {
+            font-size: 15px;
+            color: #333;
+        }
+
+        /* --- History entries --- */
+        .history-entry-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .history-entry-details {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        /* --- Questionnaire badge --- */
+        .questionnaire-badge {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            margin-left: 8px;
+        }
+
+        /* --- Action badges (STOP, REMOVE, RESOLVE) --- */
+        .action-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .action-badge-stop, .action-badge-remove {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .action-badge-resolve {
+            background: #ecfdf5;
+            color: #059669;
+        }
+
+        /* --- HTML content (ROS, PE, etc.) --- */
+        .html-content {
+            font-size: 14px;
+            line-height: 1.4;
+            color: #333;
+        }
+
+        .html-content h1, .html-content h2, .html-content h3,
+        .html-content h4, .html-content h5, .html-content h6 {
+            font-size: inherit;
+            font-weight: inherit;
+            text-transform: none;
+            color: inherit;
+            margin: 0;
+            padding: 0;
+            display: inline;
+        }
+
+        .html-content p {
+            margin-bottom: 2px;
+        }
+
+        /* --- Signature --- */
+        .signature-section {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid #d1d5db;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .unsigned-notice {
+            font-style: italic;
+        }
+
+        /* --- On-screen footer (hidden in print) --- */
+        .screen-footer {
+            margin-top: 12px;
+            padding: 8px 0;
+            font-size: 12px;
+            color: #6b7280;
+            border-top: 1px solid #d1d5db;
+        }
+
+        .screen-footer-line {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .confidential {
+            text-align: center;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        /* --- Print --- */
+        @media print {
+            body {
+                padding: 0.25in 0 0 0;
+                orphans: 3;
+                widows: 3;
+            }
+
+            @page {
+                margin: 0.25in 0.5in 0.8in 0.5in;
+
+                @bottom-left {
+                    content: "{{ patient_name }} \2022  DOB {{ patient_dob|date:'m/d/y' }} \2022  MRN {{ patient_mrn }} \2022  Printed {{ now|date:'m/d/y g:i A' }}\A Contains Confidential Information \2013  Dispose of Properly";
+                    white-space: pre-wrap;
+                    font-size: 9px;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    color: #555;
+                    border-top: 1px solid #d1d5db;
+                    padding-top: 8px;
+                    vertical-align: top;
+                }
+
+                @bottom-right {
+                    content: "Page " counter(page) " of " counter(pages);
+                    font-size: 9px;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    color: #555;
+                    border-top: 1px solid #d1d5db;
+                    padding-top: 8px;
+                    vertical-align: top;
+                }
+
+                /* Suppress Chrome's default header */
+                @top-left { content: ""; }
+                @top-center { content: ""; }
+                @top-right { content: ""; }
+            }
+
+            .screen-footer {
+                display: none;
+            }
+
+            .soap-header {
+                page-break-after: avoid;
+            }
+
+            .content-block {
+                break-inside: auto;
+            }
+
+            .command-label {
+                page-break-after: avoid;
+            }
+
+            .diagnose-header,
+            .charge-view,
+            .vitals-values,
+            .order-view {
+                page-break-inside: avoid;
+            }
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-row">
+            <div class="header-left">
+                <div class="header-top">
+                    {{ note_type|upper }} &nbsp;<span class="header-date">|&nbsp; Date of Service: {{ date_of_service|date:"m/d/Y" }}</span>
+                </div>
+                <div class="patient-name">{{ patient_name }}</div>
+                <div class="patient-summary">
+                    <span class="dob-badge">DOB {{ patient_dob|date:"m/d/y" }}</span>
+                    <span>Seen by <strong>{{ provider_name }}</strong>{% if practice_name %} at {{ practice_name }}{% endif %}</span>
+                </div>
+            </div>
+            <div class="practice-info">
+                <div class="practice-details">
+                    {% if practice_name %}<div class="practice-name">{{ practice_name }}</div>{% endif %}
+                    {% if practice_address %}<div>{{ practice_address|linebreaksbr }}</div>{% endif %}
+                    {% if practice_phone or practice_fax %}
+                    <div class="practice-contact">{% if practice_phone %}<strong>P:</strong> {{ practice_phone }}{% endif %}{% if practice_phone and practice_fax %} &nbsp; {% endif %}{% if practice_fax %}<strong>F:</strong> {{ practice_fax }}{% endif %}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% block body_content %}{% endblock %}
+
+    <div class="signature-section">
+        {% if signed_by %}
+        <div>Electronically signed by {{ signed_by }} on {{ signed_at|date:"N j, Y" }} at {{ signed_at|time:"g:i A" }}</div>
+        {% else %}
+        <div class="unsigned-notice">*The latest version of this note is currently unsigned.*</div>
+        {% endif %}
+    </div>
+
+    <div class="screen-footer">
+        <div class="screen-footer-line">
+            <span>{{ patient_name }} | DOB: {{ patient_dob|date:"m/d/Y" }} | MRN: {{ patient_mrn }}</span>
+            <span>Printed: {{ now|date:"N j, Y g:i A" }}</span>
+        </div>
+        <div class="confidential">Contains Confidential Information — Dispose of Properly</div>
+    </div>
+
+    <script>
+        window.addEventListener("load", function() {
+            window.print();
+        });
+    </script>
+</body>
+</html>

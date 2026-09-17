@@ -1,0 +1,68 @@
+{
+  "id": "multiselect_partial",
+  "probes": "multiselect: two affirmed, one denied, one never mentioned",
+  "questionnaire": {
+    "questionnaire_dbid": 1,
+    "questionnaire_name": "PHQ-9",
+    "is_scored": true,
+    "scoring_function_name": "sum",
+    "questions": [
+      {
+        "dbid": 10,
+        "label": "Which symptoms have been worst?",
+        "type": "MULT",
+        "options": [
+          {
+            "dbid": 200,
+            "value": "Sleep",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 201,
+            "value": "Energy",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 202,
+            "value": "Focus",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 203,
+            "value": "Appetite",
+            "code": "",
+            "score_value": "1"
+          }
+        ]
+      }
+    ]
+  },
+  "transcript": [
+    {
+      "item_id": "t1",
+      "speaker": "DOCTOR",
+      "text": "Of those, which have been the worst for you?",
+      "start_offset_ms": 0,
+      "end_offset_ms": 2420
+    },
+    {
+      "item_id": "t2",
+      "speaker": "PATIENT",
+      "text": "The tiredness and the focus, definitely. Sleep has actually been all right.",
+      "start_offset_ms": 2420,
+      "end_offset_ms": 6545
+    }
+  ],
+  "expected": {
+    "10": {
+      "status": "answered",
+      "option_dbids": [
+        201,
+        202
+      ]
+    }
+  }
+}

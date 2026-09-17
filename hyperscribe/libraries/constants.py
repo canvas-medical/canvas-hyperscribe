@@ -47,6 +47,7 @@ class Constants:
     VENDOR_ANTHROPIC = "Anthropic"
     VENDOR_ELEVEN_LABS = "ElevenLabs"
     VENDOR_GOOGLE = "Google"
+    VENDOR_NABLA = "Nabla"
     VENDOR_OPENAI = "OpenAI"
     VENDOR_NOTION_API_VERSION = "2022-06-28"
     VENDOR_NOTION_API_BASE_URL = "https://api.notion.com/v1/pages"
@@ -124,7 +125,39 @@ class Constants:
     SECRET_TEXT_LLM_KEY = "KeyTextLLM"
     SECRET_TEXT_LLM_VENDOR = "VendorTextLLM"
     SECRET_NOTION_FEEDBACK_DATABASE_ID = "NotionFeedbackDatabaseId"
+    SECRET_SCRIBE_BACKEND = "ScribeBackend"  # JSON: {"vendor": "nabla", "region": "us", ...}
+    SECRET_SCRIBE_NOTE_TYPES = "ScribeNoteTypes"  # Comma-separated note type names
+    SECRET_ALERT_FACILITY_COMMANDS = "AlertFacilityCommands"  # Comma-separated command types
+    SECRET_SCRIBE_DEBUG_STAFFERS = "ScribeDebugStaffers"  # Comma-separated staff keys for debug apps
+    SECRET_VISIT_TEMPLATES = "VisitTemplates"  # JSON: {"templates": [...]}
+    # Comma-separated section kinds whose card offers the provider a button to merge
+    # the visit-template scaffold into the AI findings: ros, physical_exam,
+    # mental_status_exam. Nothing merges automatically - generation leaves the exam as
+    # the AI produced it, and the merge is one provider click per card.
+    # Unset/blank = no button on any of them; the manual Template menu still works.
+    SECRET_SCRIBE_EXAM_TEMPLATE_MERGE = "ScribeExamTemplateMerge"
     SECRET_NOTION_API_KEY = "NotionAPIKey"
+    SECRET_MODALITY = "Modality"
+    SECRET_SCRIBE_TAB_NAME = "ScribeTabName"
+    # Strict "true" enables hiding the chart-section command buttons while the
+    # Scribe tab is active; any other value (including unset) leaves them visible.
+    SECRET_SCRIBE_HIDE_CHART_BUTTONS = "ScribeHideChartButtons"
+    MODALITY_SCRIBE = "scribe"
+    # PILOT: remove SECRET_SCRIBE_PILOT_STAFFERS when scribe pilot ends
+    SECRET_SCRIBE_PILOT_STAFFERS = "ScribePilotStaffers"
+    # Comma-separated staff keys allowed the prescription dispense-field engine
+    # (quantity / days supply / refills / dispense type). Blank = all users.
+    SECRET_SCRIBE_PRESCRIPTION_STAFFERS = "ScribePrescriptionStaffers"
+    # Comma-separated staff keys allowed to fill questionnaires from the visit
+    # transcript. Blank = all users, matching the dispense-staffers convention.
+    SECRET_SCRIBE_QUESTIONNAIRE_FILL_STAFFERS = "ScribeQuestionnaireFillStaffers"
+    # Model and reasoning effort for the questionnaire fill, both overridable so
+    # they can be retuned without a deploy.
+    SECRET_SCRIBE_FILL_MODEL = "ScribeFillModel"
+    SECRET_SCRIBE_FILL_EFFORT = "ScribeFillEffort"
+    # Opt-in switch for the lab Ask-On-Order-Entry pass. Blank/unset = off, because the
+    # answers are review-only today: LabOrderCommand has no AOE field to write them to.
+    SECRET_SCRIBE_LAB_AOE = "ScribeLabAoeEnabled"
     SECRET_TRIAL_STAFFERS_LIST = "TrialStaffersList"
     # JSON credentials which take precedence over the secrets
     AWS_S3_CREDENTIALS_LOGS = "S3CredentialsLogs"

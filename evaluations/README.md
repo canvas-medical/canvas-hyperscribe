@@ -219,6 +219,56 @@ The database schema defined in [hyperscribe.sql](./datastores/postgres/hyperscri
 
 The table `case` stores the cases, and the table `generated_note` stores the outputs for each step, with the result output in the field `note_json`.
 
+### Exam merge evaluation
+
+The `evaluations/exam_merge/` package evaluates the visit-template exam merge
+(`ScribeExamTemplateMerge`) offline, from a saved artifact rather than by driving the
+pipeline. Unlike the situational and case suites above, it does not run the plugin: it
+replays what a generation already produced.
+
+That works because the merge is fully reconstructable after the fact. Each exam command
+persists `encounter_sections` (Nabla's pre-merge output) alongside `reconciled_sections`
+(the post-merge result), and `selected_template_name` resolves the scaffold out of the
+`VisitTemplates` config. So `parse_ros_subsections` recovers the template and
+`merge_sections` recomputes the deterministic floor, both pure functions. The floor, the
+LLM's delta, and every provenance invariant therefore cost nothing to check.
+
+Three layers:
+
+* __Layer 1__, `invariants.py`, deterministic checks with no LLM. Provenance flags,
+  template ordering, encounter coverage, deterministic title-match rate, and the
+  floor-versus-final ledger classifying each row as improved, regressed, consolidated,
+  or unchanged. `regressed` is the one that matters clinically: it means the refinement
+  reverted an encounter-sourced finding back to a template default.
+* __Layer 2__, `judge.py`, one LLM call per section. Splits each row into atomic
+  assertions and requires a verbatim transcript citation for each. No citation means
+  unsupported. This is the only layer that sees over-attestation inside a row marked
+  `updated: true`, which is where most of the real risk sits.
+* __Layer 3__, `reliability.py`, run-to-run stability across `runs/*.json`, reporting
+  which rows move and how often each finding recurs.
+
+Cases live in `evaluations/cases/exam_merge/<case_name>/`, each holding
+`transcript.json`, `visit_templates.json`, and `summary.json`. See that directory's
+README for how to capture one.
+
+```bash
+# Layer 1 only, free and offline
+DJANGO_SETTINGS_MODULE=settings uv run python -m scripts.exam_merge_eval \
+    --case evaluations/cases/exam_merge/subsequent_visit_shoulder_dm
+
+# add the clause-level judge
+DJANGO_SETTINGS_MODULE=settings uv run python -m scripts.exam_merge_eval \
+    --case evaluations/cases/exam_merge/subsequent_visit_shoulder_dm --judge
+
+# exit non-zero on any failing check, for CI
+DJANGO_SETTINGS_MODULE=settings uv run python -m scripts.exam_merge_eval \
+    --case evaluations/cases/exam_merge/subsequent_visit_shoulder_dm --fail-on-finding
+```
+
+`DJANGO_SETTINGS_MODULE=settings` is required because the checks import the plugin's own
+merge functions, which pull in `canvas_sdk` and therefore Django settings. Layer 1 needs
+nothing else; `--judge` also needs `VendorTextLLM` and `KeyTextLLM` from `local_env.sh`.
+
 ### Realworld cases generation
 
 Based on the data saved through the Hyperscribe tuning mode, realworld cases can be generated either:

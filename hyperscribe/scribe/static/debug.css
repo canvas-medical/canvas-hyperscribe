@@ -1,0 +1,67 @@
+.debug-container { padding: 16px; font-size: 13px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.debug-header {
+  display: flex; align-items: center; gap: 12px;
+  padding-bottom: 12px; border-bottom: 1px solid #e5e7eb; margin-bottom: 16px;
+}
+.debug-header-title { font-weight: 600; font-size: 15px; }
+.debug-note-id { color: #6b7280; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; }
+.debug-header-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.debug-section { margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+.debug-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: #f9fafb; border-bottom: 1px solid #e5e7eb;
+}
+.debug-section-title { font-weight: 600; font-family: 'SF Mono', Monaco, monospace; font-size: 13px; }
+.debug-section-actions { display: flex; gap: 6px; }
+
+/* Field rows */
+.debug-field-list { background: #fff; }
+.debug-field-row {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 8px 14px; border-bottom: 1px solid #f0f0f0;
+}
+.debug-field-row:last-child { border-bottom: none; }
+.debug-field-name {
+  font-family: 'SF Mono', Monaco, monospace; font-size: 12px; font-weight: 600;
+  color: #6b7280; min-width: 180px; flex-shrink: 0;
+}
+.debug-field-value { flex: 1; min-width: 0; }
+.debug-field-text { font-size: 13px; color: #333; word-break: break-word; }
+.debug-field-empty { font-size: 12px; color: #bbb; font-style: italic; }
+.debug-field-bool { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+.debug-field-bool.true { background: #dcfce7; color: #16a34a; }
+.debug-field-bool.false { background: #fee2e2; color: #dc2626; }
+.debug-field-json-toggle {
+  font-family: 'SF Mono', Monaco, monospace; font-size: 12px; color: #2563eb;
+  cursor: pointer; user-select: none;
+}
+.debug-field-json-toggle:hover { text-decoration: underline; }
+.debug-field-json {
+  margin: 6px 0 0; padding: 8px 10px;
+  font-family: 'SF Mono', Monaco, monospace; font-size: 11px;
+  background: #f5f5f8; border-radius: 4px;
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 300px; overflow-y: auto; color: #333;
+}
+
+/* Edit mode */
+.debug-textarea {
+  width: 100%; min-height: 200px; padding: 12px 14px;
+  font-family: 'SF Mono', Monaco, monospace; font-size: 11px;
+  border: none; border-bottom: 1px solid #e5e7eb;
+  resize: vertical; outline: none; background: #fff;
+}
+.debug-edit-actions { display: flex; gap: 6px; padding: 8px 14px; background: #f9fafb; }
+
+/* Buttons */
+.debug-btn {
+  padding: 4px 10px; font-size: 12px; border-radius: 4px;
+  border: 1px solid #d1d5db; background: #fff; color: #374151;
+  cursor: pointer;
+}
+.debug-btn:hover { background: #f3f4f6; }
+.debug-btn-save { background: #052B49; color: #fff; border-color: #052B49; }
+.debug-btn-save:hover { opacity: 0.85; background: #052B49; }
+.debug-btn-danger { color: #dc2626; border-color: #fca5a5; }
+.debug-btn-danger:hover { background: #fef2f2; }

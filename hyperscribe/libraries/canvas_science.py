@@ -86,6 +86,7 @@ class CanvasScience:
                                 ncpdp_quantity_qualifier_description=quantity[
                                     "erx_ncpdp_script_quantity_qualifier_description"
                                 ],
+                                clinical_quantity_description=quantity["clinical_quantity_description"],
                             ),
                         )
                     result.append(

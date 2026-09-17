@@ -1,0 +1,66 @@
+{
+  "id": "bare_no_needs_both_turns",
+  "probes": "a bare no requires the provider's question as evidence too",
+  "questionnaire": {
+    "questionnaire_dbid": 1,
+    "questionnaire_name": "PHQ-9",
+    "is_scored": true,
+    "scoring_function_name": "sum",
+    "questions": [
+      {
+        "dbid": 10,
+        "label": "Any thoughts of harming yourself?",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 100,
+            "value": "Not at all",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 101,
+            "value": "Several days",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 102,
+            "value": "More than half the days",
+            "code": "",
+            "score_value": "2"
+          },
+          {
+            "dbid": 103,
+            "value": "Nearly every day",
+            "code": "",
+            "score_value": "3"
+          }
+        ]
+      }
+    ]
+  },
+  "transcript": [
+    {
+      "item_id": "t1",
+      "speaker": "DOCTOR",
+      "text": "Any thoughts of hurting yourself, even passing ones?",
+      "start_offset_ms": 0,
+      "end_offset_ms": 2860
+    },
+    {
+      "item_id": "t2",
+      "speaker": "PATIENT",
+      "text": "No.",
+      "start_offset_ms": 2860,
+      "end_offset_ms": 4360
+    }
+  ],
+  "expected": {
+    "10": {
+      "status": "denied",
+      "option_dbid": 100,
+      "min_evidence_turns": 2
+    }
+  }
+}

@@ -1,0 +1,1980 @@
+{
+  "items": [
+    {
+      "item_id": "6e4cd395-3589-5135-af83-df7352600a59",
+      "text": "Hey, good to see you again. Come on in.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 0,
+      "end_offset_ms": 2868,
+      "is_final": true
+    },
+    {
+      "item_id": "e3a42bab-754f-5d00-b0f9-502f75c027e6",
+      "text": "Thanks, Doc. Appreciate you squeezing me in today.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 3210,
+      "end_offset_ms": 6109,
+      "is_final": true
+    },
+    {
+      "item_id": "887445d9-a08b-5961-9caa-20ed9b8cf70c",
+      "text": "Of course. How was the drive over?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 6281,
+      "end_offset_ms": 8649,
+      "is_final": true
+    },
+    {
+      "item_id": "e42a2525-7352-59e1-967d-46de84817c5d",
+      "text": "Not bad. Traffic on the 405 was about what you'd expect.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 8988,
+      "end_offset_ms": 13173,
+      "is_final": true
+    },
+    {
+      "item_id": "ecdffe15-a43c-5bda-9f72-c59c4990e3ed",
+      "text": "Yeah, it always is at this hour. Alright, let me pull up your chart here.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 13454,
+      "end_offset_ms": 18595,
+      "is_final": true
+    },
+    {
+      "item_id": "17d36487-3f2e-587b-b230-f400c4939db4",
+      "text": "Take your time.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 18929,
+      "end_offset_ms": 20183,
+      "is_final": true
+    },
+    {
+      "item_id": "ee28a73b-f072-51f8-8ed5-07c7c2caa584",
+      "text": "Okay. So what brings you in today? What's the main thing on your mind?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 20429,
+      "end_offset_ms": 25336,
+      "is_final": true
+    },
+    {
+      "item_id": "2c175da3-e2d4-508a-8c8a-e19b2a820cd8",
+      "text": "Well, two things really. My right shoulder's been bothering me for about three weeks now.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 25501,
+      "end_offset_ms": 31019,
+      "is_final": true
+    },
+    {
+      "item_id": "c6edb04a-632c-53c5-b4e0-28375d9e576f",
+      "text": "And I wanted to check in with you about my sugars. I don't think they've been great.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 31172,
+      "end_offset_ms": 37267,
+      "is_final": true
+    },
+    {
+      "item_id": "b7b8cc53-a273-5b40-81fe-9c51ec5b5ed1",
+      "text": "Okay, so right shoulder pain and diabetes follow-up. Got it.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 37373,
+      "end_offset_ms": 41216,
+      "is_final": true
+    },
+    {
+      "item_id": "f144bec4-654a-51e8-bf23-975e5eda5a16",
+      "text": "And honestly, I've been feeling pretty down lately too. I wasn't sure if I should mention it.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 41562,
+      "end_offset_ms": 47681,
+      "is_final": true
+    },
+    {
+      "item_id": "1f2fe520-29a7-54a5-bb7a-43a82d361ffb",
+      "text": "I'm really glad you did mention it. We'll talk through all three.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 47951,
+      "end_offset_ms": 52722,
+      "is_final": true
+    },
+    {
+      "item_id": "ac89fab6-635d-5e91-84c8-044e662e3008",
+      "text": "Alright.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 52841,
+      "end_offset_ms": 54491,
+      "is_final": true
+    },
+    {
+      "item_id": "ad2ba3d4-b33f-5a83-8457-338e9760b42f",
+      "text": "Let's start with the shoulder. When did the pain start exactly?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 54686,
+      "end_offset_ms": 58925,
+      "is_final": true
+    },
+    {
+      "item_id": "5c49af3a-f771-5f8c-a278-f2327c4ad165",
+      "text": "About three weeks ago. I was helping my son move a sofa up the stairs and felt a twinge.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 59239,
+      "end_offset_ms": 65695,
+      "is_final": true
+    },
+    {
+      "item_id": "7f3962bd-417c-59aa-a238-de503ff7ded0",
+      "text": "A twinge when you were lifting?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 66025,
+      "end_offset_ms": 68073,
+      "is_final": true
+    },
+    {
+      "item_id": "1f90c78a-8c64-5b95-b088-d35d52adee72",
+      "text": "Yeah, right when we were lifting it up over the landing. Sharp at first, then it settled into an ache.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 68328,
+      "end_offset_ms": 74749,
+      "is_final": true
+    },
+    {
+      "item_id": "4f3b85c3-90cf-595f-9c31-100a07ac870d",
+      "text": "Where exactly does it hurt? Can you point to it?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 75001,
+      "end_offset_ms": 78321,
+      "is_final": true
+    },
+    {
+      "item_id": "76bb3798-8b7f-5097-b3e2-7033093cece2",
+      "text": "Right here, on the top, kind of going down into my upper arm.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 78454,
+      "end_offset_ms": 82733,
+      "is_final": true
+    },
+    {
+      "item_id": "8d35feef-d0cb-5853-a54c-45353da687cc",
+      "text": "Does it hurt more with certain movements?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 83042,
+      "end_offset_ms": 85185,
+      "is_final": true
+    },
+    {
+      "item_id": "c93ec870-7547-5710-90b8-04f0ce7c0f6b",
+      "text": "Reaching overhead is the worst. I can't put a shirt on without wincing.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 85563,
+      "end_offset_ms": 90349,
+      "is_final": true
+    },
+    {
+      "item_id": "55be8801-d461-5c1a-9403-97570aad9c8e",
+      "text": "What about at night? Does it wake you up?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 90582,
+      "end_offset_ms": 93433,
+      "is_final": true
+    },
+    {
+      "item_id": "251a2b82-47fd-5aaf-9cb1-d4f2a6b83ef8",
+      "text": "Yeah, if I roll onto that side. I've been sleeping on my left to avoid it.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 93658,
+      "end_offset_ms": 99526,
+      "is_final": true
+    },
+    {
+      "item_id": "f372f5d6-7321-5739-b9fa-a8ffda94c953",
+      "text": "Any numbness or tingling going down the arm?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 99806,
+      "end_offset_ms": 102247,
+      "is_final": true
+    },
+    {
+      "item_id": "8b449d73-e764-5a0b-87ed-d474c56ee97c",
+      "text": "No, no numbness, no tingling.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 102441,
+      "end_offset_ms": 103913,
+      "is_final": true
+    },
+    {
+      "item_id": "d572888f-4ec6-5f52-b966-568648d57ba3",
+      "text": "Any weakness? Trouble gripping things, opening jars?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 104275,
+      "end_offset_ms": 106805,
+      "is_final": true
+    },
+    {
+      "item_id": "538261d6-db65-54d1-9ff5-40c5204d10ec",
+      "text": "Grip feels fine. It's just the pain that limits me.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 107005,
+      "end_offset_ms": 110716,
+      "is_final": true
+    },
+    {
+      "item_id": "cf9688c8-d1b2-5dc2-b729-52faa3554b41",
+      "text": "Have you tried anything for it?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 110830,
+      "end_offset_ms": 112963,
+      "is_final": true
+    },
+    {
+      "item_id": "4d71440e-f400-53b2-94c5-6acb888c417b",
+      "text": "Ice, Tylenol, some of that muscle rub. None of it did much.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 113309,
+      "end_offset_ms": 117276,
+      "is_final": true
+    },
+    {
+      "item_id": "dfeb9d2d-d1e1-5910-84ec-d286d53f1b5f",
+      "text": "Mm-hmm.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 117520,
+      "end_offset_ms": 118905,
+      "is_final": true
+    },
+    {
+      "item_id": "86a5441b-a837-5521-8cf8-133c19f0e516",
+      "text": "I took two ibuprofen a couple times which helped for a few hours but I didn't want to keep doing that with my stomach.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 119271,
+      "end_offset_ms": 127584,
+      "is_final": true
+    },
+    {
+      "item_id": "b1aba24a-2796-57ab-8bb0-140b5fb19c3f",
+      "text": "Okay. Let's talk about the sugars. Are you checking at home?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 127782,
+      "end_offset_ms": 131916,
+      "is_final": true
+    },
+    {
+      "item_id": "e871d255-a9e9-53e8-a3db-a2916fbd5411",
+      "text": "Yeah, morning and before dinner, most days.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 132192,
+      "end_offset_ms": 134651,
+      "is_final": true
+    },
+    {
+      "item_id": "a714884b-9b12-5d64-803b-6832265d1737",
+      "text": "And what are you seeing?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 134761,
+      "end_offset_ms": 136605,
+      "is_final": true
+    },
+    {
+      "item_id": "9349ffae-c843-516b-849c-ce5cec68b068",
+      "text": "Mornings, they've been running one-sixty to one-eighty. Before dinner, one-forty or so, sometimes higher.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 136976,
+      "end_offset_ms": 143002,
+      "is_final": true
+    },
+    {
+      "item_id": "1129b48f-7f11-5075-a408-6557f31d3e10",
+      "text": "Those are higher than where we want them. Any changes to your diet or activity?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 143361,
+      "end_offset_ms": 148164,
+      "is_final": true
+    },
+    {
+      "item_id": "74e2e242-2ae9-5a48-aed2-975d52ef2bd3",
+      "text": "Honestly, the holidays kind of got me. More bread, more dessert than I should have. And I haven't been walking as much since it got cold.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 148527,
+      "end_offset_ms": 157489,
+      "is_final": true
+    },
+    {
+      "item_id": "8d2c4951-7a39-5275-980e-f959beb8d75c",
+      "text": "Got it. Any symptoms? Increased thirst, getting up at night to pee more than usual?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 157805,
+      "end_offset_ms": 162715,
+      "is_final": true
+    },
+    {
+      "item_id": "9320bffd-7989-52fb-8cd6-916d3eed571c",
+      "text": "I do get up once or twice a night, but that's been the same for years.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 162915,
+      "end_offset_ms": 168376,
+      "is_final": true
+    },
+    {
+      "item_id": "10a68f7b-2f89-5ddc-91a9-04ce00550940",
+      "text": "No blurred vision, no tingling in your feet, nothing new?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 168741,
+      "end_offset_ms": 172198,
+      "is_final": true
+    },
+    {
+      "item_id": "53236bef-8d38-51ba-90f4-fc3d8b70f6bb",
+      "text": "No. Feet feel normal.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 172490,
+      "end_offset_ms": 174156,
+      "is_final": true
+    },
+    {
+      "item_id": "35778056-aba9-5442-8078-74de9b33bf77",
+      "text": "And the mood thing. Tell me more about that.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 174516,
+      "end_offset_ms": 177761,
+      "is_final": true
+    },
+    {
+      "item_id": "046eddba-a6eb-5888-8dc6-8e3f77548315",
+      "text": "Just, I don't know. Low energy. I haven't been enjoying things the way I used to.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 177949,
+      "end_offset_ms": 183728,
+      "is_final": true
+    },
+    {
+      "item_id": "b8e9a1fb-d074-589f-9a7b-6b701e68dfa6",
+      "text": "How long has that been going on?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 183887,
+      "end_offset_ms": 186441,
+      "is_final": true
+    },
+    {
+      "item_id": "3d17d524-bcc2-5385-b635-0fb1173308d5",
+      "text": "Maybe two months? Since my brother passed.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 186787,
+      "end_offset_ms": 188912,
+      "is_final": true
+    },
+    {
+      "item_id": "4141730a-da03-5cbe-a70a-acfc3e37592a",
+      "text": "I'm really sorry.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 189117,
+      "end_offset_ms": 190425,
+      "is_final": true
+    },
+    {
+      "item_id": "7efca5ca-40fe-5317-839c-adaad0a8f60e",
+      "text": "Thanks. It's just hit me harder than I thought it would.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 190545,
+      "end_offset_ms": 194434,
+      "is_final": true
+    },
+    {
+      "item_id": "7758bd9d-8686-5c4f-9a04-00f879067e7c",
+      "text": "Any trouble sleeping? Appetite changes?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 194788,
+      "end_offset_ms": 196335,
+      "is_final": true
+    },
+    {
+      "item_id": "4247bf2a-6386-56cf-9ab8-c07ce9c6cea7",
+      "text": "I'm sleeping more than usual, honestly. And not eating as much.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 196720,
+      "end_offset_ms": 200742,
+      "is_final": true
+    },
+    {
+      "item_id": "30b19542-074a-5faa-b1eb-d7e8d397aa6a",
+      "text": "Any thoughts of hurting yourself?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 200896,
+      "end_offset_ms": 202449,
+      "is_final": true
+    },
+    {
+      "item_id": "af852369-0e92-5203-a28e-03cc0fbbacf0",
+      "text": "No, nothing like that. I just feel kind of empty.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 202586,
+      "end_offset_ms": 206182,
+      "is_final": true
+    },
+    {
+      "item_id": "eb3a4065-43c2-5722-afa1-454e0a76a81c",
+      "text": "Let me just run through a few review questions. Any chest pain or shortness of breath with exertion?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 206469,
+      "end_offset_ms": 212405,
+      "is_final": true
+    },
+    {
+      "item_id": "e54342c9-3aac-5fa0-88df-5c8bf264f1f0",
+      "text": "No chest pain. I do get winded on the stairs but I blame that on being out of shape.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 212679,
+      "end_offset_ms": 219119,
+      "is_final": true
+    },
+    {
+      "item_id": "45407c70-f327-5110-9849-b240e3f999b8",
+      "text": "Any palpitations, racing heart?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 219446,
+      "end_offset_ms": 221037,
+      "is_final": true
+    },
+    {
+      "item_id": "dd20fb66-b5ba-5487-af7e-b9a38c6c4f0e",
+      "text": "No.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 221262,
+      "end_offset_ms": 222643,
+      "is_final": true
+    },
+    {
+      "item_id": "464f5de1-b697-5cb9-928d-308750359111",
+      "text": "Any cough, wheezing, trouble breathing?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 222899,
+      "end_offset_ms": 224501,
+      "is_final": true
+    },
+    {
+      "item_id": "4d641b28-c5c8-599b-b169-9e225bafd963",
+      "text": "No.",
+      "speaker": "UNSPECIFIED",
+      "start_offset_ms": 224790,
+      "end_offset_ms": 226167,
+      "is_final": true
+    },
+    {
+      "item_id": "2d9560fd-5e14-5d92-9d71-c579cd1e6016",
+      "text": "Any belly pain, nausea, changes in bowel habits?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 226299,
+      "end_offset_ms": 229120,
+      "is_final": true
+    },
+    {
+      "item_id": "2260c8d6-4530-5c74-9abd-20942379f26a",
+      "text": "Actually, my stomach's been acting up again. Heartburn, especially at night.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 229476,
+      "end_offset_ms": 233411,
+      "is_final": true
+    },
+    {
+      "item_id": "b4dd53e2-699f-5e93-aa21-c43fe6d911dd",
+      "text": "Are you taking your omeprazole daily?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 233679,
+      "end_offset_ms": 235470,
+      "is_final": true
+    },
+    {
+      "item_id": "bf509481-90fb-535e-a1cb-ddd4b95b8885",
+      "text": "Most days. I forget on weekends sometimes.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 235773,
+      "end_offset_ms": 238087,
+      "is_final": true
+    },
+    {
+      "item_id": "bd8af2fa-5ad3-55a5-90cd-c9af205ff465",
+      "text": "Any blood in the stool, black stools?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 238219,
+      "end_offset_ms": 240760,
+      "is_final": true
+    },
+    {
+      "item_id": "7bd57e9d-2225-501e-b0c4-85aa3c31858a",
+      "text": "No, nothing like that.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 240927,
+      "end_offset_ms": 242166,
+      "is_final": true
+    },
+    {
+      "item_id": "82df5725-ab4e-58fa-aded-d31b8dff92ec",
+      "text": "Any urinary issues, burning, frequency?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 242546,
+      "end_offset_ms": 244340,
+      "is_final": true
+    },
+    {
+      "item_id": "8ca6bf0b-210c-5fff-bd6d-d36215bac7e2",
+      "text": "No.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 244469,
+      "end_offset_ms": 246047,
+      "is_final": true
+    },
+    {
+      "item_id": "fdf13ea5-6fa7-588c-a30e-9ce540f73cb7",
+      "text": "Fevers, chills, night sweats?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 246275,
+      "end_offset_ms": 247568,
+      "is_final": true
+    },
+    {
+      "item_id": "0a4e257c-6caa-573d-be78-07d1dc20526e",
+      "text": "None of that.",
+      "speaker": "UNSPECIFIED",
+      "start_offset_ms": 247957,
+      "end_offset_ms": 249454,
+      "is_final": true
+    },
+    {
+      "item_id": "872c9901-3a8e-5e1b-b343-9fbb9d98d2c2",
+      "text": "Any rashes or skin issues?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 249664,
+      "end_offset_ms": 251265,
+      "is_final": true
+    },
+    {
+      "item_id": "d3abf138-1f11-5dd5-803c-ff1c038c9c5f",
+      "text": "Nope.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 251637,
+      "end_offset_ms": 252993,
+      "is_final": true
+    },
+    {
+      "item_id": "c922ffb3-a667-5c87-a49e-ab72f76c03c2",
+      "text": "Any headaches, dizziness, vision changes?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 253103,
+      "end_offset_ms": 254818,
+      "is_final": true
+    },
+    {
+      "item_id": "c782c6a6-1a08-5b06-bacb-ccd0c7e6bdfe",
+      "text": "No headaches. Vision's fine.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 255082,
+      "end_offset_ms": 256983,
+      "is_final": true
+    },
+    {
+      "item_id": "96075797-5241-5737-b946-a9f643d87c50",
+      "text": "Let me go through your history to make sure I've got everything current. You've got type 2 diabetes, that's been, what, fifteen years now?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 257359,
+      "end_offset_ms": 266356,
+      "is_final": true
+    },
+    {
+      "item_id": "be901806-6c86-52ac-b127-5197c423f5a2",
+      "text": "Right, diagnosed in 2010.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 266562,
+      "end_offset_ms": 267973,
+      "is_final": true
+    },
+    {
+      "item_id": "517c7eb4-8604-52f2-8083-de796cd0df69",
+      "text": "High blood pressure, diagnosed about ten years ago.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 268221,
+      "end_offset_ms": 270836,
+      "is_final": true
+    },
+    {
+      "item_id": "c4226251-940c-5bd4-9808-cb74e36a42c2",
+      "text": "Yeah, around 2015.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 271209,
+      "end_offset_ms": 272813,
+      "is_final": true
+    },
+    {
+      "item_id": "edfa6e65-adc3-591c-bf13-a90eff7b1676",
+      "text": "High cholesterol, and GERD. Anything else I'm missing?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 272978,
+      "end_offset_ms": 276042,
+      "is_final": true
+    },
+    {
+      "item_id": "7f8d4abe-4193-5798-99be-f55d6e31284e",
+      "text": "No, I think that's the list.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 276361,
+      "end_offset_ms": 278712,
+      "is_final": true
+    },
+    {
+      "item_id": "3467ab9a-aabb-5628-914a-ad583605a453",
+      "text": "No history of heart disease, no stroke, no cancer.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 278895,
+      "end_offset_ms": 281740,
+      "is_final": true
+    },
+    {
+      "item_id": "c646781a-780b-5148-b733-28bb892c8791",
+      "text": "Right.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 281993,
+      "end_offset_ms": 283455,
+      "is_final": true
+    },
+    {
+      "item_id": "98e547d4-f80b-50b3-b769-538f07c48ae3",
+      "text": "Surgical history. You had your gallbladder out in 2010, right?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 283666,
+      "end_offset_ms": 286802,
+      "is_final": true
+    },
+    {
+      "item_id": "8a66094c-cfeb-52a2-bd66-d09cc640f5fe",
+      "text": "Yeah, laparoscopic. Outpatient.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 287093,
+      "end_offset_ms": 288562,
+      "is_final": true
+    },
+    {
+      "item_id": "1aa07ac0-c608-5ae8-a301-57808a8e6581",
+      "text": "And appendix as a kid.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 288786,
+      "end_offset_ms": 290605,
+      "is_final": true
+    },
+    {
+      "item_id": "a6c1d530-7aea-5414-ab09-432a269ce1ce",
+      "text": "Age ten or so.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 290741,
+      "end_offset_ms": 292377,
+      "is_final": true
+    },
+    {
+      "item_id": "72473ff6-dc22-5ebb-a5be-86e46b9a9d02",
+      "text": "Any other surgeries? Hernia, anything like that?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 292528,
+      "end_offset_ms": 294754,
+      "is_final": true
+    },
+    {
+      "item_id": "0375fb99-0b71-5ff1-af0a-aa6c7dcff0aa",
+      "text": "No, that's it.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 294989,
+      "end_offset_ms": 296674,
+      "is_final": true
+    },
+    {
+      "item_id": "23d2ee59-6b7b-57aa-89c0-79a78705f768",
+      "text": "Family history. Your mom had heart disease, is that right?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 296845,
+      "end_offset_ms": 300311,
+      "is_final": true
+    },
+    {
+      "item_id": "5a7bba33-8d44-5ba5-9a30-6e00fbce5620",
+      "text": "Yeah, she had a heart attack at sixty-two. Passed at seventy-eight from a second one.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 300629,
+      "end_offset_ms": 306218,
+      "is_final": true
+    },
+    {
+      "item_id": "5ceeffb8-85a2-52b1-9d00-5cb42801661b",
+      "text": "And your dad had diabetes.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 306453,
+      "end_offset_ms": 308109,
+      "is_final": true
+    },
+    {
+      "item_id": "540c47cf-926b-5280-97d5-3784c61afe09",
+      "text": "Type 2 diabetes, yeah. He's still alive, in his nineties, actually.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 308383,
+      "end_offset_ms": 312564,
+      "is_final": true
+    },
+    {
+      "item_id": "1a78aee6-01d3-5ca5-97a5-fd330a176bd8",
+      "text": "Any cancer in the family?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 312920,
+      "end_offset_ms": 314408,
+      "is_final": true
+    },
+    {
+      "item_id": "bfe3baad-4f08-5f9d-8a75-bc4df0c2c483",
+      "text": "My aunt had breast cancer. Nothing in my immediate family.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 314620,
+      "end_offset_ms": 317828,
+      "is_final": true
+    },
+    {
+      "item_id": "011ca406-d379-5570-b25a-2fde84100fdb",
+      "text": "Siblings healthy?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 318074,
+      "end_offset_ms": 319471,
+      "is_final": true
+    },
+    {
+      "item_id": "cbb8f671-f52f-59d0-b18f-4ba6e9c75d88",
+      "text": "My brother \u2014 the one who passed \u2014 he had heart disease too. That's part of why I'm a little worried.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 319752,
+      "end_offset_ms": 326752,
+      "is_final": true
+    },
+    {
+      "item_id": "243885dc-e94a-54a8-8d87-7d1a9d5653e1",
+      "text": "Social history. You quit smoking about ten years ago, forty pack-year history before that.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 327124,
+      "end_offset_ms": 331990,
+      "is_final": true
+    },
+    {
+      "item_id": "f88bd76e-f959-59a7-97ec-5dc67919a6c5",
+      "text": "Right. Haven't touched a cigarette since 2015.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 332295,
+      "end_offset_ms": 335050,
+      "is_final": true
+    },
+    {
+      "item_id": "e87876a2-f20f-5e3d-aea4-2c570778ce66",
+      "text": "So for the chart, that puts you down as a former smoker rather than a current one. Nothing at all since then, no cigars, no chewing tobacco, no vaping?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 335300,
+      "end_offset_ms": 344662,
+      "is_final": true
+    },
+    {
+      "item_id": "b5afb00d-7adb-52f3-abef-fef3b49da553",
+      "text": "Nothing at all. No cigars, no chew, no vape pens. I quit cold turkey in 2015 with the patch and I haven't gone back once.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 344912,
+      "end_offset_ms": 352414,
+      "is_final": true
+    },
+    {
+      "item_id": "b5d7d3ad-3a06-5778-a757-be50f48cddc1",
+      "text": "That's a real accomplishment. I'm going to note the forty pack-year history along with the 2015 quit date, because that exposure still matters for your lung and heart risk.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 352664,
+      "end_offset_ms": 363328,
+      "is_final": true
+    },
+    {
+      "item_id": "84c10d10-75bf-5af1-8c00-66bea38f8192",
+      "text": "Understood. My wife made me throw the last pack out the window, honestly.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 363578,
+      "end_offset_ms": 368104,
+      "is_final": true
+    },
+    {
+      "item_id": "a9798c0d-ff54-512c-8abf-b7b1ef62138e",
+      "text": "Good. Alcohol?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 368365,
+      "end_offset_ms": 369820,
+      "is_final": true
+    },
+    {
+      "item_id": "c8bf9dd9-117c-514e-9c14-3cc55ad2e545",
+      "text": "Two beers a week, usually on Fridays.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 370041,
+      "end_offset_ms": 372623,
+      "is_final": true
+    },
+    {
+      "item_id": "cdfcf4de-618e-5592-abfd-f5c77a75ad5c",
+      "text": "Let me put a frequency on that. How often would you say you have a drink containing alcohol? Two to four times a month, or more like two to three times a week?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 372873,
+      "end_offset_ms": 382731,
+      "is_final": true
+    },
+    {
+      "item_id": "f3dd7337-7123-5bf3-b4d7-a2fa55ccea73",
+      "text": "Two to four times a month. It's really just the Friday beers, so four times a month at the very most.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 382981,
+      "end_offset_ms": 389243,
+      "is_final": true
+    },
+    {
+      "item_id": "96682349-2326-5782-a12d-3575648e93e3",
+      "text": "And on a day when you do drink, how many drinks are we talking about?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 389493,
+      "end_offset_ms": 393771,
+      "is_final": true
+    },
+    {
+      "item_id": "648a52a9-16e4-5fbc-87db-68585146cdda",
+      "text": "Two. Two or fewer, every single time. I don't finish a third.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 394021,
+      "end_offset_ms": 397803,
+      "is_final": true
+    },
+    {
+      "item_id": "be20307a-fec9-57bc-aa6e-d42d3e602fea",
+      "text": "Over the past year, has there been any occasion where you had six or more drinks at one sitting?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 398053,
+      "end_offset_ms": 404005,
+      "is_final": true
+    },
+    {
+      "item_id": "9eca737d-c602-5cb3-893b-fdee2ce9360e",
+      "text": "No, never. Not one time in the past year, and honestly not in twenty-some years.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 404255,
+      "end_offset_ms": 409215,
+      "is_final": true
+    },
+    {
+      "item_id": "7f0f2d85-738e-5b70-b5d9-c1d468222953",
+      "text": "Good, so nothing heavier than that pattern anywhere in the last twelve months.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 409465,
+      "end_offset_ms": 414301,
+      "is_final": true
+    },
+    {
+      "item_id": "7ebd398c-22c2-5233-b2aa-f26a4a445d67",
+      "text": "Two beers on a Friday night is the whole story.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 414551,
+      "end_offset_ms": 417465,
+      "is_final": true
+    },
+    {
+      "item_id": "b3b864aa-b5e8-5135-943e-684e6429818c",
+      "text": "Any recreational drugs?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 417786,
+      "end_offset_ms": 419027,
+      "is_final": true
+    },
+    {
+      "item_id": "25362ca9-4cfc-5a69-8bd8-da442f8f26e9",
+      "text": "No, never.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 419407,
+      "end_offset_ms": 421099,
+      "is_final": true
+    },
+    {
+      "item_id": "0e46cb8f-1455-5c84-ab6d-bb03fbd4e66a",
+      "text": "No marijuana, no edibles or gummies? And nobody else's prescription pills?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 421349,
+      "end_offset_ms": 425937,
+      "is_final": true
+    },
+    {
+      "item_id": "69e08ddf-d089-5691-b170-05d54b146f53",
+      "text": "None of that. No marijuana, no edibles, and I've never taken a pill that wasn't mine.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 426187,
+      "end_offset_ms": 431457,
+      "is_final": true
+    },
+    {
+      "item_id": "91e19de6-7847-55aa-8c11-ea8e7fced12a",
+      "text": "Any caffeine or energy drinks worth noting?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 431707,
+      "end_offset_ms": 434373,
+      "is_final": true
+    },
+    {
+      "item_id": "c55a9ffc-080e-52a9-a9f2-58d268a6f009",
+      "text": "Two cups of coffee in the morning and that's it. No energy drinks, no soda.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 434623,
+      "end_offset_ms": 439273,
+      "is_final": true
+    },
+    {
+      "item_id": "fdb8a2f6-83a9-59d2-a4d9-66373917ac25",
+      "text": "I'll write that down as no recreational substance use, caffeine limited to two cups of coffee a day.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 439523,
+      "end_offset_ms": 445723,
+      "is_final": true
+    },
+    {
+      "item_id": "21299d97-d915-50d0-8f48-c87bd3ed761c",
+      "text": "You're retired now, is that right? You were an electrician.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 445904,
+      "end_offset_ms": 449649,
+      "is_final": true
+    },
+    {
+      "item_id": "7514de9b-b7d6-52d8-a903-273e930a5e3d",
+      "text": "Thirty-five years as a union electrician. Retired three years ago.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 449791,
+      "end_offset_ms": 453607,
+      "is_final": true
+    },
+    {
+      "item_id": "1265938f-38e9-523a-9b5c-0b022ffa95df",
+      "text": "And you live with your wife.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 453954,
+      "end_offset_ms": 455756,
+      "is_final": true
+    },
+    {
+      "item_id": "8310f32d-0ed4-57b6-ba98-c37831fdb496",
+      "text": "Married forty-two years this June.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 455965,
+      "end_offset_ms": 457993,
+      "is_final": true
+    },
+    {
+      "item_id": "8f981b90-40e1-5d56-a1cf-2a7517f4d179",
+      "text": "Congratulations. Any exercise? You mentioned the walking.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 458180,
+      "end_offset_ms": 460643,
+      "is_final": true
+    },
+    {
+      "item_id": "35b4a91b-cdae-5175-9421-692646b95a7c",
+      "text": "I was walking a mile or two most days. It's dropped off since the weather turned.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 460971,
+      "end_offset_ms": 466395,
+      "is_final": true
+    },
+    {
+      "item_id": "7a521aad-66d3-5650-8691-d27ccca4873c",
+      "text": "Let's put some numbers on the exercise. Would you say you're exercising on a regular basis right now, yes or no?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 466645,
+      "end_offset_ms": 473589,
+      "is_final": true
+    },
+    {
+      "item_id": "44bf3668-d759-5f44-9f4d-891ad71e59e0",
+      "text": "Yes, I'd still call it regular. Not as much as I was in the fall, but I'm still getting out there on a schedule.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 473839,
+      "end_offset_ms": 480783,
+      "is_final": true
+    },
+    {
+      "item_id": "44e8b0ce-ae68-5735-9d5d-364c0662fa89",
+      "text": "In an average week, how many days do you actually exercise?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 481033,
+      "end_offset_ms": 484691,
+      "is_final": true
+    },
+    {
+      "item_id": "5eb90afe-050b-5edf-a07d-bd7bb4a99ba3",
+      "text": "Three days a week right now. It was five or six before it got cold.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 484941,
+      "end_offset_ms": 489095,
+      "is_final": true
+    },
+    {
+      "item_id": "bcb75024-694b-5a26-87d5-f7b48a9130eb",
+      "text": "And on the days when you do exercise, how long are you going for?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 489345,
+      "end_offset_ms": 493375,
+      "is_final": true
+    },
+    {
+      "item_id": "d31135f1-f61e-5d1e-9496-bfb2702f5853",
+      "text": "Between twenty and forty minutes. Call it half an hour most times, door to door.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 493625,
+      "end_offset_ms": 498585,
+      "is_final": true
+    },
+    {
+      "item_id": "0360be07-691e-58f6-b9b5-c668067b7f54",
+      "text": "What type of exercise is it? Just the walking, or anything else?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 498835,
+      "end_offset_ms": 502803,
+      "is_final": true
+    },
+    {
+      "item_id": "7ae28912-5f1e-539a-baa3-488afbca14f9",
+      "text": "Mostly brisk walking around the neighborhood with my wife. I also do about ten minutes of light stretching for my back a couple of mornings a week.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 503053,
+      "end_offset_ms": 512167,
+      "is_final": true
+    },
+    {
+      "item_id": "c5c2f6a7-ffda-5a22-bc4d-47ffa9968b71",
+      "text": "So brisk walking three days a week, twenty to forty minutes, plus some light stretching. That's a solid base to build back from.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 512417,
+      "end_offset_ms": 520353,
+      "is_final": true
+    },
+    {
+      "item_id": "afdda084-a06d-546c-b6a8-adb1a07e5993",
+      "text": "The goal is getting back to daily walks once it warms up a little.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 520603,
+      "end_offset_ms": 524695,
+      "is_final": true
+    },
+    {
+      "item_id": "08ec4121-50ba-5f65-a974-5073e6d3baae",
+      "text": "Let's go through your meds. You're on metformin one thousand milligrams twice daily.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 525004,
+      "end_offset_ms": 530078,
+      "is_final": true
+    },
+    {
+      "item_id": "9f2ccc05-ad29-52ed-9bc3-7f93d64eabe1",
+      "text": "Right, one in the morning, one at dinner.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 530367,
+      "end_offset_ms": 533177,
+      "is_final": true
+    },
+    {
+      "item_id": "2229bf8b-78b4-543a-99f1-166b16b74133",
+      "text": "Lisinopril twenty milligrams once a day.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 533562,
+      "end_offset_ms": 535667,
+      "is_final": true
+    },
+    {
+      "item_id": "e5e7ff1a-78ec-5adb-b6a2-fe3ed0510e41",
+      "text": "Yep, every morning.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 535852,
+      "end_offset_ms": 537192,
+      "is_final": true
+    },
+    {
+      "item_id": "61bc8c7c-4c2f-5a10-8eee-c90fdf5c3115",
+      "text": "Atorvastatin forty milligrams at bedtime.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 537482,
+      "end_offset_ms": 539288,
+      "is_final": true
+    },
+    {
+      "item_id": "d37063c6-c35f-522b-b957-7b74a7b6a17a",
+      "text": "Yep.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 539558,
+      "end_offset_ms": 540826,
+      "is_final": true
+    },
+    {
+      "item_id": "9b00b497-6fe8-5d2b-8d7e-2f8da9901551",
+      "text": "And omeprazole twenty milligrams daily.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 541077,
+      "end_offset_ms": 542724,
+      "is_final": true
+    },
+    {
+      "item_id": "20181928-4b60-5765-b89f-ab36d55c6478",
+      "text": "Right. Though like I said, I miss a dose sometimes on weekends.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 543098,
+      "end_offset_ms": 547019,
+      "is_final": true
+    },
+    {
+      "item_id": "52eebed9-4124-56ef-80a1-62d21e7adf4f",
+      "text": "Anything else you're taking that's not on the list? Supplements, vitamins, anything over the counter?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 547261,
+      "end_offset_ms": 553118,
+      "is_final": true
+    },
+    {
+      "item_id": "806ee26e-1c69-58d9-9596-27b47dfea047",
+      "text": "Oh, yeah. I started taking turmeric. My neighbor swears by it for joint pain.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 553382,
+      "end_offset_ms": 557871,
+      "is_final": true
+    },
+    {
+      "item_id": "1d7442ca-dd95-561a-bc98-a35c8f657927",
+      "text": "How much are you taking?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 558148,
+      "end_offset_ms": 560068,
+      "is_final": true
+    },
+    {
+      "item_id": "3c008d96-aeb9-5523-bace-3482ed7b7a86",
+      "text": "One capsule in the morning, five hundred milligrams I think.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 560343,
+      "end_offset_ms": 563850,
+      "is_final": true
+    },
+    {
+      "item_id": "23857178-0b5c-5bc9-bf83-ac2bc79e1b87",
+      "text": "Okay, I'll add that to your list. Any aspirin?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 563986,
+      "end_offset_ms": 567317,
+      "is_final": true
+    },
+    {
+      "item_id": "4273476a-62b7-5aeb-a7e8-30653b0739ac",
+      "text": "No. You told me to stop it a while back.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 567557,
+      "end_offset_ms": 570774,
+      "is_final": true
+    },
+    {
+      "item_id": "31e985f2-5ca9-5720-97eb-e1cabd4cdbf8",
+      "text": "Allergies. You've got penicillin on the list, reaction is hives.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 570897,
+      "end_offset_ms": 574716,
+      "is_final": true
+    },
+    {
+      "item_id": "44380641-d1c8-5722-8c14-3abc847b9118",
+      "text": "Right. Happened when I was in my twenties. Broke out in hives all over.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 574911,
+      "end_offset_ms": 579540,
+      "is_final": true
+    },
+    {
+      "item_id": "8ec9e5da-3fc7-5ac1-9a0c-b63387a92315",
+      "text": "Any trouble breathing, swelling of the face?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 579720,
+      "end_offset_ms": 581839,
+      "is_final": true
+    },
+    {
+      "item_id": "68f39e91-eb4c-5706-91f6-a4d2b55b9c18",
+      "text": "No, just the hives. I'd call it moderate, I guess.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 582043,
+      "end_offset_ms": 585631,
+      "is_final": true
+    },
+    {
+      "item_id": "be02979a-ef8b-56f3-8026-c2532973f00d",
+      "text": "Any other drug allergies?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 585862,
+      "end_offset_ms": 587271,
+      "is_final": true
+    },
+    {
+      "item_id": "fbde5724-5829-5d79-b735-fd10849c8a3d",
+      "text": "No. Just penicillin.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 587632,
+      "end_offset_ms": 589014,
+      "is_final": true
+    },
+    {
+      "item_id": "bfec1117-e656-5a51-8ea0-cf8ac23547c7",
+      "text": "Food allergies, environmental?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 589257,
+      "end_offset_ms": 590593,
+      "is_final": true
+    },
+    {
+      "item_id": "c7a211d8-6c35-5c79-b927-dd3b60f26dcd",
+      "text": "No, I'm good there.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 590702,
+      "end_offset_ms": 592194,
+      "is_final": true
+    },
+    {
+      "item_id": "75ad8249-919c-57a0-acb7-50e779f25a7e",
+      "text": "Immunizations. You got your flu shot in October, I see.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 592479,
+      "end_offset_ms": 596047,
+      "is_final": true
+    },
+    {
+      "item_id": "1d674658-9c9d-56e2-8ee8-822816ae2977",
+      "text": "Right, at the pharmacy.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 596357,
+      "end_offset_ms": 597607,
+      "is_final": true
+    },
+    {
+      "item_id": "2ad0bcac-1147-55fb-b8f6-da8ff3612c0e",
+      "text": "You're up to date on pneumonia. And you got your COVID booster last fall.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 597724,
+      "end_offset_ms": 602831,
+      "is_final": true
+    },
+    {
+      "item_id": "b7628dd0-e338-5a7f-8c93-7e577f97470f",
+      "text": "Yeah, I got the updated one.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 603072,
+      "end_offset_ms": 605307,
+      "is_final": true
+    },
+    {
+      "item_id": "581e5798-d823-5ebe-b524-0423aafaa34d",
+      "text": "Shingrix \u2014 you completed the series a couple years back.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 605618,
+      "end_offset_ms": 608687,
+      "is_final": true
+    },
+    {
+      "item_id": "1058a09e-8ba6-54c7-9fbf-ec2759578241",
+      "text": "Yep.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 608793,
+      "end_offset_ms": 610315,
+      "is_final": true
+    },
+    {
+      "item_id": "943a19bf-5a3f-5ca1-bac3-8115b21aa785",
+      "text": "Good. You're caught up.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 610544,
+      "end_offset_ms": 612463,
+      "is_final": true
+    },
+    {
+      "item_id": "91d6ef9c-77b2-5a92-ba24-71f24cfe3ff6",
+      "text": "Let me go over your vitals from today. Blood pressure is 146 over 88.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 612685,
+      "end_offset_ms": 617270,
+      "is_final": true
+    },
+    {
+      "item_id": "366a60f0-52ba-56a5-a2dc-0fa9b6d75707",
+      "text": "That's higher than usual.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 617389,
+      "end_offset_ms": 618858,
+      "is_final": true
+    },
+    {
+      "item_id": "77b700e8-ad40-5c9e-9ace-dbdeaf0938c6",
+      "text": "It is. Pulse is 74, respirations 16. Oxygen saturation 97 percent on room air.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 619083,
+      "end_offset_ms": 623744,
+      "is_final": true
+    },
+    {
+      "item_id": "5563184d-e9d0-5b15-ae6f-7c5eeff26b3a",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 623868,
+      "end_offset_ms": 625377,
+      "is_final": true
+    },
+    {
+      "item_id": "12661aa8-9bfd-522f-b4a2-f52cf9279ef1",
+      "text": "Temperature 98.2. Weight 198 pounds. And height is 5 feet 10 inches.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 625489,
+      "end_offset_ms": 629764,
+      "is_final": true
+    },
+    {
+      "item_id": "45843acf-5470-5a15-8e72-0b0713e5f2fa",
+      "text": "I've gained a few pounds over the holidays.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 629881,
+      "end_offset_ms": 632791,
+      "is_final": true
+    },
+    {
+      "item_id": "2a4cfb0f-d932-5d3e-880a-2e179c4bd4e6",
+      "text": "Your BMI puts you in the overweight range. We'll talk about that with the diabetes.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 632973,
+      "end_offset_ms": 638119,
+      "is_final": true
+    },
+    {
+      "item_id": "1e66a258-4d50-51bd-8fca-7042dddfec02",
+      "text": "Alright, let me take a look at you. Deep breath in. And out.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 638363,
+      "end_offset_ms": 642713,
+      "is_final": true
+    },
+    {
+      "item_id": "a5589586-d840-5f88-a3eb-ebd5cfc9bdf0",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 643054,
+      "end_offset_ms": 644339,
+      "is_final": true
+    },
+    {
+      "item_id": "9a74a3df-0b63-5afc-be72-a83ba4014b9c",
+      "text": "General appearance. You're alert and oriented, comfortable, in no acute distress. You do look a little tired today, though.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 644619,
+      "end_offset_ms": 652245,
+      "is_final": true
+    },
+    {
+      "item_id": "3367597c-cae4-50a3-bc12-1977c89ac4e2",
+      "text": "I haven't had much energy lately.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 652525,
+      "end_offset_ms": 654571,
+      "is_final": true
+    },
+    {
+      "item_id": "6eb3bc25-ba12-5520-b4d5-a2c8eb63a8c3",
+      "text": "Lungs are clear bilaterally, no wheezing or crackles.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 654741,
+      "end_offset_ms": 657236,
+      "is_final": true
+    },
+    {
+      "item_id": "535de50f-9938-5837-b04d-f72e4a92be56",
+      "text": "Mm-hmm.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 657563,
+      "end_offset_ms": 659001,
+      "is_final": true
+    },
+    {
+      "item_id": "8c3e15df-4ed0-5ead-b028-f1ffb2d80c50",
+      "text": "Heart \u2014 regular rate and rhythm, no murmurs, no gallops. Carotids without bruits.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 659163,
+      "end_offset_ms": 664185,
+      "is_final": true
+    },
+    {
+      "item_id": "3c4c6042-7e11-5ca3-8e24-f47ddb6122bb",
+      "text": "Good.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 664453,
+      "end_offset_ms": 665817,
+      "is_final": true
+    },
+    {
+      "item_id": "c5a3edeb-d656-58e6-97c7-789a0f7a3e9b",
+      "text": "HEENT exam unremarkable \u2014 ears, nose, throat all normal. Neck supple, no thyromegaly, no lymphadenopathy.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 665949,
+      "end_offset_ms": 670852,
+      "is_final": true
+    },
+    {
+      "item_id": "dd6253af-71bd-5f9f-9d29-3fb127e27cf9",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 671001,
+      "end_offset_ms": 672614,
+      "is_final": true
+    },
+    {
+      "item_id": "9b7e7d01-c3ee-51b0-b49c-9ea99d1d169d",
+      "text": "Abdomen is soft, bowel sounds are normal, no masses. There is some mild tenderness right up here in the epigastrium when I press.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 672993,
+      "end_offset_ms": 680991,
+      "is_final": true
+    },
+    {
+      "item_id": "c648deec-75fe-5a99-9431-82ad36389470",
+      "text": "Yeah, that's the spot that burns at night.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 681149,
+      "end_offset_ms": 683753,
+      "is_final": true
+    },
+    {
+      "item_id": "67a95e0e-75f4-5f7e-9e64-42252ebcd581",
+      "text": "Let me check your feet \u2014 diabetic foot exam. Dorsalis pedis pulses 2 plus bilaterally. Monofilament intact. No ulcers.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 684027,
+      "end_offset_ms": 690179,
+      "is_final": true
+    },
+    {
+      "item_id": "6586964c-d165-5c2c-9e45-ebc06db7f601",
+      "text": "Good, good.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 690320,
+      "end_offset_ms": 691638,
+      "is_final": true
+    },
+    {
+      "item_id": "2a3ca61e-902c-53e8-9738-7897d204fff5",
+      "text": "Extremities. I'm seeing trace edema at both ankles. I want that documented before we start the amlodipine, because ankle swelling is the side effect we watch for.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 691918,
+      "end_offset_ms": 701962,
+      "is_final": true
+    },
+    {
+      "item_id": "c6c3895d-1559-545c-99ce-54088f6c585c",
+      "text": "My socks do leave a mark by the end of the day.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 702242,
+      "end_offset_ms": 705156,
+      "is_final": true
+    },
+    {
+      "item_id": "5cd57b89-0e00-55ce-b64d-d7aeb4d16b4c",
+      "text": "Skin is warm and dry, no rashes anywhere. There's a callus on the ball of your right foot, no breakdown around it.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 705436,
+      "end_offset_ms": 712504,
+      "is_final": true
+    },
+    {
+      "item_id": "a93f33ba-a834-592c-bdf0-d2443fe195ab",
+      "text": "I've had that callus for years.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 712784,
+      "end_offset_ms": 714706,
+      "is_final": true
+    },
+    {
+      "item_id": "d30891e7-333d-5e30-8a35-bb86421667d2",
+      "text": "Now let me look at that shoulder. Raise your arm up. Good, stop there.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 715097,
+      "end_offset_ms": 719839,
+      "is_final": true
+    },
+    {
+      "item_id": "21d72426-54c5-537e-b2b3-9e8c26106c67",
+      "text": "Yeah, that's where it hurts.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 720206,
+      "end_offset_ms": 722397,
+      "is_final": true
+    },
+    {
+      "item_id": "66fee755-519e-57b9-9c54-ad78e458be4e",
+      "text": "Pain with abduction past 90 degrees. Positive Neer's impingement sign. Negative Hawkins. No weakness with resisted external rotation. Sensation intact.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 722517,
+      "end_offset_ms": 729689,
+      "is_final": true
+    },
+    {
+      "item_id": "a810165f-bb41-5a4e-ac59-9e95f1b8b49d",
+      "text": "Alright.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 729831,
+      "end_offset_ms": 731431,
+      "is_final": true
+    },
+    {
+      "item_id": "2c3c3e7b-4bca-56af-b68b-5bfb1cf8b972",
+      "text": "Consistent with rotator cuff tendinitis or impingement.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 731682,
+      "end_offset_ms": 734124,
+      "is_final": true
+    },
+    {
+      "item_id": "e14f37c4-8bca-5c1c-9a72-2e1f89a00a92",
+      "text": "Neuro. Cranial nerves are intact, strength is five out of five in all four extremities, and your gait is steady.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 734404,
+      "end_offset_ms": 741348,
+      "is_final": true
+    },
+    {
+      "item_id": "f5499cf8-bbc1-5d28-9520-fc5d14236075",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 741628,
+      "end_offset_ms": 742928,
+      "is_final": true
+    },
+    {
+      "item_id": "be479640-4a9e-5133-a3bb-637e21b6419e",
+      "text": "One more thing for the exam. Your affect is flat today and you're making less eye contact than usual. Speech is normal, thought process is linear.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 743208,
+      "end_offset_ms": 752260,
+      "is_final": true
+    },
+    {
+      "item_id": "0cdcbefd-c66e-5c4e-860f-705e6589853f",
+      "text": "I've noticed that myself, honestly.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 752540,
+      "end_offset_ms": 754710,
+      "is_final": true
+    },
+    {
+      "item_id": "2230e051-d1a4-5a86-8ab8-e24cafc70d49",
+      "text": "Let me pull up your labs from last week. Your hemoglobin A1C came back at 7.8.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 754968,
+      "end_offset_ms": 760468,
+      "is_final": true
+    },
+    {
+      "item_id": "9514624c-9a3c-5de9-8e43-bff693b54168",
+      "text": "That's worse than last time.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 760658,
+      "end_offset_ms": 762935,
+      "is_final": true
+    },
+    {
+      "item_id": "5d77466a-af4f-53bb-92c2-73257ec2cb70",
+      "text": "It is. Last visit it was 7.1. So it's drifted up. LDL cholesterol is 142.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 763240,
+      "end_offset_ms": 769087,
+      "is_final": true
+    },
+    {
+      "item_id": "b8a21d4d-8bb9-5b7d-bea6-7aae0eff36ce",
+      "text": "That's high too.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 769238,
+      "end_offset_ms": 770516,
+      "is_final": true
+    },
+    {
+      "item_id": "0989e9ea-e70f-508e-ad08-d8fdfeddd3d1",
+      "text": "HDL 38, also low. Triglycerides 210. Creatinine 1.1, eGFR 68 \u2014 kidney function stable. Liver panel normal, TSH normal.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 770668,
+      "end_offset_ms": 777112,
+      "is_final": true
+    },
+    {
+      "item_id": "10d63ff3-826e-5bb0-b0f2-5d00f3fefbb8",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 777329,
+      "end_offset_ms": 778851,
+      "is_final": true
+    },
+    {
+      "item_id": "cb6ac36c-9eff-5210-bb2e-c8dd3ba18abc",
+      "text": "So the metabolic numbers are the things we need to work on.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 779193,
+      "end_offset_ms": 783147,
+      "is_final": true
+    },
+    {
+      "item_id": "7f27d220-c1b2-509d-8477-ccbbea0b741c",
+      "text": "Alright. Let me go through my assessment and plan. Problem one \u2014 type 2 diabetes, uncontrolled.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 783288,
+      "end_offset_ms": 788299,
+      "is_final": true
+    },
+    {
+      "item_id": "9196c831-8b7c-50a2-a9f2-32b51ebafd1b",
+      "text": "Yep.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 788663,
+      "end_offset_ms": 789917,
+      "is_final": true
+    },
+    {
+      "item_id": "5f62aa61-82b2-5ce5-a102-3594c1d65eac",
+      "text": "Your A1C's drifted up from 7.1 to 7.8. I want you to continue your metformin at 1000 milligrams twice daily as prescribed.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 790045,
+      "end_offset_ms": 798202,
+      "is_final": true
+    },
+    {
+      "item_id": "e43cfe12-2c90-5e5b-8208-cc1a9daadb24",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 798341,
+      "end_offset_ms": 799929,
+      "is_final": true
+    },
+    {
+      "item_id": "db07052e-5e47-540d-a593-990d20181662",
+      "text": "Let's really focus on getting back to walking daily and cutting the sweets back. We'll repeat the A1C in three months and reassess then.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 800071,
+      "end_offset_ms": 808709,
+      "is_final": true
+    },
+    {
+      "item_id": "98b9da00-9495-5047-9737-d55ed22ef81e",
+      "text": "Alright, I can do that.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 808863,
+      "end_offset_ms": 810724,
+      "is_final": true
+    },
+    {
+      "item_id": "e3ee1f91-cbe7-575c-bad3-5b3d9707ed05",
+      "text": "Problem two \u2014 hypertension, uncontrolled.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 810933,
+      "end_offset_ms": 812520,
+      "is_final": true
+    },
+    {
+      "item_id": "6f01ff58-832b-55d1-b07b-e05ab27a7fa9",
+      "text": "My pressure's up.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 812831,
+      "end_offset_ms": 814422,
+      "is_final": true
+    },
+    {
+      "item_id": "5c2bbf56-e9bf-5e79-8f87-314cbeca78a6",
+      "text": "Today you're 146 over 88, that's too high. You're already on lisinopril twenty milligrams. I'd like to add amlodipine 5 milligrams once daily to get you to goal.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 814760,
+      "end_offset_ms": 825201,
+      "is_final": true
+    },
+    {
+      "item_id": "888a2d94-9dd7-5119-8b3c-4d841b1230a3",
+      "text": "Amlodipine.",
+      "speaker": "UNSPECIFIED",
+      "start_offset_ms": 825383,
+      "end_offset_ms": 826817,
+      "is_final": true
+    },
+    {
+      "item_id": "284f46f5-373a-57eb-b499-66921ca8de88",
+      "text": "Right. Side effect to watch for is ankle swelling. If that happens, let me know. We'll recheck your pressure in four weeks.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 827195,
+      "end_offset_ms": 834876,
+      "is_final": true
+    },
+    {
+      "item_id": "25c35461-3579-5f62-b2b5-4f2daa28b75e",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 835108,
+      "end_offset_ms": 836337,
+      "is_final": true
+    },
+    {
+      "item_id": "2985bac8-ca5e-5f14-8e7f-fab3a47fc7a8",
+      "text": "Problem three \u2014 hyperlipidemia. LDL is 142, which is higher than I'd like.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 836551,
+      "end_offset_ms": 840689,
+      "is_final": true
+    },
+    {
+      "item_id": "e41b186a-8b4b-5420-a4a6-8a0c808b718c",
+      "text": "I thought the statin was working.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 840951,
+      "end_offset_ms": 843127,
+      "is_final": true
+    },
+    {
+      "item_id": "e6cc8365-c99d-5687-9e95-0dde924e3327",
+      "text": "It is helping. For now let's continue your atorvastatin 40 milligrams at bedtime and focus on diet and exercise. We'll recheck lipids in three months.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 843431,
+      "end_offset_ms": 852425,
+      "is_final": true
+    },
+    {
+      "item_id": "7ae7d3cd-080d-5c0a-8d00-e4e883e7edf0",
+      "text": "Got it.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 852636,
+      "end_offset_ms": 854028,
+      "is_final": true
+    },
+    {
+      "item_id": "5eb46f55-fc30-50c9-914c-d99bd4ef68a1",
+      "text": "Problem four \u2014 right rotator cuff tendinitis, new diagnosis.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 854241,
+      "end_offset_ms": 857120,
+      "is_final": true
+    },
+    {
+      "item_id": "267bd869-0a83-544d-8d24-336b1a2d7516",
+      "text": "That's the shoulder.",
+      "speaker": "UNSPECIFIED",
+      "start_offset_ms": 857407,
+      "end_offset_ms": 858964,
+      "is_final": true
+    },
+    {
+      "item_id": "31551f16-b0d1-53f1-b8ec-01275db91cd1",
+      "text": "Right. I'm going to refer you to orthopedics for further evaluation. They may want imaging to rule out a tear. In the meantime, rest the arm, ice it, and you can keep using Tylenol as needed.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 859207,
+      "end_offset_ms": 871413,
+      "is_final": true
+    },
+    {
+      "item_id": "36d1bda0-8c08-5340-94cf-32acfe32f26e",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 871761,
+      "end_offset_ms": 873342,
+      "is_final": true
+    },
+    {
+      "item_id": "b76f6c4b-889b-55ee-aaa6-88c6502f634f",
+      "text": "If the pain doesn't improve in two weeks, we'll look at further options.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 873698,
+      "end_offset_ms": 878846,
+      "is_final": true
+    },
+    {
+      "item_id": "a3ff2132-65f2-5125-b5c7-b1f10c91ddc0",
+      "text": "Problem five \u2014 GERD, stable on omeprazole.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 879019,
+      "end_offset_ms": 881079,
+      "is_final": true
+    },
+    {
+      "item_id": "a90c2a1d-1847-543b-821f-588b31aec583",
+      "text": "Mostly stable.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 881402,
+      "end_offset_ms": 882713,
+      "is_final": true
+    },
+    {
+      "item_id": "05d43ac2-473e-5e41-8b90-a3b6b6dd9a67",
+      "text": "Continue omeprazole 20 milligrams daily, and really try to take it every day, including weekends.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 882845,
+      "end_offset_ms": 888026,
+      "is_final": true
+    },
+    {
+      "item_id": "9a70bfce-6dc5-5295-b1b7-a51c6472ad58",
+      "text": "Alright.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 888255,
+      "end_offset_ms": 889505,
+      "is_final": true
+    },
+    {
+      "item_id": "2e48171d-a27b-58bd-8730-d4c7848f0e22",
+      "text": "Problem six \u2014 major depressive disorder, new.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 889809,
+      "end_offset_ms": 891816,
+      "is_final": true
+    },
+    {
+      "item_id": "9295c38a-c4a4-50cb-be76-ebe56245ccc2",
+      "text": "Yeah.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 892064,
+      "end_offset_ms": 893724,
+      "is_final": true
+    },
+    {
+      "item_id": "d660d261-5349-5025-9799-d1cb52000a16",
+      "text": "Your PHQ-9 today was 12, that's moderate depression. Given the context of your brother's passing, some of this is grief. I'd like to hold off on medication for now and have you see a therapist. I'll give you some names on the way out.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 893844,
+      "end_offset_ms": 910266,
+      "is_final": true
+    },
+    {
+      "item_id": "9b7dcbb3-2c7f-5c6a-bcc6-980e08e33518",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 910618,
+      "end_offset_ms": 912309,
+      "is_final": true
+    },
+    {
+      "item_id": "296a8d29-75ed-555f-8faa-82d5d8cea450",
+      "text": "Any thoughts of hurting yourself, you call me immediately. And I want to see you back in two weeks for a mood check.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 912664,
+      "end_offset_ms": 920090,
+      "is_final": true
+    },
+    {
+      "item_id": "25f6d439-e56f-581e-9a35-c4994a435c05",
+      "text": "I will.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 920420,
+      "end_offset_ms": 921851,
+      "is_final": true
+    },
+    {
+      "item_id": "42eeb7fb-7ce0-5f7c-9698-c39bf2449f5b",
+      "text": "Let me jot down some follow-up items. Add a task to call the patient on Friday with the repeat lab results once they're back.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 922236,
+      "end_offset_ms": 930670,
+      "is_final": true
+    },
+    {
+      "item_id": "bc37321e-5b45-51b0-bb5b-765475c2678e",
+      "text": "Friday, okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 930852,
+      "end_offset_ms": 932065,
+      "is_final": true
+    },
+    {
+      "item_id": "ba7602a1-7533-5ae4-9c64-e3f91323ee4d",
+      "text": "Add a task for the MA to schedule the orthopedics referral within 48 hours \u2014 we don't want that shoulder waiting.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 932219,
+      "end_offset_ms": 939063,
+      "is_final": true
+    },
+    {
+      "item_id": "51047be3-13bf-5971-a22c-d4aeee60da6b",
+      "text": "Good.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 939460,
+      "end_offset_ms": 941014,
+      "is_final": true
+    },
+    {
+      "item_id": "4bb91f5d-a6b0-5a44-9d88-2677f001f8fb",
+      "text": "And add a task to check in with the patient in one week about their mood to make sure they're doing okay.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 941299,
+      "end_offset_ms": 948719,
+      "is_final": true
+    },
+    {
+      "item_id": "032e1268-aeb4-514d-9d15-52db3cf136f0",
+      "text": "Sounds good.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 949066,
+      "end_offset_ms": 950549,
+      "is_final": true
+    },
+    {
+      "item_id": "d444597c-3a73-5295-932f-7faed1a9fce9",
+      "text": "Any questions for me before we wrap up?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 950779,
+      "end_offset_ms": 953231,
+      "is_final": true
+    },
+    {
+      "item_id": "0d859b90-8f67-5084-98b9-62aefd2d19f2",
+      "text": "Just \u2014 how soon before the new blood pressure med kicks in?",
+      "speaker": "PATIENT",
+      "start_offset_ms": 953371,
+      "end_offset_ms": 956999,
+      "is_final": true
+    },
+    {
+      "item_id": "88f89e88-cd76-5703-aae6-420addfd2a34",
+      "text": "The amlodipine, within a couple weeks you should see your numbers come down.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 957247,
+      "end_offset_ms": 961462,
+      "is_final": true
+    },
+    {
+      "item_id": "d72b8c0d-7481-5d2d-8c22-8630877d64ca",
+      "text": "Alright.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 961619,
+      "end_offset_ms": 963210,
+      "is_final": true
+    },
+    {
+      "item_id": "78a8f3b7-1886-51c2-b883-98c477bfc4a9",
+      "text": "I'll see you back in two weeks for the mood check and four weeks for the blood pressure check. Call the office if anything comes up before then.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 963558,
+      "end_offset_ms": 973323,
+      "is_final": true
+    },
+    {
+      "item_id": "ad693c50-83f0-574c-8e8d-46ba73a2fe95",
+      "text": "Will do. Thanks, Doc.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 973528,
+      "end_offset_ms": 975114,
+      "is_final": true
+    },
+    {
+      "item_id": "94176068-6fab-5f76-803b-3d8e298ba2b3",
+      "text": "Take care now.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 975329,
+      "end_offset_ms": 976839,
+      "is_final": true
+    },
+    {
+      "item_id": "1d8fe5c8-02fa-5936-a497-74f4456116f8",
+      "text": "You too.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 977124,
+      "end_offset_ms": 978747,
+      "is_final": true
+    }
+  ]
+}

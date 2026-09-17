@@ -1,0 +1,72 @@
+{
+  "id": "third_party_answers",
+  "probes": "a family member answering is not the respondent affirming",
+  "questionnaire": {
+    "questionnaire_dbid": 1,
+    "questionnaire_name": "PHQ-9",
+    "is_scored": true,
+    "scoring_function_name": "sum",
+    "questions": [
+      {
+        "dbid": 10,
+        "label": "Poor appetite or overeating?",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 100,
+            "value": "Not at all",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 101,
+            "value": "Several days",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 102,
+            "value": "More than half the days",
+            "code": "",
+            "score_value": "2"
+          },
+          {
+            "dbid": 103,
+            "value": "Nearly every day",
+            "code": "",
+            "score_value": "3"
+          }
+        ]
+      }
+    ]
+  },
+  "transcript": [
+    {
+      "item_id": "t1",
+      "speaker": "DOCTOR",
+      "text": "How has your appetite been?",
+      "start_offset_ms": 0,
+      "end_offset_ms": 1500
+    },
+    {
+      "item_id": "t2",
+      "speaker": "CAREGIVER",
+      "text": "She's barely eaten all week, doctor. I have to remind her every meal.",
+      "start_offset_ms": 1500,
+      "end_offset_ms": 5295
+    },
+    {
+      "item_id": "t3",
+      "speaker": "DOCTOR",
+      "text": "Okay. Let's move on to the medications.",
+      "start_offset_ms": 5295,
+      "end_offset_ms": 7440
+    }
+  ],
+  "expected": {
+    "10": {
+      "status": "not_assessed",
+      "note": "caregiver report; the instrument asks the patient"
+    }
+  }
+}
