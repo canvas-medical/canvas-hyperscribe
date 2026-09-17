@@ -512,3 +512,36 @@ def test_prescription_schema_has_no_transcript_provenance_fields() -> None:
     fields = set(PrescriptionRecommendation.model_fields)
     assert "from_transcript" not in fields
     assert "is_prn" not in fields
+
+
+@patch("hyperscribe.scribe.recommendations.prescription._resolve_prescription")
+def test_recommend_skips_a_prescription_with_no_drug_name(mock_resolve: MagicMock) -> None:
+    """A null medication_name means no drug was named, so there is nothing to prescribe."""
+    mock_resolve.return_value = None
+    client = _make_client(
+        {
+            "prescriptions": [
+                {"medicationName": None, "sig": "two tablets by mouth every 4 hours", "keywords": "analgesic"},
+                # A named sibling, so this test cannot pass by the whole response failing to parse.
+                {"medicationName": "Azithromycin 250 mg", "sig": "one daily for 5 days", "keywords": "azithromycin"},
+            ]
+        }
+    )
+    note = _make_note(
+        [
+            NoteSection(
+                key="assessment_and_plan",
+                title="Assessment & Plan",
+                text=(
+                    "Five milligrams, two tablets by mouth every four hours as needed for pain. "
+                    "Starting azithromycin 250 mg for five days."
+                ),
+            ),
+        ]
+    )
+
+    proposals = PrescriptionRecommender().recommend(note, client)
+
+    assert len(proposals) == 1
+    assert proposals[0].data["medication_text"] == "Azithromycin 250 mg"
+    mock_resolve.assert_called_once()

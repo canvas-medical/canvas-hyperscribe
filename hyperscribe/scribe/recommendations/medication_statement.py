@@ -50,7 +50,10 @@ _SYSTEM_PROMPT = (
     "CRITICAL: preserve the exact strength/dose as stated in the note (e.g. '20 mg'); "
     "never round it or substitute a different strength. "
     "If the note does not state directions for a medication, leave the sig null rather than "
-    "guessing or inferring a frequency."
+    "guessing or inferring a frequency. "
+    "NEVER NAME A DRUG THAT WAS NOT STATED: a strength, a dose or a set of directions on their "
+    "own do not identify a medication. When a dose or a sig appears with no drug name, do not "
+    "supply the name of a drug that exists at that strength — omit the entry entirely."
 )
 
 
@@ -113,10 +116,18 @@ class MedicationRecommender(BaseRecommender):
 
         lookup_cache: dict[str, list[MedicationDetail]] = {}
         proposals: list[CommandProposal] = []
+        unnamed = 0
         for med in parsed.medications:
-            resolved = _resolve_medication(med.medication_name, med.keywords, lookup_cache)
+            # No name means the note stated a dose or a sig and never said the drug. The
+            # schema lets the model report that rather than inventing a string to fill the
+            # field, so honor it: there is no medication here to document (KOALA-7077).
+            medication_name = (med.medication_name or "").strip()
+            if not medication_name:
+                unnamed += 1
+                continue
+            resolved = _resolve_medication(medication_name, med.keywords, lookup_cache)
             fdb_code: dict[str, str] | None = None
-            display = med.medication_name
+            display = medication_name
             if resolved:
                 fdb_code = {
                     "system": CodeSystems.FDB,
@@ -154,8 +165,11 @@ class MedicationRecommender(BaseRecommender):
                     from_transcript=(
                         med.from_transcript
                         and bool(windows_text)
-                        and not note_documents_as_needed(sections, med.medication_name)
+                        and not note_documents_as_needed(sections, medication_name)
                     ),
                 )
             )
+        # Counts only: the names themselves are derived from the note and may contain PHI.
+        if unnamed:
+            log.info(f"MedicationRecommender: skipped {unnamed} entry/entries with no drug name")
         return proposals

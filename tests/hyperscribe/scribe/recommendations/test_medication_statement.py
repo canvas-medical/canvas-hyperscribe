@@ -638,3 +638,33 @@ def test_recommend_keeps_provenance_when_the_note_only_has_the_scheduled_order()
         )
 
     assert proposals[0].from_transcript is True
+
+
+@patch("hyperscribe.scribe.recommendations.medication_statement._resolve_medication")
+def test_recommend_skips_an_entry_with_no_drug_name(mock_resolve: MagicMock) -> None:
+    """KOALA-7077: a null medication_name is the model reporting "a dose, no drug".
+
+    The schema used to force a non-empty string, so a dictated dose with no drug name left
+    the model no legal way to say so. Measured on a live instance, it filled the field with
+    the dose itself — ``name='5 mg tablets'``, ``keywords='pain medication, analgesic, oral
+    tablet'`` — and the FDB search for that literal string returned "prednisone 5 mg tablets
+    in a dose pack", which was proposed coded with an Accept button. The field is optional so
+    the model can report the absence instead of inventing a string to fill it.
+    """
+    mock_resolve.return_value = None
+    client = _make_client(
+        {
+            "medications": [
+                {"medicationName": None, "sig": "two tablets every 4 hours as needed", "keywords": "analgesic"},
+                {"medicationName": "   ", "sig": "one daily", "keywords": ""},
+                {"medicationName": "Lisinopril 20 mg", "sig": "one daily", "keywords": "lisinopril"},
+            ]
+        }
+    )
+    note = _make_note([NoteSection(key="current_medications", title="Meds", text="- Lisinopril 20 mg once daily")])
+
+    proposals = MedicationRecommender().recommend(note, client)
+
+    assert len(proposals) == 1
+    assert proposals[0].data["medication_text"] == "Lisinopril 20 mg"
+    mock_resolve.assert_called_once()

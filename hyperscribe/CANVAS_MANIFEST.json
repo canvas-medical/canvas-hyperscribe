@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.164.0",
-  "plugin_version": "2026-08-31 v0.4.64",
+  "plugin_version": "2026-09-15 v0.4.65",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -310,9 +310,9 @@
     "VisitTemplates"
   ],
   "tags": {
-    "version_date": "2026-08-31",
-    "version_branch": "feat/ai-physical-exam",
-    "version_semantic": "0.4.64"
+    "version_date": "2026-09-15",
+    "version_branch": "fix/koala-7077-optional-medication-name",
+    "version_semantic": "0.4.65"
   },
   "custom_data": {
     "namespace": "canvas_medical__scribe",
