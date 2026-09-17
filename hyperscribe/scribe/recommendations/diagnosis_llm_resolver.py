@@ -180,10 +180,29 @@ def _suggestions_from(step: DiagnosisResolutionStep, pool: dict[str, dict[str, s
     return [dict(pool[norm]) for norm in ordered[:_MAX_SUGGESTIONS]]
 
 
-def _resolve_one(block: BlockContext, client: Any, science_search: ScienceSearch) -> BlockResolution | None:
-    # Seed the pool from the belt's existing suggestions, keyed by normalized code.
+def _resolve_one(
+    block: BlockContext,
+    client: Any,
+    science_search: ScienceSearch,
+    chart_options: list[dict[str, str]] | None = None,
+) -> BlockResolution | None:
+    # Seed the pool from the belt's existing suggestions, keyed by normalized code, then
+    # from the patient's active problem list.
+    #
+    # The chart matters here because the belt matches chart conditions against the block
+    # HEADER by word overlap, so a symptom or synonym header ("Memory loss") shares no
+    # word with the condition the provider actually named ("Unspecified dementia ...").
+    # The block then arrives with only lexical science hits — Chapter-18 amnesia — and
+    # since the model may only pick from this pool, the already-charted diagnosis was
+    # unreachable no matter how clearly the note stated it (KOALA-6439).
+    #
+    # Whether "memory loss" and "unspecified dementia" name the same clinical concept is
+    # a semantic judgement, which is what this resolver is for; the deterministic belt
+    # cannot make it with string comparison. Adding the chart to the pool leaves the
+    # judgement here and keeps the anti-hallucination gate intact — every option is still
+    # a real code the patient's own record or the ontology supplied.
     pool: dict[str, dict[str, str]] = {}
-    for candidate in block.candidates or []:
+    for candidate in [*(block.candidates or []), *(chart_options or [])]:
         norm = icd10_normalize(candidate.get("code") or candidate.get("formatted_code") or "")
         if not norm or norm in pool:
             continue
@@ -224,6 +243,7 @@ def resolve_uncoded_blocks(
     blocks: list[BlockContext],
     make_client: ClientFactory,
     science_search: ScienceSearch,
+    chart_options: list[dict[str, str]] | None = None,
 ) -> dict[str, BlockResolution]:
     """Resolve each uncoded block. Returns ``{block_id: BlockResolution}``.
 
@@ -234,7 +254,7 @@ def resolve_uncoded_blocks(
     results: dict[str, BlockResolution] = {}
     for block in blocks:
         try:
-            resolution = _resolve_one(block, make_client(), science_search)
+            resolution = _resolve_one(block, make_client(), science_search, chart_options)
         except Exception:
             log.exception("diagnosis resolution failed for a block")
             resolution = None
