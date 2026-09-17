@@ -64,7 +64,10 @@ from hyperscribe.scribe.commands._alert_facility import (
     parse_alert_facility_commands,
 )
 from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
-from hyperscribe.scribe.commands.diagnosis_candidates import PatientConditionSnapshot
+from hyperscribe.scribe.commands.diagnosis_candidates import (
+    PatientConditionSnapshot,
+    chart_pool_options,
+)
 from hyperscribe.scribe.commands.builder import (
     DIRECT_EDIT_SECTIONS,
     EDITABLE_AMEND_SECTIONS,
@@ -1921,6 +1924,10 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                         uncoded_blocks,
                         lambda: make_llm_client(api_key),
                         CanvasScience.search_conditions,
+                        # The belt matches chart conditions on the block header by word
+                        # overlap, so a symptom/synonym header leaves an already-charted
+                        # diagnosis out of the pool and unreachable (KOALA-6439).
+                        chart_pool_options(chart_conditions),
                     )
                     by_block = {
                         c["data"].get("block_id"): c for c in commands_list if c.get("command_type") == "diagnose"

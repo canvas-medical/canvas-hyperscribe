@@ -297,3 +297,41 @@ def test_no_selection_no_terms_gives_up() -> None:
     out = resolve_uncoded_blocks([block], _factory(client), _no_science)
 
     assert "apblock-7" not in out
+
+
+# ── KOALA-6439: the patient's active problems belong in the pool ──────────
+
+
+def test_active_chart_conditions_are_selectable_for_an_uncoded_block() -> None:
+    """KOALA-6439: a condition the chart already carries must be choosable here.
+
+    The provider said "dementia" on a patient whose problem list codes it four ways, but
+    the A&P header was a symptom phrase. The belt matches chart conditions against the
+    header lexically, so it assembled no chart candidate and the science fallback offered
+    Chapter-18 amnesia instead. Deciding that "memory loss" and "unspecified dementia"
+    are the same clinical concept is a semantic judgement, not a string comparison, so it
+    belongs to this resolver — which can only ever pick from the pool it is given. That
+    makes putting the patient's active problems in the pool the whole fix.
+    """
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Memory loss",
+        body="Patient with known dementia, continues to decline. Daughter reports increased confusion.",
+        # All the belt could offer: lexical science hits, none of them the real diagnosis.
+        candidates=[
+            _candidate("R41.3", "R41.3", "Other amnesia", provenance="ICD-10 search"),
+            _candidate("R41.2", "R41.2", "Retrograde amnesia", provenance="ICD-10 search"),
+        ],
+    )
+    chart_options = [
+        _candidate("F03.90", "F03.90", "Unspecified dementia without behavioral disturbance", "Active problem"),
+        _candidate("G30.9", "G30.9", "Alzheimer's disease, unspecified", "Active problem"),
+    ]
+    client = _FakeClient([_step(selected="F03.90", confidence="high", ranked=["F03.90"])])
+
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science, chart_options=chart_options)
+
+    res = out["apblock-0"]
+    assert res.suggestions, "the charted dementia was not selectable, so nothing resolved"
+    assert res.suggestions[0]["formatted_code"] == "F03.90"
+    assert res.suggestions[0]["provenance"] == "Active problem"

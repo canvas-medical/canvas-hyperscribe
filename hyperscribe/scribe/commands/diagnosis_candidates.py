@@ -188,6 +188,37 @@ def serialize_candidate(candidate: DiagnosisCandidate) -> dict[str, str]:
     }
 
 
+def chart_pool_options(chart: list[PatientConditionSnapshot]) -> list[dict[str, str]]:
+    """The patient's ACTIVE problems in picker-option shape, for the LLM resolver's pool.
+
+    The resolver may only select codes present in its pool, so a condition the chart
+    already carries is unreachable unless it is put there. Restricted to active problems:
+    a resolved condition is not what the provider is documenting today, and the SDK has no
+    reactivation command, so a recurrence has to be a fresh ``Diagnose`` (the same reason
+    ``condition_id`` is never set for ``PRIOR_CONDITION`` above).
+    """
+    options: list[dict[str, str]] = []
+    for snapshot in chart or []:
+        if not snapshot.code or (snapshot.clinical_status or "").lower() != "active":
+            continue
+        options.append(
+            {
+                "code": snapshot.code,
+                "formatted_code": format_icd10(icd10_normalize(snapshot.code)),
+                "display": snapshot.display,
+                "provenance": provenance_label(
+                    DiagnosisCandidate(
+                        code=icd10_normalize(snapshot.code),
+                        raw_code=snapshot.code,
+                        display=snapshot.display,
+                        source=CandidateSource.ACTIVE_PROBLEM,
+                    )
+                ),
+            }
+        )
+    return options
+
+
 # Cap on how many options a picker surfaces — enough to choose from, few enough to
 # scan (e.g. E03 hypothyroidism has 8 family members; the provider needs a handful).
 MAX_SURFACED_SUGGESTIONS = 6
