@@ -9,6 +9,7 @@ from hyperscribe.scribe.recommendations import (
     prescription_dispense_enabled,
     questionnaire_fill_enabled,
     lab_aoe_enabled,
+    lab_recommendations_enabled,
     prescription_dispense_enabled,
     recommend_commands,
 )
@@ -92,8 +93,8 @@ def test_recommend_commands_creates_client_with_settings(mock_llm_cls: MagicMock
     ):
         recommend_commands(_make_note(), "my-api-key")
 
-    # Each recommender gets its own client instance
-    assert mock_llm_cls.call_count == 6
+    # Each recommender gets its own client instance; labs are off by default, so five
+    assert mock_llm_cls.call_count == 5
     for call in mock_llm_cls.call_args_list:
         settings = call.args[0]
         assert settings.api_key == "my-api-key"
@@ -233,7 +234,7 @@ def test_recommend_commands_aoe_off_by_default(mock_lab_cls: MagicMock, mock_llm
         patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.TaskRecommender.recommend", return_value=[]),
     ):
-        recommend_commands(_make_note(), "k")
+        recommend_commands(_make_note(), "k", labs_enabled=True)
     mock_lab_cls.assert_called_once_with(aoe_enabled=False)
 
 
@@ -249,5 +250,67 @@ def test_recommend_commands_threads_aoe_flag(mock_lab_cls: MagicMock, mock_llm_c
         patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
         patch("hyperscribe.scribe.recommendations.TaskRecommender.recommend", return_value=[]),
     ):
-        recommend_commands(_make_note(), "k", aoe_enabled=True)
+        recommend_commands(_make_note(), "k", aoe_enabled=True, labs_enabled=True)
     mock_lab_cls.assert_called_once_with(aoe_enabled=True)
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        (None, False),
+        ("", False),
+        ("   ", False),
+        ("false", False),
+        ("no", False),
+        ("0", False),
+        ("off", False),
+        ("maybe", False),
+        ("yes", True),
+        ("Y", True),
+        ("1", True),
+        ("true", True),
+        ("TRUE", True),
+        (" on ", True),
+    ],
+)
+def test_lab_recommendations_enabled(raw: str | None, expected: bool) -> None:
+    """Fail-closed: an instance only gets lab recommendations once someone turns them on."""
+    assert lab_recommendations_enabled(raw) is expected
+
+
+@patch("hyperscribe.scribe.recommendations.LlmAnthropic")
+@patch("hyperscribe.scribe.recommendations.LabRecommender")
+def test_recommend_commands_skips_labs_by_default(mock_lab_cls: MagicMock, mock_llm_cls: MagicMock) -> None:
+    mock_llm_cls.return_value = MagicMock()
+    with (
+        patch("hyperscribe.scribe.recommendations.MedicationRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.AllergyRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.PrescriptionRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.TaskRecommender.recommend", return_value=[]),
+    ):
+        recommend_commands(_make_note(), "k", aoe_enabled=True)
+    mock_lab_cls.assert_not_called()
+
+
+@patch("hyperscribe.scribe.recommendations.LlmAnthropic")
+def test_recommend_commands_returns_lab_proposals_when_enabled(mock_llm_cls: MagicMock) -> None:
+    mock_llm_cls.return_value = MagicMock()
+    lab_proposal = CommandProposal(
+        command_type="lab_order",
+        display="CBC",
+        data={"lab_partner": "p1", "tests_order_codes": ["001"]},
+        section_key="_recommended",
+    )
+    with (
+        patch("hyperscribe.scribe.recommendations.MedicationRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.AllergyRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.PrescriptionRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.ReferRecommender.recommend", return_value=[]),
+        patch("hyperscribe.scribe.recommendations.LabRecommender.recommend", return_value=[lab_proposal]),
+        patch("hyperscribe.scribe.recommendations.TaskRecommender.recommend", return_value=[]),
+    ):
+        on = recommend_commands(_make_note(), "k", labs_enabled=True)
+        off = recommend_commands(_make_note(), "k")
+    assert [p.command_type for p in on] == ["lab_order"]
+    assert off == []

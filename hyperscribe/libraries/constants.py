@@ -158,6 +158,9 @@ class Constants:
     # Opt-in switch for the lab Ask-On-Order-Entry pass. Blank/unset = off, because the
     # answers are review-only today: LabOrderCommand has no AOE field to write them to.
     SECRET_SCRIBE_LAB_AOE = "ScribeLabAoeEnabled"
+    # Opt-in switch for lab order recommendations as a whole. Blank/unset = off, so an
+    # instance only gets them once someone has chosen to turn them on.
+    SECRET_SCRIBE_LAB_RECOMMENDATIONS = "ScribeLabRecommendationsEnabled"
     SECRET_TRIAL_STAFFERS_LIST = "TrialStaffersList"
     # JSON credentials which take precedence over the secrets
     AWS_S3_CREDENTIALS_LOGS = "S3CredentialsLogs"

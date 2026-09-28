@@ -7899,3 +7899,37 @@ def test_recommend_commands_lab_aoe_on_when_secret_set(
     view.post_recommend_commands()
 
     assert mock_recommend.call_args.kwargs["aoe_enabled"] is True
+
+
+# --- lab recommendations secret gate ---
+
+
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.recommend_commands", return_value=[])
+def test_recommend_commands_labs_off_when_secret_unset(
+    mock_recommend: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.request = SimpleNamespace(body=json.dumps({"note": {"title": "Note", "sections": []}}))
+
+    view.post_recommend_commands()
+
+    assert mock_recommend.call_args.kwargs["labs_enabled"] is False
+
+
+@patch("hyperscribe.scribe.api.session_view.resolve_zip_codes", return_value=[])
+@patch("hyperscribe.scribe.api.session_view.recommend_commands", return_value=[])
+def test_recommend_commands_labs_on_when_secret_set(
+    mock_recommend: MagicMock,
+    _mock_zip: MagicMock,
+) -> None:
+    view = _helper_instance()
+    view.secrets["AnthropicAPIKey"] = "test-key"
+    view.secrets["ScribeLabRecommendationsEnabled"] = "yes"
+    view.request = SimpleNamespace(body=json.dumps({"note": {"title": "Note", "sections": []}}))
+
+    view.post_recommend_commands()
+
+    assert mock_recommend.call_args.kwargs["labs_enabled"] is True
