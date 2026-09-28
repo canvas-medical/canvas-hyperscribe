@@ -606,3 +606,26 @@ def test_load_initial_data_keeps_the_sections_that_do_work() -> None:
     assert data["transcript"] == {"items": [1]}
     assert data["assignees"] == [{"id": 1}]
     assert data["templates"] == []
+
+
+def test_load_initial_data_questionnaire_fill_on_when_allowlist_blank() -> None:
+    with patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff1"):
+        data = _load_initial_data("note-1", {})
+    assert data["questionnaire_fill_enabled"] is True
+
+
+def test_load_initial_data_questionnaire_fill_follows_the_allowlist() -> None:
+    """Same gate post_fill_questionnaires enforces, so the card hides the button
+    exactly when the server would refuse the fill."""
+    secrets = {"ScribeQuestionnaireFillStaffers": "canvasbot"}
+    with patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="staff1"):
+        assert _load_initial_data("note-1", secrets)["questionnaire_fill_enabled"] is False
+    with patch("hyperscribe.scribe.api.session_view._note_provider_id", return_value="canvasbot"):
+        assert _load_initial_data("note-1", secrets)["questionnaire_fill_enabled"] is True
+
+
+def test_load_initial_data_questionnaire_fill_degrades_to_on() -> None:
+    """A failed lookup keeps today's behavior (button shown); the server still gates the fill."""
+    secrets = {"ScribeQuestionnaireFillStaffers": "canvasbot"}
+    with patch("hyperscribe.scribe.api.session_view.questionnaire_fill_enabled", side_effect=RuntimeError("x")):
+        assert _load_initial_data("note-1", secrets)["questionnaire_fill_enabled"] is True

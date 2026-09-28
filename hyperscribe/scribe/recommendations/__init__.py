@@ -77,21 +77,34 @@ def lab_aoe_enabled(raw: str | None) -> bool:
     return str(raw or "").strip().lower() in _TRUTHY
 
 
+def lab_recommendations_enabled(raw: str | None) -> bool:
+    """Whether Scribe recommends lab orders at all.
+
+    **Blank/unset -> off** (fail-closed), like ``lab_aoe_enabled``: an instance only
+    gets lab recommendations once someone has chosen to turn them on. Accepts the
+    same truthy spellings as ``lab_aoe_enabled``.
+    """
+    return str(raw or "").strip().lower() in _TRUTHY
+
+
 def _build_recommenders(
     zip_codes: list[str] | None = None,
     dispense_engine_enabled: bool = True,
     aoe_enabled: bool = False,
+    labs_enabled: bool = False,
 ) -> list[BaseRecommender]:
-    return [
+    recommenders: list[BaseRecommender] = [
         MedicationRecommender(),
         AllergyRecommender(),
         PrescriptionRecommender(dispense_engine_enabled=dispense_engine_enabled),
         # zip_codes is intentionally not passed: referrals are recommended
         # generically (specialty only), without a provider lookup.
         ReferRecommender(),
-        LabRecommender(aoe_enabled=aoe_enabled),
-        TaskRecommender(),
     ]
+    if labs_enabled:
+        recommenders.append(LabRecommender(aoe_enabled=aoe_enabled))
+    recommenders.append(TaskRecommender())
+    return recommenders
 
 
 def recommend_commands(
@@ -101,6 +114,7 @@ def recommend_commands(
     transcript: Transcript | None = None,
     dispense_engine_enabled: bool = True,
     aoe_enabled: bool = False,
+    labs_enabled: bool = False,
 ) -> list[CommandProposal]:
     """Run all recommenders against the clinical note and return proposals.
 
@@ -109,10 +123,12 @@ def recommend_commands(
     recommendations are emitted in the baseline (canvas-scribe) shape. All other
     recommendation types are unaffected.
 
-    ``aoe_enabled`` gates only the lab Ask-On-Order-Entry pass and defaults to off.
+    ``labs_enabled`` gates the lab recommender as a whole and defaults to off.
+    ``aoe_enabled`` gates only the lab Ask-On-Order-Entry pass and defaults to off;
+    it has no effect while ``labs_enabled`` is False.
     """
     proposals: list[CommandProposal] = []
-    for recommender in _build_recommenders(zip_codes, dispense_engine_enabled, aoe_enabled):
+    for recommender in _build_recommenders(zip_codes, dispense_engine_enabled, aoe_enabled, labs_enabled):
         try:
             client = LlmAnthropic(_make_settings(api_key))
             proposals.extend(recommender.recommend(note, client, transcript=transcript))
