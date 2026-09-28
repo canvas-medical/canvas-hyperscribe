@@ -1493,8 +1493,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // never held up by a questionnaire, and both read the same finalized transcript.
     // One request for every questionnaire on the note, so they share a single warmed
     // prompt cache server-side.
+    // Skipped when fill is off for this note's provider: the server would refuse it.
+    // questionnaireFillEnabled is fixed for the page, so it needs no dependency entry.
     const templateQuestionnaireDbids = (selectedTemplate?.questionnaires || []).map(q => q.questionnaire_dbid);
-    if (templateQuestionnaireDbids.length > 0) {
+    if (questionnaireFillEnabled && templateQuestionnaireDbids.length > 0) {
       fetch(`${API_BASE}/fill-questionnaires`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

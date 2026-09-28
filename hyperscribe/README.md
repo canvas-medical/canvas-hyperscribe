@@ -93,7 +93,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `VisitTemplates`                 | JSON (see below)                            | per-visit-type note customization: questionnaires, ROS / PE / MSE scaffolds, and charges                                                                    |
 | `ScribeExamTemplateMerge`        | `ros,physical_exam,mental_status_exam`      | which exam sections offer the provider a button to merge their `VisitTemplates` scaffold into the AI findings; unset means none of them do                   |
 | `ScribeLabRecommendationsEnabled`| `y`, `yes`, `1`, `true` or `on`             | whether Scribe recommends lab orders at all; unset or any other value means off                                                                              |
-| `ScribeQuestionnaireFillStaffers`| `key1 key2, key3`                           | staff keys whose notes can fill questionnaires from the transcript; unset means everyone. Any key no note provider has (e.g. CanvasBot's) turns fill off and hides the button|
+| `ScribeQuestionnaireFillStaffers`| `key1 key2, key3`                           | staff keys whose notes can fill questionnaires from the transcript; unset means everyone. To turn fill off for everyone, set it to a single key that is never a note provider, such as Canvas Bot's; the button is then hidden|
 
 
 ### `CustomPrompts`
