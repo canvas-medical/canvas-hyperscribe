@@ -89,7 +89,7 @@ function QuestionnaireSearch({ onSelect }) {
   `;
 }
 
-function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, noteId, canFill }) {
+function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, noteId, canFill, fillEnabled = true }) {
   const [loading, setLoading] = useState(false);
   // Mirrors the server's outcome: idle | busy | filled | abstained | no_transcript | failed.
   // Seeded from the command so an automatic fill that abstained is still reported when the
@@ -332,7 +332,9 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, 
       `)}
       </div>
       <div class="questionnaire-form-actions">
-        <span class="q-group">
+        ${/* Off for this note's provider (ScribeQuestionnaireFillStaffers): no fill controls at all,
+              rather than a button the server will always refuse. */ ''}
+        ${fillEnabled && html`<span class="q-group">
           <button
             type="button"
             class=${'q-fill' + (fillState === 'failed' ? ' failed' : '')}
@@ -366,7 +368,7 @@ function QuestionnaireForm({ command, commandIndex, onEdit, onDelete, onCancel, 
             <span class="q-sep"></span>
             <button type="button" class="q-undo" onClick=${handleClearDrafted}>Clear responses</button>
           `}
-        </span>
+        </span>`}
         <button type="button" class="form-btn form-btn-cancel" onClick=${onCancel}>Cancel</button>
         <button type="button" class="form-btn form-btn-save" onClick=${handleSave}>Save</button>
       </div>
@@ -411,7 +413,7 @@ function renderResponse(q) {
   return html`<span class="questionnaire-readonly-answer">${parts.join(', ')}</span>`;
 }
 
-export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange, noteId, canFill }) {
+export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, readOnly, onEditingChange, noteId, canFill, fillEnabled = true }) {
   const isNew = !command.display;
   const [editing, setEditing] = useState(isNew);
   useEffect(() => {
@@ -443,6 +445,7 @@ export function QuestionnaireRow({ command, commandIndex, onEdit, onDelete, read
           onCancel=${handleCancel}
           noteId=${noteId}
           canFill=${!!canFill}
+          fillEnabled=${fillEnabled !== false}
         />
       </div>
     `;

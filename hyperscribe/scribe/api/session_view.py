@@ -93,6 +93,7 @@ from hyperscribe.scribe.commands.problem_list_match import (
 )
 from hyperscribe.scribe.recommendations import (
     lab_aoe_enabled,
+    lab_recommendations_enabled,
     make_llm_client,
     prescription_dispense_enabled,
     questionnaire_fill_enabled,
@@ -1186,6 +1187,15 @@ def _load_initial_data(note_id: str, secrets: dict[str, str]) -> dict[str, Any]:
             lambda: sorted(parse_exam_merge_kinds(secrets.get(Constants.SECRET_SCRIBE_EXAM_TEMPLATE_MERGE))),
             [],
         ),
+        # Same gate post_fill_questionnaires enforces, sent up front so the card can
+        # hide "Fill from transcript" instead of offering a button that always fails.
+        "questionnaire_fill_enabled": _degrade(
+            "questionnaire_fill_enabled",
+            lambda: questionnaire_fill_enabled(
+                secrets.get(Constants.SECRET_SCRIBE_QUESTIONNAIRE_FILL_STAFFERS, ""), _note_provider_id(note_id)
+            ),
+            True,
+        ),
     }
 
 
@@ -1843,6 +1853,9 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                     transcript=transcript,
                     dispense_engine_enabled=dispense_engine_enabled,
                     aoe_enabled=lab_aoe_enabled(self.secrets.get(Constants.SECRET_SCRIBE_LAB_AOE)),
+                    labs_enabled=lab_recommendations_enabled(
+                        self.secrets.get(Constants.SECRET_SCRIBE_LAB_RECOMMENDATIONS)
+                    ),
                 )
                 annotate_duplicates(rec_proposals, note_uuid)
                 prefill_assess_backgrounds_for_proposals(rec_proposals, note_uuid)
@@ -2182,6 +2195,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
                 transcript=transcript,
                 dispense_engine_enabled=dispense_engine_enabled,
                 aoe_enabled=lab_aoe_enabled(self.secrets.get(Constants.SECRET_SCRIBE_LAB_AOE)),
+                labs_enabled=lab_recommendations_enabled(self.secrets.get(Constants.SECRET_SCRIBE_LAB_RECOMMENDATIONS)),
             )
         except Exception:
             log.exception("recommend_commands failed")

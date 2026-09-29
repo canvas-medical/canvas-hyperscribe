@@ -518,7 +518,7 @@ function buildCommandBySectionKey(commands) {
   return map;
 }
 
-function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, onMergeExamTemplate, examMergeKinds, examMergeTemplate, noteDiagnoses, isPsychiatry, dictation, transcriptFinalized } = {}) {
+function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDeleteCommand, { adHocCommands, objectiveAdHocCommands, historyAdHocCommands, subjectiveAdHocCommands, chargeAdHocCommands, assignees, onAddTask, onAddOrder, onAddPlan, onMoveToPlan, onAddAppointment, onAddMedication, onAddAllergy, onAddStopMedication, onAddRemoveAllergy, onAddResolveCondition, onAddHistory, onAddQuestionnaire, onAddCharge, onAddTemplateCharge, onRemoveChargeByCpt, templateCharges, readOnly, canEdit = true, isAmending, sectionConditions, patientId, noteId, staffId, staffName, recommendations, onEditRecommendation, onDeleteRecommendation, onAcceptRecommendation, onRejectRecommendation, onAddCondition, unmatchedConditions, diagnosisSuggestions, onAddNow, onAddVitals, onAddPhysicalExam, onAddMentalStatusExam, hideRejected, alertFacilityCommands, onEditingChange, questionnaireScores, chargeMatrixDiagnoses, chargeMatrixCharges, searchCharges, suggestedCharges, onToggleChargePointer, onReorderDiagnoses, onAddChargeModifier, onRemoveChargeModifier, onSetChargeComment, onClearChargeComment, onRemoveChargeByUuid, examTemplates, onCarryForwardExam, onMergeExamTemplate, examMergeKinds, examMergeTemplate, noteDiagnoses, isPsychiatry, dictation, transcriptFinalized, questionnaireFillEnabled } = {}) {
   return SOAP_GROUPS
     .map(group => {
       const matching = sections.filter(s => group.keys.has(s.key.toLowerCase()));
@@ -536,6 +536,7 @@ function renderSoapGroups(sections, commandBySectionKey, onEditCommand, onDelete
         onEditCommand=${onEditCommand}
         onDeleteCommand=${onDeleteCommand}
         transcriptFinalized=${transcriptFinalized}
+        questionnaireFillEnabled=${questionnaireFillEnabled}
         adHocCommands=${isPlan ? adHocCommands : isObjective ? objectiveAdHocCommands : isHistory ? historyAdHocCommands : isSubjective ? subjectiveAdHocCommands : isCharges ? chargeAdHocCommands : null}
         assignees=${isPlan ? assignees : null}
         onAddTask=${isPlan ? onAddTask : null}
@@ -643,6 +644,8 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   // Section kinds ScribeExamTemplateMerge enables. The secret is still the only gate;
   // this just stops the card guessing and offering a button the server would refuse.
   const [examMergeKinds, setExamMergeKinds] = useState(initialData?.exam_merge_kinds ?? []);
+  // Fixed for the page: it depends only on the note's provider and a secret.
+  const questionnaireFillEnabled = initialData?.questionnaire_fill_enabled ?? true;
   const [mode, setMode] = useState(() => {
     const cached = initSummary?.mode ?? null;
     // Dead state recovery: ai mode was persisted but recording was never started (e.g.
@@ -1490,8 +1493,10 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // never held up by a questionnaire, and both read the same finalized transcript.
     // One request for every questionnaire on the note, so they share a single warmed
     // prompt cache server-side.
+    // Skipped when fill is off for this note's provider: the server would refuse it.
+    // questionnaireFillEnabled is fixed for the page, so it needs no dependency entry.
     const templateQuestionnaireDbids = (selectedTemplate?.questionnaires || []).map(q => q.questionnaire_dbid);
-    if (templateQuestionnaireDbids.length > 0) {
+    if (questionnaireFillEnabled && templateQuestionnaireDbids.length > 0) {
       fetch(`${API_BASE}/fill-questionnaires`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3959,6 +3964,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           // transcript answers questions the visit has not reached yet, and the
           // grounding rule cannot catch it because the quote it cites is real.
           transcriptFinalized: recording.finalized,
+          questionnaireFillEnabled,
           dictation: {
             // Gated behind the ScribeDictationEnabled secret. A single physical
             // mic: also only offered when editable and NOT while ambient recording
