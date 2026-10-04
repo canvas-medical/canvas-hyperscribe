@@ -237,6 +237,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
         <div class="order-view-name">${command.display}</div>
         ${command.data.sig && html`<div class="order-view-sig">${command.data.sig}</div>`}
         ${alertFacilityCommands.has(command.command_type) && (command.data.alert_facility === true || command.data.alert_facility === false) && html`<div class="order-view-alert-facility">Alert Facility: ${command.data.alert_facility ? 'Yes' : 'No'}</div>`}
+        ${command.from_transcript && html`<span class="badge badge-transcript" title="Heard in the recording but missing from the generated note — review before accepting">From transcript</span>`}
       </div>
     </div>
   `;
