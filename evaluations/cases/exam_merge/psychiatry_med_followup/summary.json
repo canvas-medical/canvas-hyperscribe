@@ -1,0 +1,449 @@
+{
+  "selected_template_name": "Psychiatry",
+  "mode": "ai",
+  "approved": false,
+  "note_data": {
+    "title": "Med follow-up: worsening depression & insomnia",
+    "sections": [
+      {
+        "key": "CHIEF_COMPLAINT",
+        "title": "Chief complaint",
+        "text": "Worsening depression with insomnia."
+      },
+      {
+        "key": "review_of_systems",
+        "title": "Review of Systems",
+        "text": "Mood: depressed, anhedonia\nAnxiety: rumination, panic episodes\nSleep: middle insomnia\nAppetite: decreased\nConcentration: impaired\nSuicidal ideation: passive, no plan\nHomicidal ideation: none\nSelf-harm: none\nPsychosis: none"
+      },
+      {
+        "key": "VITALS",
+        "title": "Vitals",
+        "text": "- Blood pressure: 118/74 mmHg\n- Heart rate: 82 bpm\n- Respiratory rate: 16 breaths/min\n- Temperature: 98.4 F\n- Weight: 132 lb\n- Height: 5 ft 5 in"
+      },
+      {
+        "key": "MENTAL_HEALTH_EXAM",
+        "title": "Mental status exam",
+        "text": "Appearance: well-groomed, dressed appropriately\nBehavior/Rapport: alert, oriented to person, place, time, situation\nMovement: \nSpeech: normal rate, rhythm, prosody\nMood: low\nOrientation: person, place, time, situation\nAttention/Concentration: impaired\nThought Process: linear, goal-directed\nThought Content: passive suicidal ideation, no plan, no intent, no homicidal ideation, no perceptual disturbances, no delusions\nInsight: fair\nJudgment: fair"
+      },
+      {
+        "key": "LAB_RESULTS",
+        "title": "Lab results",
+        "text": "- TSH: 2.1\n- CBC: within normal limits\n- Comprehensive metabolic panel: within normal limits"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "command_type": "ros",
+      "section_key": "_ros",
+      "display": "DEPRESSIVE SYMPTOMS | ANXIETY SYMPTOMS | SLEEP | APPETITE | SI/HI | HALLUCINATIONS | DELUSIONS/PARANOIA | MANIC SYMPTOMS | CONCENTRATION",
+      "selected": true,
+      "already_documented": false,
+      "data": {
+        "sections": [
+          {
+            "key": "depressive_symptoms",
+            "title": "DEPRESSIVE SYMPTOMS",
+            "text": "Reports depressed mood and anhedonia. Denies low motivation, fatigue, or social withdrawal.",
+            "updated": true,
+            "template_text": "Denies depressed mood, low motivation, fatigue, poor concentration, or social withdrawal."
+          },
+          {
+            "key": "anxiety_symptoms",
+            "title": "ANXIETY SYMPTOMS",
+            "text": "Reports rumination and panic episodes. Denies racing thoughts, irritability, difficulty concentrating, hypervigilance, or excessive worry.",
+            "updated": true,
+            "template_text": "Denies panic attacks, racing thoughts, irritability, difficulty concentrating, hypervigilance, or excessive worry."
+          },
+          {
+            "key": "sleep",
+            "title": "SLEEP",
+            "text": "Reports insomnia (difficulty staying asleep). Denies insomnia (difficulty falling asleep), fragmented sleep, nightmares, daytime sleepiness, or poor sleep quality.",
+            "updated": true,
+            "template_text": "Denies insomnia (difficulty falling asleep), insomnia (difficulty staying asleep), fragmented sleep, nightmares, daytime sleepiness, or poor sleep quality."
+          },
+          {
+            "key": "appetite",
+            "title": "APPETITE",
+            "text": "Reports decreased appetite. Denies increased appetite, emotional eating, weight loss, weight gain, or food aversion.",
+            "updated": true,
+            "template_text": "Denies decreased appetite, increased appetite, emotional eating, weight loss, weight gain, or food aversion."
+          },
+          {
+            "key": "si_hi",
+            "title": "SI/HI",
+            "text": "Reports passive suicidal ideation without plan. Denies suicidal ideation with plan, homicidal ideation with plan, or homicidal ideation without plan.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "hallucinations",
+            "title": "HALLUCINATIONS",
+            "text": "Denies auditory hallucinations or visual hallucinations.",
+            "updated": false,
+            "template_text": "Denies auditory hallucinations or visual hallucinations."
+          },
+          {
+            "key": "delusions_paranoia",
+            "title": "DELUSIONS/PARANOIA",
+            "text": "Denies delusional thinking or paranoid thinking.",
+            "updated": false,
+            "template_text": null
+          },
+          {
+            "key": "manic_symptoms",
+            "title": "MANIC SYMPTOMS",
+            "text": "Denies mood swings, increased energy, less need for sleep, reckless behaviors, pressured speech, or more talkative.",
+            "updated": false,
+            "template_text": "Denies mood swings, increased energy, less need for sleep, reckless behaviors, pressured speech, or more talkative."
+          },
+          {
+            "key": "concentration",
+            "title": "CONCENTRATION",
+            "text": "Reports impaired concentration.",
+            "updated": true,
+            "template_text": null
+          }
+        ],
+        "encounter_sections": [
+          {
+            "key": "mood",
+            "title": "Mood",
+            "text": "depressed, anhedonia"
+          },
+          {
+            "key": "anxiety",
+            "title": "Anxiety",
+            "text": "rumination, panic episodes"
+          },
+          {
+            "key": "sleep",
+            "title": "Sleep",
+            "text": "middle insomnia"
+          },
+          {
+            "key": "appetite",
+            "title": "Appetite",
+            "text": "decreased"
+          },
+          {
+            "key": "concentration",
+            "title": "Concentration",
+            "text": "impaired"
+          },
+          {
+            "key": "suicidal_ideation",
+            "title": "Suicidal ideation",
+            "text": "passive, no plan"
+          },
+          {
+            "key": "homicidal_ideation",
+            "title": "Homicidal ideation",
+            "text": "none"
+          },
+          {
+            "key": "self-harm",
+            "title": "Self-harm",
+            "text": "none"
+          },
+          {
+            "key": "psychosis",
+            "title": "Psychosis",
+            "text": "none"
+          }
+        ],
+        "reconciled_sections": [
+          {
+            "key": "depressive_symptoms",
+            "title": "DEPRESSIVE SYMPTOMS",
+            "text": "Reports depressed mood and anhedonia. Denies low motivation, fatigue, or social withdrawal.",
+            "updated": true,
+            "template_text": "Denies depressed mood, low motivation, fatigue, poor concentration, or social withdrawal."
+          },
+          {
+            "key": "anxiety_symptoms",
+            "title": "ANXIETY SYMPTOMS",
+            "text": "Reports rumination and panic episodes. Denies racing thoughts, irritability, difficulty concentrating, hypervigilance, or excessive worry.",
+            "updated": true,
+            "template_text": "Denies panic attacks, racing thoughts, irritability, difficulty concentrating, hypervigilance, or excessive worry."
+          },
+          {
+            "key": "sleep",
+            "title": "SLEEP",
+            "text": "Reports insomnia (difficulty staying asleep). Denies insomnia (difficulty falling asleep), fragmented sleep, nightmares, daytime sleepiness, or poor sleep quality.",
+            "updated": true,
+            "template_text": "Denies insomnia (difficulty falling asleep), insomnia (difficulty staying asleep), fragmented sleep, nightmares, daytime sleepiness, or poor sleep quality."
+          },
+          {
+            "key": "appetite",
+            "title": "APPETITE",
+            "text": "Reports decreased appetite. Denies increased appetite, emotional eating, weight loss, weight gain, or food aversion.",
+            "updated": true,
+            "template_text": "Denies decreased appetite, increased appetite, emotional eating, weight loss, weight gain, or food aversion."
+          },
+          {
+            "key": "si_hi",
+            "title": "SI/HI",
+            "text": "Reports passive suicidal ideation without plan. Denies suicidal ideation with plan, homicidal ideation with plan, or homicidal ideation without plan.",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "hallucinations",
+            "title": "HALLUCINATIONS",
+            "text": "Denies auditory hallucinations or visual hallucinations.",
+            "updated": false,
+            "template_text": "Denies auditory hallucinations or visual hallucinations."
+          },
+          {
+            "key": "delusions_paranoia",
+            "title": "DELUSIONS/PARANOIA",
+            "text": "Denies delusional thinking or paranoid thinking.",
+            "updated": false,
+            "template_text": null
+          },
+          {
+            "key": "manic_symptoms",
+            "title": "MANIC SYMPTOMS",
+            "text": "Denies mood swings, increased energy, less need for sleep, reckless behaviors, pressured speech, or more talkative.",
+            "updated": false,
+            "template_text": "Denies mood swings, increased energy, less need for sleep, reckless behaviors, pressured speech, or more talkative."
+          },
+          {
+            "key": "concentration",
+            "title": "CONCENTRATION",
+            "text": "Reports impaired concentration.",
+            "updated": true,
+            "template_text": null
+          }
+        ],
+        "template_removed": false
+      }
+    },
+    {
+      "command_type": "mental_status_exam",
+      "section_key": "mental_status_exam",
+      "display": "Appearance | Behavior/Rapport | Movement | Speech | Mood | Orientation | Attention/Concentration | Thought Process | Thought Content | Insight | Judgment",
+      "selected": true,
+      "already_documented": false,
+      "data": {
+        "sections": [
+          {
+            "key": "appearance",
+            "title": "Appearance",
+            "text": "Well-groomed, dressed appropriately",
+            "updated": false,
+            "template_text": "Well-groomed, dressed appropriately"
+          },
+          {
+            "key": "behavior_rapport",
+            "title": "Behavior/Rapport",
+            "text": "Alert, oriented to person, place, time, situation, calm and cooperative, conversational",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "movement",
+            "title": "Movement",
+            "text": "No psychomotor agitation observed",
+            "updated": false,
+            "template_text": "No psychomotor agitation observed"
+          },
+          {
+            "key": "speech",
+            "title": "Speech",
+            "text": "Normal rate, rhythm, and tone",
+            "updated": false,
+            "template_text": "Normal rate, rhythm, and tone"
+          },
+          {
+            "key": "mood",
+            "title": "Mood",
+            "text": "Low, affect congruent to mood",
+            "updated": true,
+            "template_text": "Affect congruent to mood"
+          },
+          {
+            "key": "orientation",
+            "title": "Orientation",
+            "text": "Alert and oriented to person, place, time, situation",
+            "updated": true,
+            "template_text": "Alert and oriented"
+          },
+          {
+            "key": "attention_concentration",
+            "title": "Attention/Concentration",
+            "text": "Impaired",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "thought_process",
+            "title": "Thought Process",
+            "text": "Linear and goal-directed",
+            "updated": true,
+            "template_text": "Linear"
+          },
+          {
+            "key": "thought_content",
+            "title": "Thought Content",
+            "text": "Passive suicidal ideation, no plan, no intent, no homicidal ideation, no delusions, obsessions, preoccupations, paranoia, phobias, or perceptual disturbances",
+            "updated": true,
+            "template_text": "No SI, no HI, no delusions, obsessions, preoccupations, paranoia, or phobias"
+          },
+          {
+            "key": "insight",
+            "title": "Insight",
+            "text": "Fair",
+            "updated": true,
+            "template_text": "Intact"
+          },
+          {
+            "key": "judgment",
+            "title": "Judgment",
+            "text": "Fair",
+            "updated": true,
+            "template_text": "Intact"
+          }
+        ],
+        "encounter_sections": [
+          {
+            "key": "appearance",
+            "title": "Appearance",
+            "text": "well-groomed, dressed appropriately"
+          },
+          {
+            "key": "behavior/rapport",
+            "title": "Behavior/Rapport",
+            "text": "alert, oriented to person, place, time, situation"
+          },
+          {
+            "key": "movement",
+            "title": "Movement",
+            "text": ""
+          },
+          {
+            "key": "speech",
+            "title": "Speech",
+            "text": "normal rate, rhythm, prosody"
+          },
+          {
+            "key": "mood",
+            "title": "Mood",
+            "text": "low"
+          },
+          {
+            "key": "orientation",
+            "title": "Orientation",
+            "text": "person, place, time, situation"
+          },
+          {
+            "key": "attention/concentration",
+            "title": "Attention/Concentration",
+            "text": "impaired"
+          },
+          {
+            "key": "thought_process",
+            "title": "Thought Process",
+            "text": "linear, goal-directed"
+          },
+          {
+            "key": "thought_content",
+            "title": "Thought Content",
+            "text": "passive suicidal ideation, no plan, no intent, no homicidal ideation, no perceptual disturbances, no delusions"
+          },
+          {
+            "key": "insight",
+            "title": "Insight",
+            "text": "fair"
+          },
+          {
+            "key": "judgment",
+            "title": "Judgment",
+            "text": "fair"
+          }
+        ],
+        "reconciled_sections": [
+          {
+            "key": "appearance",
+            "title": "Appearance",
+            "text": "Well-groomed, dressed appropriately",
+            "updated": false,
+            "template_text": "Well-groomed, dressed appropriately"
+          },
+          {
+            "key": "behavior_rapport",
+            "title": "Behavior/Rapport",
+            "text": "Alert, oriented to person, place, time, situation, calm and cooperative, conversational",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "movement",
+            "title": "Movement",
+            "text": "No psychomotor agitation observed",
+            "updated": false,
+            "template_text": "No psychomotor agitation observed"
+          },
+          {
+            "key": "speech",
+            "title": "Speech",
+            "text": "Normal rate, rhythm, and tone",
+            "updated": false,
+            "template_text": "Normal rate, rhythm, and tone"
+          },
+          {
+            "key": "mood",
+            "title": "Mood",
+            "text": "Low, affect congruent to mood",
+            "updated": true,
+            "template_text": "Affect congruent to mood"
+          },
+          {
+            "key": "orientation",
+            "title": "Orientation",
+            "text": "Alert and oriented to person, place, time, situation",
+            "updated": true,
+            "template_text": "Alert and oriented"
+          },
+          {
+            "key": "attention_concentration",
+            "title": "Attention/Concentration",
+            "text": "Impaired",
+            "updated": true,
+            "template_text": null
+          },
+          {
+            "key": "thought_process",
+            "title": "Thought Process",
+            "text": "Linear and goal-directed",
+            "updated": true,
+            "template_text": "Linear"
+          },
+          {
+            "key": "thought_content",
+            "title": "Thought Content",
+            "text": "Passive suicidal ideation, no plan, no intent, no homicidal ideation, no delusions, obsessions, preoccupations, paranoia, phobias, or perceptual disturbances",
+            "updated": true,
+            "template_text": "No SI, no HI, no delusions, obsessions, preoccupations, paranoia, or phobias"
+          },
+          {
+            "key": "insight",
+            "title": "Insight",
+            "text": "Fair",
+            "updated": true,
+            "template_text": "Intact"
+          },
+          {
+            "key": "judgment",
+            "title": "Judgment",
+            "text": "Fair",
+            "updated": true,
+            "template_text": "Intact"
+          }
+        ],
+        "template_removed": false
+      }
+    }
+  ]
+}

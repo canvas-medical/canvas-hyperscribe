@@ -1,0 +1,891 @@
+{
+  "metrics": {
+    "case": "subsequent_visit_shoulder_dm",
+    "template_name": "Subsequent Visit",
+    "kinds": [
+      {
+        "kind": "ros",
+        "template_rows": 7,
+        "encounter_rows": 9,
+        "floor_rows": 13,
+        "final_rows": 10,
+        "title_matches": 3,
+        "title_match_rate": 0.333,
+        "refined": true,
+        "template_sourced_rows": 2,
+        "ledger": {
+          "improved": 3,
+          "regressed": 1,
+          "consolidated": 3,
+          "unchanged": 6
+        },
+        "template_removed": false
+      },
+      {
+        "kind": "physical_exam",
+        "template_rows": 6,
+        "encounter_rows": 10,
+        "floor_rows": 13,
+        "final_rows": 10,
+        "title_matches": 3,
+        "title_match_rate": 0.3,
+        "refined": true,
+        "template_sourced_rows": 0,
+        "ledger": {
+          "improved": 3,
+          "regressed": 0,
+          "consolidated": 3,
+          "unchanged": 7
+        },
+        "template_removed": false
+      }
+    ]
+  },
+  "findings": [
+    {
+      "check_id": "M4",
+      "severity": "warn",
+      "kind": "ros",
+      "row": "General",
+      "message": "row consolidated away, content survives elsewhere (100% of content words)"
+    },
+    {
+      "check_id": "M4",
+      "severity": "warn",
+      "kind": "ros",
+      "row": "Gastrointestinal",
+      "message": "row consolidated away, content survives elsewhere (100% of content words)"
+    },
+    {
+      "check_id": "M4",
+      "severity": "warn",
+      "kind": "ros",
+      "row": "Cardiovascular",
+      "message": "row consolidated away, content survives elsewhere (100% of content words)"
+    },
+    {
+      "check_id": "M8",
+      "severity": "fail",
+      "kind": "ros",
+      "row": "SKIN",
+      "message": "refinement reverted an encounter-sourced finding back to the template default"
+    },
+    {
+      "check_id": "M4",
+      "severity": "warn",
+      "kind": "physical_exam",
+      "row": "General",
+      "message": "row consolidated away, content survives elsewhere (71% of content words)"
+    },
+    {
+      "check_id": "M4",
+      "severity": "warn",
+      "kind": "physical_exam",
+      "row": "Lungs",
+      "message": "row consolidated away, content survives elsewhere (100% of content words)"
+    },
+    {
+      "check_id": "M4",
+      "severity": "warn",
+      "kind": "physical_exam",
+      "row": "Lymphatic",
+      "message": "row consolidated away, content survives elsewhere (100% of content words)"
+    }
+  ],
+  "judge_metrics": {
+    "ros": {
+      "assertions": 39,
+      "unsupported": 15,
+      "unearned_assertion_rate": 0.385,
+      "template_sourced_unsupported": 13,
+      "contradictions": 2
+    },
+    "physical_exam": {
+      "assertions": 47,
+      "unsupported": 6,
+      "unearned_assertion_rate": 0.128,
+      "template_sourced_unsupported": 6,
+      "contradictions": 0
+    }
+  },
+  "clause_verdicts": {
+    "ros": [
+      {
+        "row": "CONSTITUTIONAL",
+        "assertion": "Low energy",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "PATIENT: Just, I don't know. Low energy. I haven't been enjoying things the way I used to.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "CONSTITUTIONAL",
+        "assertion": "Increased sleep",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any trouble sleeping? Appetite changes? PATIENT: I'm sleeping more than usual, honestly.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "CONSTITUTIONAL",
+        "assertion": "Decreased appetite",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "PATIENT: I'm sleeping more than usual, honestly. And not eating as much.",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said encounter, strings say blended]"
+      },
+      {
+        "row": "CONSTITUTIONAL",
+        "assertion": "Denies fever",
+        "provenance": "template",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Fevers, chills, night sweats? UNSPECIFIED: None of that.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "CONSTITUTIONAL",
+        "assertion": "Denies chills",
+        "provenance": "template",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Fevers, chills, night sweats? UNSPECIFIED: None of that.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "CARDIAC",
+        "assertion": "Denies chest pain",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Let me just run through a few review questions. Any chest pain or shortness of breath with exertion? PATIENT: No chest pain.",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said template, strings say blended]"
+      },
+      {
+        "row": "CARDIAC",
+        "assertion": "Denies shortness of breath with exertion",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "Patient stated 'I do get winded on the stairs but I blame that on being out of shape' which indicates shortness of breath with exertion is present, not denied"
+      },
+      {
+        "row": "CARDIAC",
+        "assertion": "Denies palpitations",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any palpitations, racing heart? PATIENT: No.",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said encounter, strings say blended]"
+      },
+      {
+        "row": "CARDIAC",
+        "assertion": "Denies swelling in the legs",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "PHYSICAL_EXAM/Extremities",
+        "note": "Physical exam documents 'Trace bilateral ankle edema' which contradicts the denial of leg swelling"
+      },
+      {
+        "row": "RESPIRATORY",
+        "assertion": "Denies cough",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any cough, wheezing, trouble breathing? UNSPECIFIED: No.",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said template, strings say blended]"
+      },
+      {
+        "row": "RESPIRATORY",
+        "assertion": "Denies wheezing",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any cough, wheezing, trouble breathing? UNSPECIFIED: No.",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said encounter, strings say blended]"
+      },
+      {
+        "row": "RESPIRATORY",
+        "assertion": "Denies nocturnal dyspnea",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "Nocturnal dyspnea was not specifically addressed in the transcript"
+      },
+      {
+        "row": "RESPIRATORY",
+        "assertion": "Denies shortness of breath",
+        "provenance": "blended",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "Patient reported getting 'winded on the stairs' which is shortness of breath with exertion; the broad denial of shortness of breath is unsupported [provenance disputed: model said template, strings say blended]"
+      },
+      {
+        "row": "DIGESTIVE",
+        "assertion": "Heartburn",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "PATIENT: Actually, my stomach's been acting up again. Heartburn, especially at night.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "DIGESTIVE",
+        "assertion": "Denies nausea",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "The doctor asked 'Any belly pain, nausea, changes in bowel habits?' but the patient only responded about heartburn, not specifically addressing nausea"
+      },
+      {
+        "row": "DIGESTIVE",
+        "assertion": "Denies vomiting",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "Vomiting was not specifically addressed in the transcript"
+      },
+      {
+        "row": "DIGESTIVE",
+        "assertion": "Denies abdominal pain",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "PHYSICAL_EXAM/Abdomen",
+        "note": "Physical exam documents 'mild epigastric tenderness to palpation' which contradicts the denial of abdominal pain"
+      },
+      {
+        "row": "DIGESTIVE",
+        "assertion": "Denies constipation",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "The doctor asked about 'changes in bowel habits' but constipation was not specifically addressed"
+      },
+      {
+        "row": "DIGESTIVE",
+        "assertion": "Denies diarrhea",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "The doctor asked about 'changes in bowel habits' but diarrhea was not specifically addressed"
+      },
+      {
+        "row": "DIGESTIVE",
+        "assertion": "Denies blood in stool",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any blood in the stool, black stools? PATIENT: No, nothing like that.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "DIGESTIVE",
+        "assertion": "Denies black stools",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any blood in the stool, black stools? PATIENT: No, nothing like that.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "MUSCULOSKELETAL",
+        "assertion": "Right shoulder pain",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "PATIENT: Well, two things really. My right shoulder's been bothering me for about three weeks now.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "MUSCULOSKELETAL",
+        "assertion": "No numbness",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any numbness or tingling going down the arm? PATIENT: No, no numbness, no tingling.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "MUSCULOSKELETAL",
+        "assertion": "No tingling",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any numbness or tingling going down the arm? PATIENT: No, no numbness, no tingling.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "MUSCULOSKELETAL",
+        "assertion": "No weakness",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any weakness? Trouble gripping things, opening jars? PATIENT: Grip feels fine. It's just the pain that limits me.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "MUSCULOSKELETAL",
+        "assertion": "Denies muscle aches or cramps",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "Muscle aches or cramps were not specifically addressed in the transcript"
+      },
+      {
+        "row": "MUSCULOSKELETAL",
+        "assertion": "Denies arthritis",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "Arthritis was not specifically addressed in the transcript"
+      },
+      {
+        "row": "SKIN",
+        "assertion": "Denies lumps/bumps",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "The doctor asked 'Any rashes or skin issues?' and patient said 'Nope,' but lumps/bumps were not specifically addressed"
+      },
+      {
+        "row": "SKIN",
+        "assertion": "Denies rash",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any rashes or skin issues? PATIENT: Nope.",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said template, strings say blended]"
+      },
+      {
+        "row": "SKIN",
+        "assertion": "Denies skin tear",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "The doctor asked 'Any rashes or skin issues?' and patient said 'Nope,' but skin tears were not specifically addressed"
+      },
+      {
+        "row": "OTHER",
+        "assertion": "None reported",
+        "provenance": "template",
+        "supported": true,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "This is a summary statement indicating no additional systems were reported"
+      },
+      {
+        "row": "ENDOCRINE",
+        "assertion": "Elevated blood glucose readings",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "PATIENT: Mornings, they've been running one-sixty to one-eighty. Before dinner, one-forty or so, sometimes higher.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "ENDOCRINE",
+        "assertion": "No increased thirst",
+        "provenance": "encounter",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "The doctor asked 'Any symptoms? Increased thirst, getting up at night to pee more than usual?' but the patient only responded about nocturia, not specifically addressing thirst"
+      },
+      {
+        "row": "NEUROLOGIC",
+        "assertion": "No headaches",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any headaches, dizziness, vision changes? PATIENT: No headaches. Vision's fine.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "NEUROLOGIC",
+        "assertion": "No dizziness",
+        "provenance": "encounter",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "The doctor asked about dizziness but the patient only specifically denied headaches and vision changes, not dizziness"
+      },
+      {
+        "row": "NEUROLOGIC",
+        "assertion": "No vision changes",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any headaches, dizziness, vision changes? PATIENT: No headaches. Vision's fine.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "PSYCHIATRIC",
+        "assertion": "Feeling down",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "PATIENT: Just, I don't know. Low energy. I haven't been enjoying things the way I used to.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "PSYCHIATRIC",
+        "assertion": "Decreased enjoyment",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "PATIENT: Just, I don't know. Low energy. I haven't been enjoying things the way I used to.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "PSYCHIATRIC",
+        "assertion": "No thoughts of self-harm",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "DOCTOR: Any thoughts of hurting yourself? PATIENT: No, nothing like that. I just feel kind of empty.",
+        "contradicted_by": "",
+        "note": ""
+      }
+    ],
+    "physical_exam": [
+      {
+        "row": "CONSTITUTIONAL",
+        "assertion": "Alert",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "General appearance. You're alert and oriented, comfortable, in no acute distress.",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said template, strings say blended]"
+      },
+      {
+        "row": "CONSTITUTIONAL",
+        "assertion": "No acute distress",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "General appearance. You're alert and oriented, comfortable, in no acute distress.",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said template, strings say blended]"
+      },
+      {
+        "row": "CONSTITUTIONAL",
+        "assertion": "Appears tired",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "You do look a little tired today, though.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "CONSTITUTIONAL",
+        "assertion": "Well developed",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "CONSTITUTIONAL",
+        "assertion": "Nourished",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "SKIN",
+        "assertion": "Warm",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "Skin is warm and dry, no rashes anywhere.",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said encounter, strings say blended]"
+      },
+      {
+        "row": "SKIN",
+        "assertion": "Dry",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Skin is warm and dry, no rashes anywhere.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "SKIN",
+        "assertion": "No rashes",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Skin is warm and dry, no rashes anywhere.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "SKIN",
+        "assertion": "Callus present on ball of right foot",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "There's a callus on the ball of your right foot, no breakdown around it.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "SKIN",
+        "assertion": "Without surrounding breakdown",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "There's a callus on the ball of your right foot, no breakdown around it.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "PULMONARY",
+        "assertion": "Clear to auscultation bilaterally",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "Lungs are clear bilaterally, no wheezing or crackles.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "PULMONARY",
+        "assertion": "No wheezing",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Lungs are clear bilaterally, no wheezing or crackles.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "PULMONARY",
+        "assertion": "No crackles",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Lungs are clear bilaterally, no wheezing or crackles.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "CARDIOVASCULAR",
+        "assertion": "Regular rate and rhythm",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "Heart \u2014 regular rate and rhythm, no murmurs, no gallops.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "CARDIOVASCULAR",
+        "assertion": "S1 normal",
+        "provenance": "blended",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said template, strings say blended]"
+      },
+      {
+        "row": "CARDIOVASCULAR",
+        "assertion": "S2 normal",
+        "provenance": "blended",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said template, strings say blended]"
+      },
+      {
+        "row": "CARDIOVASCULAR",
+        "assertion": "No murmurs",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "Heart \u2014 regular rate and rhythm, no murmurs, no gallops.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "CARDIOVASCULAR",
+        "assertion": "No gallops",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Heart \u2014 regular rate and rhythm, no murmurs, no gallops.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "CARDIOVASCULAR",
+        "assertion": "Carotid arteries without bruits",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Carotids without bruits.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "CARDIOVASCULAR",
+        "assertion": "Dorsalis pedis pulses 2+ bilaterally",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Dorsalis pedis pulses 2 plus bilaterally.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "EXTREMITIES",
+        "assertion": "Trace bilateral ankle edema",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Extremities. I'm seeing trace edema at both ankles.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "EXTREMITIES",
+        "assertion": "No clubbing",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "EXTREMITIES",
+        "assertion": "No cyanosis",
+        "provenance": "template",
+        "supported": false,
+        "transcript_citation": "",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "EXTREMITIES",
+        "assertion": "No ulcers on feet",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "No ulcers.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "PSYCH",
+        "assertion": "Affect flat",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "Your affect is flat today and you're making less eye contact than usual.",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said encounter, strings say blended]"
+      },
+      {
+        "row": "PSYCH",
+        "assertion": "Decreased eye contact",
+        "provenance": "blended",
+        "supported": true,
+        "transcript_citation": "Your affect is flat today and you're making less eye contact than usual.",
+        "contradicted_by": "",
+        "note": "[provenance disputed: model said encounter, strings say blended]"
+      },
+      {
+        "row": "HEENT",
+        "assertion": "Head atraumatic",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "HEENT exam unremarkable \u2014 ears, nose, throat all normal.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "HEENT",
+        "assertion": "Ears normal",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "HEENT exam unremarkable \u2014 ears, nose, throat all normal.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "HEENT",
+        "assertion": "Nose normal",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "HEENT exam unremarkable \u2014 ears, nose, throat all normal.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "HEENT",
+        "assertion": "Throat normal",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "HEENT exam unremarkable \u2014 ears, nose, throat all normal.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "HEENT",
+        "assertion": "Neck supple",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Neck supple, no thyromegaly, no lymphadenopathy.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "HEENT",
+        "assertion": "No thyromegaly",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Neck supple, no thyromegaly, no lymphadenopathy.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "HEENT",
+        "assertion": "No cervical lymphadenopathy",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Neck supple, no thyromegaly, no lymphadenopathy.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "ABDOMEN",
+        "assertion": "Soft",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Abdomen is soft, bowel sounds are normal, no masses.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "ABDOMEN",
+        "assertion": "Normoactive bowel sounds",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Abdomen is soft, bowel sounds are normal, no masses.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "ABDOMEN",
+        "assertion": "No masses",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Abdomen is soft, bowel sounds are normal, no masses.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "ABDOMEN",
+        "assertion": "Mild epigastric tenderness to palpation",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "There is some mild tenderness right up here in the epigastrium when I press.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "MUSCULOSKELETAL",
+        "assertion": "Pain with shoulder abduction past 90 degrees",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Pain with abduction past 90 degrees.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "MUSCULOSKELETAL",
+        "assertion": "Positive Neer's impingement sign",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Positive Neer's impingement sign.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "MUSCULOSKELETAL",
+        "assertion": "Negative Hawkins sign",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Negative Hawkins.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "MUSCULOSKELETAL",
+        "assertion": "No weakness with resisted external rotation",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "No weakness with resisted external rotation.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "NEUROLOGIC",
+        "assertion": "Cranial nerves intact",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Cranial nerves are intact, strength is five out of five in all four extremities, and your gait is steady.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "NEUROLOGIC",
+        "assertion": "Strength 5/5 in all extremities",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Cranial nerves are intact, strength is five out of five in all four extremities, and your gait is steady.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "NEUROLOGIC",
+        "assertion": "Gait steady",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Cranial nerves are intact, strength is five out of five in all four extremities, and your gait is steady.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "NEUROLOGIC",
+        "assertion": "Monofilament sensation intact in feet",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Monofilament intact.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "NEUROLOGIC",
+        "assertion": "Speech normal",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Speech is normal, thought process is linear.",
+        "contradicted_by": "",
+        "note": ""
+      },
+      {
+        "row": "NEUROLOGIC",
+        "assertion": "Thought process linear",
+        "provenance": "encounter",
+        "supported": true,
+        "transcript_citation": "Speech is normal, thought process is linear.",
+        "contradicted_by": "",
+        "note": ""
+      }
+    ]
+  }
+}
