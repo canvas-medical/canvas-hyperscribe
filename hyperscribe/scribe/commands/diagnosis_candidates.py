@@ -159,23 +159,79 @@ def _is_symptom_or_context(code: str) -> bool:
     return bool(norm) and norm[0] in ("R", "Z")
 
 
+ACTIVE_LABEL = "Active problem"
+# One catch-all for every non-active status (resolved / remission / relapse /
+# investigative) — the date/status variants add noise without changing what
+# the provider does (pick it to re-document).
+PAST_LABEL = "Past condition"
+DETECTED_LABEL = "Detected in note"
+SEARCH_LABEL = "ICD-10 search"
+MORE_SPECIFIC_LABEL = "More specific option"
+
+
 def provenance_label(candidate: DiagnosisCandidate) -> str:
     """Human-readable provenance shown next to a candidate in the picker."""
     source = candidate.source
     if source == CandidateSource.ACTIVE_PROBLEM:
-        return "Active problem"
+        return ACTIVE_LABEL
     if source == CandidateSource.PRIOR_CONDITION:
-        # One catch-all for every non-active status (resolved / remission / relapse /
-        # investigative) — the date/status variants add noise without changing what
-        # the provider does (pick it to re-document).
-        return "Past condition"
+        return PAST_LABEL
     if source == CandidateSource.NABLA:
-        return "Detected in note"
+        return DETECTED_LABEL
     if source == CandidateSource.SCIENCE_SEARCH:
-        return "ICD-10 search"
+        return SEARCH_LABEL
     if source == CandidateSource.MORE_SPECIFIC:
-        return "More specific option"
+        return MORE_SPECIFIC_LABEL
     return ""
+
+
+def _refinement_scope(norm: str) -> str:
+    """ICD-10 prefix shared by an unspecified code and the more-specific codes that refine it.
+
+    A 5+ char code (``G4700`` "Insomnia, unspecified") sits inside a real 4-char sub-rubric
+    (``G47.0`` insomnia, distinct from ``G47.3`` apnea), so refinements share the 4-char
+    prefix. A 4-char code (``E785``, ``E039``, ``F329``, ``K219``, ``E119``) is unspecified
+    at the 3-char rubric, so its refinements are the 3-char-root siblings.
+    """
+    return norm[:4] if len(norm) >= 5 else _icd10_family_root(norm)
+
+
+def order_picker_options(options: list[dict[str, str]], matched_codes: set[str]) -> list[dict[str, str]]:
+    """Order picker options by provenance label, keeping each refinement under its parent.
+
+    Order: active problem, past condition, detected in note, then everything else (ICD-10
+    search, and chart conditions that do not match the section) in the order given. An
+    active or past option leads only when its normalized code is in ``matched_codes``;
+    otherwise it is an unrelated chart condition and must not outrank a detected code. Any
+    other matched code (the model's own selection) ranks with the detected ones.
+    "More specific option" entries sit directly under the unspecified code they refine, and
+    entries with no parent in the list go last.
+    """
+
+    def tier(option: dict[str, str]) -> int:
+        label = option.get("provenance", "")
+        matched = icd10_normalize(option.get("code", "")) in matched_codes
+        if label == ACTIVE_LABEL and matched:
+            return 0
+        if label == PAST_LABEL and matched:
+            return 1
+        if label == DETECTED_LABEL or matched:
+            return 2
+        return 3
+
+    leads = sorted((o for o in options if o.get("provenance") != MORE_SPECIFIC_LABEL), key=tier)
+    children = [o for o in options if o.get("provenance") == MORE_SPECIFIC_LABEL]
+    ordered: list[dict[str, str]] = []
+    for lead in leads:
+        ordered.append(lead)
+        lead_norm = icd10_normalize(lead.get("code", ""))
+        if not is_unspecified_code(lead_norm, lead.get("display", "")):
+            continue
+        scope = _refinement_scope(lead_norm)
+        refinements = [c for c in children if icd10_normalize(c.get("code", "")).startswith(scope)]
+        ordered.extend(refinements)
+        children = [c for c in children if c not in refinements]
+    return [*ordered, *children]
 
 
 def serialize_candidate(candidate: DiagnosisCandidate) -> dict[str, str]:
@@ -485,12 +541,7 @@ def expand_unspecified(
     root = _icd10_family_root(norm)
     if not root:
         return []
-    # Scope the refinements to the unspecified code's own sub-category. A 5+ char code
-    # (``G4700`` "Insomnia, unspecified") sits inside a real 4-char sub-rubric (``G47.0``
-    # insomnia, distinct from ``G47.3`` apnea), so refinements share the 4-char prefix.
-    # A 4-char code (``E785``, ``E039``, ``F329``, ``K219``, ``E119``) is unspecified at
-    # the 3-char rubric, so its refinements are the 3-char-root siblings.
-    scope_prefix = norm[:4] if len(norm) >= 5 else root
+    scope_prefix = _refinement_scope(norm)
     try:
         hits = science_search([root]) or []
     except Exception:

@@ -335,3 +335,111 @@ def test_active_chart_conditions_are_selectable_for_an_uncoded_block() -> None:
     assert res.suggestions, "the charted dementia was not selectable, so nothing resolved"
     assert res.suggestions[0]["formatted_code"] == "F03.90"
     assert res.suggestions[0]["provenance"] == "Active problem"
+
+
+# ── KOALA-6439 UAT: picker order and a missing active problem ─────────────
+
+
+def _codes(suggestions: list[dict[str, str]]) -> list[str]:
+    return [s["formatted_code"] for s in suggestions]
+
+
+def test_picker_follows_label_order_not_the_model_ranking() -> None:
+    """Finding 1: the model ranks I49.9 first, but the matching active problem must lead."""
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Atrial fibrillation",
+        body="AFib, rate controlled.",
+        candidates=[
+            _candidate("I49.9", "I49.9", "Cardiac arrhythmia, unspecified", "Detected in note"),
+            _candidate("I48.91", "I48.91", "Unspecified atrial fibrillation", "Active problem"),
+        ],
+    )
+    client = _FakeClient([_step(selected="I49.9", ranked=["I49.9", "I48.91"])])
+
+    res = resolve_uncoded_blocks([block], _factory(client), _no_science)["apblock-0"]
+
+    assert _codes(res.suggestions) == ["I48.91", "I49.9"]
+
+
+def test_unrelated_active_problem_does_not_outrank_a_detected_code() -> None:
+    """Finding 1: an active problem the belt did not match to the section must not lead."""
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Agitation",
+        body="Increased agitation in the evenings.",
+        candidates=[_candidate("R45.1", "R45.1", "Restlessness and agitation", "Detected in note")],
+    )
+    chart_options = [_candidate("F41.1", "F41.1", "Generalized anxiety disorder", "Active problem")]
+    client = _FakeClient([_step(selected="R45.1", ranked=["F41.1", "R45.1"])])
+
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science, chart_options=chart_options)
+
+    assert _codes(out["apblock-0"].suggestions) == ["R45.1", "F41.1"]
+
+
+def test_more_specific_options_stay_under_their_parent() -> None:
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Hypothyroidism",
+        body="TSH elevated.",
+        candidates=[
+            _candidate("E03.9", "E03.9", "Hypothyroidism, unspecified", "Detected in note"),
+            _candidate("E03.8", "E03.8", "Other specified hypothyroidism", "More specific option"),
+        ],
+    )
+    chart_options = [_candidate("I10", "I10", "Essential hypertension", "Active problem")]
+    client = _FakeClient([_step(selected="E03.9", ranked=["E03.9", "E03.8", "I10"])])
+
+    res = resolve_uncoded_blocks([block], _factory(client), _no_science, chart_options=chart_options)["apblock-0"]
+
+    assert _codes(res.suggestions) == ["E03.9", "E03.8", "I10"]
+
+
+def test_matching_active_problem_is_added_when_the_model_leaves_it_out() -> None:
+    """Finding 2 (AFib): the model returned only I49.9, but the belt matched I48.91."""
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Atrial fibrillation",
+        body="AFib, rate controlled.",
+        candidates=[
+            _candidate("I49.9", "I49.9", "Cardiac arrhythmia, unspecified", "Detected in note"),
+            _candidate("I48.91", "I48.91", "Unspecified atrial fibrillation", "Active problem"),
+        ],
+    )
+    client = _FakeClient([_step(selected="I49.9", ranked=["I49.9"])])
+
+    res = resolve_uncoded_blocks([block], _factory(client), _no_science)["apblock-0"]
+
+    assert _codes(res.suggestions) == ["I48.91", "I49.9"]
+
+
+def test_matching_active_problem_survives_when_the_model_ranks_nothing() -> None:
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Atrial fibrillation",
+        body="AFib.",
+        candidates=[_candidate("I48.91", "I48.91", "Unspecified atrial fibrillation", "Active problem")],
+    )
+    client = _FakeClient([_step(), _step()])
+
+    res = resolve_uncoded_blocks([block], _factory(client), _no_science)["apblock-0"]
+
+    assert _codes(res.suggestions) == ["I48.91"]
+
+
+def test_prompt_tags_active_problems_for_the_model() -> None:
+    """Finding 2 (COPD, best effort): the model must be able to see which options are charted."""
+    prompts: list[Any] = []
+
+    class _Spy(_FakeClient):
+        def set_user_prompt(self, prompt: Any) -> None:
+            prompts.append(prompt)
+
+    block = BlockContext(block_id="apblock-0", header="Dyspnea", body="Wheezing.", candidates=[])
+    chart_options = [_candidate("J44.1", "J44.1", "COPD with acute exacerbation", "Active problem")]
+    client = _Spy([_step(selected="J44.1", ranked=["J44.1"])])
+
+    resolve_uncoded_blocks([block], _factory(client), _no_science, chart_options=chart_options)
+
+    assert "J44.1 — COPD with acute exacerbation [Active problem]" in prompts[0][0]
