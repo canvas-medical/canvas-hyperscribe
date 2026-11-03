@@ -8,6 +8,7 @@ from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
+from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.line import Line
@@ -28,7 +29,7 @@ class BuilderFromChartTranscript(BuilderBase):
     def _run(cls, parameters: Namespace, recorder: AuditorStore, identification: IdentificationParameters) -> None:
         with parameters.chart.open("r") as f:
             chart_data = json.load(f)
-        limited_cache = LimitedCache.load_from_json(chart_data)
+        limited_cache = LimitedCache.load_from_json(chart_data, local_lab_tests)
 
         with parameters.transcript.open("r") as f:
             transcript = Line.load_from_json(json.load(f))

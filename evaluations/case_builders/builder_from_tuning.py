@@ -8,6 +8,7 @@ from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
+from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.cycle_data import CycleData
 from hyperscribe.structures.cycle_data_source import CycleDataSource
@@ -48,7 +49,7 @@ class BuilderFromTuning(BuilderBase):
         for file in parameters.tuning_mp3:
             print(f"- {file.name}")
 
-        limited_cache = LimitedCache.load_from_json(limited_cache_data)
+        limited_cache = LimitedCache.load_from_json(limited_cache_data, local_lab_tests)
         recorder.case_update_limited_cache(limited_cache.to_json(True))
 
         chatter = AudioInterpreter(recorder.settings, recorder.s3_credentials, limited_cache, identification)

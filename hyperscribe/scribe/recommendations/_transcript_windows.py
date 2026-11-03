@@ -12,6 +12,7 @@ domain-neutral parts of it, factored out so other recommenders can reuse them.
 from __future__ import annotations
 
 import re
+from typing import Pattern
 
 from hyperscribe.scribe.backend.models import NoteSection, Transcript, TranscriptItem
 
@@ -38,7 +39,7 @@ _PRN_PHRASES = [
 PRN_PATTERN = re.compile("|".join(_PRN_PHRASES), re.IGNORECASE)
 
 
-def find_keyword_matches(transcript: Transcript, pattern: re.Pattern[str]) -> list[int]:
+def find_keyword_matches(transcript: Transcript, pattern: Pattern[str]) -> list[int]:
     """Return midpoint timestamps (ms) of transcript items matching ``pattern``."""
     matches: list[int] = []
     for item in transcript.items:
@@ -89,7 +90,7 @@ def format_transcript_windows(window_items: list[list[TranscriptItem]]) -> str:
     return "\n\n".join(parts)
 
 
-def collect_windows(transcript: Transcript | None, pattern: re.Pattern[str]) -> str:
+def collect_windows(transcript: Transcript | None, pattern: Pattern[str]) -> str:
     """Return formatted transcript windows around every ``pattern`` hit, or "" if none.
 
     Convenience wrapper over the four steps above, for recommenders that only want the

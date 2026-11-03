@@ -3,6 +3,7 @@ from unittest.mock import patch, call, MagicMock
 
 from scripts.case_runner import CaseRunner
 from evaluations.datastores.datastore_case import DatastoreCase
+from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
@@ -173,7 +174,10 @@ def test_run(
     assert prepare_cycles.mock_calls == calls
     calls = [call("theCase")]
     assert already_generated.mock_calls == calls
-    calls = [call({"limited": "chart"}), call().staged_commands_as_instructions("theSchemaKey2Instructions")]
+    calls = [
+        call({"limited": "chart"}, local_lab_tests),
+        call().staged_commands_as_instructions("theSchemaKey2Instructions"),
+    ]
     assert load_from_json.mock_calls == calls
     calls = [call("theNoteUuid"), call().set_cycle(1), call().set_cycle(2), call().set_cycle(3)]
     assert get_discussion.mock_calls == calls
@@ -234,7 +238,10 @@ def test_run(
     assert prepare_cycles.mock_calls == calls
     calls = [call("theCase")]
     assert already_generated.mock_calls == calls
-    calls = [call({"limited": "chart"}), call().staged_commands_as_instructions("theSchemaKey2Instructions")]
+    calls = [
+        call({"limited": "chart"}, local_lab_tests),
+        call().staged_commands_as_instructions("theSchemaKey2Instructions"),
+    ]
     assert load_from_json.mock_calls == calls
     calls = [call("theNoteUuid"), call().set_cycle(1), call().set_cycle(2)]
     assert get_discussion.mock_calls == calls

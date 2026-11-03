@@ -8,6 +8,7 @@ from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.helper import Helper
+from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.model_spec import ModelSpec
@@ -25,7 +26,7 @@ class BuilderDirectFromTuningFull(BuilderDirectFromTuning):
         mp3_files = self.split_audio(mp3_file)
 
         with (mp3_file.parent / "limited_chart.json").open("r") as f:
-            cache = LimitedCache.load_from_json(json.load(f))
+            cache = LimitedCache.load_from_json(json.load(f), local_lab_tests)
 
         chat_transcript = AudioInterpreter(self.settings, self.s3_logs_credentials, cache, self.identification)
         print(f"create transcripts...")
