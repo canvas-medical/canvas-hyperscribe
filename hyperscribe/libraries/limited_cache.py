@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import Any, Callable
 
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
@@ -73,6 +73,7 @@ class LimitedCache:
         self._charge_descriptions: list[ChargeDescription] | None = None
         self._lab_tests: dict[str, list[CodedItem]] = {}
         self._local_data = False
+        self._local_lab_tests: Callable[[list[str]], list[CodedItem]] | None = None
 
     @property
     def is_local_data(self) -> bool:
@@ -81,31 +82,16 @@ class LimitedCache:
     def lab_tests(self, lab_partner: str, keywords: list[str]) -> list[CodedItem]:
         key = " ".join(sorted(keywords))
         if key not in self._lab_tests:
-            self._lab_tests[key] = []
-            if self._local_data:
-                from pathlib import Path
-                import sqlite3  # <-- the import is forbidden in the plugin context
-
-                with sqlite3.connect(Path(__file__).parent / Constants.SQLITE_LAB_TESTS_DATABASE) as conn:
-                    conn.row_factory = sqlite3.Row
-                    cursor = conn.cursor()
-                    parameters: dict = {}
-                    sql = "SELECT `dbid`, `order_code`, `order_name` FROM `generic_lab_test` WHERE 1=1 "
-                    for idx, kw in enumerate(keywords):
-                        param = f"kw_{idx:02d}"
-                        sql += f" AND `keywords` LIKE :{param}"
-                        parameters[param] = f"%{kw}%"
-                    sql += " ORDER BY `dbid`"
-                    cursor.execute(sql, parameters)
-                    for row in cursor.fetchall():
-                        self._lab_tests[key].append(CodedItem(uuid="", label=row["order_name"], code=row["order_code"]))
+            if self._local_lab_tests is not None:
+                self._lab_tests[key] = self._local_lab_tests(keywords)
             else:
                 keyword_q = Q()
                 for kw in keywords:
                     keyword_q &= Q(keywords__icontains=kw)
                 query = LabPartnerTest.objects.filter(lab_partner__name=lab_partner).filter(keyword_q)
-                for test in query:
-                    self._lab_tests[key].append(CodedItem(uuid="", label=test.order_name, code=test.order_code))
+                self._lab_tests[key] = [
+                    CodedItem(uuid="", label=test.order_name, code=test.order_code) for test in query
+                ]
         return self._lab_tests[key]
 
     def charge_descriptions(self) -> list[ChargeDescription]:
@@ -495,7 +481,11 @@ class LimitedCache:
         }
 
     @classmethod
-    def load_from_json(cls, cache: dict) -> LimitedCache:
+    def load_from_json(
+        cls,
+        cache: dict,
+        local_lab_tests: Callable[[list[str]], list[CodedItem]] | None = None,
+    ) -> LimitedCache:
         staged_commands = {
             key: [
                 CodedItem.load_from_json(cmd | {"uuid": f"xyz{idx * 1000 + num:04d}"})
@@ -538,5 +528,6 @@ class LimitedCache:
         result._charge_descriptions = [ChargeDescription.load_from_json(i) for i in cache.get("chargeDescriptions", [])]
         result._lab_tests = {}
         result._local_data = True
+        result._local_lab_tests = local_lab_tests
 
         return result

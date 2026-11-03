@@ -222,11 +222,11 @@ def _sanitize_html(html: str) -> str:
     clean = re.sub(r"<(iframe|object|embed|form|input)[^>]*/?>", "", clean, flags=re.IGNORECASE)
     clean = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", clean)
 
-    def _deemphasize_label(m: re.Match[str]) -> str:
-        label = m.group(1).strip()
+    def _deemphasize_label(m: Any) -> str:
+        label = str(m.group(1)).strip()
         if label.rstrip(":").isupper():
             return label.title()
-        return m.group(0)
+        return str(m.group(0))
 
     clean = re.sub(r"<(?:strong|b)[^>]*>([A-Z][A-Z /]+:?)</(?:strong|b)>", _deemphasize_label, clean)
     return clean

@@ -6,6 +6,7 @@ from evaluations.case_builders.builder_direct_from_tuning import BuilderDirectFr
 from evaluations.case_builders.builder_direct_from_tuning_full import BuilderDirectFromTuningFull
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
+from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -230,7 +231,7 @@ def test__run(
     assert generate_case.mock_calls == calls
     calls = [call(tested.settings, tested.s3_logs_credentials, "theLimitedCache", tested.identification)]
     assert audio_interpreter.mock_calls == calls
-    calls = [call.load_from_json({"limited": "cache"})]
+    calls = [call.load_from_json({"limited": "cache"}, local_lab_tests)]
     assert limited_cache.mock_calls == calls
     calls = [call.parent.__truediv__("limited_chart.json")]
     assert full_mp3_file.mock_calls == calls

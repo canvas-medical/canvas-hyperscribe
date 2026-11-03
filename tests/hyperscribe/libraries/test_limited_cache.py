@@ -1,6 +1,4 @@
-import sqlite3
 from datetime import date, datetime, timezone
-from pathlib import Path
 from unittest.mock import patch, call, MagicMock, PropertyMock
 from uuid import uuid5, NAMESPACE_DNS
 
@@ -80,20 +78,11 @@ def test___init__():
     assert tested._charge_descriptions is None
     assert tested._lab_tests == {}
     assert tested._local_data is False
+    assert tested._local_lab_tests is None
 
 
-@patch.object(sqlite3, "connect")
 @patch.object(LabPartnerTest, "objects")
-def test_lab_tests(lab_test_db, sqlite3_connect):
-    chatter = MagicMock()
-    connection = MagicMock()
-
-    def reset_mocks():
-        lab_test_db.reset_mock()
-        sqlite3_connect.reset_mock()
-        chatter.reset_mock()
-        connection.reset_mock()
-
+def test_lab_tests(lab_test_db):
     lab_tests = [
         LabPartnerTest(order_code="code123", order_name="labelA"),
         LabPartnerTest(order_code="code369", order_name="labelB"),
@@ -104,13 +93,8 @@ def test_lab_tests(lab_test_db, sqlite3_connect):
         CodedItem(code="code369", label="labelB", uuid=""),
         CodedItem(code="code752", label="labelC", uuid=""),
     ]
-
-    # not local
-    sqlite3_connect.return_value.__enter__.side_effect = [connection]
-    connection.cursor.return_value.fetchall.side_effect = []
     tested = LimitedCache("patientUuid", "providerUuid", {})
-    tested._local_data = False
-    # -- word1 word2 word3
+
     lab_test_db.filter.return_value.filter.side_effect = [lab_tests]
     result = tested.lab_tests("theLabPartner", ["word2", "word3", "word1"])
     assert result == expected
@@ -122,82 +106,33 @@ def test_lab_tests(lab_test_db, sqlite3_connect):
         ),
     ]
     assert lab_test_db.mock_calls == calls
-    assert sqlite3_connect.mock_calls == []
-    reset_mocks()
-    # -- -- repeat with different orders
+    lab_test_db.reset_mock()
+    # -- the same keywords in another order are served from the cache
     result = tested.lab_tests("theLabPartner", ["word1", "word3", "word2"])
     assert result == expected
     assert lab_test_db.mock_calls == []
-    assert sqlite3_connect.mock_calls == []
-    assert connection.mock_calls == []
-    reset_mocks()
-    result = tested.lab_tests("theLabPartner", ["word2", "word1", "word3"])
-    assert result == expected
-    assert lab_test_db.mock_calls == []
-    assert sqlite3_connect.mock_calls == []
-    assert connection.mock_calls == []
-    reset_mocks()
-    # -- word1 word2
-    lab_test_db.filter.return_value.filter.side_effect = [lab_tests]
+    # -- other keywords query again
+    lab_test_db.filter.return_value.filter.side_effect = [lab_tests[:1]]
+    result = tested.lab_tests("theLabPartner", ["word2", "word1"])
+    assert result == expected[:1]
+    assert len(lab_test_db.mock_calls) == 2
+
+
+@patch.object(LabPartnerTest, "objects")
+def test_lab_tests__local_lookup(lab_test_db):
+    expected = [CodedItem(code="code123", label="labelA", uuid="")]
+    local_lab_tests = MagicMock(side_effect=[expected])
+    tested = LimitedCache.load_from_json({}, local_lab_tests)
+
     result = tested.lab_tests("theLabPartner", ["word2", "word1"])
     assert result == expected
-
-    calls = [
-        call.filter(lab_partner__name="theLabPartner"),
-        call.filter().filter(Q(("keywords__icontains", "word2"), ("keywords__icontains", "word1"))),
-    ]
-    assert lab_test_db.mock_calls == calls
-    assert sqlite3_connect.mock_calls == []
-    assert connection.mock_calls == []
-    reset_mocks()
-    # -- -- repeat with different orders
+    assert local_lab_tests.mock_calls == [call(["word2", "word1"])]
+    assert lab_test_db.mock_calls == []
+    # -- the same keywords in another order are served from the cache
     result = tested.lab_tests("theLabPartner", ["word1", "word2"])
     assert result == expected
+    assert local_lab_tests.mock_calls == [call(["word2", "word1"])]
     assert lab_test_db.mock_calls == []
-    assert sqlite3_connect.mock_calls == []
-    assert connection.mock_calls == []
-    reset_mocks()
-
-    # local
-    sqlite3_connect.return_value.__enter__.side_effect = [connection]
-    connection.cursor.return_value.fetchall.side_effect = [
-        [
-            {"dbid": 456, "order_code": "code123", "order_name": "labelA"},
-            {"dbid": 458, "order_code": "code369", "order_name": "labelB"},
-            {"dbid": 486, "order_code": "code752", "order_name": "labelC"},
-        ],
-    ]
-    tested = LimitedCache("patientUuid", "providerUuid", {})
-    tested._local_data = True
-
-    result = tested.lab_tests("theLabPartner", ["word1", "word3", "word2"])
-    assert result == expected
-    assert lab_test_db.mock_calls == []
-    directory = Path(__file__).parent.as_posix().replace("/tests", "")
-    calls = [call(Path(f"{directory}/generic_lab_tests.db")), call().__enter__(), call().__exit__(None, None, None)]
-    assert sqlite3_connect.mock_calls == calls
-    calls = [
-        call.cursor(),
-        call.cursor().execute(
-            "SELECT `dbid`, `order_code`, `order_name` "
-            "FROM `generic_lab_test` WHERE 1=1 "
-            " AND `keywords` LIKE :kw_00"
-            " AND `keywords` LIKE :kw_01"
-            " AND `keywords` LIKE :kw_02 "
-            "ORDER BY `dbid`",
-            {"kw_00": "%word1%", "kw_01": "%word3%", "kw_02": "%word2%"},
-        ),
-        call.cursor().fetchall(),
-    ]
-    assert connection.mock_calls == calls
-    reset_mocks()
-    # -- -- repeat with different orders
-    result = tested.lab_tests("theLabPartner", ["word1", "word3", "word2"])
-    assert result == expected
-    assert lab_test_db.mock_calls == []
-    assert sqlite3_connect.mock_calls == []
-    assert connection.mock_calls == []
-    reset_mocks()
 
 
 @patch.object(ChargeDescriptionMaster, "objects")

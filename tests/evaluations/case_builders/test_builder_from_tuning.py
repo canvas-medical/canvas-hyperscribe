@@ -3,6 +3,7 @@ from unittest.mock import patch, call, MagicMock
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_tuning import BuilderFromTuning
+from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.libraries.commander import Commander
 from hyperscribe.structures.cycle_data import CycleData
 from hyperscribe.structures.cycle_data_source import CycleDataSource
@@ -152,7 +153,7 @@ def test__run(audio2commands, limited_cache, implemented_commands, cached_discus
     ]
     assert capsys.readouterr().out == "\n".join(exp_out)
 
-    calls = [call.load_from_json({"key": "value"})]
+    calls = [call.load_from_json({"key": "value"}, local_lab_tests)]
     assert limited_cache.mock_calls == calls
     calls = [
         call.case_update_limited_cache({"limited": "cache"}),

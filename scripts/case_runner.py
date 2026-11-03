@@ -8,6 +8,7 @@ from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
+from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -51,7 +52,7 @@ class CaseRunner:
             canvas_instance="runner-environment",
         )
 
-        limited_cache = LimitedCache.load_from_json(auditor.limited_chart())
+        limited_cache = LimitedCache.load_from_json(auditor.limited_chart(), local_lab_tests)
         chatter = AudioInterpreter(auditor.settings, auditor.s3_credentials, limited_cache, identification)
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
