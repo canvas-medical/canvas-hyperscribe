@@ -32,7 +32,13 @@ from typing import Any, Callable, NamedTuple
 
 from logger import log
 
-from hyperscribe.scribe.commands.diagnosis_candidates import format_icd10, icd10_normalize
+from hyperscribe.scribe.commands.diagnosis_candidates import (
+    ACTIVE_LABEL,
+    PAST_LABEL,
+    format_icd10,
+    icd10_normalize,
+    order_picker_options,
+)
 from hyperscribe.scribe.recommendations.schemas import DiagnosisResolutionStep
 
 # Injected callables (kept abstract so tests can supply fakes/mocks).
@@ -60,6 +66,9 @@ _SYSTEM_PROMPT = (
     "on supplementation means it is controlled, not absent); a chronic disease that is 'well "
     "controlled' on medication is still that disease. When the header names a treatment/"
     "supplement rather than the diagnosis, search for the condition that treatment manages. "
+    "Candidates tagged [Active problem] come from the patient's chart. When the documented "
+    "symptoms or findings are a recognized manifestation of an active problem, rank that active "
+    "problem ahead of the symptom codes. "
     "A purely administrative or logistical header with no underlying clinical condition (e.g. an "
     "access or scheduling problem) should return low confidence with no selection."
 )
@@ -110,7 +119,8 @@ def _build_user_prompt(block: BlockContext, pool: dict[str, dict[str, str]]) -> 
     ]
     if pool:
         for meta in pool.values():
-            lines.append(f" * {meta['formatted_code']} — {meta['display']}")
+            origin = f" [{meta['provenance']}]" if meta["provenance"] in (ACTIVE_LABEL, PAST_LABEL) else ""
+            lines.append(f" * {meta['formatted_code']} — {meta['display']}{origin}")
     else:
         lines.append(" (none retrieved yet — return more_search_terms)")
     lines += [
@@ -167,7 +177,11 @@ def _merge_science(terms: list[str], pool: dict[str, dict[str, str]], science_se
     return added
 
 
-def _suggestions_from(step: DiagnosisResolutionStep, pool: dict[str, dict[str, str]]) -> list[dict[str, str]]:
+def _suggestions_from(
+    step: DiagnosisResolutionStep,
+    pool: dict[str, dict[str, str]],
+    limit: int = _MAX_SUGGESTIONS,
+) -> list[dict[str, str]]:
     """Build the ranked, in-pool picker list from the model's ranked_codes (+ selection first).
 
     Hard anti-hallucination gate: only codes present in ``pool`` survive.
@@ -177,13 +191,56 @@ def _suggestions_from(step: DiagnosisResolutionStep, pool: dict[str, dict[str, s
         norm = icd10_normalize(code or "")
         if norm and norm in pool and norm not in ordered:
             ordered.append(norm)
-    return [dict(pool[norm]) for norm in ordered[:_MAX_SUGGESTIONS]]
+    return [dict(pool[norm]) for norm in ordered[:limit]]
 
 
-def _resolve_one(block: BlockContext, client: Any, science_search: ScienceSearch) -> BlockResolution | None:
-    # Seed the pool from the belt's existing suggestions, keyed by normalized code.
+def _finalize(
+    block: BlockContext, step: DiagnosisResolutionStep, pool: dict[str, dict[str, str]]
+) -> list[dict[str, str]]:
+    """The picker list: the model's ranking, plus every matching active problem, in label order.
+
+    The model's ranking replaces the belt's order and can leave out an active problem the
+    belt matched to the block, so those are added back. An active or past option leads only
+    when the belt matched it to this block or the model selected it.
+    """
+    belt_matches = {
+        icd10_normalize(c.get("code") or "")
+        for c in block.candidates or []
+        if c.get("provenance") in (ACTIVE_LABEL, PAST_LABEL)
+    }
+    selected = icd10_normalize(step.selected_code or "")
+    matched = {*belt_matches, selected} - {""}
+    suggestions = _suggestions_from(step, pool, limit=len(pool))
+    listed = {icd10_normalize(s["code"]) for s in suggestions}
+    for norm in belt_matches - listed - {""}:
+        if norm in pool and pool[norm]["provenance"] == ACTIVE_LABEL:
+            suggestions.append(dict(pool[norm]))
+    return order_picker_options(suggestions, matched)[:_MAX_SUGGESTIONS]
+
+
+def _resolve_one(
+    block: BlockContext,
+    client: Any,
+    science_search: ScienceSearch,
+    chart_options: list[dict[str, str]] | None = None,
+) -> BlockResolution | None:
+    # Seed the pool from the belt's existing suggestions, keyed by normalized code, then
+    # from the patient's active problem list.
+    #
+    # The chart matters here because the belt matches chart conditions against the block
+    # HEADER by word overlap, so a symptom or synonym header ("Memory loss") shares no
+    # word with the condition the provider actually named ("Unspecified dementia ...").
+    # The block then arrives with only lexical science hits — Chapter-18 amnesia — and
+    # since the model may only pick from this pool, the already-charted diagnosis was
+    # unreachable no matter how clearly the note stated it (KOALA-6439).
+    #
+    # Whether "memory loss" and "unspecified dementia" name the same clinical concept is
+    # a semantic judgement, which is what this resolver is for; the deterministic belt
+    # cannot make it with string comparison. Adding the chart to the pool leaves the
+    # judgement here and keeps the anti-hallucination gate intact — every option is still
+    # a real code the patient's own record or the ontology supplied.
     pool: dict[str, dict[str, str]] = {}
-    for candidate in block.candidates or []:
+    for candidate in [*(block.candidates or []), *(chart_options or [])]:
         norm = icd10_normalize(candidate.get("code") or candidate.get("formatted_code") or "")
         if not norm or norm in pool:
             continue
@@ -205,8 +262,7 @@ def _resolve_one(block: BlockContext, client: Any, science_search: ScienceSearch
             # Never auto-apply: the resolver only curates the grounded suggestion list; the
             # provider always picks the code from the picker. The model's selection simply
             # leads the ranked suggestions.
-            suggestions = _suggestions_from(step, pool)
-            return BlockResolution(chosen=None, confidence=step.confidence, suggestions=suggestions)
+            return BlockResolution(chosen=None, confidence=step.confidence, suggestions=_finalize(block, step, pool))
         # No valid in-pool selection: expand the search and try once more.
         if not _merge_science(step.more_search_terms, pool, science_search):
             break
@@ -214,7 +270,7 @@ def _resolve_one(block: BlockContext, client: Any, science_search: ScienceSearch
     # Exhausted rounds without a confident selection. Surface whatever the last step
     # ranked (in-pool) so the provider still gets grounded options; else give up.
     if last_step is not None:
-        suggestions = _suggestions_from(last_step, pool)
+        suggestions = _finalize(block, last_step, pool)
         if suggestions:
             return BlockResolution(chosen=None, confidence=last_step.confidence, suggestions=suggestions)
     return None
@@ -224,6 +280,7 @@ def resolve_uncoded_blocks(
     blocks: list[BlockContext],
     make_client: ClientFactory,
     science_search: ScienceSearch,
+    chart_options: list[dict[str, str]] | None = None,
 ) -> dict[str, BlockResolution]:
     """Resolve each uncoded block. Returns ``{block_id: BlockResolution}``.
 
@@ -234,7 +291,7 @@ def resolve_uncoded_blocks(
     results: dict[str, BlockResolution] = {}
     for block in blocks:
         try:
-            resolution = _resolve_one(block, make_client(), science_search)
+            resolution = _resolve_one(block, make_client(), science_search, chart_options)
         except Exception:
             log.exception("diagnosis resolution failed for a block")
             resolution = None

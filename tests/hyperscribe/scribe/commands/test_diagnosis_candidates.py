@@ -21,8 +21,10 @@ from hyperscribe.scribe.commands.diagnosis_candidates import (
     _overlap_bucket,
     assemble_block_candidates,
     build_block_candidates,
+    chart_pool_options,
     expand_unspecified,
     is_unspecified_code,
+    order_picker_options,
     provenance_label,
     rank_candidates,
     surface_candidates,
@@ -459,3 +461,61 @@ def test_expand_unspecified_survives_science_outage_and_filters_family() -> None
 
     children = expand_unspecified(chosen, cross_family)
     assert {c.code for c in children} == {"E030"}
+
+
+# ── KOALA-6439: active chart conditions as resolver pool options ──────────
+
+
+def _snapshot(code: str, display: str, clinical_status: str) -> PatientConditionSnapshot:
+    return PatientConditionSnapshot(
+        condition_id=f"cond-{code}",
+        code=code,
+        display=display,
+        system="ICD-10",
+        clinical_status=clinical_status,
+        onset_date="2024-01-01",
+        resolution_date="",
+    )
+
+
+def test_chart_pool_options_offers_active_conditions_in_candidate_shape() -> None:
+    """The LLM resolver may only pick from its pool, so the chart has to enter it.
+
+    Only ACTIVE problems: a resolved condition is not something the provider is
+    documenting today, and the SDK has no reactivation command, so a recurrence has to be
+    a fresh Diagnose rather than a pick against the old entry.
+    """
+    chart = [
+        _snapshot("F03.90", "Unspecified dementia without behavioral disturbance", "active"),
+        _snapshot("G30.9", "Alzheimer's disease, unspecified", "active"),
+        _snapshot("F99", "Mental disorder, not otherwise specified", "resolved"),
+        _snapshot("", "Condition with no code", "active"),
+    ]
+
+    options = chart_pool_options(chart)
+
+    assert [option["formatted_code"] for option in options] == ["F03.90", "G30.9"]
+    assert options[0]["display"] == "Unspecified dementia without behavioral disturbance"
+    assert options[0]["provenance"] == "Active problem"
+    # ``code`` keeps the sourced form; the resolver normalizes it for pool keying.
+    assert options[0]["code"] == "F03.90"
+
+
+def _option(code: str, display: str, provenance: str) -> dict[str, str]:
+    return {"code": code, "formatted_code": code, "display": display, "provenance": provenance}
+
+
+def test_order_picker_options_orders_by_label_and_nests_refinements() -> None:
+    options = [
+        _option("R06.2", "Wheezing", "ICD-10 search"),
+        _option("E03.8", "Other specified hypothyroidism", "More specific option"),
+        _option("F99", "Past thing", "Past condition"),
+        _option("E03.9", "Hypothyroidism, unspecified", "Detected in note"),
+        _option("I48.91", "Unspecified atrial fibrillation", "Active problem"),
+        _option("F41.1", "Generalized anxiety disorder", "Active problem"),
+        _option("G47.01", "Orphan refinement", "More specific option"),
+    ]
+
+    ordered = order_picker_options(options, matched_codes={"I4891", "F99"})
+
+    assert [o["code"] for o in ordered] == ["I48.91", "F99", "E03.9", "E03.8", "R06.2", "F41.1", "G47.01"]
