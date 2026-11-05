@@ -8,6 +8,7 @@ from evaluations.case_builders.builder_direct_from_tuning_split import BuilderDi
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.topical_exchange import TopicalExchange
+from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -360,7 +361,7 @@ def test__run(
     assert audio_interpreter.mock_calls == calls
     calls = [call.schema_key2instruction()]
     assert implemented_commands.mock_calls == calls
-    calls = [call.load_from_json({"limited": "cache"})]
+    calls = [call.load_from_json({"limited": "cache"}, local_lab_tests)]
     assert limited_cache.mock_calls == calls
     calls = [call.parent.__truediv__("limited_chart.json")]
     assert full_mp3_file.mock_calls == calls

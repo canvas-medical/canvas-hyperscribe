@@ -1,0 +1,445 @@
+"""Tests for the grounded-LLM diagnosis resolver.
+
+The resolver is an oracle over a RETRIEVED set of real ICD-10 codes: it may only
+select codes present in the pool (belt suggestions + science-search hits), and it
+expands the search when nothing provided fits. These tests assert the anti-
+hallucination gate, the auto-apply-only-on-high-confidence policy, the adaptive
+expansion round, and best-effort failure handling — all with a fake LLM client and
+an injected fake science search (no network).
+"""
+
+from __future__ import annotations
+
+import json
+from http import HTTPStatus
+from typing import Any
+
+from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
+    BlockContext,
+    resolve_uncoded_blocks,
+)
+from hyperscribe.structures.icd10_condition import Icd10Condition
+
+
+class _Resp:
+    def __init__(self, response: str, code: HTTPStatus = HTTPStatus.OK) -> None:
+        self.code = code
+        self.response = response
+
+
+class _FakeClient:
+    """Returns queued structured responses in order; optionally raises on request()."""
+
+    def __init__(self, responses: list[_Resp], raise_on_request: bool = False) -> None:
+        self._responses = list(responses)
+        self._raise = raise_on_request
+
+    def reset_prompts(self) -> None: ...
+    def set_system_prompt(self, _prompt: Any) -> None: ...
+    def set_user_prompt(self, _prompt: Any) -> None: ...
+    def set_schema(self, _schema: Any) -> None: ...
+
+    def request(self) -> _Resp:
+        if self._raise:
+            raise RuntimeError("boom")
+        assert self._responses, "no more queued responses"
+        return self._responses.pop(0)
+
+
+def _step(
+    selected: str | None = None,
+    confidence: str = "low",
+    ranked: list[str] | None = None,
+    terms: list[str] | None = None,
+    code: HTTPStatus = HTTPStatus.OK,
+) -> _Resp:
+    # BaseModelLlmJson camelCases field aliases (extra="forbid"), so the LLM's JSON —
+    # and therefore these fixtures — must use camelCase keys.
+    return _Resp(
+        json.dumps(
+            {
+                "selectedCode": selected,
+                "confidence": confidence,
+                "rankedCodes": ranked or [],
+                "moreSearchTerms": terms or [],
+            }
+        ),
+        code=code,
+    )
+
+
+def _candidate(code: str, formatted: str, display: str, provenance: str = "Detected in note") -> dict[str, str]:
+    return {"code": code, "formatted_code": formatted, "display": display, "provenance": provenance}
+
+
+def _factory(client: _FakeClient) -> Any:
+    return lambda: client
+
+
+def _no_science(_terms: list[str]) -> list[Icd10Condition]:
+    return []
+
+
+def test_selection_leads_suggestions_never_auto_applies() -> None:
+    block = BlockContext(
+        block_id="apblock-1",
+        header="Edema in lower extremities",
+        body="Edema in legs may be exacerbated by high sodium intake.",
+        candidates=[_candidate("R60.0", "R60.0", "Localized edema")],
+    )
+    client = _FakeClient([_step(selected="R60.0", confidence="high", ranked=["R60.0"])])
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science)
+
+    res = out["apblock-1"]
+    assert res.chosen is None  # never auto-applied — the provider always picks
+    assert res.suggestions[0]["formatted_code"] == "R60.0"  # the model's pick leads the list
+
+
+def test_expands_when_nothing_provided_then_selects() -> None:
+    # "Fluid overload" — belt found nothing; the LLM asks for a search, science grounds
+    # E87.70, and the LLM selects it. Demonstrates the no-code-when-one-exists fix.
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Fluid overload and pulmonary symptoms",
+        body="Fluid overload with pulmonary symptoms, managed with oxygen therapy.",
+        candidates=[],
+    )
+    science_calls: list[list[str]] = []
+
+    def science(terms: list[str]) -> list[Icd10Condition]:
+        science_calls.append(terms)
+        return [Icd10Condition(code="E8770", label="Fluid overload, unspecified")]
+
+    client = _FakeClient(
+        [
+            _step(terms=["fluid overload", "pulmonary edema"]),  # round 1: expand
+            _step(selected="E87.70", confidence="high", ranked=["E87.70"]),  # round 2: select
+        ]
+    )
+    out = resolve_uncoded_blocks([block], _factory(client), science)
+
+    assert science_calls == [["fluid overload", "pulmonary edema"]]
+    res = out["apblock-0"]
+    assert res.chosen is None
+    assert res.suggestions[0]["formatted_code"] == "E87.70"  # grounded code leads the picker
+
+
+def test_rejects_clinically_wrong_provided_and_expands() -> None:
+    # "Protein intake" seeded with the inverted lexical hit E67.8 (hyperalimentation).
+    # The LLM must NOT select it; it expands to hypoalbuminemia and picks E88.09.
+    block = BlockContext(
+        block_id="apblock-2",
+        header="Protein intake",
+        body="Albumin is slightly low, indicating need for increased dietary protein.",
+        candidates=[_candidate("E678", "E67.8", "Other specified hyperalimentation", "ICD-10 search")],
+    )
+
+    def science(_terms: list[str]) -> list[Icd10Condition]:
+        return [Icd10Condition(code="E8809", label="Hypoalbuminemia")]
+
+    client = _FakeClient(
+        [
+            _step(terms=["hypoalbuminemia"]),  # rejects E67.8, expands
+            _step(selected="E88.09", confidence="high", ranked=["E88.09"]),
+        ]
+    )
+    out = resolve_uncoded_blocks([block], _factory(client), science)
+
+    res = out["apblock-2"]
+    assert res.chosen is None
+    codes = [s["formatted_code"] for s in res.suggestions]
+    assert codes[0] == "E88.09"  # the correct code leads
+    assert "E67.8" not in codes  # the inverted lexical hit is not surfaced
+
+
+def test_wrong_family_refinement_expands_to_correct_family() -> None:
+    # "Anemia" seeded with D64.9 (unspecified). The LLM expands to iron-deficiency and
+    # picks D50.9 — the note-indicated family — instead of the D64 siblings.
+    block = BlockContext(
+        block_id="apblock-3",
+        header="Anemia",
+        body="Mild anemia present. Iron deficiency to be considered.",
+        candidates=[_candidate("D64.9", "D64.9", "Anemia, unspecified")],
+    )
+
+    def science(_terms: list[str]) -> list[Icd10Condition]:
+        return [Icd10Condition(code="D509", label="Iron deficiency anemia, unspecified")]
+
+    client = _FakeClient(
+        [
+            _step(terms=["iron deficiency anemia"]),
+            _step(selected="D50.9", confidence="high", ranked=["D50.9", "D64.9"]),
+        ]
+    )
+    out = resolve_uncoded_blocks([block], _factory(client), science)
+
+    res = out["apblock-3"]
+    assert res.chosen is None
+    assert res.suggestions[0]["formatted_code"] == "D50.9"  # iron-deficiency leads over D64
+
+
+def test_managed_condition_codes_the_underlying_diagnosis() -> None:
+    # "Vitamin D supplementation" with a normal-on-treatment level is an actively managed
+    # deficiency, not "no diagnosis": the LLM expands to the underlying condition and codes
+    # E55.9 rather than leaving the block uncoded.
+    block = BlockContext(
+        block_id="apblock-4",
+        header="Vitamin D supplementation",
+        body="Vitamin D level is within normal range with current prescription regimen. "
+        "Continue weekly prescription-strength vitamin D supplementation.",
+        candidates=[],
+    )
+
+    def science(_terms: list[str]) -> list[Icd10Condition]:
+        return [Icd10Condition(code="E559", label="Vitamin D deficiency, unspecified")]
+
+    client = _FakeClient(
+        [
+            _step(terms=["vitamin D deficiency"]),
+            _step(selected="E55.9", confidence="high", ranked=["E55.9"]),
+        ]
+    )
+    out = resolve_uncoded_blocks([block], _factory(client), science)
+
+    res = out["apblock-4"]
+    assert res.chosen is None
+    assert res.suggestions[0]["formatted_code"] == "E55.9"  # underlying deficiency leads
+
+
+def test_high_confidence_z_code_is_surfaced_not_applied() -> None:
+    # A contextual Z-code (e.g. Z75.8 for a PT-access problem) must never auto-apply,
+    # even at high confidence — it's surfaced for the provider to confirm instead.
+    block = BlockContext(
+        block_id="apblock-6",
+        header="Physical therapy access",
+        body="Difficulty accessing home health physical therapy due to repeated cancellations.",
+        candidates=[
+            _candidate(
+                "Z758",
+                "Z75.8",
+                "Other problems related to medical facilities and other health care",
+                "ICD-10 search",
+            )
+        ],
+    )
+    client = _FakeClient([_step(selected="Z75.8", confidence="high", ranked=["Z75.8"])])
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science)
+
+    res = out["apblock-6"]
+    assert res.chosen is None  # not auto-applied
+    assert [s["formatted_code"] for s in res.suggestions] == ["Z75.8"]  # but surfaced
+
+
+def test_hallucinated_code_is_rejected() -> None:
+    # The LLM returns a code that is NOT in the pool and offers no search terms.
+    # Nothing survives the gate -> no resolution (belt output preserved).
+    block = BlockContext(
+        block_id="apblock-9",
+        header="Some problem",
+        body="",
+        candidates=[_candidate("R60.0", "R60.0", "Localized edema")],
+    )
+    client = _FakeClient([_step(selected="Z99.9", confidence="high", ranked=["Z99.9"])])
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science)
+
+    assert "apblock-9" not in out
+
+
+def test_medium_confidence_surfaces_not_auto_applied() -> None:
+    block = BlockContext(
+        block_id="apblock-4",
+        header="Anemia",
+        body="Mild anemia.",
+        candidates=[
+            _candidate("D64.9", "D64.9", "Anemia, unspecified"),
+            _candidate("D501", "D50.1", "Sideropenic dysphagia"),
+        ],
+    )
+    client = _FakeClient([_step(selected="D64.9", confidence="medium", ranked=["D64.9", "D50.1"])])
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science)
+
+    res = out["apblock-4"]
+    assert res.chosen is None  # medium never auto-applies
+    assert [s["formatted_code"] for s in res.suggestions] == ["D64.9", "D50.1"]
+
+
+def test_suggestions_drop_out_of_pool_ranked_codes() -> None:
+    # A ranked code not in the pool is filtered out; the in-pool one survives.
+    block = BlockContext(
+        block_id="apblock-5",
+        header="Anemia",
+        body="",
+        candidates=[_candidate("D64.9", "D64.9", "Anemia, unspecified")],
+    )
+    client = _FakeClient([_step(selected="D64.9", confidence="medium", ranked=["D64.9", "FAKE99"])])
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science)
+
+    codes = [s["formatted_code"] for s in out["apblock-5"].suggestions]
+    assert codes == ["D64.9"]
+
+
+def test_best_effort_on_client_error_yields_no_resolution() -> None:
+    block = BlockContext(block_id="apblock-6", header="X", body="", candidates=[])
+    client = _FakeClient([], raise_on_request=True)
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science)
+
+    assert out == {}
+
+
+def test_no_selection_no_terms_gives_up() -> None:
+    block = BlockContext(
+        block_id="apblock-7",
+        header="Physical therapy access",
+        body="Difficulty accessing home health PT.",
+        candidates=[],
+    )
+    client = _FakeClient([_step(selected=None, confidence="low")])
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science)
+
+    assert "apblock-7" not in out
+
+
+# ── KOALA-6439: the patient's active problems belong in the pool ──────────
+
+
+def test_active_chart_conditions_are_selectable_for_an_uncoded_block() -> None:
+    """KOALA-6439: a condition the chart already carries must be choosable here.
+
+    The provider said "dementia" on a patient whose problem list codes it four ways, but
+    the A&P header was a symptom phrase. The belt matches chart conditions against the
+    header lexically, so it assembled no chart candidate and the science fallback offered
+    Chapter-18 amnesia instead. Deciding that "memory loss" and "unspecified dementia"
+    are the same clinical concept is a semantic judgement, not a string comparison, so it
+    belongs to this resolver — which can only ever pick from the pool it is given. That
+    makes putting the patient's active problems in the pool the whole fix.
+    """
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Memory loss",
+        body="Patient with known dementia, continues to decline. Daughter reports increased confusion.",
+        # All the belt could offer: lexical science hits, none of them the real diagnosis.
+        candidates=[
+            _candidate("R41.3", "R41.3", "Other amnesia", provenance="ICD-10 search"),
+            _candidate("R41.2", "R41.2", "Retrograde amnesia", provenance="ICD-10 search"),
+        ],
+    )
+    chart_options = [
+        _candidate("F03.90", "F03.90", "Unspecified dementia without behavioral disturbance", "Active problem"),
+        _candidate("G30.9", "G30.9", "Alzheimer's disease, unspecified", "Active problem"),
+    ]
+    client = _FakeClient([_step(selected="F03.90", confidence="high", ranked=["F03.90"])])
+
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science, chart_options=chart_options)
+
+    res = out["apblock-0"]
+    assert res.suggestions, "the charted dementia was not selectable, so nothing resolved"
+    assert res.suggestions[0]["formatted_code"] == "F03.90"
+    assert res.suggestions[0]["provenance"] == "Active problem"
+
+
+# ── KOALA-6439 UAT: picker order and a missing active problem ─────────────
+
+
+def _codes(suggestions: list[dict[str, str]]) -> list[str]:
+    return [s["formatted_code"] for s in suggestions]
+
+
+def test_picker_follows_label_order_not_the_model_ranking() -> None:
+    """Finding 1: the model ranks I49.9 first, but the matching active problem must lead."""
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Atrial fibrillation",
+        body="AFib, rate controlled.",
+        candidates=[
+            _candidate("I49.9", "I49.9", "Cardiac arrhythmia, unspecified", "Detected in note"),
+            _candidate("I48.91", "I48.91", "Unspecified atrial fibrillation", "Active problem"),
+        ],
+    )
+    client = _FakeClient([_step(selected="I49.9", ranked=["I49.9", "I48.91"])])
+
+    res = resolve_uncoded_blocks([block], _factory(client), _no_science)["apblock-0"]
+
+    assert _codes(res.suggestions) == ["I48.91", "I49.9"]
+
+
+def test_unrelated_active_problem_does_not_outrank_a_detected_code() -> None:
+    """Finding 1: an active problem the belt did not match to the section must not lead."""
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Agitation",
+        body="Increased agitation in the evenings.",
+        candidates=[_candidate("R45.1", "R45.1", "Restlessness and agitation", "Detected in note")],
+    )
+    chart_options = [_candidate("F41.1", "F41.1", "Generalized anxiety disorder", "Active problem")]
+    client = _FakeClient([_step(selected="R45.1", ranked=["F41.1", "R45.1"])])
+
+    out = resolve_uncoded_blocks([block], _factory(client), _no_science, chart_options=chart_options)
+
+    assert _codes(out["apblock-0"].suggestions) == ["R45.1", "F41.1"]
+
+
+def test_more_specific_options_stay_under_their_parent() -> None:
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Hypothyroidism",
+        body="TSH elevated.",
+        candidates=[
+            _candidate("E03.9", "E03.9", "Hypothyroidism, unspecified", "Detected in note"),
+            _candidate("E03.8", "E03.8", "Other specified hypothyroidism", "More specific option"),
+        ],
+    )
+    chart_options = [_candidate("I10", "I10", "Essential hypertension", "Active problem")]
+    client = _FakeClient([_step(selected="E03.9", ranked=["E03.9", "E03.8", "I10"])])
+
+    res = resolve_uncoded_blocks([block], _factory(client), _no_science, chart_options=chart_options)["apblock-0"]
+
+    assert _codes(res.suggestions) == ["E03.9", "E03.8", "I10"]
+
+
+def test_matching_active_problem_is_added_when_the_model_leaves_it_out() -> None:
+    """Finding 2 (AFib): the model returned only I49.9, but the belt matched I48.91."""
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Atrial fibrillation",
+        body="AFib, rate controlled.",
+        candidates=[
+            _candidate("I49.9", "I49.9", "Cardiac arrhythmia, unspecified", "Detected in note"),
+            _candidate("I48.91", "I48.91", "Unspecified atrial fibrillation", "Active problem"),
+        ],
+    )
+    client = _FakeClient([_step(selected="I49.9", ranked=["I49.9"])])
+
+    res = resolve_uncoded_blocks([block], _factory(client), _no_science)["apblock-0"]
+
+    assert _codes(res.suggestions) == ["I48.91", "I49.9"]
+
+
+def test_matching_active_problem_survives_when_the_model_ranks_nothing() -> None:
+    block = BlockContext(
+        block_id="apblock-0",
+        header="Atrial fibrillation",
+        body="AFib.",
+        candidates=[_candidate("I48.91", "I48.91", "Unspecified atrial fibrillation", "Active problem")],
+    )
+    client = _FakeClient([_step(), _step()])
+
+    res = resolve_uncoded_blocks([block], _factory(client), _no_science)["apblock-0"]
+
+    assert _codes(res.suggestions) == ["I48.91"]
+
+
+def test_prompt_tags_active_problems_for_the_model() -> None:
+    """Finding 2 (COPD, best effort): the model must be able to see which options are charted."""
+    prompts: list[Any] = []
+
+    class _Spy(_FakeClient):
+        def set_user_prompt(self, prompt: Any) -> None:
+            prompts.append(prompt)
+
+    block = BlockContext(block_id="apblock-0", header="Dyspnea", body="Wheezing.", candidates=[])
+    chart_options = [_candidate("J44.1", "J44.1", "COPD with acute exacerbation", "Active problem")]
+    client = _Spy([_step(selected="J44.1", ranked=["J44.1"])])
+
+    resolve_uncoded_blocks([block], _factory(client), _no_science, chart_options=chart_options)
+
+    assert "J44.1 — COPD with acute exacerbation [Active problem]" in prompts[0][0]

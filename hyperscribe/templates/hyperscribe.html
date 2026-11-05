@@ -496,13 +496,13 @@
         <div id="debugMessage" class="debug-message"></div>
 
         <div class="tabs">
-            <button class="tab {% if uiDefaultTab == 'transcript' %}active{% endif %}" onclick="switchTab('transcript', this)">Transcript</button>
-            <button class="tab {% if uiDefaultTab == 'activity' %}active{% endif %}" onclick="switchTab('activity', this)">Activity</button>
-            <button class="tab {% if uiDefaultTab == 'logs' %}active{% endif %}" onclick="switchTab('logs', this)">Logs</button>
-            <button class="tab {% if uiDefaultTab == 'feedback' %}active{% endif %}" onclick="switchTab('feedback', this)">Feedback</button>
+            <button class="tab active" onclick="switchTab('transcript', this)">Transcript</button>
+            <button class="tab" onclick="switchTab('activity', this)">Activity</button>
+            <button class="tab" onclick="switchTab('logs', this)">Logs</button>
+            <button class="tab" onclick="switchTab('feedback', this)">Feedback</button>
         </div>
 
-        <div id="activity-container" class="table-container {% if uiDefaultTab == 'activity' %}active{% endif %}">
+        <div id="activity-container" class="table-container">
             <div class="filter-controls">
                 <span id="duration" class="duration-display"></span>
             </div>
@@ -517,7 +517,7 @@
             </table>
         </div>
 
-        <div id="logs-container" class="table-container {% if uiDefaultTab == 'logs' %}active{% endif %}">
+        <div id="logs-container" class="table-container">
             <div class="filter-controls">
                 <span id="duration-logs" class="duration-display"></span>
             </div>
@@ -531,7 +531,7 @@
             </table>
         </div>
 
-        <div id="transcript-container" class="table-container {% if uiDefaultTab == 'transcript' %}active{% endif %}">
+        <div id="transcript-container" class="table-container active">
             <div id="transcript-form">
                 <textarea id="transcript-textbox" placeholder="Add transcript text..."></textarea>
                 <div class="transcript-submit-row">
@@ -551,7 +551,7 @@
             </table>
         </div>
 
-        <div id="feedback-container" class="table-container {% if uiDefaultTab == 'feedback' %}active{% endif %}">
+        <div id="feedback-container" class="table-container">
             <div class="feedback-content">
                 <textarea id="feedback-textarea" placeholder="Please share your feedback..."></textarea>
                 <div class="feedback-submit-row">
@@ -603,7 +603,7 @@
                 pendingTurns: [],
                 processingTurns: false
             },
-            activeTab: '{{uiDefaultTab}}',
+            activeTab: 'transcript',
             status: {
                 current: 'idle' // idle, transcribing, generating, completed
             }

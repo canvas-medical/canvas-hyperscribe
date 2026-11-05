@@ -18,7 +18,6 @@ from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.constants import Constants
-from hyperscribe.libraries.customization import Customization
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
@@ -116,12 +115,6 @@ class CaptureView(SimpleAPI):
             f"{Constants.PLUGIN_WS_BASE_ROUTE}/{ProgressDisplay.websocket_channel(note_id)}/"
         )
 
-        customization = Customization.customizations(
-            AwsS3Credentials.from_dictionary(self.secrets),
-            self.environment[Constants.CUSTOMER_IDENTIFIER],
-            user_id,
-        )
-
         stop_and_go = StopAndGo.get(note_id)
         context = {
             "patientUuid": patient_id,
@@ -143,7 +136,6 @@ class CaptureView(SimpleAPI):
             "isEnded": stop_and_go.is_ended(),
             "isPaused": stop_and_go.is_paused(),
             "chunkId": stop_and_go.cycle() + (1 if stop_and_go.is_paused() else -1),
-            "uiDefaultTab": customization.ui_default_tab.value,
         }
 
         return [
@@ -376,15 +368,7 @@ class CaptureView(SimpleAPI):
         stop_and_go.set_running(True).save()
         try:
             aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
-            settings = Settings.from_dictionary(
-                self.secrets
-                | Customization.custom_prompts_as_secret(
-                    aws_s3,
-                    self.environment[Constants.CUSTOMER_IDENTIFIER],
-                    user_id,
-                )
-                | {Constants.PROGRESS_SETTING_KEY: True}
-            )
+            settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
             MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3).output(
                 f"SDK: {version} - "
                 f"Text: {settings.llm_text.vendor} - "

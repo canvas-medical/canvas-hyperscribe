@@ -14,6 +14,7 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_result import EvaluationResult
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
+from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog, ENTRIES
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -161,7 +162,7 @@ def audio_interpreter(request):
         provider_uuid = HelperEvaluation.get_provider_uuid(patient_uuid)
     elif case := FileSystemCase.get(request.node.callspec.id):
         # ^ if there is no provided patient uuid and this is a built case
-        cache = LimitedCache.load_from_json(case.limited_cache)
+        cache = LimitedCache.load_from_json(case.limited_cache, local_lab_tests)
 
     identification = IdentificationParameters(
         patient_uuid=patient_uuid,

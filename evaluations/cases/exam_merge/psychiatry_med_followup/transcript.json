@@ -1,0 +1,1245 @@
+{
+  "items": [
+    {
+      "item_id": "a9b386f9-7bd9-52ec-9076-cf25c8a05d84",
+      "text": "Hey, come on in. Good to see you again. Have a seat wherever's comfortable.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 0,
+      "end_offset_ms": 4960,
+      "is_final": true
+    },
+    {
+      "item_id": "9ecfccf4-ccf4-5643-9349-88ad89f55a56",
+      "text": "Thanks. It's been a rough couple of weeks, honestly.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 5103,
+      "end_offset_ms": 8417,
+      "is_final": true
+    },
+    {
+      "item_id": "7f9102ff-1168-58ad-8867-11e8f53b2287",
+      "text": "I appreciate you saying that up front. Let's get into it. What's been going on?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 8547,
+      "end_offset_ms": 14293,
+      "is_final": true
+    },
+    {
+      "item_id": "bf0a0b85-5377-5730-8999-957099e517c5",
+      "text": "I'm here for my med follow-up. The sertraline isn't doing what it was doing for me a few months ago. And my sleep has gotten really bad.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 14593,
+      "end_offset_ms": 24667,
+      "is_final": true
+    },
+    {
+      "item_id": "aa84b318-d6bf-5c05-82a0-2e3e3deaae1b",
+      "text": "Okay. So we're looking at depression breakthrough and worsening insomnia. Anything else on your mind today?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 24847,
+      "end_offset_ms": 30720,
+      "is_final": true
+    },
+    {
+      "item_id": "f9af3db4-a810-548d-9e72-dccaa75ed8fa",
+      "text": "Some anxiety stuff too. Panic-y feelings off and on. But the depression and sleep are the biggest things.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 30952,
+      "end_offset_ms": 37162,
+      "is_final": true
+    },
+    {
+      "item_id": "5d3c3968-3d58-5380-8306-ac5294b79132",
+      "text": "Tell me about the depression. When did you start noticing it slipping?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 37484,
+      "end_offset_ms": 41463,
+      "is_final": true
+    },
+    {
+      "item_id": "2731ab24-3315-510f-90bb-8e8453017c42",
+      "text": "Probably six weeks ago. It was creeping up before then but I told myself it was just a busy patch at school.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 41743,
+      "end_offset_ms": 48905,
+      "is_final": true
+    },
+    {
+      "item_id": "2a82cb13-516b-59bb-ae52-2873180353e0",
+      "text": "Mood?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 49084,
+      "end_offset_ms": 50496,
+      "is_final": true
+    },
+    {
+      "item_id": "67c90fb1-e4d5-5fe4-9c34-ff9024ecc2ce",
+      "text": "Low. Most days I'm flat. I'd say a four out of ten if ten is normal for me.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 50680,
+      "end_offset_ms": 57217,
+      "is_final": true
+    },
+    {
+      "item_id": "02929f6b-787d-5d3a-9d5b-7548760bc3c8",
+      "text": "Anhedonia?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 57613,
+      "end_offset_ms": 59205,
+      "is_final": true
+    },
+    {
+      "item_id": "f9603701-81bf-552c-8dbd-5f526c8b8791",
+      "text": "Yeah. I haven't picked up my guitar in a month. Used to play almost every day.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 59476,
+      "end_offset_ms": 65378,
+      "is_final": true
+    },
+    {
+      "item_id": "de362bba-825b-57ad-add2-7885e2e76a53",
+      "text": "Energy?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 65511,
+      "end_offset_ms": 66975,
+      "is_final": true
+    },
+    {
+      "item_id": "80f4d9ed-9f00-5487-9e85-69e64b4b1ba8",
+      "text": "Tanked. I'm exhausted by mid-afternoon even when I sleep okay, which I'm not.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 67341,
+      "end_offset_ms": 72675,
+      "is_final": true
+    },
+    {
+      "item_id": "5f17e1e3-c9d5-5fda-85ce-74064c0c3559",
+      "text": "Concentration, focus?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 72938,
+      "end_offset_ms": 74375,
+      "is_final": true
+    },
+    {
+      "item_id": "5980e4bd-235c-5bcb-808a-9ceb8731a14d",
+      "text": "Bad. I'm rereading the same paragraph four times. I missed a deadline last week, which I never do.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 74609,
+      "end_offset_ms": 80853,
+      "is_final": true
+    },
+    {
+      "item_id": "4effb1ee-1e48-5ef5-9a89-61c720a50b8e",
+      "text": "Appetite?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 81160,
+      "end_offset_ms": 82789,
+      "is_final": true
+    },
+    {
+      "item_id": "82767222-72f8-5dc5-bf22-48ab71ee17fc",
+      "text": "Down. I've lost about five pounds in the last month.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 82986,
+      "end_offset_ms": 86910,
+      "is_final": true
+    },
+    {
+      "item_id": "1a3784a2-dd31-5d37-9889-0bc2086c53d6",
+      "text": "Any thoughts of hurting yourself?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 87177,
+      "end_offset_ms": 88768,
+      "is_final": true
+    },
+    {
+      "item_id": "9c76cc26-5721-57be-b212-75a94d6a10d1",
+      "text": "Some passive thoughts. Like, wishing I wasn't here. But no plan. No intent.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 89095,
+      "end_offset_ms": 93893,
+      "is_final": true
+    },
+    {
+      "item_id": "fc2f73ef-7cc2-56d7-8485-d99fcf024bc1",
+      "text": "Thank you for telling me. We'll come back to safety. Any thoughts of harming anyone else?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 94062,
+      "end_offset_ms": 99824,
+      "is_final": true
+    },
+    {
+      "item_id": "9ea4118e-6840-5a8b-9ad1-58daf3f822f5",
+      "text": "No. Never.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 100046,
+      "end_offset_ms": 101610,
+      "is_final": true
+    },
+    {
+      "item_id": "d978fa82-44f6-5e39-bf3e-de2327c0fdba",
+      "text": "Self-harm? Cutting, anything like that?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 101832,
+      "end_offset_ms": 103973,
+      "is_final": true
+    },
+    {
+      "item_id": "12986408-f1de-58ea-92a5-7f19df1bb5d4",
+      "text": "No, none of that.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 104194,
+      "end_offset_ms": 105758,
+      "is_final": true
+    },
+    {
+      "item_id": "e6de3e10-17c1-5d5d-956a-699f06b4cbad",
+      "text": "Let's talk about the sleep. What does a typical night look like?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 106149,
+      "end_offset_ms": 110558,
+      "is_final": true
+    },
+    {
+      "item_id": "96acf3b4-48a9-5912-86d3-46fadf2efaa2",
+      "text": "I fall asleep okay around eleven. But I wake up at two or three and just lie there. I'll eventually get an hour back around five but it's not real sleep.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 110704,
+      "end_offset_ms": 121658,
+      "is_final": true
+    },
+    {
+      "item_id": "57bd07f5-062e-5acc-aacf-397cf8de9e48",
+      "text": "So middle insomnia mostly, not initial?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 122037,
+      "end_offset_ms": 124180,
+      "is_final": true
+    },
+    {
+      "item_id": "896221df-818b-5057-a570-273e3edbae37",
+      "text": "Right.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 124510,
+      "end_offset_ms": 126056,
+      "is_final": true
+    },
+    {
+      "item_id": "5b8d7339-3ad0-5466-af5e-49e1d92cce6a",
+      "text": "Any caffeine in the afternoon, alcohol close to bed?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 126240,
+      "end_offset_ms": 129063,
+      "is_final": true
+    },
+    {
+      "item_id": "1e23b5f3-8b78-591b-8971-9e84e2428937",
+      "text": "I cut caffeine after noon already. I'll have a glass of wine maybe twice a week, never right before bed.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 129361,
+      "end_offset_ms": 136188,
+      "is_final": true
+    },
+    {
+      "item_id": "4afa6eef-3bf4-54bd-a635-599c2ac9ceef",
+      "text": "Are you using anything to help you sleep?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 136425,
+      "end_offset_ms": 139355,
+      "is_final": true
+    },
+    {
+      "item_id": "bebd3f15-f735-5b91-b71a-c2b63db3f1f4",
+      "text": "Just OTC melatonin, five milligrams. Doesn't really do anything.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 139560,
+      "end_offset_ms": 142872,
+      "is_final": true
+    },
+    {
+      "item_id": "7f5eb0ba-a2cf-524c-8668-626f2f188967",
+      "text": "And the anxiety. Tell me more.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 143038,
+      "end_offset_ms": 144927,
+      "is_final": true
+    },
+    {
+      "item_id": "8704b13a-df0e-59eb-82ea-9389533fd858",
+      "text": "Constant rumination. My brain just won't quit. And about once a week I'll have a stretch of, like, racing heart, can't breathe, hands shaking. Lasts maybe ten minutes.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 145257,
+      "end_offset_ms": 155745,
+      "is_final": true
+    },
+    {
+      "item_id": "426076ec-f85f-50c3-adc1-df7a9854b049",
+      "text": "Panic episodes.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 155865,
+      "end_offset_ms": 157172,
+      "is_final": true
+    },
+    {
+      "item_id": "3e4733de-7735-54b1-bdbb-f52091f49c92",
+      "text": "Yeah.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 157494,
+      "end_offset_ms": 158982,
+      "is_final": true
+    },
+    {
+      "item_id": "e72f36ba-a85c-592c-9dcf-7a0848358746",
+      "text": "Triggers, or out of nowhere?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 159352,
+      "end_offset_ms": 161152,
+      "is_final": true
+    },
+    {
+      "item_id": "66beae26-fc49-5321-9621-91ca67a8d485",
+      "text": "Mix. Sometimes school stress kicks one off. Sometimes I'll just be standing in line at the grocery store.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 161509,
+      "end_offset_ms": 167740,
+      "is_final": true
+    },
+    {
+      "item_id": "8272ea5a-6927-5093-938a-fb873ffb51ac",
+      "text": "Quick screening \u2014 any new physical symptoms, headaches, chest pain, GI issues?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 168125,
+      "end_offset_ms": 171640,
+      "is_final": true
+    },
+    {
+      "item_id": "9b6c0dfb-8475-5ac2-af67-efcd841ed8c2",
+      "text": "No.",
+      "speaker": "UNSPECIFIED",
+      "start_offset_ms": 171831,
+      "end_offset_ms": 173425,
+      "is_final": true
+    },
+    {
+      "item_id": "2054d8f9-0347-5cba-a6dc-b8fa86a4f9b2",
+      "text": "Any changes in your thyroid energy, hair, temperature?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 173713,
+      "end_offset_ms": 176460,
+      "is_final": true
+    },
+    {
+      "item_id": "930a2acb-6cdf-5a85-93e7-d4672d682e6a",
+      "text": "No, that's been stable.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 176628,
+      "end_offset_ms": 178216,
+      "is_final": true
+    },
+    {
+      "item_id": "d1f92687-362a-5ded-9637-91abb31fe843",
+      "text": "No fevers, no infections lately?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 178512,
+      "end_offset_ms": 180452,
+      "is_final": true
+    },
+    {
+      "item_id": "27f83329-b730-5cbe-b15d-20b68174a416",
+      "text": "No.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 180669,
+      "end_offset_ms": 181918,
+      "is_final": true
+    },
+    {
+      "item_id": "3f9e8ea7-d79c-5832-8ba3-ba5d6840e833",
+      "text": "Let me make sure I have your psych history straight. You were first diagnosed with depression at twenty-two.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 182095,
+      "end_offset_ms": 188331,
+      "is_final": true
+    },
+    {
+      "item_id": "1f9302ca-b86d-5983-9ae2-0a2321d3ef97",
+      "text": "Right. Junior year of college.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 188681,
+      "end_offset_ms": 190336,
+      "is_final": true
+    },
+    {
+      "item_id": "be2a73c4-1fa8-5fc4-a34f-2d3fdb2bb0f8",
+      "text": "And we've previously tried fluoxetine \u2014 didn't work \u2014 and bupropion \u2014 caused agitation.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 190552,
+      "end_offset_ms": 194734,
+      "is_final": true
+    },
+    {
+      "item_id": "cfcbb25d-6158-576f-920d-84b229af1e66",
+      "text": "Yeah, the bupropion made me feel like I was vibrating.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 195035,
+      "end_offset_ms": 198344,
+      "is_final": true
+    },
+    {
+      "item_id": "fd906aec-153b-581b-8343-7e0482e43369",
+      "text": "No psychiatric hospitalizations, no ECT.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 198518,
+      "end_offset_ms": 200198,
+      "is_final": true
+    },
+    {
+      "item_id": "7c276a5a-d04a-546a-a275-55e663df2b9c",
+      "text": "No, never been admitted.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 200429,
+      "end_offset_ms": 202009,
+      "is_final": true
+    },
+    {
+      "item_id": "f04e9908-3699-5189-ac69-cf68bfc5d0ec",
+      "text": "Any past suicide attempts?",
+      "speaker": "UNSPECIFIED",
+      "start_offset_ms": 202290,
+      "end_offset_ms": 203525,
+      "is_final": true
+    },
+    {
+      "item_id": "fb53a2e3-ddc6-5863-8bd6-9f621aaa70aa",
+      "text": "No.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 203641,
+      "end_offset_ms": 204882,
+      "is_final": true
+    },
+    {
+      "item_id": "56fd2c00-5e43-594d-8f9b-4656d1731891",
+      "text": "Past medical history \u2014 hypothyroidism.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 204984,
+      "end_offset_ms": 206563,
+      "is_final": true
+    },
+    {
+      "item_id": "e2060e23-c703-5333-99ed-69091a8bc6e5",
+      "text": "Diagnosed five years ago, on levothyroxine ever since.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 206926,
+      "end_offset_ms": 209784,
+      "is_final": true
+    },
+    {
+      "item_id": "bd4ae673-00ce-5ff9-958e-4643215c8d31",
+      "text": "Anything else?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 210103,
+      "end_offset_ms": 211644,
+      "is_final": true
+    },
+    {
+      "item_id": "eb7e399b-a769-5d47-8c86-8c592e68d59c",
+      "text": "No, that's it.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 211867,
+      "end_offset_ms": 213167,
+      "is_final": true
+    },
+    {
+      "item_id": "0772618a-e315-5290-9ea1-354ea1ab89ff",
+      "text": "Family psychiatric history.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 213495,
+      "end_offset_ms": 215053,
+      "is_final": true
+    },
+    {
+      "item_id": "1b0a0c6e-9d66-5baa-86cb-24055ea2e933",
+      "text": "Mom has bipolar, type two. Dad's an alcoholic, in recovery now. My older sister has depression.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 215181,
+      "end_offset_ms": 220817,
+      "is_final": true
+    },
+    {
+      "item_id": "f7a5e955-42c3-56db-8d9e-56f9958776ac",
+      "text": "Any suicide in the family?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 221091,
+      "end_offset_ms": 222659,
+      "is_final": true
+    },
+    {
+      "item_id": "19a4cba7-0416-5aeb-97ba-072ffd1fcec4",
+      "text": "An uncle, on my dad's side, when I was a kid.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 222958,
+      "end_offset_ms": 226815,
+      "is_final": true
+    },
+    {
+      "item_id": "d0b84219-68d6-5049-9f8b-5c8c2b826eee",
+      "text": "Sorry to hear that.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 226974,
+      "end_offset_ms": 228661,
+      "is_final": true
+    },
+    {
+      "item_id": "d3facc7d-9f1b-5380-b8e9-b7bdd8f2b72e",
+      "text": "Social. You're a grad student still.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 228780,
+      "end_offset_ms": 231362,
+      "is_final": true
+    },
+    {
+      "item_id": "14a860a0-ebdf-54f2-afbc-0c6bc4d54f7c",
+      "text": "Second year. PhD program.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 231741,
+      "end_offset_ms": 233243,
+      "is_final": true
+    },
+    {
+      "item_id": "73ac02f1-522b-5c20-a458-5968b0be40c5",
+      "text": "Living with your partner.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 233568,
+      "end_offset_ms": 235241,
+      "is_final": true
+    },
+    {
+      "item_id": "b6da1299-fdf8-56c3-9b4d-9c6d09b06e1c",
+      "text": "Yeah, three years now.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 235583,
+      "end_offset_ms": 237170,
+      "is_final": true
+    },
+    {
+      "item_id": "f3b4da2a-078a-58a0-8b36-91e1a7c6af2e",
+      "text": "Alcohol?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 237534,
+      "end_offset_ms": 238970,
+      "is_final": true
+    },
+    {
+      "item_id": "5f3e587a-a2ca-51b5-abf7-c94db81d8c3e",
+      "text": "Two or three drinks a week. Wine mostly.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 239345,
+      "end_offset_ms": 242233,
+      "is_final": true
+    },
+    {
+      "item_id": "6f110969-9fc4-5f76-a04f-2e04697087b0",
+      "text": "Recreational drugs, cannabis?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 242529,
+      "end_offset_ms": 244145,
+      "is_final": true
+    },
+    {
+      "item_id": "192d1640-6550-5790-9365-54e0d2311d3a",
+      "text": "No, none.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 244358,
+      "end_offset_ms": 245741,
+      "is_final": true
+    },
+    {
+      "item_id": "c9efd84b-b87b-51d4-846f-34455bb63448",
+      "text": "Tobacco, vaping?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 246009,
+      "end_offset_ms": 247395,
+      "is_final": true
+    },
+    {
+      "item_id": "a7db5b6c-ee69-5ca9-b265-17290eb13c95",
+      "text": "No.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 247604,
+      "end_offset_ms": 249102,
+      "is_final": true
+    },
+    {
+      "item_id": "172e0fb8-243e-56f8-afe2-628f2c505fe0",
+      "text": "Exercise?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 249336,
+      "end_offset_ms": 250630,
+      "is_final": true
+    },
+    {
+      "item_id": "19659a05-274e-51c9-ad72-aa666ebf75db",
+      "text": "I run a couple times a week, or I did. Hasn't happened in two weeks honestly.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 250883,
+      "end_offset_ms": 256435,
+      "is_final": true
+    },
+    {
+      "item_id": "4ca430ea-0f08-59d4-becd-47cdb6110860",
+      "text": "Stressors?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 256724,
+      "end_offset_ms": 258110,
+      "is_final": true
+    },
+    {
+      "item_id": "0762250f-fe07-52d7-9ea5-bcd554810040",
+      "text": "Just the usual academic pressure. Nothing acute.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 258272,
+      "end_offset_ms": 260802,
+      "is_final": true
+    },
+    {
+      "item_id": "55d9daa0-950f-5bdc-914a-59f08447fe23",
+      "text": "Med list. You're on sertraline one hundred milligrams daily.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 261087,
+      "end_offset_ms": 264373,
+      "is_final": true
+    },
+    {
+      "item_id": "213e19f2-52ed-5df2-b5a0-7aea770c4e87",
+      "text": "Every morning, yeah.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 264524,
+      "end_offset_ms": 265902,
+      "is_final": true
+    },
+    {
+      "item_id": "5bb6267d-e05c-588b-9313-ed15ebcab53e",
+      "text": "Levothyroxine fifty micrograms daily.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 266287,
+      "end_offset_ms": 267668,
+      "is_final": true
+    },
+    {
+      "item_id": "2ed6ab04-d227-5176-82bd-f7768fa27024",
+      "text": "Right, on an empty stomach.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 267783,
+      "end_offset_ms": 269502,
+      "is_final": true
+    },
+    {
+      "item_id": "35544a6c-c53a-5392-8fef-fcbb6db9035d",
+      "text": "And you mentioned melatonin five milligrams at bedtime, OTC.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 269776,
+      "end_offset_ms": 272620,
+      "is_final": true
+    },
+    {
+      "item_id": "7ff6e1ca-6975-5a87-880a-3fdeb1094b9d",
+      "text": "Yep.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 273012,
+      "end_offset_ms": 274417,
+      "is_final": true
+    },
+    {
+      "item_id": "3744099e-d832-5527-892a-c8073bd25906",
+      "text": "Anything else? Vitamins, supplements, anything I'm missing?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 274751,
+      "end_offset_ms": 277448,
+      "is_final": true
+    },
+    {
+      "item_id": "de27953b-b440-5cae-bf7a-7aa9dcf2387e",
+      "text": "I take a multivitamin. That's it.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 277670,
+      "end_offset_ms": 279996,
+      "is_final": true
+    },
+    {
+      "item_id": "6a51fb47-0d9f-5463-96dd-931248241d9c",
+      "text": "Any aspirin, ibuprofen regularly?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 280197,
+      "end_offset_ms": 281663,
+      "is_final": true
+    },
+    {
+      "item_id": "f1da3fac-e267-5e44-9e7d-c6126c59b9ce",
+      "text": "No, only occasionally for cramps.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 281956,
+      "end_offset_ms": 283537,
+      "is_final": true
+    },
+    {
+      "item_id": "66cb51cf-ebaa-50fc-bcf1-f1659859ded9",
+      "text": "Drug allergies \u2014 your chart says no known drug allergies. Still accurate?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 283837,
+      "end_offset_ms": 287553,
+      "is_final": true
+    },
+    {
+      "item_id": "4fba774d-8908-55a1-96cb-2be52ef5b05b",
+      "text": "Still no allergies that I know of.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 287763,
+      "end_offset_ms": 290053,
+      "is_final": true
+    },
+    {
+      "item_id": "d39cab7f-ed56-5163-a418-2279f809adfc",
+      "text": "Food, environmental?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 290413,
+      "end_offset_ms": 291979,
+      "is_final": true
+    },
+    {
+      "item_id": "64963986-47ea-5732-a889-803a8596c1be",
+      "text": "Nothing.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 292278,
+      "end_offset_ms": 293655,
+      "is_final": true
+    },
+    {
+      "item_id": "5735946c-93c3-5a4d-881e-6f2700dd9ee6",
+      "text": "Quick vitals from intake. Blood pressure 118 over 74, pulse 82, respirations 16.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 293828,
+      "end_offset_ms": 298276,
+      "is_final": true
+    },
+    {
+      "item_id": "758b057a-92a3-5d1d-9a1f-bf8e29090c85",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 298498,
+      "end_offset_ms": 300004,
+      "is_final": true
+    },
+    {
+      "item_id": "57f76215-3f77-51e6-a993-f9a4be662bd7",
+      "text": "Temperature 98.4. Weight 132 pounds. Height 5 feet 5 inches.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 300375,
+      "end_offset_ms": 304120,
+      "is_final": true
+    },
+    {
+      "item_id": "fcc92e0f-dba7-5538-ba8b-358cd883f1a8",
+      "text": "Down five from last visit.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 304433,
+      "end_offset_ms": 305927,
+      "is_final": true
+    },
+    {
+      "item_id": "919f092d-bd23-532a-8e68-22db74f34ddc",
+      "text": "I see that. We'll watch it.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 306253,
+      "end_offset_ms": 308832,
+      "is_final": true
+    },
+    {
+      "item_id": "68e17a3b-d247-5ced-be1d-5921e065110d",
+      "text": "I'm going to dictate my mental status exam as we go. Patient is alert, oriented to person, place, time, situation.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 309137,
+      "end_offset_ms": 316271,
+      "is_final": true
+    },
+    {
+      "item_id": "71d093ec-3787-5bac-94ea-642ef2cd5ec1",
+      "text": "Mm-hmm.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 316386,
+      "end_offset_ms": 317702,
+      "is_final": true
+    },
+    {
+      "item_id": "8099f0d4-8ff4-5a02-8349-0534e448ebd4",
+      "text": "Appearance well-groomed, dressed appropriately. Eye contact good, slightly downcast. Mood patient describes as low. Affect constricted, congruent with stated mood.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 317998,
+      "end_offset_ms": 324882,
+      "is_final": true
+    },
+    {
+      "item_id": "c31ace21-da68-55ba-99ba-858e0189943a",
+      "text": "Sounds about right.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 325095,
+      "end_offset_ms": 326573,
+      "is_final": true
+    },
+    {
+      "item_id": "96f66cd2-7667-5afd-9cc5-01814d3f424c",
+      "text": "Speech normal rate, rhythm, prosody. Thought process linear, goal-directed. No flight of ideas, no thought blocking. Thought content \u2014 passive suicidal ideation as discussed, no active intent, no plan, no homicidal ideation, no perceptual disturbances, no delusions.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 326966,
+      "end_offset_ms": 339285,
+      "is_final": true
+    },
+    {
+      "item_id": "eb15ef78-cb94-5994-b209-e2ea4e25647a",
+      "text": "Good.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 339510,
+      "end_offset_ms": 341025,
+      "is_final": true
+    },
+    {
+      "item_id": "80964e19-ea2e-5f06-8596-520f78586243",
+      "text": "Insight and judgment fair. Cognition grossly intact. Memory recent and remote intact for what we discussed.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 341335,
+      "end_offset_ms": 346843,
+      "is_final": true
+    },
+    {
+      "item_id": "e7dfc6e4-954f-5ade-9d43-247b238aa66f",
+      "text": "PHQ-9 today scored 16 \u2014 moderately severe depression. GAD-7 was 12, moderate anxiety.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 347242,
+      "end_offset_ms": 351973,
+      "is_final": true
+    },
+    {
+      "item_id": "ee2c2eb6-e6e0-5b67-97cc-d474bd6ae7e5",
+      "text": "Higher than last time.",
+      "speaker": "UNSPECIFIED",
+      "start_offset_ms": 352117,
+      "end_offset_ms": 353812,
+      "is_final": true
+    },
+    {
+      "item_id": "d0b2b9b7-befc-59a6-8e69-633b277de21d",
+      "text": "Yeah, both up. Last visit you were a 9 and a 7. So we're seeing a real shift.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 353969,
+      "end_offset_ms": 360164,
+      "is_final": true
+    },
+    {
+      "item_id": "87934297-18b5-54e3-a14d-48fb94fbedb2",
+      "text": "Labs from two weeks ago \u2014 TSH 2.1, well within range. CBC was normal. Comprehensive metabolic panel normal. So this isn't a thyroid contribution.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 360483,
+      "end_offset_ms": 368617,
+      "is_final": true
+    },
+    {
+      "item_id": "7c02c3a1-d438-5141-93d7-18848ec86cee",
+      "text": "I figured the thyroid was fine.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 369009,
+      "end_offset_ms": 370932,
+      "is_final": true
+    },
+    {
+      "item_id": "092b4866-ad65-5ac5-b591-2242087f55c7",
+      "text": "It is.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 371257,
+      "end_offset_ms": 372821,
+      "is_final": true
+    },
+    {
+      "item_id": "de083361-5d23-51b2-969f-7d6b73e7d960",
+      "text": "Alright. Assessment and plan. Problem one \u2014 major depressive disorder, recurrent, moderate to severe based on today's PHQ-9.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 372936,
+      "end_offset_ms": 379144,
+      "is_final": true
+    },
+    {
+      "item_id": "e649d02a-057d-5521-9596-eddafcf99cbc",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 379290,
+      "end_offset_ms": 380808,
+      "is_final": true
+    },
+    {
+      "item_id": "ad2c79be-d760-54ab-b408-b70c400df1b0",
+      "text": "Going to increase your sertraline to 150 milligrams daily. Take it the same way you've been taking the 100 \u2014 in the morning with food.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 381162,
+      "end_offset_ms": 389418,
+      "is_final": true
+    },
+    {
+      "item_id": "3378a31e-3020-5918-983b-1b514dcaf1d6",
+      "text": "150. Got it.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 389793,
+      "end_offset_ms": 391448,
+      "is_final": true
+    },
+    {
+      "item_id": "bbf266d6-cc3c-5a3f-8732-3148f5e8ef04",
+      "text": "Side effects to watch for in the first couple weeks \u2014 GI upset, headache, increased agitation, any worsening of suicidal thoughts. Any of those, you call me.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 391783,
+      "end_offset_ms": 400533,
+      "is_final": true
+    },
+    {
+      "item_id": "3360e65a-216d-5575-8973-f7f5a8c71e34",
+      "text": "I will.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 400872,
+      "end_offset_ms": 402258,
+      "is_final": true
+    },
+    {
+      "item_id": "8b1a5a58-0150-5305-b2c7-7caf8d63a5bb",
+      "text": "If we don't see meaningful improvement in four weeks, we'll talk about augmenting with bupropion at a lower dose, or switching class entirely.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 402653,
+      "end_offset_ms": 411184,
+      "is_final": true
+    },
+    {
+      "item_id": "4060f5bf-e9da-511b-bdfc-0de3384bbea1",
+      "text": "Problem two \u2014 generalized anxiety disorder, moderate.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 411373,
+      "end_offset_ms": 413168,
+      "is_final": true
+    },
+    {
+      "item_id": "bab689f2-0060-5224-8764-0d89019c6ac6",
+      "text": "Yeah.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 413381,
+      "end_offset_ms": 414867,
+      "is_final": true
+    },
+    {
+      "item_id": "215bb87c-7c16-5b77-b48f-95cf8839aab2",
+      "text": "I expect the sertraline bump will help the anxiety too \u2014 they often track together. I'd like to defer adding a benzodiazepine for now. We'll reassess in four weeks.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 415103,
+      "end_offset_ms": 424990,
+      "is_final": true
+    },
+    {
+      "item_id": "22bf0e72-d9f6-5958-a181-4c7c446c55b3",
+      "text": "I'd rather not be on a benzo if I can avoid it.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 425113,
+      "end_offset_ms": 429207,
+      "is_final": true
+    },
+    {
+      "item_id": "a72c9831-e407-5313-a16c-73d85fb62cdb",
+      "text": "Same, glad we agree.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 429464,
+      "end_offset_ms": 430800,
+      "is_final": true
+    },
+    {
+      "item_id": "a25ce67b-e535-519a-8a10-1996f43a9212",
+      "text": "Problem three \u2014 insomnia, secondary to depression and anxiety.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 431107,
+      "end_offset_ms": 433745,
+      "is_final": true
+    },
+    {
+      "item_id": "50c7bc37-2bef-511b-a96d-94371a8fde38",
+      "text": "The sleep is the worst part.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 433938,
+      "end_offset_ms": 435970,
+      "is_final": true
+    },
+    {
+      "item_id": "4b9de8d6-c937-511c-a7d7-ae0ec6ee2fb1",
+      "text": "Starting trazodone 50 milligrams at bedtime. Take it 30 minutes before you want to sleep. May feel a little groggy in the morning at first, that fades within a week.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 436365,
+      "end_offset_ms": 446176,
+      "is_final": true
+    },
+    {
+      "item_id": "d4b5b424-cba6-53d5-9043-bca4da77b2b6",
+      "text": "Trazodone, 50, at bedtime. Got it.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 446448,
+      "end_offset_ms": 448321,
+      "is_final": true
+    },
+    {
+      "item_id": "a6f269eb-a733-5d6e-8638-021f66362e7b",
+      "text": "You can stop the melatonin \u2014 trazodone will do the work. Sleep hygiene basics \u2014 same wake time every day even on weekends, no screens an hour before bed.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 448678,
+      "end_offset_ms": 457708,
+      "is_final": true
+    },
+    {
+      "item_id": "0490a562-9caa-516f-a5ff-9cb872eb4c89",
+      "text": "I'll try.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 457872,
+      "end_offset_ms": 459551,
+      "is_final": true
+    },
+    {
+      "item_id": "61c4ffef-dc73-59ae-ba42-a041538e0309",
+      "text": "Problem four \u2014 hypothyroidism, well controlled.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 459669,
+      "end_offset_ms": 461122,
+      "is_final": true
+    },
+    {
+      "item_id": "12959f7a-c24c-5c8d-9f2d-76ddf94dab29",
+      "text": "Stable.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 461344,
+      "end_offset_ms": 463011,
+      "is_final": true
+    },
+    {
+      "item_id": "dafec464-5f9f-5b08-917a-3c6cd4d39222",
+      "text": "Continue levothyroxine 50 micrograms daily. We'll recheck TSH in six months.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 463180,
+      "end_offset_ms": 467193,
+      "is_final": true
+    },
+    {
+      "item_id": "1845f133-7821-5ce7-a801-646fd25df7d7",
+      "text": "I also want to refer you back to therapy. Have you been seeing anyone?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 467388,
+      "end_offset_ms": 472018,
+      "is_final": true
+    },
+    {
+      "item_id": "8485d1cc-373c-53ef-8a8a-295ef1e1c09a",
+      "text": "Not for about a year. My old therapist moved out of state.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 472209,
+      "end_offset_ms": 476326,
+      "is_final": true
+    },
+    {
+      "item_id": "d836889b-21c2-581e-a1ad-059ac3ee4c74",
+      "text": "I'm going to refer you to a CBT-trained therapist. Cognitive behavioral therapy alongside meds is going to give you the best outcomes here, especially with the rumination piece.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 476687,
+      "end_offset_ms": 486474,
+      "is_final": true
+    },
+    {
+      "item_id": "6dc7e66d-e354-5ef3-a7fe-00a34b6060a8",
+      "text": "I'm open to it.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 486601,
+      "end_offset_ms": 488385,
+      "is_final": true
+    },
+    {
+      "item_id": "586a6d4d-3c11-5e3b-ae28-24cc5829845a",
+      "text": "I'll send you a few names.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 488771,
+      "end_offset_ms": 490979,
+      "is_final": true
+    },
+    {
+      "item_id": "3a049fde-a80a-5f05-8739-2e57a578e3b7",
+      "text": "Safety plan. If those passive thoughts get more active \u2014 start showing up with a plan, with intent \u2014 what's your step one?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 491372,
+      "end_offset_ms": 498876,
+      "is_final": true
+    },
+    {
+      "item_id": "4a70f76a-5d90-5ca1-8bfd-ea97d1ad27f3",
+      "text": "Call you. Or call my partner.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 499021,
+      "end_offset_ms": 501084,
+      "is_final": true
+    },
+    {
+      "item_id": "483874d2-16ad-57ab-8e84-07a8657b7820",
+      "text": "Right. And if it's after hours and you can't reach me, you call 988 or you go to the ER. We can also use the crisis text line \u2014 text HOME to 741741. I'll write that down for you.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 501307,
+      "end_offset_ms": 515033,
+      "is_final": true
+    },
+    {
+      "item_id": "cad16244-68e1-5474-93dc-13a93c0ea952",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 515231,
+      "end_offset_ms": 516670,
+      "is_final": true
+    },
+    {
+      "item_id": "ac947e59-907f-56d4-8ebc-db3618ee27a6",
+      "text": "Are there any firearms in the home?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 516804,
+      "end_offset_ms": 519224,
+      "is_final": true
+    },
+    {
+      "item_id": "b7535d1a-ee3b-59af-86aa-4b1b1d03944a",
+      "text": "No.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 519362,
+      "end_offset_ms": 520790,
+      "is_final": true
+    },
+    {
+      "item_id": "3a572a18-9c50-54cd-8f4d-ce67e87ca81b",
+      "text": "Any large quantities of medications you'd want to put in your partner's care for now?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 521160,
+      "end_offset_ms": 526591,
+      "is_final": true
+    },
+    {
+      "item_id": "388ed136-fb9a-5774-85dd-1b0062bebc3e",
+      "text": "I'll have them keep my sertraline. That makes sense.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 526871,
+      "end_offset_ms": 530282,
+      "is_final": true
+    },
+    {
+      "item_id": "3e70754c-d125-5bf0-999d-eff25ff3965b",
+      "text": "Few follow-up items. Add a task to call the patient in two weeks for a mood check-in \u2014 I want to know how the dose increase is landing.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 530511,
+      "end_offset_ms": 539934,
+      "is_final": true
+    },
+    {
+      "item_id": "66f47846-b0ce-52d1-8c2b-289f09892889",
+      "text": "Two weeks, okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 540078,
+      "end_offset_ms": 541298,
+      "is_final": true
+    },
+    {
+      "item_id": "8107c22c-fbb3-574c-a436-4bbd33d9c783",
+      "text": "Add a task for the MA to schedule the CBT therapist referral within a week \u2014 let's not let that drift.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 541642,
+      "end_offset_ms": 548528,
+      "is_final": true
+    },
+    {
+      "item_id": "14bd9f58-4278-528b-99c2-d421e95810e9",
+      "text": "Good.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 548848,
+      "end_offset_ms": 550180,
+      "is_final": true
+    },
+    {
+      "item_id": "32aeaa41-a383-5945-b3b0-bf19f9918136",
+      "text": "And add a task to recheck TSH in six months so we don't lose track of that.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 550497,
+      "end_offset_ms": 556387,
+      "is_final": true
+    },
+    {
+      "item_id": "ee9851f8-d7d7-5758-b0f8-9b3f783781bd",
+      "text": "Sounds good.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 556773,
+      "end_offset_ms": 558013,
+      "is_final": true
+    },
+    {
+      "item_id": "7050441f-04f1-51ee-be28-66516df483e5",
+      "text": "Follow-up appointment in four weeks for med check. Sooner if anything changes.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 558306,
+      "end_offset_ms": 562564,
+      "is_final": true
+    },
+    {
+      "item_id": "d4e2da0d-d36f-5c0f-b939-ba101b6497d5",
+      "text": "What if the trazodone makes me too groggy?",
+      "speaker": "PATIENT",
+      "start_offset_ms": 562734,
+      "end_offset_ms": 565430,
+      "is_final": true
+    },
+    {
+      "item_id": "fd762cf6-a35f-53a9-a1e1-bfaebe54aeb9",
+      "text": "Cut to 25 milligrams and call me. We can adjust.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 565746,
+      "end_offset_ms": 569022,
+      "is_final": true
+    },
+    {
+      "item_id": "cd8b61d3-210a-5cc9-ac05-79778a996e04",
+      "text": "Okay.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 569309,
+      "end_offset_ms": 570750,
+      "is_final": true
+    },
+    {
+      "item_id": "a11da12f-3186-583a-be28-2ef7049ed7d4",
+      "text": "Anything else for me before we wrap?",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 571120,
+      "end_offset_ms": 573692,
+      "is_final": true
+    },
+    {
+      "item_id": "0eb52db6-ada1-5341-8321-e60acbd831a3",
+      "text": "No, I think we covered it.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 573894,
+      "end_offset_ms": 576122,
+      "is_final": true
+    },
+    {
+      "item_id": "66c26ed7-292a-5072-b009-e5f94e840f9e",
+      "text": "Take care of yourself. I'll see you in four weeks.",
+      "speaker": "DOCTOR",
+      "start_offset_ms": 576428,
+      "end_offset_ms": 580052,
+      "is_final": true
+    },
+    {
+      "item_id": "cdeca1ff-771c-5410-9ffb-a8786e930bb8",
+      "text": "Thanks.",
+      "speaker": "PATIENT",
+      "start_offset_ms": 580299,
+      "end_offset_ms": 581715,
+      "is_final": true
+    }
+  ],
+  "finalized": true
+}

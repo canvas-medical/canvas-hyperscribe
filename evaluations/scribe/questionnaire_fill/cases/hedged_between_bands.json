@@ -1,0 +1,69 @@
+{
+  "id": "hedged_between_bands",
+  "probes": "band accuracy: 'three or four days a week' spans two options",
+  "questionnaire": {
+    "questionnaire_dbid": 1,
+    "questionnaire_name": "PHQ-9",
+    "is_scored": true,
+    "scoring_function_name": "sum",
+    "questions": [
+      {
+        "dbid": 10,
+        "label": "Feeling tired or having little energy?",
+        "type": "SING",
+        "options": [
+          {
+            "dbid": 100,
+            "value": "Not at all",
+            "code": "",
+            "score_value": "0"
+          },
+          {
+            "dbid": 101,
+            "value": "Several days",
+            "code": "",
+            "score_value": "1"
+          },
+          {
+            "dbid": 102,
+            "value": "More than half the days",
+            "code": "",
+            "score_value": "2"
+          },
+          {
+            "dbid": 103,
+            "value": "Nearly every day",
+            "code": "",
+            "score_value": "3"
+          }
+        ]
+      }
+    ]
+  },
+  "transcript": [
+    {
+      "item_id": "t1",
+      "speaker": "DOCTOR",
+      "text": "How often have you felt tired or low on energy these past two weeks?",
+      "start_offset_ms": 0,
+      "end_offset_ms": 3740
+    },
+    {
+      "item_id": "t2",
+      "speaker": "PATIENT",
+      "text": "Three or four days a week I'd say. Not every day but more than just occasionally.",
+      "start_offset_ms": 3740,
+      "end_offset_ms": 8195
+    }
+  ],
+  "expected": {
+    "10": {
+      "status": "answered",
+      "option_dbid": 102,
+      "acceptable_option_dbids": [
+        101,
+        102
+      ]
+    }
+  }
+}

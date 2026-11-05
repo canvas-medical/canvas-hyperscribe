@@ -1,0 +1,129 @@
+{
+  "templates": [
+    {
+      "name": "Initial Visit",
+      "questionnaires": [
+        "Social History",
+        "Advanced Care Planning (ACP)"
+      ],
+      "ros_template": "CONSTITUTIONAL: Denies fever, chills, night sweats, cold intolerance, fatigue, decreased oral intake, or unintentional weight change.\nEYES: Denies visual changes, loss of vision, blurred vision, diplopia, eye pain, or purulent discharge.\nEARS: Denies hearing loss, difficulty hearing, ear pain, or ear drainage.\nNOSE: Denies nasal congestion, rhinorrhea, nasal discharge, epistaxis, sneezing, or snoring.\nMOUTH/THROAT/VOICE: Denies sore throat, dysphagia, dental problems, or voice changes.\nNECK: Denies neck pain, stiffness, lumps, swelling, or nuchal rigidity.\nCARDIOVASCULAR: Denies chest pain, palpitations, dyspnea at rest, dyspnea with activity, orthopnea, or lower-extremity edema.\nRESPIRATORY: Denies dyspnea/SOB, cough (productive or nonproductive), sputum, hemoptysis, or wheezing.\nGASTROINTESTINAL: Denies abdominal pain, nausea, vomiting (including hematemesis), constipation, diarrhea, or changes in bowel habits.\nGENITOURINARY: Denies dysuria, hematuria, urinary hesitancy, polyuria, urinary incontinence, or flank pain.\nMUSCULOSKELETAL: Denies muscle pain, muscle weakness, decreased muscle strength, joint pain, joint swelling, or stiffness.\nSKIN/DERMATOLOGIC: Denies rash, pruritus, skin sores, bruising, lesions, or perineal/groin rash.\nNEUROLOGICAL: Denies headaches, lightheadedness, numbness, tingling, weakness, tremors, or syncope.\nPSYCHIATRIC: Denies depression, anxiety, suicidal ideation, hallucinations, delusions, or paranoia.\nENDOCRINE: Denies heat intolerance, cold intolerance, polyuria, polydipsia, or fatigue.\nHEMATOLOGIC/LYMPHATIC: Denies easy bruising, bleeding (including epistaxis), lymph node enlargement, or lymph node tenderness.\nOTHER: None reported.",
+      "pe_template": "GENERAL: NAD. Well-developed, pleasant, appears comfortable. A&O x3. Follows commands. Appropriate speech.\nHEENT: NCAT. Conjunctiva clear without injection; conjunctivae and lids normal. PERRLA. EOMI/EOM intact B/L. Hearing intact B/L. MMM. External ears and nose normal without lesions. Nasal mucosa normal.\nNECK: Supple. Trachea midline. No JVD. No cervical LAD.\nRESPIRATORY: Breathing comfortably on room air; no use of accessory muscles. Speaks in full sentences without difficulty. CTAB. Equal breath sounds B/L. No wheezes, rhonchi, or rales.\nCARDIOVASCULAR: RRR. Normal S1/S2. No murmur, rub, or gallop. Peripheral pulses intact. No edema.\nABDOMEN: Soft, non-distended, NT. +BS x4. No rebound or guarding. No HSM.\nLYMPHATIC: No cervical, clavicular, or posterior auricular LAD.\nMUSCULOSKELETAL: Full ROM of upper extremities. Strength 5/5 BUE and BLE. No joint enlargement or tenderness. No clubbing, cyanosis, or petechiae. No deformities observed.\nSKIN: Intact. No rashes, lesions, or erythema on exam of face, hands, or exposed areas.\nNEUROLOGIC: CN II-XII grossly intact. Reflexes 2+ and symmetrical. Sensation intact to touch and position in BLEs. No focal deficits.\nPSYCHIATRIC: Good eye contact. Normal mood and affect.",
+      "charges": [
+        "99202",
+        "99203",
+        "99204",
+        "99205",
+        "99305",
+        "99306",
+        "99315",
+        "99316",
+        "99342",
+        "99344",
+        "99345",
+        "G0318"
+      ]
+    },
+    {
+      "name": "Subsequent Visit",
+      "questionnaires": [],
+      "ros_template": "CONSTITUTIONAL: Denies fever, chills, loss of appetite, fatigue, or weakness.\nCARDIAC: Denies chest pain, shortness of breath with exertion, or swelling in the legs.\nRESPIRATORY: Denies cough, nocturnal dyspnea, or shortness of breath.\nDIGESTIVE: Denies nausea, vomiting, abdominal pain, constipation, or diarrhea.\nMUSCULOSKELETAL: Denies muscle aches or cramps, body aches, or arthritis.\nSKIN: Denies lumps/bumps, rash, or skin tear.\nOTHER: None reported.",
+      "pe_template": "CONSTITUTIONAL: Alert, no acute distress. Well developed and nourished.\nSKIN: Warm and dry, no suspicious lesions.\nPULMONARY: Clear to auscultation bilaterally.\nCARDIOVASCULAR: Regular rate and rhythm, S1, S2 normal, no murmurs.\nEXTREMITIES: No clubbing, cyanosis, or edema.\nPSYCH: Good eye contact. Normal mood and affect.",
+      "charges": [
+        "99211",
+        "99212",
+        "99213",
+        "99214",
+        "99215",
+        "99308",
+        "99309",
+        "99310",
+        "99315",
+        "99316",
+        "99348",
+        "99349",
+        "99350",
+        "G0318",
+        "G2211"
+      ]
+    },
+    {
+      "name": "Cognitive Assessment",
+      "questionnaires": [
+        "Social History",
+        "Safety Assessment",
+        "FAST Score",
+        "PHQ-9",
+        "MOCA",
+        "Hearing Loss Status",
+        "Advanced Care Planning (ACP)"
+      ],
+      "ros_template": null,
+      "pe_template": null,
+      "charges": [
+        "1494F",
+        "99202",
+        "99203",
+        "99204",
+        "99205",
+        "99211",
+        "99212",
+        "99213",
+        "99214",
+        "99215",
+        "99342",
+        "99344",
+        "99345",
+        "99348",
+        "99349",
+        "99350",
+        "99483",
+        "G2211"
+      ]
+    },
+    {
+      "name": "Neurology",
+      "questionnaires": [
+        "Social History"
+      ],
+      "ros_template": "CONSTITUTIONAL: Denies fever or chills.\nEYES: Denies visual change or diplopia.\nENT: Denies nuchal rigidity or rhinorrhea.\nCARDIOVASCULAR: Denies chest pain.\nRESPIRATORY: Denies wheezing or shortness of breath.\nGI: Denies diarrhea, abdominal pain, or constipation.\nGU: Denies urinary incontinence or dysuria.\nNEURO: As per HPI.\nPSYCH: Denies depression or anxiety.\nMSK: Denies joint pain or swelling.\nSKIN: Denies rash or pruritus.\nENDOCRINE: Denies heat intolerance or fatigue.\nHEMATOLOGIC: Denies bruising or epistaxis.",
+      "pe_template": "MENTAL STATUS/PSYCH: Alert and oriented to ***; attention intact to WORLD forwards and backwards; fluent speech; normal language comprehension; memory intact to the details of the history.\nCRANIAL NERVES: VFFTC, PERRL, EOMI, facial strength and sensation intact and symmetric, tongue and palate midline, traps full. No dysarthria.\nMOTOR EXAM: Normal bulk and tone, no pronator drift, finger and foot taps fast. Strength (R/L) - Delt 5/5 Biceps 5/5 Triceps 5/5 WE 5/5 WF 5/5 FE 5/5 FF 5/5 IO 5/5 IP 5/5 Hams 5/5 Quads 5/5 TA 5/5 Gastroc 5/5 EHL 5/5\nREFLEXES: 2+ throughout and symmetric, toes down-going bilaterally.\nSENSORY: Intact to LT, vibration, pin prick throughout. Romberg negative.\nCOORDINATION: Intact FNF, HKS\nGAIT: Normal narrow based. Able to walk on heels, toes, and tandem.",
+      "charges": [
+        "99348",
+        "99349",
+        "99350",
+        "99446",
+        "99447",
+        "99448",
+        "99449"
+      ]
+    },
+    {
+      "name": "Psychiatry",
+      "questionnaires": [
+        "Social History",
+        "Psych History"
+      ],
+      "ros_template": "DEPRESSIVE SYMPTOMS: Denies depressed mood, low motivation, fatigue, poor concentration, or social withdrawal.\nANXIETY SYMPTOMS: Denies panic attacks, racing thoughts, irritability, difficulty concentrating, hypervigilance, or excessive worry.\nSLEEP: Denies insomnia (difficulty falling asleep), insomnia (difficulty staying asleep), fragmented sleep, nightmares, daytime sleepiness, or poor sleep quality.\nAPPETITE: Denies decreased appetite, increased appetite, emotional eating, weight loss, weight gain, or food aversion.\nSI/HI: Denies suicidal ideation with plan, suicidal ideation without plan, homicidal ideation with plan, or homicidal ideation without plan.\nHALLUCINATIONS: Denies auditory hallucinations or visual hallucinations.\nDELUSIONS/PARANOIA: Denies delusional thinking or paranoid thinking.\nMANIC SYMPTOMS: Denies mood swings, increased energy, less need for sleep, reckless behaviors, pressured speech, or more talkative.",
+      "pe_template": null,
+      "mse_template": "Appearance: Well-groomed, dressed appropriately\nBehavior/Rapport: No apparent disturbance, calm and cooperative, conversational\nMovement: No psychomotor agitation observed\nSpeech: Normal rate, rhythm, and tone\nMood: Affect congruent to mood\nOrientation: Alert and oriented\nAttention/Concentration: Sustained\nThought Process: Linear\nThought Content: No SI, no HI, no delusions, obsessions, preoccupations, paranoia, or phobias\nInsight: Intact\nJudgment: Intact",
+      "charges": [
+        "90785",
+        "90792",
+        "90832",
+        "90833",
+        "90834",
+        "90836",
+        "90837",
+        "90838",
+        "90839",
+        "99342",
+        "99344",
+        "99345",
+        "99348",
+        "99349",
+        "99350",
+        "G0318"
+      ]
+    }
+  ]
+}

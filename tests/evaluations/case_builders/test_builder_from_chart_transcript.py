@@ -4,6 +4,7 @@ from unittest.mock import patch, call, MagicMock
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_chart_transcript import BuilderFromChartTranscript
+from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -124,7 +125,7 @@ def test__run(
         "JSON file: theTranscriptFile",
     ]
     exp_limited_cache = [
-        call({"chart": "data"}),
+        call({"chart": "data"}, local_lab_tests),
         call().to_json(True),
         call().staged_commands_as_instructions("schemaKey2instruction"),
     ]
