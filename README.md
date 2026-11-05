@@ -14,8 +14,8 @@ This repository includes the following:
 Branches and tags
 -----------------
 
-`main` is the only branch to install from, and it carries both legacy Hyperscribe and Canvas Scribe.
-The legacy Hyperscribe-only release is kept as the `hyperscribe-v1` tag and is obsolete.
+`main` is the Canvas Scribe offering, the only one maintained.
+The legacy Hyperscribe offering is kept as the `hyperscribe-v1` tag.
 
 
 To run the tests:
