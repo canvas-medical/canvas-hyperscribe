@@ -18,7 +18,7 @@ from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
-from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
+from hyperscribe.structures.pylon_feedback_record import PylonFeedbackRecord
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -47,8 +47,7 @@ def helper_instance():
         "AwsBucketLogs": "theBucketLogs",
         "CycleTranscriptOverlap": "37",
         "MaxWorkers": 5,
-        "NotionAPIKey": "theNotionAPIKey",
-        "NotionFeedbackDatabaseId": "theNotionFeedbackDatabaseId",
+        "PylonAPIKey": "thePylonAPIKey",
     }
     environment = {Constants.CUSTOMER_IDENTIFIER: "customerIdentifier"}
     view = CaptureView(event, secrets, environment)
@@ -1081,12 +1080,12 @@ def test_render_effect_post(stop_and_go):
 
 
 @patch("hyperscribe.handlers.capture_view.datetime", wraps=datetime)
-@patch("hyperscribe.handlers.capture_view.requests_post")
+@patch("hyperscribe.handlers.capture_view.Pylon")
 @patch("hyperscribe.handlers.capture_view.AwsS3")
-def test_feedback_post(aws_s3, requests_post, mock_datetime):
+def test_feedback_post(aws_s3, mock_pylon, mock_datetime):
     def reset_mocks():
         aws_s3.reset_mock()
-        requests_post.reset_mock()
+        mock_pylon.reset_mock()
         mock_datetime.reset_mock()
 
     date_0 = datetime(2025, 8, 29, 10, 14, 57, 123456, tzinfo=timezone.utc)
@@ -1105,6 +1104,7 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     assert result == expected
 
     assert aws_s3.mock_calls == []
+    assert mock_pylon.mock_calls == []
     assert mock_datetime.mock_calls == []
     reset_mocks()
 
@@ -1120,6 +1120,7 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     assert result == expected
 
     assert aws_s3.mock_calls == []
+    assert mock_pylon.mock_calls == []
     assert mock_datetime.mock_calls == []
     reset_mocks()
 
@@ -1146,20 +1147,31 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
         call().is_ready(),
     ]
     assert aws_s3.mock_calls == exp_calls
+    assert mock_pylon.mock_calls == []
     assert mock_datetime.mock_calls == []
     reset_mocks()
 
-    # all good
+    # all good — with user email
     aws_s3.return_value.is_ready.side_effect = [True]
     mock_datetime.now.side_effect = [date_0]
-    mock_response = SimpleNamespace(status_code=200)
-    requests_post.side_effect = [mock_response]
+    mock_pylon_instance = mock_pylon.return_value
+    mock_pylon_instance.search_account.return_value = "pylon-account-id"
+    mock_pylon_instance.create_issue.return_value = SimpleNamespace(status_code=200)
+
+    mock_staff = MagicMock()
+    mock_staff.user.email = "user@example.com"
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
         form_data=lambda: {"feedback": StringFormPart(name="feedback", value="theFeedback")},
+        headers={"canvas-logged-in-user-id": "theUserId"},
     )
-    result = tested.feedback_post()
+    with patch("hyperscribe.handlers.capture_view.Staff") as mock_staff_cls:
+        mock_staff_cls.objects.select_related.return_value.get.return_value = mock_staff
+        result = tested.feedback_post()
+        mock_staff_cls.objects.select_related.assert_called_once_with("user")
+        mock_staff_cls.objects.select_related.return_value.get.assert_called_once_with(id="theUserId")
+
     expected = [Response(content=b"Feedback saved OK", status_code=HTTPStatus.CREATED)]
     assert result == expected
 
@@ -1181,41 +1193,79 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     assert aws_s3.mock_calls == exp_calls
     exp_calls = [call.now(timezone.utc)]
     assert mock_datetime.mock_calls == exp_calls
-    exp_data = NotionFeedbackRecord(
+
+    issue_params = PylonFeedbackRecord(
         instance="customerIdentifier",
         note_uuid="theNoteId",
         date_time=date_0.strftime("%Y%m%d-%H%M%S"),
         feedback="theFeedback",
-    ).to_json("theNotionFeedbackDatabaseId")
+        requester_email="user@example.com",
+    ).to_issue_params()
     exp_calls = [
-        call(
-            Constants.VENDOR_NOTION_API_BASE_URL,
-            headers={
-                "Authorization": "Bearer theNotionAPIKey",
-                "Content-Type": "application/json",
-                "Notion-Version": Constants.VENDOR_NOTION_API_VERSION,
-            },
-            data=exp_data,
-        )
+        call("thePylonAPIKey"),
+        call().search_account("customerIdentifier"),
+        call().create_issue(
+            tags=["hyperscribe-feedback"],
+            requester_email="user@example.com",
+            account_id="pylon-account-id",
+            **issue_params,
+        ),
     ]
-    assert requests_post.mock_calls == exp_calls
+    assert mock_pylon.mock_calls == exp_calls
     reset_mocks()
 
-    # Notion API failure
+    # all good — no user header (email is None)
     aws_s3.return_value.is_ready.side_effect = [True]
     mock_datetime.now.side_effect = [date_0]
-    mock_response = SimpleNamespace(status_code=500, text="Internal Server Error")
-    requests_post.side_effect = [mock_response]
+    mock_pylon_instance = mock_pylon.return_value
+    mock_pylon_instance.search_account.return_value = None
+    mock_pylon_instance.create_issue.return_value = SimpleNamespace(status_code=200)
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
         form_data=lambda: {"feedback": StringFormPart(name="feedback", value="theFeedback")},
+        headers={},
+    )
+    result = tested.feedback_post()
+    expected = [Response(content=b"Feedback saved OK", status_code=HTTPStatus.CREATED)]
+    assert result == expected
+
+    issue_params = PylonFeedbackRecord(
+        instance="customerIdentifier",
+        note_uuid="theNoteId",
+        date_time=date_0.strftime("%Y%m%d-%H%M%S"),
+        feedback="theFeedback",
+        requester_email=None,
+    ).to_issue_params()
+    calls = [
+        call("thePylonAPIKey"),
+        call().search_account("customerIdentifier"),
+        call().create_issue(
+            tags=["hyperscribe-feedback"],
+            requester_email=None,
+            account_id=None,
+            **issue_params,
+        ),
+    ]
+    assert mock_pylon.mock_calls == calls
+    reset_mocks()
+
+    # Pylon API failure
+    aws_s3.return_value.is_ready.side_effect = [True]
+    mock_datetime.now.side_effect = [date_0]
+    mock_pylon_instance = mock_pylon.return_value
+    mock_pylon_instance.search_account.return_value = None
+    mock_pylon_instance.create_issue.return_value = SimpleNamespace(status_code=500, text="Internal Server Error")
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
+        form_data=lambda: {"feedback": StringFormPart(name="feedback", value="theFeedback")},
+        headers={},
     )
 
-    # Expect RuntimeError to be raised
     with pytest.raises(
         RuntimeError,
-        match="Feedback failed to save via Notion API, status 500, text: Internal Server Error",
+        match="Feedback failed to save via Pylon API, status 500, text: Internal Server Error",
     ):
         tested.feedback_post()
 
@@ -1237,23 +1287,25 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     assert aws_s3.mock_calls == exp_calls
     exp_calls = [call.now(timezone.utc)]
     assert mock_datetime.mock_calls == exp_calls
+
+    issue_params = PylonFeedbackRecord(
+        instance="customerIdentifier",
+        note_uuid="theNoteId",
+        date_time=date_0.strftime("%Y%m%d-%H%M%S"),
+        feedback="theFeedback",
+        requester_email=None,
+    ).to_issue_params()
     exp_calls = [
-        call(
-            Constants.VENDOR_NOTION_API_BASE_URL,
-            headers={
-                "Authorization": "Bearer theNotionAPIKey",
-                "Content-Type": "application/json",
-                "Notion-Version": Constants.VENDOR_NOTION_API_VERSION,
-            },
-            data=NotionFeedbackRecord(
-                instance="customerIdentifier",
-                note_uuid="theNoteId",
-                date_time=date_0.strftime("%Y%m%d-%H%M%S"),
-                feedback="theFeedback",
-            ).to_json("theNotionFeedbackDatabaseId"),
-        )
+        call("thePylonAPIKey"),
+        call().search_account("customerIdentifier"),
+        call().create_issue(
+            tags=["hyperscribe-feedback"],
+            requester_email=None,
+            account_id=None,
+            **issue_params,
+        ),
     ]
-    assert requests_post.mock_calls == exp_calls
+    assert mock_pylon.mock_calls == exp_calls
     reset_mocks()
 
 
