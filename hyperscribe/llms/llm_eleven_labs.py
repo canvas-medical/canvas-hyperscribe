@@ -51,8 +51,13 @@ class LlmElevenLabs(LlmBase):
             tokens=TokenCounts(prompt=0, generated=0),
         )
         if result.code == HTTPStatus.OK.value:
+            raw_words = request.json()["words"]
+            words_list, removed_count = self._filter_hallucinated_words(raw_words)
+            if removed_count > 0:
+                self.memory_log.log(f"--- filtered {removed_count} hallucinated word(s) ---")
+
             turns: list[dict] = []
-            for words in request.json()["words"]:
+            for words in words_list:
                 if not turns or words["speaker_id"] != turns[-1]["speaker_id"]:
                     turns.append(
                         {
@@ -95,3 +100,36 @@ class LlmElevenLabs(LlmBase):
             )
 
         return result
+
+    @staticmethod
+    def _filter_hallucinated_words(words: list[dict]) -> tuple[list[dict], int]:
+        """Filter out likely hallucinated words based on timestamp anomalies.
+
+        Words with zero duration (start == end) or clusters of 3+ words sharing
+        identical start timestamps are strong signals of ASR hallucination --
+        the model generated text without corresponding audio.
+
+        Returns the filtered word list and count of removed words.
+        """
+        if not words:
+            return words, 0
+
+        # Count how many actual words share each start timestamp
+        start_counts: dict[float, int] = {}
+        for w in words:
+            if w["type"] == "word":
+                start_counts[w["start"]] = start_counts.get(w["start"], 0) + 1
+
+        filtered = []
+        removed = 0
+        for w in words:
+            if w["type"] == "word":
+                is_zero_duration = w["start"] == w["end"]
+                is_timestamp_cluster = start_counts.get(w["start"], 0) >= 3
+
+                if is_zero_duration or is_timestamp_cluster:
+                    removed += 1
+                    continue
+            filtered.append(w)
+
+        return filtered, removed
