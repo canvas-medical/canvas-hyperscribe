@@ -1,0 +1,30 @@
+name: Run Cypress tests for Hyperscribe
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  cypress-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch Cypress Tests
+        uses: canvas-medical/return-dispatch@v2
+        id: dispatch
+        with:
+          token: ${{ secrets.CANVAS_REMOTE_WORKFLOW_DISPATCH_TOKEN }}
+          ref: refs/heads/develop
+          repo: canvas
+          owner: canvas-medical
+          workflow: test-hyperscribe-cypress.yml
+          workflow_inputs: '{ "commit-sha": "${{ github.sha }}" }'
+      - name: Wait for Cypress Tests to complete
+        uses: canvas-medical/await-remote-run@main
+        with:
+          token: ${{ secrets.CANVAS_REMOTE_WORKFLOW_DISPATCH_TOKEN }}
+          repo: canvas
+          owner: canvas-medical
+          run_id: ${{ steps.dispatch.outputs.run_id }}
+          run_timeout_seconds: 1800
+          poll_interval_ms: 60000
