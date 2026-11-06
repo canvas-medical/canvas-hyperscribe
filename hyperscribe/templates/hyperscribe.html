@@ -594,7 +594,10 @@
             progress: {
                 started: false,
                 previousMessage: new Date(0),
-                webSocket: null
+                webSocket: null,
+                heartbeatInterval: null,
+                heartbeatMissed: 0,
+                completionPollInterval: null
             },
             transcript: {
                 displayedTimes: new Set(),
@@ -643,6 +646,8 @@
             setCompleted() {
                 appState.status.current = 'completed';
                 this.show('Complete and ready for review', false);
+                // Stop the completion polling fallback if it's running
+                stopCompletionPolling();
             }
         };
 
@@ -1013,6 +1018,8 @@
             
             stopAll() {
                 this.intervals.forEach((_, name) => this.stop(name));
+                stopWebSocketHeartbeat();
+                stopCompletionPolling();
                 if (appState.progress.webSocket) {
                     appState.progress.webSocket.close();
                     appState.progress.webSocket = null;
@@ -1167,6 +1174,9 @@
             appState.recording.paused = false;
             appState.recording.ended = true;
             ui.setButtonState('ended');
+
+            // Start HTTP polling fallback in case WebSocket has silently dropped
+            startCompletionPolling();
 
             if (audioRecorder) {
                 audioRecorder.stop();
@@ -1329,19 +1339,24 @@
         function connectProgressWebSocket() {
             const wsProgressURL = '{{wsProgressURL | safe}}';
             const messageEndFlag = '{{endFlag}}';
-            
+
             if (appState.progress.webSocket) {
                 appState.progress.webSocket.close();
             }
-            
+
             try {
                 appState.progress.webSocket = new WebSocket(wsProgressURL);
-                
+
                 appState.progress.webSocket.onopen = function(event) {
                     console.log('Progress WebSocket connected');
+                    // Start heartbeat to keep the connection alive and detect silent drops
+                    startWebSocketHeartbeat();
                 };
-                
+
                 appState.progress.webSocket.onmessage = function(event) {
+                    // Any message (including pong) resets the heartbeat missed counter
+                    appState.progress.heartbeatMissed = 0;
+
                     try {
                         const data = JSON.parse(event.data);
                         // Handle nested message structure with events array from WebSocket
@@ -1354,13 +1369,14 @@
                         console.error('Error parsing WebSocket message:', error);
                     }
                 };
-                
+
                 appState.progress.webSocket.onerror = function(error) {
                     console.error('WebSocket error:', error);
                 };
-                
+
                 appState.progress.webSocket.onclose = function(event) {
                     console.log('Progress WebSocket closed:', event.code, event.reason);
+                    stopWebSocketHeartbeat();
                     // Attempt to reconnect after 3 seconds if not a clean close
                     if (event.code !== 1000 && appState.progress.started) {
                         setTimeout(() => {
@@ -1371,6 +1387,80 @@
                 };
             } catch (error) {
                 console.error('Error creating WebSocket connection:', error);
+            }
+        }
+
+        // WebSocket heartbeat to detect silent connection drops (e.g. HAProxy/ALB idle timeout)
+        function startWebSocketHeartbeat() {
+            stopWebSocketHeartbeat();
+            appState.progress.heartbeatMissed = 0;
+            appState.progress.heartbeatInterval = setInterval(() => {
+                const ws = appState.progress.webSocket;
+                if (!ws || ws.readyState !== WebSocket.OPEN) {
+                    stopWebSocketHeartbeat();
+                    return;
+                }
+                appState.progress.heartbeatMissed++;
+                if (appState.progress.heartbeatMissed >= 3) {
+                    // No response for 3 consecutive pings (~90s) — connection is likely dead
+                    console.warn('WebSocket heartbeat: no response after 3 pings, closing connection');
+                    stopWebSocketHeartbeat();
+                    ws.close();  // Will trigger onclose -> reconnect logic
+                    return;
+                }
+                try {
+                    ws.send(JSON.stringify({ type: 'ping' }));
+                } catch (error) {
+                    console.error('WebSocket heartbeat send error:', error);
+                    stopWebSocketHeartbeat();
+                }
+            }, 30000);  // Ping every 30 seconds
+        }
+
+        function stopWebSocketHeartbeat() {
+            if (appState.progress.heartbeatInterval) {
+                clearInterval(appState.progress.heartbeatInterval);
+                appState.progress.heartbeatInterval = null;
+            }
+        }
+
+        // HTTP polling fallback for completion signal.
+        // If the WebSocket silently drops after the user clicks Stop, the endFlag
+        // broadcast is lost. This polls the progress HTTP endpoint as a safety net
+        // so the user sees "Complete and ready for review" within ~5 seconds.
+        function startCompletionPolling() {
+            const progressURL = '{{progressURL | safe}}';
+            const messageEndFlag = '{{endFlag}}';
+
+            // Don't start if already completed or already polling
+            if (appState.status.current === 'completed' || appState.progress.completionPollInterval) {
+                return;
+            }
+
+            console.log('Starting completion polling fallback');
+            appState.progress.completionPollInterval = setInterval(async () => {
+                // Self-cancel if completion was already received (e.g. via WebSocket)
+                if (appState.status.current === 'completed') {
+                    stopCompletionPolling();
+                    return;
+                }
+                try {
+                    const response = await fetch(progressURL, { cache: 'no-store' });
+                    if (response.ok) {
+                        const data = await response.json();
+                        displayProgress(data, messageEndFlag);
+                    }
+                } catch (error) {
+                    console.error('Completion poll error:', error);
+                }
+            }, 5000);  // Poll every 5 seconds
+        }
+
+        function stopCompletionPolling() {
+            if (appState.progress.completionPollInterval) {
+                console.log('Stopping completion polling fallback');
+                clearInterval(appState.progress.completionPollInterval);
+                appState.progress.completionPollInterval = null;
             }
         }
 
