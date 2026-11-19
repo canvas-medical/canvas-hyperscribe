@@ -1,7 +1,5 @@
-from pydantic import ConfigDict, Field
-
 from canvas_sdk.clients.llms.structures import BaseModelLlmJson
-
+from pydantic import ConfigDict, Field
 
 _NAME_DESCRIPTION = (
     "Full medication name including strength. Leave this null when the note states a dose, "

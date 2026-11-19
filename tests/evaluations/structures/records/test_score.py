@@ -1,5 +1,5 @@
-from evaluations.structures.records.score import Score
 from evaluations.structures.graded_criterion import GradedCriterion
+from evaluations.structures.records.score import Score
 from tests.helper import is_namedtuple
 
 

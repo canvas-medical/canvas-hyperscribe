@@ -1,7 +1,6 @@
 from hyperscribe.structures.http_response import HttpResponse
-from tests.helper import is_namedtuple
-
 from hyperscribe.structures.token_counts import TokenCounts
+from tests.helper import is_namedtuple
 
 
 def test_class():

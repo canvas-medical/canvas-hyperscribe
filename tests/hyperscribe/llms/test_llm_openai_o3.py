@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
-from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
+
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 
 
 def test_to_dict_removes_modalities():

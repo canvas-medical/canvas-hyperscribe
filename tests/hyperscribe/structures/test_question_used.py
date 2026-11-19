@@ -29,10 +29,8 @@ def test_for_llm():
 
 def test_load_from_llm():
     tested = QuestionUsed
-    #
     result = tested.load_from_llm([])
     assert result == []
-    #
     result = tested.load_from_llm(
         [
             {

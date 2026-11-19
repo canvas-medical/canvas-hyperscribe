@@ -1,5 +1,5 @@
 from hashlib import md5
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from hyperscribe.structures.webm_prefix import WebmPrefix
 

@@ -1,9 +1,9 @@
 import json
 from unittest.mock import MagicMock, patch
 
+from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event, EventType
 from canvas_sdk.handlers.base import BaseHandler
-from canvas_generated.messages.events_pb2 import Event as EventRequest
 
 from hyperscribe.scribe.handlers.note_lock_guard import NoteLockGuard, _scribe_pending_finalization
 

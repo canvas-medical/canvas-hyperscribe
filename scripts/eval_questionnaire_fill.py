@@ -31,10 +31,10 @@ import re
 import statistics
 import sys
 import time
-from http import HTTPStatus
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
@@ -43,10 +43,10 @@ sys.path.insert(0, str(REPO))
 
 # canvas_sdk's __init__ sets DJANGO_SETTINGS_MODULE, which the plugin's `logger` import
 # needs before it will load. pytest gets this for free; a plain script has to ask.
-import canvas_sdk  # noqa: E402,F401
+import canvas_sdk  # noqa: F401
 
-from hyperscribe.scribe.backend.models import Transcript, TranscriptItem  # noqa: E402
-from hyperscribe.scribe.recommendations import questionnaire_fill as qf  # noqa: E402
+from hyperscribe.scribe.backend.models import Transcript, TranscriptItem
+from hyperscribe.scribe.recommendations import questionnaire_fill as qf
 
 CASES_DIR = REPO / "evaluations" / "scribe" / "questionnaire_fill" / "cases"
 
@@ -226,7 +226,7 @@ def run_case(case: dict[str, Any], api_key: str, model: str, effort: str) -> Run
             outcomes, telemetry = qf.fill_questionnaires(
                 [definition["questionnaire_dbid"]], transcript, api_key, model=model, effort=effort
             )
-    except Exception as exc:  # noqa: BLE001 - a harness must report, not crash
+    except Exception as exc:  # a harness must report, not crash
         result.error = f"{type(exc).__name__}: {exc}"
         return result
     finally:

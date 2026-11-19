@@ -1,6 +1,6 @@
 from multiprocessing import Queue
 from pathlib import Path
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 from evaluations.structures.note_grader_job import NoteGraderJob
 from evaluations.structures.records.model import Model

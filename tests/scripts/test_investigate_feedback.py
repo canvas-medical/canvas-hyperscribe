@@ -1,7 +1,7 @@
 import json
 from argparse import Namespace
 from http import HTTPStatus
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from _pytest.capture import CaptureResult
 
@@ -253,7 +253,7 @@ def test__construct_logs_s3_prefix():
 
 
 def test__extract_iso_date():
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
 
     tested = InvestigateFeedback
 
@@ -448,7 +448,7 @@ def test__parse_and_concatenate_logs_with_non_dict_items(capsys):
 @patch("builtins.open", create=True)
 @patch("scripts.investigate_feedback.Path")
 def test_run_with_transcripts(mock_path, mock_open, parameters, helper, aws_s3, capsys):
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
 
     def reset_mocks():
         parameters.reset_mock()
@@ -739,7 +739,7 @@ def test_run_debug_overwrite_no(parameters, helper, aws_s3, mock_path, mock_inpu
 @patch("builtins.open", create=True)
 @patch("scripts.investigate_feedback.Path")
 def test_run_debug_limit_objects(mock_path, mock_open, parameters, helper, aws_s3, capsys):
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
 
     tested = InvestigateFeedback
 

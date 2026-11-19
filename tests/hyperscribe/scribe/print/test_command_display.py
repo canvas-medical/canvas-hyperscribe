@@ -1,9 +1,9 @@
 from pathlib import Path
 
-import hyperscribe
 from django.conf import settings
 from django.template import Context, Engine
 
+import hyperscribe
 from hyperscribe.scribe.print.command_display import (
     SOAP_SECTIONS,
     _decode_b64_html,

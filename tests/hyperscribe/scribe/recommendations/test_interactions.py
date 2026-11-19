@@ -14,7 +14,6 @@ from hyperscribe.scribe.recommendations.interactions import (
     check_single_medication_interactions,
 )
 
-
 # ── _resolve_med_id_from_ndc ──
 
 
@@ -594,7 +593,7 @@ def test_check_single_medication_interactions_no_fdb_resolves_by_name(
     mock_drug_check.return_value = {"interactions": []}
     mock_allergy_check.return_value = {"interactions": []}
 
-    result = check_single_medication_interactions(None, "Amoxicillin", "note-uuid-1")
+    check_single_medication_interactions(None, "Amoxicillin", "note-uuid-1")
 
     mock_resolve_name.assert_called_once_with("Amoxicillin")
     mock_drug_check.assert_called_once_with("555", ["200"])

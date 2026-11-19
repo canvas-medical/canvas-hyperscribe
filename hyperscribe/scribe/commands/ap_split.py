@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from logger import log

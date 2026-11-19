@@ -1,7 +1,7 @@
-from datetime import datetime, date
+from datetime import date, datetime
 from enum import Enum
 from re import match
-from typing import Type, Any
+from typing import Any, Type
 
 from canvas_sdk.utils.db import thread_cleanup
 from canvas_sdk.v1.data.note import NoteStateChangeEvent, NoteStates

@@ -13,7 +13,6 @@ def test_to_json():
     result = tested.to_json()
     expected = {"dbid": 123, "value": 456, "selected": True, "comment": "theComment"}
     assert result == expected
-    #
     tested = Response(dbid=123, value="456", selected=False, comment="theComment")
     result = tested.to_json()
     expected = {"dbid": 123, "value": "456", "selected": False, "comment": "theComment"}
@@ -34,7 +33,6 @@ def test_for_llm():
         "description": "add in the comment key any relevant information expanding the answer",
     }
     assert result == expected
-    #
     tested = Response(dbid=123, value="456", selected=False, comment="theComment")
     result = tested.for_llm(False)
     expected = {"responseId": 123, "value": "456", "selected": False}
@@ -52,14 +50,12 @@ def test_for_llm():
 
 def test_load_from():
     tested = Response
-    #
     result = tested.load_from({"dbid": 123, "value": 456, "selected": True})
     expected = Response(dbid=123, value=456, selected=True, comment=None)
     assert result == expected
     result = tested.load_from({"dbid": 123, "value": 456, "selected": True, "comment": "theComment"})
     expected = Response(dbid=123, value=456, selected=True, comment="theComment")
     assert result == expected
-    #
     result = tested.load_from({"dbid": 123, "value": "456", "selected": False, "comment": "theComment"})
     expected = Response(dbid=123, value="456", selected=False, comment="theComment")
     assert result == expected
@@ -67,14 +63,12 @@ def test_load_from():
 
 def test_load_from_llm():
     tested = Response
-    #
     result = tested.load_from_llm({"responseId": 123, "value": 456, "selected": True})
     expected = Response(dbid=123, value=456, selected=True, comment=None)
     assert result == expected
     result = tested.load_from_llm({"responseId": 123, "value": 456, "selected": True, "comment": "theComment"})
     expected = Response(dbid=123, value=456, selected=True, comment="theComment")
     assert result == expected
-    #
     result = tested.load_from_llm({"responseId": 123, "value": "456", "selected": False, "comment": "theComment"})
     expected = Response(dbid=123, value="456", selected=False, comment="theComment")
     assert result == expected

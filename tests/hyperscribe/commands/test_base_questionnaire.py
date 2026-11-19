@@ -1,5 +1,5 @@
 import json
-from unittest.mock import call, MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
@@ -9,6 +9,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -21,7 +22,6 @@ from hyperscribe.structures.questionnaire import Questionnaire
 from hyperscribe.structures.response import Response
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> BaseQuestionnaire:
@@ -265,7 +265,6 @@ def test_json_schema_questionnaire():
         "type": "array",
     }
     assert result == expected
-    #
     result = tested.json_schema_questionnaire(False)
     expected = {
         "$schema": "http://json-schema.org/draft-07/schema#",

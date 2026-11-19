@@ -1,10 +1,11 @@
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.reason_for_visit import ReasonForVisitCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.reason_for_visit import ReasonForVisit
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.custom_prompt import CustomPrompt
@@ -13,10 +14,9 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
-def helper_instance(structured_rfv: bool = False, custom_prompts: list[CustomPrompt] = None) -> ReasonForVisit:
+def helper_instance(structured_rfv: bool = False, custom_prompts: list[CustomPrompt] | None = None) -> ReasonForVisit:
     if custom_prompts is None:
         custom_prompts = []
     settings = Settings(

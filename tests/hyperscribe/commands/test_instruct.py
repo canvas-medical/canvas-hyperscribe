@@ -1,6 +1,6 @@
-from hashlib import md5
 import json
-from unittest.mock import patch, call, MagicMock
+from hashlib import md5
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.instruct import InstructCommand
 from canvas_sdk.commands.constants import Coding
@@ -9,6 +9,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.instruct import Instruct
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
@@ -19,10 +20,9 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 from hyperscribe.structures.medical_concept import MedicalConcept
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
-def helper_instance(custom_prompts: list[CustomPrompt] = None) -> Instruct:
+def helper_instance(custom_prompts: list[CustomPrompt] | None = None) -> Instruct:
     if custom_prompts is None:
         custom_prompts = []
     settings = Settings(
@@ -236,7 +236,6 @@ def test_command_parameters_schemas():
     assert len(schemas) == 1
     schema = schemas[0]
 
-    #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
     expected_hash = "adf009d69cd83beebd42f143f449ed37"
     assert schema_hash == expected_hash

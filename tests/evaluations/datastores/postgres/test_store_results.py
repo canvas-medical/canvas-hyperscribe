@@ -1,5 +1,5 @@
-from datetime import datetime, timezone, UTC
-from unittest.mock import patch, call
+from datetime import UTC, datetime
+from unittest.mock import call, patch
 
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.datastores.postgres.store_results import StoreResults
@@ -33,7 +33,7 @@ def test_insert(alter, mock_datetime):
         alter.reset_mock()
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 3, 26, 11, 38, 21, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 3, 26, 11, 38, 21, 123456, tzinfo=UTC)
     mock_datetime.now.side_effect = [date_0]
 
     tested = helper_instance()

@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.structures.evaluation_case import EvaluationCase

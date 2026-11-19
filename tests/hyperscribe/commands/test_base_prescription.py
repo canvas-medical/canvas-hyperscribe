@@ -1,5 +1,5 @@
 from decimal import Decimal
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands import AdjustPrescriptionCommand
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
@@ -8,6 +8,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.base_prescription import BasePrescription
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -17,7 +18,6 @@ from hyperscribe.structures.medication_detail_quantity import MedicationDetailQu
 from hyperscribe.structures.medication_search import MedicationSearch
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> BasePrescription:
@@ -531,13 +531,13 @@ def test_set_medication_dosage(demographic):
         days_supply=11,
         fdb_code="code369",
         type_to_dispense={"representative_ndc": "ndc1", "ncpdp_quantity_qualifier_code": "qualifier1"},
-        quantity_to_dispense=Decimal("60"),  # No .00 - integer format
+        quantity_to_dispense=Decimal(60),  # No .00 - integer format
         refills=0,
         note_to_pharmacist="Dispense 60 tablets",
         sig="Take 2 tablets by mouth once daily",
     )
     assert command == expected
-    assert command.quantity_to_dispense == Decimal("60")  # Verify it's "60" not "60.00"
+    assert command.quantity_to_dispense == Decimal(60)  # Verify it's "60" not "60.00"
 
     calls = [call(False)]
     assert demographic.mock_calls == calls

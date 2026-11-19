@@ -30,11 +30,11 @@ class BuilderAuditUrl:
                 {"patient_id": patient_uuid, "note_id": note_uuid},
             )
             print("audits can be seen with:")
-            print("")
+            print()
             print(f"{HelperEvaluation.get_canvas_host()}{presigned_url}")
-            print("")
+            print()
             print("to regenerate the URL, run the command:")
             print(f" uv run python case_builder.py --audit --patient {patient_uuid} --note {note_uuid}")
-            print("")
+            print()
         else:
             print("audits cannot be seen with without proper AWS S3 credentials")

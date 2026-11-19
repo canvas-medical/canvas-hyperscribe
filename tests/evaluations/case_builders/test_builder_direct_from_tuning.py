@@ -1,10 +1,9 @@
 import json
 from argparse import ArgumentParser, Namespace
-from datetime import datetime
-from datetime import timezone
+from datetime import UTC, datetime
 from hashlib import md5
 from pathlib import Path, PosixPath
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from requests import Response
@@ -29,7 +28,7 @@ from hyperscribe.structures.line import Line
 from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from tests.helper import MockFile, is_constant, MockClass
+from tests.helper import MockClass, MockFile, is_constant
 
 
 def helper_instance() -> BuilderDirectFromTuning:
@@ -629,7 +628,7 @@ def test_create_transcripts():
         for idx, item in enumerate(mock_audio_files):
             item.reset_mock()
             item.open.side_effect = [audio_buffers[idx]]
-            audio_buffers[idx].content = f"audio content {idx}".encode("utf-8")
+            audio_buffers[idx].content = f"audio content {idx}".encode()
             item.parent.__truediv__.side_effect = [mock_json_files[idx]]
 
         for idx, item in enumerate(mock_json_files):
@@ -724,7 +723,7 @@ def test_create_transcripts():
         for index, mock_file in enumerate(mock_audio_files, start=1):
             calls = [call.parent.__truediv__(f"transcript_{index:03d}.json"), call.open("rb")]
             assert mock_file.mock_calls == calls
-            exp_content = f"audio content {index - 1}".encode("utf-8")
+            exp_content = f"audio content {index - 1}".encode()
             assert audio_buffers[index - 1].content == exp_content
         reset_mocks()
 
@@ -764,7 +763,7 @@ def test_create_transcripts():
     assert mock_audio_files[2].mock_calls == calls
 
     for index, mock_file in enumerate(mock_audio_files):
-        exp_content = f"audio content {index}".encode("utf-8")
+        exp_content = f"audio content {index}".encode()
         assert audio_buffers[index].content == exp_content
 
     reset_mocks()
@@ -805,11 +804,11 @@ def test_collated_webm_to_mp3(create_silent_mp3, client_s3, ffmpeg):
             if idx == 5:
                 buffers[idx].content = ""
             if idx > 5:
-                buffers[idx].content = f"locally saved audio content {idx}".encode("utf-8")
+                buffers[idx].content = f"locally saved audio content {idx}".encode()
 
     reset_mocks()
 
-    date_0 = datetime(2025, 6, 27, 10, 36, 21, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 6, 27, 10, 36, 21, 123456, tzinfo=UTC)
     responses = [Response(), Response(), Response(), Response()]
     responses[0].status_code = 200
     responses[1].status_code = 200
@@ -1211,7 +1210,7 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
     assert memory_log.mock_calls == []
     assert substitutions_file.mock_calls == []
     for index, file in enumerate(files):
-        assert files[index].mock_calls == []
+        assert file.mock_calls == []
         exp_content = ""
         if index < 3:
             exp_content = f'[{{"speaker": "theSpeaker{index}", "text": "theText{index}", "chunk": {index}}}]'
@@ -1334,7 +1333,7 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
                 calls = [call.parent.__truediv__(f"transcript_anonymized_{index:03d}.json")]
             else:
                 calls = [call.exists(), call.open("w")]
-            assert files[index].mock_calls == calls
+            assert file.mock_calls == calls
 
             if index < 3:
                 exp_content = json.dumps([{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index}])
@@ -1405,7 +1404,7 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
             calls = [call.parent.__truediv__(f"transcript_anonymized_{index:03d}.json")]
         else:
             calls = [call.exists()]
-        assert files[index].mock_calls == calls
+        assert file.mock_calls == calls
 
         if index < 3:
             exp_content = json.dumps([{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index}])

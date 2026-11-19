@@ -1,6 +1,6 @@
 import json
 
-from canvas_sdk.commands.commands.allergy import AllergyCommand, Allergen, AllergenType
+from canvas_sdk.commands.commands.allergy import Allergen, AllergenType, AllergyCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.libraries.canvas_science import CanvasScience
@@ -73,7 +73,7 @@ class Allergy(Base):
                 "Sort the following allergies from most relevant to least, and return the first one:",
                 "",
                 "\n".join(
-                    f" * {allergy.concept_id_description} (conceptId: '{str(allergy.concept_id_value)}')"
+                    f" * {allergy.concept_id_description} (conceptId: '{allergy.concept_id_value!s}')"
                     for allergy in allergies
                 ),
                 "",
@@ -86,7 +86,7 @@ class Allergy(Base):
             schemas = JsonSchema.get(["selector_concept"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 concept_id = int(response[0]["conceptId"])
-                allergy = [allergy for allergy in allergies if allergy.concept_id_value == concept_id][0]
+                allergy = next(allergy for allergy in allergies if allergy.concept_id_value == concept_id)
                 result.allergy = Allergen(concept_id=concept_id, concept_type=AllergenType(allergy.concept_id_type))
                 self.add_code2description(str(allergy.concept_id_value), allergy.concept_id_description)
 

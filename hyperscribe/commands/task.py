@@ -1,6 +1,6 @@
 import json
 
-from canvas_sdk.commands.commands.task import TaskCommand, TaskAssigner, AssigneeType
+from canvas_sdk.commands.commands.task import AssigneeType, TaskAssigner, TaskCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.libraries.constants import Constants

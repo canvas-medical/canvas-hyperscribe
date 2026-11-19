@@ -1,5 +1,5 @@
 import subprocess
-from concurrent.futures import as_completed, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from os import environ
 from pathlib import Path
 from queue import Empty, Queue
@@ -9,6 +9,7 @@ from re import match
 from threading import Event, Thread
 from time import time
 from typing import IO, LiteralString, NamedTuple
+
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.libraries.aws_s3 import AwsS3
@@ -136,7 +137,7 @@ class RandomRealWordCaseSplit:
                 "success": False,
                 "error": str(e),
             }
-        return result | {"duration": int((time() - start))}
+        return result | {"duration": int(time() - start)}
 
     @classmethod
     def run(cls) -> None:
@@ -152,7 +153,7 @@ class RandomRealWordCaseSplit:
                                  group by rwc.patient_note_hash
                                  order by 2 desc"""
             postgres = Postgres(HelperEvaluation.postgres_credentials())
-            pattern = re_compile(rf"patient_([a-z0-9-]+)/note_([a-z0-9-]+)")
+            pattern = re_compile(r"patient_([a-z0-9-]+)/note_([a-z0-9-]+)")
             for record in postgres._select(sql, {"customer": customer}):
                 if found := match(pattern, record["patient_note_hash"]):
                     patient_note.append((found.group(1), found.group(2)))
@@ -172,7 +173,7 @@ class RandomRealWordCaseSplit:
             env[Constants.CUSTOMER_IDENTIFIER] = customer
             env[Constants.SECRET_CYCLE_TRANSCRIPT_OVERLAP] = "100"
             # random pick case_to_run pairs
-            indexes = sample(range(0, len(patient_note)), min(cls.CASE_TO_RUN, len(patient_note)))
+            indexes = sample(range(len(patient_note)), min(cls.CASE_TO_RUN, len(patient_note)))
             for idx in indexes:
                 runs.append(
                     CaseToRun(
@@ -191,7 +192,7 @@ class RandomRealWordCaseSplit:
                 case = future_to_case[future]
                 result = future.result()
 
-                msg = f"✅"
+                msg = "✅"
                 if result["success"] is False:
                     msg = f"❌ failed: {result.get('error', result.get('stderr'))}"
                 print(f"{case.case_index:03d} - {result['patient']} - {result['note']} ({result['duration']}) {msg}")

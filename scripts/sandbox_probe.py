@@ -27,14 +27,13 @@ from pathlib import Path
 PLUGIN = Path(__file__).resolve().parent.parent / "hyperscribe"
 sys.path.insert(0, str(PLUGIN.parent))
 
-import builtins as _builtins  # noqa: E402
+import builtins as _builtins
 
-from RestrictedPython import safe_builtins, utility_builtins  # noqa: E402
-
-from plugin_runner.sandbox import (  # noqa: E402
+from plugin_runner.sandbox import (
     ALLOWED_MODULES,
     SAFE_EXTERNAL_DUNDER_READ_ATTRIBUTES,
 )
+from RestrictedPython import safe_builtins, utility_builtins
 
 # Sourced from the sandbox itself rather than hand-written, so this cannot drift from what
 # the runner actually permits.

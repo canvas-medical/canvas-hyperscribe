@@ -661,10 +661,8 @@ def test_schema_voice_turns():
 
 def test_get():
     tested = JsonSchema
-    #
     result = tested.get([])
     assert result == []
-    #
     result = tested.get(["selector_assignee", "nope", "voice_split"])
     expected = [
         {

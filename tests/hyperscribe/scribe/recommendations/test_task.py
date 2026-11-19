@@ -21,7 +21,6 @@ from hyperscribe.scribe.recommendations.task import (
     merge_windows,
 )
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any, Tuple, cast
+from typing import Any, cast
 
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.datastores.postgres.experiment_result_score import (
@@ -72,7 +72,7 @@ class NoteGrader:
             },
         }
 
-    def build_prompts(self) -> Tuple[list[str], list[str]]:
+    def build_prompts(self) -> tuple[list[str], list[str]]:
         """Returns system-prompt and user-prompt as single strings, joined with new lines."""
 
         system_prompt = [

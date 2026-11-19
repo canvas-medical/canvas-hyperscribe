@@ -31,9 +31,8 @@ from decimal import Decimal
 from http import HTTPStatus
 from typing import Any
 
-from logger import log
-
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
+from logger import log
 
 from hyperscribe.scribe.recommendations import _drug_class
 from hyperscribe.scribe.recommendations._medication_match import sanitize_sig
@@ -310,7 +309,7 @@ def _derive_quantity(
             return None
 
     if parsed.discrete:
-        return str(int(round(computed)))
+        return str(round(computed))
     return _format_decimal(computed)
 
 

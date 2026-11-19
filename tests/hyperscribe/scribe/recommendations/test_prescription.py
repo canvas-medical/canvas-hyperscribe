@@ -7,13 +7,13 @@ from unittest.mock import MagicMock, patch
 from canvas_sdk.clients.llms.structures import LlmResponse, LlmTokens
 
 from hyperscribe.scribe.backend.models import ClinicalNote, NoteSection, Transcript, TranscriptItem
-from hyperscribe.scribe.recommendations.schemas import PrescriptionRecommendation
 from hyperscribe.scribe.recommendations.prescription import (
     _SYSTEM_PROMPT,
     PrescriptionRecommender,
     _build_user_prompt,
     _resolve_prescription,
 )
+from hyperscribe.scribe.recommendations.schemas import PrescriptionRecommendation
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.medication_detail_quantity import MedicationDetailQuantity
 

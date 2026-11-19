@@ -1,11 +1,15 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from hashlib import sha256
 from hmac import new as hmac_new
 from http import HTTPStatus
-from re import compile as re_compile, DOTALL, search as re_search
+from re import DOTALL
+from re import compile as re_compile
+from re import search as re_search
 from urllib.parse import quote
 
-from requests import get as requests_get, put as requests_put, Response
+from requests import Response
+from requests import get as requests_get
+from requests import put as requests_put
 
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object

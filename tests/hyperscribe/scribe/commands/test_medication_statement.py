@@ -1,8 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-from django.db.models import QuerySet
-
 from canvas_sdk.commands.constants import CodeSystems
+from django.db.models import QuerySet
 
 from hyperscribe.scribe.backend.models import CommandProposal
 from hyperscribe.scribe.commands.medication_statement import (

@@ -4,11 +4,11 @@ from pathlib import Path
 from uuid import uuid4
 
 from evaluations.case_builders.builder_direct_from_tuning import BuilderDirectFromTuning
+from evaluations.local_lab_tests import local_lab_tests
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.helper import Helper
-from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.model_spec import ModelSpec
@@ -20,23 +20,23 @@ class BuilderDirectFromTuningFull(BuilderDirectFromTuning):
         parser.add_argument("--direct-full", action="store_true")
 
     def _run(self) -> None:
-        print(f"collect webm, collate to mp3...")
+        print("collect webm, collate to mp3...")
         mp3_file = self.collated_webm_to_mp3()
-        print(f"split mp3 into chunks...")
+        print("split mp3 into chunks...")
         mp3_files = self.split_audio(mp3_file)
 
         with (mp3_file.parent / "limited_chart.json").open("r") as f:
             cache = LimitedCache.load_from_json(json.load(f), local_lab_tests)
 
         chat_transcript = AudioInterpreter(self.settings, self.s3_logs_credentials, cache, self.identification)
-        print(f"create transcripts...")
+        print("create transcripts...")
         transcript_files = self.create_transcripts(mp3_files, chat_transcript)
         compacted_transcript_files = self.compact_transcripts(transcript_files)
-        print(f"de-identification transcripts...")
+        print("de-identification transcripts...")
         anonymization = self.anonymize_transcripts(compacted_transcript_files)
         print("de-identification limited cache...")
         cache = self.anonymize_limited_cache(anonymization.substitutions, cache)
-        print(f"case name and summary...")
+        print("case name and summary...")
         case_summary = self.exchange_summary(anonymization.files)
         print(f"build case {case_summary.title}:")
         case_exchange = [
@@ -49,7 +49,7 @@ class BuilderDirectFromTuningFull(BuilderDirectFromTuning):
         memory_log = MemoryLog.instance(self.identification, "detect_summary", self.s3_logs_credentials)
         schema_summary = self.schema_summary()
 
-        summary_detection = transcript_files[0].parent / f"summary_detection.json"
+        summary_detection = transcript_files[0].parent / "summary_detection.json"
         if summary_detection.exists() and not self.force_refresh:
             with summary_detection.open("r") as f:
                 result = CaseExchangeSummary.load_from_json(json.load(f))
@@ -86,7 +86,7 @@ class BuilderDirectFromTuningFull(BuilderDirectFromTuning):
             with transcript.open("r") as f:
                 chatter.set_user_prompt(
                     [
-                        f"The fragment of the discussion is:",
+                        "The fragment of the discussion is:",
                         "```json",
                         f.read(),
                         "```",

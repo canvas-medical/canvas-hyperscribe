@@ -9,7 +9,6 @@ from canvas_sdk.commands.commands.vitals import VitalsCommand
 from hyperscribe.scribe.backend.models import CommandProposal, Observation
 from hyperscribe.scribe.commands.base import CommandParser
 
-
 # Refusal-reason categories. The category is reported via the
 # ``VITALS_FIELD_REFUSED`` audit event in ``post_generate_summary`` so we
 # can distinguish *why* a field was dropped (out-of-range vs ambiguous unit
@@ -166,7 +165,7 @@ def _coerce_field_value(field: str, value: float) -> int | float:
     """Coerce a numeric value to the type expected by VitalsCommand for ``field``."""
     if field in _FLOAT_FIELDS:
         return round(value, 1)
-    return int(round(value))
+    return round(value)
 
 
 def _record_refusal(refusals: list[_Refusal] | None, field: str, reason: str) -> None:

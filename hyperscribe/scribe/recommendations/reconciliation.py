@@ -25,10 +25,9 @@ import re
 from http import HTTPStatus
 from typing import Any
 
-from logger import log
-
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 from canvas_sdk.clients.llms.structures.settings import LlmSettingsAnthropic
+from logger import log
 
 from hyperscribe.scribe.recommendations.schemas import ReconciliationResult
 

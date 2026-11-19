@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from canvas_sdk.effects import Effect
 

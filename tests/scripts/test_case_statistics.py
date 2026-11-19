@@ -1,8 +1,8 @@
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
-from scripts.case_statistics import CaseStatistics
 from evaluations.datastores.store_results import StoreResults
 from evaluations.structures.statistic_case_test import StatisticCaseTest
+from scripts.case_statistics import CaseStatistics
 
 
 @patch.object(StoreResults, "case_test_statistics")

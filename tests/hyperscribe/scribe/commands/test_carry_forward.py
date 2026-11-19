@@ -36,7 +36,6 @@ from hyperscribe.scribe.commands.carry_forward import (
     carry_forward_assess_background,
 )
 
-
 _UNSET = object()
 
 

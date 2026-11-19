@@ -125,8 +125,7 @@ class AuditorFile(AuditorStore):
             if file.stem == EvaluationConstants.AUDIO2TRANSCRIPT:
                 continue
             return True
-        else:
-            return False
+        return False
 
     @classmethod
     def reset(cls, case: str, delete_audios: bool) -> None:

@@ -4,7 +4,6 @@ from typing import Any
 
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
-from canvas_sdk.effects import Effect
 from canvas_sdk.commands.commands.questionnaire.question import (
     BaseQuestion,
     CheckboxQuestion,
@@ -13,6 +12,7 @@ from canvas_sdk.commands.commands.questionnaire.question import (
     ResponseOption,
     TextQuestion,
 )
+from canvas_sdk.effects import Effect
 from canvas_sdk.v1.data.questionnaire import Questionnaire
 
 from hyperscribe.scribe.backend.models import CommandProposal

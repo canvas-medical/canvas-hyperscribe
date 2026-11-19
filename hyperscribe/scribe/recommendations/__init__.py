@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import re
 
-from logger import log
-
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 from canvas_sdk.clients.llms.structures.settings import LlmSettingsAnthropic
+from logger import log
 
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, Transcript
 from hyperscribe.scribe.recommendations.allergy import AllergyRecommender

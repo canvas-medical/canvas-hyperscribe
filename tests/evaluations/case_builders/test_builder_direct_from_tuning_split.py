@@ -1,14 +1,14 @@
 import json
 from hashlib import md5
 from pathlib import Path
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from evaluations.case_builders.builder_direct_from_tuning import BuilderDirectFromTuning
 from evaluations.case_builders.builder_direct_from_tuning_split import BuilderDirectFromTuningSplit
+from evaluations.local_lab_tests import local_lab_tests
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.topical_exchange import TopicalExchange
-from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -17,7 +17,7 @@ from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from tests.helper import MockFile, MockClass
+from tests.helper import MockClass, MockFile
 
 
 def helper_instance() -> BuilderDirectFromTuningSplit:
@@ -858,13 +858,11 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts[0]),
             call.chatter().chat([{"schema": "topical"}]),
-            #
             call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts[1]),
             call.chatter().set_user_prompt(user_prompts[2]),
             call.chatter().chat([{"schema": "topical"}]),
-            #
             call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts[3]),
@@ -878,7 +876,7 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
                 calls = [call.parent.__truediv__(f"topic_detection_{index + 1:03d}.json"), call.open("r")]
             else:
                 calls = [call.exists(), call.open("w")]
-            assert files[index].mock_calls == calls
+            assert file.mock_calls == calls
 
             if index < 3:
                 exp_content = json.dumps(
@@ -1017,7 +1015,7 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
             calls = [call.parent.__truediv__(f"topic_detection_{index + 1:03d}.json")]
         else:
             calls = [call.exists(), call.open("r")]
-        assert files[index].mock_calls == calls
+        assert file.mock_calls == calls
 
         if index < 3:
             exp_content = json.dumps(

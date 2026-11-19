@@ -24,7 +24,6 @@ from typing import NamedTuple
 
 from hyperscribe.scribe.backend.models import CodingEntry, Condition
 
-
 _ICD10_SYSTEM_TOKEN = "icd"
 
 
@@ -109,9 +108,7 @@ def icd10_is_unspecified_parent_of(parent: str, child: str) -> bool:
     tail = p[3:]
     if tail == "9":
         return True
-    if len(tail) == 2 and tail[0] == "9" and tail[1].isdigit():
-        return True
-    return False
+    return bool(len(tail) == 2 and tail[0] == "9" and tail[1].isdigit())
 
 
 def _find_specific_active_match(

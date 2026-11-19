@@ -1,5 +1,5 @@
 import json
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.constants import ServiceProvider
 
@@ -23,7 +23,7 @@ def test_condition_from(search_conditions):
 
     tested = SelectorChat
 
-    settings = Settings(
+    Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         structured_rfv=False,
@@ -315,7 +315,7 @@ def test_contact_from(search_contacts, summary_of):
 
     tested = SelectorChat
 
-    settings = Settings(
+    Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         structured_rfv=False,

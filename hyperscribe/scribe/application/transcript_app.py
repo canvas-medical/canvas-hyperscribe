@@ -1,17 +1,15 @@
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.configure_command_buttons import ConfigureCommandButtons
 from canvas_sdk.effects.launch_modal import LaunchModalEffect
-
-from hyperscribe.scribe.command_buttons import command_button_hiding_enabled, configure_command_buttons_effect
+from canvas_sdk.events import Event
 from canvas_sdk.handlers.application import NoteApplication
 from canvas_sdk.v1.data.note import Note
-
-from canvas_sdk.events import Event
 from canvas_sdk.v1.data.staff import Staff
 
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.models.scribe import ScribeSummary, ScribeTranscript
+from hyperscribe.scribe.command_buttons import command_button_hiding_enabled, configure_command_buttons_effect
 from hyperscribe.structures.settings import Settings
 
 _CACHE_KEY_PREFIX = "scribe_transcript:"
@@ -102,9 +100,7 @@ class ScribeApp(NoteApplication):
         # canonical note instead of an empty Scribe surface. The tab itself
         # remains in the tab bar for users who want to inspect it.
         note_dbid = self.event.context.get("note_id")
-        if note_dbid and not Helper.editable_note(note_dbid) and not _scribe_tab_has_content(note_dbid):
-            return False
-        return True
+        return not (note_dbid and not Helper.editable_note(note_dbid) and not _scribe_tab_has_content(note_dbid))
 
     def visible(self) -> bool:
         return is_scribe_visible(self.secrets, self.event)
