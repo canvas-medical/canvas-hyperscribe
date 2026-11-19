@@ -6,15 +6,14 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from django.db.models import QuerySet
-
 from canvas_sdk.effects.simple_api import JSONResponse
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin
+from django.db.models import QuerySet
 
 from hyperscribe.scribe.api.session_view import (
+    _PROGRESS_CACHE_KEY_PREFIX,
     SUMMARY_STEPS,
     ScribeSessionView,
-    _PROGRESS_CACHE_KEY_PREFIX,
     _match_conditions_to_sections,
     _note_provider_id,
 )

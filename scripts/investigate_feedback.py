@@ -89,7 +89,7 @@ class InvestigateFeedback:
 
             if debug:
                 content_preview = response.content[:50].decode("utf-8", errors="replace") if response.content else ""
-                print(f"DEBUG TRANSCRIPT:")
+                print("DEBUG TRANSCRIPT:")
                 print(f"  Object Key: {transcript_obj.key}")
                 print(f"  Status Code: {response.status_code}")
                 print(f"  Content Preview (first 50 chars): {content_preview}")
@@ -126,7 +126,7 @@ class InvestigateFeedback:
 
             if debug:
                 content_preview = response.content[:50].decode("utf-8", errors="replace") if response.content else ""
-                print(f"DEBUG LOG:")
+                print("DEBUG LOG:")
                 print(f"  Object Key: {log_obj.key}")
                 print(f"  Status Code: {response.status_code}")
                 print(f"  Content Preview (first 50 chars): {content_preview}")
@@ -209,7 +209,7 @@ class InvestigateFeedback:
 
         # Limit to 1 object in debug mode
         if parameters.debug and transcript_objects:
-            print(f"DEBUG: Limiting to first transcript object only")
+            print("DEBUG: Limiting to first transcript object only")
             transcript_objects = transcript_objects[:1]
 
         print(f"Found {len(transcript_objects)} transcript objects")
@@ -233,7 +233,7 @@ class InvestigateFeedback:
 
             # Limit to 1 object in debug mode
             if parameters.debug and log_objects:
-                print(f"DEBUG: Limiting to first log object only")
+                print("DEBUG: Limiting to first log object only")
                 log_objects = log_objects[:1]
 
             print(f"Found {len(log_objects)} log objects")

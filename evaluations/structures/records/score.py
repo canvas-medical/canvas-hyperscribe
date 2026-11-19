@@ -1,4 +1,5 @@
 from typing import NamedTuple
+
 from evaluations.structures.graded_criterion import GradedCriterion
 
 

@@ -5,7 +5,6 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 from canvas_sdk.effects.simple_api import JSONResponse
 

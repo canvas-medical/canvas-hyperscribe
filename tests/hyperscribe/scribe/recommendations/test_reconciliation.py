@@ -9,10 +9,10 @@ import pytest
 from hyperscribe.scribe.recommendations.reconciliation import (
     buried_systems,
     content_words,
+    coverage_gaps,
     normalize_title,
     overlap_ratio,
     parse_exam_merge_kinds,
-    coverage_gaps,
     reconcile_sections,
     validate_merge,
 )
@@ -203,7 +203,7 @@ def test_reconcile_attaches_template_text_by_title_not_key(mock_llm: MagicMock) 
     mock_llm.return_value = client
     template = [{"key": "si/hi", "title": "SI/HI", "text": "Denies suicidal ideation with plan."}]
     client.request.return_value = _llm_response(
-        [_section("SI/HI", "Reports passive suicidal ideation without plan.", **{"key": "si_hi"})]
+        [_section("SI/HI", "Reports passive suicidal ideation without plan.", key="si_hi")]
     )
 
     sections, merged = reconcile_sections(template, [], "k", "Review of Systems")
@@ -261,7 +261,7 @@ def test_reconcile_retries_once_then_succeeds(mock_llm: MagicMock) -> None:
         ),
     ]
 
-    sections, merged = reconcile_sections(TEMPLATE, ENCOUNTER, "k", "Physical Exam")
+    _sections, merged = reconcile_sections(TEMPLATE, ENCOUNTER, "k", "Physical Exam")
 
     assert merged is True
     assert client.request.call_count == 2

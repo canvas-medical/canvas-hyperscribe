@@ -1,16 +1,18 @@
 from __future__ import annotations
+
 import sys
 from pathlib import Path
-from typing import Any, Type
+from typing import Any
+
+from evaluations.helper_evaluation import HelperEvaluation
+from evaluations.structures.chart import Chart
+from evaluations.structures.clause_verdict import ClauseVerdict
+from evaluations.structures.graded_criterion import GradedCriterion
+from evaluations.structures.patient_profile import PatientProfile
+from evaluations.structures.rubric_criterion import RubricCriterion
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.line import Line
-from evaluations.helper_evaluation import HelperEvaluation
-from evaluations.structures.chart import Chart
-from evaluations.structures.patient_profile import PatientProfile
-from evaluations.structures.rubric_criterion import RubricCriterion
-from evaluations.structures.graded_criterion import GradedCriterion
-from evaluations.structures.clause_verdict import ClauseVerdict
 from hyperscribe.structures.model_spec import ModelSpec
 
 
@@ -20,7 +22,7 @@ class HelperSyntheticJson:
         system_prompt: list[str],
         user_prompt: list[str],
         schema: dict[str, Any],
-        returned_class: Type[Chart | Line | PatientProfile | RubricCriterion | GradedCriterion | ClauseVerdict],
+        returned_class: type[Chart | Line | PatientProfile | RubricCriterion | GradedCriterion | ClauseVerdict],
         model: str | None = None,
         anthropic_4_7_compat: bool = False,
     ) -> (

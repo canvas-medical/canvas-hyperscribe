@@ -1,7 +1,7 @@
 import hashlib
 import json
 from pathlib import Path
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -46,7 +46,7 @@ def test_load_json(tmp_path):
 
 
 def test_schema_scores(tmp_files):
-    rubric_path, note_path, output_path, rubric, note = tmp_files
+    _rubric_path, _note_path, _output_path, rubric, note = tmp_files
     rubric_objs = RubricCriterion.load_from_json(rubric)
     tested = NoteGrader(rubric=rubric_objs, note=note)
     schema = tested.schema_scores()

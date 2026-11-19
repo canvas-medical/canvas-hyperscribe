@@ -1,6 +1,6 @@
 from argparse import Namespace
 from pathlib import Path
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from evaluations.case_builders.realworld_case_orchestrator import RealworldCaseOrchestrator
 from tests.helper import MockClass

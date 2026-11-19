@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch, call
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -466,7 +466,7 @@ def test_command_from_json_custom_prompted(custom_prompt, json_schema, demograph
         mock_datetime.reset_mock()
         chatter.reset_mock()
 
-    date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=UTC)
 
     system_prompt = [
         "The conversation is in the context of a clinical encounter between "
@@ -589,21 +589,21 @@ def test_is_available():
 # Template integration tests
 # =========================================================================
 
-FIXED_DATE = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
+FIXED_DATE = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=UTC)
 
 
 def make_instruction(**overrides) -> InstructionWithParameters:
     """Create a standard InstructionWithParameters for template tests."""
-    defaults = dict(
-        uuid="theUuid",
-        index=7,
-        instruction="theInstruction",
-        information="theInformation",
-        is_new=False,
-        is_updated=True,
-        previous_information="thePreviousInformation",
-        parameters={"key": "value"},
-    )
+    defaults = {
+        "uuid": "theUuid",
+        "index": 7,
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "previous_information": "thePreviousInformation",
+        "parameters": {"key": "value"},
+    }
     defaults.update(overrides)
     return InstructionWithParameters(**defaults)
 

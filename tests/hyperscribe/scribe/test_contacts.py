@@ -12,7 +12,6 @@ from hyperscribe.scribe.contacts import (
     search_refer_providers,
 )
 
-
 # -- Raw science-service contact fixtures --
 
 _LOCAL_PSYCHIATRIST = {

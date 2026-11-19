@@ -218,7 +218,7 @@ class Vitals(Base):
         return True
 
     @classmethod
-    def valid_or_none(cls, model: Type[VitalsCommand], field: str, value: int | float) -> int | float | None:
+    def valid_or_none(cls, model: Type[VitalsCommand], field: str, value: float) -> int | float | None:
         try:
             model.model_validate({field: value})
             return value

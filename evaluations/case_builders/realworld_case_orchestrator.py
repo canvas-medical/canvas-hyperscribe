@@ -4,7 +4,8 @@ from argparse import ArgumentParser, Namespace
 from concurrent.futures import ThreadPoolExecutor
 from os import environ
 from pathlib import Path
-from re import compile as re_compile, match as re_match
+from re import compile as re_compile
+from re import match as re_match
 from typing import LiteralString
 
 from evaluations.datastores.postgres.postgres import Postgres
@@ -71,7 +72,7 @@ class RealworldCaseOrchestrator:
                              group by rwc.patient_note_hash
                              order by 2 desc"""
         postgres = Postgres(HelperEvaluation.postgres_credentials())
-        pattern = re_compile(rf"patient_([a-z0-9-]+)/note_([a-z0-9-]+)")
+        pattern = re_compile(r"patient_([a-z0-9-]+)/note_([a-z0-9-]+)")
         parsed_notes: list[str] = []
         for record in postgres._select(sql, {"customer": customer}):
             if found := re_match(pattern, record["patient_note_hash"]):

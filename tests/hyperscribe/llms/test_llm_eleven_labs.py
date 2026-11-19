@@ -1,4 +1,4 @@
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from hyperscribe.llms.llm_eleven_labs import LlmElevenLabs
 from hyperscribe.structures.http_response import HttpResponse

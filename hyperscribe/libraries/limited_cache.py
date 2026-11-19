@@ -20,19 +20,18 @@ from canvas_sdk.v1.data import (
     Patient,
     PracticeLocation,
     ReasonForVisitSettingCoding,
-    StaffRole,
     Staff,
-    Team,
+    StaffRole,
     TaskLabel,
+    Team,
 )
 from canvas_sdk.v1.data.condition import ClinicalStatus
 from canvas_sdk.v1.data.goal import GoalLifecycleStatus
-from canvas_sdk.v1.data.lab import LabPartner
-from canvas_sdk.v1.data.lab import LabPartnerTest
+from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.patient import SexAtBirth
 from django.db.models import Q
-from django.db.models.expressions import When, Value, Case
+from django.db.models.expressions import Case, Value, When
 
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
@@ -460,7 +459,6 @@ class LimitedCache:
                 ]
             },  # force the setting fetch
             "demographicStr": self.demographic__str__(obfuscate),
-            #
             "conditionHistory": [i.to_dict() for i in self.condition_history()],
             "currentAllergies": [i.to_dict() for i in self.current_allergies()],
             "currentConditions": [i.to_dict() for i in self.current_conditions()],

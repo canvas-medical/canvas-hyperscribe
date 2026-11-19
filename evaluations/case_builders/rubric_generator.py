@@ -1,19 +1,19 @@
 from __future__ import annotations
-import json, argparse
+
+import argparse
+import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
-from datetime import datetime, UTC
-
-
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
-from evaluations.helper_evaluation import HelperEvaluation
-from evaluations.structures.records.rubric import Rubric as RubricRecord
-from evaluations.structures.enums.rubric_validation import RubricValidation
-from evaluations.structures.rubric_criterion import RubricCriterion
-from evaluations.datastores.postgres.rubric import Rubric as RubricDatastore
 from evaluations.datastores.postgres.case import Case as CaseDatastore
+from evaluations.datastores.postgres.rubric import Rubric as RubricDatastore
+from evaluations.helper_evaluation import HelperEvaluation
+from evaluations.structures.enums.rubric_validation import RubricValidation
+from evaluations.structures.records.rubric import Rubric as RubricRecord
+from evaluations.structures.rubric_criterion import RubricCriterion
 from hyperscribe.structures.model_spec import ModelSpec
 
 

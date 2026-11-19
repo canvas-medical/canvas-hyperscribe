@@ -21,8 +21,7 @@ class BuilderDelete:
         cases = []
         if parameters.all:
             if environ.get("CanDeleteAllCases", "") == "danger":
-                for case in DatastoreCase.all_names():
-                    cases.append(case)
+                cases.extend(DatastoreCase.all_names())
         elif parameters.case:
             cases.append(parameters.case)
 

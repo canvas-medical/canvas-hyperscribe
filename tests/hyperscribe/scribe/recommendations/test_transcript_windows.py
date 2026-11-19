@@ -16,7 +16,6 @@ from hyperscribe.scribe.recommendations._transcript_windows import (
     note_documents_as_needed,
 )
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────
 
 

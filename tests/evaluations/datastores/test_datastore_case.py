@@ -1,10 +1,10 @@
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from evaluations.datastores.datastore_case import DatastoreCase
+from evaluations.structures.chart import Chart
 from evaluations.structures.enums.case_status import CaseStatus
 from evaluations.structures.evaluation_case import EvaluationCase
 from evaluations.structures.records.case import Case
-from evaluations.structures.chart import Chart
 from hyperscribe.structures.line import Line
 
 

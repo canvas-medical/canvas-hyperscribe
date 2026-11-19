@@ -31,11 +31,10 @@ from __future__ import annotations
 from hyperscribe.scribe.backend.models import CodingEntry, Condition
 from hyperscribe.scribe.commands.problem_list_match import (
     ActivePatientCondition,
-    icd10_normalize,
     icd10_is_unspecified_parent_of,
+    icd10_normalize,
     prefer_patient_specific_codes,
 )
-
 
 # --- icd10_normalize ---
 

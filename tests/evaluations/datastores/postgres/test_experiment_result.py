@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from unittest.mock import patch, call
+from datetime import UTC, datetime
+from unittest.mock import call, patch
 
 from evaluations.datastores.postgres.experiment_result import ExperimentResult
 from evaluations.datastores.postgres.postgres import Postgres
@@ -30,7 +30,7 @@ def test_insert(alter, mock_datetime):
         alter.reset_mock()
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 10, 17, 14, 13, 15, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 10, 17, 14, 13, 15, 123456, tzinfo=UTC)
     experiment_result = Record(
         experiment_id=523,
         experiment_name="theExperimentName",
@@ -74,7 +74,7 @@ def test_insert(alter, mock_datetime):
     result = tested.insert(experiment_result)
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
 
     assert len(alter.mock_calls) == 1

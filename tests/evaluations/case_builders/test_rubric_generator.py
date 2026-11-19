@@ -1,7 +1,7 @@
 import hashlib
 import json
-from datetime import datetime, UTC, timezone
-from unittest.mock import patch, call, MagicMock
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -255,7 +255,7 @@ def test_generate_and_save2database(
     transcript_data = {"conversation": "test"}
     chart_data = {"data": "test"}
     rubric_result = [RubricCriterion(criterion="Test", weight=50)]
-    date_0 = datetime(2025, 10, 20, 11, 16, 24, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 10, 20, 11, 16, 24, 123456, tzinfo=UTC)
 
     mock_case_datastore_class.return_value.get_id.side_effect = [case_id]
     mock_case_datastore_class.return_value.get_transcript.side_effect = [transcript_data]

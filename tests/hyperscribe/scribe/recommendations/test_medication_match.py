@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import re
+from unittest.mock import MagicMock, patch
 
 from hyperscribe.scribe.recommendations._medication_match import (
     ascii_fold_sig,

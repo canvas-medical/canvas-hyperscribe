@@ -19,7 +19,6 @@ def test_load_from_json():
     # empty list
     result = tested.load_from_json([])
     assert result == []
-    #
     result = tested.load_from_json(
         [
             {"role": "role1", "text": ["text1"]},

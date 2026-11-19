@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
-from unittest.mock import patch, call
+from datetime import UTC, datetime
+from unittest.mock import call, patch
 
-import hyperscribe.libraries.memory_log as memory_log
+from hyperscribe.libraries import memory_log
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -37,12 +37,10 @@ def test_end_session():
         with patch.object(memory_log, "PROMPTS", {}):
             tested = MemoryLog
 
-            #
             result = tested.end_session("noteUuid_2")
             expected = ""
             assert result == expected
 
-            #
             memory_log.ENTRIES = {
                 "noteUuid_1": {"label3": ["r", "s"], "label2": ["x", "y"], "label1": ["m", "n"]},
                 "noteUuid_2": {"label1": ["m", "n"], "label2": ["x", "y"], "label3": ["r", "s"]},
@@ -67,7 +65,6 @@ def test_end_session():
             result = tested.end_session("noteUuid_4")
             expected = "TOTAL Tokens: 124 / 84"
             assert result == expected
-            #
             assert memory_log.ENTRIES == {}
 
 
@@ -152,9 +149,9 @@ def test_log(mock_datetime):
         assert memory_log.ENTRIES == expected
 
         mock_datetime.now.side_effect = [
-            datetime(2025, 3, 6, 7, 53, 21, tzinfo=timezone.utc),
-            datetime(2025, 3, 6, 11, 53, 37, tzinfo=timezone.utc),
-            datetime(2025, 3, 6, 19, 11, 51, tzinfo=timezone.utc),
+            datetime(2025, 3, 6, 7, 53, 21, tzinfo=UTC),
+            datetime(2025, 3, 6, 11, 53, 37, tzinfo=UTC),
+            datetime(2025, 3, 6, 19, 11, 51, tzinfo=UTC),
         ]
 
         tested.log("message1")
@@ -171,7 +168,7 @@ def test_log(mock_datetime):
         }
         assert memory_log.ENTRIES == expected
 
-        calls = [call.now(timezone.utc), call.now(timezone.utc), call.now(timezone.utc)]
+        calls = [call.now(UTC), call.now(UTC), call.now(UTC)]
         assert mock_datetime.mock_calls == calls
         reset_mocks()
         MemoryLog.end_session("noteUuid")
@@ -196,9 +193,9 @@ def test_output(mock_datetime, log):
         assert memory_log.ENTRIES == expected
 
         mock_datetime.now.side_effect = [
-            datetime(2025, 3, 6, 7, 53, 21, tzinfo=timezone.utc),
-            datetime(2025, 3, 6, 11, 53, 37, tzinfo=timezone.utc),
-            datetime(2025, 3, 6, 19, 11, 51, tzinfo=timezone.utc),
+            datetime(2025, 3, 6, 7, 53, 21, tzinfo=UTC),
+            datetime(2025, 3, 6, 11, 53, 37, tzinfo=UTC),
+            datetime(2025, 3, 6, 19, 11, 51, tzinfo=UTC),
         ]
 
         tested.output("message1")
@@ -215,7 +212,7 @@ def test_output(mock_datetime, log):
         }
         assert memory_log.ENTRIES == expected
 
-        calls = [call.now(timezone.utc), call.now(timezone.utc), call.now(timezone.utc)]
+        calls = [call.now(UTC), call.now(UTC), call.now(UTC)]
         assert mock_datetime.mock_calls == calls
         calls = [call.info("message1"), call.info("message2"), call.info("message3")]
         assert log.mock_calls == calls
@@ -240,11 +237,11 @@ def test_logs(mock_datetime):
     assert result == expected
 
     mock_datetime.now.side_effect = [
-        datetime(2025, 3, 6, 7, 53, 21, tzinfo=timezone.utc),
-        datetime(2025, 3, 6, 11, 53, 37, tzinfo=timezone.utc),
-        datetime(2025, 3, 6, 19, 11, 51, tzinfo=timezone.utc),
-        datetime(2025, 3, 6, 19, 11, 53, tzinfo=timezone.utc),
-        datetime(2025, 3, 6, 19, 11, 59, tzinfo=timezone.utc),
+        datetime(2025, 3, 6, 7, 53, 21, tzinfo=UTC),
+        datetime(2025, 3, 6, 11, 53, 37, tzinfo=UTC),
+        datetime(2025, 3, 6, 19, 11, 51, tzinfo=UTC),
+        datetime(2025, 3, 6, 19, 11, 53, tzinfo=UTC),
+        datetime(2025, 3, 6, 19, 11, 59, tzinfo=UTC),
     ]
 
     tested.log("message1")
@@ -253,11 +250,11 @@ def test_logs(mock_datetime):
     tested.log("message4")
     tested.log("message5")
     calls = [
-        call.now(timezone.utc),
-        call.now(timezone.utc),
-        call.now(timezone.utc),
-        call.now(timezone.utc),
-        call.now(timezone.utc),
+        call.now(UTC),
+        call.now(UTC),
+        call.now(UTC),
+        call.now(UTC),
+        call.now(UTC),
     ]
     assert mock_datetime.mock_calls == calls
     reset_mocks()
@@ -321,7 +318,6 @@ def test_store_so_far(log, get_discussion, aws_s3):
     tested.s3_credentials = aws_s3_credentials
     tested.counts = TokenCounts(prompt=127, generated=93)
     with patch.object(memory_log, "ENTRIES", entries):
-        #
         aws_s3.return_value.is_ready.side_effect = [False]
         get_discussion.side_effect = []
         tested.store_so_far()
@@ -331,10 +327,9 @@ def test_store_so_far(log, get_discussion, aws_s3):
         assert aws_s3.mock_calls == calls
         assert get_discussion.mock_calls == []
         reset_mocks()
-        #
         cached = CachedSdk("theNoteUuid")
-        cached.created = datetime(2025, 3, 11, 23, 59, 37, tzinfo=timezone.utc)
-        cached.updated = datetime(2025, 3, 12, 0, 38, 21, tzinfo=timezone.utc)
+        cached.created = datetime(2025, 3, 11, 23, 59, 37, tzinfo=UTC)
+        cached.updated = datetime(2025, 3, 12, 0, 38, 21, tzinfo=UTC)
         cached.cycle = 7
 
         aws_s3.return_value.is_ready.side_effect = [True]

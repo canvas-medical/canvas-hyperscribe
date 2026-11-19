@@ -44,7 +44,6 @@ from hyperscribe.scribe.commands.surgical_history import SurgicalHistoryParser
 from hyperscribe.scribe.commands.task import TaskParser
 from hyperscribe.scribe.commands.vitals import VitalsParser
 
-
 _BUILDERS: dict[str, CommandParser] = {
     "adjust_prescription": AdjustPrescriptionParser(),
     "allergy": AllergyParser(),

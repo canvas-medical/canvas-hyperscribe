@@ -1,10 +1,10 @@
 import json
-from datetime import timezone, datetime
-from unittest.mock import patch, call
+from datetime import UTC, datetime
+from unittest.mock import call, patch
 
 from requests import Response
 
-import hyperscribe.libraries.llm_turns_store as llm_turns_store
+from hyperscribe.libraries import llm_turns_store
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -26,13 +26,11 @@ def helper_instance() -> LlmTurnsStore:
 
 def test_end_session():
     tested = LlmTurnsStore
-    #
     mock_discussion = {}
     with patch.object(llm_turns_store, "DISCUSSIONS", mock_discussion):
         tested.end_session("noteUuid_2")
         assert mock_discussion == {}
 
-    #
     mock_discussion = {
         "noteUuid_1": {1: {"key_1": 2, "key_2": 3}, 2: {"key_1": 1, "key_3": 1}},
         "noteUuid_2": {1: {"key_1": 2, "key_2": 3}, 2: {"key_1": 1, "key_3": 1}},
@@ -61,8 +59,8 @@ def test_instance(get_discussion):
     )
     s3_credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
     cached = CachedSdk("theNoteUuid")
-    cached.created = datetime(2025, 5, 7, 23, 59, 37, tzinfo=timezone.utc)
-    cached.updated = datetime(2025, 5, 7, 0, 38, 21, tzinfo=timezone.utc)
+    cached.created = datetime(2025, 5, 7, 23, 59, 37, tzinfo=UTC)
+    cached.updated = datetime(2025, 5, 7, 0, 38, 21, tzinfo=UTC)
     cached.cycle = 7
     get_discussion.side_effect = [cached]
 
@@ -102,7 +100,6 @@ def test_store(store_document):
     tested = helper_instance()
     mock_discussion = {}
     with patch.object(llm_turns_store, "DISCUSSIONS", mock_discussion):
-        #
         tested.store(
             "theInstruction",
             3,
@@ -130,7 +127,6 @@ def test_store(store_document):
         ]
         assert store_document.mock_calls == calls
         reset_mocks()
-        #
         tested.store(
             "theInstruction",
             3,
@@ -147,7 +143,6 @@ def test_store(store_document):
         ]
         assert store_document.mock_calls == calls
         reset_mocks()
-        #
         tested.store(
             "otherInstruction",
             3,
@@ -164,7 +159,6 @@ def test_store(store_document):
         ]
         assert store_document.mock_calls == calls
         reset_mocks()
-        #
         tested.store(
             "subZeroInstruction",
             -1,
@@ -279,7 +273,7 @@ def test_stored_documents(aws_s3):
     def reset_mocks():
         aws_s3.reset_mock()
 
-    a_date = datetime(2025, 5, 8, 5, 27, 45, tzinfo=timezone.utc)
+    a_date = datetime(2025, 5, 8, 5, 27, 45, tzinfo=UTC)
 
     tested = helper_instance()
     # S3 not ready

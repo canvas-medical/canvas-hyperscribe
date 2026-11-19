@@ -1,7 +1,6 @@
 from multiprocessing import Queue
 from os import environ
-from subprocess import Popen, PIPE, STDOUT
-from typing import Optional
+from subprocess import PIPE, STDOUT, Popen
 
 from evaluations.structures.note_grader_job import NoteGraderJob
 from hyperscribe.libraries.constants import Constants
@@ -39,8 +38,7 @@ class NoteGraderWorker:
         env[Constants.SECRET_TEXT_LLM_VENDOR] = job.model.vendor
         env[Constants.SECRET_TEXT_LLM_KEY] = job.model.api_key
         env[Constants.TEXT_MODEL_TYPE] = model_type
-        if "VIRTUAL_ENV" in env:
-            del env["VIRTUAL_ENV"]
+        env.pop("VIRTUAL_ENV", None)
 
         return env
 
@@ -65,7 +63,7 @@ class NoteGraderWorker:
 
     def run(self) -> None:
         while True:
-            job: Optional[NoteGraderJob] = self._note_grader_queue.get()
+            job: NoteGraderJob | None = self._note_grader_queue.get()
             if job is None:
                 break
             self._process_note_grader_job(job)

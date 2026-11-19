@@ -14,10 +14,8 @@ def test_class():
 
 def test_load_from_json_list():
     tested = CustomPrompt
-    #
     result = tested.load_from_json_list([])
     assert result == []
-    #
     result = tested.load_from_json_list(
         [
             {"command": "theCommand1", "prompt": "thePrompt1", "active": True},

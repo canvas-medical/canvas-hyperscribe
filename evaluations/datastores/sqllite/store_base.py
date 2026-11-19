@@ -1,6 +1,6 @@
 import sqlite3
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 
 class StoreBase:
@@ -57,5 +57,4 @@ class StoreBase:
             cursor = conn.cursor()
             cursor.execute(cls._create_table_sql())
             cursor.execute(sql, parameter)
-            for row in cursor.fetchall():
-                yield row
+            yield from cursor.fetchall()

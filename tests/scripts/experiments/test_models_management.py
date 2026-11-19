@@ -1,5 +1,5 @@
 from argparse import Namespace
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from evaluations.structures.records.model import Model as ModelRecord
 from scripts.experiments.models_management import ModelsManagement

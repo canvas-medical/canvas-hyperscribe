@@ -1,5 +1,5 @@
 import json
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -31,7 +31,6 @@ def test_to_dict():
     tested.set_system_prompt(["line 1", "line 2", "line 3"])
     tested.set_user_prompt(["line 4", "line 5", "line 6"])
 
-    #
     result = tested.to_dict()
     expected = {
         "model": "theModel",

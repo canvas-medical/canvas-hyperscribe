@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from evaluations.datastores.filesystem.case import Case
 from evaluations.structures.evaluation_case import EvaluationCase

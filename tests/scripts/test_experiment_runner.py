@@ -1,7 +1,7 @@
 import json
 from argparse import Namespace
 from pathlib import Path
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from evaluations.structures.experiment_job import ExperimentJob
 from evaluations.structures.experiment_models import ExperimentModels
@@ -202,9 +202,9 @@ def test_run(
         queue.reset_mock()
         process.reset_mock()
         temporary_directory.reset_mock()
-        map(lambda m: m.reset_mock(), processes)
-        map(lambda m: m.reset_mock(), case_runner_workers)
-        map(lambda m: m.reset_mock(), note_grader_workers)
+        (m.reset_mock() for m in processes)
+        (m.reset_mock() for m in case_runner_workers)
+        (m.reset_mock() for m in note_grader_workers)
 
     tags = {"tag1": "value1", "tag2": "value2"}
     version = "theVersion"

@@ -1,6 +1,6 @@
 import json
 from argparse import Namespace
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_chart_transcript import BuilderFromChartTranscript
@@ -70,7 +70,6 @@ def test__run(
         mock_file_chart.reset_mock()
         mock_file_transcript.reset_mock()
         recorder.reset_mock()
-        #
         recorder.settings = "theSettings"
         recorder.s3_credentials = "theAwsS3Credentials"
         recorder.cycle_key = "theCycleKey"

@@ -10,7 +10,6 @@ def test_class():
 
 def test_from_dictionary():
     tested = AwsS3Credentials
-    #
     result = tested.from_dictionary(
         {
             "AwsKey": "theKey",
@@ -22,11 +21,9 @@ def test_from_dictionary():
     )
     expected = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketLogs")
     assert result == expected
-    #
     result = tested.from_dictionary({})
     expected = AwsS3Credentials(aws_key="", aws_secret="", region="", bucket="")
     assert result == expected
-    #
     result = tested.from_dictionary(
         {
             "AwsKey": "theKey",
@@ -43,7 +40,6 @@ def test_from_dictionary():
 
 def test_from_dictionary_tuning():
     tested = AwsS3Credentials
-    #
     result = tested.from_dictionary_tuning(
         {
             "AwsKey": "theKey",
@@ -55,11 +51,9 @@ def test_from_dictionary_tuning():
     )
     expected = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketTuning")
     assert result == expected
-    #
     result = tested.from_dictionary_tuning({})
     expected = AwsS3Credentials(aws_key="", aws_secret="", region="", bucket="")
     assert result == expected
-    #
     result = tested.from_dictionary_tuning(
         {
             "AwsKey": "theKey",

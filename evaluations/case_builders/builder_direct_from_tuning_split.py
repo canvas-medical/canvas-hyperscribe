@@ -5,12 +5,12 @@ from pathlib import Path
 from uuid import uuid4
 
 from evaluations.case_builders.builder_direct_from_tuning import BuilderDirectFromTuning
+from evaluations.local_lab_tests import local_lab_tests
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.topical_exchange import TopicalExchange
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
-from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.model_spec import ModelSpec
@@ -209,7 +209,7 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
             with transcript.open("r") as f:
                 chatter.set_user_prompt(
                     [
-                        f"The fragment of the discussion is:",
+                        "The fragment of the discussion is:",
                         "```json",
                         f.read(),
                         "```",

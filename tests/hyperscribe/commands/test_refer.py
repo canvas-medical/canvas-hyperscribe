@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands import ReferCommand
 from canvas_sdk.commands.constants import ServiceProvider
@@ -7,6 +7,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.refer import Refer
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.selector_chat import SelectorChat
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -14,7 +15,6 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> Refer:

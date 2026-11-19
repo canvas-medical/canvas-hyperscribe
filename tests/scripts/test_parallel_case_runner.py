@@ -1,11 +1,11 @@
 # file mainly created by Anthropic/CodeClaude
-from argparse import Namespace
-from unittest.mock import patch, call, MagicMock
 import sys
+from argparse import Namespace
+from unittest.mock import MagicMock, call, patch
 
-from scripts.parallel_case_runner import ParallelCaseRunner
 from evaluations.datastores.postgres.case import Case
 from evaluations.helper_evaluation import HelperEvaluation
+from scripts.parallel_case_runner import ParallelCaseRunner
 
 
 def test_init():

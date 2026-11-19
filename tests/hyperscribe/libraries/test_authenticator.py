@@ -1,5 +1,5 @@
 from time import time
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from hyperscribe.libraries.authenticator import Authenticator
 

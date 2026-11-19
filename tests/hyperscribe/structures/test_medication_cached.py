@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from hyperscribe.structures.medication_cached import MedicationCached
 from tests.helper import is_namedtuple

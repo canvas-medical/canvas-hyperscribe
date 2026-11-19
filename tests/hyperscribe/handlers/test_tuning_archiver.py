@@ -4,18 +4,18 @@ from http import HTTPStatus
 from io import BytesIO
 from time import time
 from typing import NamedTuple
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.effects.simple_api import HTMLResponse, JSONResponse
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
-from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
-from canvas_sdk.v1.data import Patient, Command, Note
+from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
+from canvas_sdk.v1.data import Command, Note, Patient
 from requests import Response
 
+from hyperscribe.handlers.tuning_archiver import ArchiverHelper, TuningArchiver
 from hyperscribe.libraries.commander import Commander
-from hyperscribe.handlers.tuning_archiver import TuningArchiver, ArchiverHelper
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from tests.helper import is_constant

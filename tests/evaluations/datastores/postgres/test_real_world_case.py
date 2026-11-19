@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from unittest.mock import patch, call
+from datetime import UTC, datetime
+from unittest.mock import call, patch
 
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.datastores.postgres.real_world_case import RealWorldCase
@@ -32,7 +32,7 @@ def test_upsert(select, alter, mock_datetime):
         alter.reset_mock()
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 7, 4, 6, 11, 4, 805952, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 7, 4, 6, 11, 4, 805952, tzinfo=UTC)
     case = Record(
         case_id=741,
         customer_identifier="theCustomerIdentifier",
@@ -69,7 +69,7 @@ def test_upsert(select, alter, mock_datetime):
     result = tested.upsert(case)
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
 
     assert len(select.mock_calls) == 1
@@ -115,7 +115,7 @@ def test_upsert(select, alter, mock_datetime):
     result = tested.upsert(case)
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
 
     assert len(select.mock_calls) == 1

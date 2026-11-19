@@ -49,11 +49,9 @@ def test_constants():
         "VENDOR_OPENAI": "OpenAI",
         "VENDOR_NOTION_API_VERSION": "2022-06-28",
         "VENDOR_NOTION_API_BASE_URL": "https://api.notion.com/v1/pages",
-        #
         "FAUX_NOTE_UUID": "_NoteUuid",
         "FAUX_PATIENT_UUID": "_PatientUuid",
         "FAUX_PROVIDER_UUID": "_ProviderUuid",
-        #
         "SCHEMA_KEY_ADJUST_PRESCRIPTION": "adjustPrescription",
         "SCHEMA_KEY_ALLERGY": "allergy",
         "SCHEMA_KEY_ASSESS": "assess",
@@ -88,7 +86,6 @@ def test_constants():
         "SCHEMA_KEY_UPDATE_DIAGNOSE": "updateDiagnosis",
         "SCHEMA_KEY_UPDATE_GOAL": "updateGoal",
         "SCHEMA_KEY_VITALS": "vitals",
-        #
         "NOTE_SECTION_ASSESSMENT": "Assessment",
         "NOTE_SECTION_HISTORY": "History",
         "NOTE_SECTION_OBJECTIVE": "Objective",
@@ -103,9 +100,7 @@ def test_constants():
             "Procedures",
             "Subjective",
         ],
-        #
         "CUSTOMER_IDENTIFIER": "CUSTOMER_IDENTIFIER",
-        #
         "SECRET_API_SIGNING_KEY": "APISigningKey",
         "SECRET_AUDIO_HOST": "AudioHost",
         "SECRET_AUDIO_HOST_PRE_SHARED_KEY": "AudioHostSharedSecret",
@@ -150,13 +145,10 @@ def test_constants():
         "SECRET_SCRIBE_HIDE_CHART_BUTTONS": "ScribeHideChartButtons",
         "SECRET_TRIAL_STAFFERS_LIST": "TrialStaffersList",
         "MODALITY_SCRIBE": "scribe",
-        #
         "AWS_S3_CREDENTIALS_LOGS": "S3CredentialsLogs",
         "AWS_S3_CREDENTIALS_TUNING": "S3CredentialsTuning",
-        #
         "TRIAL_PATIENT_FIRST_NAME_STARTSWITH": "Hyperscribe",
         "TRIAL_PATIENT_LAST_NAME_STARTSWITH": "ZZTest",
-        #
         "PROGRESS_END_OF_MESSAGES": "EOF",
         "PROGRESS_EXPIRATION_SECONDS": 7200,
         "PROGRESS_SECTION_EVENTS": "events:7",
@@ -165,17 +157,13 @@ def test_constants():
         "PROGRESS_SECTION_TECHNICAL": "events:4",
         "PROGRESS_SECTION_TRANSCRIPT": "transcript",
         "PROGRESS_SETTING_KEY": "sendProgress",
-        #
         "PLUGIN_API_BASE_ROUTE": "/plugin-io/api/hyperscribe",
         "PLUGIN_WS_BASE_ROUTE": "/plugin-io/ws/hyperscribe",
-        #
         "AUDIO_IDLE_PAUSE": "pause",
         "AUDIO_IDLE_RESUME": "resume",
         "AUDIO_IDLE_END": "end",
-        #
         "WS_CHANNEL_PROGRESSES": "progresses",
         "USER_TYPE_STAFF": "Staff",
-        #
         "TEMPLATE_COMMAND_PERMISSIONS_KEY_PREFIX": "note_template_cmd_perms_",
         "TEMPLATE_SHARED_CACHE_PREFIX": "note_template_permissions",
     }

@@ -67,7 +67,7 @@ class Instruct(Base):
                 "```",
                 "Sort the following expressions from most relevant to least, and return the first one:",
                 "",
-                "\n".join(f" * {concept.term} (conceptId: '{str(concept.concept_id)}')" for concept in concepts),
+                "\n".join(f" * {concept.term} (conceptId: '{concept.concept_id!s}')" for concept in concepts),
                 "",
                 "Please, present your findings in a JSON format within a Markdown code block like:",
                 "```json",

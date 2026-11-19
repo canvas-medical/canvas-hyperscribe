@@ -1,10 +1,12 @@
 import json
-from datetime import datetime, UTC
+from collections.abc import Generator
+from datetime import UTC, datetime
 from enum import Enum
 from hashlib import md5
-from typing import Generator, LiteralString, Type
+from typing import LiteralString
 
-from psycopg import connect, sql as sqlist
+from psycopg import connect
+from psycopg import sql as sqlist
 
 from evaluations.structures.postgres_credentials import PostgresCredentials
 
@@ -22,19 +24,21 @@ class Postgres:
         self.credentials = credentials
 
     def _select(self, sql: LiteralString, params: dict) -> Generator[dict, None, None]:
-        with connect(
-            dbname=self.credentials.database,
-            host=self.credentials.host,
-            user=self.credentials.user,
-            password=self.credentials.password,
-            port=self.credentials.port,
-        ) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(sqlist.SQL(sql), params)
-                column_names = [desc[0] for desc in cursor.description or []]
-                for row in cursor.fetchall():
-                    yield dict(zip(column_names, row))
-                connection.commit()
+        with (
+            connect(
+                dbname=self.credentials.database,
+                host=self.credentials.host,
+                user=self.credentials.user,
+                password=self.credentials.password,
+                port=self.credentials.port,
+            ) as connection,
+            connection.cursor() as cursor,
+        ):
+            cursor.execute(sqlist.SQL(sql), params)
+            column_names = [desc[0] for desc in cursor.description or []]
+            for row in cursor.fetchall():
+                yield dict(zip(column_names, row))
+            connection.commit()
 
     def _alter(self, sql: LiteralString, params: dict, involved_id: int | None) -> int:
         # import psycopg
@@ -58,7 +62,7 @@ class Postgres:
                 connection.commit()
         return involved_id
 
-    def _update_fields(self, table: str, record_class: Type, record_id: int, updates: dict) -> None:
+    def _update_fields(self, table: str, record_class: type, record_id: int, updates: dict) -> None:
         params: dict = {"now": datetime.now(UTC), "id": record_id}
         sql_where: list[str] = []
         sql_sets: list[str] = ['"updated"=%(now)s']
@@ -68,7 +72,7 @@ class Postgres:
 
             sql_sets.append(f'"{field}" = %({field})s')
             where = f'"{field}"!=%({field})s'
-            if isinstance(value, dict) or isinstance(value, list):
+            if isinstance(value, (dict, list)):
                 params[field] = self.constant_dumps(value)
                 where = f'MD5("{field}"::text)!=%({field}_md5)s'
                 params[f"{field}_md5"] = self.md5_from(params[field])

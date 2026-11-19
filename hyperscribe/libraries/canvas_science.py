@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.constants import ServiceProvider
-from canvas_sdk.utils.http import science_http, ontologies_http
+from canvas_sdk.utils.http import ontologies_http, science_http
 from logger import log
 
 from hyperscribe.libraries.constants import Constants

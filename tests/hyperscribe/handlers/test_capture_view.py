@@ -1,13 +1,13 @@
 import re
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from http import HTTPStatus
 from types import SimpleNamespace
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from canvas_generated.messages.effects_pb2 import Effect
-from canvas_sdk.effects.simple_api import Response, HTMLResponse, JSONResponse
-from canvas_sdk.handlers.simple_api import SimpleAPI, Credentials
+from canvas_sdk.effects.simple_api import HTMLResponse, JSONResponse, Response
+from canvas_sdk.handlers.simple_api import Credentials, SimpleAPI
 from canvas_sdk.handlers.simple_api.api import StringFormPart
 from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
@@ -405,7 +405,7 @@ def test_audio_chunk_post(add_cycle, webm_prefix, log):
     webm_prefix.side_effect = []
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
-        form_data=lambda: {},
+        form_data=dict,
     )
     result = tested.audio_chunk_post()
     expected = [Response(b"No audio file part in the request", HTTPStatus(400))]
@@ -894,7 +894,7 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
-        form_data=lambda: {},
+        form_data=dict,
     )
     result = tested._add_cycle(b"theContent", "content/type")
     expected = [Response(b"theProblem", HTTPStatus(501))]
@@ -930,7 +930,7 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
-        form_data=lambda: {},
+        form_data=dict,
     )
     result = tested._add_cycle(b"theContent", "content/type")
     expected = [Response(b"Failed to save chunk (AWS S3 failure)", HTTPStatus(503))]
@@ -967,7 +967,7 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
-        form_data=lambda: {},
+        form_data=dict,
         headers={"canvas-logged-in-user-id": "theUserId"},
     )
     result = tested._add_cycle(b"theContent", "content/type")
@@ -1005,7 +1005,7 @@ def test__add_cycle(executor, helper, cycle_data, stop_and_go, aws_s3, log, note
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
-        form_data=lambda: {},
+        form_data=dict,
         headers={"canvas-logged-in-user-id": "theUserId"},
     )
     result = tested._add_cycle(b"theContent", "content/type")
@@ -1089,7 +1089,7 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
         requests_post.reset_mock()
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 8, 29, 10, 14, 57, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 8, 29, 10, 14, 57, 123456, tzinfo=UTC)
 
     tested = helper_instance()
 
@@ -1098,7 +1098,7 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
     mock_datetime.now.side_effect = []
     tested.request = SimpleNamespace(
         path_params={"patient_id": "thePatientId", "note_id": "theNoteId"},
-        form_data=lambda: {},
+        form_data=dict,
     )
     result = tested.feedback_post()
     expected = [Response(content=b"Feedback cannot be empty", status_code=HTTPStatus.BAD_REQUEST)]
@@ -1179,7 +1179,7 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
         ),
     ]
     assert aws_s3.mock_calls == exp_calls
-    exp_calls = [call.now(timezone.utc)]
+    exp_calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == exp_calls
     exp_data = NotionFeedbackRecord(
         instance="customerIdentifier",
@@ -1235,7 +1235,7 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
         ),
     ]
     assert aws_s3.mock_calls == exp_calls
-    exp_calls = [call.now(timezone.utc)]
+    exp_calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == exp_calls
     exp_calls = [
         call(
@@ -1272,7 +1272,7 @@ def test_run_reviewer(session_progress_log, log, implemented_commands, llm_decis
         progress.reset_mock()
         command_db.reset_mock()
 
-    date_0 = datetime(2025, 8, 7, 18, 11, 21, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 8, 7, 18, 11, 21, 123456, tzinfo=UTC)
     identification = IdentificationParameters(
         patient_uuid="patientId",
         note_uuid="noteId",
@@ -1409,7 +1409,7 @@ def test_run_commander(
         commander.reset_mock()
         llm_turns_store.reset_mock()
 
-    date_0 = datetime(2025, 12, 5, 13, 35, 46, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 12, 5, 13, 35, 46, tzinfo=UTC)
     identification = IdentificationParameters(
         patient_uuid="patientId",
         note_uuid="noteId",

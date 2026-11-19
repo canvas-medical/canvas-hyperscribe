@@ -1,6 +1,5 @@
 import json
-from argparse import ArgumentParser
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from http import HTTPStatus
 from itertools import groupby
 from pathlib import Path
@@ -167,7 +166,7 @@ class BuilderDirectFromTuning:
                     )
                     for line in exchange
                 ]
-                cycle += 1
+                cycle += 1  # noqa: SIM113 — the counter also drives set_cycle on two objects
                 discussion.set_cycle(cycle)
                 auditor.set_cycle(cycle)
                 auditor.upsert_json(
@@ -680,7 +679,7 @@ class BuilderDirectFromTuning:
         lines: list[CaseExchange] = []
         folder = transcript_files[0].parent
 
-        result: list[Path] = [(folder / f"transcript_compacted_000.json")]
+        result: list[Path] = [(folder / "transcript_compacted_000.json")]
         with result[-1].open("w") as f2:
             json.dump([], f2, indent=2)
 

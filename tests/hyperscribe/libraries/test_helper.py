@@ -1,6 +1,6 @@
-from datetime import datetime, date
+from datetime import date, datetime
 from enum import Enum
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from canvas_sdk.v1.data.note import NoteStateChangeEvent, NoteStates

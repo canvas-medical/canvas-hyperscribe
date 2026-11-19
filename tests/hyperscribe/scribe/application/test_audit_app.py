@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, call, patch
 
-from django.db.models import QuerySet
-
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
 from canvas_sdk.handlers.application import NoteApplication
+from django.db.models import QuerySet
 
 from hyperscribe.scribe.application.audit_app import ScribeAuditApp
 

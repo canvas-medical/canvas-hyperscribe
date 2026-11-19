@@ -10,10 +10,10 @@ import subprocess
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from argparse import ArgumentParser, Namespace
-from queue import Queue
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from queue import Queue
 from typing import Any
 
 from evaluations.datastores.postgres.case import Case
@@ -68,7 +68,7 @@ class ParallelCaseRunner:
 
         except Exception as e:
             duration = round(time.time() - start_time, 1)
-            error_msg = f"Exception running case {case}: {str(e)}"
+            error_msg = f"Exception running case {case}: {e!s}"
             with self.output_lock:
                 print(f"[{case}] ERROR: {error_msg}")
             return case, False, error_msg, duration
@@ -102,7 +102,7 @@ class ParallelCaseRunner:
 
                 except Exception as e:
                     with self.output_lock:
-                        print(f"[{case}] ❌ EXCEPTION: {str(e)}")
+                        print(f"[{case}] ❌ EXCEPTION: {e!s}")
                         print("-" * 40)
                     self.results[case] = False
                     self.timings[case] = 0.0
@@ -175,13 +175,13 @@ class ParallelCaseRunner:
             cases = case_db.get_first_n_cases(self.cases_number)
 
             if not cases:
-                print(f"❌ Error: No cases found in database")
+                print("❌ Error: No cases found in database")
                 sys.exit(1)
 
             return cases
 
         except Exception as e:
-            print(f"❌ Error retrieving cases from database: {str(e)}")
+            print(f"❌ Error retrieving cases from database: {e!s}")
             sys.exit(1)
 
     def run(self) -> None:

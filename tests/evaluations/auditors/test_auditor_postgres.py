@@ -1,5 +1,5 @@
 from inspect import getsource
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from evaluations.auditors.auditor_postgres import AuditorPostgres
 from evaluations.auditors.auditor_store import AuditorStore
@@ -126,7 +126,6 @@ def test_generated_note_id(case_id, get_plugin_commit, generated_note_store):
     tested = helper_instance()
     tested.settings = mock_settings
 
-    #
     mock_settings.llm_text.vendor = "theTextVendor"
     mock_settings.llm_text_model.side_effect = ["theTextModel"]
     mock_settings.cycle_transcript_overlap = 37
@@ -169,7 +168,6 @@ def test_generated_note_id(case_id, get_plugin_commit, generated_note_store):
     assert get_plugin_commit.mock_calls == calls
     reset_mocks()
 
-    #
     mock_settings.llm_text_model.side_effect = []
     case_id.side_effect = []
     get_plugin_commit.return_value.insert.side_effect = []

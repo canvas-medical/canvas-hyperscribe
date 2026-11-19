@@ -1,6 +1,7 @@
 import os
-import sys
 import runpy
+import sys
+
 from hyperscribe.libraries.audio_client import AudioClient
 
 

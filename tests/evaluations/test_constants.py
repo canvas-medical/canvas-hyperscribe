@@ -1,6 +1,6 @@
 from evaluations.constants import Constants
-from tests.helper import is_constant
 from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
+from tests.helper import is_constant
 
 
 def test_constants():
@@ -9,7 +9,6 @@ def test_constants():
         "GROUP_COMMON": "common",
         "TYPE_GENERAL": "general",
         "TYPE_SITUATIONAL": "situational",
-        #
         "DIFFERENCE_LEVEL_MINOR": "minor",
         "DIFFERENCE_LEVEL_MODERATE": "moderate",
         "DIFFERENCE_LEVEL_CRITICAL": "critical",
@@ -17,19 +16,16 @@ def test_constants():
         "DIFFERENCE_LEVELS": ["minor", "moderate", "severe", "critical"],
         "IGNORED_KEY_VALUE": ">?<",
         "CASE_CYCLE_PREFIX": "cycle",
-        #
         "OPTION_DIFFERENCE_LEVELS": "--evaluation-difference-levels",
         "OPTION_PATIENT_UUID": "--patient-uuid",
         "OPTION_PRINT_LOGS": "--print-logs",
         "OPTION_STORE_LOGS": "--store-logs",
         "OPTION_END2END": "--end2end",
-        #
         "EVALUATIONS_DB_NAME": "EVALUATIONS_DB_NAME",
         "EVALUATIONS_DB_USERNAME": "EVALUATIONS_DB_USERNAME",
         "EVALUATIONS_DB_PASSWORD": "EVALUATIONS_DB_PASSWORD",
         "EVALUATIONS_DB_HOST": "EVALUATIONS_DB_HOST",
         "EVALUATIONS_DB_PORT": "EVALUATIONS_DB_PORT",
-        #
         "AUDIO2TRANSCRIPT": "audio2transcript",
         "INSTRUCTION2PARAMETERS": "instruction2parameters",
         "PARAMETERS2COMMAND": "parameters2command",
