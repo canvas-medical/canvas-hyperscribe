@@ -1,8 +1,7 @@
 from typing import Any
 
-from django.db.models import DO_NOTHING, BooleanField, CharField, DateTimeField, JSONField, OneToOneField, TextField
-
 from canvas_sdk.v1.data.base import CustomModel
+from django.db.models import DO_NOTHING, BooleanField, CharField, DateTimeField, JSONField, OneToOneField, TextField
 
 from hyperscribe.models.proxy import NoteProxy
 

@@ -1,5 +1,5 @@
-from datetime import datetime, UTC
-from typing import LiteralString, get_type_hints, cast
+from datetime import UTC, datetime
+from typing import LiteralString, cast, get_type_hints
 
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.structures.records.generated_note import GeneratedNote as Record

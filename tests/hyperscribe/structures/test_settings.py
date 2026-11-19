@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 import pytest
 
@@ -53,7 +53,7 @@ def test_from_dictionary(from_dict_base):
 
 
 @patch.object(Settings, "_from_dict_base")
-def test_from_dictionary(from_dict_base):
+def test_from_dict_with_reasoning(from_dict_base):
     def reset_mocks():
         from_dict_base.reset_mock()
 
@@ -204,23 +204,23 @@ def test__from_dict_base(is_true, clamp_int):
 
 def test_is_scribe_modality():
     """PILOT: remove this test when scribe pilot ends."""
-    base_kwargs = dict(
-        llm_text=VendorKey(vendor="v", api_key="k"),
-        llm_audio=VendorKey(vendor="v", api_key="k"),
-        structured_rfv=False,
-        audit_llm=False,
-        reasoning_llm=False,
-        custom_prompts=[],
-        is_tuning=False,
-        api_signing_key="key",
-        max_workers=3,
-        hierarchical_detection_threshold=5,
-        send_progress=False,
-        commands_policy=AccessPolicy(policy=False, items=[]),
-        staffers_policy=AccessPolicy(policy=False, items=[]),
-        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
-        cycle_transcript_overlap=100,
-    )
+    base_kwargs = {
+        "llm_text": VendorKey(vendor="v", api_key="k"),
+        "llm_audio": VendorKey(vendor="v", api_key="k"),
+        "structured_rfv": False,
+        "audit_llm": False,
+        "reasoning_llm": False,
+        "custom_prompts": [],
+        "is_tuning": False,
+        "api_signing_key": "key",
+        "max_workers": 3,
+        "hierarchical_detection_threshold": 5,
+        "send_progress": False,
+        "commands_policy": AccessPolicy(policy=False, items=[]),
+        "staffers_policy": AccessPolicy(policy=False, items=[]),
+        "trial_staffers_policy": AccessPolicy(policy=True, items=[]),
+        "cycle_transcript_overlap": 100,
+    }
 
     # Global scribe mode → always True regardless of staff id
     settings = Settings(**base_kwargs, modality="scribe", scribe_pilot_staffers=[])

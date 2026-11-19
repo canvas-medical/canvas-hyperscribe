@@ -225,9 +225,7 @@ def _should_include_command(cmd: dict[str, Any]) -> bool:
         return False
     if cmd_type == "perform" and (not data.get("cpt_code") or cmd.get("selected") is False):
         return False
-    if cmd_type == "diagnose" and (not data.get("icd10_code") or not data.get("accepted")):
-        return False
-    return True
+    return not (cmd_type == "diagnose" and (not data.get("icd10_code") or not data.get("accepted")))
 
 
 def _should_include_recommendation(rec: dict[str, Any]) -> bool:
@@ -238,9 +236,7 @@ def _should_include_recommendation(rec: dict[str, Any]) -> bool:
         return False
     if rec.get("already_documented"):
         return False
-    if not rec.get("display"):
-        return False
-    return True
+    return bool(rec.get("display"))
 
 
 def _command_to_display(cmd: dict[str, Any]) -> dict[str, Any]:

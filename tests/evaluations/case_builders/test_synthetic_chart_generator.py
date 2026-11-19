@@ -4,7 +4,7 @@ import uuid
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGenerator
 from evaluations.constants import Constants

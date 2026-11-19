@@ -3,12 +3,12 @@ from typing import Type
 
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from canvas_sdk.commands.commands.questionnaire.question import (
-    TextQuestion,
-    IntegerQuestion,
-    CheckboxQuestion,
-    ResponseOption,
-    RadioQuestion,
     BaseQuestion,
+    CheckboxQuestion,
+    IntegerQuestion,
+    RadioQuestion,
+    ResponseOption,
+    TextQuestion,
 )
 from logger import log
 
@@ -56,19 +56,16 @@ class BaseQuestionnaire(Base):
             answers = data.get(question["name"])  # should be data.get(f'question-{question["pk"]}')
             if isinstance(answers, list):
                 for response in answers:
-                    for key in options.keys():
-                        if options[key]["value"] == response["text"]:
-                            options[key]["selected"] = response["selected"]
-                            options[key]["comment"] = response["comment"]
+                    for option in options.values():
+                        if option["value"] == response["text"]:
+                            option["selected"] = response["selected"]
+                            option["comment"] = response["comment"]
                             break
             elif isinstance(answers, int) and question_type == QuestionType.TYPE_RADIO:
                 options[str(answers)]["selected"] = True
-            elif isinstance(answers, int) and question_type == QuestionType.TYPE_INTEGER:
-                for key in options.keys():
-                    options[key]["value"] = answers
-            elif isinstance(answers, str):
-                for key in options.keys():
-                    options[key]["value"] = answers
+            elif isinstance(answers, int) and question_type == QuestionType.TYPE_INTEGER or isinstance(answers, str):
+                for option in options.values():
+                    option["value"] = answers
 
             skipped = data.get(f"skip-{question['pk']}")
             if skipped is not None:

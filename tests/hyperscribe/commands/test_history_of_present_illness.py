@@ -1,5 +1,5 @@
-from hashlib import md5
 import json
+from hashlib import md5
 from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresentIllnessCommand
@@ -7,6 +7,7 @@ from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresen
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.history_of_present_illness import HistoryOfPresentIllness
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
@@ -16,10 +17,9 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
-def helper_instance(custom_prompts: list[CustomPrompt] = None) -> HistoryOfPresentIllness:
+def helper_instance(custom_prompts: list[CustomPrompt] | None = None) -> HistoryOfPresentIllness:
     if custom_prompts is None:
         custom_prompts = []
     settings = Settings(
@@ -122,7 +122,6 @@ def test_command_parameters_schemas():
     assert len(schemas) == 1
     schema = schemas[0]
 
-    #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
     expected_hash = "f74d047438c7bb480f347e81e8e479e5"
     assert schema_hash == expected_hash

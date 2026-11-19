@@ -64,7 +64,7 @@ def test_build_radio(mock_cmd_class: MagicMock, mock_qs_model: MagicMock) -> Non
             },
         ],
     }
-    result = parser.build(data, "note-uuid", "cmd-uuid")
+    parser.build(data, "note-uuid", "cmd-uuid")
 
     # Questions are replaced with hand-built objects.
     assert len(cmd_instance.questions) == 1

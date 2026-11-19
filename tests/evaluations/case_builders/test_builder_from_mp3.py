@@ -1,5 +1,5 @@
 from argparse import Namespace
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_mp3 import BuilderFromMp3

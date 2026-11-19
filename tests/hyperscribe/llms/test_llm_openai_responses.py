@@ -1,5 +1,5 @@
 import json
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from hyperscribe.llms.llm_openai_responses import LlmOpenaiResponses
 from hyperscribe.structures.http_response import HttpResponse
@@ -15,7 +15,6 @@ def test_support_speaker_identification():
 
 def test_to_dict():
     memory_log = MagicMock()
-    #
     tested = LlmOpenaiResponses(memory_log, "openaiKey", "theModel", False)
     tested.set_system_prompt(["line 1", "line 2", "line 3"])
     tested.set_user_prompt(["line 4", "line 5", "line 6"])

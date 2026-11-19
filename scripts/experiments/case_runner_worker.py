@@ -3,9 +3,8 @@ from multiprocessing import Queue
 from os import environ
 from pathlib import Path
 from shutil import copytree, ignore_patterns
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory
-from typing import Optional
 
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.postgres.experiment_result import ExperimentResult as ExperimentResultStore
@@ -76,8 +75,7 @@ class CaseRunnerWorker:
         env[Constants.SECRET_API_SIGNING_KEY] = ""
         env[Constants.SECRET_AUDIO_LLM_VENDOR] = ""
         env[Constants.SECRET_AUDIO_LLM_KEY] = ""
-        if "VIRTUAL_ENV" in env:
-            del env["VIRTUAL_ENV"]
+        env.pop("VIRTUAL_ENV", None)
 
         return env
 
@@ -173,7 +171,7 @@ class CaseRunnerWorker:
 
     def run(self) -> None:
         while True:
-            job: Optional[ExperimentJob] = self._case_runner_queue.get()
+            job: ExperimentJob | None = self._case_runner_queue.get()
             if job is None:
                 break
             self._process_case_runner_job(job)

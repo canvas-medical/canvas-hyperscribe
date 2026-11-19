@@ -1,4 +1,4 @@
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from canvas_sdk.commands.commands.refill import RefillCommand
@@ -7,6 +7,7 @@ from canvas_sdk.commands.constants import ClinicalQuantity
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.refill import Refill
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -15,7 +16,6 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 from hyperscribe.structures.medication_cached import MedicationCached
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> Refill:
@@ -215,7 +215,6 @@ def test_command_from_json(add_code2description, current_medications):
         assert current_medications.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
-    #
     current_medications.side_effect = [medications]
     arguments = {
         "uuid": "theUuid",
@@ -263,6 +262,7 @@ def test_command_parameters():
         "substitution": "",
         "comment": "",
     }
+    assert result == expected
 
 
 @patch.object(LimitedCache, "current_medications")

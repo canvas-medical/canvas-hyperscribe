@@ -1,5 +1,5 @@
 import json
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 

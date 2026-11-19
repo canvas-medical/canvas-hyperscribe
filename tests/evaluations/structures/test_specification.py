@@ -1,9 +1,9 @@
-from evaluations.structures.specification import Specification
-from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
-from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
-from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
 from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
+from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
 from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
+from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
+from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
+from evaluations.structures.specification import Specification
 from tests.helper import is_namedtuple
 
 

@@ -29,7 +29,7 @@ build-backend = "hatchling.build"
 dev = [
     "pre-commit>=4.2.0",
     "pytest-cov>=6.0.0,<7",
-    "ruff>=0.12.4",
+    "ruff>=0.17.4",
     "types-requests>=2.32.0.20250602",
 ]
 
@@ -44,9 +44,40 @@ exclude-newer-package = { canvas = "2100-01-01T00:00:00Z" }
 line-length = 120
 
 [tool.ruff.lint]
-select = ["F401", "W292", "W291", "Q000", "E111", "E117", "E501"]  # Unused imports, trailing newlines, trailing whitespace, quotes, indentation, line length
-ignore = []
+# ruff's default rule set, plus these codes (unused imports, trailing newlines, trailing
+# whitespace, quotes, indentation, line length), which the defaults do not include.
+extend-select = ["F401", "W292", "W291", "Q000", "E111", "E117", "E501"]
+ignore = [
+    # Broad `except Exception` keeps one command, LLM call, or case from failing a whole run.
+    "BLE001",
+    # The repo root is a package, so ruff reads the checkout directory (canvas-hyperscribe)
+    # as a module name.
+    "N999",
+    # Class-level lists on handlers, models, and commands are declarations, not shared state.
+    "RUF012",
+    # Prompts are lists of string fragments: "\n".join([...]) and implicit concatenation keep
+    # them readable line by line, and parenthesizing every fragment pushes them past 120 columns.
+    "FLY002",
+    "ISC004",
+    # any([...]) checks every field on purpose: the is_available tests pin each can_edit_field call.
+    "C419",
+    # Nested `if`s carry walrus bindings and clinical comments between the two conditions;
+    # nested `with` blocks (patches, connections, cursors) read better than one merged statement.
+    "SIM102",
+    "SIM117",
+    # Changing which exception type is raised, or minting new ones, is a behavior decision.
+    "TRY002",
+    "TRY004",
+]
 fixable = ["ALL"]
+
+[tool.ruff.lint.per-file-ignores]
+# The plugin runs under the Canvas sandbox: it allows typing.Callable/Iterable/Sequence but not
+# collections.abc or contextlib, rejects some rewritten import forms, and wraps list/dict so that
+# list[str] or X | None annotations fail at load. `canvas validate` catches these; ruff does not.
+"hyperscribe/**" = ["UP006", "UP007", "UP035", "UP045", "PLR0402", "S110"]
+# Exploratory notebooks keep scratch variables between cells.
+"*.ipynb" = ["F841", "RUF007"]
 
 [tool.ruff.format]
 # Only apply specific formatting rules

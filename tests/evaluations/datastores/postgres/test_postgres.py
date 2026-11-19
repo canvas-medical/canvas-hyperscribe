@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import NamedTuple
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 from psycopg import sql as sqlist
 
@@ -137,7 +137,7 @@ def test_update_fields(alter, mock_datetime):
         alter.reset_mock()
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 7, 7, 12, 45, 21, 805952, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 7, 7, 12, 45, 21, 805952, tzinfo=UTC)
 
     class EnumTest(Enum):
         TEST = "test"

@@ -1,6 +1,6 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 import pytest
 
@@ -261,7 +261,6 @@ def test__select(db_path, create_table_sql, insert_sql):
         assert insert_sql.mock_calls == calls
         reset_mocks()
 
-        #
         tests = [
             (
                 "SELECT * FROM test ORDER BY `id`",

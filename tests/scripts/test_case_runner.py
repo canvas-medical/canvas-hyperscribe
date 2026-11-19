@@ -1,15 +1,15 @@
 from argparse import Namespace
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
-from scripts.case_runner import CaseRunner
 from evaluations.datastores.datastore_case import DatastoreCase
 from evaluations.local_lab_tests import local_lab_tests
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.line import Line
+from scripts.case_runner import CaseRunner
 
 
 @patch("scripts.case_runner.ArgumentParser")

@@ -1,5 +1,5 @@
 from datetime import date
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from hyperscribe.structures.immunization_cached import ImmunizationCached
 from tests.helper import is_namedtuple

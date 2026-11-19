@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from hyperscribe.libraries.auditor_base import AuditorBase
 from hyperscribe.libraries.auditor_live import AuditorLive

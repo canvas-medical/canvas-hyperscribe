@@ -1,6 +1,6 @@
-from hashlib import md5
 import json
-from unittest.mock import patch, call, MagicMock
+from hashlib import md5
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.imaging_order import ImagingOrderCommand
 
@@ -9,6 +9,7 @@ from hyperscribe.commands.imaging_order import ImagingOrder
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.selector_chat import SelectorChat
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
@@ -18,7 +19,6 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> ImagingOrder:
@@ -390,7 +390,6 @@ def test_command_parameters_schemas():
     assert len(schemas) == 1
     schema = schemas[0]
 
-    #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
     # canvas 0.164.0+ adds "STAT" to the imaging-order priority enum.
     expected_hash = "00c27a75e4e0bf2b9f8be13643444bba"

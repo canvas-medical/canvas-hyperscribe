@@ -1,12 +1,12 @@
 import hashlib
 import json
-import pytest
 import random
 from pathlib import Path
-from unittest.mock import call
-from unittest.mock import patch
+from unittest.mock import call, patch
 
-from evaluations.case_builders.synthetic_transcript_generator import SyntheticTranscriptGenerator, HelperSyntheticJson
+import pytest
+
+from evaluations.case_builders.synthetic_transcript_generator import HelperSyntheticJson, SyntheticTranscriptGenerator
 from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
 from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
 from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle

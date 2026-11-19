@@ -4,9 +4,6 @@ import json
 from http import HTTPStatus
 from typing import Any
 
-from django.db.models import Q
-from logger import log
-
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 from canvas_sdk.v1.data.lab import (
     LabPartner,
@@ -14,6 +11,8 @@ from canvas_sdk.v1.data.lab import (
     LabPartnerTestQuestion,
 )
 from canvas_sdk.v1.data.practicelocation import PracticeLocationSetting
+from django.db.models import Q
+from logger import log
 
 from hyperscribe.scribe.backend.models import (
     ClinicalNote,

@@ -1,5 +1,5 @@
-from datetime import datetime, UTC
-from unittest.mock import patch, call
+from datetime import UTC, datetime
+from unittest.mock import call, patch
 
 from hyperscribe.structures.comment_body import CommentBody
 from tests.helper import is_namedtuple
@@ -38,7 +38,6 @@ def test_to_dict():
     }
 
     assert result == expected
-    #
     tested = CommentBody(
         chunk_index=7,
         note_id="theNoteUuid",

@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from unittest.mock import patch, MagicMock, call
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -279,7 +279,7 @@ def test_common_instructions():
         mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
         mocks[4].return_value.class_name.side_effect = ["Fifth", "Fifth"]
 
-        tested, settings, aws_credentials, cache = helper_instance(mocks, True)
+        tested, settings, _aws_credentials, cache = helper_instance(mocks, True)
         result = tested.common_instructions()
         expected = [mocks[1].return_value, mocks[3].return_value, mocks[4].return_value]
 
@@ -335,7 +335,7 @@ def test_instruction_constraints():
         mocks[3].return_value.instruction_constraints.side_effect = ["Constraints4"]
         mocks[4].return_value.instruction_constraints.side_effect = ["Constraints5"]
 
-        tested, settings, aws_credentials, cache = helper_instance(mocks, True)
+        tested, settings, _aws_credentials, cache = helper_instance(mocks, True)
         result = tested.instruction_constraints([instructions[i] for i in list_idx])
         assert result == expected
         for idx, mock in enumerate(mocks):
@@ -381,7 +381,7 @@ def test_command_structures(questionnaire_command_name_list):
         mocks[4].return_value.command_parameters.side_effect = ["Parameters5"]
         questionnaire_command_name_list.side_effect = ["Second", "Fifth"]
 
-        tested, settings, aws_credentials, cache = helper_instance(mocks, True)
+        tested, settings, _aws_credentials, cache = helper_instance(mocks, True)
         if exp_error:
             with pytest.raises(ValueError, match=exp_error):
                 tested.command_structures(class_name)
@@ -434,7 +434,7 @@ def test_command_schema(questionnaire_command_name_list):
         mocks[4].return_value.command_parameters_schemas.side_effect = ["Parameters5"]
         questionnaire_command_name_list.side_effect = ["Second", "Fifth"]
 
-        tested, settings, aws_credentials, cache = helper_instance(mocks, True)
+        tested, settings, _aws_credentials, cache = helper_instance(mocks, True)
         if exp_error:
             with pytest.raises(ValueError, match=exp_error):
                 tested.command_schema(class_name)
@@ -475,7 +475,7 @@ def test_combine_and_speaker_detection(
         combine_and_speaker_detection_single_step.reset_mock()
         combine_and_speaker_detection_double_step.reset_mock()
 
-    tested, settings, aws_credentials, cache = helper_instance([], True)
+    tested, settings, aws_credentials, _cache = helper_instance([], True)
     audio_bytes = b"chunkAudio"
     lines = [
         Line(speaker="speaker", text="last words 1", start=0.0, end=1.3),
@@ -624,7 +624,7 @@ def test_combine_and_speaker_detection_double_step():
         "minItems": 1,
     }
 
-    tested, settings, aws_credentials, cache = helper_instance([], True)
+    tested, _settings, _aws_credentials, _cache = helper_instance([], True)
     # all good
     # -- no previous transcript
     transcriber.chat.side_effect = [JsonExtract(has_error=False, error="", content=[content])]
@@ -835,7 +835,7 @@ def test_combine_and_speaker_detection_single_step():
         Line(speaker="speaker", text="last words 3", start=2.5, end=3.6),
     ]
 
-    tested, settings, aws_credentials, cache = helper_instance([], True)
+    tested, _settings, _aws_credentials, _cache = helper_instance([], True)
     # no error
     # -- all JSON
     detector.chat.side_effect = [
@@ -903,7 +903,7 @@ def test_detect_instructions(common_instructions, detect_instructions_flat, dete
         detect_instructions_flat.reset_mock()
         detect_instructions_per_section.reset_mock()
 
-    tested, settings, aws_credentials, cache = helper_instance([], False)
+    tested, _settings, _aws_credentials, _cache = helper_instance([], False)
 
     lines = [
         Line(speaker="speaker", text="last words 1", start=0.0, end=1.3),
@@ -1228,7 +1228,7 @@ def test_detect_instructions_per_section(detect_sections, detect_instructions_fl
         ],
     ]
 
-    tested, settings, aws_credentials, cache = helper_instance(mocks, False)
+    tested, _settings, _aws_credentials, _cache = helper_instance(mocks, False)
 
     # no known instruction
     detect_sections.side_effect = [transcript_sections]
@@ -1866,12 +1866,12 @@ def test_create_sdk_command_parameters(
     ]
     reset_mocks()
 
-    tested, settings, aws_credentials, cache = helper_instance([], True)
+    tested, settings, aws_credentials, _cache = helper_instance([], True)
     # with response
     # -- with schema
     command_structures.side_effect = ["theStructure"]
     command_schema.side_effect = [["theSchema"]]
-    mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
+    mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=UTC)]
     chatter.return_value.single_conversation.side_effect = [[{"key": "response1"}, {"key": "response2"}]]
     result = tested.create_sdk_command_parameters(instruction)
     expected = InstructionWithParameters(
@@ -1910,7 +1910,7 @@ def test_create_sdk_command_parameters(
     # -- with NO schema
     command_structures.side_effect = ["theStructure"]
     command_schema.side_effect = [[]]
-    mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
+    mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=UTC)]
     chatter.return_value.single_conversation.side_effect = [[{"key": "response1"}, {"key": "response2"}]]
     result = tested.create_sdk_command_parameters(instruction)
     expected = InstructionWithParameters(
@@ -1951,7 +1951,7 @@ def test_create_sdk_command_parameters(
     command_structures.side_effect = ["theStructure"]
     command_schema.side_effect = [["theSchema"]]
 
-    mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
+    mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=UTC)]
     chatter.return_value.single_conversation.side_effect = [[]]
     result = tested.create_sdk_command_parameters(instruction)
     assert result is None

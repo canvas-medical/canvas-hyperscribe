@@ -1,8 +1,10 @@
-from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import patch, call, MagicMock
 import re
+from datetime import UTC, datetime
+from pathlib import Path
+from unittest.mock import MagicMock, call, patch
+
 import pytest
+
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
@@ -135,12 +137,12 @@ def test_headers(mock_datetime):
         ),
     ]
     for object_key, data, params, expected in tests:
-        now = datetime(2025, 3, 4, 4, 21, 37, tzinfo=timezone.utc)
+        now = datetime(2025, 3, 4, 4, 21, 37, tzinfo=UTC)
         mock_datetime.now.side_effect = [now]
         result = test.headers(object_key, data=data, params=params)
         assert result == expected
 
-        calls = [call.now(timezone.utc)]
+        calls = [call.now(UTC)]
         assert mock_datetime.mock_calls == calls
         reset_mocks()
 
@@ -297,17 +299,17 @@ def test_list_s3_objects(is_ready, headers, requests_get):
             [
                 AwsS3Object(
                     key="2025-03-03/00616.mp3",
-                    last_modified=datetime(2025, 3, 3, 23, 48, 45, tzinfo=timezone.utc),
+                    last_modified=datetime(2025, 3, 3, 23, 48, 45, tzinfo=UTC),
                     size=4785236,
                 ),
                 AwsS3Object(
                     key="2025-03-03/00617.mp3",
-                    last_modified=datetime(2025, 3, 3, 23, 49, 3, tzinfo=timezone.utc),
+                    last_modified=datetime(2025, 3, 3, 23, 49, 3, tzinfo=UTC),
                     size=3526124,
                 ),
                 AwsS3Object(
                     key="from_plugin4",
-                    last_modified=datetime(2025, 3, 4, 12, 1, 11, tzinfo=timezone.utc),
+                    last_modified=datetime(2025, 3, 4, 12, 1, 11, tzinfo=UTC),
                     size=43,
                 ),
             ],
@@ -478,7 +480,7 @@ def test_generate_presigned_url(is_ready, mock_datetime):
             "X-Amz-SignedHeaders=host",
         ),
     ]
-    now = datetime(2025, 5, 7, 14, 5, 21, tzinfo=timezone.utc)
+    now = datetime(2025, 5, 7, 14, 5, 21, tzinfo=UTC)
     for object_key, expiration, expected in tests:
         is_ready.side_effect = [True]
         mock_datetime.now.side_effect = [now]
@@ -486,7 +488,7 @@ def test_generate_presigned_url(is_ready, mock_datetime):
         assert result == expected
         calls = [call()]
         assert is_ready.mock_calls == calls
-        calls = [call.now(timezone.utc)]
+        calls = [call.now(UTC)]
         assert mock_datetime.mock_calls == calls
         reset_mocks()
     # is not ready

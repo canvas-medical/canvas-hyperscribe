@@ -140,6 +140,7 @@ def test_search_charges_empty_results(mock_cdm: MagicMock) -> None:
 
 
 from unittest.mock import MagicMock as _MagicMock
+
 from canvas_sdk.effects import Effect
 
 

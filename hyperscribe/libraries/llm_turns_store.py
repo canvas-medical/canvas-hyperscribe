@@ -17,8 +17,7 @@ DISCUSSIONS: dict[str, dict[int, dict[str, int]]] = {}
 class LlmTurnsStore:
     @classmethod
     def end_session(cls, note_uuid: str) -> None:
-        if note_uuid in DISCUSSIONS:
-            del DISCUSSIONS[note_uuid]
+        DISCUSSIONS.pop(note_uuid, None)
 
     @classmethod
     def instance(cls, s3_credentials: AwsS3Credentials, identification: IdentificationParameters) -> LlmTurnsStore:

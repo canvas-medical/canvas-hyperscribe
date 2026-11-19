@@ -1,5 +1,7 @@
 import hashlib
+
 import pytest
+
 from evaluations.case_builders.synthetic_profile_generator_prompts import SyntheticProfileGeneratorPrompts
 
 

@@ -11,12 +11,12 @@ from evaluations.constants import Constants
 from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.datastores.store_results import StoreResults
 from evaluations.helper_evaluation import HelperEvaluation
+from evaluations.local_lab_tests import local_lab_tests
 from evaluations.structures.evaluation_result import EvaluationResult
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
-from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.libraries.limited_cache import LimitedCache
-from hyperscribe.libraries.memory_log import MemoryLog, ENTRIES
+from hyperscribe.libraries.memory_log import ENTRIES, MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
@@ -32,7 +32,7 @@ def pytest_runtest_makereport(item, call):
         test_name = report.location[2]
         case_name = "n/a"
         cycle = -1
-        pattern_end2end = rf"test_(.+?)\[([^\]]+?)\]"
+        pattern_end2end = r"test_(.+?)\[([^\]]+?)\]"
         pattern_details = rf"test_detail_(.+?)\[(.+)_{Constants.CASE_CYCLE_PREFIX}_(\d+)\]"
         if result := match(pattern_details, report.location[2]):
             test_name = result.group(1)
@@ -116,7 +116,6 @@ def pytest_collection_modifyitems(session, config, items):
         }
         for key, value in parameters.items():
             print(f"{key}: {value}")
-        #
         end2end = config.getoption(Constants.OPTION_END2END)
         deselected = [
             item
@@ -237,7 +236,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
             files = [
                 (case_name, cycle, json_file)
                 for case_name, json_file in json_files
-                for cycle in json.load(json_file.open("r")).keys()
+                for cycle in json.load(json_file.open("r"))
                 if cycle.startswith(Constants.CASE_CYCLE_PREFIX)
             ]
             metafunc.parametrize(step, files, ids=lambda path: f"{path[0]}_{path[1]}")

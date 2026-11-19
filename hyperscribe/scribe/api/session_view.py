@@ -4,47 +4,39 @@ import json
 import re
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from http import HTTPStatus
 from typing import Any, Callable, Union
 from urllib.parse import urlencode
 
-from canvas_sdk.v1.data.medication import Status
-from logger import log
-
 from canvas_sdk.caching.plugins import get_cache
+from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.configure_command_buttons import ConfigureCommandButtons
 from canvas_sdk.effects.note.note import Note as NoteEffect
 from canvas_sdk.effects.simple_api import Broadcast, JSONResponse, Response
 from canvas_sdk.handlers.simple_api import SimpleAPI, StaffSessionAuthMixin, api
-
-from django.db.models import Q
-
-from canvas_sdk.commands.commands.allergy import AllergenType
+from canvas_sdk.utils.http import pharmacy_http, science_http
 from canvas_sdk.v1.data import AllergyIntolerance, ChargeDescriptionMaster, Medication, Note
 from canvas_sdk.v1.data.command import Command
-from canvas_sdk.v1.data.medication_statement import MedicationStatement
-from canvas_sdk.v1.data.prescription import Prescription
 from canvas_sdk.v1.data.condition import Condition as ConditionModel
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
+from canvas_sdk.v1.data.medication import Status
+from canvas_sdk.v1.data.medication_statement import MedicationStatement
+from canvas_sdk.v1.data.patient import Patient
+from canvas_sdk.v1.data.prescription import Prescription
 from canvas_sdk.v1.data.questionnaire import Questionnaire as QuestionnaireModel
 from canvas_sdk.v1.data.staff import Staff, StaffRole
 from canvas_sdk.v1.data.task import TaskLabel
 from canvas_sdk.v1.data.team import Team
+from django.db.models import Q
+from logger import log
 
-from hyperscribe.models.scribe import ScribeAuditLog, ScribeSummary, ScribeTranscript
-
-from canvas_sdk.utils.http import pharmacy_http, science_http
-from canvas_sdk.v1.data.patient import Patient
-
+import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
-from hyperscribe.scribe.command_buttons import command_button_hiding_enabled, configure_command_buttons_effect
-
-import hyperscribe.scribe.clients.nabla  # noqa: F401 — register backends
-from hyperscribe.scribe.clients.nabla.backend import NablaBackend
+from hyperscribe.models.scribe import ScribeAuditLog, ScribeSummary, ScribeTranscript
 from hyperscribe.scribe.backend import (
     ClinicalNote,
     CodingEntry,
@@ -58,16 +50,16 @@ from hyperscribe.scribe.backend import (
     TranscriptItem,
     get_backend_from_secrets,
 )
+from hyperscribe.scribe.charges.enrichment import build_charge_enrichment_effects
+from hyperscribe.scribe.charges.validation import validate_charge_enrichment
+from hyperscribe.scribe.clients.nabla.backend import NablaBackend
+from hyperscribe.scribe.command_buttons import command_button_hiding_enabled, configure_command_buttons_effect
 from hyperscribe.scribe.commands._alert_facility import (
     COMMAND_TYPE_BY_SCHEMA_KEY,
     DEFAULT_ON_BY_COMMAND_TYPE,
     parse_alert_facility_commands,
 )
 from hyperscribe.scribe.commands.ap_split import split_plan_into_diagnoses
-from hyperscribe.scribe.commands.diagnosis_candidates import (
-    PatientConditionSnapshot,
-    chart_pool_options,
-)
 from hyperscribe.scribe.commands.builder import (
     DIRECT_EDIT_SECTIONS,
     EDITABLE_AMEND_SECTIONS,
@@ -82,9 +74,11 @@ from hyperscribe.scribe.commands.builder import (
     prefill_diagnose_backgrounds,
     validate_proposals,
 )
-from hyperscribe.scribe.charges.enrichment import build_charge_enrichment_effects
-from hyperscribe.scribe.charges.validation import validate_charge_enrichment
 from hyperscribe.scribe.commands.carry_forward import carry_forward_assess_background
+from hyperscribe.scribe.commands.diagnosis_candidates import (
+    PatientConditionSnapshot,
+    chart_pool_options,
+)
 from hyperscribe.scribe.commands.extractor import (
     extract_commands,
     extract_vitals_with_telemetry,
@@ -93,6 +87,11 @@ from hyperscribe.scribe.commands.extractor import (
 from hyperscribe.scribe.commands.problem_list_match import (
     ActivePatientCondition,
     prefer_patient_specific_codes,
+)
+from hyperscribe.scribe.contacts import (
+    resolve_zip_codes,
+    search_imaging_centers,
+    search_refer_providers,
 )
 from hyperscribe.scribe.recommendations import (
     lab_aoe_enabled,
@@ -104,16 +103,19 @@ from hyperscribe.scribe.recommendations import (
 )
 from hyperscribe.scribe.recommendations._llm_client import (
     DEFAULT_EFFORT as DEFAULT_FILL_EFFORT,
+)
+from hyperscribe.scribe.recommendations._llm_client import (
     DEFAULT_MODEL as DEFAULT_FILL_MODEL,
 )
 from hyperscribe.scribe.recommendations._referral_diagnosis import link_referral_diagnoses
 from hyperscribe.scribe.recommendations._transcript_windows import PRN_PATTERN, find_keyword_matches
 from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
     BlockContext as DiagnosisBlockContext,
+)
+from hyperscribe.scribe.recommendations.diagnosis_llm_resolver import (
     resolve_uncoded_blocks,
 )
 from hyperscribe.scribe.recommendations.diagnosis_suggestion import suggest_diagnoses
-from hyperscribe.scribe.recommendations.reconciliation import parse_exam_merge_kinds, reconcile_sections
 from hyperscribe.scribe.recommendations.interactions import (
     check_recommendation_interactions,
     check_single_medication_interactions,
@@ -125,11 +127,7 @@ from hyperscribe.scribe.recommendations.questionnaire_fill import (
     fill_questionnaires,
     resolve_questionnaire_definition,
 )
-from hyperscribe.scribe.contacts import (
-    resolve_zip_codes,
-    search_imaging_centers,
-    search_refer_providers,
-)
+from hyperscribe.scribe.recommendations.reconciliation import parse_exam_merge_kinds, reconcile_sections
 
 
 def _ensure_str(value: Any) -> str:
@@ -237,8 +235,8 @@ def audit_event(note_uuid: str, event_type: str, details: dict[str, Any] | None 
     """Append an audit event to the ScribeAuditLog from the backend."""
     try:
         note_dbid = Note.objects.values_list("dbid", flat=True).get(id=note_uuid)
-        obj, created = ScribeAuditLog.objects.get_or_create(note_id=note_dbid, defaults={"events": []})
-        event = {"ts": datetime.now(timezone.utc).isoformat(), "type": event_type, "details": details or {}}
+        obj, _created = ScribeAuditLog.objects.get_or_create(note_id=note_dbid, defaults={"events": []})
+        event = {"ts": datetime.now(UTC).isoformat(), "type": event_type, "details": details or {}}
         obj.events = list(obj.events) + [event]
         obj.save()
     except Exception:
@@ -1367,7 +1365,7 @@ class ScribeSessionView(StaffSessionAuthMixin, SimpleAPI):
             return [
                 JSONResponse({"error": "note_id, type, and fields are required"}, status_code=HTTPStatus.BAD_REQUEST)
             ]
-        model_map: dict[str, type[ScribeTranscript] | type[ScribeSummary] | type[ScribeAuditLog]] = {
+        model_map: dict[str, type[ScribeTranscript | ScribeSummary | ScribeAuditLog]] = {
             "transcript": ScribeTranscript,
             "summary": ScribeSummary,
             "audit_log": ScribeAuditLog,

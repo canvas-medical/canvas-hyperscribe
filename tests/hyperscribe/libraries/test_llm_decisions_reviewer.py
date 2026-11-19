@@ -1,6 +1,6 @@
 import json
-from datetime import timezone, datetime
-from unittest.mock import patch, call
+from datetime import UTC, datetime
+from unittest.mock import call, patch
 
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
@@ -177,7 +177,7 @@ def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_stor
         "canvasCommandY_02": "uuid3",
         "Questionnaire_06": "uuid4",
     }
-    date_x = datetime(2025, 5, 7, 12, 40, 21, tzinfo=timezone.utc)
+    date_x = datetime(2025, 5, 7, 12, 40, 21, tzinfo=UTC)
     tested = LlmDecisionsReviewer
 
     # no audit

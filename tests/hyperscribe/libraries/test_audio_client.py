@@ -208,7 +208,7 @@ def test_save_audio_chunk__first_chunk_no_prefix(the_client, the_session):
         resp = the_client.save_audio_chunk("thePatientKey", "theNoteId", dummy_file)
 
         assert resp.status_code == 200
-        args, kwargs = mock_post.call_args
+        _args, kwargs = mock_post.call_args
         file_tuple = kwargs["files"]["audio"]
 
         # Confirm it's not prefixed

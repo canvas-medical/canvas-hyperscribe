@@ -288,7 +288,7 @@ def test_endpoint_off_switch_refuses_everything(mock_auth: MagicMock) -> None:
 def test_endpoint_refuses_when_the_note_has_no_template(
     mock_auth: MagicMock, mock_load: MagicMock, mock_saved: MagicMock
 ) -> None:
-    status, payload = _post(_view(body={"note_id": "n1", "kind": "physical_exam"}))
+    _status, payload = _post(_view(body={"note_id": "n1", "kind": "physical_exam"}))
     assert payload == {"merged": False, "reason": "no_template"}
 
 

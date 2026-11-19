@@ -1,12 +1,12 @@
 import json
 from pathlib import Path
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from evaluations.case_builders.builder_direct_from_tuning import BuilderDirectFromTuning
 from evaluations.case_builders.builder_direct_from_tuning_full import BuilderDirectFromTuningFull
+from evaluations.local_lab_tests import local_lab_tests
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
-from evaluations.local_lab_tests import local_lab_tests
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -14,7 +14,7 @@ from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from tests.helper import MockFile, MockClass
+from tests.helper import MockClass, MockFile
 
 
 def helper_instance() -> BuilderDirectFromTuningFull:
@@ -397,13 +397,11 @@ def test_exchange_summary(schema_summary, memory_log, helper, uuid4):
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts["initial_0"]),
             call.chatter().chat([{"schema": "summary"}]),
-            #
             call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts["previous_1"]),
             call.chatter().set_user_prompt(user_prompts["initial_1"]),
             call.chatter().chat([{"schema": "summary"}]),
-            #
             call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts["previous_2"]),

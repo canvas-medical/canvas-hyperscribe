@@ -1,7 +1,5 @@
 import json
 from typing import Any
-
-import pytest
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,11 +9,11 @@ from pydantic import BaseModel, Field, ValidationError
 
 from hyperscribe.scribe.commands.builder import (
     _BUILDERS,
-    _format_pydantic_errors,
     CUSTOM_COMMAND_ROUTED_SECTIONS,
     DIRECT_EDIT_SECTIONS,
     EDITABLE_AMEND_SECTIONS,
     NON_EDITABLE_AMEND_COMMAND_TYPES,
+    _format_pydantic_errors,
     build_amend_delete_effects,
     build_amend_edit_effects,
     build_effects,
@@ -155,7 +153,7 @@ def test_build_effects_routes_all_types() -> None:
             inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
             mock.return_value = inst
 
-        effects, metadata_pending, attempted, build_errors = build_effects(
+        effects, metadata_pending, attempted, _build_errors = build_effects(
             proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
         )
 
@@ -185,14 +183,14 @@ def test_build_effects_routes_all_types() -> None:
 
 def test_build_effects_unknown_type_skipped() -> None:
     proposals: list[dict[str, Any]] = [{"command_type": "unknown_type", "data": {"foo": "bar"}}]
-    effects, metadata_pending, attempted, build_errors = build_effects(proposals, "note-uuid")
+    effects, metadata_pending, attempted, _build_errors = build_effects(proposals, "note-uuid")
     assert effects == []
     assert metadata_pending == []
     assert attempted == []
 
 
 def test_build_effects_empty_list() -> None:
-    effects, metadata_pending, attempted, build_errors = build_effects([], "note-uuid")
+    effects, metadata_pending, attempted, _build_errors = build_effects([], "note-uuid")
     assert effects == []
     assert metadata_pending == []
     assert attempted == []
@@ -320,7 +318,7 @@ def test_build_effects_medication_with_alert_facility_emits_yes_inline() -> None
         inst.Meta.key = "medicationStatement"
         mock_med.return_value = inst
 
-        effects, metadata_pending, attempted, build_errors = build_effects(
+        effects, metadata_pending, attempted, _build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
             feature_flags={"AlertFacilityCommands": {"medication_statement"}},
@@ -361,7 +359,7 @@ def test_build_effects_medication_alert_facility_false_writes_no_inline() -> Non
         inst.Meta.key = "medicationStatement"
         mock_med.return_value = inst
 
-        effects, metadata_pending, attempted, build_errors = build_effects(
+        effects, metadata_pending, _attempted, _build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
             feature_flags={"AlertFacilityCommands": {"medication_statement"}},
@@ -388,7 +386,7 @@ def test_build_effects_medication_alert_facility_flag_off_no_metadata() -> None:
         inst.note_uuid = "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0"
         mock_med.return_value = inst
 
-        effects, metadata_pending, attempted, build_errors = build_effects(
+        effects, metadata_pending, _attempted, _build_errors = build_effects(
             proposals,
             "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0",
             feature_flags={"AlertFacilityCommands": set()},
@@ -843,7 +841,7 @@ def test_build_effects_one_invalid_does_not_block_others() -> None:
         inst.commit.return_value = "rfv_commit"
         inst.command_uuid = "rfv-uuid"
         mock_rfv.return_value = inst
-        effects, metadata_pending, attempted, build_errors = build_effects(proposals, "note-uuid")
+        effects, _metadata_pending, attempted, build_errors = build_effects(proposals, "note-uuid")
     assert effects == ["rfv_originate", "rfv_commit"]
     assert len(attempted) == 1
     assert attempted[0]["command_type"] == "rfv"
@@ -865,7 +863,7 @@ def test_build_effects_vitals_invalid_enum_returns_build_error() -> None:
             "display": "BP bad site",
         },
     ]
-    effects, metadata_pending, attempted, build_errors = build_effects(proposals, "note-uuid")
+    effects, _metadata_pending, attempted, build_errors = build_effects(proposals, "note-uuid")
     assert effects == []
     assert attempted == []
     assert len(build_errors) == 1
@@ -1136,7 +1134,7 @@ def test_build_amend_edit_effects_rfv_command_built_with_existing_uuid() -> None
 
     # The builder must reuse the existing command_uuid (third arg position),
     # not invent a new one.
-    args, kwargs = mock_rfv.call_args
+    _args, kwargs = mock_rfv.call_args
     assert kwargs.get("command_uuid") == "the-existing-rfv-uuid-1234-5678-90ab-cdef"
 
 
@@ -2078,7 +2076,7 @@ def test_build_amend_edit_effects_double_edit_same_row_uses_new_uuid() -> None:
         new_inst.originate.return_value = "hpi_originate_1"
         new_inst.commit.return_value = "hpi_commit_1"
         mock_hpi.side_effect = [old_inst, new_inst]
-        effects_1, attempted_1 = build_amend_edit_effects(proposals_first, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+        _effects_1, attempted_1 = build_amend_edit_effects(proposals_first, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
     assert attempted_1[0]["old_command_uuid"] == "original-hpi-uuid-1234-5678-90ab-cdef"
     assert attempted_1[0]["new_command_uuid"] == minted_first
 
@@ -2101,7 +2099,7 @@ def test_build_amend_edit_effects_double_edit_same_row_uses_new_uuid() -> None:
         new_inst2.originate.return_value = "hpi_originate_2"
         new_inst2.commit.return_value = "hpi_commit_2"
         mock_hpi.side_effect = [old_inst2, new_inst2]
-        effects_2, attempted_2 = build_amend_edit_effects(proposals_second, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
+        _effects_2, attempted_2 = build_amend_edit_effects(proposals_second, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
     # Second amend's EIE must target minted_first (NOT the original uuid).
     # We verify via the constructor args.
     construction_calls = mock_hpi.call_args_list
@@ -2199,7 +2197,7 @@ def test_build_amend_delete_effects_built_with_existing_uuid() -> None:
 
         build_amend_delete_effects(proposals, "5899e7bf-5ecb-4399-aceb-0e233bd4a8f0")
 
-    args, kwargs = mock_perform.call_args
+    _args, kwargs = mock_perform.call_args
     assert kwargs.get("command_uuid") == "the-existing-perform-uuid-1234-5678-90ab-cdef"
 
 

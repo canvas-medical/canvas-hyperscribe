@@ -1,9 +1,9 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from http import HTTPStatus
 
 from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
-from canvas_sdk.effects.simple_api import Response, HTMLResponse, JSONResponse
+from canvas_sdk.effects.simple_api import HTMLResponse, JSONResponse, Response
 from canvas_sdk.handlers.base import version
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPI, api
 from canvas_sdk.templates import render_to_string
@@ -230,7 +230,7 @@ class CaptureView(SimpleAPI):
         path_s3 = CycleData.s3_key_path(identification, cycle)
         response = AwsS3(aws_s3).upload_binary_to_s3(path_s3, transcript.encode(), CycleData.content_type_text())
         if response.status_code != HTTPStatus.OK:
-            log.info(f"Failed to save transcript with status {response.status_code}: {str(response.content)}")
+            log.info(f"Failed to save transcript with status {response.status_code}: {response.content!s}")
             if not response.status_code:
                 return [Response(b"Failed to save transcript (AWS S3 failure)", HTTPStatus.SERVICE_UNAVAILABLE)]
             return [Response(response.content, HTTPStatus(response.status_code))]
@@ -271,7 +271,7 @@ class CaptureView(SimpleAPI):
         path_s3 = CycleData.s3_key_path(identification, cycle)
         response = AwsS3(aws_s3).upload_binary_to_s3(path_s3, content, content_type)
         if response.status_code != HTTPStatus.OK:
-            log.info(f"Failed to save chunk {cycle} with status {response.status_code}: {str(response.content)}")
+            log.info(f"Failed to save chunk {cycle} with status {response.status_code}: {response.content!s}")
             if not response.status_code:
                 return [Response(b"Failed to save chunk (AWS S3 failure)", HTTPStatus.SERVICE_UNAVAILABLE)]
             return [Response(response.content, HTTPStatus(response.status_code))]
@@ -283,9 +283,7 @@ class CaptureView(SimpleAPI):
 
     @api.post("/capture/render/<patient_id>/<note_id>/<user_id>")
     def render_effect_post(self) -> list[Response | Effect]:
-        patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
-        user_id = self.request.path_params["user_id"]
 
         stop_and_go = StopAndGo.get(note_id)
         if effects := stop_and_go.paused_effects():
@@ -384,7 +382,7 @@ class CaptureView(SimpleAPI):
                 # from canvas_sdk.clients.waiter import Waiter
                 # Waiter.sleep_for(40)
                 # effects = []
-                had_audio, effects = Commander.compute_cycle(identification, settings, aws_s3, stop_and_go.cycle())
+                _had_audio, effects = Commander.compute_cycle(identification, settings, aws_s3, stop_and_go.cycle())
 
                 # store the effects to be rendered
                 if effects:

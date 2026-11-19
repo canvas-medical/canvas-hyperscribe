@@ -76,13 +76,13 @@ class ExamMergeEval:
             verdicts_by_kind,
             judge_metrics_by_kind,
         )
-        print("")
+        print()
         for label, path in written.items():
             print(f"{label}: {path}")
 
         if args.reliability:
             runs = reliability.load_runs(case, args.case / "runs")
-            print("")
+            print()
             print(reliability.format_console(reliability.compare_runs(runs)))
 
         if args.fail_on_finding and any(f.severity == SEVERITY_FAIL for f in findings):

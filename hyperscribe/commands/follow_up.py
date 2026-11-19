@@ -46,7 +46,6 @@ class FollowUp(Base):
             reason_for_visit=instruction.parameters["reasonForVisit"],
             comment=instruction.parameters["comment"],
         )
-        #
         idx = instruction.parameters["visitTypeIndex"]
         if not (0 <= idx < len(self.cache.existing_note_types())):
             idx = 0
@@ -54,7 +53,6 @@ class FollowUp(Base):
         note_type = self.cache.existing_note_types()[idx]
         result.note_type_id = note_type.uuid
         self.add_code2description(note_type.uuid, note_type.label)
-        #
         if "reasonForVisitIndex" in instruction.parameters:
             if (
                 0

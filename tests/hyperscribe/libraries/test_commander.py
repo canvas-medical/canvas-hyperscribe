@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from unittest.mock import patch, call, MagicMock
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, call, patch
 
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_sdk.v1.data import Command
@@ -198,8 +198,8 @@ def test_compute_cycle(
         ]
 
         discussion = CachedSdk("noteUuid")
-        discussion.created = datetime(2025, 3, 10, 23, 59, 7, tzinfo=timezone.utc)
-        discussion.updated = datetime(2025, 3, 11, 0, 3, 17, tzinfo=timezone.utc)
+        discussion.created = datetime(2025, 3, 10, 23, 59, 7, tzinfo=UTC)
+        discussion.updated = datetime(2025, 3, 11, 0, 3, 17, tzinfo=UTC)
         discussion.cycle = 7
         discussion.previous_instructions = instructions[2:]
         discussion.previous_transcript = [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)]

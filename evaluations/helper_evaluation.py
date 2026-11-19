@@ -251,6 +251,6 @@ class HelperEvaluation:
         return [
             (json_file.stem, cycle, json_file)
             for json_file in folder.glob("*.json")
-            for cycle in json.load(json_file.open("r")).keys()
+            for cycle in json.load(json_file.open("r"))
             if cycle.startswith(Constants.CASE_CYCLE_PREFIX)
         ]

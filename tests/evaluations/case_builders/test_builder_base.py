@@ -1,7 +1,7 @@
 from argparse import Namespace
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from canvas_sdk.test_utils import factories
@@ -130,9 +130,9 @@ def test_run(
         ),
     }
     dates = [
-        datetime(2025, 3, 9, 7, 48, 21, tzinfo=timezone.utc),
-        datetime(2025, 3, 10, 7, 55, 37, tzinfo=timezone.utc),
-        datetime(2025, 3, 11, 7, 55, 41, tzinfo=timezone.utc),
+        datetime(2025, 3, 9, 7, 48, 21, tzinfo=UTC),
+        datetime(2025, 3, 10, 7, 55, 37, tzinfo=UTC),
+        datetime(2025, 3, 11, 7, 55, 41, tzinfo=UTC),
     ]
     discussion = CachedSdk("noteUuid")
     discussion.cycle = 3

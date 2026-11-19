@@ -1,11 +1,12 @@
 from datetime import date
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.follow_up import FollowUpCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.follow_up import FollowUp
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.custom_prompt import CustomPrompt
@@ -14,10 +15,9 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
-def helper_instance(structured_rfv: bool = False, custom_prompts: list[CustomPrompt] = None) -> FollowUp:
+def helper_instance(structured_rfv: bool = False, custom_prompts: list[CustomPrompt] | None = None) -> FollowUp:
     if custom_prompts is None:
         custom_prompts = []
     settings = Settings(
@@ -450,14 +450,12 @@ def test_is_available(note_types):
         note_types.reset_mock()
 
     tested = helper_instance()
-    #
     note_types.side_effect = [[]]
     result = tested.is_available()
     assert result is False
     calls = [call()]
     assert note_types.mock_calls == calls
     reset_mocks()
-    #
     note_types.side_effect = [
         [
             CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),

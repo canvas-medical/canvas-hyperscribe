@@ -5,7 +5,7 @@ import json
 import random
 import re
 from pathlib import Path
-from typing import Any, Tuple, cast
+from typing import Any, cast
 
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
@@ -82,7 +82,7 @@ class SyntheticTranscriptGenerator:
         profile_text: str,
         specifications: Specification,
         schema: dict[str, Any],
-    ) -> Tuple[list[str], list[str]]:
+    ) -> tuple[list[str], list[str]]:
         system_lines = [
             "You are simulating a real outpatient medication-management discussion.",
             "Return your answer as JSON inside a fenced ```json ... ``` block.",
@@ -128,7 +128,7 @@ class SyntheticTranscriptGenerator:
 
         return system_lines, user_lines
 
-    def generate_transcript_for_profile(self, patient_profile: PatientProfile) -> Tuple[list[Line], Specification]:
+    def generate_transcript_for_profile(self, patient_profile: PatientProfile) -> tuple[list[Line], Specification]:
         specifications = self._make_specifications()
         schema = self.schema_transcript(specifications.turn_total)
 

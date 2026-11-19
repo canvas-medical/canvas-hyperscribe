@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.datastores.store_results import StoreResults

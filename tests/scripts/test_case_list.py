@@ -1,8 +1,8 @@
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
-from scripts.case_list import CaseList
 from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.structures.evaluation_case import EvaluationCase
+from scripts.case_list import CaseList
 
 
 @patch.object(FileSystemCase, "all")

@@ -1,10 +1,12 @@
-from datetime import date, datetime, timezone
-from unittest.mock import patch, call, MagicMock, PropertyMock
-from uuid import uuid5, NAMESPACE_DNS
+from datetime import UTC, date, datetime
+from unittest.mock import MagicMock, PropertyMock, call, patch
+from uuid import NAMESPACE_DNS, uuid5
 
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.test_utils import factories
 from canvas_sdk.v1.data import (
+    AllergyIntolerance,
+    AllergyIntoleranceCoding,
     CareTeamRole,
     ChargeDescriptionMaster,
     Condition,
@@ -14,25 +16,23 @@ from canvas_sdk.v1.data import (
     ImmunizationCoding,
     ImmunizationStatement,
     ImmunizationStatementCoding,
-    MedicationCoding,
     Medication,
-    AllergyIntolerance,
-    AllergyIntoleranceCoding,
-    Observation,
+    MedicationCoding,
     Note,
     NoteType,
+    Observation,
+    PracticeLocation,
+    PracticeLocationSetting,
     ReasonForVisitSettingCoding,
     Staff,
     StaffRole,
-    PracticeLocation,
-    PracticeLocationSetting,
     TaskLabel,
     Team,
 )
 from canvas_sdk.v1.data.goal import GoalLifecycleStatus
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from django.db.models import Q
-from django.db.models.expressions import When, Value, Case
+from django.db.models.expressions import Case, Value, When
 
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.limited_cache import LimitedCache
@@ -637,9 +637,9 @@ def test_current_immunizations(
         immunization_from.reset_mock()
 
     date_times = [
-        datetime(2025, 9, 21, 8, 53, 21, 123456, tzinfo=timezone.utc),
-        datetime(2025, 9, 22, 8, 53, 22, 123456, tzinfo=timezone.utc),
-        datetime(2025, 9, 23, 8, 53, 23, 123456, tzinfo=timezone.utc),
+        datetime(2025, 9, 21, 8, 53, 21, 123456, tzinfo=UTC),
+        datetime(2025, 9, 22, 8, 53, 22, 123456, tzinfo=UTC),
+        datetime(2025, 9, 23, 8, 53, 23, 123456, tzinfo=UTC),
     ]
 
     dates = [

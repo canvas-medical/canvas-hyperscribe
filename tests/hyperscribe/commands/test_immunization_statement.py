@@ -1,5 +1,5 @@
 from datetime import date
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.immunization_statement import ImmunizationStatementCommand
 
@@ -7,6 +7,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.immunization_statement import ImmunizationStatement
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -16,7 +17,6 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> ImmunizationStatement:

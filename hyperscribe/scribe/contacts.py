@@ -3,11 +3,10 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import urlencode
 
+from canvas_sdk.utils.http import science_http
 from canvas_sdk.v1.data import Note
 from canvas_sdk.v1.data.patient import PatientAddress
 from logger import log
-
-from canvas_sdk.utils.http import science_http
 
 
 def _format_contact(c: dict[str, Any]) -> dict[str, Any]:

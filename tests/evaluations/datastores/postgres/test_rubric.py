@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from unittest.mock import patch, call
+from datetime import UTC, datetime
+from unittest.mock import call, patch
 
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.datastores.postgres.rubric import Rubric
@@ -34,7 +34,7 @@ def test_insert(constant_dumps, alter, mock_datetime):
         mock_datetime.reset_mock()
 
     # Test insert creates new rubric record
-    date_0 = datetime(2025, 7, 4, 6, 11, 4, 805952, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 7, 4, 6, 11, 4, 805952, tzinfo=UTC)
     rubric_data = [
         {"criterion": "theCriterion1", "weight": 1, "sense": "positive"},
         {"criterion": "theCriterion2", "weight": 2, "sense": "positive"},
@@ -77,7 +77,7 @@ def test_insert(constant_dumps, alter, mock_datetime):
     )
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
     calls = [call(rubric_data)]
     assert constant_dumps.mock_calls == calls
@@ -130,7 +130,7 @@ def test_upsert(constant_dumps, select, alter, mock_insert, mock_datetime):
         mock_insert.reset_mock()
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 7, 4, 6, 11, 4, 805952, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 7, 4, 6, 11, 4, 805952, tzinfo=UTC)
     rubric_data = [
         {"criterion": "theCriterion1", "weight": 1, "sense": "positive"},
         {"criterion": "theCriterion2", "weight": 2, "sense": "positive"},
@@ -195,7 +195,7 @@ def test_upsert(constant_dumps, select, alter, mock_insert, mock_datetime):
     assert result == expected
 
     assert mock_insert.mock_calls == []
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
 
     calls = [call(rubric_data)]

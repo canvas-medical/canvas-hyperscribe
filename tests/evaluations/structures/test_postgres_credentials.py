@@ -10,7 +10,6 @@ def test_class():
 
 def test_from_dictionary():
     tested = PostgresCredentials
-    #
     result = tested.from_dictionary(
         {
             "EVALUATIONS_DB_HOST": "theHost",
@@ -28,7 +27,6 @@ def test_from_dictionary():
         database="theDatabase",
     )
     assert result == expected
-    #
     result = tested.from_dictionary({})
     expected = PostgresCredentials(host="", port=0, user="", password="", database="")
     assert result == expected

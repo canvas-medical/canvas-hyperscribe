@@ -19,11 +19,10 @@ Examples:
     python tuning_case_count.py --all-customers
 """
 
+import sys
 from argparse import ArgumentParser, Namespace
 from os import environ
 from pathlib import Path
-import sys
-from typing import Dict, Set
 
 # Add parent directory to path to allow imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -36,7 +35,7 @@ class TuningCaseCount:
     """Utility for counting tuning case data in S3."""
 
     @classmethod
-    def _count_tuning_data(cls, s3_client: AwsS3, prefix: str) -> tuple[Dict[str, Set[str]], Dict[str, int]]:
+    def _count_tuning_data(cls, s3_client: AwsS3, prefix: str) -> tuple[dict[str, set[str]], dict[str, int]]:
         """
         Count patients, notes, and chunks under the given S3 prefix.
 
@@ -49,8 +48,8 @@ class TuningCaseCount:
             - patients_dict maps patient_id to set of note_ids
             - notes_dict maps note_id to chunk count
         """
-        patients: Dict[str, Set[str]] = {}  # patient_id -> set of note_ids
-        notes: Dict[str, int] = {}  # note_id -> chunk count
+        patients: dict[str, set[str]] = {}  # patient_id -> set of note_ids
+        notes: dict[str, int] = {}  # note_id -> chunk count
 
         objects = s3_client.list_s3_objects(prefix)
         print(f"Found {len(objects)} S3 objects under prefix: {prefix}", file=sys.stderr)
@@ -83,7 +82,7 @@ class TuningCaseCount:
         return patients, notes
 
     @classmethod
-    def _calculate_summary(cls, patients: Dict[str, Set[str]], notes: Dict[str, int]) -> tuple[int, int, int]:
+    def _calculate_summary(cls, patients: dict[str, set[str]], notes: dict[str, int]) -> tuple[int, int, int]:
         """
         Calculate summary statistics.
 
@@ -116,7 +115,7 @@ class TuningCaseCount:
             if len(key_parts) >= 1 and key_parts[0].startswith("hyperscribe-"):
                 prefixes.add(key_parts[0])
 
-        return sorted(list(prefixes))
+        return sorted(prefixes)
 
     @classmethod
     def _parameters(cls) -> Namespace:

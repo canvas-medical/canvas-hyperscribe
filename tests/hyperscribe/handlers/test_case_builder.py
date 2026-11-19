@@ -1,50 +1,50 @@
 import json
 import re
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.commands import (
-    VitalsCommand,
-    QuestionnaireCommand,
-    UpdateGoalCommand,
-    ResolveConditionCommand,
+    AdjustPrescriptionCommand,
+    AllergyCommand,
+    AssessCommand,
+    CloseGoalCommand,
+    DiagnoseCommand,
+    FamilyHistoryCommand,
+    FollowUpCommand,
+    GoalCommand,
+    HistoryOfPresentIllnessCommand,
+    ImagingOrderCommand,
+    InstructCommand,
+    LabOrderCommand,
+    MedicalHistoryCommand,
     MedicationStatementCommand,
     PastSurgicalHistoryCommand,
+    PerformCommand,
+    PhysicalExamCommand,
     PlanCommand,
+    PrescribeCommand,
+    QuestionnaireCommand,
     ReasonForVisitCommand,
     ReferCommand,
-    UpdateDiagnosisCommand,
-    TaskCommand,
-    StructuredAssessmentCommand,
-    StopMedicationCommand,
-    ReviewOfSystemsCommand,
-    RemoveAllergyCommand,
     RefillCommand,
-    PrescribeCommand,
-    PerformCommand,
-    MedicalHistoryCommand,
-    LabOrderCommand,
-    InstructCommand,
-    ImagingOrderCommand,
-    HistoryOfPresentIllnessCommand,
-    GoalCommand,
-    FollowUpCommand,
-    FamilyHistoryCommand,
-    PhysicalExamCommand,
-    DiagnoseCommand,
-    AdjustPrescriptionCommand,
-    CloseGoalCommand,
-    AssessCommand,
-    AllergyCommand,
+    RemoveAllergyCommand,
+    ResolveConditionCommand,
+    ReviewOfSystemsCommand,
+    StopMedicationCommand,
+    StructuredAssessmentCommand,
+    TaskCommand,
+    UpdateDiagnosisCommand,
+    UpdateGoalCommand,
+    VitalsCommand,
 )
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 from canvas_sdk.commands.commands.immunization_statement import ImmunizationStatementCommand
-from canvas_sdk.commands.commands.questionnaire import TextQuestion, IntegerQuestion, CheckboxQuestion, RadioQuestion
+from canvas_sdk.commands.commands.questionnaire import CheckboxQuestion, IntegerQuestion, RadioQuestion, TextQuestion
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
-from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
-from canvas_sdk.v1.data import Patient, Questionnaire, Command, ResponseOption
+from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
+from canvas_sdk.v1.data import Command, Patient, Questionnaire, ResponseOption
 
 from hyperscribe.handlers.case_builder import CaseBuilder
 from hyperscribe.libraries.authenticator import Authenticator
