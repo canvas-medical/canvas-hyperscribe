@@ -85,11 +85,21 @@ class AudioInterpreter:
         transcriber.add_audio(audio_bytes, extension)
 
         if transcriber.support_speaker_identification():
-            return self.combine_and_speaker_detection_single_step(transcriber, transcript_tail)
+            result = self.combine_and_speaker_detection_single_step(transcriber, transcript_tail)
         else:
             memory_log = MemoryLog.instance(self.identification, "speakerDetection", self.s3_credentials)
             detector = Helper.chatter(self.settings, memory_log, ModelSpec.COMPLEX)
-            return self.combine_and_speaker_detection_double_step(transcriber, detector, transcript_tail)
+            result = self.combine_and_speaker_detection_double_step(transcriber, detector, transcript_tail)
+
+        warnings = transcriber.audio_quality_warnings
+        if warnings and not result.has_error:
+            ProgressDisplay.send_to_user(
+                self.identification,
+                self.settings,
+                [ProgressMessage(message=w, section=Constants.PROGRESS_SECTION_EVENTS) for w in warnings],
+            )
+
+        return result
 
     @classmethod
     def combine_and_speaker_detection_double_step(

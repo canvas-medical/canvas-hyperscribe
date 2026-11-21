@@ -51,8 +51,14 @@ class LlmElevenLabs(LlmBase):
             tokens=TokenCounts(prompt=0, generated=0),
         )
         if result.code == HTTPStatus.OK.value:
+            raw_words = request.json()["words"]
+            words_list, removed_count = self._filter_hallucinated_words(raw_words)
+            if removed_count > 0:
+                self.memory_log.log(f"--- filtered {removed_count} hallucinated word(s) ---")
+            self.audio_quality_warnings = self._detect_audio_quality_issues(words_list)
+
             turns: list[dict] = []
-            for words in request.json()["words"]:
+            for words in words_list:
                 if not turns or words["speaker_id"] != turns[-1]["speaker_id"]:
                     turns.append(
                         {
@@ -80,7 +86,7 @@ class LlmElevenLabs(LlmBase):
                             [
                                 {
                                     "speaker": t["speaker_id"],
-                                    "text": "".join(t["text"]) or "[silence]",
+                                    "text": text if (text := "".join(t["text"])).strip() else "[silence]",
                                     "start": t["start"],
                                     "end": t["end"],
                                 }
@@ -95,3 +101,51 @@ class LlmElevenLabs(LlmBase):
             )
 
         return result
+
+    @staticmethod
+    def _filter_hallucinated_words(words: list[dict]) -> tuple[list[dict], int]:
+        """Filter out likely hallucinated words based on timestamp anomalies.
+
+        Words with zero duration (start == end) or clusters of 3+ words sharing
+        identical start timestamps are strong signals of ASR hallucination --
+        the model generated text without corresponding audio.
+
+        Returns the filtered word list and count of removed words.
+        """
+        if not words:
+            return words, 0
+
+        # Count how many actual words share each start timestamp
+        start_counts: dict[float, int] = {}
+        for w in words:
+            if w["type"] == "word":
+                start_counts[w["start"]] = start_counts.get(w["start"], 0) + 1
+
+        filtered = []
+        removed = 0
+        for w in words:
+            if w["type"] == "word":
+                is_zero_duration = w["start"] == w["end"]
+                is_timestamp_cluster = start_counts.get(w["start"], 0) >= 3
+
+                if is_zero_duration or is_timestamp_cluster:
+                    removed += 1
+                    continue
+            filtered.append(w)
+
+        return filtered, removed
+
+    @staticmethod
+    def _detect_audio_quality_issues(words: list[dict]) -> list[str]:
+        """Warn about silences longer than the threshold between consecutive spoken words."""
+        gap_threshold = 10.0  # seconds, under AudioIntervalSeconds since each request transcribes a single audio chunk
+        spoken = [w for w in words if w["type"] == "word"]
+        gap_count = sum(1 for prev, curr in zip(spoken, spoken[1:]) if curr["start"] - prev["end"] > gap_threshold)
+
+        if gap_count > 0:
+            return [
+                f"Audio quality issue detected: {gap_count} gap(s) longer than "
+                f"{int(gap_threshold)}s found in transcript. Some segments may be unreliable."
+            ]
+
+        return []

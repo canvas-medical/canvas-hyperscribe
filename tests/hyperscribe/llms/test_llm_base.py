@@ -30,6 +30,7 @@ def test___init__():
     assert tested.temperature == 0.0
     assert tested.prompts == []
     assert tested.audios == []
+    assert tested.audio_quality_warnings == []
 
     assert memory_log.mock_calls == []
 
