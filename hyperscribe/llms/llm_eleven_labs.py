@@ -55,6 +55,7 @@ class LlmElevenLabs(LlmBase):
             words_list, removed_count = self._filter_hallucinated_words(raw_words)
             if removed_count > 0:
                 self.memory_log.log(f"--- filtered {removed_count} hallucinated word(s) ---")
+            self.audio_quality_warnings = self._detect_audio_quality_issues(words_list)
 
             turns: list[dict] = []
             for words in words_list:
@@ -133,3 +134,18 @@ class LlmElevenLabs(LlmBase):
             filtered.append(w)
 
         return filtered, removed
+
+    @staticmethod
+    def _detect_audio_quality_issues(words: list[dict]) -> list[str]:
+        """Warn about silences longer than the threshold between consecutive spoken words."""
+        gap_threshold = 10.0  # seconds, under AudioIntervalSeconds since each request transcribes a single audio chunk
+        spoken = [w for w in words if w["type"] == "word"]
+        gap_count = sum(1 for prev, curr in zip(spoken, spoken[1:]) if curr["start"] - prev["end"] > gap_threshold)
+
+        if gap_count > 0:
+            return [
+                f"Audio quality issue detected: {gap_count} gap(s) longer than "
+                f"{int(gap_threshold)}s found in transcript. Some segments may be unreliable."
+            ]
+
+        return []

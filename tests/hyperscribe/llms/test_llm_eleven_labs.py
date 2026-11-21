@@ -197,6 +197,7 @@ def test_request(requests_post):
         tokens=TokenCounts(prompt=0, generated=0),
     )
     assert result == expected
+    assert tested.audio_quality_warnings == []
 
     calls = [
         call(
@@ -280,6 +281,7 @@ def test_request(requests_post):
         tokens=TokenCounts(prompt=0, generated=0),
     )
     assert result == expected
+    assert tested.audio_quality_warnings == []
 
     calls = [
         call(
@@ -302,6 +304,89 @@ def test_request(requests_post):
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
+
+    #  -- a long silence is reported whatever turn its spacing joins, even inside one turn or split by a filtered word
+    one_gap = [
+        "Audio quality issue detected: 1 gap(s) longer than 10s found in transcript. Some segments may be unreliable."
+    ]
+    tests = [
+        (
+            [
+                {"text": "Hello", "start": 0.0, "end": 5.0, "type": "word", "speaker_id": "speaker_0"},
+                {"text": " ", "start": 5.0, "end": 50.0, "type": "spacing", "speaker_id": "speaker_0"},
+                {"text": "Hi", "start": 50.0, "end": 52.0, "type": "word", "speaker_id": "speaker_1"},
+            ],
+            '{\n  "speaker": "speaker_0",\n  "text": "Hello ",\n  "start": 0.0,\n  "end": 50.0\n },\n '
+            '{\n  "speaker": "speaker_1",\n  "text": "Hi",\n  "start": 50.0,\n  "end": 52.0\n }\n',
+            [],
+        ),
+        (
+            [
+                {"text": "Hello", "start": 0.0, "end": 5.0, "type": "word", "speaker_id": "speaker_0"},
+                {"text": " ", "start": 5.0, "end": 50.0, "type": "spacing", "speaker_id": "speaker_1"},
+                {"text": "Hi", "start": 50.0, "end": 52.0, "type": "word", "speaker_id": "speaker_1"},
+            ],
+            '{\n  "speaker": "speaker_0",\n  "text": "Hello",\n  "start": 0.0,\n  "end": 5.0\n },\n '
+            '{\n  "speaker": "speaker_1",\n  "text": " Hi",\n  "start": 5.0,\n  "end": 52.0\n }\n',
+            [],
+        ),
+        (
+            [
+                {"text": "Hello", "start": 0.0, "end": 5.0, "type": "word", "speaker_id": "speaker_0"},
+                {"text": " ", "start": 5.0, "end": 27.0, "type": "spacing", "speaker_id": "speaker_0"},
+                {"text": "ok", "start": 27.0, "end": 27.0, "type": "word", "speaker_id": "speaker_0"},
+                {"text": " ", "start": 27.0, "end": 50.0, "type": "spacing", "speaker_id": "speaker_0"},
+                {"text": "Hi", "start": 50.0, "end": 52.0, "type": "word", "speaker_id": "speaker_0"},
+            ],
+            '{\n  "speaker": "speaker_0",\n  "text": "Hello  Hi",\n  "start": 0.0,\n  "end": 52.0\n }\n',
+            [call.log("--- filtered 1 hallucinated word(s) ---")],
+        ),
+    ]
+    for idx, (words, expected_turns, exp_filter_calls) in enumerate(tests):
+        content = {"words": words}
+        response = type(
+            "Response",
+            (),
+            {
+                "status_code": 200,
+                "text": json.dumps(content),
+                "json": lambda self: content,
+            },
+        )()
+
+        requests_post.side_effect = [response]
+
+        tested = LlmElevenLabs(memory_log, "apiKey", "theModel", False)
+        tested.add_audio(b"someBytes", "mp3")
+        result = tested.request()
+        expected = HttpResponse(
+            code=200,
+            response="```json\n[\n " + expected_turns + "]\n```",
+            tokens=TokenCounts(prompt=0, generated=0),
+        )
+        assert result == expected, f"---> {idx}"
+        assert tested.audio_quality_warnings == one_gap, f"---> {idx}"
+
+        calls = [
+            call(
+                "https://api.elevenlabs.io/v1/speech-to-text",
+                headers={"xi-api-key": "apiKey"},
+                params={},
+                data={"model_id": "theModel", "diarize": True, "temperature": 0},
+                files={"file": b"someBytes"},
+                verify=True,
+                timeout=None,
+            ),
+        ]
+        assert requests_post.mock_calls == calls, f"---> {idx}"
+        calls = [
+            call.log("--- request begins:"),
+            call.log("status code: 200"),
+            call.log(content),
+            call.log("--- request ends ---"),
+        ] + exp_filter_calls
+        assert memory_log.mock_calls == calls, f"---> {idx}"
+        reset_mocks()
 
 
 def test__filter_hallucinated_words():
@@ -353,3 +438,34 @@ def test__filter_hallucinated_words():
     for idx, (words, expected, expected_removed) in enumerate(tests):
         result = tested._filter_hallucinated_words(words)
         assert result == (expected, expected_removed), f"---> {idx}"
+
+
+def test__detect_audio_quality_issues():
+    tested = LlmElevenLabs
+
+    def entry(text: str, start: float, end: float, entry_type: str = "word") -> dict:
+        return {"text": text, "start": start, "end": end, "type": entry_type, "speaker_id": "speaker_0"}
+
+    one_gap = [
+        "Audio quality issue detected: 1 gap(s) longer than 10s found in transcript. Some segments may be unreliable."
+    ]
+    two_gaps = [
+        "Audio quality issue detected: 2 gap(s) longer than 10s found in transcript. Some segments may be unreliable."
+    ]
+    tests = [
+        # no word or a single word
+        ([], []),
+        ([entry("A", 0.0, 0.5)], []),
+        # silence of exactly 10s
+        ([entry("A", 0.0, 0.5), entry(" ", 0.5, 10.5, "spacing"), entry("B", 10.5, 11.0)], []),
+        # one silence, covered by a spacing or not
+        ([entry("A", 0.0, 0.5), entry(" ", 0.5, 11.0, "spacing"), entry("B", 11.0, 11.5)], one_gap),
+        ([entry("A", 0.0, 0.5), entry("B", 11.0, 11.5)], one_gap),
+        # an audio event does not end a silence
+        ([entry("A", 0.0, 0.5), entry("(cough)", 5.0, 5.5, "audio_event"), entry("B", 11.0, 11.5)], one_gap),
+        # two silences
+        ([entry("A", 0.0, 0.5), entry("B", 11.0, 11.5), entry("C", 22.0, 22.5)], two_gaps),
+    ]
+    for idx, (words, expected) in enumerate(tests):
+        result = tested._detect_audio_quality_issues(words)
+        assert result == expected, f"---> {idx}"
