@@ -459,6 +459,7 @@ def test_command_schema(questionnaire_command_name_list):
         reset_mocks()
 
 
+@patch("hyperscribe.libraries.audio_interpreter.ProgressDisplay")
 @patch.object(AudioInterpreter, "combine_and_speaker_detection_double_step")
 @patch.object(AudioInterpreter, "combine_and_speaker_detection_single_step")
 @patch("hyperscribe.libraries.audio_interpreter.MemoryLog")
@@ -468,12 +469,14 @@ def test_combine_and_speaker_detection(
     memory_log,
     combine_and_speaker_detection_single_step,
     combine_and_speaker_detection_double_step,
+    progress_display,
 ):
     def reset_mocks():
         helper.reset_mock()
         memory_log.reset_mock()
         combine_and_speaker_detection_single_step.reset_mock()
         combine_and_speaker_detection_double_step.reset_mock()
+        progress_display.reset_mock()
 
     tested, settings, aws_credentials, cache = helper_instance([], True)
     audio_bytes = b"chunkAudio"
@@ -483,12 +486,36 @@ def test_combine_and_speaker_detection(
         Line(speaker="speaker", text="last words 3", start=2.5, end=3.6),
     ]
 
-    single_result = JsonExtract(has_error=False, error="", content=[])
-    double_result = JsonExtract(has_error=False, error="", content=[])
+    transcript_with_gap = [
+        {"speaker": "speaker_0", "text": "theText1", "start": 0.5, "end": 2.0},
+        {"speaker": "speaker_1", "text": "theText2", "start": 40.0, "end": 41.5},
+    ]
+    transcript_without_gap = [
+        {"speaker": "speaker_0", "text": "theText1", "start": 0.5, "end": 2.0},
+        {"speaker": "speaker_1", "text": "theText2", "start": 2.5, "end": 3.5},
+    ]
+    warning_calls = [
+        call.send_to_user(
+            tested.identification,
+            settings,
+            [
+                ProgressMessage(
+                    message="Audio quality issue detected: 1 gap(s) longer than 30s found in transcript. "
+                    "Some segments may be unreliable.",
+                    section="events:7",
+                ),
+            ],
+        ),
+    ]
+    results = [
+        (JsonExtract(has_error=False, error="", content=transcript_with_gap), warning_calls),
+        (JsonExtract(has_error=False, error="", content=transcript_without_gap), []),
+        (JsonExtract(has_error=False, error="", content=[]), []),
+        (JsonExtract(has_error=True, error="theError", content=transcript_with_gap), []),
+    ]
     tests = [
         (
             True,
-            single_result,
             [call(helper.audio2texter.return_value, lines)],
             [],
             [
@@ -500,7 +527,6 @@ def test_combine_and_speaker_detection(
         ),
         (
             False,
-            double_result,
             [],
             [call(helper.audio2texter.return_value, helper.chatter.return_value, lines)],
             [
@@ -515,19 +541,74 @@ def test_combine_and_speaker_detection(
             ],
         ),
     ]
-    for identification, expected, exp_call_single, exp_calls_double, exp_call_helper, exp_call_memory_log in tests:
-        helper.audio2texter.return_value.support_speaker_identification.side_effect = [identification]
-        combine_and_speaker_detection_single_step.side_effect = [single_result]
-        combine_and_speaker_detection_double_step.side_effect = [double_result]
+    for identification, exp_call_single, exp_calls_double, exp_call_helper, exp_call_memory_log in tests:
+        for idx, (expected, exp_call_progress) in enumerate(results):
+            helper.audio2texter.return_value.support_speaker_identification.side_effect = [identification]
+            combine_and_speaker_detection_single_step.side_effect = [expected]
+            combine_and_speaker_detection_double_step.side_effect = [expected]
 
-        result = tested.combine_and_speaker_detection(audio_bytes, lines)
-        assert result == expected
+            result = tested.combine_and_speaker_detection(audio_bytes, lines)
+            assert result == expected, f"---> {identification} {idx}"
 
-        assert helper.mock_calls == exp_call_helper
-        assert memory_log.mock_calls == exp_call_memory_log
-        assert combine_and_speaker_detection_single_step.mock_calls == exp_call_single
-        assert combine_and_speaker_detection_double_step.mock_calls == exp_calls_double
-        reset_mocks()
+            assert helper.mock_calls == exp_call_helper
+            assert memory_log.mock_calls == exp_call_memory_log
+            assert combine_and_speaker_detection_single_step.mock_calls == exp_call_single
+            assert combine_and_speaker_detection_double_step.mock_calls == exp_calls_double
+            assert progress_display.mock_calls == exp_call_progress, f"---> {identification} {idx}"
+            reset_mocks()
+
+
+def test__detect_audio_quality_issues():
+    tested = AudioInterpreter
+    tests = [
+        # no line or a single line
+        ([], []),
+        ([Line(speaker="speaker", text="theText1", start=0.5, end=2.0)], []),
+        # gap of exactly 30s
+        (
+            [
+                Line(speaker="speaker", text="theText1", start=0.5, end=2.0),
+                Line(speaker="speaker", text="theText2", start=32.0, end=33.5),
+            ],
+            [],
+        ),
+        # one gap
+        (
+            [
+                Line(speaker="speaker", text="theText1", start=0.5, end=2.0),
+                Line(speaker="speaker", text="theText2", start=40.0, end=41.5),
+                Line(speaker="speaker", text="theText3", start=42.0, end=43.5),
+            ],
+            [
+                "Audio quality issue detected: 1 gap(s) longer than 30s found in transcript. "
+                "Some segments may be unreliable."
+            ],
+        ),
+        # two gaps
+        (
+            [
+                Line(speaker="speaker", text="theText1", start=0.5, end=2.0),
+                Line(speaker="speaker", text="theText2", start=40.0, end=41.5),
+                Line(speaker="speaker", text="theText3", start=80.0, end=81.5),
+            ],
+            [
+                "Audio quality issue detected: 2 gap(s) longer than 30s found in transcript. "
+                "Some segments may be unreliable."
+            ],
+        ),
+        # lines without timestamps are not checked
+        (
+            [
+                Line(speaker="speaker", text="theText1", start=0.0, end=0.0),
+                Line(speaker="speaker", text="theText2", start=40.0, end=41.5),
+                Line(speaker="speaker", text="theText3", start=0.0, end=0.0),
+            ],
+            [],
+        ),
+    ]
+    for idx, (lines, expected) in enumerate(tests):
+        result = tested._detect_audio_quality_issues(lines)
+        assert result == expected, f"---> {idx}"
 
 
 def test_combine_and_speaker_detection_double_step():

@@ -99,7 +99,7 @@ class AudioInterpreter:
                 ProgressDisplay.send_to_user(
                     self.identification,
                     self.settings,
-                    [ProgressMessage(message=w, section="") for w in warnings],
+                    [ProgressMessage(message=w, section=Constants.PROGRESS_SECTION_EVENTS) for w in warnings],
                 )
 
         return result

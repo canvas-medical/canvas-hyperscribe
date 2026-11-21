@@ -85,7 +85,7 @@ class LlmElevenLabs(LlmBase):
                             [
                                 {
                                     "speaker": t["speaker_id"],
-                                    "text": "".join(t["text"]) or "[silence]",
+                                    "text": text if (text := "".join(t["text"])).strip() else "[silence]",
                                     "start": t["start"],
                                     "end": t["end"],
                                 }

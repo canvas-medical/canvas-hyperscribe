@@ -237,3 +237,119 @@ def test_request(requests_post):
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
+
+    #  -- hallucinated words are filtered out
+    content = {
+        "words": [
+            {"text": "Take", "start": 0.0, "end": 0.3, "type": "word", "speaker_id": "speaker_0"},
+            {"text": " ", "start": 0.3, "end": 0.4, "type": "spacing", "speaker_id": "speaker_0"},
+            {"text": "it", "start": 0.4, "end": 0.7, "type": "word", "speaker_id": "speaker_0"},
+            {"text": " ", "start": 0.7, "end": 0.8, "type": "spacing", "speaker_id": "speaker_1"},
+            {"text": "ok", "start": 0.8, "end": 0.8, "type": "word", "speaker_id": "speaker_1"},
+            {"text": " ", "start": 0.8, "end": 0.9, "type": "spacing", "speaker_id": "speaker_1"},
+            {"text": "daily", "start": 0.9, "end": 1.2, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "quit", "start": 1.2, "end": 1.4, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "smoking", "start": 1.2, "end": 1.5, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "now", "start": 1.2, "end": 1.6, "type": "word", "speaker_id": "speaker_0"},
+        ],
+    }
+    response = type(
+        "Response",
+        (),
+        {
+            "status_code": 200,
+            "text": json.dumps(content),
+            "json": lambda self: content,
+        },
+    )()
+
+    requests_post.side_effect = [response]
+
+    tested = LlmElevenLabs(memory_log, "apiKey", "theModel", False)
+    tested.add_audio(b"someBytes", "mp3")
+    result = tested.request()
+    expected = HttpResponse(
+        code=200,
+        response="```json\n"
+        "[\n "
+        '{\n  "speaker": "speaker_0",\n  "text": "Take it",\n  "start": 0.0,\n  "end": 0.7\n },\n '
+        '{\n  "speaker": "speaker_1",\n  "text": "[silence]",\n  "start": 0.7,\n  "end": 0.9\n },\n '
+        '{\n  "speaker": "speaker_0",\n  "text": "daily",\n  "start": 0.9,\n  "end": 1.2\n }\n'
+        "]\n"
+        "```",
+        tokens=TokenCounts(prompt=0, generated=0),
+    )
+    assert result == expected
+
+    calls = [
+        call(
+            "https://api.elevenlabs.io/v1/speech-to-text",
+            headers={"xi-api-key": "apiKey"},
+            params={},
+            data={"model_id": "theModel", "diarize": True, "temperature": 0},
+            files={"file": b"someBytes"},
+            verify=True,
+            timeout=None,
+        ),
+    ]
+    assert requests_post.mock_calls == calls
+    calls = [
+        call.log("--- request begins:"),
+        call.log("status code: 200"),
+        call.log(content),
+        call.log("--- request ends ---"),
+        call.log("--- filtered 4 hallucinated word(s) ---"),
+    ]
+    assert memory_log.mock_calls == calls
+    reset_mocks()
+
+
+def test__filter_hallucinated_words():
+    tested = LlmElevenLabs
+
+    def entry(text: str, start: float, end: float, entry_type: str = "word") -> dict:
+        return {"text": text, "start": start, "end": end, "type": entry_type, "speaker_id": "speaker_0"}
+
+    tests = [
+        # no words
+        ([], [], 0),
+        # no hallucination, two words sharing a start are kept
+        (
+            [entry("A", 0.0, 0.4), entry(" ", 0.4, 0.5, "spacing"), entry("B", 0.5, 0.8), entry("C", 0.5, 0.9)],
+            [entry("A", 0.0, 0.4), entry(" ", 0.4, 0.5, "spacing"), entry("B", 0.5, 0.8), entry("C", 0.5, 0.9)],
+            0,
+        ),
+        # zero-duration word
+        (
+            [entry("A", 0.0, 0.4), entry("B", 0.4, 0.4), entry("C", 0.5, 0.9)],
+            [entry("A", 0.0, 0.4), entry("C", 0.5, 0.9)],
+            1,
+        ),
+        # three words sharing a start
+        (
+            [
+                entry("A", 0.0, 0.4),
+                entry("B", 0.5, 0.8),
+                entry("C", 0.5, 0.9),
+                entry("D", 0.5, 1.0),
+                entry("E", 1.0, 1.3),
+            ],
+            [entry("A", 0.0, 0.4), entry("E", 1.0, 1.3)],
+            3,
+        ),
+        # spacing and audio events are kept, whatever their timestamps
+        (
+            [
+                entry("B", 0.5, 0.8),
+                entry(" ", 0.5, 0.5, "spacing"),
+                entry("C", 0.5, 0.9),
+                entry("(cough)", 0.5, 0.5, "audio_event"),
+                entry("D", 0.5, 1.0),
+            ],
+            [entry(" ", 0.5, 0.5, "spacing"), entry("(cough)", 0.5, 0.5, "audio_event")],
+            3,
+        ),
+    ]
+    for idx, (words, expected, expected_removed) in enumerate(tests):
+        result = tested._filter_hallucinated_words(words)
+        assert result == (expected, expected_removed), f"---> {idx}"
