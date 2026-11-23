@@ -443,7 +443,7 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
   `;
 
   return html`
-    <div class="diagnose-row" ref=${containerRef}>
+    <div class="diagnose-row" data-edit-key=${commandIndex} ref=${containerRef}>
       <div class="diagnose-row-header">
         <span class="diagnose-row-title">${titleText}</span>
         ${hasCode && html`<span class="diagnose-icd-code">${formattedCode}</span>`}

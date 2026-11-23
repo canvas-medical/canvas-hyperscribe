@@ -274,7 +274,7 @@ export function HistoryEntryRow({ command, commandIndex, onEdit, onDelete, readO
     const FormComponent = FORM_COMPONENTS[command.command_type];
     if (!FormComponent) return null;
     return html`
-      <div class="order-row editing" onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}>
+      <div class="order-row editing" data-edit-key=${commandIndex} onKeyDown=${(e) => e.key === 'Escape' && handleCancel()}>
         <${FormComponent}
           command=${command}
           commandIndex=${commandIndex}

@@ -106,7 +106,7 @@ export function TaskRow({ command, commandIndex, onEdit, onDelete, assignees, re
 
   if (editing && !readOnly) {
     return html`
-      <div class="task-row editing" onKeyDown=${handleKeyDown}>
+      <div class="task-row editing" data-edit-key=${commandIndex} onKeyDown=${handleKeyDown}>
         <div class="history-form">
           <div class="history-form-field">
             <label class="history-form-label">Task</label>

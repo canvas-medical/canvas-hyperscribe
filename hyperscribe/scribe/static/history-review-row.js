@@ -55,7 +55,7 @@ export function HistoryReviewRow({ command, commandIndex, onEdit, readOnly, text
 
   if (editing && !readOnly) {
     return html`
-      <div class="history-review-row editing">
+      <div class="history-review-row editing" data-edit-key=${commandIndex}>
         ${sections.map((s, i) => html`
           <div class="history-subsection" key=${s.key}>
             <div class="history-subsection-title">${s.title}</div>

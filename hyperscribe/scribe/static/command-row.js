@@ -78,7 +78,7 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly, 
 
   if (editing && !readOnly) {
     return html`
-      <div class="command-row editing">
+      <div class="command-row editing" data-edit-key=${commandIndex}>
         <textarea
           ref=${textareaRef}
           class="command-row-textarea"

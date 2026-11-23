@@ -1255,7 +1255,7 @@ export function OrderRow({ command, commandIndex, onEdit, onDelete, readOnly, al
 
   if (editing && !readOnly) {
     return html`
-      <div class="order-row editing" ref=${containerRef} onKeyDown=${handleKeyDown}>
+      <div class="order-row editing" data-edit-key=${commandIndex} ref=${containerRef} onKeyDown=${handleKeyDown}>
         <div class="history-form">
           ${!isRecommendation && html`
             <div class="order-tabs-horizontal">

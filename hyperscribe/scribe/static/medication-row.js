@@ -166,7 +166,7 @@ export function MedicationRow({ command, commandIndex, onEdit, onDelete, readOnl
   // Edit mode with search.
   if (editing && !readOnly) {
     return html`
-      <div class="medication-row editing" ref=${containerRef}>
+      <div class="medication-row editing" data-edit-key=${commandIndex} ref=${containerRef}>
         <div class="history-form">
           <div class="history-form-field" style="position: relative;">
             <label class="history-form-label">Medication</label>

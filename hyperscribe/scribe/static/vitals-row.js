@@ -183,7 +183,7 @@ export function VitalsRow({ command, commandIndex, onEdit, readOnly, onEditingCh
 
   if (editing && !readOnly) {
     return html`
-      <div class="vitals-row editing" onKeyDown=${handleKeyDown}>
+      <div class="vitals-row editing" data-edit-key=${commandIndex} onKeyDown=${handleKeyDown}>
         <div class="vitals-edit-fields">
           ${VITALS_FIELDS.map(f => {
             if (f.pair) {

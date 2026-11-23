@@ -567,7 +567,7 @@ function AssessNarrative({ command, commandIndex, onEdit, readOnly, onEditingCha
   if (editing && !readOnly) {
     const saveDisabled = narrative.length > 2048 || background.length > 2048;
     return html`
-      <div class="diagnose-edit-area editing">
+      <div class="diagnose-edit-area editing" data-edit-key=${commandIndex}>
         ${showBackground
           ? html`
             <div class="diagnose-field">
@@ -792,9 +792,9 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
     : (adHocCommands || []);
 
   return html`
-    <div class="summary-section">
+    <div class="summary-section" data-soap-group>
       <div class="section-header">
-        <span class="section-title">${title}</span>
+        <span class="section-title" data-section-title>${title}</span>
       </div>
       <div class="section-body">
         ${(() => {
@@ -845,7 +845,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (readOnly && apptCmds.length === 0) return null;
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">Wrap Up</div>
+                <div class="subsection-title" data-section-title>Wrap Up</div>
                 ${apptCmds.map(entry => {
                   const apptRowReadOnly = rowLocked(entry.command, readOnly, isAmending);
                   const showRemove = !readOnly && !entry.command.already_documented && !entry.command._adding;
@@ -896,7 +896,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
                      "+ Add Condition" button matched against a card vnode (button vanished).
                      A variant-specific key forces a clean remount instead. */ ''}
                 <div class="subsection" key=${s.key + '-conditions'}>
-                  <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
+                  <div class="subsection-title" data-section-title>${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
                   ${cmds.filter(e => e.command.command_type === 'assess' && (!shouldHideRejected || !(e.command.data && e.command.data.rejected))).map(entry => {
                     const aData = entry.command.data || {};
                     const aCode = aData.icd10_code ? aData.icd10_code.replace(/\./g, '').trim().toUpperCase() : '';
@@ -1102,7 +1102,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const narrativeRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
             return html`
               <div class="subsection" key=${isPlan ? s.key + '-narrative' : s.key}>
-                <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
+                <div class="subsection-title" data-section-title>${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
                 <div class=${`content-block rec-narrative${narrativeRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
                   ${narrativeRowReadOnly && entry.command.already_documented && ICON_LOCK}
                   <${CommandRow}
@@ -1150,7 +1150,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (allVitals.length === 0 && !onAddVitals) return null;
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${s.title}</div>
+                <div class="subsection-title" data-section-title>${s.title}</div>
                 ${allVitals.map((entry, idx) => {
                   const vitalsRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                   return html`
@@ -1195,7 +1195,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               const mseRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${s.title}</div>
+                  <div class="subsection-title" data-section-title>${s.title}</div>
                   <div class=${`content-block rec-narrative${mseRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
                     ${mseRowReadOnly && entry.command.already_documented && ICON_LOCK}
                     <${ExamSectionsRow}
@@ -1220,7 +1220,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const msePlaceholder = { command_type: 'mental_status_exam', section_key: 'mental_status_exam', display: '', selected: true, already_documented: false, data: { sections: [] } };
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${s.title}</div>
+                <div class="subsection-title" data-section-title>${s.title}</div>
                 <div class="content-block rec-narrative">
                   <${ExamSectionsRow}
                     command=${msePlaceholder}
@@ -1251,7 +1251,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
               const peRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">${s.title}</div>
+                  <div class="subsection-title" data-section-title>${s.title}</div>
                   <div class=${`content-block rec-narrative${peRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
                     ${peRowReadOnly && entry.command.already_documented && ICON_LOCK}
                     <${ExamSectionsRow}
@@ -1280,7 +1280,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             const pePlaceholder = { command_type: 'physical_exam', section_key: 'physical_exam', display: '', selected: true, already_documented: false, data: { sections: [] } };
             return html`
               <div class="subsection" key=${s.key}>
-                <div class="subsection-title">${s.title}</div>
+                <div class="subsection-title" data-section-title>${s.title}</div>
                 <div class="content-block rec-narrative">
                   <${ExamSectionsRow}
                     command=${pePlaceholder}
@@ -1309,7 +1309,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (cmds || medRecs.length > 0 || adHocMeds.length > 0 || adHocStopMeds.length > 0 || onAddMedication) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">Med List Updates</div>
+                  <div class="subsection-title" data-section-title>Med List Updates</div>
                   ${(cmds || []).map(entry => {
                     const medRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
@@ -1432,7 +1432,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
             if (cmds || allergyRecs.length > 0 || adHocAllergies.length > 0 || adHocRemoveAllergies.length > 0 || onAddAllergy) {
               return html`
                 <div class="subsection" key=${s.key}>
-                  <div class="subsection-title">Allergy List Updates</div>
+                  <div class="subsection-title" data-section-title>Allergy List Updates</div>
                   ${(cmds || []).map(entry => {
                     const allergyRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                     return html`
@@ -1564,7 +1564,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (!showHistoryText && historyEntries.length === 0 && !onAddHistory && !cmds && !planAddable) return null;
           return html`
             <div class="subsection" key=${PLAN_SECTIONS.has(key) ? s.key + '-empty' : s.key}>
-              <div class="subsection-title">${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
+              <div class="subsection-title" data-section-title>${key === 'assessment_and_plan' ? 'Conditions' : s.title}</div>
               ${showHistoryText && html`<p class="section-text">${s.text}</p>`}
               ${historyEntries.map(entry => {
                 const historyRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
@@ -1630,7 +1630,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           const entry = cmds[0];
           const rosRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
           return html`
-            <div class="subsection-title">Review of Systems</div>
+            <div class="subsection-title" data-section-title>Review of Systems</div>
             <div class=${`content-block rec-narrative${rosRowReadOnly && entry.command.already_documented ? ' command-locked' : ''}`}>
               ${rosRowReadOnly && entry.command.already_documented && ICON_LOCK}
               <${ExamSectionsRow}
@@ -1867,7 +1867,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (questionnaireCommands.length === 0 && !onAddQuestionnaire) return null;
           return html`
             <div class="subsection">
-              <div class="subsection-title">Questionnaires</div>
+              <div class="subsection-title" data-section-title>Questionnaires</div>
               ${questionnaireCommands.map(entry => {
                 const questionnaireRowReadOnly = rowLocked(entry.command, viewerReadOnly, isAmending);
                 return html`
@@ -1922,7 +1922,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (rxRecs.length === 0) return null;
           return html`
             <div class="subsection">
-              <div class="subsection-title">Prescriptions</div>
+              <div class="subsection-title" data-section-title>Prescriptions</div>
               ${rxRecs.map(entry => {
                 const d = entry.command.data;
                 const missingFields = [];
@@ -1972,7 +1972,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (referRecs.length === 0) return null;
           return html`
             <div class="subsection">
-              <div class="subsection-title">Referrals</div>
+              <div class="subsection-title" data-section-title>Referrals</div>
               ${referRecs.map(entry => {
                 const missingFields = [];
                 if (!entry.command.data.service_provider) missingFields.push('Provider');
@@ -2019,7 +2019,7 @@ export function SoapGroup({ title, groupColor, sections, commandBySectionKey, on
           if (taskRecs.length === 0) return null;
           return html`
             <div class="subsection">
-              <div class="subsection-title">Recommended Tasks</div>
+              <div class="subsection-title" data-section-title>Recommended Tasks</div>
               ${taskRecs.map(entry => {
                 const isAccepted = entry.command.accepted && !entry.command.rejected;
                 const isRejected = entry.command.rejected;

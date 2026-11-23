@@ -12,6 +12,7 @@ import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static
 import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
 import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/finish-button.js';
 import { canSignCharges, MAX_POINTERS, MAX_MODIFIERS } from '/plugin-io/api/hyperscribe/scribe/static/charge-matrix.js';
+import { unsavedEditsMessage, findEditRow, sectionTitleFor, scrollToEditRow } from '/plugin-io/api/hyperscribe/scribe/static/unsaved-edits.js';
 
 const html = htm.bind(h);
 
@@ -735,6 +736,16 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const saveBlockedRef = useRef(false);
 
   const [editingFields, setEditingFields] = useState(new Set());
+
+  // KOALA-7401: section titles of the open editors, for the footer warning.
+  // Read from the page after render, so they match the titles the provider sees.
+  const [unsavedLabels, setUnsavedLabels] = useState([]);
+  useEffect(() => {
+    setUnsavedLabels([...editingFields].map(k => sectionTitleFor(findEditRow(k))));
+  }, [editingFields]);
+  const goToFirstUnsaved = useCallback(() => {
+    scrollToEditRow([...editingFields].map(k => findEditRow(k)).find(Boolean));
+  }, [editingFields]);
 
   // Every command needs a STABLE, UNIQUE client id for the charges matrix to
   // tell rows/columns apart. Scribe-generated diagnose/assess commands have
@@ -3979,9 +3990,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           },
         })}
         ${fromTheNoteCommands.length > 0 && html`
-          <div class="summary-section from-the-note-section">
+          <div class="summary-section from-the-note-section" data-soap-group>
             <div class="section-header">
-              <span class="section-title">ADDITIONAL COMMANDS</span>
+              <span class="section-title" data-section-title>ADDITIONAL COMMANDS</span>
             </div>
             <div class="section-body">
               ${fromTheNoteCommands.map(entry => html`
@@ -4025,9 +4036,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           ` : confirming ? html`
             <div class="approve-confirm-block">
               ${hasUnsavedEdits && html`
-                <div class="summary-footer-warning">
-                  ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
-                </div>
+                <button type="button" class="summary-footer-warning unsaved-edits-link" onClick=${goToFirstUnsaved} title="Go to the unsaved section">
+                  ${unsavedEditsMessage(editingFields.size, unsavedLabels)}
+                </button>
               `}
               <button class="insert-btn confirm" disabled=${hasUnsavedEdits || !canEdit} onClick=${handleInsert}>${wasFinalized ? (hasRxCommands ? 'Confirm: Save changes and review prescriptions' : 'Confirm: Save changes') : (hasRxCommands ? 'Confirm: Accept and review prescriptions' : 'Confirm: Accept and sign')}</button>
               <button class="approve-cancel" onClick=${() => setConfirming(false)}>Cancel</button>
@@ -4050,9 +4061,9 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                 </div>
               `}
               ${hasUnsavedEdits && html`
-                <div class="summary-footer-warning">
-                  ${editingFields.size} unsaved ${editingFields.size === 1 ? 'edit' : 'edits'} \u2014 save or cancel to continue.
-                </div>
+                <button type="button" class="summary-footer-warning unsaved-edits-link" onClick=${goToFirstUnsaved} title="Go to the unsaved section">
+                  ${unsavedEditsMessage(editingFields.size, unsavedLabels)}
+                </button>
               `}
               ${!canSignCharges(chargeMatrixCharges) && html`
                 <div class="summary-footer-warning">Some charges have no linked diagnosis — you can still sign, but consider linking them for cleaner billing.</div>

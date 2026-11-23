@@ -372,7 +372,7 @@ export function ExamSectionsRow({
   // ── EDIT ──
   // The `editing` class suppresses the app's .content-block:hover grey.
   return html`
-    <div class="exam-edit editing">
+    <div class="exam-edit editing" data-edit-key=${commandIndex}>
       <div class="exam-toolbar">
         <span class="exam-dropdown">
           <button type="button" class="exam-action-btn" disabled=${busy} onClick=${(e) => { e.stopPropagation(); setMenuOpen(o => !o); }} title="Apply a configured visit template">
