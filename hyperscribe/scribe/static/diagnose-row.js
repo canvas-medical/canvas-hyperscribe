@@ -69,10 +69,14 @@ export function DiagnoseRow({ command, commandIndex, onEdit, onMoveToPlan, readO
   // no-code picker renders off ``!hasCode`` (always shown until a code is set).
   const [editingCode, setEditingCode] = useState(!hasCode);
   const [editingText, setEditingText] = useState(false);
+
+  // a read-only card can't show the picker, so it must not count
+  // as an unsaved edit. An uncoded read-only card (e.g. one Add Now marked by
+  // mistake, or a non-author viewing it) otherwise kept Accept disabled.
   useEffect(() => {
-    onEditingChange?.(`${commandIndex}:code`, editingCode);
+    onEditingChange?.(`${commandIndex}:code`, editingCode && !readOnly);
     return () => onEditingChange?.(`${commandIndex}:code`, false);
-  }, [editingCode, commandIndex]);
+  }, [editingCode, commandIndex, readOnly]);
   useEffect(() => {
     onEditingChange?.(`${commandIndex}:text`, editingText);
     return () => onEditingChange?.(`${commandIndex}:text`, false);

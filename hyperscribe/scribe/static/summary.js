@@ -4,6 +4,7 @@ import htm from 'https://esm.sh/htm@3.1.1';
 import { SoapGroup, parseAPBlocks, matchCondition } from '/plugin-io/api/hyperscribe/scribe/static/soap-group.js';
 import { mergeFilled } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-fill.js';
 import { mergeGeneratedCommands } from '/plugin-io/api/hyperscribe/scribe/static/command-merge.js';
+import { stampAddNow, updateAddNow } from '/plugin-io/api/hyperscribe/scribe/static/add-now.js';
 import { collectQuestionnaireScores } from '/plugin-io/api/hyperscribe/scribe/static/questionnaire-score.js';
 import { dropReason, isIntentionalDrop, isDismissedCondition } from '/plugin-io/api/hyperscribe/scribe/static/command-drop.js';
 import { useRecording } from '/plugin-io/api/hyperscribe/scribe/static/recording-hook.js';
@@ -3353,14 +3354,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     // doesn't persist across a subsequent successful Add Now.
     setValidationError(null);
     logEvent('ADD_NOW', { commandType: command.command_type, isRecommendation, index });
-    // Mark as adding to show spinner and prevent double-clicks.
-    const setAdding = (flag) => {
-      if (isRecommendation) {
-        setRecommendations(prev => prev.map((rec, i) => i === index ? { ...rec, _adding: flag } : rec));
-      } else {
-        setCommands(prev => prev.map((cmd, i) => i === index ? { ...cmd, _adding: flag } : cmd));
-      }
-    };
+    // match the clicked card by a one-off id, never by position
+    // (see add-now.js). Generation can reorder the lists mid-request.
+    const addNowId = crypto.randomUUID();
+    const setList = isRecommendation ? setRecommendations : setCommands;
+    const setAdding = (flag) => setList(prev => updateAddNow(prev, addNowId, item => ({ ...item, _adding: flag })));
     // Client-side gate: don't ship incomplete commands to the server. The
     // server still validates, but failing fast gives instant feedback and
     // keeps the audit log clean of avoidable VALIDATION_FAILED events. Use
@@ -3379,7 +3377,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       ]);
       return;
     }
-    setAdding(true);
+    setList(prev => stampAddNow(prev, command, index, addNowId));
     try {
       const { _template_inserted, ...payload } = command;
       const res = await fetch(`${API_BASE}/insert-commands`, {
@@ -3426,12 +3424,12 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         // the prime, the just-added rec would re-appear under ADDITIONAL COMMANDS
         // as a from_the_note duplicate. Same race class as cache-load and
         // approve-success; same fix via the shared helper.
-        commitRecommendations(prev => prev.map((rec, i) =>
-          i === index ? { ...rec, already_documented: true, accepted: true, _added_now: true, _adding: false, command_uuid: attemptedEntry?.command_uuid || null } : rec
+        commitRecommendations(prev => updateAddNow(prev, addNowId, rec =>
+          ({ ...rec, already_documented: true, accepted: true, _added_now: true, _adding: false, command_uuid: attemptedEntry?.command_uuid || null })
         ));
       } else {
-        setCommands(prev => prev.map((cmd, i) =>
-          i === index ? { ...cmd, already_documented: true, _added_now: true, _adding: false, command_uuid: attemptedEntry?.command_uuid || null } : cmd
+        setCommands(prev => updateAddNow(prev, addNowId, cmd =>
+          ({ ...cmd, already_documented: true, _added_now: true, _adding: false, command_uuid: attemptedEntry?.command_uuid || null })
         ));
       }
       logEvent('ADD_NOW_SUCCESS', { commandType: command.command_type, index });
