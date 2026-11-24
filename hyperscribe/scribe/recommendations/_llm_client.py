@@ -1,15 +1,14 @@
 """Anthropic client for the questionnaire fill, on a current-generation model.
 
-The SDK's ``LlmSettingsAnthropic.to_dict`` always emits ``temperature``, and every
-current-generation model rejects sampling parameters with a 400, so a plain
-model-string swap is not enough — the request body has to be composed here.
+Current-generation models reject sampling parameters, and Claude Opus 5.5 and Claude
+Sonnet 5.5 also reject a forced ``tool_choice``, each with a 400. The settings send no
+``temperature`` and request schema replies through structured outputs
+(``output_config.format``), which every current model accepts.
 
 Two other things this override buys:
 
 * ``thinking`` and ``output_config.effort``, which the SDK settings dataclass has no
-  field for. Forced ``tool_choice`` (how the SDK does structured output) is compatible
-  with adaptive thinking on the Claude API; the disable-thinking requirement applies
-  only to Amazon Bedrock, and this plugin posts directly to api.anthropic.com.
+  field for.
 * ``cache_control`` on the transcript block. The fill sends the same transcript once per
   chunk, so without caching the chunking that keeps each request inside the SDK's 30s
   timeout would multiply the input cost by the chunk count.
@@ -24,6 +23,7 @@ from typing import Any
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 from canvas_sdk.clients.llms.structures.llm_response import LlmResponse
 from canvas_sdk.clients.llms.structures.llm_tokens import LlmTokens
+from canvas_sdk.clients.llms.structures.settings import LlmSettingsAnthropic
 from canvas_sdk.clients.llms.structures.settings.llm_settings import LlmSettings
 
 DEFAULT_MODEL = "claude-opus-5"
@@ -72,11 +72,12 @@ def classify_transport_error(exc: BaseException) -> tuple[HTTPStatus, str]:
     return HTTPStatus.BAD_REQUEST, FAILURE_TRANSPORT
 
 
-class ScribeLlmSettings(LlmSettings):
+class ScribeLlmSettings(LlmSettingsAnthropic):
     """Settings for a current-generation Anthropic model.
 
-    Deliberately does NOT extend ``LlmSettingsAnthropic``: that class requires a
-    ``temperature`` and puts it in ``to_dict``, which is exactly what has to go.
+    ``structured_outputs=True`` is what makes the SDK send a schema request as
+    ``output_config.format`` rather than a forced tool call, and ``to_dict`` is owned
+    here so no sampling parameter is ever sent.
 
     Written with an explicit ``__init__`` rather than ``@dataclass``, even though the
     SDK base class is one. ``dataclasses`` resolves field types via
@@ -93,8 +94,13 @@ class ScribeLlmSettings(LlmSettings):
         max_tokens: int = 8192,
         effort: str = DEFAULT_EFFORT,
     ) -> None:
-        super().__init__(api_key=api_key, model=model)
-        self.max_tokens = max_tokens
+        super().__init__(
+            api_key=api_key,
+            model=model,
+            temperature=None,
+            max_tokens=max_tokens,
+            structured_outputs=True,
+        )
         self.effort = effort
 
     def to_dict(self) -> dict[str, Any]:
@@ -127,11 +133,11 @@ class ScribeLlmAnthropic(LlmAnthropic):
         # counts, which drops ``cache_read_input_tokens`` — the one number that says
         # whether the prefix caching this design depends on is actually working.
         self.last_usage: dict[str, Any] = {}
-        # ``stop_reason`` from the last response. Anthropic drops the incomplete tool_use
-        # arguments when generation is cut off at ``max_tokens``, so the block arrives with
-        # an empty ``input``. That parses cleanly as "no items", which is indistinguishable
-        # from the model deliberately abstaining on every question - the worst available
-        # failure for a feature whose whole safety story is that abstention is meaningful.
+        # ``stop_reason`` from the last response. A reply cut off at ``max_tokens`` must
+        # never be read as answers: a partial reply could parse as "no items", which is
+        # indistinguishable from the model deliberately abstaining on every question - the
+        # worst available failure for a feature whose whole safety story is that
+        # abstention is meaningful.
         self.last_stop_reason: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -152,13 +158,10 @@ class ScribeLlmAnthropic(LlmAnthropic):
     def request(self) -> LlmResponse:
         """POST to Anthropic and parse the response.
 
-        Reimplemented rather than delegating to ``super().request()``, for two reasons
-        that both matter on a thinking model.
+        Reimplemented rather than delegating to ``super().request()``, for two reasons.
 
-        The SDK reads structured output from ``content[0]``, which assumes the tool_use
-        block is first. With thinking enabled the first block is a ``thinking`` block, so
-        that lookup returns ``{}`` and every fill comes back empty. This selects the
-        tool_use block by type instead.
+        It keeps ``stop_reason``, which the caller needs to tell a reply cut off at
+        ``max_tokens`` from a complete one.
 
         And the SDK discards everything in ``usage`` except the prompt and generated
         counts, which drops ``cache_read_input_tokens`` — the one number that says
@@ -194,12 +197,9 @@ class ScribeLlmAnthropic(LlmAnthropic):
         except (ValueError, TypeError):
             return LlmResponse(code=HTTPStatus.BAD_REQUEST, response=http_response.text, tokens=tokens)
 
+        # Structured outputs return the schema reply as text, after any thinking blocks.
         blocks = body.get("content") or []
-        if self.schema:
-            payload: dict[str, Any] = next((b.get("input", {}) for b in blocks if b.get("type") == "tool_use"), {})
-            text = json.dumps(payload)
-        else:
-            text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
+        text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
 
         self.last_stop_reason = body.get("stop_reason") or ""
         self.last_usage = body.get("usage") or {}
