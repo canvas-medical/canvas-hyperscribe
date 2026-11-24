@@ -314,12 +314,12 @@ def test_llm_audio_model():
 def test_llm_text_model():
     tests = [
         ("", True, "o3"),
-        ("Anthropic", True, "claude-opus-4-1-20250805"),
+        ("Anthropic", True, "claude-opus-5-5"),
         ("Google", True, "models/gemini-2.5-pro"),
         ("OpenAI", True, "o3"),
         ("Other", True, "o3"),
         ("", False, "gpt-4.1"),
-        ("Anthropic", False, "claude-sonnet-4-5-20250929"),
+        ("Anthropic", False, "claude-sonnet-5-5"),
         ("Google", False, "models/gemini-2.5-flash"),
         ("OpenAI", False, "gpt-4.1"),
         ("Other", False, "gpt-4.1"),

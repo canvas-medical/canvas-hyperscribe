@@ -3,6 +3,7 @@ from unittest.mock import patch, call, MagicMock
 
 import pytest
 
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.structures.http_response import HttpResponse
 from hyperscribe.structures.token_counts import TokenCounts
@@ -35,8 +36,8 @@ def test_to_dict():
     result = tested.to_dict()
     expected = {
         "model": "theModel",
-        "temperature": 0.0,
-        "max_tokens": 8192,
+        "max_tokens": 16000,
+        "output_config": {"effort": "high"},
         "messages": [
             {
                 "role": "user",
@@ -56,8 +57,8 @@ def test_to_dict():
     result = tested.to_dict()
     expected = {
         "model": "theModel",
-        "temperature": 0.0,
-        "max_tokens": 8192,
+        "max_tokens": 16000,
+        "output_config": {"effort": "high"},
         "messages": [
             {
                 "role": "user",
@@ -72,6 +73,21 @@ def test_to_dict():
     }
     assert result == expected
     assert memory_log.mock_calls == []
+
+
+def test_to_dict_chat_model():
+    memory_log = MagicMock()
+    tested = LlmAnthropic(memory_log, "anthropicKey", Constants.ANTHROPIC_CHAT_TEXT, False)
+    tested.set_user_prompt(["line 1"])
+
+    result = tested.to_dict()
+    expected = {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 16000,
+        "output_config": {"effort": "low"},
+        "messages": [{"role": "user", "content": [{"type": "text", "text": "line 1"}]}],
+    }
+    assert result == expected
 
 
 @patch("hyperscribe.llms.llm_anthropic.requests_post")
@@ -91,7 +107,11 @@ def test_request(to_dict, requests_post):
             "status_code": 202,
             "text": json.dumps(
                 {
-                    "content": [{"text": "\n".join(["```json", '["line 1","line 2","line 3"]', "```", ""])}],
+                    # adaptive thinking puts a thinking block (empty text by default) before the answer
+                    "content": [
+                        {"type": "thinking", "thinking": "", "signature": "sig"},
+                        {"type": "text", "text": "\n".join(["```json", '["line 1","line 2","line 3"]', "```", ""])},
+                    ],
                     "usage": {"input_tokens": 137, "output_tokens": 43},
                 },
             ),
@@ -104,12 +124,7 @@ def test_request(to_dict, requests_post):
 
     tested = LlmAnthropic(memory_log, "apiKey", "theModel", False)
     result = tested.request()
-    expected = HttpResponse(
-        code=202,
-        response='{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}], '
-        '"usage": {"input_tokens": 137, "output_tokens": 43}}',
-        tokens=TokenCounts(prompt=0, generated=0),
-    )
+    expected = HttpResponse(code=202, response=response.text, tokens=TokenCounts(prompt=0, generated=0))
     assert result == expected
 
     calls = [call(), call()]
@@ -129,10 +144,7 @@ def test_request(to_dict, requests_post):
         call.log("--- request begins:"),
         call.log('{\n  "key": "valueY"\n}'),
         call.log("status code: 202"),
-        call.log(
-            '{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}],'
-            ' "usage": {"input_tokens": 137, "output_tokens": 43}}'
-        ),
+        call.log(response.text),
         call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls
@@ -169,10 +181,7 @@ def test_request(to_dict, requests_post):
         call.log("--- request begins:"),
         call.log('{\n  "key": "valueB"\n}'),
         call.log("status code: 200"),
-        call.log(
-            '{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}],'
-            ' "usage": {"input_tokens": 137, "output_tokens": 43}}'
-        ),
+        call.log(response.text),
         call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls

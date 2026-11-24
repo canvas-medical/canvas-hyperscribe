@@ -125,14 +125,29 @@ def test_command_from_json(add_code2description, current_goals):
 
     tested = helper_instance()
     goals = [
-        CodedItem(uuid="theUuid1", label="display1a", code="123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="9876"),
+        CodedItem(uuid="11111111-1111-4111-8111-111111111111", label="display1a", code="123"),
+        CodedItem(uuid="22222222-2222-4222-8222-222222222222", label="display2a", code="45"),
+        CodedItem(uuid="33333333-3333-4333-8333-333333333333", label="display3a", code="9876"),
     ]
     tests = [
-        ("display2a", 1, "theUuid2", [call("theUuid2", "display2a")]),
-        ("display2a", 2, "theUuid2", [call("theUuid2", "display2a")]),
-        ("display2a", 4, "theUuid2", [call("theUuid2", "display2a")]),
+        (
+            "display2a",
+            1,
+            "22222222-2222-4222-8222-222222222222",
+            [call("22222222-2222-4222-8222-222222222222", "display2a")],
+        ),
+        (
+            "display2a",
+            2,
+            "22222222-2222-4222-8222-222222222222",
+            [call("22222222-2222-4222-8222-222222222222", "display2a")],
+        ),
+        (
+            "display2a",
+            4,
+            "22222222-2222-4222-8222-222222222222",
+            [call("22222222-2222-4222-8222-222222222222", "display2a")],
+        ),
         ("nonexistent", 4, "", []),
     ]
     for goal_name, idx, exp_uuid, exp_calls in tests:
@@ -194,9 +209,9 @@ def test_command_parameters_schemas(current_goals):
 
     tested = helper_instance()
     goals = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        CodedItem(uuid="11111111-1111-4111-8111-111111111111", label="display1a", code="CODE123"),
+        CodedItem(uuid="22222222-2222-4222-8222-222222222222", label="display2a", code="CODE45"),
+        CodedItem(uuid="33333333-3333-4333-8333-333333333333", label="display3a", code="CODE9876"),
     ]
     current_goals.side_effect = [goals]
     result = tested.command_parameters_schemas()
@@ -283,9 +298,9 @@ def test_instruction_constraints(current_goals):
 
     tested = helper_instance()
     goals = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        CodedItem(uuid="11111111-1111-4111-8111-111111111111", label="display1a", code="CODE123"),
+        CodedItem(uuid="22222222-2222-4222-8222-222222222222", label="display2a", code="CODE45"),
+        CodedItem(uuid="33333333-3333-4333-8333-333333333333", label="display3a", code="CODE9876"),
     ]
     current_goals.side_effect = [goals]
     result = tested.instruction_constraints()
@@ -305,9 +320,9 @@ def test_is_available(current_goals, can_edit_field):
 
     tested = helper_instance()
     goals = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        CodedItem(uuid="11111111-1111-4111-8111-111111111111", label="display1a", code="CODE123"),
+        CodedItem(uuid="22222222-2222-4222-8222-222222222222", label="display2a", code="CODE45"),
+        CodedItem(uuid="33333333-3333-4333-8333-333333333333", label="display3a", code="CODE9876"),
     ]
     tests = [(goals, True), ([], False)]
     for side_effect, expected in tests:
@@ -326,7 +341,7 @@ def test_is_available(current_goals, can_edit_field):
 def test_is_available__all_fields_locked(current_goals, can_edit_field):
     tested = helper_instance()
     goals = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+        CodedItem(uuid="11111111-1111-4111-8111-111111111111", label="display1a", code="CODE123"),
     ]
     current_goals.side_effect = [goals]
     result = tested.is_available()

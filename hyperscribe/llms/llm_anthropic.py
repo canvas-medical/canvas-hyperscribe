@@ -3,6 +3,7 @@ from http import HTTPStatus
 
 from requests import post as requests_post
 
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.http_response import HttpResponse
 from hyperscribe.structures.token_counts import TokenCounts
@@ -32,7 +33,16 @@ class LlmAnthropic(LlmBase):
             else:
                 messages.append({"role": role, "content": [part]})
 
-        return {"model": self.model, "temperature": self.temperature, "max_tokens": 8192, "messages": messages}
+        # Current models reject sampling parameters, so there is no temperature. Thinking is
+        # adaptive by default: the chat model runs at low effort to keep each stage call
+        # fast, and the reasoning model at high. Thinking counts toward max_tokens.
+        effort = "low" if self.model == Constants.ANTHROPIC_CHAT_TEXT else "high"
+        return {
+            "model": self.model,
+            "max_tokens": 16000,
+            "output_config": {"effort": effort},
+            "messages": messages,
+        }
 
     def request(self) -> HttpResponse:
         url = "https://api.anthropic.com/v1/messages"
@@ -51,7 +61,8 @@ class LlmAnthropic(LlmBase):
         )
         if result.code == HTTPStatus.OK.value:
             content = json.loads(request.text)
-            text = content.get("content", [{}])[0].get("text", "")
+            # thinking blocks can precede the answer, so read the text blocks by type
+            text = "".join(block.get("text", "") for block in content.get("content", []) if block.get("type") == "text")
             usage = content.get("usage", {})
             result = HttpResponse(
                 code=result.code,

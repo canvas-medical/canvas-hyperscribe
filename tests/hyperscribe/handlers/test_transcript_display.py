@@ -57,6 +57,7 @@ def test_constants():
     tested = TranscriptDisplay
     constants = {
         "PATH": "/transcript",
+        "PORTAL_ACCESS": None,  # <--- SimpleAPIBase class
         "RESPONDS_TO": ["SIMPLE_API_AUTHENTICATE", "SIMPLE_API_REQUEST"],  # <--- SimpleAPIBase class
     }
     assert is_constant(tested, constants)

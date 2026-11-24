@@ -100,13 +100,13 @@ def test_command_from_json(add_code2description, current_allergies):
 
     tested = helper_instance()
     allergies = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        CodedItem(uuid="11111111-1111-4111-8111-111111111111", label="display1a", code="CODE123"),
+        CodedItem(uuid="22222222-2222-4222-8222-222222222222", label="display2a", code="CODE45"),
+        CodedItem(uuid="33333333-3333-4333-8333-333333333333", label="display3a", code="CODE9876"),
     ]
     tests = [
-        (1, "theUuid2", [call("theUuid2", "display2a")]),
-        (2, "theUuid3", [call("theUuid3", "display3a")]),
+        (1, "22222222-2222-4222-8222-222222222222", [call("22222222-2222-4222-8222-222222222222", "display2a")]),
+        (2, "33333333-3333-4333-8333-333333333333", [call("33333333-3333-4333-8333-333333333333", "display3a")]),
         (4, "", []),
     ]
     for idx, exp_uuid, exp_calls in tests:
@@ -155,9 +155,9 @@ def test_command_parameters_schemas(current_allergies):
 
     tested = helper_instance()
     allergies = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
+        CodedItem(uuid="11111111-1111-4111-8111-111111111111", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="22222222-2222-4222-8222-222222222222", label="display2a", code="CODE45"),
+        CodedItem(uuid="33333333-3333-4333-8333-333333333333", label="display3a", code="CODE98.76"),
     ]
     current_allergies.side_effect = [allergies]
     result = tested.command_parameters_schemas()
@@ -220,9 +220,9 @@ def test_instruction_constraints(current_allergies):
 
     tested = helper_instance()
     allergies = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
+        CodedItem(uuid="11111111-1111-4111-8111-111111111111", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="22222222-2222-4222-8222-222222222222", label="display2a", code="CODE45"),
+        CodedItem(uuid="33333333-3333-4333-8333-333333333333", label="display3a", code="CODE98.76"),
     ]
     current_allergies.side_effect = [allergies]
     result = tested.instruction_constraints()
@@ -240,9 +240,9 @@ def test_is_available(current_allergies):
 
     tested = helper_instance()
     allergies = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
+        CodedItem(uuid="11111111-1111-4111-8111-111111111111", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="22222222-2222-4222-8222-222222222222", label="display2a", code="CODE45"),
+        CodedItem(uuid="33333333-3333-4333-8333-333333333333", label="display3a", code="CODE98.76"),
     ]
     tests = [(allergies, True), ([], False)]
     for side_effect, expected in tests:

@@ -120,7 +120,7 @@ def test_chatter():
     memory_log = MagicMock()
     tested = Helper
     tests = [
-        ("Anthropic", LlmAnthropic, "claude-sonnet-4-5-20250929"),
+        ("Anthropic", LlmAnthropic, "claude-sonnet-5-5"),
         ("Google", LlmGoogle, "models/gemini-2.5-flash"),
         ("OpenAI", LlmOpenaiO3, "o3"),
         ("Any", LlmOpenai, "gpt-4.1"),

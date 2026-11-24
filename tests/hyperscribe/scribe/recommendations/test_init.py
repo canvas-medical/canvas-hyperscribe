@@ -10,9 +10,11 @@ from hyperscribe.scribe.recommendations import (
     questionnaire_fill_enabled,
     lab_aoe_enabled,
     lab_recommendations_enabled,
+    make_llm_client,
     prescription_dispense_enabled,
     recommend_commands,
 )
+from hyperscribe.scribe.recommendations.schemas import AllergyRecommendationList
 
 
 def _make_note() -> ClinicalNote:
@@ -98,8 +100,29 @@ def test_recommend_commands_creates_client_with_settings(mock_llm_cls: MagicMock
     for call in mock_llm_cls.call_args_list:
         settings = call.args[0]
         assert settings.api_key == "my-api-key"
-        assert settings.temperature == 0.0
-        assert settings.max_tokens == 4096
+        assert settings.structured_outputs is True
+        assert settings.to_dict() == {
+            "model": "claude-sonnet-5-5",
+            "max_tokens": 8192,
+            "output_config": {"effort": "low"},
+        }
+
+
+def test_make_llm_client_schema_request_uses_structured_outputs() -> None:
+    """Claude Sonnet 5.5 rejects sampling parameters and a forced tool_choice with a 400."""
+    client = make_llm_client("my-api-key")
+    client.set_system_prompt(["system"])
+    client.set_user_prompt(["user"])
+    client.set_schema(AllergyRecommendationList)
+
+    body = client.to_dict()
+
+    assert body["model"] == "claude-sonnet-5-5"
+    assert "temperature" not in body
+    assert "tool_choice" not in body
+    assert "tools" not in body
+    assert body["output_config"]["effort"] == "low"
+    assert body["output_config"]["format"]["type"] == "json_schema"
 
 
 @patch("hyperscribe.scribe.recommendations.LlmAnthropic")

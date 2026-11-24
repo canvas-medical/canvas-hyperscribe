@@ -16,15 +16,32 @@ from hyperscribe.scribe.recommendations.prescription import PrescriptionRecommen
 from hyperscribe.scribe.recommendations.refer import ReferRecommender
 from hyperscribe.scribe.recommendations.task import TaskRecommender
 
-_MODEL = "claude-sonnet-4-5-20250929"
+_MODEL = "claude-sonnet-5-5"
+_EFFORT = "low"
+
+
+class _RecommendationSettings(LlmSettingsAnthropic):
+    """``LlmSettingsAnthropic`` plus an explicit effort, which the SDK settings have no field for.
+
+    A subclass of the SDK dataclass rather than a dataclass itself: the plugin sandbox never
+    registers its modules in ``sys.modules``, so decorating a class defined here fails at import.
+    """
+
+    def to_dict(self) -> dict:
+        result: dict = super().to_dict()
+        return result | {"output_config": {"effort": _EFFORT}}
 
 
 def _make_settings(api_key: str) -> LlmSettingsAnthropic:
-    return LlmSettingsAnthropic(
+    # No temperature (current models reject sampling parameters) and structured outputs for
+    # schema replies (they reject the forced tool call the SDK otherwise sends). Thinking is
+    # adaptive and counts toward max_tokens.
+    return _RecommendationSettings(
         api_key=api_key,
         model=_MODEL,
-        temperature=0.0,
-        max_tokens=4096,
+        temperature=None,
+        max_tokens=8192,
+        structured_outputs=True,
     )
 
 
