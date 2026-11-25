@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { unsavedEditsMessage, editKeyBase } from '../../hyperscribe/scribe/static/unsaved-edits.js';
+import { unsavedEditsMessage } from '../../../hyperscribe/scribe/static/utils/unsaved-edits.js';
 
 test('names the single unsaved section', () => {
   assert.equal(unsavedEditsMessage(1, ['Chief Complaint']),
@@ -17,10 +17,4 @@ test('keeps the old wording when no section was found', () => {
     '1 unsaved edit \u2014 save or cancel to continue.');
   assert.equal(unsavedEditsMessage(2),
     '2 unsaved edits \u2014 save or cancel to continue.');
-});
-
-test('strips the field suffix from editing keys', () => {
-  assert.equal(editKeyBase('3:code'), '3');
-  assert.equal(editKeyBase(3), '3');
-  assert.equal(editKeyBase('physical_exam_placeholder'), 'physical_exam_placeholder');
 });

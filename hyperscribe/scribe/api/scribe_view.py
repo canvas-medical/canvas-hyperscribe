@@ -110,13 +110,20 @@ class ScribeView(StaffSessionAuthMixin, SimpleAPI):
 
     @api.get("/static/<filename>")
     def get_static(self) -> list[Union[Response, Effect]]:
-        filename = self.request.path_params["filename"]
-        extension = filename.rsplit(".", 1)[-1] if "." in filename else ""
+        return self._serve_static(self.request.path_params["filename"])
+
+    # Route parameters can't contain "/", so each static subfolder needs its own route.
+    @api.get("/static/utils/<filename>")
+    def get_static_util(self) -> list[Union[Response, Effect]]:
+        return self._serve_static(f"utils/{self.request.path_params['filename']}")
+
+    def _serve_static(self, path: str) -> list[Union[Response, Effect]]:
+        extension = path.rsplit(".", 1)[-1] if "." in path else ""
         content_type = CONTENT_TYPES.get(extension)
         if not content_type:
             return [Response(b"Not found", status_code=HTTPStatus.NOT_FOUND)]
 
-        content = render_to_string(f"scribe/static/{filename}")
+        content = render_to_string(f"scribe/static/{path}")
         return [
             Response(
                 content.encode(),

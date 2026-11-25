@@ -13,7 +13,7 @@ import { initAuditLog, logEvent } from '/plugin-io/api/hyperscribe/scribe/static
 import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe-ws.js';
 import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/finish-button.js';
 import { canSignCharges, MAX_POINTERS, MAX_MODIFIERS } from '/plugin-io/api/hyperscribe/scribe/static/charge-matrix.js';
-import { unsavedEditsMessage, findEditRow, sectionTitleFor, scrollToEditRow } from '/plugin-io/api/hyperscribe/scribe/static/unsaved-edits.js';
+import { unsavedEditsMessage, findOpenEditors, sectionTitleFor, scrollToEditor } from '/plugin-io/api/hyperscribe/scribe/static/utils/unsaved-edits.js';
 
 const html = htm.bind(h);
 
@@ -738,14 +738,19 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
 
   const [editingFields, setEditingFields] = useState(new Set());
 
-  // KOALA-7401: section titles of the open editors, for the footer warning.
-  // Read from the page after render, so they match the titles the provider sees.
+  // Section titles of the open editors, top to bottom. Read from the page after
+  // render, so they match the titles the provider sees.
   const [unsavedLabels, setUnsavedLabels] = useState([]);
   useEffect(() => {
-    setUnsavedLabels([...editingFields].map(k => sectionTitleFor(findEditRow(k))));
+    setUnsavedLabels(findOpenEditors(editingFields).map(sectionTitleFor));
   }, [editingFields]);
-  const goToFirstUnsaved = useCallback(() => {
-    scrollToEditRow([...editingFields].map(k => findEditRow(k)).find(Boolean));
+  // Each click goes to the next unsaved editor down the page, wrapping round.
+  const lastUnsavedRef = useRef(null);
+  const goToNextUnsaved = useCallback(() => {
+    const open = findOpenEditors(editingFields);
+    const el = open[(open.indexOf(lastUnsavedRef.current) + 1) % open.length];
+    lastUnsavedRef.current = el;
+    scrollToEditor(el);
   }, [editingFields]);
 
   // Every command needs a STABLE, UNIQUE client id for the charges matrix to
@@ -3572,6 +3577,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
     && !(c.data && c.data.icd10_code) && !(c.data && c.data.rejected)
   ).length;
   const hasUnsavedEdits = editingFields.size > 0;
+  const unsavedWarning = hasUnsavedEdits && html`
+    <button type="button" class="summary-footer-warning unsaved-edits-link" onClick=${goToNextUnsaved} title="Go to the unsaved section">
+      ${unsavedEditsMessage(editingFields.size, unsavedLabels)}
+    </button>
+  `;
 
   // Psychiatry visits surface the Mental Status Exam card (gated server-side by
   // NablaBackend.is_psychiatry_template, surfaced per-template on /visit-templates).
@@ -4033,11 +4043,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
             </div>
           ` : confirming ? html`
             <div class="approve-confirm-block">
-              ${hasUnsavedEdits && html`
-                <button type="button" class="summary-footer-warning unsaved-edits-link" onClick=${goToFirstUnsaved} title="Go to the unsaved section">
-                  ${unsavedEditsMessage(editingFields.size, unsavedLabels)}
-                </button>
-              `}
+              ${unsavedWarning}
               <button class="insert-btn confirm" disabled=${hasUnsavedEdits || !canEdit} onClick=${handleInsert}>${wasFinalized ? (hasRxCommands ? 'Confirm: Save changes and review prescriptions' : 'Confirm: Save changes') : (hasRxCommands ? 'Confirm: Accept and review prescriptions' : 'Confirm: Accept and sign')}</button>
               <button class="approve-cancel" onClick=${() => setConfirming(false)}>Cancel</button>
             </div>
@@ -4058,11 +4064,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
                   ${uncodedConditionCount} ${uncodedConditionCount === 1 ? 'condition still needs' : 'conditions still need'} a diagnosis code — pick one from the list, or dismiss the card with the ✕.
                 </div>
               `}
-              ${hasUnsavedEdits && html`
-                <button type="button" class="summary-footer-warning unsaved-edits-link" onClick=${goToFirstUnsaved} title="Go to the unsaved section">
-                  ${unsavedEditsMessage(editingFields.size, unsavedLabels)}
-                </button>
-              `}
+              ${unsavedWarning}
               ${!canSignCharges(chargeMatrixCharges) && html`
                 <div class="summary-footer-warning">Some charges have no linked diagnosis — you can still sign, but consider linking them for cleaner billing.</div>
               `}
