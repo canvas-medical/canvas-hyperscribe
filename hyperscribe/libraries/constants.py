@@ -1,6 +1,6 @@
 class Constants:
-    ANTHROPIC_CHAT_TEXT = "claude-sonnet-4-5-20250929"  # LLM model used for text completion
-    ANTHROPIC_REASONING_TEXT = "claude-opus-4-1-20250805"
+    ANTHROPIC_CHAT_TEXT = "claude-sonnet-5-5"  # LLM model used for text completion
+    ANTHROPIC_REASONING_TEXT = "claude-opus-5-5"
     AWS3_LINK_EXPIRATION_SECONDS = 1200  # duration of an AWS S3 link
     API_SIGNED_EXPIRATION_SECONDS = 3600
     CYCLE_TRANSCRIPT_OVERLAP_MIN = 5

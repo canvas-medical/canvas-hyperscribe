@@ -5,8 +5,8 @@ from tests.helper import is_constant
 def test_constants():
     tested = Constants
     constants = {
-        "ANTHROPIC_CHAT_TEXT": "claude-sonnet-4-5-20250929",
-        "ANTHROPIC_REASONING_TEXT": "claude-opus-4-1-20250805",
+        "ANTHROPIC_CHAT_TEXT": "claude-sonnet-5-5",
+        "ANTHROPIC_REASONING_TEXT": "claude-opus-5-5",
         "AWS3_LINK_EXPIRATION_SECONDS": 1200,
         "API_SIGNED_EXPIRATION_SECONDS": 3600,
         "CYCLE_TRANSCRIPT_OVERLAP_MIN": 5,

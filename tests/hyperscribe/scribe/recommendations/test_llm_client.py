@@ -18,9 +18,7 @@ from hyperscribe.scribe.recommendations.schemas import QuestionnaireFillResult
 
 
 def test_settings_never_send_a_sampling_parameter() -> None:
-    """Current-generation models reject temperature/top_p/top_k with a 400, and the SDK's
-    own LlmSettingsAnthropic always emits temperature. That incompatibility is the whole
-    reason this class exists, so it is worth pinning."""
+    """Current-generation models reject temperature/top_p/top_k with a 400."""
     payload = ScribeLlmSettings(api_key="k", model=DEFAULT_MODEL).to_dict()
     assert "temperature" not in payload
     assert "top_p" not in payload
@@ -70,10 +68,22 @@ def _http_response(status: int, body: dict) -> MagicMock:
     return response
 
 
-def test_structured_output_is_read_from_the_tool_use_block_not_the_first_one() -> None:
-    """The SDK reads content[0]. With thinking on, content[0] is a thinking block, so
-    that lookup returns {} and every questionnaire comes back empty. This is the bug the
-    reimplemented request() exists to avoid."""
+def test_schema_request_uses_structured_outputs_not_a_forced_tool_call() -> None:
+    """Claude Opus 5.5 and Claude Sonnet 5.5 reject a forced tool_choice with a 400."""
+    client = make_fill_client("k", model="claude-sonnet-5-5")
+    client.set_user_prompt(["hi"])
+    client.set_schema(QuestionnaireFillResult)
+
+    payload = client.to_dict()
+
+    assert "tool_choice" not in payload
+    assert "tools" not in payload
+    assert payload["output_config"]["effort"] == DEFAULT_EFFORT
+    assert payload["output_config"]["format"]["type"] == "json_schema"
+
+
+def test_structured_output_is_read_from_the_text_after_thinking() -> None:
+    """With thinking on, content[0] is a thinking block, so the reply is read by type."""
     client = ScribeLlmAnthropic(ScribeLlmSettings(api_key="k", model="m"))
     client.set_user_prompt(["hi"])
     client.set_schema(QuestionnaireFillResult)
@@ -83,7 +93,7 @@ def test_structured_output_is_read_from_the_tool_use_block_not_the_first_one() -
             {
                 "content": [
                     {"type": "thinking", "thinking": "considering the transcript"},
-                    {"type": "tool_use", "name": "QuestionnaireFillResult", "input": {"questionnaireDbid": 7}},
+                    {"type": "text", "text": '{"questionnaireDbid": 7}'},
                 ],
                 "usage": {"input_tokens": 10, "output_tokens": 4},
             },

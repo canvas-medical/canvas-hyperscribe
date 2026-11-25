@@ -84,6 +84,7 @@ def test_constants():
     tested = CaseBuilder
     constants = {
         "PATH": "/case_builder",
+        "PORTAL_ACCESS": None,  # <--- SimpleAPIBase class
         "RESPONDS_TO": ["SIMPLE_API_AUTHENTICATE", "SIMPLE_API_REQUEST"],  # <--- SimpleAPIBase class
         "CLASS_COMMANDS": [
             AdjustPrescriptionCommand,

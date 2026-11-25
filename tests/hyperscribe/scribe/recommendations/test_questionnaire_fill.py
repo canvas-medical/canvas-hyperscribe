@@ -366,13 +366,8 @@ def test_nothing_salvageable_still_fails() -> None:
 
 
 def test_a_truncated_response_fails_instead_of_reading_as_abstention() -> None:
-    """A chunk cut off at max_tokens must not look like a deliberate abstention.
-
-    Anthropic drops the incomplete tool_use arguments when generation stops at
-    max_tokens, so the block arrives with an empty ``input``. That parses cleanly as "no
-    items", which is exactly what a correct abstention looks like. Confirmed against the
-    real API: stop_reason "max_tokens", one tool_use block, input {}.
-    """
+    """A chunk cut off at max_tokens must not look like a deliberate abstention, even when
+    what came back parses cleanly as "no items"."""
     client = _client({"items": []})
     client.last_stop_reason = "max_tokens"
     with pytest.raises(FillChunkError) as excinfo:
@@ -383,7 +378,7 @@ def test_a_truncated_response_fails_instead_of_reading_as_abstention() -> None:
 
 def test_a_complete_response_is_not_treated_as_truncated() -> None:
     client = _client({"items": []})
-    client.last_stop_reason = "tool_use"
+    client.last_stop_reason = "end_turn"
     assert fill_chunk("PHQ-9", _questions(), _transcript(), client).items == []
 
 

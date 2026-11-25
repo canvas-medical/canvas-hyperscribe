@@ -113,7 +113,7 @@ def test_command_from_json(add_code2description, current_medications):
             potency_unit_code="puc1",
         ),
         MedicationCached(
-            uuid="theUuid2",
+            uuid="22222222-2222-4222-8222-222222222222",
             label="display2",
             code_rx_norm="rxNorm2",
             code_fdb="fdb2",
@@ -121,7 +121,7 @@ def test_command_from_json(add_code2description, current_medications):
             potency_unit_code="puc2",
         ),
         MedicationCached(
-            uuid="theUuid3",
+            uuid="33333333-3333-4333-8333-333333333333",
             label="display3",
             code_rx_norm="rxNorm3",
             code_fdb="fdb3",
@@ -130,8 +130,8 @@ def test_command_from_json(add_code2description, current_medications):
         ),
     ]
     tests = [
-        (1, "theUuid2", [call("theUuid2", "display2")]),
-        (2, "theUuid3", [call("theUuid3", "display3")]),
+        (1, "22222222-2222-4222-8222-222222222222", [call("22222222-2222-4222-8222-222222222222", "display2")]),
+        (2, "33333333-3333-4333-8333-333333333333", [call("33333333-3333-4333-8333-333333333333", "display3")]),
         (4, None, []),
     ]
     for idx, exp_uuid, exp_calls in tests:
@@ -191,7 +191,7 @@ def test_command_parameters_schemas(current_medications):
             potency_unit_code="puc1",
         ),
         MedicationCached(
-            uuid="theUuid2",
+            uuid="22222222-2222-4222-8222-222222222222",
             label="display2",
             code_rx_norm="rxNorm2",
             code_fdb="fdb2",
@@ -199,7 +199,7 @@ def test_command_parameters_schemas(current_medications):
             potency_unit_code="puc2",
         ),
         MedicationCached(
-            uuid="theUuid3",
+            uuid="33333333-3333-4333-8333-333333333333",
             label="display3",
             code_rx_norm="rxNorm3",
             code_fdb="fdb3",
@@ -272,7 +272,7 @@ def test_instruction_constraints(current_medications):
             potency_unit_code="puc1",
         ),
         MedicationCached(
-            uuid="theUuid2",
+            uuid="22222222-2222-4222-8222-222222222222",
             label="display2",
             code_rx_norm="rxNorm2",
             code_fdb="fdb2",
@@ -280,7 +280,7 @@ def test_instruction_constraints(current_medications):
             potency_unit_code="puc2",
         ),
         MedicationCached(
-            uuid="theUuid3",
+            uuid="33333333-3333-4333-8333-333333333333",
             label="display3",
             code_rx_norm="rxNorm3",
             code_fdb="fdb3",
@@ -313,7 +313,7 @@ def test_is_available(current_medications):
             potency_unit_code="puc1",
         ),
         MedicationCached(
-            uuid="theUuid2",
+            uuid="22222222-2222-4222-8222-222222222222",
             label="display2",
             code_rx_norm="rxNorm2",
             code_fdb="fdb2",
@@ -321,7 +321,7 @@ def test_is_available(current_medications):
             potency_unit_code="puc2",
         ),
         MedicationCached(
-            uuid="theUuid3",
+            uuid="33333333-3333-4333-8333-333333333333",
             label="display3",
             code_rx_norm="rxNorm3",
             code_fdb="fdb3",
