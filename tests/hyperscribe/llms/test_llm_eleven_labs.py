@@ -1,5 +1,8 @@
 from unittest.mock import patch, call, MagicMock
 
+import pytest
+from langdetect.lang_detect_exception import LangDetectException
+
 from hyperscribe.llms.llm_eleven_labs import LlmElevenLabs
 from hyperscribe.structures.http_response import HttpResponse
 from hyperscribe.structures.token_counts import TokenCounts
@@ -237,3 +240,144 @@ def test_request(requests_post):
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
+
+
+def test_filter_non_english_turns_empty():
+    kept, filtered = LlmElevenLabs._filter_non_english_turns([])
+    assert kept == []
+    assert filtered == []
+
+
+def test_filter_non_english_turns_all_english():
+    turns = [
+        {"speaker_id": "speaker_0", "text": ["Hello", " ", "how", " ", "are", " ", "you"], "start": 0.0, "end": 3.0},
+        {"speaker_id": "speaker_1", "text": ["I", " ", "am", " ", "doing", " ", "well"], "start": 3.0, "end": 6.0},
+    ]
+    kept, filtered = LlmElevenLabs._filter_non_english_turns(turns)
+    assert len(kept) == 2
+    assert len(filtered) == 0
+
+
+@patch("hyperscribe.llms.llm_eleven_labs.detect")
+def test_filter_non_english_turns_removes_non_english(mock_detect):
+    turns = [
+        {"speaker_id": "speaker_0", "text": ["Hello", " ", "how", " ", "are", " ", "you"], "start": 0.0, "end": 3.0},
+        {
+            "speaker_id": "speaker_0",
+            "text": ["Zagrożone", " ", "gatunki", " ", "zwierząt"],
+            "start": 3.0,
+            "end": 6.0,
+        },
+        {
+            "speaker_id": "speaker_1",
+            "text": ["I", " ", "feel", " ", "much", " ", "better", " ", "today"],
+            "start": 6.0,
+            "end": 9.0,
+        },
+    ]
+    mock_detect.side_effect = ["en", "pl", "en"]
+
+    kept, filtered = LlmElevenLabs._filter_non_english_turns(turns)
+    assert len(kept) == 2
+    assert kept[0]["start"] == 0.0
+    assert kept[1]["start"] == 6.0
+    assert len(filtered) == 1
+    assert filtered[0]["start"] == 3.0
+
+
+@patch("hyperscribe.llms.llm_eleven_labs.detect")
+def test_filter_non_english_turns_keeps_silence(mock_detect):
+    turns = [
+        {"speaker_id": "speaker_0", "text": [], "start": 0.0, "end": 0.0},
+        {"speaker_id": "speaker_0", "text": ["[silence]"], "start": 0.0, "end": 0.0},
+        {"speaker_id": "speaker_1", "text": ["Hello", " ", "doctor"], "start": 1.0, "end": 3.0},
+    ]
+    mock_detect.side_effect = ["en"]
+
+    kept, filtered = LlmElevenLabs._filter_non_english_turns(turns)
+    assert len(kept) == 3
+    assert len(filtered) == 0
+    # detect should only be called once (for the English turn)
+    assert mock_detect.call_count == 1
+
+
+@patch("hyperscribe.llms.llm_eleven_labs.detect")
+def test_filter_non_english_turns_detection_failure_keeps_turn(mock_detect):
+    turns = [
+        {"speaker_id": "speaker_0", "text": ["ok"], "start": 0.0, "end": 0.5},
+        {
+            "speaker_id": "speaker_1",
+            "text": ["The", " ", "patient", " ", "is", " ", "stable"],
+            "start": 0.5,
+            "end": 3.0,
+        },
+    ]
+    mock_detect.side_effect = [LangDetectException(0, ""), "en"]
+
+    kept, filtered = LlmElevenLabs._filter_non_english_turns(turns)
+    assert len(kept) == 2
+    assert len(filtered) == 0
+
+
+@patch("hyperscribe.llms.llm_eleven_labs.detect")
+def test_filter_non_english_turns_all_non_english(mock_detect):
+    turns = [
+        {
+            "speaker_id": "speaker_0",
+            "text": ["Bonjour", " ", "comment", " ", "allez-vous"],
+            "start": 0.0,
+            "end": 3.0,
+        },
+        {"speaker_id": "speaker_1", "text": ["Zagrożone", " ", "gatunki"], "start": 3.0, "end": 5.0},
+    ]
+    mock_detect.side_effect = ["fr", "pl"]
+
+    kept, filtered = LlmElevenLabs._filter_non_english_turns(turns)
+    assert len(kept) == 0
+    assert len(filtered) == 2
+
+
+@patch("hyperscribe.llms.llm_eleven_labs.log")
+@patch("hyperscribe.llms.llm_eleven_labs.detect")
+@patch("hyperscribe.llms.llm_eleven_labs.requests_post")
+def test_request_logs_exception_for_non_english_turns(requests_post, mock_detect, mock_log):
+    import json
+
+    content = {
+        "words": [
+            {"text": "Hello", "start": 0.0, "end": 0.5, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "doctor", "start": 0.5, "end": 1.0, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "Zagrożone", "start": 2.0, "end": 2.5, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "gatunki", "start": 2.5, "end": 3.0, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "zwierząt", "start": 3.0, "end": 3.5, "type": "word", "speaker_id": "speaker_0"},
+        ],
+    }
+    response = type(
+        "Response",
+        (),
+        {
+            "status_code": 200,
+            "text": json.dumps(content),
+            "json": lambda self: content,
+        },
+    )()
+    requests_post.side_effect = [response]
+    # First turn "Hellodoctor" -> en, second turn "Zagrożonegatunkizwierząt" -> pl
+    mock_detect.side_effect = ["en", "pl"]
+
+    memory_log = MagicMock()
+    tested = LlmElevenLabs(memory_log, "apiKey", "theModel", False)
+    tested.add_audio(b"someBytes", "mp3")
+    result = tested.request()
+
+    assert result.code == 200
+    # The non-English turn should be filtered out
+    response_data = json.loads(result.response.replace("```json\n", "").replace("\n```", ""))
+    assert len(response_data) == 1
+    assert response_data[0]["text"] == "Hellodoctor"
+
+    # Verify log.exception was called for the non-English turn
+    mock_log.exception.assert_called_once()
+    exception_msg = mock_log.exception.call_args[0][0]
+    assert "Non-English transcript content detected" in exception_msg
+    assert "speaker_0" in exception_msg

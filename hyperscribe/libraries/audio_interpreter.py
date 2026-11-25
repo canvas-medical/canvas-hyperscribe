@@ -85,11 +85,56 @@ class AudioInterpreter:
         transcriber.add_audio(audio_bytes, extension)
 
         if transcriber.support_speaker_identification():
-            return self.combine_and_speaker_detection_single_step(transcriber, transcript_tail)
+            result = self.combine_and_speaker_detection_single_step(transcriber, transcript_tail)
         else:
             memory_log = MemoryLog.instance(self.identification, "speakerDetection", self.s3_credentials)
             detector = Helper.chatter(self.settings, memory_log, ModelSpec.COMPLEX)
-            return self.combine_and_speaker_detection_double_step(transcriber, detector, transcript_tail)
+            result = self.combine_and_speaker_detection_double_step(transcriber, detector, transcript_tail)
+
+        # Check for audio quality issues and warn the user
+        if not result.has_error and result.content:
+            lines = Line.load_from_json(result.content)
+            warnings = self._detect_audio_quality_issues(lines)
+            if warnings:
+                ProgressDisplay.send_to_user(
+                    self.identification,
+                    self.settings,
+                    [ProgressMessage(message=w, section="") for w in warnings],
+                )
+
+        return result
+
+    @staticmethod
+    def _detect_audio_quality_issues(lines: list[Line]) -> list[str]:
+        """Detect audio quality issues from transcript lines.
+
+        Checks for large time gaps between consecutive segments, which indicate
+        audio dropouts or extended silences that may cause ASR hallucinations.
+
+        Returns a list of warning messages, empty if no issues detected.
+        """
+        if len(lines) < 2:
+            return []
+
+        gap_threshold = 30.0  # seconds
+        gap_count = 0
+
+        for i in range(1, len(lines)):
+            prev_end = lines[i - 1].end
+            curr_start = lines[i].start
+            # Only check lines with meaningful timestamps
+            if prev_end > 0 and curr_start > 0:
+                gap = curr_start - prev_end
+                if gap > gap_threshold:
+                    gap_count += 1
+
+        if gap_count > 0:
+            return [
+                f"Audio quality issue detected: {gap_count} gap(s) longer than "
+                f"{int(gap_threshold)}s found in transcript. Some segments may be unreliable."
+            ]
+
+        return []
 
     @classmethod
     def combine_and_speaker_detection_double_step(
