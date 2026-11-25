@@ -1,11 +1,11 @@
-from argparse import ArgumentTypeError
-from argparse import Namespace
-from datetime import datetime, UTC
+from argparse import ArgumentTypeError, Namespace
+from datetime import UTC, datetime
 from importlib import import_module
 from pathlib import Path
 
-from canvas_sdk.v1.data import Patient, Command
-from requests import post as requests_post, Response
+from canvas_sdk.v1.data import Command, Patient
+from requests import Response
+from requests import post as requests_post
 
 from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
@@ -60,7 +60,7 @@ class BuilderBase:
             note_uuid = HelperEvaluation.get_note_uuid(parameters.patient)
             provider_uuid = HelperEvaluation.get_provider_uuid(parameters.patient)
         else:
-            setattr(parameters, "patient", HyperscribeConstants.FAUX_PATIENT_UUID)
+            parameters.patient = HyperscribeConstants.FAUX_PATIENT_UUID
             note_uuid = HyperscribeConstants.FAUX_NOTE_UUID
             provider_uuid = HyperscribeConstants.FAUX_PROVIDER_UUID
 
@@ -131,7 +131,7 @@ class BuilderBase:
 
         # common commands
         cycles = recorder.get_json(EvaluationConstants.PARAMETERS2COMMAND)
-        for cycle, content in cycles.items():
+        for content in cycles.values():
             for instruction, command in zip(content["instructions"], content["commands"]):
                 result[instruction["uuid"]] = {
                     "instruction": instruction["information"],

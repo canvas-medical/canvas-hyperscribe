@@ -41,7 +41,6 @@ class LlmDecisionsReviewer:
         if client_s3.list_s3_objects(store_path):
             return
 
-        #
         cached = CachedSdk.get_discussion(identification.note_uuid)
         cached.created = created
         cached.cycle = cycles + 1  # to force the new logs in a subsequent folder

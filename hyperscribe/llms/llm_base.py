@@ -1,8 +1,9 @@
 from __future__ import annotations
-from time import time
+
 import json
 import re
 from http import HTTPStatus
+from time import time
 
 from canvas_sdk.questionnaires.utils import Draft7Validator
 from logger import log

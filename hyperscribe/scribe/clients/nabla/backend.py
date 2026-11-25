@@ -19,7 +19,6 @@ from hyperscribe.scribe.backend import (
 from hyperscribe.scribe.clients.nabla.auth import NablaAuth
 from hyperscribe.scribe.clients.nabla.client import NablaClient
 
-
 _NABLA_API_VERSION = "2026-06-12"
 _NOTE_LOCALE = "ENGLISH_US"
 # Dictation (dictate-ws) takes a single locale, not the transcribe-ws speech_locales

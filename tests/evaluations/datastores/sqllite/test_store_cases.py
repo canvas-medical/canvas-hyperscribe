@@ -1,6 +1,6 @@
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from evaluations.datastores.sqllite.store_cases import StoreCases
 from evaluations.structures.evaluation_case import EvaluationCase
@@ -71,7 +71,7 @@ def test_upsert(upsert, mock_datetime):
         upsert.reset_mock()
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 3, 26, 11, 38, 21, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 3, 26, 11, 38, 21, 123456, tzinfo=UTC)
     tested = StoreCases
     mock_datetime.now.side_effect = [date_0]
     tested.upsert(

@@ -8,7 +8,6 @@ from canvas_sdk.v1.data.note import NoteStateChangeEvent, NoteStates
 
 from hyperscribe.models.scribe import ScribeSummary, ScribeTranscript
 
-
 _EDITABLE_STATES = frozenset(
     {
         NoteStates.NEW,

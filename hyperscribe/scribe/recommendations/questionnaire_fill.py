@@ -23,12 +23,11 @@ import time
 from http import HTTPStatus
 from typing import Any, Callable
 
-from logger import log
-
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 from canvas_sdk.utils.http import ThreadPoolExecutor
 from canvas_sdk.v1.data.questionnaire import Questionnaire as QuestionnaireModel
+from logger import log
 
 from hyperscribe.scribe.backend.models import Transcript
 from hyperscribe.scribe.recommendations._llm_client import (

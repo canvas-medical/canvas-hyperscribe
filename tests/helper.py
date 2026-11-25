@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import fields as dataclass_fields, is_dataclass as dataclass_is_dataclass
+from dataclasses import fields as dataclass_fields
+from dataclasses import is_dataclass as dataclass_is_dataclass
 from re import sub
 from typing import get_type_hints
 

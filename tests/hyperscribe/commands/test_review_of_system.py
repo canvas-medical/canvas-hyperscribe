@@ -6,12 +6,12 @@ from canvas_sdk.commands import ReviewOfSystemsCommand
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.review_of_system import ReviewOfSystem
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> ReviewOfSystem:

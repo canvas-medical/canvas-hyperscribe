@@ -200,7 +200,7 @@ def test_unresolvable_command_uuid_records_error(mock_note, mock_index, mock_com
             "modifiers": [],
         }
     ]
-    effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
+    effects, _enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
     assert effects == []
     assert errors == [{"command_uuid": VALID_UUID, "reason": "billing_line_item_not_found"}]
     mock_update.assert_not_called()
@@ -226,7 +226,7 @@ def test_empty_pointers_clears_bli_without_error(mock_note, mock_index, mock_com
     mock_update.return_value = SimpleNamespace(apply=lambda: "CLEAR_EFFECT")
 
     charges = [{"command_uuid": VALID_UUID, "diagnosis_pointers": [], "modifiers": []}]
-    effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
+    effects, _enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
 
     assert errors == []
     assert effects == ["CLEAR_EFFECT"]
@@ -335,7 +335,7 @@ def test_all_pointers_resolve_writes_full_set(mock_note, mock_index, mock_comman
             "modifiers": [],
         }
     ]
-    effects, enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
+    effects, _enriched, errors = build_charge_enrichment_effects(charges, [], "note-uuid")
 
     assert errors == []
     assert effects == ["UPDATE_EFFECT"]

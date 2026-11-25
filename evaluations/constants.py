@@ -6,7 +6,6 @@ class Constants:
     GROUP_COMMON = "common"
     TYPE_GENERAL = "general"
     TYPE_SITUATIONAL = "situational"
-    #
     DIFFERENCE_LEVEL_MINOR = "minor"
     DIFFERENCE_LEVEL_MODERATE = "moderate"
     DIFFERENCE_LEVEL_CRITICAL = "critical"
@@ -19,7 +18,6 @@ class Constants:
     ]
     IGNORED_KEY_VALUE = ">?<"
     CASE_CYCLE_PREFIX = "cycle"
-    #
     OPTION_DIFFERENCE_LEVELS = "--evaluation-difference-levels"
     OPTION_PATIENT_UUID = "--patient-uuid"
     OPTION_PRINT_LOGS = "--print-logs"
@@ -32,7 +30,6 @@ class Constants:
     EVALUATIONS_DB_PASSWORD = "EVALUATIONS_DB_PASSWORD"
     EVALUATIONS_DB_HOST = "EVALUATIONS_DB_HOST"
     EVALUATIONS_DB_PORT = "EVALUATIONS_DB_PORT"
-    #
     AUDIO2TRANSCRIPT = "audio2transcript"
     INSTRUCTION2PARAMETERS = "instruction2parameters"
     PARAMETERS2COMMAND = "parameters2command"

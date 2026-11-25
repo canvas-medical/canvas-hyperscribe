@@ -4,9 +4,8 @@ import json
 import re
 from http import HTTPStatus
 
-from logger import log
-
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
+from logger import log
 
 from hyperscribe.scribe.backend.models import (
     ClinicalNote,

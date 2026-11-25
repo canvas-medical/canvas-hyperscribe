@@ -27,7 +27,6 @@ from hyperscribe.scribe.recommendations.schemas import (
     LabTestEntry,
 )
 
-
 # ---------- helpers ----------
 
 
@@ -452,7 +451,7 @@ def test_build_aoe_payload_text_question_no_label() -> None:
             confidence="medium",
         ),
     }
-    aoe, missing = _build_aoe_payload([test], test_questions, answers_by_key)
+    aoe, _missing = _build_aoe_payload([test], test_questions, answers_by_key)
     assert len(aoe) == 1
     assert aoe[0]["answer_value"] == "Recent statin start"
     assert aoe[0]["answer_label"] is None

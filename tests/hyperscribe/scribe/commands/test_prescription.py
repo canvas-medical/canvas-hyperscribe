@@ -3,7 +3,6 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from canvas_sdk.commands.constants import ClinicalQuantity
 
 from hyperscribe.scribe.commands.prescription import PrescriptionParser
@@ -79,7 +78,7 @@ def test_build_full() -> None:
     assert call_kwargs["fdb_code"] == "12345"
     assert call_kwargs["sig"] == "Take 1 tablet daily"
     assert call_kwargs["days_supply"] == 30
-    assert call_kwargs["quantity_to_dispense"] == Decimal("30")
+    assert call_kwargs["quantity_to_dispense"] == Decimal(30)
     assert call_kwargs["refills"] == 3
     assert call_kwargs["substitutions"] == "ALLOWED"
     assert call_kwargs["note_to_pharmacist"] == "Patient prefers generic"

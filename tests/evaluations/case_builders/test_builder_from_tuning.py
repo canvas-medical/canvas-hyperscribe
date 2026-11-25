@@ -1,5 +1,5 @@
 from argparse import Namespace
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_tuning import BuilderFromTuning
@@ -74,7 +74,7 @@ def test__run(audio2commands, limited_cache, implemented_commands, cached_discus
         for idx, item in enumerate(mock_mp3_files):
             item.reset_mock()
             item.name = f"audio file {idx}"
-            item.open.return_value.__enter__.return_value.read.side_effect = [f"audio content {idx}".encode("utf-8")]
+            item.open.return_value.__enter__.return_value.read.side_effect = [f"audio content {idx}".encode()]
 
     instructions = [
         Instruction(

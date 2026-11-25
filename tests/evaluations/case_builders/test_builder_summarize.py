@@ -1,6 +1,6 @@
 from argparse import Namespace
 from pathlib import Path
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from evaluations.case_builders.builder_summarize import BuilderSummarize
 

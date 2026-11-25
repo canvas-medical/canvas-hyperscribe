@@ -6,12 +6,11 @@ import pytest
 
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection
 from hyperscribe.scribe.recommendations import (
-    prescription_dispense_enabled,
-    questionnaire_fill_enabled,
     lab_aoe_enabled,
     lab_recommendations_enabled,
     make_llm_client,
     prescription_dispense_enabled,
+    questionnaire_fill_enabled,
     recommend_commands,
 )
 from hyperscribe.scribe.recommendations.schemas import AllergyRecommendationList

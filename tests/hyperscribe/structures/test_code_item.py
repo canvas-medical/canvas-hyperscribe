@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from hyperscribe.structures.coded_item import CodedItem
 from tests.helper import is_namedtuple

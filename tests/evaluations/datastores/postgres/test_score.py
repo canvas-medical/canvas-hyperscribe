@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from unittest.mock import patch, call
+from datetime import UTC, datetime
+from unittest.mock import call, patch
 
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.datastores.postgres.score import Score
@@ -30,7 +30,7 @@ def test_insert(alter, mock_datetime):
         alter.reset_mock()
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 7, 4, 6, 11, 4, 805952, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 7, 4, 6, 11, 4, 805952, tzinfo=UTC)
     score = ScoreRecord(
         rubric_id=123,
         generated_note_id=456,
@@ -64,7 +64,7 @@ def test_insert(alter, mock_datetime):
     result = tested.insert(score)
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
 
     assert len(alter.mock_calls) == 1

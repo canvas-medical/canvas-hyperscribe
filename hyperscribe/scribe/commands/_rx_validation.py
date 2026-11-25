@@ -55,9 +55,7 @@ def _has_value(value: Any) -> bool:
     """Treat ``None``, empty string, and empty container as missing."""
     if value is None:
         return False
-    if isinstance(value, str) and not value.strip():
-        return False
-    return True
+    return not (isinstance(value, str) and not value.strip())
 
 
 def _validate_required_string(data: dict[str, Any], field: str, label: str, errors: list[str]) -> None:
@@ -88,7 +86,7 @@ def _validate_quantity_to_dispense(value: Any, errors: list[str]) -> None:
     # Mirror canvas_core.commands.definitions.prescribe.dispense_quantity_validator:
     # reject trailing zeros after a decimal point ("1.0", "1.") because the
     # Surescripts NewRx wire format rejects them.
-    if "." in str_value and (str_value.endswith("0") or str_value.endswith(".")):
+    if "." in str_value and (str_value.endswith(("0", "."))):
         errors.append("Quantity to dispense cannot have trailing zeroes")
 
 

@@ -1,16 +1,15 @@
 import json
-from argparse import ArgumentParser, Namespace, ArgumentTypeError
-from datetime import UTC
-from datetime import datetime
-from os import getenv, environ
+from argparse import ArgumentParser, ArgumentTypeError, Namespace
+from datetime import UTC, datetime
+from os import environ, getenv
 from pathlib import Path
 from time import time
 
 from evaluations.constants import Constants as EvaluationConstants
-from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.cached_sdk import CachedSdk
+from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -62,7 +61,7 @@ class Audio2TextComparator:
         audios = [audio.read_bytes() for audio in parameters.mp3]
         prefix = datetime.now(UTC).strftime("%Y%m%d_%H%M")
 
-        print(f"MP3 files:")
+        print("MP3 files:")
         for file in parameters.mp3:
             print(f"- {file.name}")
 

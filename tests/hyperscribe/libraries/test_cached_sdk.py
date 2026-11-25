@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
-from unittest.mock import patch, call, MagicMock
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, call, patch
 
-import hyperscribe.libraries.cached_sdk as cached_sdk
+from hyperscribe.libraries import cached_sdk
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
@@ -12,7 +12,7 @@ def test___init__(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=UTC)
     mock_datetime.now.side_effect = [date_0]
 
     tested = CachedSdk("theNoteUuid")
@@ -23,7 +23,7 @@ def test___init__(mock_datetime):
     assert tested.previous_instructions == []
     assert tested.previous_transcript == []
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
     reset_mocks()
 
@@ -36,8 +36,8 @@ def test_set_cycle(mock_datetime, cache_save):
         cache_save.reset_mock()
 
     dates = [
-        datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=timezone.utc),
-        datetime(2025, 6, 12, 14, 33, 32, 123456, tzinfo=timezone.utc),
+        datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=UTC),
+        datetime(2025, 6, 12, 14, 33, 32, 123456, tzinfo=UTC),
     ]
     mock_datetime.now.side_effect = dates
     tested = CachedSdk("theNoteUuid")
@@ -45,7 +45,7 @@ def test_set_cycle(mock_datetime, cache_save):
     assert tested.updated == dates[0]
     assert tested.cycle == 1
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
     assert cache_save.mock_calls == []
     reset_mocks()
@@ -55,7 +55,7 @@ def test_set_cycle(mock_datetime, cache_save):
     assert tested.updated == dates[1]
     assert tested.cycle == 5
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
     calls = [call()]
     assert cache_save.mock_calls == calls
@@ -67,7 +67,7 @@ def test_creation_day(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=UTC)
     mock_datetime.now.side_effect = [date_0]
 
     tested = CachedSdk("theNoteUuid")
@@ -75,7 +75,7 @@ def test_creation_day(mock_datetime):
     result = tested.creation_day()
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
     reset_mocks()
 
@@ -118,8 +118,8 @@ def test_save(get_cache):
     }
 
     tested = CachedSdk("theNoteUuid")
-    tested.created = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=timezone.utc)
-    tested.updated = datetime(2025, 6, 12, 14, 33, 37, 123456, tzinfo=timezone.utc)
+    tested.created = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=UTC)
+    tested.updated = datetime(2025, 6, 12, 14, 33, 37, 123456, tzinfo=UTC)
     tested.cycle = 7
     tested.previous_instructions = [
         Instruction(
@@ -173,8 +173,8 @@ def test_save(get_cache):
 
 def test_to_json():
     tested = CachedSdk("theNoteUuid")
-    tested.created = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=timezone.utc)
-    tested.updated = datetime(2025, 6, 12, 14, 33, 37, 123456, tzinfo=timezone.utc)
+    tested.created = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=UTC)
+    tested.updated = datetime(2025, 6, 12, 14, 33, 37, 123456, tzinfo=UTC)
     tested.cycle = 7
     tested.previous_instructions = [
         Instruction(
@@ -293,9 +293,9 @@ def test_get_discussion(get_cache, mock_datetime):
         Line(speaker="speaker2", text="other words", start=2.1, end=4.8),
     ]
 
-    date_0 = datetime(2025, 6, 12, 14, 33, 51, 123456, tzinfo=timezone.utc)
-    date_1 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=timezone.utc)
-    date_2 = datetime(2025, 6, 12, 14, 33, 37, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 6, 12, 14, 33, 51, 123456, tzinfo=UTC)
+    date_1 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=UTC)
+    date_2 = datetime(2025, 6, 12, 14, 33, 37, 123456, tzinfo=UTC)
 
     tested = CachedSdk
 
@@ -315,7 +315,7 @@ def test_get_discussion(get_cache, mock_datetime):
         calls = [call()]
         assert get_cache.mock_calls == calls
         calls = [
-            call.now(timezone.utc),
+            call.now(UTC),
             call.fromisoformat("2025-06-12T14:33:21.123456+00:00"),
             call.fromisoformat("2025-06-12T14:33:37.123456+00:00"),
         ]
@@ -335,7 +335,7 @@ def test_get_discussion(get_cache, mock_datetime):
 
         calls = [call()]
         assert get_cache.mock_calls == calls
-        calls = [call.now(timezone.utc)]
+        calls = [call.now(UTC)]
         assert mock_datetime.mock_calls == calls
         reset_mocks()
 
@@ -357,7 +357,7 @@ def test_get_discussion(get_cache, mock_datetime):
             calls = [call()]
             assert get_cache.mock_calls == calls
             calls = [
-                call.now(timezone.utc),
+                call.now(UTC),
                 call.fromisoformat("2025-06-12T14:33:21.123456+00:00"),
                 call.fromisoformat("2025-06-12T14:33:37.123456+00:00"),
             ]
@@ -378,14 +378,14 @@ def test_get_discussion(get_cache, mock_datetime):
 
             calls = [call()]
             assert get_cache.mock_calls == calls
-            calls = [call.now(timezone.utc)]
+            calls = [call.now(UTC)]
             assert mock_datetime.mock_calls == calls
             reset_mocks()
 
 
 def test_load_from_json():
-    date_1 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=timezone.utc)
-    date_2 = datetime(2025, 6, 12, 14, 33, 37, 123456, tzinfo=timezone.utc)
+    date_1 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=UTC)
+    date_2 = datetime(2025, 6, 12, 14, 33, 37, 123456, tzinfo=UTC)
     tested = CachedSdk
     result = tested.load_from_json(
         {

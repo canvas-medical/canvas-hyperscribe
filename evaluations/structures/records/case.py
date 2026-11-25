@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-from evaluations.structures.enums.case_status import CaseStatus
 from evaluations.structures.chart import Chart
+from evaluations.structures.enums.case_status import CaseStatus
 from hyperscribe.structures.line import Line
 
 

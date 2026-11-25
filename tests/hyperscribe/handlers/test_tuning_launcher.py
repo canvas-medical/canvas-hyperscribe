@@ -1,6 +1,6 @@
 import json
 from time import time
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
@@ -89,7 +89,6 @@ def test_visible(editable_note):
         ("no", "userId", "yes", False),
         ("no", "someId", "yes", False),
         ("no", "otherId", "yes", True),
-        #
         ("yes", "userId", "no", False),
         ("yes", "someId", "no", False),
         ("no", "otherId", "no", False),

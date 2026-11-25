@@ -92,7 +92,7 @@ class S3NoteCounts:
                 if customer:
                     customers.add(customer)
 
-        return sorted(list(customers))
+        return sorted(customers)
 
     @classmethod
     def _discover_all_dates(cls, s3_client: AwsS3, instance_name: str) -> list[str]:
@@ -117,7 +117,7 @@ class S3NoteCounts:
                 if len(date_str) == 10 and date_str[4] == "-" and date_str[7] == "-":
                     dates.add(date_str)
 
-        return sorted(list(dates))
+        return sorted(dates)
 
     @classmethod
     def _generate_date_range(
@@ -207,13 +207,13 @@ class S3NoteCounts:
 
         if not s3_client.is_ready():
             print("Error: AWS S3 credentials not properly configured.", file=sys.stderr)
-            print("", file=sys.stderr)
+            print(file=sys.stderr)
             print("Please set the required environment variables:", file=sys.stderr)
             print("  AwsKey - AWS access key ID", file=sys.stderr)
             print("  AwsSecret - AWS secret access key", file=sys.stderr)
             print("  AwsRegion - AWS region (e.g., 'us-east-1')", file=sys.stderr)
             print("  AwsBucketLogs - S3 bucket name containing log files", file=sys.stderr)
-            print("", file=sys.stderr)
+            print(file=sys.stderr)
             print("Or provide a combined JSON credential:", file=sys.stderr)
             print("  S3CredentialsLogs - JSON string with format:", file=sys.stderr)
             print('    {"key": "...", "secret": "...", "region": "...", "bucket": "..."}', file=sys.stderr)

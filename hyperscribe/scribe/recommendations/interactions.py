@@ -4,12 +4,11 @@ import json
 from typing import Any
 from urllib.parse import urlencode
 
-from logger import log
-
 from canvas_sdk.utils.http import ontologies_http
 from canvas_sdk.v1.data.allergy_intolerance import AllergyIntolerance
 from canvas_sdk.v1.data.medication import Medication
 from canvas_sdk.v1.data.note import Note
+from logger import log
 
 FDB_SYSTEM = "http://www.fdbhealth.com/"
 

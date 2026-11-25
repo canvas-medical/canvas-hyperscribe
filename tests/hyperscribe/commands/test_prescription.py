@@ -1,10 +1,11 @@
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 
 from hyperscribe.commands.base_prescription import BasePrescription
 from hyperscribe.commands.prescription import Prescription
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -15,7 +16,6 @@ from hyperscribe.structures.medication_detail_quantity import MedicationDetailQu
 from hyperscribe.structures.medication_search import MedicationSearch
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> Prescription:

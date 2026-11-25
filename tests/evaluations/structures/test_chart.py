@@ -1,4 +1,5 @@
 import pytest
+
 from evaluations.structures.chart import Chart
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.medication_cached import MedicationCached

@@ -1,12 +1,13 @@
-from hashlib import md5
 import json
-from unittest.mock import patch, call, MagicMock
+from hashlib import md5
+from unittest.mock import MagicMock, call, patch
 
 from canvas_sdk.commands.commands.vitals import VitalsCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.vitals import Vitals
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.template_permissions import TemplatePermissions
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
@@ -15,7 +16,6 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.template_permissions import TemplatePermissions
 
 
 def helper_instance() -> Vitals:
@@ -250,7 +250,6 @@ def test_command_parameters_schemas():
     assert len(schemas) == 1
     schema = schemas[0]
 
-    #
     schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
     expected_hash = "18ea6c7b52722f6137b4b2441e8371ec"
     assert schema_hash == expected_hash

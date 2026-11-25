@@ -100,7 +100,6 @@ class AuditorStore(AuditorBase):
         for instruction in instructions:
             content[self.cycle_key]["instructions"].append(instruction.to_json(False))
             content[self.cycle_key]["parameters"].append(instruction.parameters)
-        #
         self.upsert_json(label, content)
         return True
 
@@ -155,7 +154,7 @@ class AuditorStore(AuditorBase):
 
         # common commands
         cycles = self.get_json(Constants.PARAMETERS2COMMAND)
-        for cycle, content in cycles.items():
+        for content in cycles.values():
             for instruction, command in zip(content["instructions"], content["commands"]):
                 result[instruction["uuid"]] = {
                     "instruction": instruction["information"],
@@ -212,7 +211,7 @@ class AuditorStore(AuditorBase):
 
         # common commands
         cycles = self.get_json(Constants.PARAMETERS2COMMAND)
-        for cycle, content in cycles.items():
+        for content in cycles.values():
             for instruction in content["instructions"]:
                 result[instruction["uuid"]] = Instruction(
                     uuid=instruction["uuid"],
@@ -269,7 +268,7 @@ class AuditorStore(AuditorBase):
         return list(result.values())
 
     def generate_html_summary(self) -> Path:
-        template_file = Path(__file__).parent.parent / f"templates/summary.html"
+        template_file = Path(__file__).parent.parent / "templates/summary.html"
         data = json.dumps(self.summarized_generated_commands())
         with template_file.open("r") as source:
             with NamedTemporaryFile(delete=False, suffix=".html", mode="w") as target:

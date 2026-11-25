@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from canvas_sdk.clients.llms.structures import LlmResponse, LlmTokens
 from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 
@@ -20,10 +19,10 @@ from hyperscribe.scribe.recommendations.questionnaire_fill import (
     _apply_grounding_gate,
     build_fill_command_data,
     chunk_questions,
+    failure_kind,
     fill_chunk,
     fill_chunk_with_retry,
     fill_questionnaires,
-    failure_kind,
     resolve_questionnaire_definition,
 )
 from hyperscribe.scribe.recommendations.schemas import (

@@ -3,10 +3,9 @@ from __future__ import annotations
 import json
 from http import HTTPStatus
 
-from logger import log
-
 from canvas_sdk.clients.llms.libraries import LlmAnthropic
 from canvas_sdk.commands.commands.allergy import AllergenType
+from logger import log
 
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.scribe.backend.models import ClinicalNote, CommandProposal, NoteSection, Transcript

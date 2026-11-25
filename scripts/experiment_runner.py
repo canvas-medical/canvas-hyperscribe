@@ -1,11 +1,10 @@
 import json
 from argparse import ArgumentParser, Namespace
+from collections.abc import Generator
 from multiprocessing import Process, Queue
 from pathlib import Path
-from subprocess import Popen, PIPE
-from subprocess import run
+from subprocess import PIPE, Popen, run
 from tempfile import TemporaryDirectory
-from typing import Generator
 
 from evaluations.datastores.postgres.experiment import Experiment as ExperimentStore
 from evaluations.helper_evaluation import HelperEvaluation

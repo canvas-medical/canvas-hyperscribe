@@ -80,7 +80,6 @@ def test_tail_of():
         ),
     ]
     assert result == expected
-    #
     result = tested.tail_of(exchange, 33)
     expected = [
         Line(
@@ -91,6 +90,5 @@ def test_tail_of():
         )
     ]
     assert result == expected
-    #
     result = tested.tail_of(exchange, 330)
     assert result == exchange

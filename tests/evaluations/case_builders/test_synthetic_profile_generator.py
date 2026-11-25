@@ -1,10 +1,10 @@
 import hashlib
 import json
-import pytest
 import re
 from argparse import ArgumentParser
-from unittest.mock import MagicMock
-from unittest.mock import patch, call
+from unittest.mock import MagicMock, call, patch
+
+import pytest
 
 from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator
 from evaluations.structures.patient_profile import PatientProfile

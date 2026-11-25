@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from unittest.mock import patch, call
+from datetime import UTC, datetime
+from unittest.mock import call, patch
 
 from evaluations.datastores.postgres.experiment import Experiment
 from evaluations.datastores.postgres.postgres import Postgres
@@ -289,7 +289,7 @@ def test_upsert(select, alter, mock_datetime):
         alter.reset_mock()
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 10, 17, 14, 39, 4, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 10, 17, 14, 39, 4, 123456, tzinfo=UTC)
     record = Record(
         name="theName",
         hyperscribe_version="theVersion",
@@ -318,7 +318,7 @@ def test_upsert(select, alter, mock_datetime):
     result = tested.upsert(record)
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
 
     exp_sql = 'SELECT "id" FROM "experiment" WHERE "name"=%(name)s'
@@ -362,7 +362,7 @@ def test_upsert(select, alter, mock_datetime):
     result = tested.upsert(record)
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
 
     exp_sql = 'SELECT "id" FROM "experiment" WHERE "name"=%(name)s'
@@ -418,7 +418,7 @@ def test_add_case(select, alter, mock_datetime):
         alter.reset_mock()
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 10, 18, 6, 59, 43, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 10, 18, 6, 59, 43, 123456, tzinfo=UTC)
 
     tested = helper_instance()
     # the couple does not exist yet
@@ -430,7 +430,7 @@ def test_add_case(select, alter, mock_datetime):
     expected = 351
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
 
     exp_sql_select = (
@@ -466,7 +466,7 @@ def test_add_case(select, alter, mock_datetime):
     expected = 147
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
 
     assert len(select.mock_calls) == 1
@@ -487,7 +487,7 @@ def test_add_model(select, alter, mock_datetime):
         alter.reset_mock()
         mock_datetime.reset_mock()
 
-    date_0 = datetime(2025, 10, 18, 6, 59, 43, 123456, tzinfo=timezone.utc)
+    date_0 = datetime(2025, 10, 18, 6, 59, 43, 123456, tzinfo=UTC)
 
     tested = helper_instance()
     # the couple does not exist yet
@@ -499,7 +499,7 @@ def test_add_model(select, alter, mock_datetime):
     expected = 351
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
 
     exp_sql_select = (
@@ -546,7 +546,7 @@ def test_add_model(select, alter, mock_datetime):
     expected = 147
     assert result == expected
 
-    calls = [call.now(timezone.utc)]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
 
     assert len(select.mock_calls) == 1

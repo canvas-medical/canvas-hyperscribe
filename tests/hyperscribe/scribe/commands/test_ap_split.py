@@ -13,7 +13,6 @@ from hyperscribe.scribe.commands.ap_split import (
 from hyperscribe.scribe.commands.diagnosis_candidates import PatientConditionSnapshot
 from hyperscribe.structures.icd10_condition import Icd10Condition
 
-
 # --- parse_ap_blocks ---
 
 
@@ -283,7 +282,7 @@ def test_split_plan_into_diagnoses_no_icd_code() -> None:
         },
     ]
     section_conditions: dict[str, list[dict[str, object]]] = {"assessment_and_plan": []}
-    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    updated, _unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 1
     assert updated[0]["command_type"] == "diagnose"
     assert updated[0]["data"]["icd10_code"] is None
@@ -346,7 +345,7 @@ def test_split_plan_corresponding_note_problem() -> None:
             },
         ],
     }
-    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    updated, _unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 1
     assert updated[0]["data"]["icd10_code"] is None
     assert updated[0]["data"]["accepted"] is False
@@ -429,7 +428,7 @@ def test_split_plan_corresponding_note_problem_prevents_wrong_match() -> None:
             },
         ],
     }
-    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    updated, _unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 2
     # Diarrhea surfaces R19.7, NOT D86.9
     assert updated[0]["data"]["icd10_code"] is None
@@ -457,7 +456,7 @@ def test_split_plan_corresponding_note_problem_case_insensitive() -> None:
             },
         ],
     }
-    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    updated, _unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 1
     assert updated[0]["data"]["icd10_code"] is None
     assert updated[0]["data"]["candidate_suggestions"][0]["formatted_code"] == "J06.9"
@@ -481,7 +480,7 @@ def test_split_plan_corresponding_note_problem_strips_whitespace() -> None:
             },
         ],
     }
-    updated, unmatched = split_plan_into_diagnoses(commands, section_conditions)
+    updated, _unmatched = split_plan_into_diagnoses(commands, section_conditions)
     assert len(updated) == 1
     assert updated[0]["data"]["icd10_code"] is None
     assert updated[0]["data"]["candidate_suggestions"][0]["formatted_code"] == "R51.9"

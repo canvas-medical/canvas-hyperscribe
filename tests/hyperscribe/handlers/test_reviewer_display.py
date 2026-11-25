@@ -1,13 +1,13 @@
 import json
 import re
-from datetime import timezone, datetime
-from unittest.mock import patch, call
+from datetime import UTC, datetime
+from unittest.mock import call, patch
 
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.effects.simple_api import HTMLResponse
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
-from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
+from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
 from canvas_sdk.v1.data import Patient
 
 from hyperscribe.handlers.reviewer_display import ReviewerDisplay
@@ -92,7 +92,7 @@ def test_get(aws_s3, render_to_string):
         region="theRegion",
         bucket="theBucketLogs",
     )
-    a_date = datetime(2025, 5, 8, 7, 11, 45, tzinfo=timezone.utc)
+    a_date = datetime(2025, 5, 8, 7, 11, 45, tzinfo=UTC)
 
     tested = helper_instance()
     tested.request.query_params = {"note_id": "theNoteId"}

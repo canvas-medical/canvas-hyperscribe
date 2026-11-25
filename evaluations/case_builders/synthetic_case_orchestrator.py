@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Tuple
 
 from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGenerator
 from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator
@@ -27,7 +26,7 @@ class SyntheticCaseOrchestrator:
         self,
         batches: int,
         batch_size: int,
-    ) -> list[Tuple[CaseRecord, SyntheticCaseRecord]]:
+    ) -> list[tuple[CaseRecord, SyntheticCaseRecord]]:
         """
         Generate synthetic cases in memory and return a list of tuples:
         (CaseRecord, SyntheticCaseRecord).
@@ -43,7 +42,7 @@ class SyntheticCaseOrchestrator:
         chart_generator = SyntheticChartGenerator(profiles=all_profiles)
         transcript_generator = SyntheticTranscriptGenerator(profiles=all_profiles)
 
-        results: list[Tuple[CaseRecord, SyntheticCaseRecord]] = []
+        results: list[tuple[CaseRecord, SyntheticCaseRecord]] = []
 
         for profile_index, patient_profile in enumerate(all_profiles, start=1):
             print(f"\n Generating for '{patient_profile.name}' (#{profile_index})")
@@ -53,7 +52,6 @@ class SyntheticCaseOrchestrator:
                 patient_profile
             )
 
-            #
             transcript_cycles = HelperEvaluation.split_lines_into_cycles(transcript_line_objects)
 
             # case_record and synthetic_record setup with proper fields via profile_index

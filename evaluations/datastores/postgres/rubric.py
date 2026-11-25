@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import LiteralString, cast
 
 from evaluations.datastores.postgres.postgres import Postgres
@@ -99,9 +99,8 @@ class Rubric(Postgres):
                 text_llm_name=rubric.text_llm_name,
                 temperature=rubric.temperature,
             )
-        else:
-            # Insert new record using the insert method
-            return self.insert(rubric)
+        # Insert new record using the insert method
+        return self.insert(rubric)
 
     def get_rubric(self, rubric_id: int) -> list[dict]:
         """Get the rubric content for a given rubric ID."""

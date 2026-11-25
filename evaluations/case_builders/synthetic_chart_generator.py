@@ -3,7 +3,7 @@ import json
 import re
 import uuid
 from pathlib import Path
-from typing import Any, Tuple, cast
+from typing import Any, cast
 
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
@@ -145,9 +145,9 @@ class SyntheticChartGenerator:
 
     @classmethod
     def assign_valid_uuids(cls, obj: Any) -> Any:
-        stack: list[Tuple[Any, Any]] = [(None, obj)]
+        stack: list[tuple[Any, Any]] = [(None, obj)]
         while stack:
-            parent, current = stack.pop()
+            _parent, current = stack.pop()
             if isinstance(current, dict):
                 for k, v in current.items():
                     if k.lower() == "uuid":

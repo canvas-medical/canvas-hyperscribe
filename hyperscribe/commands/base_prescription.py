@@ -1,7 +1,7 @@
 import json
 
 from canvas_sdk.commands import AdjustPrescriptionCommand
-from canvas_sdk.commands.commands.prescribe import PrescribeCommand, Decimal
+from canvas_sdk.commands.commands.prescribe import Decimal, PrescribeCommand
 from canvas_sdk.commands.constants import ClinicalQuantity
 
 from hyperscribe.commands.base import Base

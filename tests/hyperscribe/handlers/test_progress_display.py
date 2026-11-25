@@ -1,15 +1,15 @@
 import json
 import re
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from http import HTTPStatus
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.effects.simple_api import JSONResponse
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
-from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
+from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
 from canvas_sdk.v1.data import Patient
 
 from hyperscribe.handlers.progress_display import ProgressDisplay
@@ -85,7 +85,7 @@ def test_get(get_cache, mock_datetime):
         get_cache.reset_mock()
         mock_datetime.reset_mock()
 
-    a_date = datetime(2025, 5, 15, 21, 6, 21, tzinfo=timezone.utc)
+    a_date = datetime(2025, 5, 15, 21, 6, 21, tzinfo=UTC)
 
     tested = helper_instance()
 
@@ -207,7 +207,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         authenticator.reset_mock()
         mock_datetime.reset_mock()
 
-    a_date = datetime(2025, 5, 15, 11, 17, 31, tzinfo=timezone.utc)
+    a_date = datetime(2025, 5, 15, 11, 17, 31, tzinfo=UTC)
 
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
