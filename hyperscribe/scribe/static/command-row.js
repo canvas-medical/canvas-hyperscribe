@@ -56,6 +56,11 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly, 
     }
   }, [editing]);
 
+  const openEditor = () => {
+    setValue(field ? (command.data[field] || '') : '');
+    setEditing(true);
+  };
+
   const handleSave = () => {
     onEdit(commandIndex, { ...command.data, [field]: value });
     setEditing(false);
@@ -109,7 +114,7 @@ export function CommandRow({ command, commandIndex, onEdit, onDelete, readOnly, 
     <${Fragment}>
       <div
         class="command-row${dictating ? ' dictating' : ''}"
-        onClick=${() => !readOnly && !dictating && setEditing(true)}
+        onClick=${() => !readOnly && !dictating && openEditor()}
       >
         ${command.display
           ? html`<span class="command-row-text">${command.display}</span>`
