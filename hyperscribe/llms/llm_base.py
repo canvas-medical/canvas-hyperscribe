@@ -30,6 +30,7 @@ class LlmBase:
         self.temperature = 0.0
         self.prompts: list[LlmTurn] = []
         self.audios: list[dict] = []
+        self.audio_quality_warnings: list[str] = []
 
     def support_speaker_identification(self) -> bool:
         raise NotImplementedError()
