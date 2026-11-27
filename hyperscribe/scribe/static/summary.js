@@ -3893,6 +3893,11 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
         <div class="summary-generate-banner">
           <p class="summary-banner-description">Recording complete. Generate a structured summary from your transcript.</p>
           <button class="generate-btn" onClick=${handleGenerate} disabled=${!canEdit}>Generate Summary</button>
+          ${error && html`
+            <button class="start-manual-btn" data-action="switch-to-manual" onClick=${() => { setError(null); handleStartManual(); }} disabled=${!canEdit || !selectedTemplate}>
+              Switch to manual
+            </button>
+          `}
         </div>
       `}
       ${error && html`<p class="error" style="padding: 0 16px;">${error}</p>`}
