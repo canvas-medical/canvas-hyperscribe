@@ -14,6 +14,7 @@ import { connectScribeWS } from '/plugin-io/api/hyperscribe/scribe/static/scribe
 import { FinishRecordingButton } from '/plugin-io/api/hyperscribe/scribe/static/finish-button.js';
 import { canSignCharges, MAX_POINTERS, MAX_MODIFIERS } from '/plugin-io/api/hyperscribe/scribe/static/charge-matrix.js';
 import { unsavedEditsMessage, findOpenEditors, sectionTitleFor, scrollToEditor } from '/plugin-io/api/hyperscribe/scribe/static/utils/unsaved-edits.js';
+import { deriveDiagnoseAccepted } from '/plugin-io/api/hyperscribe/scribe/static/utils/diagnose-accepted.js';
 
 const html = htm.bind(h);
 
@@ -610,7 +611,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
   const [noteData, setNoteData] = useState(initSummary?.note ?? null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
-  const [commands, setCommands] = useState(initSummary?.commands ?? []);
+  const [commands, setCommands] = useState(() => deriveDiagnoseAccepted(initSummary?.commands ?? []));
   const [inserting, setInserting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [approved, setApproved] = useState(initSummary?.approved ?? false);
@@ -1376,7 +1377,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           if (cached.note) {
             // Full cached summary — restore everything.
             setNoteData(cached.note);
-            setCommands(cached.commands || []);
+            setCommands(deriveDiagnoseAccepted(cached.commands || []));
             // KOALA_5634_RECOMMENDATIONS_REF: commitRecommendations() primes the
             // ref synchronously before the syncNoteCommands() call in the `finally`
             // block fires. Without that prime, a fetched command_uuid that belongs
@@ -1402,7 +1403,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
           }
           // Cache without note — restore ad-hoc commands and mode.
           if (cached.commands && cached.commands.length > 0) {
-            setCommands(cached.commands);
+            setCommands(deriveDiagnoseAccepted(cached.commands));
             logEvent('CACHE_LOADED', { hasNote: false, commandCount: cached.commands.length });
           }
         }
@@ -2922,7 +2923,7 @@ export function Scribe({ noteId, patientId, staffId, staffName, providerName, pr
       // can be approved. The provider either codes it (via the picker) or rejects
       // it. A coded diagnose that matched an active problem has already flipped to
       // `assess` upstream (which is exempt — it carries condition_id, not a code).
-      if (c.command_type === 'diagnose' && !(c.data && c.data.icd10_code) && !(c.data && c.data.rejected)) return false;
+      if (c.command_type === 'diagnose' && !(c.data && c.data.rejected) && !(c.data && c.data.icd10_code && c.data.accepted)) return false;
       // A dismissed existing-condition card must not reach the chart either. The assess ✕ now
       // marks `data.rejected` (recoverable) instead of deleting the row, so unlike before there
       // can be dismissed assess commands still present in `commands` at insert time.
